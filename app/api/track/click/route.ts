@@ -3,15 +3,27 @@ import { recordClick } from "@/lib/dal/affiliate-clicks";
 import { getProductBySlug } from "@/lib/dal/products";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 
+const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
+
+function isValidDestination(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return ALLOWED_PROTOCOLS.has(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(request: NextRequest) {
+  const siteId = getSiteIdFromHeader(request.headers.get("x-site-id"));
+
   const { searchParams } = request.nextUrl;
-  const siteId = searchParams.get("s");
   const productSlug = searchParams.get("p");
   const destination = searchParams.get("d");
 
-  if (!siteId || !productSlug || !destination) {
+  if (!productSlug || !destination) {
     return NextResponse.json(
-      { error: "Missing required parameters: s, p, d" },
+      { error: "Missing required parameters: p, d" },
       { status: 400 },
     );
   }
@@ -22,6 +34,14 @@ export async function GET(request: NextRequest) {
     destinationUrl = Buffer.from(destination, "base64").toString("utf-8");
   } catch {
     return NextResponse.json({ error: "Invalid destination" }, { status: 400 });
+  }
+
+  // Validate destination is a safe http(s) URL
+  if (!isValidDestination(destinationUrl)) {
+    return NextResponse.json(
+      { error: "Destination must be an http or https URL" },
+      { status: 400 },
+    );
   }
 
   // Validate product exists for this site
@@ -57,6 +77,3 @@ async function hashIp(ip: string): Promise<string> {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
-
-// Suppress unused import warning — getSiteIdFromHeader is available for future use
-void getSiteIdFromHeader;
