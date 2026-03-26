@@ -2,64 +2,49 @@ import type { ProductRow } from "@/types/database";
 
 interface ProductCardProps {
   product: ProductRow;
-  siteId: string;
+  sourceType?: string;
+  ctaLabel?: string;
 }
 
-function buildTrackingUrl(product: ProductRow): string {
-  const dest = Buffer.from(product.affiliate_url).toString("base64");
-  return `/api/track/click?p=${encodeURIComponent(product.slug)}&d=${encodeURIComponent(dest)}&t=product-card`;
-}
-
-export function ProductCard({ product }: ProductCardProps) {
-  const trackUrl = product.affiliate_url
-    ? buildTrackingUrl(product)
-    : "#";
+export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal" }: ProductCardProps) {
+  const destination = Buffer.from(product.affiliate_url).toString("base64");
+  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&d=${encodeURIComponent(destination)}&t=${sourceType}`;
 
   return (
-    <div className="flex flex-col rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
       {product.image_url && (
-        <div className="mb-3 flex h-32 items-center justify-center overflow-hidden rounded bg-gray-100">
+        <div className="mb-3 overflow-hidden rounded-md">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={product.image_url}
             alt={product.name}
-            className="h-full w-full object-contain"
+            className="h-40 w-full object-contain"
           />
         </div>
       )}
-
-      <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>
-
-      {product.description && (
-        <p className="mt-1 line-clamp-2 text-xs text-gray-500">{product.description}</p>
+      <h3 className="mb-1 text-lg font-semibold leading-tight">{product.name}</h3>
+      {product.merchant && (
+        <p className="mb-1 text-sm text-gray-500">{product.merchant}</p>
       )}
-
-      <div className="mt-auto flex items-center justify-between pt-3">
-        <div className="flex items-center gap-2">
-          {product.price && (
-            <span className="text-sm font-medium text-gray-900">{product.price}</span>
-          )}
-          {product.score !== null && (
-            <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
-              {product.score}/10
-            </span>
-          )}
-        </div>
-
-        {product.affiliate_url && (
-          <a
-            href={trackUrl}
-            className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors"
-            style={{ backgroundColor: "var(--color-accent)" }}
-            rel="nofollow noopener"
-          >
-            View Deal
-          </a>
+      <div className="mb-3 flex items-center gap-3">
+        {product.price && (
+          <span className="text-lg font-bold text-emerald-600">{product.price}</span>
+        )}
+        {product.score !== null && (
+          <span className="rounded bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-800">
+            {product.score}/10
+          </span>
         )}
       </div>
-
-      {product.merchant && (
-        <p className="mt-2 text-xs text-gray-400">via {product.merchant}</p>
+      {product.affiliate_url && (
+        <a
+          href={trackUrl}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="block w-full rounded-md bg-emerald-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+        >
+          {ctaLabel}
+        </a>
       )}
     </div>
   );
