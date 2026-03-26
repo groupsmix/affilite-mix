@@ -1,4 +1,6 @@
 import { getCurrentSite } from "@/lib/site-context";
+import { SiteHeader } from "./components/site-header";
+import { SiteFooter } from "./components/site-footer";
 
 export default async function PublicLayout({
   children,
@@ -19,11 +21,11 @@ export default async function PublicLayout({
       lang={site.language}
       dir={site.direction}
       style={cssVars}
-      className="min-h-screen"
+      className="flex min-h-screen flex-col"
     >
-      {/* Header placeholder — Phase B/C */}
-      <main>{children}</main>
-      {/* Footer placeholder — Phase B/C */}
+      <SiteHeader site={site} />
+      <main className="flex-1">{children}</main>
+      <SiteFooter site={site} />
     </div>
   );
 }
