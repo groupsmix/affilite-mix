@@ -1,7 +1,9 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { getCategoryBySlug, listCategories } from "@/lib/dal/categories";
 import { listContent } from "@/lib/dal/content";
+import { listActiveProducts } from "@/lib/dal/products";
 import { ContentCard } from "../../components/content-card";
+import { ProductCard } from "../../components/product-card";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -17,12 +19,12 @@ export async function generateMetadata({
   const category = await getCategoryBySlug(site.id, slug);
 
   if (!category) {
-    return { title: "غير موجود" };
+    return { title: "Not Found" };
   }
 
   return {
     title: `${category.name} — ${site.name}`,
-    description: category.description || `تصفح محتوى ${category.name}`,
+    description: category.description || `Browse ${category.name} on ${site.name}`,
     alternates: {
       canonical: `/category/${category.slug}`,
     },
@@ -38,12 +40,18 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  const content = await listContent({
-    siteId: site.id,
-    categoryId: category.id,
-    status: "published",
-    limit: 20,
-  });
+  const [content, products] = await Promise.all([
+    listContent({
+      siteId: site.id,
+      categoryId: category.id,
+      status: "published",
+      limit: 20,
+    }),
+    listActiveProducts(site.id, slug),
+  ]);
+
+  const locale = site.language === "ar" ? "ar-SA" : "en-US";
+  const ctaLabel = site.language === "ar" ? "احصل على العرض" : "View Deal";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -54,17 +62,39 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         )}
       </header>
 
+      {/* Products */}
+      {products.length > 0 && (
+        <section className="mb-12">
+          <h2 className="mb-4 text-xl font-bold">{site.productLabelPlural}</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                sourceType="category"
+                ctaLabel={ctaLabel}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Content */}
       {content.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {content.map((item) => (
-            <ContentCard key={item.id} content={item} />
+            <ContentCard key={item.id} content={item} locale={locale} />
           ))}
         </div>
-      ) : (
+      ) : products.length === 0 ? (
         <div className="py-16 text-center text-gray-400">
-          <p className="text-lg">لا يوجد محتوى في هذا التصنيف بعد</p>
+          <p className="text-lg">
+            {site.language === "ar"
+              ? "لا يوجد محتوى في هذا التصنيف بعد"
+              : "No content in this category yet"}
+          </p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
