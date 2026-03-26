@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
-import { listFeaturedProducts } from "@/lib/dal/products";
 import { getRecentContent } from "@/lib/dal/content";
+import { listFeaturedProducts } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
-import { ProductCard } from "./components/product-card";
 import { ContentCard } from "./components/content-card";
+import { ProductCard } from "./components/product-card";
 import Link from "next/link";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -12,32 +12,34 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `${site.name} — ${site.brand.niche}`,
     description: site.brand.description,
-    alternates: { canonical: `https://${site.domain}/` },
+    alternates: {
+      canonical: "/",
+    },
   };
 }
 
 export default async function HomePage() {
   const site = await getCurrentSite();
-  const [featuredProducts, recentContent, categories] = await Promise.all([
-    listFeaturedProducts(site.id, 6),
+  const [recentContent, featuredProducts, categories] = await Promise.all([
     getRecentContent(site.id, 6),
+    listFeaturedProducts(site.id, 6),
     listCategories(site.id),
   ]);
 
+  const locale = site.language === "ar" ? "ar-SA" : "en-US";
+  const ctaLabel = site.language === "ar" ? "احصل على العرض" : "View Deal";
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-8">
       {/* Hero */}
       <section className="mb-12 text-center">
-        <h1 className="mb-3 text-4xl font-bold text-gray-900">{site.name}</h1>
-        <p className="mx-auto max-w-2xl text-lg text-gray-600">
-          {site.brand.description}
-        </p>
+        <h1 className="mb-3 text-4xl font-bold">{site.name}</h1>
+        <p className="text-lg text-gray-600">{site.brand.description}</p>
       </section>
 
       {/* Categories */}
       {categories.length > 0 && (
         <section className="mb-12">
-          <h2 className="mb-4 text-2xl font-bold text-gray-900">Categories</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {categories.map((cat) => (
               <Link
@@ -58,12 +60,17 @@ export default async function HomePage() {
       {/* Featured Products */}
       {featuredProducts.length > 0 && (
         <section className="mb-12">
-          <h2 className="mb-4 text-2xl font-bold text-gray-900">
-            Featured {site.productLabelPlural}
+          <h2 className="mb-6 text-2xl font-bold">
+            {site.productLabelPlural}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} siteId={site.id} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                sourceType="homepage"
+                ctaLabel={ctaLabel}
+              />
             ))}
           </div>
         </section>
@@ -72,19 +79,25 @@ export default async function HomePage() {
       {/* Recent Content */}
       {recentContent.length > 0 && (
         <section className="mb-12">
-          <h2 className="mb-4 text-2xl font-bold text-gray-900">Latest Content</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {recentContent.map((item) => (
-              <ContentCard key={item.id} content={item} />
+          <h2 className="mb-6 text-2xl font-bold">
+            {site.language === "ar" ? "أحدث المحتوى" : "Latest Content"}
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {recentContent.map((content) => (
+              <ContentCard key={content.id} content={content} locale={locale} />
             ))}
           </div>
         </section>
       )}
 
-      {/* Affiliate Disclosure */}
-      <div className="rounded-lg bg-gray-50 p-4 text-center text-xs text-gray-400">
-        {site.affiliateDisclosure}
-      </div>
+      {/* Empty state */}
+      {recentContent.length === 0 && featuredProducts.length === 0 && (
+        <div className="py-16 text-center text-gray-400">
+          <p className="text-lg">
+            {site.language === "ar" ? "لا يوجد محتوى بعد" : "No content yet"}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

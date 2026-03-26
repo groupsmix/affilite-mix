@@ -42,7 +42,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
           </span>
           {content.published_at && (
             <time dateTime={content.published_at}>
-              {new Date(content.published_at).toLocaleDateString("en-US", {
+              {new Date(content.published_at).toLocaleDateString(site.language === "ar" ? "ar-SA" : "en-US", {
                 month: "long",
                 day: "numeric",
                 year: "numeric",
@@ -105,7 +105,8 @@ export default async function ContentPage({ params }: ContentPageProps) {
               <ProductCard
                 key={lp.product_id}
                 product={lp.product}
-                siteId={site.id}
+                sourceType="linked"
+                ctaLabel={site.language === "ar" ? "احصل على العرض" : "View Deal"}
               />
             ))}
           </div>
