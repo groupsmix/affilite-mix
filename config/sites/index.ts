@@ -1,10 +1,11 @@
 import type { SiteDefinition } from "../site-definition";
 import { arabicToolsSite } from "./arabic-tools";
+import { cryptoToolsSite } from "./crypto-tools";
 
-export { arabicToolsSite };
+export { arabicToolsSite, cryptoToolsSite };
 
 /** All registered sites. Add new sites here. */
-export const allSites: SiteDefinition[] = [arabicToolsSite];
+export const allSites: SiteDefinition[] = [arabicToolsSite, cryptoToolsSite];
 
 /** Lookup site by id */
 export function getSiteById(id: string): SiteDefinition | undefined {
