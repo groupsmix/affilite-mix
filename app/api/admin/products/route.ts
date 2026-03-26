@@ -47,7 +47,6 @@ export async function POST(request: NextRequest) {
     merchant: body.merchant ?? "",
     score: body.score ?? null,
     is_featured: body.is_featured ?? false,
-    is_active: body.is_active ?? true,
     status: body.status ?? "active",
     category_id: body.category_id ?? null,
     metadata: body.metadata ?? {},
