@@ -3,9 +3,10 @@ import type { ProductRow } from "@/types/database";
 interface ProductCardProps {
   product: ProductRow;
   sourceType?: string;
+  ctaLabel?: string;
 }
 
-export function ProductCard({ product, sourceType = "content" }: ProductCardProps) {
+export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal" }: ProductCardProps) {
   const destination = Buffer.from(product.affiliate_url).toString("base64");
   const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&d=${encodeURIComponent(destination)}&t=${sourceType}`;
 
@@ -35,14 +36,16 @@ export function ProductCard({ product, sourceType = "content" }: ProductCardProp
           </span>
         )}
       </div>
-      <a
-        href={trackUrl}
-        target="_blank"
-        rel="noopener noreferrer nofollow"
-        className="block w-full rounded-md bg-emerald-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-      >
-        احصل على العرض
-      </a>
+      {product.affiliate_url && (
+        <a
+          href={trackUrl}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="block w-full rounded-md bg-emerald-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+        >
+          {ctaLabel}
+        </a>
+      )}
     </div>
   );
 }

@@ -3,9 +3,10 @@ import Link from "next/link";
 
 interface ContentCardProps {
   content: ContentRow;
+  locale?: string;
 }
 
-export function ContentCard({ content }: ContentCardProps) {
+export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
   const href = `/${content.content_type}/${content.slug}`;
 
   return (
@@ -32,7 +33,7 @@ export function ContentCard({ content }: ContentCardProps) {
         <span>{content.content_type}</span>
         {content.published_at && (
           <time dateTime={content.published_at}>
-            {new Date(content.published_at).toLocaleDateString("ar-SA")}
+            {new Date(content.published_at).toLocaleDateString(locale)}
           </time>
         )}
       </div>
