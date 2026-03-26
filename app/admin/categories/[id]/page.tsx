@@ -1,5 +1,6 @@
 import { requireAdminSession } from "../../components/admin-guard";
 import { getCategoryById } from "@/lib/dal/categories";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { notFound } from "next/navigation";
 import { CategoryForm } from "../category-form";
 
@@ -10,7 +11,8 @@ export default async function EditCategoryPage({
 }) {
   const session = await requireAdminSession();
   const { id } = await params;
-  const category = await getCategoryById(session.siteId, id);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const category = await getCategoryById(dbSiteId, id);
 
   if (!category) notFound();
 

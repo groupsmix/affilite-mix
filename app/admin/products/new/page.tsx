@@ -1,10 +1,12 @@
 import { requireAdminSession } from "../../components/admin-guard";
 import { listCategories } from "@/lib/dal/categories";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { ProductForm } from "../product-form";
 
 export default async function NewProductPage() {
   const session = await requireAdminSession();
-  const categories = await listCategories(session.siteId);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const categories = await listCategories(dbSiteId);
 
   return (
     <div className="mx-auto max-w-4xl">

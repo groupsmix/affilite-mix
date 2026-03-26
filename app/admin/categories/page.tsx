@@ -1,11 +1,13 @@
 import { requireAdminSession } from "../components/admin-guard";
 import { listCategories } from "@/lib/dal/categories";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import Link from "next/link";
 import { CategoryDeleteButton } from "./category-delete-button";
 
 export default async function CategoriesPage() {
   const session = await requireAdminSession();
-  const categories = await listCategories(session.siteId);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const categories = await listCategories(dbSiteId);
 
   return (
     <div className="mx-auto max-w-4xl">

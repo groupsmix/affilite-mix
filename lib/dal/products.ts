@@ -25,7 +25,7 @@ export async function listProducts(
 
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
   if (opts.status) query = query.eq("status", opts.status);
-  if (opts.featured !== undefined) query = query.eq("is_featured", opts.featured);
+  if (opts.featured !== undefined) query = query.eq("featured", opts.featured);
   if (opts.limit) query = query.limit(opts.limit);
   if (opts.offset) query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
 
@@ -70,7 +70,7 @@ export async function getProductBySlug(
 
 /** Create a product */
 export async function createProduct(
-  input: Omit<ProductRow, "id" | "created_at" | "updated_at">,
+  input: Omit<ProductRow, "id" | "created_at">,
 ): Promise<ProductRow> {
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
@@ -83,7 +83,7 @@ export async function updateProduct(
   siteId: string,
   id: string,
   input: Partial<
-    Omit<ProductRow, "id" | "site_id" | "created_at" | "updated_at">
+    Omit<ProductRow, "id" | "site_id" | "created_at">
   >,
 ): Promise<ProductRow> {
   const sb = getServiceClient();
@@ -146,7 +146,7 @@ export async function listFeaturedProducts(
     .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
-    .eq("is_featured", true)
+    .eq("featured", true)
     .eq("status", "active")
     .order("score", { ascending: false, nullsFirst: false })
     .limit(limit);

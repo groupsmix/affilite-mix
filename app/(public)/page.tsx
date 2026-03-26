@@ -48,9 +48,6 @@ export default async function HomePage() {
                 className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
               >
                 <h3 className="font-semibold text-gray-900">{cat.name}</h3>
-                {cat.description && (
-                  <p className="mt-1 text-sm text-gray-500">{cat.description}</p>
-                )}
               </Link>
             ))}
           </div>

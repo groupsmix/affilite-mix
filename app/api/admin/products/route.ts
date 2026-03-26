@@ -6,6 +6,7 @@ import {
   updateProduct,
   deleteProduct,
 } from "@/lib/dal/products";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 
 async function requireAdmin() {
   const session = await getAdminSession();
@@ -19,9 +20,10 @@ export async function GET(request: NextRequest) {
   const { error, session } = await requireAdmin();
   if (error) return error;
 
+  const dbSiteId = await resolveDbSiteId(session.siteId);
   const { searchParams } = request.nextUrl;
   const products = await listProducts({
-    siteId: session.siteId,
+    siteId: dbSiteId,
     categoryId: searchParams.get("category_id") ?? undefined,
     status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
     limit: searchParams.get("limit") ? Number(searchParams.get("limit")) : undefined,
@@ -36,8 +38,9 @@ export async function POST(request: NextRequest) {
   if (error) return error;
 
   const body = await request.json();
+  const dbSiteId = await resolveDbSiteId(session.siteId);
   const product = await createProduct({
-    site_id: session.siteId,
+    site_id: dbSiteId,
     name: body.name,
     slug: body.slug,
     description: body.description ?? "",
@@ -46,10 +49,9 @@ export async function POST(request: NextRequest) {
     price: body.price ?? "",
     merchant: body.merchant ?? "",
     score: body.score ?? null,
-    is_featured: body.is_featured ?? false,
+    featured: body.is_featured ?? body.featured ?? false,
     status: body.status ?? "active",
     category_id: body.category_id ?? null,
-    metadata: body.metadata ?? {},
   });
 
   return NextResponse.json(product, { status: 201 });
@@ -65,7 +67,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const product = await updateProduct(session.siteId, id, updates);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const product = await updateProduct(dbSiteId, id, updates);
   return NextResponse.json(product);
 }
 
@@ -79,6 +82,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  await deleteProduct(session.siteId, id);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  await deleteProduct(dbSiteId, id);
   return NextResponse.json({ ok: true });
 }

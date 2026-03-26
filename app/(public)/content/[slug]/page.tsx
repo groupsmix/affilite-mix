@@ -17,8 +17,8 @@ export async function generateMetadata({ params }: ContentPageProps): Promise<Me
   if (!content) return { title: "Content Not Found" };
 
   return {
-    title: content.meta_title || `${content.title} — ${site.name}`,
-    description: content.meta_description || content.excerpt || content.title,
+    title: `${content.title} — ${site.name}`,
+    description: content.excerpt || content.title,
     alternates: { canonical: `https://${site.domain}/content/${slug}` },
   };
 }
@@ -38,11 +38,11 @@ export default async function ContentPage({ params }: ContentPageProps) {
       <header className="mb-8">
         <div className="mb-3 flex items-center gap-2 text-sm text-gray-400">
           <span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
-            {content.content_type}
+            {content.type}
           </span>
-          {content.published_at && (
-            <time dateTime={content.published_at}>
-              {new Date(content.published_at).toLocaleDateString(site.language === "ar" ? "ar-SA" : "en-US", {
+          {content.updated_at && (
+            <time dateTime={content.updated_at}>
+              {new Date(content.updated_at).toLocaleDateString(site.language === "ar" ? "ar-SA" : "en-US", {
                 month: "long",
                 day: "numeric",
                 year: "numeric",
@@ -58,17 +58,6 @@ export default async function ContentPage({ params }: ContentPageProps) {
           <p className="mt-3 text-lg text-gray-600">{content.excerpt}</p>
         )}
       </header>
-
-      {content.featured_image && (
-        <div className="mb-8 overflow-hidden rounded-lg">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={content.featured_image}
-            alt={content.title}
-            className="w-full object-cover"
-          />
-        </div>
-      )}
 
       {/* Content disclosure */}
       <div className="mb-6 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">

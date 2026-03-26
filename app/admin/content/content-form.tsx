@@ -23,12 +23,9 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
   const [slug, setSlug] = useState(content?.slug ?? "");
   const [body, setBody] = useState(content?.body ?? "");
   const [excerpt, setExcerpt] = useState(content?.excerpt ?? "");
-  const [contentType, setContentType] = useState(content?.content_type ?? "article");
+  const [contentType, setContentType] = useState(content?.type ?? "article");
   const [status, setStatus] = useState(content?.status ?? "draft");
   const [categoryId, setCategoryId] = useState(content?.category_id ?? "");
-  const [featuredImage, setFeaturedImage] = useState(content?.featured_image ?? "");
-  const [metaTitle, setMetaTitle] = useState(content?.meta_title ?? "");
-  const [metaDescription, setMetaDescription] = useState(content?.meta_description ?? "");
   const [tagsStr, setTagsStr] = useState((content?.tags ?? []).join(", "));
   const [author, setAuthor] = useState(content?.author ?? "");
   const [saving, setSaving] = useState(false);
@@ -36,13 +33,11 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
 
   // Product linker state
   const [links, setLinks] = useState<
-    { product_id: string; position: number; role: string; custom_aff_url: string | null }[]
+    { product_id: string; role: string }[]
   >(
     linkedProducts?.map((lp) => ({
       product_id: lp.product_id,
-      position: lp.position,
       role: lp.role,
-      custom_aff_url: lp.custom_aff_url,
     })) ?? []
   );
 
@@ -68,15 +63,11 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
       slug,
       body,
       excerpt,
-      content_type: contentType,
+      type: contentType,
       status,
       category_id: categoryId || null,
-      featured_image: featuredImage || null,
-      meta_title: metaTitle || null,
-      meta_description: metaDescription || null,
       tags,
       author: author || null,
-      published_at: status === "published" ? new Date().toISOString() : content?.published_at ?? null,
     };
 
     const res = isEdit
@@ -234,37 +225,6 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
         </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Featured Image URL</label>
-          <input
-            type="url"
-            value={featuredImage}
-            onChange={(e) => setFeaturedImage(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Meta Title</label>
-          <input
-            type="text"
-            value={metaTitle}
-            onChange={(e) => setMetaTitle(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Meta Description</label>
-        <textarea
-          value={metaDescription}
-          onChange={(e) => setMetaDescription(e.target.value)}
-          rows={2}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
       </div>
 
       {/* Product Linker */}

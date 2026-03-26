@@ -14,7 +14,6 @@ export function CategoryForm({ category }: CategoryFormProps) {
 
   const [name, setName] = useState(category?.name ?? "");
   const [slug, setSlug] = useState(category?.slug ?? "");
-  const [description, setDescription] = useState(category?.description ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,7 +29,7 @@ export function CategoryForm({ category }: CategoryFormProps) {
     setSaving(true);
     setError("");
 
-    const payload = { name, slug, description };
+    const payload = { name, slug };
 
     const res = isEdit
       ? await fetch("/api/admin/categories", {
@@ -82,16 +81,6 @@ export function CategoryForm({ category }: CategoryFormProps) {
           onChange={(e) => setSlug(e.target.value)}
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           required
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
       </div>
 

@@ -1,11 +1,13 @@
 import { requireAdminSession } from "../components/admin-guard";
 import { listProducts } from "@/lib/dal/products";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import Link from "next/link";
 import { ProductDeleteButton } from "./product-delete-button";
 
 export default async function ProductsPage() {
   const session = await requireAdminSession();
-  const products = await listProducts({ siteId: session.siteId });
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const products = await listProducts({ siteId: dbSiteId });
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -51,7 +53,7 @@ export default async function ProductsPage() {
                     <StatusBadge status={p.status} />
                   </td>
                   <td className="px-4 py-3 text-gray-500">{p.score ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-500">{p.is_featured ? "Yes" : "No"}</td>
+                  <td className="px-4 py-3 text-gray-500">{p.featured ? "Yes" : "No"}</td>
                   <td className="flex gap-2 px-4 py-3">
                     <Link
                       href={`/admin/products/${p.id}`}

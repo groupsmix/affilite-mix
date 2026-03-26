@@ -1,13 +1,15 @@
 import { requireAdminSession } from "../../components/admin-guard";
 import { listCategories } from "@/lib/dal/categories";
 import { listProducts } from "@/lib/dal/products";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { ContentForm } from "../content-form";
 
 export default async function NewContentPage() {
   const session = await requireAdminSession();
+  const dbSiteId = await resolveDbSiteId(session.siteId);
   const [categories, products] = await Promise.all([
-    listCategories(session.siteId),
-    listProducts({ siteId: session.siteId }),
+    listCategories(dbSiteId),
+    listProducts({ siteId: dbSiteId }),
   ]);
 
   return (

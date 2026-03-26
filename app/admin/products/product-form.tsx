@@ -22,7 +22,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [price, setPrice] = useState(product?.price ?? "");
   const [merchant, setMerchant] = useState(product?.merchant ?? "");
   const [score, setScore] = useState<string>(product?.score?.toString() ?? "");
-  const [isFeatured, setIsFeatured] = useState(product?.is_featured ?? false);
+  const [isFeatured, setIsFeatured] = useState(product?.featured ?? false);
   const [status, setStatus] = useState(product?.status ?? "active");
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
   const [saving, setSaving] = useState(false);
@@ -49,7 +49,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       price,
       merchant,
       score: score ? Number(score) : null,
-      is_featured: isFeatured,
+      featured: isFeatured,
       status,
       category_id: categoryId || null,
     };
