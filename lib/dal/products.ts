@@ -124,7 +124,6 @@ export async function listActiveProducts(
     .from(TABLE)
     .select("*, categories!inner(slug)")
     .eq("site_id", siteId)
-    .eq("is_active", true)
     .eq("status", "active")
     .order("score", { ascending: false, nullsFirst: false });
 
@@ -147,7 +146,6 @@ export async function listFeaturedProducts(
     .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
-    .eq("is_active", true)
     .eq("is_featured", true)
     .eq("status", "active")
     .order("score", { ascending: false, nullsFirst: false })
