@@ -1,6 +1,7 @@
 import { requireAdminSession } from "../../components/admin-guard";
 import { getProductById } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { notFound } from "next/navigation";
 import { ProductForm } from "../product-form";
 
@@ -11,9 +12,10 @@ export default async function EditProductPage({
 }) {
   const session = await requireAdminSession();
   const { id } = await params;
+  const dbSiteId = await resolveDbSiteId(session.siteId);
   const [product, categories] = await Promise.all([
-    getProductById(session.siteId, id),
-    listCategories(session.siteId),
+    getProductById(dbSiteId, id),
+    listCategories(dbSiteId),
   ]);
 
   if (!product) notFound();

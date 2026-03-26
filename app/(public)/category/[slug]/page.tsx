@@ -24,7 +24,7 @@ export async function generateMetadata({
 
   return {
     title: `${category.name} — ${site.name}`,
-    description: category.description || `Browse ${category.name} on ${site.name}`,
+    description: `Browse ${category.name} on ${site.name}`,
     alternates: {
       canonical: `/category/${category.slug}`,
     },
@@ -57,9 +57,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <header className="mb-8">
         <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
-        {category.description && (
-          <p className="text-gray-600">{category.description}</p>
-        )}
       </header>
 
       {/* Products */}

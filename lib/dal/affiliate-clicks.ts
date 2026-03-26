@@ -5,15 +5,10 @@ const TABLE = "affiliate_clicks";
 
 export interface RecordClickInput {
   site_id: string;
-  product_id?: string;
-  product_slug: string;
-  source_page: string;
-  source_type?: string;
-  destination_url: string;
-  ip_hash?: string;
-  user_agent?: string;
+  product_name: string;
+  affiliate_url: string;
+  content_slug?: string;
   referrer?: string;
-  country?: string;
 }
 
 /** Record an affiliate click (fire-and-forget) */
@@ -23,15 +18,10 @@ export async function recordClick(
   const sb = getServiceClient();
   const { error } = await sb.from(TABLE).insert({
     site_id: input.site_id,
-    product_id: input.product_id ?? null,
-    product_slug: input.product_slug,
-    source_page: input.source_page,
-    source_type: input.source_type ?? "unknown",
-    destination_url: input.destination_url,
-    ip_hash: input.ip_hash ?? null,
-    user_agent: input.user_agent ?? null,
-    referrer: input.referrer ?? null,
-    country: input.country ?? null,
+    product_name: input.product_name,
+    affiliate_url: input.affiliate_url,
+    content_slug: input.content_slug ?? "",
+    referrer: input.referrer ?? "",
   });
 
   // Fire-and-forget: log but don't throw
