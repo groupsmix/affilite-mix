@@ -6,6 +6,7 @@ import {
   updateCategory,
   deleteCategory,
 } from "@/lib/dal/categories";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 
 async function requireAdmin() {
   const session = await getAdminSession();
@@ -19,7 +20,8 @@ export async function GET() {
   const { error, session } = await requireAdmin();
   if (error) return error;
 
-  const categories = await listCategories(session.siteId);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const categories = await listCategories(dbSiteId);
   return NextResponse.json(categories);
 }
 
@@ -28,11 +30,11 @@ export async function POST(request: NextRequest) {
   if (error) return error;
 
   const body = await request.json();
+  const dbSiteId = await resolveDbSiteId(session.siteId);
   const category = await createCategory({
-    site_id: session.siteId,
+    site_id: dbSiteId,
     name: body.name,
     slug: body.slug,
-    description: body.description ?? "",
   });
 
   return NextResponse.json(category, { status: 201 });
@@ -48,7 +50,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const category = await updateCategory(session.siteId, id, updates);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const category = await updateCategory(dbSiteId, id, updates);
   return NextResponse.json(category);
 }
 
@@ -62,6 +65,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  await deleteCategory(session.siteId, id);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  await deleteCategory(dbSiteId, id);
   return NextResponse.json({ ok: true });
 }

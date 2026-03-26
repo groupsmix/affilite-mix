@@ -23,7 +23,7 @@ export async function listContent(
     .eq("site_id", opts.siteId)
     .order("created_at", { ascending: false });
 
-  if (opts.contentType) query = query.eq("content_type", opts.contentType);
+  if (opts.contentType) query = query.eq("type", opts.contentType);
   if (opts.status) query = query.eq("status", opts.status);
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
   if (opts.limit) query = query.limit(opts.limit);
@@ -127,10 +127,10 @@ export async function listPublishedContent(
     .select("*")
     .eq("site_id", siteId)
     .eq("status", "published")
-    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("updated_at", { ascending: false })
     .limit(limit);
 
-  if (contentType) query = query.eq("content_type", contentType);
+  if (contentType) query = query.eq("type", contentType);
 
   const { data, error } = await query;
   if (error) throw error;

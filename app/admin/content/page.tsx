@@ -1,11 +1,13 @@
 import { requireAdminSession } from "../components/admin-guard";
 import { listContent } from "@/lib/dal/content";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import Link from "next/link";
 import { ContentDeleteButton } from "./content-delete-button";
 
 export default async function ContentPage() {
   const session = await requireAdminSession();
-  const contentItems = await listContent({ siteId: session.siteId });
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const contentItems = await listContent({ siteId: dbSiteId });
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -45,7 +47,7 @@ export default async function ContentPage() {
               {contentItems.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{item.title}</td>
-                  <td className="px-4 py-3 text-gray-500">{item.content_type}</td>
+                  <td className="px-4 py-3 text-gray-500">{item.type}</td>
                   <td className="px-4 py-3">
                     <ContentStatusBadge status={item.status} />
                   </td>
