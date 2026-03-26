@@ -22,10 +22,10 @@ export async function generateMetadata({
   }
 
   return {
-    title: content.meta_title || `${content.title} — ${site.name}`,
-    description: content.meta_description || content.excerpt || "",
+    title: `${content.title} — ${site.name}`,
+    description: content.excerpt || "",
     alternates: {
-      canonical: `/${content.content_type}/${content.slug}`,
+      canonical: `/${content.type}/${content.slug}`,
     },
   };
 }
@@ -47,7 +47,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
 
   const content = await getContentBySlug(site.id, slug);
 
-  if (!content || content.content_type !== contentType) {
+  if (!content || content.type !== contentType) {
     notFound();
   }
 
@@ -59,7 +59,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
       {/* Header */}
       <header className="mb-8">
         <div className="mb-2 text-sm text-gray-400">
-          {site.contentTypes.find((ct) => ct.value === content.content_type)?.label}
+          {site.contentTypes.find((ct) => ct.value === content.type)?.label}
         </div>
         <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">
           {content.title}
@@ -67,12 +67,12 @@ export default async function ContentPage({ params }: ContentPageProps) {
         {content.excerpt && (
           <p className="text-lg text-gray-600">{content.excerpt}</p>
         )}
-        {content.published_at && (
+        {content.updated_at && (
           <time
-            dateTime={content.published_at}
+            dateTime={content.updated_at}
             className="mt-2 block text-sm text-gray-400"
           >
-            {new Date(content.published_at).toLocaleDateString(site.language === "ar" ? "ar-SA" : "en-US", {
+            {new Date(content.updated_at).toLocaleDateString(site.language === "ar" ? "ar-SA" : "en-US", {
               year: "numeric",
               month: "long",
               day: "numeric",
@@ -80,18 +80,6 @@ export default async function ContentPage({ params }: ContentPageProps) {
           </time>
         )}
       </header>
-
-      {/* Featured image */}
-      {content.featured_image && (
-        <div className="mb-8 overflow-hidden rounded-lg">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={content.featured_image}
-            alt={content.title}
-            className="w-full object-cover"
-          />
-        </div>
-      )}
 
       {/* Affiliate disclosure */}
       {linkedProducts.length > 0 && (

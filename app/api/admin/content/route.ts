@@ -6,6 +6,7 @@ import {
   updateContent,
   deleteContent,
 } from "@/lib/dal/content";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 
 async function requireAdmin() {
   const session = await getAdminSession();
@@ -20,8 +21,9 @@ export async function GET(request: NextRequest) {
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
+  const dbSiteId = await resolveDbSiteId(session.siteId);
   const content = await listContent({
-    siteId: session.siteId,
+    siteId: dbSiteId,
     contentType: searchParams.get("content_type") ?? undefined,
     status:
       (searchParams.get("status") as "draft" | "review" | "published" | "archived") ?? undefined,
@@ -38,22 +40,18 @@ export async function POST(request: NextRequest) {
   if (error) return error;
 
   const body = await request.json();
+  const dbSiteId = await resolveDbSiteId(session.siteId);
   const content = await createContent({
-    site_id: session.siteId,
+    site_id: dbSiteId,
     title: body.title,
     slug: body.slug,
     body: body.body ?? "",
     excerpt: body.excerpt ?? "",
-    content_type: body.content_type ?? "article",
+    type: body.content_type ?? body.type ?? "article",
     status: body.status ?? "draft",
     category_id: body.category_id ?? null,
-    featured_image: body.featured_image ?? null,
-    meta_title: body.meta_title ?? null,
-    meta_description: body.meta_description ?? null,
     tags: body.tags ?? [],
-    published_at: body.published_at ?? null,
     author: body.author ?? null,
-    metadata: body.metadata ?? {},
   });
 
   return NextResponse.json(content, { status: 201 });
@@ -69,7 +67,13 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const content = await updateContent(session.siteId, id, updates);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  // Remap content_type -> type if sent from the form
+  if (updates.content_type) {
+    updates.type = updates.content_type;
+    delete updates.content_type;
+  }
+  const content = await updateContent(dbSiteId, id, updates);
   return NextResponse.json(content);
 }
 
@@ -83,6 +87,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  await deleteContent(session.siteId, id);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  await deleteContent(dbSiteId, id);
   return NextResponse.json({ ok: true });
 }

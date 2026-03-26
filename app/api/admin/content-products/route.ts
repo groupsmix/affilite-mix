@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { setLinkedProducts } from "@/lib/dal/content-products";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 
 async function requireAdmin() {
   const session = await getAdminSession();
@@ -17,13 +18,14 @@ export async function PUT(request: NextRequest) {
   const body = await request.json();
   const { content_id, links } = body as {
     content_id: string;
-    links: { product_id: string; position: number; role: "hero" | "featured" | "related" | "vs-left" | "vs-right"; custom_aff_url: string | null }[];
+    links: { product_id: string; role: "hero" | "featured" | "related" | "vs-left" | "vs-right" }[];
   };
 
   if (!content_id) {
     return NextResponse.json({ error: "content_id is required" }, { status: 400 });
   }
 
-  await setLinkedProducts(content_id, session.siteId, links ?? []);
+  const dbSiteId = await resolveDbSiteId(session.siteId);
+  await setLinkedProducts(content_id, dbSiteId, links ?? []);
   return NextResponse.json({ ok: true });
 }

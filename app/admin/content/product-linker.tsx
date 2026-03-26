@@ -4,9 +4,7 @@ import type { ProductRow } from "@/types/database";
 
 interface ProductLink {
   product_id: string;
-  position: number;
   role: string;
-  custom_aff_url: string | null;
 }
 
 interface ProductLinkerProps {
@@ -26,9 +24,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
       ...links,
       {
         product_id: productId,
-        position: links.length,
         role: "related",
-        custom_aff_url: null,
       },
     ]);
   }
@@ -49,14 +45,14 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
     if (index === 0) return;
     const updated = [...links];
     [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
-    onChange(updated.map((l, i) => ({ ...l, position: i })));
+    onChange(updated);
   }
 
   function moveDown(index: number) {
     if (index >= links.length - 1) return;
     const updated = [...links];
     [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
-    onChange(updated.map((l, i) => ({ ...l, position: i })));
+    onChange(updated);
   }
 
   function getProductName(id: string): string {

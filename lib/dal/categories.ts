@@ -64,7 +64,7 @@ export async function createCategory(
 export async function updateCategory(
   siteId: string,
   id: string,
-  input: Partial<Pick<CategoryRow, "name" | "slug" | "description">>,
+  input: Partial<Pick<CategoryRow, "name" | "slug">>,
 ): Promise<CategoryRow> {
   const sb = getServiceClient();
   const { data, error } = await sb

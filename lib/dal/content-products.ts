@@ -37,17 +37,17 @@ export async function getLinkedProducts(
     .from(TABLE)
     .select("*, product:products(*)")
     .eq("content_id", contentId)
-    .order("position", { ascending: true });
+    .order("content_id", { ascending: true });
 
   if (error) throw error;
   return data as (ContentProductRow & { product: ProductRow })[];
 }
 
-/** Update link metadata (position, role, custom URL) */
+/** Update link metadata (role) */
 export async function updateProductLink(
   contentId: string,
   productId: string,
-  input: Partial<Pick<ContentProductRow, "position" | "role" | "custom_aff_url">>,
+  input: Partial<Pick<ContentProductRow, "role">>,
 ): Promise<ContentProductRow> {
   const sb = getServiceClient();
   const { data, error } = await sb
@@ -65,8 +65,8 @@ export async function updateProductLink(
 /** Replace all linked products for a content item */
 export async function setLinkedProducts(
   contentId: string,
-  siteId: string,
-  links: Omit<ContentProductRow, "content_id" | "site_id">[],
+  _siteId: string,
+  links: Omit<ContentProductRow, "content_id">[],
 ): Promise<void> {
   const sb = getServiceClient();
 
@@ -84,7 +84,6 @@ export async function setLinkedProducts(
   const rows = links.map((link) => ({
     ...link,
     content_id: contentId,
-    site_id: siteId,
   }));
 
   const { error: insError } = await sb.from(TABLE).insert(rows);

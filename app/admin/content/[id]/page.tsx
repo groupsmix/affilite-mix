@@ -3,6 +3,7 @@ import { getContentById } from "@/lib/dal/content";
 import { listCategories } from "@/lib/dal/categories";
 import { listProducts } from "@/lib/dal/products";
 import { getLinkedProducts } from "@/lib/dal/content-products";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { notFound } from "next/navigation";
 import { ContentForm } from "../content-form";
 
@@ -13,10 +14,11 @@ export default async function EditContentPage({
 }) {
   const session = await requireAdminSession();
   const { id } = await params;
+  const dbSiteId = await resolveDbSiteId(session.siteId);
   const [content, categories, products, linkedProducts] = await Promise.all([
-    getContentById(session.siteId, id),
-    listCategories(session.siteId),
-    listProducts({ siteId: session.siteId }),
+    getContentById(dbSiteId, id),
+    listCategories(dbSiteId),
+    listProducts({ siteId: dbSiteId }),
     getLinkedProducts(id),
   ]);
 
