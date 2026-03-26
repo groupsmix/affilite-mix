@@ -16,7 +16,6 @@ export interface CategoryRow {
   name: string;
   slug: string;
   description: string;
-  sort_order: number;
   created_at: string;
 }
 
