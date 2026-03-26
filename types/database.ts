@@ -7,7 +7,6 @@ export interface SiteRow {
   language: string;
   direction: "ltr" | "rtl";
   locale: string;
-  is_active: boolean;
   created_at: string;
 }
 
@@ -17,7 +16,6 @@ export interface CategoryRow {
   name: string;
   slug: string;
   description: string;
-  sort_order: number;
   created_at: string;
 }
 
@@ -33,7 +31,6 @@ export interface ProductRow {
   merchant: string;
   score: number | null;
   is_featured: boolean;
-  is_active: boolean;
   status: "draft" | "active" | "archived";
   category_id: string | null;
   metadata: Record<string, unknown>;

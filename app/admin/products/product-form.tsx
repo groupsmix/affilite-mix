@@ -23,7 +23,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [merchant, setMerchant] = useState(product?.merchant ?? "");
   const [score, setScore] = useState<string>(product?.score?.toString() ?? "");
   const [isFeatured, setIsFeatured] = useState(product?.is_featured ?? false);
-  const [isActive, setIsActive] = useState(product?.is_active ?? true);
   const [status, setStatus] = useState(product?.status ?? "active");
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
   const [saving, setSaving] = useState(false);
@@ -51,7 +50,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       merchant,
       score: score ? Number(score) : null,
       is_featured: isFeatured,
-      is_active: isActive,
       status,
       category_id: categoryId || null,
     };
@@ -216,15 +214,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             className="rounded border-gray-300"
           />
           Featured
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          Active
         </label>
       </div>
 

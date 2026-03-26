@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     name: body.name,
     slug: body.slug,
     description: body.description ?? "",
-    sort_order: body.sort_order ?? 0,
   });
 
   return NextResponse.json(category, { status: 201 });

@@ -11,7 +11,6 @@ CREATE TABLE sites (
   language    text NOT NULL DEFAULT 'en',
   direction   text NOT NULL DEFAULT 'ltr',
   locale      text NOT NULL DEFAULT 'en_US',
-  is_active   boolean NOT NULL DEFAULT true,
   created_at  timestamptz DEFAULT now()
 );
 
@@ -22,7 +21,6 @@ CREATE TABLE categories (
   name        text NOT NULL,
   slug        text NOT NULL,
   description text DEFAULT '',
-  sort_order  int DEFAULT 0,
   created_at  timestamptz DEFAULT now(),
   UNIQUE(site_id, slug)
 );
@@ -40,7 +38,6 @@ CREATE TABLE products (
   merchant      text DEFAULT '',
   score         real CHECK (score >= 0 AND score <= 10),
   is_featured   boolean DEFAULT false,
-  is_active     boolean DEFAULT true,
   status        text NOT NULL DEFAULT 'active'
                 CHECK (status IN ('draft', 'active', 'archived')),
   category_id   uuid REFERENCES categories(id) ON DELETE SET NULL,
@@ -115,8 +112,6 @@ CREATE INDEX idx_products_site          ON products(site_id);
 CREATE INDEX idx_products_site_slug     ON products(site_id, slug);
 CREATE INDEX idx_products_site_featured ON products(site_id, is_featured)
   WHERE is_featured = true;
-CREATE INDEX idx_products_active        ON products(site_id, is_active)
-  WHERE is_active = true;
 CREATE INDEX idx_content_site           ON content(site_id);
 CREATE INDEX idx_content_site_status    ON content(site_id, status);
 CREATE INDEX idx_content_site_slug      ON content(site_id, slug);
@@ -140,13 +135,13 @@ ALTER TABLE affiliate_clicks  ENABLE ROW LEVEL SECURITY;
 
 -- Public read policies (anon key)
 CREATE POLICY "public_read_sites"
-  ON sites FOR SELECT USING (is_active = true);
+  ON sites FOR SELECT USING (true);
 
 CREATE POLICY "public_read_categories"
   ON categories FOR SELECT USING (true);
 
 CREATE POLICY "public_read_active_products"
-  ON products FOR SELECT USING (is_active = true AND status = 'active');
+  ON products FOR SELECT USING (status = 'active');
 
 CREATE POLICY "public_read_published_content"
   ON content FOR SELECT USING (status = 'published');
@@ -195,61 +190,61 @@ INSERT INTO sites (id, name, domain, language, direction, locale)
 VALUES ('crypto-tools', 'Crypto Tools', 'crypto-tools.example.com', 'en', 'ltr', 'en_US');
 
 -- Crypto categories
-INSERT INTO categories (id, site_id, name, slug, description, sort_order) VALUES
-  ('c0000000-0000-0000-0000-000000000001', 'crypto-tools', 'Exchanges', 'exchanges', 'Compare cryptocurrency exchanges by fees, features, and security.', 1),
-  ('c0000000-0000-0000-0000-000000000002', 'crypto-tools', 'Wallets', 'wallets', 'Hardware and software wallets for storing your crypto safely.', 2),
-  ('c0000000-0000-0000-0000-000000000003', 'crypto-tools', 'DeFi', 'defi', 'Decentralized finance protocols, yield farming, and lending platforms.', 3),
-  ('c0000000-0000-0000-0000-000000000004', 'crypto-tools', 'Mining', 'mining', 'Mining hardware, pools, and profitability calculators.', 4),
-  ('c0000000-0000-0000-0000-000000000005', 'crypto-tools', 'NFTs', 'nfts', 'NFT marketplaces, tools, and analytics platforms.', 5),
-  ('c0000000-0000-0000-0000-000000000006', 'crypto-tools', 'Education', 'education', 'Crypto courses, tutorials, and learning resources.', 6);
+INSERT INTO categories (id, site_id, name, slug, description) VALUES
+  ('c0000000-0000-0000-0000-000000000001', 'crypto-tools', 'Exchanges', 'exchanges', 'Compare cryptocurrency exchanges by fees, features, and security.'),
+  ('c0000000-0000-0000-0000-000000000002', 'crypto-tools', 'Wallets', 'wallets', 'Hardware and software wallets for storing your crypto safely.'),
+  ('c0000000-0000-0000-0000-000000000003', 'crypto-tools', 'DeFi', 'defi', 'Decentralized finance protocols, yield farming, and lending platforms.'),
+  ('c0000000-0000-0000-0000-000000000004', 'crypto-tools', 'Mining', 'mining', 'Mining hardware, pools, and profitability calculators.'),
+  ('c0000000-0000-0000-0000-000000000005', 'crypto-tools', 'NFTs', 'nfts', 'NFT marketplaces, tools, and analytics platforms.'),
+  ('c0000000-0000-0000-0000-000000000006', 'crypto-tools', 'Education', 'education', 'Crypto courses, tutorials, and learning resources.');
 
 -- Crypto products
-INSERT INTO products (id, site_id, name, slug, description, affiliate_url, image_url, price, merchant, score, is_featured, is_active, status, category_id, metadata) VALUES
+INSERT INTO products (id, site_id, name, slug, description, affiliate_url, image_url, price, merchant, score, is_featured, status, category_id, metadata) VALUES
   ('p0000000-0000-0000-0000-000000000001', 'crypto-tools', 'Binance', 'binance',
    'World''s largest crypto exchange by trading volume. Low fees and 350+ coins supported.',
-   'https://www.binance.com/ref/example', '', 'Free to join', 'Binance', 9.2, true, true, 'active',
+   'https://www.binance.com/ref/example', '', 'Free to join', 'Binance', 9.2, true, 'active',
    'c0000000-0000-0000-0000-000000000001',
    '{"token_symbol": "BNB", "trading_fees": "0.1%", "kyc_required": true, "platform_type": "exchange"}'),
 
   ('p0000000-0000-0000-0000-000000000002', 'crypto-tools', 'Coinbase', 'coinbase',
    'Beginner-friendly US-based exchange with strong regulatory compliance.',
-   'https://www.coinbase.com/ref/example', '', 'Free to join', 'Coinbase', 8.5, true, true, 'active',
+   'https://www.coinbase.com/ref/example', '', 'Free to join', 'Coinbase', 8.5, true, 'active',
    'c0000000-0000-0000-0000-000000000001',
    '{"trading_fees": "0.5%", "kyc_required": true, "platform_type": "exchange"}'),
 
   ('p0000000-0000-0000-0000-000000000003', 'crypto-tools', 'Ledger Nano X', 'ledger-nano-x',
    'Premium Bluetooth-enabled hardware wallet supporting 5,500+ coins.',
-   'https://www.ledger.com/ref/example', '', '$149', 'Ledger', 9.0, true, true, 'active',
+   'https://www.ledger.com/ref/example', '', '$149', 'Ledger', 9.0, true, 'active',
    'c0000000-0000-0000-0000-000000000002',
    '{"supported_coins": ["BTC", "ETH", "SOL", "ADA"], "security_rating": 9, "platform_type": "wallet"}'),
 
   ('p0000000-0000-0000-0000-000000000004', 'crypto-tools', 'Trezor Model T', 'trezor-model-t',
    'Open-source hardware wallet with touchscreen and advanced security features.',
-   'https://www.trezor.io/ref/example', '', '$219', 'Trezor', 8.8, true, true, 'active',
+   'https://www.trezor.io/ref/example', '', '$219', 'Trezor', 8.8, true, 'active',
    'c0000000-0000-0000-0000-000000000002',
    '{"supported_coins": ["BTC", "ETH", "LTC", "XRP"], "security_rating": 9, "platform_type": "wallet"}'),
 
   ('p0000000-0000-0000-0000-000000000005', 'crypto-tools', 'Aave', 'aave',
    'Leading DeFi lending protocol. Earn interest or borrow against your crypto.',
-   'https://aave.com/ref/example', '', 'Free', 'Aave', 8.7, true, true, 'active',
+   'https://aave.com/ref/example', '', 'Free', 'Aave', 8.7, true, 'active',
    'c0000000-0000-0000-0000-000000000003',
    '{"token_symbol": "AAVE", "platform_type": "defi"}'),
 
   ('p0000000-0000-0000-0000-000000000006', 'crypto-tools', 'NiceHash', 'nicehash',
    'Marketplace for mining hash power. Mine or buy hash power easily.',
-   'https://www.nicehash.com/ref/example', '', 'Free', 'NiceHash', 7.5, false, true, 'active',
+   'https://www.nicehash.com/ref/example', '', 'Free', 'NiceHash', 7.5, false, 'active',
    'c0000000-0000-0000-0000-000000000004',
    '{"platform_type": "mining"}'),
 
   ('p0000000-0000-0000-0000-000000000007', 'crypto-tools', 'OpenSea', 'opensea',
    'Largest NFT marketplace for buying, selling, and discovering digital assets.',
-   'https://opensea.io/ref/example', '', 'Free', 'OpenSea', 8.0, false, true, 'active',
+   'https://opensea.io/ref/example', '', 'Free', 'OpenSea', 8.0, false, 'active',
    'c0000000-0000-0000-0000-000000000005',
    '{"platform_type": "nft"}'),
 
   ('p0000000-0000-0000-0000-000000000008', 'crypto-tools', 'Kraken', 'kraken',
    'Established US exchange with advanced trading features and staking.',
-   'https://www.kraken.com/ref/example', '', 'Free to join', 'Kraken', 8.6, true, true, 'active',
+   'https://www.kraken.com/ref/example', '', 'Free to join', 'Kraken', 8.6, true, 'active',
    'c0000000-0000-0000-0000-000000000001',
    '{"trading_fees": "0.16%", "kyc_required": true, "platform_type": "exchange"}');
 

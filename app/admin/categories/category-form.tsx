@@ -15,7 +15,6 @@ export function CategoryForm({ category }: CategoryFormProps) {
   const [name, setName] = useState(category?.name ?? "");
   const [slug, setSlug] = useState(category?.slug ?? "");
   const [description, setDescription] = useState(category?.description ?? "");
-  const [sortOrder, setSortOrder] = useState(category?.sort_order ?? 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,7 +30,7 @@ export function CategoryForm({ category }: CategoryFormProps) {
     setSaving(true);
     setError("");
 
-    const payload = { name, slug, description, sort_order: sortOrder };
+    const payload = { name, slug, description };
 
     const res = isEdit
       ? await fetch("/api/admin/categories", {
@@ -93,16 +92,6 @@ export function CategoryForm({ category }: CategoryFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Sort Order</label>
-        <input
-          type="number"
-          value={sortOrder}
-          onChange={(e) => setSortOrder(Number(e.target.value))}
-          className="w-32 rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
       </div>
 
