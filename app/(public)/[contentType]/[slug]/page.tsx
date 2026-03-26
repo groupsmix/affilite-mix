@@ -18,7 +18,7 @@ export async function generateMetadata({
   const content = await getContentBySlug(site.id, slug);
 
   if (!content) {
-    return { title: "غير موجود" };
+    return { title: site.language === "ar" ? "غير موجود" : "Not Found" };
   }
 
   return {
@@ -72,7 +72,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
             dateTime={content.published_at}
             className="mt-2 block text-sm text-gray-400"
           >
-            {new Date(content.published_at).toLocaleDateString("ar-SA", {
+            {new Date(content.published_at).toLocaleDateString(site.language === "ar" ? "ar-SA" : "en-US", {
               year: "numeric",
               month: "long",
               day: "numeric",
@@ -109,7 +109,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
       {linkedProducts.length > 0 && (
         <section className="mt-10 border-t border-gray-200 pt-8">
           <h2 className="mb-6 text-2xl font-bold">
-            {site.productLabelPlural} المرتبطة
+            {site.language === "ar" ? `${site.productLabelPlural} المرتبطة` : `Related ${site.productLabelPlural}`}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {linkedProducts.map((link) => (
@@ -117,6 +117,7 @@ export default async function ContentPage({ params }: ContentPageProps) {
                 key={link.product_id}
                 product={link.product}
                 sourceType="content"
+                ctaLabel={site.language === "ar" ? "احصل على العرض" : "View Deal"}
               />
             ))}
           </div>
