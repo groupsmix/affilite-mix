@@ -21,7 +21,6 @@ CREATE TABLE categories (
   name        text NOT NULL,
   slug        text NOT NULL,
   description text DEFAULT '',
-  sort_order  int DEFAULT 0,
   created_at  timestamptz DEFAULT now(),
   UNIQUE(site_id, slug)
 );
@@ -191,13 +190,13 @@ INSERT INTO sites (id, name, domain, language, direction, locale)
 VALUES ('crypto-tools', 'Crypto Tools', 'crypto-tools.example.com', 'en', 'ltr', 'en_US');
 
 -- Crypto categories
-INSERT INTO categories (id, site_id, name, slug, description, sort_order) VALUES
-  ('c0000000-0000-0000-0000-000000000001', 'crypto-tools', 'Exchanges', 'exchanges', 'Compare cryptocurrency exchanges by fees, features, and security.', 1),
-  ('c0000000-0000-0000-0000-000000000002', 'crypto-tools', 'Wallets', 'wallets', 'Hardware and software wallets for storing your crypto safely.', 2),
-  ('c0000000-0000-0000-0000-000000000003', 'crypto-tools', 'DeFi', 'defi', 'Decentralized finance protocols, yield farming, and lending platforms.', 3),
-  ('c0000000-0000-0000-0000-000000000004', 'crypto-tools', 'Mining', 'mining', 'Mining hardware, pools, and profitability calculators.', 4),
-  ('c0000000-0000-0000-0000-000000000005', 'crypto-tools', 'NFTs', 'nfts', 'NFT marketplaces, tools, and analytics platforms.', 5),
-  ('c0000000-0000-0000-0000-000000000006', 'crypto-tools', 'Education', 'education', 'Crypto courses, tutorials, and learning resources.', 6);
+INSERT INTO categories (id, site_id, name, slug, description) VALUES
+  ('c0000000-0000-0000-0000-000000000001', 'crypto-tools', 'Exchanges', 'exchanges', 'Compare cryptocurrency exchanges by fees, features, and security.'),
+  ('c0000000-0000-0000-0000-000000000002', 'crypto-tools', 'Wallets', 'wallets', 'Hardware and software wallets for storing your crypto safely.'),
+  ('c0000000-0000-0000-0000-000000000003', 'crypto-tools', 'DeFi', 'defi', 'Decentralized finance protocols, yield farming, and lending platforms.'),
+  ('c0000000-0000-0000-0000-000000000004', 'crypto-tools', 'Mining', 'mining', 'Mining hardware, pools, and profitability calculators.'),
+  ('c0000000-0000-0000-0000-000000000005', 'crypto-tools', 'NFTs', 'nfts', 'NFT marketplaces, tools, and analytics platforms.'),
+  ('c0000000-0000-0000-0000-000000000006', 'crypto-tools', 'Education', 'education', 'Crypto courses, tutorials, and learning resources.');
 
 -- Crypto products
 INSERT INTO products (id, site_id, name, slug, description, affiliate_url, image_url, price, merchant, score, is_featured, status, category_id, metadata) VALUES

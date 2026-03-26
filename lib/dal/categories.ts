@@ -3,14 +3,14 @@ import type { CategoryRow } from "@/types/database";
 
 const TABLE = "categories";
 
-/** List all categories for a site, ordered by sort_order */
+/** List all categories for a site, ordered by name */
 export async function listCategories(siteId: string): Promise<CategoryRow[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
-    .order("sort_order", { ascending: true });
+    .order("name", { ascending: true });
 
   if (error) throw error;
   return data as CategoryRow[];
@@ -64,7 +64,7 @@ export async function createCategory(
 export async function updateCategory(
   siteId: string,
   id: string,
-  input: Partial<Pick<CategoryRow, "name" | "slug" | "description" | "sort_order">>,
+  input: Partial<Pick<CategoryRow, "name" | "slug" | "description">>,
 ): Promise<CategoryRow> {
   const sb = getServiceClient();
   const { data, error } = await sb
