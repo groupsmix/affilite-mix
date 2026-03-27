@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCredentials, createToken, COOKIE_NAME } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+/** 5 login attempts per 15 minutes per IP */
+const LOGIN_RATE_LIMIT = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("cf-connecting-ip")
+    ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? "unknown";
+  const rl = checkRateLimit(`login:${ip}`, LOGIN_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many login attempts. Try again later." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      },
+    );
+  }
+
   const body = await request.json();
   const { password, siteId } = body as { password?: string; siteId?: string };
 
