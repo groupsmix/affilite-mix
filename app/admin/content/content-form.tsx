@@ -7,6 +7,7 @@ import type { CategoryRow } from "@/types/database";
 import type { ProductRow } from "@/types/database";
 import type { ContentProductRow } from "@/types/database";
 import { ProductLinker } from "./product-linker";
+import { ImageUploader } from "../components/image-uploader";
 
 interface ContentFormProps {
   content?: ContentRow;
@@ -149,22 +150,11 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Featured Image URL</label>
-        <input
-          type="url"
-          value={featuredImage}
-          onChange={(e) => setFeaturedImage(e.target.value)}
-          placeholder="https://example.com/image.jpg"
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-        {featuredImage && (
-          <div className="mt-2 overflow-hidden rounded-md border border-gray-200">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={featuredImage} alt="Preview" className="h-32 w-full object-cover" />
-          </div>
-        )}
-      </div>
+      <ImageUploader
+        value={featuredImage}
+        onChange={setFeaturedImage}
+        label="Featured Image"
+      />
 
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Body</label>
