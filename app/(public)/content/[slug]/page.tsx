@@ -4,6 +4,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getContentBySlug } from "@/lib/dal/content";
 import { getLinkedProducts } from "@/lib/dal/content-products";
 import { ProductCard } from "../../components/product-card";
+import { JsonLd, articleJsonLd, breadcrumbJsonLd, productJsonLd } from "../../components/json-ld";
 
 interface ContentPageProps {
   params: Promise<{ slug: string }>;
@@ -16,10 +17,28 @@ export async function generateMetadata({ params }: ContentPageProps): Promise<Me
 
   if (!content) return { title: "Content Not Found" };
 
+  const url = `https://${site.domain}/content/${slug}`;
+
   return {
     title: `${content.title} — ${site.name}`,
     description: content.excerpt || content.title,
-    alternates: { canonical: `https://${site.domain}/content/${slug}` },
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${content.title} — ${site.name}`,
+      description: content.excerpt || content.title,
+      url,
+      siteName: site.name,
+      locale: site.locale,
+      type: "article",
+      publishedTime: content.created_at,
+      modifiedTime: content.updated_at || undefined,
+      authors: content.author ? [content.author] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${content.title} — ${site.name}`,
+      description: content.excerpt || content.title,
+    },
   };
 }
 
@@ -32,8 +51,18 @@ export default async function ContentPage({ params }: ContentPageProps) {
 
   const linkedProducts = await getLinkedProducts(content.id);
 
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: content.title, path: `/content/${content.slug}` },
+  ]);
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+      <JsonLd data={breadcrumbs} />
+      <JsonLd data={articleJsonLd(site, content)} />
+      {linkedProducts.map((lp) => (
+        <JsonLd key={lp.product_id} data={productJsonLd(site, lp.product)} />
+      ))}
       {/* Article header */}
       <header className="mb-8">
         <div className="mb-3 flex items-center gap-2 text-sm text-gray-400">

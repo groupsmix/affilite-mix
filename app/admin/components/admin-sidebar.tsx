@@ -6,6 +6,7 @@ import { SiteSwitcher } from "./site-switcher";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
+  { href: "/admin/analytics", label: "Analytics", icon: "📈" },
   { href: "/admin/categories", label: "Categories", icon: "📁" },
   { href: "/admin/products", label: "Products", icon: "📦" },
   { href: "/admin/content", label: "Content", icon: "📝" },
