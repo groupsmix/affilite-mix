@@ -6,8 +6,14 @@ import type { ContentRow } from "@/types/database";
 import type { CategoryRow } from "@/types/database";
 import type { ProductRow } from "@/types/database";
 import type { ContentProductRow } from "@/types/database";
+import dynamic from "next/dynamic";
 import { ProductLinker } from "./product-linker";
 import { ImageUploader } from "../components/image-uploader";
+
+const RichEditor = dynamic(() =>
+  import("./rich-editor").then((m) => m.RichEditor),
+  { loading: () => <div className="h-[300px] animate-pulse rounded-lg border border-gray-300 bg-gray-50" /> }
+);
 
 interface ContentFormProps {
   content?: ContentRow;
@@ -158,12 +164,7 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
 
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Body</label>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={12}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"
-        />
+        <RichEditor value={body} onChange={setBody} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
