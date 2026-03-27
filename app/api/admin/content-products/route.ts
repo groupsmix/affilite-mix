@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
 import { setLinkedProducts } from "@/lib/dal/content-products";
 import { validateSetLinkedProducts } from "@/lib/validation";
@@ -14,5 +15,6 @@ export async function PUT(request: NextRequest) {
   }
 
   await setLinkedProducts(parsed.data.content_id, dbSiteId, parsed.data.links);
+  revalidateTag("content");
   return NextResponse.json({ ok: true });
 }

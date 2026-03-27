@@ -272,6 +272,103 @@ INSERT INTO content (site_id, title, slug, body, excerpt, type, status, category
    (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'crypto-tools' AND c.slug = 'wallets'),
    ARRAY['wallets', 'security', 'guide'], 'CryptoTools Team');
 
+-- Arabic-tools categories
+WITH arabic AS (SELECT id FROM sites WHERE slug = 'arabic-tools')
+INSERT INTO categories (site_id, name, slug, description) VALUES
+  ((SELECT id FROM arabic), 'أدوات الكتابة', 'writing-tools', 'أفضل أدوات الكتابة العربية والتحرير'),
+  ((SELECT id FROM arabic), 'أدوات الترجمة', 'translation-tools', 'أدوات ترجمة احترافية للغة العربية'),
+  ((SELECT id FROM arabic), 'أدوات التعليم', 'education-tools', 'منصات وأدوات تعلم اللغة العربية'),
+  ((SELECT id FROM arabic), 'أدوات التصميم', 'design-tools', 'أدوات تصميم تدعم الخط العربي'),
+  ((SELECT id FROM arabic), 'أدوات SEO', 'seo-tools', 'أدوات تحسين محركات البحث للمحتوى العربي');
+
+-- Arabic-tools products
+WITH arabic AS (SELECT id FROM sites WHERE slug = 'arabic-tools')
+INSERT INTO products (site_id, name, slug, description, affiliate_url, price, merchant, score, featured, status, category_id, cta_text) VALUES
+  ((SELECT id FROM arabic), 'Grammarly Arabic', 'grammarly-arabic',
+   'أداة تدقيق لغوي متقدمة تدعم اللغة العربية مع اقتراحات ذكية.',
+   'https://www.grammarly.com/ref/example', 'مجاني / $12 شهرياً', 'Grammarly', 8.5, true, 'active',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'writing-tools'),
+   'جرّب مجاناً'),
+  ((SELECT id FROM arabic), 'DeepL Translator', 'deepl-translator',
+   'أفضل مترجم آلي بالذكاء الاصطناعي مع دعم ممتاز للعربية.',
+   'https://www.deepl.com/ref/example', 'مجاني / $8.74 شهرياً', 'DeepL', 9.0, true, 'active',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'translation-tools'),
+   'ترجم الآن'),
+  ((SELECT id FROM arabic), 'Duolingo Arabic', 'duolingo-arabic',
+   'تعلم اللغة العربية مجاناً مع دروس تفاعلية وممتعة.',
+   'https://www.duolingo.com/ref/example', 'مجاني / $6.99 شهرياً', 'Duolingo', 8.0, true, 'active',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'education-tools'),
+   'ابدأ التعلم'),
+  ((SELECT id FROM arabic), 'Canva Arabic', 'canva-arabic',
+   'منصة تصميم سهلة مع قوالب ودعم كامل للخط العربي.',
+   'https://www.canva.com/ref/example', 'مجاني / $12.99 شهرياً', 'Canva', 9.2, true, 'active',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'design-tools'),
+   'صمّم مجاناً'),
+  ((SELECT id FROM arabic), 'Ahrefs', 'ahrefs',
+   'أداة SEO احترافية لتحليل الكلمات المفتاحية والروابط الخلفية.',
+   'https://ahrefs.com/ref/example', '$99 شهرياً', 'Ahrefs', 9.1, true, 'active',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'seo-tools'),
+   'جرّب Ahrefs'),
+  ((SELECT id FROM arabic), 'Google Translate', 'google-translate',
+   'خدمة ترجمة مجانية من جوجل تدعم أكثر من 100 لغة.',
+   'https://translate.google.com', 'مجاني', 'Google', 7.5, false, 'active',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'translation-tools'),
+   'استخدم الآن');
+
+-- Arabic-tools content
+WITH arabic AS (SELECT id FROM sites WHERE slug = 'arabic-tools')
+INSERT INTO content (site_id, title, slug, body, excerpt, type, status, category_id, tags, author) VALUES
+  ((SELECT id FROM arabic),
+   'أفضل أدوات الترجمة العربية في 2026: مقارنة شاملة',
+   'best-arabic-translation-tools-2026',
+   '<h2>مقارنة أفضل أدوات الترجمة</h2><p>اختيار أداة الترجمة المناسبة أمر بالغ الأهمية للمحتوى العربي عالي الجودة.</p>',
+   'قارن بين أفضل أدوات الترجمة العربية من حيث الدقة والسعر والميزات.',
+   'comparison', 'published',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'translation-tools'),
+   ARRAY['ترجمة', 'مقارنة', 'أدوات'], 'فريق Arabic Tools'),
+  ((SELECT id FROM arabic),
+   'مراجعة Canva للتصميم العربي: هل تستحق الاشتراك؟',
+   'canva-arabic-review',
+   '<h2>مراجعة Canva</h2><p>Canva هي واحدة من أشهر منصات التصميم في العالم مع دعم ممتاز للخط العربي.</p>',
+   'مراجعة شاملة لمنصة Canva ودعمها للتصميم باللغة العربية.',
+   'review', 'published',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'design-tools'),
+   ARRAY['تصميم', 'مراجعة', 'canva'], 'فريق Arabic Tools'),
+  ((SELECT id FROM arabic),
+   'دليل المبتدئين لتحسين SEO للمحتوى العربي',
+   'beginners-guide-arabic-seo',
+   '<h2>ما هو SEO؟</h2><p>تحسين محركات البحث (SEO) هو عملية تحسين موقعك ليظهر في نتائج البحث.</p>',
+   'تعلم أساسيات تحسين محركات البحث للمحتوى العربي.',
+   'guide', 'published',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'seo-tools'),
+   ARRAY['seo', 'دليل', 'مبتدئين'], 'فريق Arabic Tools'),
+  ((SELECT id FROM arabic),
+   'كيف تختار أفضل أداة كتابة عربية في 2026',
+   'how-to-choose-arabic-writing-tool',
+   '<h2>اختيار أداة الكتابة المناسبة</h2><p>أداة الكتابة الجيدة تساعدك على إنتاج محتوى عربي احترافي بسرعة.</p>',
+   'دليل شامل لاختيار أفضل أداة كتابة باللغة العربية.',
+   'article', 'published',
+   (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'arabic-tools' AND c.slug = 'writing-tools'),
+   ARRAY['كتابة', 'أدوات', 'دليل'], 'فريق Arabic Tools');
+
+-- Arabic-tools content-products links
+WITH
+  tr AS (SELECT co.id FROM content co JOIN sites s ON co.site_id = s.id WHERE s.slug = 'arabic-tools' AND co.slug = 'best-arabic-translation-tools-2026'),
+  cr AS (SELECT co.id FROM content co JOIN sites s ON co.site_id = s.id WHERE s.slug = 'arabic-tools' AND co.slug = 'canva-arabic-review'),
+  sg AS (SELECT co.id FROM content co JOIN sites s ON co.site_id = s.id WHERE s.slug = 'arabic-tools' AND co.slug = 'beginners-guide-arabic-seo'),
+  wg AS (SELECT co.id FROM content co JOIN sites s ON co.site_id = s.id WHERE s.slug = 'arabic-tools' AND co.slug = 'how-to-choose-arabic-writing-tool'),
+  deepl    AS (SELECT p.id FROM products p JOIN sites s ON p.site_id = s.id WHERE s.slug = 'arabic-tools' AND p.slug = 'deepl-translator'),
+  gtrans   AS (SELECT p.id FROM products p JOIN sites s ON p.site_id = s.id WHERE s.slug = 'arabic-tools' AND p.slug = 'google-translate'),
+  canva    AS (SELECT p.id FROM products p JOIN sites s ON p.site_id = s.id WHERE s.slug = 'arabic-tools' AND p.slug = 'canva-arabic'),
+  ahrefs   AS (SELECT p.id FROM products p JOIN sites s ON p.site_id = s.id WHERE s.slug = 'arabic-tools' AND p.slug = 'ahrefs'),
+  grammarly AS (SELECT p.id FROM products p JOIN sites s ON p.site_id = s.id WHERE s.slug = 'arabic-tools' AND p.slug = 'grammarly-arabic')
+INSERT INTO content_products (content_id, product_id, role) VALUES
+  ((SELECT id FROM tr), (SELECT id FROM deepl),    'hero'),
+  ((SELECT id FROM tr), (SELECT id FROM gtrans),   'hero'),
+  ((SELECT id FROM cr), (SELECT id FROM canva),    'hero'),
+  ((SELECT id FROM sg), (SELECT id FROM ahrefs),   'hero'),
+  ((SELECT id FROM wg), (SELECT id FROM grammarly), 'hero');
+
 -- Crypto content-products links
 WITH
   ea AS (SELECT co.id FROM content co JOIN sites s ON co.site_id = s.id WHERE s.slug = 'crypto-tools' AND co.slug = 'best-crypto-exchanges-2026'),
