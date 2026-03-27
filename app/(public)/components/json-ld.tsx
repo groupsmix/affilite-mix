@@ -128,6 +128,36 @@ export function reviewJsonLd(
   return base;
 }
 
+/** FAQ schema — extracts Q&A pairs from HTML content with h3 questions */
+export function faqJsonLd(html: string): Record<string, unknown> | null {
+  // Match patterns like <h3>Question?</h3> followed by <p>Answer</p>
+  const faqRegex = /<h[23][^>]*>([^<]*\?)<\/h[23]>\s*<p[^>]*>([^<]+)<\/p>/gi;
+  const pairs: { question: string; answer: string }[] = [];
+  let match;
+  while ((match = faqRegex.exec(html)) !== null) {
+    const question = match[1].trim();
+    const answer = match[2].trim();
+    if (question && answer) {
+      pairs.push({ question, answer });
+    }
+  }
+
+  if (pairs.length === 0) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: pairs.map((pair) => ({
+      "@type": "Question",
+      name: pair.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: pair.answer,
+      },
+    })),
+  };
+}
+
 /** Product schema */
 export function productJsonLd(site: SiteDefinition, product: ProductRow) {
   const data: Record<string, unknown> = {

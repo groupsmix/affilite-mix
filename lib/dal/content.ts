@@ -55,15 +55,20 @@ export async function getContentById(
 export async function getContentBySlug(
   siteId: string,
   slug: string,
+  includePreview = false,
 ): Promise<ContentRow | null> {
   const sb = getServiceClient();
-  const { data, error } = await sb
+  let query = sb
     .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
-    .eq("slug", slug)
-    .eq("status", "published")
-    .single();
+    .eq("slug", slug);
+
+  if (!includePreview) {
+    query = query.eq("status", "published");
+  }
+
+  const { data, error } = await query.single();
 
   if (error && error.code !== "PGRST116") throw error;
   return (data as ContentRow) ?? null;
@@ -143,4 +148,28 @@ export async function getRecentContent(
   limit = 6,
 ): Promise<ContentRow[]> {
   return listPublishedContent(siteId, undefined, limit);
+}
+
+/** Get related content by category (excluding a specific content id) */
+export async function getRelatedContent(
+  siteId: string,
+  categoryId: string | null,
+  excludeId: string,
+  limit = 4,
+): Promise<ContentRow[]> {
+  const sb = getServiceClient();
+  let query = sb
+    .from(TABLE)
+    .select("*")
+    .eq("site_id", siteId)
+    .eq("status", "published")
+    .neq("id", excludeId)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (categoryId) query = query.eq("category_id", categoryId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as ContentRow[];
 }
