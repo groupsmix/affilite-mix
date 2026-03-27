@@ -10,8 +10,9 @@ export default async function EditCategoryPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await requireAdminSession();
+  if (!session.activeSiteSlug) notFound();
   const { id } = await params;
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
   const category = await getCategoryById(dbSiteId, id);
 
   if (!category) notFound();

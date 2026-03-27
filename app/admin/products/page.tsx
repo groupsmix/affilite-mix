@@ -1,12 +1,14 @@
 import { requireAdminSession } from "../components/admin-guard";
 import { listProducts } from "@/lib/dal/products";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ProductDeleteButton } from "./product-delete-button";
 
 export default async function ProductsPage() {
   const session = await requireAdminSession();
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  if (!session.activeSiteSlug) redirect("/admin/sites");
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
   const products = await listProducts({ siteId: dbSiteId });
 
   return (

@@ -5,7 +5,8 @@ import { ProductForm } from "../product-form";
 
 export default async function NewProductPage() {
   const session = await requireAdminSession();
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  if (!session.activeSiteSlug) return null;
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
   const categories = await listCategories(dbSiteId);
 
   return (

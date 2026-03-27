@@ -13,8 +13,9 @@ export default async function EditContentPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await requireAdminSession();
+  if (!session.activeSiteSlug) notFound();
   const { id } = await params;
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
   const [content, categories, products, linkedProducts] = await Promise.all([
     getContentById(dbSiteId, id),
     listCategories(dbSiteId),
