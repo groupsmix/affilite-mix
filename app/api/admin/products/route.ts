@@ -1,26 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import {
   listProducts,
   createProduct,
   updateProduct,
   deleteProduct,
 } from "@/lib/dal/products";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-
-async function requireAdmin() {
-  const session = await getAdminSession();
-  if (!session) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), session: null };
-  }
-  return { error: null, session };
-}
+import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const dbSiteId = await resolveDbSiteId(session.siteId);
   const { searchParams } = request.nextUrl;
   const products = await listProducts({
     siteId: dbSiteId,
@@ -34,46 +25,51 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const body = await request.json();
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const raw = await request.json();
+  const parsed = validateCreateProduct(raw);
+  if (parsed.errors) {
+    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+  }
+
+  const data = parsed.data;
   const product = await createProduct({
     site_id: dbSiteId,
-    name: body.name,
-    slug: body.slug,
-    description: body.description ?? "",
-    affiliate_url: body.affiliate_url ?? "",
-    image_url: body.image_url ?? "",
-    price: body.price ?? "",
-    merchant: body.merchant ?? "",
-    score: body.score ?? null,
-    featured: body.is_featured ?? body.featured ?? false,
-    status: body.status ?? "active",
-    category_id: body.category_id ?? null,
+    name: data.name,
+    slug: data.slug,
+    description: data.description,
+    affiliate_url: data.affiliate_url,
+    image_url: data.image_url,
+    price: data.price,
+    merchant: data.merchant,
+    score: data.score,
+    featured: data.featured,
+    status: data.status,
+    category_id: data.category_id,
   });
 
   return NextResponse.json(product, { status: 201 });
 }
 
 export async function PATCH(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const body = await request.json();
-  const { id, ...updates } = body;
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const raw = await request.json();
+  const parsed = validateUpdateProduct(raw);
+  if (parsed.errors) {
+    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
   }
 
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const { id, ...updates } = parsed.data;
   const product = await updateProduct(dbSiteId, id, updates);
   return NextResponse.json(product);
 }
 
 export async function DELETE(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
@@ -82,7 +78,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const dbSiteId = await resolveDbSiteId(session.siteId);
   await deleteProduct(dbSiteId, id);
   return NextResponse.json({ ok: true });
 }
