@@ -3,8 +3,12 @@ import { recordClick } from "@/lib/dal/affiliate-clicks";
 import { getProductBySlug } from "@/lib/dal/products";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
+
+/** 60 click-tracking requests per minute per IP */
+const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
 
 function isValidDestination(url: string): boolean {
   try {
@@ -16,6 +20,20 @@ function isValidDestination(url: string): boolean {
 }
 
 export async function GET(request: NextRequest) {
+  const ip = request.headers.get("cf-connecting-ip")
+    ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? "unknown";
+  const rl = checkRateLimit(`click:${ip}`, CLICK_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+      },
+    );
+  }
+
   const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
   const siteId = await resolveDbSiteId(siteSlug);
 
