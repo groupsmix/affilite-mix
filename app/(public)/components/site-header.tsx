@@ -1,5 +1,6 @@
 import type { SiteDefinition } from "@/config/site-definition";
 import Link from "next/link";
+import { MobileMenu } from "./mobile-menu";
 
 interface SiteHeaderProps {
   site: SiteDefinition;
@@ -12,7 +13,8 @@ export function SiteHeader({ site }: SiteHeaderProps) {
         <Link href="/" className="text-xl font-bold" style={{ color: site.theme.primaryColor }}>
           {site.name}
         </Link>
-        <nav className="flex items-center gap-6">
+        {/* Desktop nav */}
+        <nav className="hidden items-center gap-6 md:flex">
           {site.nav.map((item) => (
             <Link
               key={item.href}
@@ -23,6 +25,8 @@ export function SiteHeader({ site }: SiteHeaderProps) {
             </Link>
           ))}
         </nav>
+        {/* Mobile nav */}
+        <MobileMenu nav={site.nav} />
       </div>
     </header>
   );
