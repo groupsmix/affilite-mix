@@ -1,12 +1,14 @@
 import { requireAdminSession } from "../components/admin-guard";
 import { listContent } from "@/lib/dal/content";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ContentDeleteButton } from "./content-delete-button";
 
 export default async function ContentPage() {
   const session = await requireAdminSession();
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  if (!session.activeSiteSlug) redirect("/admin/sites");
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
   const contentItems = await listContent({ siteId: dbSiteId });
 
   return (

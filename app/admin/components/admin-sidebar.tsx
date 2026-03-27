@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SiteSwitcher } from "./site-switcher";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
@@ -21,6 +22,9 @@ export function AdminSidebar() {
         <Link href="/admin" className="text-lg font-bold text-gray-900">
           NicheHub
         </Link>
+      </div>
+      <div className="border-b border-gray-200 p-3">
+        <SiteSwitcher />
       </div>
       <nav className="mt-4 flex flex-col gap-1 px-2">
         {navItems.map((item) => {
