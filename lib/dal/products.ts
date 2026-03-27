@@ -136,6 +136,26 @@ export async function listActiveProducts(
   return data as ProductRow[];
 }
 
+/** Search active products by name (basic search) */
+export async function searchProducts(
+  siteId: string,
+  query: string,
+  limit = 20,
+): Promise<ProductRow[]> {
+  const sb = getServiceClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("*")
+    .eq("site_id", siteId)
+    .eq("status", "active")
+    .ilike("name", `%${query}%`)
+    .order("score", { ascending: false, nullsFirst: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data as ProductRow[];
+}
+
 /** List featured products for a site */
 export async function listFeaturedProducts(
   siteId: string,
