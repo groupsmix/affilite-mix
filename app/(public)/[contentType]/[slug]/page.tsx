@@ -1,13 +1,22 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { getContentBySlug, getRelatedContent } from "@/lib/dal/content";
 import { getLinkedProducts } from "@/lib/dal/content-products";
+import { injectProductLinks } from "@/lib/internal-links";
 import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
 import { ContentCard } from "../../components/content-card";
 import { Breadcrumbs } from "../../components/breadcrumbs";
-import { ComparisonTable } from "../../components/comparison-table";
-import { StickyCtaBar } from "../../components/sticky-cta-bar";
-import { ReadingProgress } from "../../components/reading-progress";
+import dynamic from "next/dynamic";
+
+const ComparisonTable = dynamic(() =>
+  import("../../components/comparison-table").then((m) => m.ComparisonTable)
+);
+const StickyCtaBar = dynamic(() =>
+  import("../../components/sticky-cta-bar").then((m) => m.StickyCtaBar)
+);
+const ReadingProgress = dynamic(() =>
+  import("../../components/reading-progress").then((m) => m.ReadingProgress)
+);
 import {
   JsonLd,
   articleJsonLd,
@@ -17,6 +26,7 @@ import {
   faqJsonLd,
 } from "../../components/json-ld";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import type { Metadata } from "next";
 
 interface ContentPageProps {
@@ -183,10 +193,11 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             {heroProduct.image_url && (
               <div className="shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={heroProduct.image_url}
                   alt={heroProduct.name}
+                  width={112}
+                  height={112}
                   className="h-28 w-28 rounded-lg object-contain"
                 />
               </div>
@@ -226,9 +237,14 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         <ComparisonTable products={comparisonProducts} />
       )}
 
-      {/* Content body */}
+      {/* Content body with auto-linked product mentions */}
       <div className="mb-10">
-        <HtmlRenderer html={content.body} />
+        <HtmlRenderer
+          html={injectProductLinks(
+            content.body,
+            linkedProducts.map((lp) => lp.product),
+          )}
+        />
       </div>
 
       {/* Linked products */}
