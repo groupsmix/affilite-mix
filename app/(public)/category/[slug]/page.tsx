@@ -4,6 +4,7 @@ import { listContent } from "@/lib/dal/content";
 import { listActiveProducts } from "@/lib/dal/products";
 import { ContentCard } from "../../components/content-card";
 import { ProductCard } from "../../components/product-card";
+import { JsonLd, breadcrumbJsonLd } from "../../components/json-ld";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -22,11 +23,27 @@ export async function generateMetadata({
     return { title: "Not Found" };
   }
 
+  const url = `https://${site.domain}/category/${category.slug}`;
+  const description = `Browse ${category.name} on ${site.name}`;
+
   return {
     title: `${category.name} — ${site.name}`,
-    description: `Browse ${category.name} on ${site.name}`,
+    description,
     alternates: {
-      canonical: `/category/${category.slug}`,
+      canonical: url,
+    },
+    openGraph: {
+      title: `${category.name} — ${site.name}`,
+      description,
+      url,
+      siteName: site.name,
+      locale: site.locale,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: `${category.name} — ${site.name}`,
+      description,
     },
   };
 }
@@ -53,8 +70,14 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const locale = site.language === "ar" ? "ar-SA" : "en-US";
   const ctaLabel = site.language === "ar" ? "احصل على العرض" : "View Deal";
 
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: category.name, path: `/category/${category.slug}` },
+  ]);
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <JsonLd data={breadcrumbs} />
       <header className="mb-8">
         <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
       </header>

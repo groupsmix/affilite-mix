@@ -3,6 +3,13 @@ import { getContentBySlug } from "@/lib/dal/content";
 import { getLinkedProducts } from "@/lib/dal/content-products";
 import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
+import {
+  JsonLd,
+  articleJsonLd,
+  reviewJsonLd,
+  breadcrumbJsonLd,
+  productJsonLd,
+} from "../../components/json-ld";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -21,11 +28,29 @@ export async function generateMetadata({
     return { title: site.language === "ar" ? "غير موجود" : "Not Found" };
   }
 
+  const url = `https://${site.domain}/${content.type}/${content.slug}`;
+
   return {
     title: `${content.title} — ${site.name}`,
     description: content.excerpt || "",
     alternates: {
-      canonical: `/${content.type}/${content.slug}`,
+      canonical: url,
+    },
+    openGraph: {
+      title: `${content.title} — ${site.name}`,
+      description: content.excerpt || content.title,
+      url,
+      siteName: site.name,
+      locale: site.locale,
+      type: "article",
+      publishedTime: content.created_at,
+      modifiedTime: content.updated_at || undefined,
+      authors: content.author ? [content.author] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${content.title} — ${site.name}`,
+      description: content.excerpt || content.title,
     },
   };
 }
@@ -54,8 +79,29 @@ export default async function ContentPage({ params }: ContentPageProps) {
   // Load linked products
   const linkedProducts = await getLinkedProducts(content.id);
 
+  // Build JSON-LD based on content type
+  const contentTypeLabel = site.contentTypes.find((ct) => ct.value === content.type)?.label ?? content.type;
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: contentTypeLabel, path: `/${content.type}` },
+    { name: content.title, path: `/${content.type}/${content.slug}` },
+  ]);
+
+  const isReview = content.type === "review";
+  const heroProduct = linkedProducts.find((lp) => lp.role === "hero")?.product
+    ?? linkedProducts[0]?.product;
+
+  const contentSchema = isReview
+    ? reviewJsonLd(site, content, heroProduct)
+    : articleJsonLd(site, content);
+
   return (
     <article className="mx-auto max-w-4xl px-4 py-8">
+      <JsonLd data={breadcrumbs} />
+      <JsonLd data={contentSchema} />
+      {linkedProducts.map((lp) => (
+        <JsonLd key={lp.product_id} data={productJsonLd(site, lp.product)} />
+      ))}
       {/* Header */}
       <header className="mb-8">
         <div className="mb-2 text-sm text-gray-400">

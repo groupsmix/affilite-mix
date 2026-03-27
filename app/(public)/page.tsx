@@ -5,6 +5,7 @@ import { listFeaturedProducts } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
 import { ContentCard } from "./components/content-card";
 import { ProductCard } from "./components/product-card";
+import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./components/json-ld";
 import Link from "next/link";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -13,7 +14,20 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `${site.name} — ${site.brand.niche}`,
     description: site.brand.description,
     alternates: {
-      canonical: "/",
+      canonical: `https://${site.domain}/`,
+    },
+    openGraph: {
+      title: `${site.name} — ${site.brand.niche}`,
+      description: site.brand.description,
+      url: `https://${site.domain}/`,
+      siteName: site.name,
+      locale: site.locale,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${site.name} — ${site.brand.niche}`,
+      description: site.brand.description,
     },
   };
 }
@@ -31,6 +45,8 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <JsonLd data={organizationJsonLd(site)} />
+      <JsonLd data={webSiteJsonLd(site)} />
       {/* Hero */}
       <section className="mb-12 text-center">
         <h1 className="mb-3 text-4xl font-bold">{site.name}</h1>
