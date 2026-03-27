@@ -3,7 +3,7 @@ import type { SiteDefinition } from "../site-definition";
 export const arabicToolsSite: SiteDefinition = {
   id: "arabic-tools",
   name: "Arabic Tools",
-  domain: "arabic-tools.example.com",
+  domain: "arabic.wristnerd.site",
   language: "ar",
   direction: "rtl",
   locale: "ar_SA",
@@ -11,7 +11,7 @@ export const arabicToolsSite: SiteDefinition = {
   brand: {
     description:
       "مراجعات وأدوات عربية لمقارنة المنتجات والخدمات التقنية",
-    contactEmail: "contact@arabic-tools.example.com",
+    contactEmail: "contact@arabic.wristnerd.site",
     niche: "Arabic Product Reviews",
   },
 
