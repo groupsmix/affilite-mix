@@ -20,7 +20,7 @@ function getSecretKey() {
 }
 
 export interface AdminPayload {
-  siteId: string;
+  siteId?: string;
   role: "admin";
 }
 
@@ -30,7 +30,7 @@ export function verifyCredentials(password: string): boolean {
 }
 
 /** Create a signed JWT for admin session */
-export async function createToken(payload: AdminPayload): Promise<string> {
+export async function createToken(payload: { role: "admin" }): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()

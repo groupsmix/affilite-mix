@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password, siteId: "arabic-tools" }),
+      body: JSON.stringify({ password }),
     });
 
     if (res.ok) {
@@ -36,6 +36,9 @@ export default function AdminLoginPage() {
         className="w-full max-w-sm rounded-lg bg-white p-8 shadow-md"
       >
         <h1 className="mb-6 text-2xl font-bold text-gray-900">Admin Login</h1>
+        <p className="mb-6 text-sm text-gray-500">
+          Sign in to manage all your sites from one dashboard.
+        </p>
         {error && (
           <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">
             {error}
