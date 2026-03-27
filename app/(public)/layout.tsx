@@ -12,8 +12,12 @@ export default async function PublicLayout({
   const cssVars = {
     "--color-primary": site.theme.primaryColor,
     "--color-accent": site.theme.accentColor,
-    "--font-heading": `"${site.theme.fontHeading}", sans-serif`,
-    "--font-body": `"${site.theme.fontBody}", sans-serif`,
+    "--font-heading": site.theme.fontHeading === "Inter"
+      ? "var(--font-inter), sans-serif"
+      : "var(--font-ibm-plex-arabic), sans-serif",
+    "--font-body": site.theme.fontBody === "Inter"
+      ? "var(--font-inter), sans-serif"
+      : "var(--font-ibm-plex-arabic), sans-serif",
   } as React.CSSProperties;
 
   return (

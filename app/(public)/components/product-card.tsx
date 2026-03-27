@@ -1,4 +1,5 @@
 import type { ProductRow } from "@/types/database";
+import Image from "next/image";
 
 interface ProductCardProps {
   product: ProductRow;
@@ -43,10 +44,11 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
       )}
       {product.image_url && (
         <div className="mb-3 overflow-hidden rounded-md">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={product.image_url}
             alt={product.name}
+            width={320}
+            height={160}
             className="h-40 w-full object-contain"
           />
         </div>
