@@ -17,6 +17,7 @@ const StickyCtaBar = dynamic(() =>
 const ReadingProgress = dynamic(() =>
   import("../../components/reading-progress").then((m) => m.ReadingProgress)
 );
+import { ProsCons } from "../../components/pros-cons";
 import {
   JsonLd,
   articleJsonLd,
@@ -236,6 +237,20 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
       {isComparison && comparisonProducts.length >= 2 && (
         <ComparisonTable products={comparisonProducts} />
       )}
+
+      {/* Pros/Cons for review pages */}
+      {isReview && heroProduct && heroProduct.description && (() => {
+        const desc = heroProduct.description;
+        const prosMatch = desc.match(/(?:pros?|advantages?|strengths?)[:;\n]([\s\S]*?)(?:cons?|disadvantages?|weaknesses?|$)/i);
+        const consMatch = desc.match(/(?:cons?|disadvantages?|weaknesses?)[:;\n]([\s\S]*?)$/i);
+        const pros = prosMatch
+          ? prosMatch[1].split(/[;\n•\-\*]/).map((s) => s.trim()).filter(Boolean)
+          : [];
+        const cons = consMatch
+          ? consMatch[1].split(/[;\n•\-\*]/).map((s) => s.trim()).filter(Boolean)
+          : [];
+        return <ProsCons pros={pros} cons={cons} language={site.language} />;
+      })()}
 
       {/* Content body with auto-linked product mentions */}
       <div className="mb-10">

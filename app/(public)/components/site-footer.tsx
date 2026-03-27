@@ -1,5 +1,6 @@
 import type { SiteDefinition } from "@/config/site-definition";
 import Link from "next/link";
+import { NewsletterSignup } from "./newsletter-signup";
 
 interface SiteFooterProps {
   site: SiteDefinition;
@@ -36,6 +37,11 @@ export function SiteFooter({ site }: SiteFooterProps) {
               </ul>
             </div>
           ))}
+        </div>
+
+        {/* Newsletter signup */}
+        <div className="mt-8">
+          <NewsletterSignup siteLanguage={site.language} />
         </div>
 
         {/* Affiliate disclosure */}

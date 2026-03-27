@@ -45,6 +45,7 @@ function isUrl(v: unknown): v is string {
 export interface CreateCategoryInput {
   name: string;
   slug: string;
+  description: string;
 }
 
 export function validateCreateCategory(body: Record<string, unknown>): ValidationResult<CreateCategoryInput> {
@@ -58,13 +59,14 @@ export function validateCreateCategory(body: Record<string, unknown>): Validatio
   }
 
   if (Object.keys(errors).length > 0) return { data: null, errors };
-  return { data: { name: body.name as string, slug: body.slug as string }, errors: null };
+  return { data: { name: body.name as string, slug: body.slug as string, description: isString(body.description) ? body.description : "" }, errors: null };
 }
 
 export interface UpdateCategoryInput {
   id: string;
   name?: string;
   slug?: string;
+  description?: string;
 }
 
 export function validateUpdateCategory(body: Record<string, unknown>): ValidationResult<UpdateCategoryInput> {
@@ -84,6 +86,7 @@ export function validateUpdateCategory(body: Record<string, unknown>): Validatio
   const data: UpdateCategoryInput = { id: body.id as string };
   if (body.name !== undefined) data.name = body.name as string;
   if (body.slug !== undefined) data.slug = body.slug as string;
+  if (body.description !== undefined) data.description = body.description as string;
   return { data, errors: null };
 }
 
@@ -214,6 +217,7 @@ export interface CreateContentInput {
   category_id: string | null;
   tags: string[];
   author: string | null;
+  publish_at: string | null;
 }
 
 const CONTENT_STATUSES = new Set(["draft", "review", "published", "archived"]);
@@ -256,6 +260,7 @@ export function validateCreateContent(body: Record<string, unknown>): Validation
       category_id: isUuid(body.category_id) ? (body.category_id as string) : null,
       tags: Array.isArray(body.tags) ? (body.tags as string[]) : [],
       author: isString(body.author) ? body.author : null,
+      publish_at: isString(body.publish_at) && body.publish_at !== "" ? body.publish_at : null,
     },
     errors: null,
   };
@@ -291,7 +296,7 @@ export function validateUpdateContent(body: Record<string, unknown>): Validation
   if (Object.keys(errors).length > 0) return { data: null, errors };
 
   const data: UpdateContentInput = { id: body.id as string };
-  const allowedFields = ["title", "slug", "body", "excerpt", "featured_image", "content_type", "type", "status", "category_id", "tags", "author"];
+  const allowedFields = ["title", "slug", "body", "excerpt", "featured_image", "content_type", "type", "status", "category_id", "tags", "author", "publish_at"];
   for (const field of allowedFields) {
     if (body[field] !== undefined) data[field] = body[field];
   }
