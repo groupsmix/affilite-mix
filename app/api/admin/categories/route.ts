@@ -1,62 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import {
   listCategories,
   createCategory,
   updateCategory,
   deleteCategory,
 } from "@/lib/dal/categories";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-
-async function requireAdmin() {
-  const session = await getAdminSession();
-  if (!session) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), session: null };
-  }
-  return { error: null, session };
-}
+import { validateCreateCategory, validateUpdateCategory } from "@/lib/validation";
 
 export async function GET() {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const dbSiteId = await resolveDbSiteId(session.siteId);
   const categories = await listCategories(dbSiteId);
   return NextResponse.json(categories);
 }
 
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const body = await request.json();
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const raw = await request.json();
+  const parsed = validateCreateCategory(raw);
+  if (parsed.errors) {
+    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+  }
+
   const category = await createCategory({
     site_id: dbSiteId,
-    name: body.name,
-    slug: body.slug,
+    name: parsed.data.name,
+    slug: parsed.data.slug,
   });
 
   return NextResponse.json(category, { status: 201 });
 }
 
 export async function PATCH(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const body = await request.json();
-  const { id, ...updates } = body;
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const raw = await request.json();
+  const parsed = validateUpdateCategory(raw);
+  if (parsed.errors) {
+    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
   }
 
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const { id, ...updates } = parsed.data;
   const category = await updateCategory(dbSiteId, id, updates);
   return NextResponse.json(category);
 }
 
 export async function DELETE(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
@@ -65,7 +60,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const dbSiteId = await resolveDbSiteId(session.siteId);
   await deleteCategory(dbSiteId, id);
   return NextResponse.json({ ok: true });
 }

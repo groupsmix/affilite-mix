@@ -1,27 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import {
   listContent,
   createContent,
   updateContent,
   deleteContent,
 } from "@/lib/dal/content";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-
-async function requireAdmin() {
-  const session = await getAdminSession();
-  if (!session) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), session: null };
-  }
-  return { error: null, session };
-}
+import { validateCreateContent, validateUpdateContent } from "@/lib/validation";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 export async function GET(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
-  const dbSiteId = await resolveDbSiteId(session.siteId);
   const content = await listContent({
     siteId: dbSiteId,
     contentType: searchParams.get("content_type") ?? undefined,
@@ -36,49 +28,58 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const body = await request.json();
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const raw = await request.json();
+  const parsed = validateCreateContent(raw);
+  if (parsed.errors) {
+    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+  }
+
+  const data = parsed.data;
   const content = await createContent({
     site_id: dbSiteId,
-    title: body.title,
-    slug: body.slug,
-    body: body.body ?? "",
-    excerpt: body.excerpt ?? "",
-    type: body.content_type ?? body.type ?? "article",
-    status: body.status ?? "draft",
-    category_id: body.category_id ?? null,
-    tags: body.tags ?? [],
-    author: body.author ?? null,
+    title: data.title,
+    slug: data.slug,
+    body: sanitizeHtml(data.body),
+    excerpt: data.excerpt,
+    type: data.type,
+    status: data.status,
+    category_id: data.category_id,
+    tags: data.tags,
+    author: data.author,
   });
 
   return NextResponse.json(content, { status: 201 });
 }
 
 export async function PATCH(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const body = await request.json();
-  const { id, ...updates } = body;
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const raw = await request.json();
+  const parsed = validateUpdateContent(raw);
+  if (parsed.errors) {
+    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
   }
 
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const { id, ...updates } = parsed.data;
   // Remap content_type -> type if sent from the form
   if (updates.content_type) {
     updates.type = updates.content_type;
     delete updates.content_type;
+  }
+  // Sanitize HTML body if present
+  if (typeof updates.body === "string") {
+    updates.body = sanitizeHtml(updates.body);
   }
   const content = await updateContent(dbSiteId, id, updates);
   return NextResponse.json(content);
 }
 
 export async function DELETE(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
@@ -87,7 +88,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const dbSiteId = await resolveDbSiteId(session.siteId);
   await deleteContent(dbSiteId, id);
   return NextResponse.json({ ok: true });
 }
