@@ -1,15 +1,27 @@
 import { requireAdminSession } from "../components/admin-guard";
-import { listContent } from "@/lib/dal/content";
+import { listContent, countContent } from "@/lib/dal/content";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ContentList } from "./content-list";
+import { Pagination } from "@/app/(public)/components/pagination";
 
-export default async function ContentPage() {
+const PAGE_SIZE = 20;
+
+interface ContentPageProps {
+  searchParams: Promise<{ page?: string }>;
+}
+
+export default async function ContentPage({ searchParams }: ContentPageProps) {
+  const { page: pageParam } = await searchParams;
+  const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) redirect("/admin/sites");
   const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
-  const contentItems = await listContent({ siteId: dbSiteId });
+  const [contentItems, totalContent] = await Promise.all([
+    listContent({ siteId: dbSiteId, limit: PAGE_SIZE, offset: (currentPage - 1) * PAGE_SIZE }),
+    countContent({ siteId: dbSiteId }),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -36,6 +48,13 @@ export default async function ContentPage() {
       ) : (
         <ContentList items={contentItems} />
       )}
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={totalContent}
+        pageSize={PAGE_SIZE}
+        basePath="/admin/content"
+      />
     </div>
   );
 }

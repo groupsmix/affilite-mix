@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import Image from "next/image";
 
 interface ImageUploaderProps {
   value: string;
@@ -130,9 +131,8 @@ export function ImageUploader({ value, onChange, label = "Image" }: ImageUploade
 
       {/* Preview */}
       {value && (
-        <div className="mt-2 overflow-hidden rounded-md border border-gray-200">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="Preview" className="h-32 w-full object-cover" />
+        <div className="relative mt-2 h-32 overflow-hidden rounded-md border border-gray-200">
+          <Image src={value} alt="Preview" fill className="object-cover" unoptimized />
         </div>
       )}
     </div>

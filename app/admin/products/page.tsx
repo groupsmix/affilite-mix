@@ -1,15 +1,27 @@
 import { requireAdminSession } from "../components/admin-guard";
-import { listProducts } from "@/lib/dal/products";
+import { listProducts, countProducts } from "@/lib/dal/products";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ProductList } from "./product-list";
+import { Pagination } from "@/app/(public)/components/pagination";
 
-export default async function ProductsPage() {
+const PAGE_SIZE = 20;
+
+interface ProductsPageProps {
+  searchParams: Promise<{ page?: string }>;
+}
+
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
+  const { page: pageParam } = await searchParams;
+  const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) redirect("/admin/sites");
   const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
-  const products = await listProducts({ siteId: dbSiteId });
+  const [products, totalProducts] = await Promise.all([
+    listProducts({ siteId: dbSiteId, limit: PAGE_SIZE, offset: (currentPage - 1) * PAGE_SIZE }),
+    countProducts({ siteId: dbSiteId }),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -36,6 +48,13 @@ export default async function ProductsPage() {
       ) : (
         <ProductList products={products} />
       )}
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={totalProducts}
+        pageSize={PAGE_SIZE}
+        basePath="/admin/products"
+      />
     </div>
   );
 }
