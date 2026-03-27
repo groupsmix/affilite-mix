@@ -125,6 +125,7 @@ export async function listPublishedContent(
   siteId: string,
   contentType?: string,
   limit = 20,
+  offset = 0,
 ): Promise<ContentRow[]> {
   const sb = getServiceClient();
   let query = sb
@@ -132,10 +133,11 @@ export async function listPublishedContent(
     .select("*")
     .eq("site_id", siteId)
     .eq("status", "published")
-    .order("updated_at", { ascending: false })
-    .limit(limit);
+    .order("updated_at", { ascending: false });
 
   if (contentType) query = query.eq("type", contentType);
+  if (offset > 0) query = query.range(offset, offset + limit - 1);
+  else query = query.limit(limit);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -148,6 +150,45 @@ export async function getRecentContent(
   limit = 6,
 ): Promise<ContentRow[]> {
   return listPublishedContent(siteId, undefined, limit);
+}
+
+/** Count published content for pagination */
+export async function countPublishedContent(
+  siteId: string,
+  contentType?: string,
+): Promise<number> {
+  const sb = getServiceClient();
+  let query = sb
+    .from(TABLE)
+    .select("id", { count: "exact", head: true })
+    .eq("site_id", siteId)
+    .eq("status", "published");
+
+  if (contentType) query = query.eq("type", contentType);
+
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Search published content by title (basic search) */
+export async function searchContent(
+  siteId: string,
+  query: string,
+  limit = 20,
+): Promise<ContentRow[]> {
+  const sb = getServiceClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("*")
+    .eq("site_id", siteId)
+    .eq("status", "published")
+    .ilike("title", `%${query}%`)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data as ContentRow[];
 }
 
 /** Get related content by category (excluding a specific content id) */
