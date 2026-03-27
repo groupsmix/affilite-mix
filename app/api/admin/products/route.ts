@@ -48,6 +48,9 @@ export async function POST(request: NextRequest) {
     featured: data.featured,
     status: data.status,
     category_id: data.category_id,
+    cta_text: data.cta_text ?? "",
+    deal_text: data.deal_text ?? "",
+    deal_expires_at: data.deal_expires_at ?? null,
   });
 
   return NextResponse.json(product, { status: 201 });

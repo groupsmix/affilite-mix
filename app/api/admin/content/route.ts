@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
     slug: data.slug,
     body: sanitizeHtml(data.body),
     excerpt: data.excerpt,
+    featured_image: data.featured_image ?? "",
     type: data.type,
     status: data.status,
     category_id: data.category_id,

@@ -32,6 +32,9 @@ export interface ProductRow {
   featured: boolean;
   status: "draft" | "active" | "archived";
   category_id: string | null;
+  cta_text: string;
+  deal_text: string;
+  deal_expires_at: string | null;
   created_at: string;
 }
 
@@ -42,6 +45,7 @@ export interface ContentRow {
   slug: string;
   body: string;
   excerpt: string;
+  featured_image: string;
   type: string;
   status: "draft" | "review" | "published" | "archived";
   category_id: string | null;
