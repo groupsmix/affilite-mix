@@ -1,8 +1,17 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-me";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin";
+function requireEnvInProduction(name: string, fallback: string): string {
+  const value = process.env[name];
+  if (value) return value;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(`${name} environment variable is required in production`);
+  }
+  return fallback;
+}
+
+const JWT_SECRET = requireEnvInProduction("JWT_SECRET", "dev-secret-change-me");
+const ADMIN_PASSWORD = requireEnvInProduction("ADMIN_PASSWORD", "admin");
 const COOKIE_NAME = "nh_admin_token";
 const EXPIRY = "24h";
 
