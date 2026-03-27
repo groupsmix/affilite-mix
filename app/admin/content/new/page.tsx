@@ -6,7 +6,8 @@ import { ContentForm } from "../content-form";
 
 export default async function NewContentPage() {
   const session = await requireAdminSession();
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  if (!session.activeSiteSlug) return null;
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
   const [categories, products] = await Promise.all([
     listCategories(dbSiteId),
     listProducts({ siteId: dbSiteId }),

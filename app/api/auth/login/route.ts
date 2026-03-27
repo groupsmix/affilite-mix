@@ -21,11 +21,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { password, siteId } = body as { password?: string; siteId?: string };
+  const { password } = body as { password?: string };
 
-  if (!password || !siteId) {
+  if (!password) {
     return NextResponse.json(
-      { error: "password and siteId are required" },
+      { error: "password is required" },
       { status: 400 },
     );
   }
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  const token = await createToken({ siteId, role: "admin" });
+  const token = await createToken({ role: "admin" });
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set(COOKIE_NAME, token, {

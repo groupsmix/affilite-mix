@@ -11,8 +11,9 @@ export default async function EditProductPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await requireAdminSession();
+  if (!session.activeSiteSlug) notFound();
   const { id } = await params;
-  const dbSiteId = await resolveDbSiteId(session.siteId);
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
   const [product, categories] = await Promise.all([
     getProductById(dbSiteId, id),
     listCategories(dbSiteId),
