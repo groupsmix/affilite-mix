@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     site_id: dbSiteId,
     name: parsed.data.name,
     slug: parsed.data.slug,
+    description: parsed.data.description,
   });
 
   return NextResponse.json(category, { status: 201 });

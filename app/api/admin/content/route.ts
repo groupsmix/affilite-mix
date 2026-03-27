@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     category_id: data.category_id,
     tags: data.tags,
     author: data.author,
+    publish_at: data.publish_at,
   });
 
   revalidateTag("content");
