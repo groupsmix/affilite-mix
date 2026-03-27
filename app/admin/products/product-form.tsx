@@ -137,14 +137,13 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           />
         </div>
 
-        <div>
-          <ImageUploader
-            value={imageUrl}
-            onChange={setImageUrl}
-            label="Product Image"
-          />
-        </div>
       </div>
+
+      <ImageUploader
+        value={imageUrl}
+        onChange={setImageUrl}
+        label="Product Image"
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div>

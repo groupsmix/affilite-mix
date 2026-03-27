@@ -36,6 +36,7 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
   const [categoryId, setCategoryId] = useState(content?.category_id ?? "");
   const [tagsStr, setTagsStr] = useState((content?.tags ?? []).join(", "));
   const [author, setAuthor] = useState(content?.author ?? "");
+  const [publishAt, setPublishAt] = useState(content?.publish_at ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -77,6 +78,7 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
       category_id: categoryId || null,
       tags,
       author: author || null,
+      publish_at: publishAt || null,
     };
 
     const res = isEdit
@@ -216,7 +218,7 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">Author</label>
           <input
@@ -234,6 +236,16 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
             onChange={(e) => setTagsStr(e.target.value)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Schedule Publish</label>
+          <input
+            type="datetime-local"
+            value={publishAt ? publishAt.slice(0, 16) : ""}
+            onChange={(e) => setPublishAt(e.target.value ? new Date(e.target.value).toISOString() : "")}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+          <p className="mt-1 text-xs text-gray-400">Leave empty for immediate action</p>
         </div>
       </div>
 

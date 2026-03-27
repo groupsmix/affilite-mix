@@ -34,6 +34,25 @@ export async function listProducts(
   return data as ProductRow[];
 }
 
+/** Count products matching filters */
+export async function countProducts(
+  opts: Omit<ListProductsOptions, "limit" | "offset">,
+): Promise<number> {
+  const sb = getServiceClient();
+  let query = sb
+    .from(TABLE)
+    .select("*", { count: "exact", head: true })
+    .eq("site_id", opts.siteId);
+
+  if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
+  if (opts.status) query = query.eq("status", opts.status);
+  if (opts.featured !== undefined) query = query.eq("featured", opts.featured);
+
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Get a single product by id */
 export async function getProductById(
   siteId: string,

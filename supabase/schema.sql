@@ -20,6 +20,7 @@ CREATE TABLE categories (
   site_id     uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
   name        text NOT NULL,
   slug        text NOT NULL,
+  description text DEFAULT '',
   created_at  timestamptz DEFAULT now(),
   UNIQUE(site_id, slug)
 );
@@ -66,6 +67,7 @@ CREATE TABLE content (
   category_id uuid REFERENCES categories(id) ON DELETE SET NULL,
   tags        text[] DEFAULT '{}',
   author      text,
+  publish_at  timestamptz,
   created_at  timestamptz DEFAULT now(),
   updated_at  timestamptz DEFAULT now(),
   UNIQUE(site_id, slug)
@@ -78,6 +80,17 @@ CREATE TABLE content_products (
   role        text DEFAULT 'hero'
               CHECK (role IN ('hero', 'featured', 'related', 'vs-left', 'vs-right')),
   PRIMARY KEY (content_id, product_id)
+);
+
+-- NEWSLETTER SUBSCRIBERS
+CREATE TABLE newsletter_subscribers (
+  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  site_id     uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  email       text NOT NULL,
+  status      text NOT NULL DEFAULT 'active'
+              CHECK (status IN ('active', 'unsubscribed')),
+  created_at  timestamptz DEFAULT now(),
+  UNIQUE(site_id, email)
 );
 
 -- AFFILIATE CLICK TRACKING
@@ -108,6 +121,7 @@ CREATE INDEX idx_content_updated        ON content(site_id, updated_at DESC)
   WHERE status = 'published';
 CREATE INDEX idx_clicks_site            ON affiliate_clicks(site_id);
 CREATE INDEX idx_clicks_created         ON affiliate_clicks(created_at DESC);
+CREATE INDEX idx_newsletter_site        ON newsletter_subscribers(site_id);
 
 -- ═══════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY
@@ -119,6 +133,7 @@ ALTER TABLE products          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_products  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE affiliate_clicks  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 
 -- Public read policies (anon key)
 CREATE POLICY "public_read_sites"
@@ -139,6 +154,9 @@ CREATE POLICY "public_read_content_products"
 -- Anonymous write policies (public actions)
 CREATE POLICY "public_insert_clicks"
   ON affiliate_clicks FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "public_insert_newsletter"
+  ON newsletter_subscribers FOR INSERT WITH CHECK (true);
 
 -- Note: All admin operations use the Supabase service key (bypasses RLS).
 
