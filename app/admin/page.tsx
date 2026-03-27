@@ -32,6 +32,31 @@ export default async function AdminDashboard() {
   const publishedContent = contentItems.filter((c) => c.status === "published").length;
   const draftContent = contentItems.filter((c) => c.status === "draft").length;
 
+  // Alerts / warnings
+  const productsWithNoUrl = products.filter((p) => p.status === "active" && !p.affiliate_url);
+  const alerts: { type: "warning" | "info"; message: string; href?: string }[] = [];
+  if (productsWithNoUrl.length > 0) {
+    alerts.push({
+      type: "warning",
+      message: `${productsWithNoUrl.length} active product(s) missing affiliate URL`,
+      href: "/admin/products",
+    });
+  }
+  if (draftContent > 0) {
+    alerts.push({
+      type: "info",
+      message: `${draftContent} draft content item(s) waiting to be published`,
+      href: "/admin/content",
+    });
+  }
+  if (draftProducts > 0) {
+    alerts.push({
+      type: "info",
+      message: `${draftProducts} draft product(s) not yet active`,
+      href: "/admin/products",
+    });
+  }
+
   const quickActions = [
     { title: "New Product", href: "/admin/products/new", icon: "+" },
     { title: "New Article", href: "/admin/content/new", icon: "+" },
@@ -45,6 +70,32 @@ export default async function AdminDashboard() {
       <p className="mb-6 text-sm text-gray-500">
         Managing: <span className="font-medium">{session.activeSiteName ?? session.activeSiteSlug}</span>
       </p>
+
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {alerts.map((alert, i) => (
+            <div
+              key={i}
+              className={`flex items-center justify-between rounded-lg border px-4 py-3 text-sm ${
+                alert.type === "warning"
+                  ? "border-yellow-200 bg-yellow-50 text-yellow-800"
+                  : "border-blue-200 bg-blue-50 text-blue-800"
+              }`}
+            >
+              <span>
+                {alert.type === "warning" ? "⚠ " : "ℹ "}
+                {alert.message}
+              </span>
+              {alert.href && (
+                <Link href={alert.href} className="font-medium underline hover:no-underline">
+                  View
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Stats cards */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

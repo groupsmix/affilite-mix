@@ -7,6 +7,7 @@ import { ContentCard } from "../../components/content-card";
 import { Breadcrumbs } from "../../components/breadcrumbs";
 import { ComparisonTable } from "../../components/comparison-table";
 import { StickyCtaBar } from "../../components/sticky-cta-bar";
+import { ReadingProgress } from "../../components/reading-progress";
 import {
   JsonLd,
   articleJsonLd,
@@ -125,6 +126,8 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
       {linkedProducts.map((lp) => (
         <JsonLd key={lp.product_id} data={productJsonLd(site, lp.product)} />
       ))}
+
+      <ReadingProgress />
 
       {/* Preview banner */}
       {isPreview && (
