@@ -40,6 +40,9 @@ CREATE TABLE products (
   status        text NOT NULL DEFAULT 'active'
                 CHECK (status IN ('draft', 'active', 'archived')),
   category_id   uuid REFERENCES categories(id) ON DELETE SET NULL,
+  cta_text      text DEFAULT '',
+  deal_text     text DEFAULT '',
+  deal_expires_at timestamptz,
   created_at    timestamptz DEFAULT now(),
   UNIQUE(site_id, slug)
 );
@@ -52,6 +55,7 @@ CREATE TABLE content (
   slug        text NOT NULL,
   body        text DEFAULT '',
   excerpt     text DEFAULT '',
+  featured_image text DEFAULT '',
   type        text NOT NULL DEFAULT 'article'
               CHECK (type IN (
                 'article', 'review', 'comparison', 'guide', 'blog',

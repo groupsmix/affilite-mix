@@ -25,6 +25,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [isFeatured, setIsFeatured] = useState(product?.featured ?? false);
   const [status, setStatus] = useState(product?.status ?? "active");
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
+  const [ctaText, setCtaText] = useState(product?.cta_text ?? "");
+  const [dealText, setDealText] = useState(product?.deal_text ?? "");
+  const [dealExpiresAt, setDealExpiresAt] = useState(product?.deal_expires_at ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -52,6 +55,9 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       featured: isFeatured,
       status,
       category_id: categoryId || null,
+      cta_text: ctaText,
+      deal_text: dealText,
+      deal_expires_at: dealExpiresAt || null,
     };
 
     const res = isEdit
@@ -202,6 +208,40 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             <option value="active">Active</option>
             <option value="archived">Archived</option>
           </select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">CTA Text</label>
+          <input
+            type="text"
+            value={ctaText}
+            onChange={(e) => setCtaText(e.target.value)}
+            placeholder="e.g. Get 50% Off"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Deal Badge</label>
+          <input
+            type="text"
+            value={dealText}
+            onChange={(e) => setDealText(e.target.value)}
+            placeholder="e.g. 20% Off"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Deal Expires</label>
+          <input
+            type="datetime-local"
+            value={dealExpiresAt ? dealExpiresAt.slice(0, 16) : ""}
+            onChange={(e) => setDealExpiresAt(e.target.value ? new Date(e.target.value).toISOString() : "")}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
         </div>
       </div>
 

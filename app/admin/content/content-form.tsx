@@ -23,6 +23,7 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
   const [slug, setSlug] = useState(content?.slug ?? "");
   const [body, setBody] = useState(content?.body ?? "");
   const [excerpt, setExcerpt] = useState(content?.excerpt ?? "");
+  const [featuredImage, setFeaturedImage] = useState(content?.featured_image ?? "");
   const [contentType, setContentType] = useState(content?.type ?? "article");
   const [status, setStatus] = useState(content?.status ?? "draft");
   const [categoryId, setCategoryId] = useState(content?.category_id ?? "");
@@ -63,6 +64,7 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
       slug,
       body,
       excerpt,
+      featured_image: featuredImage,
       type: contentType,
       status,
       category_id: categoryId || null,
@@ -145,6 +147,23 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
           rows={2}
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">Featured Image URL</label>
+        <input
+          type="url"
+          value={featuredImage}
+          onChange={(e) => setFeaturedImage(e.target.value)}
+          placeholder="https://example.com/image.jpg"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        />
+        {featuredImage && (
+          <div className="mt-2 overflow-hidden rounded-md border border-gray-200">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={featuredImage} alt="Preview" className="h-32 w-full object-cover" />
+          </div>
+        )}
       </div>
 
       <div>
@@ -242,6 +261,16 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
         >
           {saving ? "Saving..." : isEdit ? "Update" : "Create"}
         </button>
+        {isEdit && slug && (
+          <a
+            href={`/${contentType}/${slug}?preview=true`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+          >
+            Preview
+          </a>
+        )}
         <button
           type="button"
           onClick={() => router.push("/admin/content")}

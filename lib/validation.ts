@@ -101,6 +101,9 @@ export interface CreateProductInput {
   featured: boolean;
   status: "draft" | "active" | "archived";
   category_id: string | null;
+  cta_text: string;
+  deal_text: string;
+  deal_expires_at: string | null;
 }
 
 const PRODUCT_STATUSES = new Set(["draft", "active", "archived"]);
@@ -153,6 +156,9 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
       featured: isBoolean(body.is_featured) ? body.is_featured : isBoolean(body.featured) ? body.featured : false,
       status: (PRODUCT_STATUSES.has(body.status as string) ? body.status : "active") as "draft" | "active" | "archived",
       category_id: isUuid(body.category_id) ? (body.category_id as string) : null,
+      cta_text: isString(body.cta_text) ? body.cta_text : "",
+      deal_text: isString(body.deal_text) ? body.deal_text : "",
+      deal_expires_at: isString(body.deal_expires_at) ? body.deal_expires_at : null,
     },
     errors: null,
   };
@@ -188,7 +194,7 @@ export function validateUpdateProduct(body: Record<string, unknown>): Validation
   if (Object.keys(errors).length > 0) return { data: null, errors };
 
   const data: UpdateProductInput = { id: body.id as string };
-  const allowedFields = ["name", "slug", "description", "affiliate_url", "image_url", "price", "merchant", "score", "is_featured", "featured", "status", "category_id"];
+  const allowedFields = ["name", "slug", "description", "affiliate_url", "image_url", "price", "merchant", "score", "is_featured", "featured", "status", "category_id", "cta_text", "deal_text", "deal_expires_at"];
   for (const field of allowedFields) {
     if (body[field] !== undefined) data[field] = body[field];
   }
@@ -202,6 +208,7 @@ export interface CreateContentInput {
   slug: string;
   body: string;
   excerpt: string;
+  featured_image: string;
   type: string;
   status: "draft" | "review" | "published" | "archived";
   category_id: string | null;
@@ -243,6 +250,7 @@ export function validateCreateContent(body: Record<string, unknown>): Validation
       slug: body.slug as string,
       body: isString(body.body) ? body.body : "",
       excerpt: isString(body.excerpt) ? body.excerpt : "",
+      featured_image: isString(body.featured_image) ? body.featured_image : "",
       type: isString(body.content_type) ? body.content_type : isString(body.type) ? body.type : "article",
       status: (CONTENT_STATUSES.has(body.status as string) ? body.status : "draft") as "draft" | "review" | "published" | "archived",
       category_id: isUuid(body.category_id) ? (body.category_id as string) : null,
@@ -283,7 +291,7 @@ export function validateUpdateContent(body: Record<string, unknown>): Validation
   if (Object.keys(errors).length > 0) return { data: null, errors };
 
   const data: UpdateContentInput = { id: body.id as string };
-  const allowedFields = ["title", "slug", "body", "excerpt", "content_type", "type", "status", "category_id", "tags", "author"];
+  const allowedFields = ["title", "slug", "body", "excerpt", "featured_image", "content_type", "type", "status", "category_id", "tags", "author"];
   for (const field of allowedFields) {
     if (body[field] !== undefined) data[field] = body[field];
   }
