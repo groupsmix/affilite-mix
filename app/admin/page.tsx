@@ -3,6 +3,7 @@ import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { listProducts } from "@/lib/dal/products";
 import { listContent } from "@/lib/dal/content";
 import { getClickCount, getTopProducts } from "@/lib/dal/affiliate-clicks";
+import { getServiceClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -31,6 +32,24 @@ export default async function AdminDashboard() {
   const draftProducts = products.filter((p) => p.status === "draft").length;
   const publishedContent = contentItems.filter((c) => c.status === "published").length;
   const draftContent = contentItems.filter((c) => c.status === "draft").length;
+  const scheduledContent = contentItems.filter(
+    (c) => c.publish_at && new Date(c.publish_at) > now,
+  ).length;
+
+  // Check for published content with no linked products
+  const publishedContentIds = contentItems
+    .filter((c) => c.status === "published")
+    .map((c) => c.id);
+  let contentWithNoProducts = 0;
+  if (publishedContentIds.length > 0) {
+    const sb = getServiceClient();
+    const { data: linkedRows } = await sb
+      .from("content_products")
+      .select("content_id")
+      .in("content_id", publishedContentIds);
+    const linkedIds = new Set((linkedRows ?? []).map((r: { content_id: string }) => r.content_id));
+    contentWithNoProducts = publishedContentIds.filter((id) => !linkedIds.has(id)).length;
+  }
 
   // Alerts / warnings
   const productsWithNoUrl = products.filter((p) => p.status === "active" && !p.affiliate_url);
@@ -40,6 +59,20 @@ export default async function AdminDashboard() {
       type: "warning",
       message: `${productsWithNoUrl.length} active product(s) missing affiliate URL`,
       href: "/admin/products",
+    });
+  }
+  if (contentWithNoProducts > 0) {
+    alerts.push({
+      type: "warning",
+      message: `${contentWithNoProducts} published content item(s) with no linked products`,
+      href: "/admin/content",
+    });
+  }
+  if (scheduledContent > 0) {
+    alerts.push({
+      type: "info",
+      message: `${scheduledContent} content item(s) scheduled for future publishing`,
+      href: "/admin/content",
     });
   }
   if (draftContent > 0) {

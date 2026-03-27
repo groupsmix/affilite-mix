@@ -35,7 +35,7 @@ export function SiteHeader({ site }: SiteHeaderProps) {
           </Link>
         </nav>
         {/* Mobile nav */}
-        <MobileMenu nav={site.nav} />
+        <MobileMenu nav={site.nav} searchLabel={site.language === "ar" ? "بحث" : "Search"} />
       </div>
     </header>
   );
