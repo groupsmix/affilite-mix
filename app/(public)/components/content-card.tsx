@@ -1,5 +1,6 @@
 import type { ContentRow } from "@/types/database";
 import Link from "next/link";
+import Image from "next/image";
 
 interface ContentCardProps {
   content: ContentRow;
@@ -13,10 +14,11 @@ export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
     <article className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       {content.featured_image && (
         <Link href={href}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={content.featured_image}
             alt={content.title}
+            width={400}
+            height={176}
             className="h-44 w-full object-cover"
           />
         </Link>

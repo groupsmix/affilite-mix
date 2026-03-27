@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
 import {
   listContent,
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
     author: data.author,
   });
 
+  revalidateTag("content");
   return NextResponse.json(content, { status: 201 });
 }
 
@@ -76,6 +78,7 @@ export async function PATCH(request: NextRequest) {
     updates.body = sanitizeHtml(updates.body);
   }
   const content = await updateContent(dbSiteId, id, updates);
+  revalidateTag("content");
   return NextResponse.json(content);
 }
 
@@ -90,5 +93,6 @@ export async function DELETE(request: NextRequest) {
   }
 
   await deleteContent(dbSiteId, id);
+  revalidateTag("content");
   return NextResponse.json({ ok: true });
 }

@@ -6,9 +6,14 @@ import type { ContentRow } from "@/types/database";
 import type { CategoryRow } from "@/types/database";
 import type { ProductRow } from "@/types/database";
 import type { ContentProductRow } from "@/types/database";
+import dynamic from "next/dynamic";
 import { ProductLinker } from "./product-linker";
-import { RichEditor } from "./rich-editor";
 import { ImageUploader } from "../components/image-uploader";
+
+const RichEditor = dynamic(() =>
+  import("./rich-editor").then((m) => m.RichEditor),
+  { loading: () => <div className="h-[300px] animate-pulse rounded-lg border border-gray-300 bg-gray-50" /> }
+);
 
 interface ContentFormProps {
   content?: ContentRow;
