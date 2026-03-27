@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow external images from any HTTPS source (R2, affiliate product images, etc.)
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "**" },
+    ],
+  },
   // Cloudflare Pages deployment via @opennextjs/cloudflare
   headers: async () => [
     {

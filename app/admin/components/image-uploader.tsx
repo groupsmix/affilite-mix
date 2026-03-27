@@ -8,120 +8,132 @@ interface ImageUploaderProps {
   label?: string;
 }
 
+/**
+ * Image uploader with drag-and-drop support.
+ * Uploads to R2 via presigned URL when R2 is configured,
+ * otherwise falls back to manual URL entry.
+ */
 export function ImageUploader({ value, onChange, label = "Image" }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const upload = useCallback(async (file: File) => {
-    setUploading(true);
+  const uploadFile = useCallback(async (file: File) => {
     setError("");
-
-    const formData = new FormData();
-    formData.append("file", file);
+    setUploading(true);
 
     try {
+      // 1. Get presigned URL from our API
       const res = await fetch("/api/admin/upload", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, "_"),
+          contentType: file.type,
+        }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error ?? "Upload failed");
+        setError(data.error ?? "Failed to get upload URL");
+        setUploading(false);
         return;
       }
 
-      const data = await res.json();
-      onChange(data.url);
+      const { uploadUrl, publicUrl } = await res.json();
+
+      // 2. Upload directly to R2
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!uploadRes.ok) {
+        setError("Failed to upload file to storage");
+        setUploading(false);
+        return;
+      }
+
+      // 3. Set the public URL
+      onChange(publicUrl);
     } catch {
-      setError("Upload failed. Check your connection.");
+      setError("Upload failed. You can paste an image URL instead.");
     } finally {
       setUploading(false);
     }
   }, [onChange]);
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) upload(file);
-  }
-
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) upload(file);
+    if (file && file.type.startsWith("image/")) {
+      uploadFile(file);
+    } else {
+      setError("Please drop an image file");
+    }
   }
 
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault();
-    setDragOver(true);
-  }
-
-  function handleDragLeave() {
-    setDragOver(false);
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadFile(file);
+    }
   }
 
   return (
     <div>
       <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
 
+      {/* URL input */}
+      <input
+        type="url"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="https://example.com/image.jpg"
+        className="mb-2 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+      />
+
       {/* Drop zone */}
       <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onClick={() => inputRef.current?.click()}
-        className={`cursor-pointer rounded-lg border-2 border-dashed p-4 text-center transition-colors ${
+        onClick={() => fileInputRef.current?.click()}
+        className={`flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-4 text-center transition-colors ${
           dragOver
             ? "border-blue-400 bg-blue-50"
-            : "border-gray-300 hover:border-gray-400"
+            : "border-gray-300 bg-gray-50 hover:border-gray-400"
         }`}
       >
-        {uploading ? (
-          <p className="text-sm text-gray-500">Uploading...</p>
-        ) : value ? (
-          <div className="space-y-2">
-            <div className="overflow-hidden rounded-md border border-gray-200">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={value} alt="Preview" className="mx-auto h-32 object-cover" />
-            </div>
-            <p className="text-xs text-gray-400">Click or drag to replace</p>
-          </div>
-        ) : (
-          <div className="space-y-1 py-4">
-            <p className="text-sm font-medium text-gray-600">
-              Drop an image here or click to upload
-            </p>
-            <p className="text-xs text-gray-400">
-              JPEG, PNG, WebP, GIF, SVG — max 5MB
-            </p>
-          </div>
-        )}
-
         <input
-          ref={inputRef}
+          ref={fileInputRef}
           type="file"
           accept="image/*"
           onChange={handleFileSelect}
           className="hidden"
         />
-      </div>
-
-      {/* Manual URL input */}
-      <div className="mt-2">
-        <input
-          type="url"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Or paste an image URL"
-          className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-        />
+        {uploading ? (
+          <span className="text-sm text-gray-500">Uploading...</span>
+        ) : (
+          <span className="text-sm text-gray-500">
+            Drop image here or click to browse
+          </span>
+        )}
       </div>
 
       {error && (
         <p className="mt-1 text-xs text-red-500">{error}</p>
+      )}
+
+      {/* Preview */}
+      {value && (
+        <div className="mt-2 overflow-hidden rounded-md border border-gray-200">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="Preview" className="h-32 w-full object-cover" />
+        </div>
       )}
     </div>
   );

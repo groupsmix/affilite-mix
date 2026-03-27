@@ -1,0 +1,119 @@
+import { getCurrentSite } from "@/lib/site-context";
+import { listPublishedContent, countPublishedContent } from "@/lib/dal/content";
+import { ContentCard } from "../components/content-card";
+import { Pagination } from "../components/pagination";
+import { Breadcrumbs } from "../components/breadcrumbs";
+import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+
+const PAGE_SIZE = 12;
+
+interface ContentTypePageProps {
+  params: Promise<{ contentType: string }>;
+  searchParams: Promise<{ page?: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: ContentTypePageProps): Promise<Metadata> {
+  const { contentType } = await params;
+  const site = await getCurrentSite();
+  const ct = site.contentTypes.find((c) => c.value === contentType);
+
+  if (!ct) return { title: "Not Found" };
+
+  const url = `https://${site.domain}/${contentType}`;
+  const description = `Browse all ${ct.label.toLowerCase()}s on ${site.name}`;
+
+  return {
+    title: `${ct.label}s — ${site.name}`,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${ct.label}s — ${site.name}`,
+      description,
+      url,
+      siteName: site.name,
+      locale: site.locale,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: `${ct.label}s — ${site.name}`,
+      description,
+    },
+  };
+}
+
+export default async function ContentTypePage({ params, searchParams }: ContentTypePageProps) {
+  const { contentType } = await params;
+  const { page } = await searchParams;
+  const site = await getCurrentSite();
+
+  // Prevent accessing admin or api routes through this catch-all
+  if (contentType === "admin" || contentType === "api" || contentType === "category" || contentType === "search") {
+    notFound();
+  }
+
+  const ct = site.contentTypes.find((c) => c.value === contentType);
+  if (!ct) notFound();
+
+  const currentPage = Math.max(1, parseInt(page ?? "1", 10) || 1);
+  const offset = (currentPage - 1) * PAGE_SIZE;
+
+  const [items, totalItems] = await Promise.all([
+    listPublishedContent(site.id, contentType, PAGE_SIZE, offset),
+    countPublishedContent(site.id, contentType),
+  ]);
+
+  const locale = site.language === "ar" ? "ar-SA" : "en-US";
+
+  const breadcrumbs = breadcrumbJsonLd(site, [
+    { name: site.name, path: "/" },
+    { name: ct.label, path: `/${contentType}` },
+  ]);
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-8">
+      <JsonLd data={breadcrumbs} />
+
+      <Breadcrumbs
+        items={[
+          { label: site.name, href: "/" },
+          { label: ct.label },
+        ]}
+      />
+
+      <header className="mb-8">
+        <h1 className="mb-2 text-3xl font-bold">
+          {site.language === "ar" ? ct.label : `${ct.label}s`}
+        </h1>
+      </header>
+
+      {items.length > 0 ? (
+        <>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((item) => (
+              <ContentCard key={item.id} content={item} locale={locale} />
+            ))}
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={totalItems}
+            pageSize={PAGE_SIZE}
+            basePath={`/${contentType}`}
+          />
+        </>
+      ) : (
+        <div className="py-16 text-center text-gray-400">
+          <p className="text-lg">
+            {site.language === "ar"
+              ? `لا يوجد ${ct.label} بعد`
+              : `No ${ct.label.toLowerCase()}s yet`}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
