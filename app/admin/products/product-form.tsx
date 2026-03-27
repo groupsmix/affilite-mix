@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ProductRow } from "@/types/database";
 import type { CategoryRow } from "@/types/database";
+import { ImageUploader } from "../components/image-uploader";
 
 interface ProductFormProps {
   product?: ProductRow;
@@ -136,16 +137,13 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           />
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Image URL</label>
-          <input
-            type="url"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
       </div>
+
+      <ImageUploader
+        value={imageUrl}
+        onChange={setImageUrl}
+        label="Product Image"
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div>

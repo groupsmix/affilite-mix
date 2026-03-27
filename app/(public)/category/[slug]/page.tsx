@@ -1,15 +1,19 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { getCategoryBySlug, listCategories } from "@/lib/dal/categories";
-import { listContent } from "@/lib/dal/content";
+import { listContent, countContent } from "@/lib/dal/content";
 import { listActiveProducts } from "@/lib/dal/products";
 import { ContentCard } from "../../components/content-card";
 import { ProductCard } from "../../components/product-card";
+import { Pagination } from "../../components/pagination";
 import { JsonLd, breadcrumbJsonLd } from "../../components/json-ld";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
+const PAGE_SIZE = 12;
+
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string }>;
 }
 
 export async function generateMetadata({
@@ -48,8 +52,10 @@ export async function generateMetadata({
   };
 }
 
-export default async function CategoryPage({ params }: CategoryPageProps) {
+export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { slug } = await params;
+  const { page: pageParam } = await searchParams;
+  const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const site = await getCurrentSite();
   const category = await getCategoryBySlug(site.id, slug);
 
@@ -57,12 +63,18 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  const [content, products] = await Promise.all([
+  const [content, totalContent, products] = await Promise.all([
     listContent({
       siteId: site.id,
       categoryId: category.id,
       status: "published",
-      limit: 20,
+      limit: PAGE_SIZE,
+      offset: (currentPage - 1) * PAGE_SIZE,
+    }),
+    countContent({
+      siteId: site.id,
+      categoryId: category.id,
+      status: "published",
     }),
     listActiveProducts(site.id, slug),
   ]);
@@ -115,6 +127,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           </p>
         </div>
       ) : null}
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={totalContent}
+        pageSize={PAGE_SIZE}
+        basePath={`/category/${category.slug}`}
+      />
     </div>
   );
 }

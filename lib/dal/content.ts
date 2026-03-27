@@ -120,6 +120,25 @@ export async function deleteContent(
   if (error) throw error;
 }
 
+/** Count content items matching filters */
+export async function countContent(
+  opts: Omit<ListContentOptions, "limit" | "offset">,
+): Promise<number> {
+  const sb = getServiceClient();
+  let query = sb
+    .from(TABLE)
+    .select("*", { count: "exact", head: true })
+    .eq("site_id", opts.siteId);
+
+  if (opts.contentType) query = query.eq("type", opts.contentType);
+  if (opts.status) query = query.eq("status", opts.status);
+  if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
+
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** List published content for public pages */
 export async function listPublishedContent(
   siteId: string,
