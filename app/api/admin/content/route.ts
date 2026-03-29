@@ -93,11 +93,6 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { id, ...updates } = parsed.data;
-  // Remap content_type -> type if sent from the form
-  if (updates.content_type) {
-    updates.type = updates.content_type;
-    delete updates.content_type;
-  }
   // Sanitize HTML body if present
   if (typeof updates.body === "string") {
     updates.body = sanitizeHtml(updates.body);

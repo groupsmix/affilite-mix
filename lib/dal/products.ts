@@ -92,7 +92,7 @@ export async function getProductBySlug(
 
 /** Create a product */
 export async function createProduct(
-  input: Omit<ProductRow, "id" | "created_at">,
+  input: Omit<ProductRow, "id" | "created_at" | "updated_at">,
 ): Promise<ProductRow> {
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).insert(input as never).select().single();
@@ -105,7 +105,7 @@ export async function updateProduct(
   siteId: string,
   id: string,
   input: Partial<
-    Omit<ProductRow, "id" | "site_id" | "created_at">
+    Omit<ProductRow, "id" | "site_id" | "created_at" | "updated_at">
   >,
 ): Promise<ProductRow> {
   const sb = getServiceClient();
