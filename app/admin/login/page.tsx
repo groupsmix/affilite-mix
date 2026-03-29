@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { TurnstileWidget } from "@/app/admin/components/turnstile-widget";
+import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
@@ -65,7 +65,7 @@ export default function AdminLoginPage() {
           required
         />
         <TurnstileWidget
-          onToken={handleTurnstileToken}
+          onVerify={handleTurnstileToken}
           onExpire={handleTurnstileExpire}
         />
         <button

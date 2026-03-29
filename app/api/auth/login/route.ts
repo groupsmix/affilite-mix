@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? "unknown";
-  const rl = checkRateLimit(`login:${ip}`, LOGIN_RATE_LIMIT);
+  const rl = await checkRateLimit(`login:${ip}`, LOGIN_RATE_LIMIT);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many login attempts. Try again later." },
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { password, turnstileToken } = body as { password?: string; turnstileToken?: string };
 
+  // Verify Turnstile token (skipped in dev if not configured)
   const turnstileResult = await verifyTurnstile(turnstileToken, ip);
   if (!turnstileResult.success) {
     return NextResponse.json(

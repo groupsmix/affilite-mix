@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateCsrfToken, CSRF_COOKIE } from "@/lib/csrf";
 
-/**
- * GET /api/auth/csrf — Issue a CSRF token.
- * Sets the token as an httpOnly cookie and returns it in the response body
- * so clients can attach it as the `x-csrf-token` header on mutations.
- */
+/** GET /api/auth/csrf — Issue a CSRF token (double-submit cookie pattern) */
 export async function GET() {
   const token = generateCsrfToken();
 

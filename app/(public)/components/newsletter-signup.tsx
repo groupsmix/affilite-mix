@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { TurnstileWidget } from "@/app/admin/components/turnstile-widget";
+import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
 
 interface NewsletterSignupProps {
   siteLanguage?: string;
@@ -96,7 +96,7 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
           </button>
         </div>
         <TurnstileWidget
-          onToken={handleTurnstileToken}
+          onVerify={handleTurnstileToken}
           onExpire={handleTurnstileExpire}
         />
       </form>

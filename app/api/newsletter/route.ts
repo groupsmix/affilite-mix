@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     request.headers.get("cf-connecting-ip") ??
     "unknown";
 
-  const rl = checkRateLimit(`newsletter:${ip}`, { maxRequests: 5, windowMs: 15 * 60 * 1000 });
+  const rl = await checkRateLimit(`newsletter:${ip}`, { maxRequests: 5, windowMs: 15 * 60 * 1000 });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
@@ -22,6 +22,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
 
+  // Verify Turnstile token (skipped in dev if not configured)
   const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
   if (!turnstileResult.success) {
     return NextResponse.json(
