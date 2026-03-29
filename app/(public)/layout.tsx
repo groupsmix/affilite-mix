@@ -1,6 +1,7 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
+import CookieConsent from "./components/cookie-consent";
 
 export default async function PublicLayout({
   children,
@@ -32,6 +33,7 @@ export default async function PublicLayout({
       <SiteHeader site={site} />
       <main className="flex-1">{children}</main>
       <SiteFooter site={site} />
+      {site.features.cookieConsent && <CookieConsent />}
     </div>
   );
 }
