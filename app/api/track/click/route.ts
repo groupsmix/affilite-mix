@@ -48,34 +48,29 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Decode destination URL
-  let destinationUrl: string;
-  try {
-    destinationUrl = Buffer.from(destination, "base64").toString("utf-8");
-  } catch {
-    return NextResponse.json({ error: "Invalid destination" }, { status: 400 });
-  }
-
-  // Validate destination is a safe http(s) URL
-  if (!isValidDestination(destinationUrl)) {
+  // Validate product exists for this site
+  const product = await getProductBySlug(siteId, productSlug);
+  if (!product || !product.affiliate_url) {
     return NextResponse.json(
-      { error: "Destination must be an http or https URL" },
-      { status: 400 },
+      { error: "Product not found or has no affiliate URL" },
+      { status: 404 },
     );
   }
 
-  // Validate product exists for this site
-  const product = await getProductBySlug(siteId, productSlug);
+  // Use the product's stored affiliate URL as the canonical redirect target.
+  // The `d` parameter is only used as a hint for backwards compat but the
+  // actual redirect always goes to the DB-stored URL, preventing open redirects.
+  const destinationUrl = product.affiliate_url;
 
   // Record click (fire-and-forget)
   recordClick({
     site_id: siteId,
-    product_name: product?.name ?? productSlug,
+    product_name: product.name,
     affiliate_url: destinationUrl,
     content_slug: searchParams.get("t") ?? "",
     referrer: request.headers.get("referer") ?? undefined,
   });
 
-  // 302 redirect to affiliate URL
+  // 302 redirect to the product's affiliate URL
   return NextResponse.redirect(destinationUrl, 302);
 }

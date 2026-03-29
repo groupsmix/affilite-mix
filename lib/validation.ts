@@ -169,7 +169,21 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
 
 export interface UpdateProductInput {
   id: string;
-  [key: string]: unknown;
+  name?: string;
+  slug?: string;
+  description?: string;
+  affiliate_url?: string;
+  image_url?: string;
+  price?: string;
+  merchant?: string;
+  score?: number | null;
+  is_featured?: boolean;
+  featured?: boolean;
+  status?: "draft" | "active" | "archived";
+  category_id?: string | null;
+  cta_text?: string;
+  deal_text?: string;
+  deal_expires_at?: string | null;
 }
 
 export function validateUpdateProduct(body: Record<string, unknown>): ValidationResult<UpdateProductInput> {
@@ -197,10 +211,21 @@ export function validateUpdateProduct(body: Record<string, unknown>): Validation
   if (Object.keys(errors).length > 0) return { data: null, errors };
 
   const data: UpdateProductInput = { id: body.id as string };
-  const allowedFields = ["name", "slug", "description", "affiliate_url", "image_url", "price", "merchant", "score", "is_featured", "featured", "status", "category_id", "cta_text", "deal_text", "deal_expires_at"];
-  for (const field of allowedFields) {
-    if (body[field] !== undefined) data[field] = body[field];
-  }
+  if (body.name !== undefined) data.name = body.name as string;
+  if (body.slug !== undefined) data.slug = body.slug as string;
+  if (body.description !== undefined) data.description = body.description as string;
+  if (body.affiliate_url !== undefined) data.affiliate_url = body.affiliate_url as string;
+  if (body.image_url !== undefined) data.image_url = body.image_url as string;
+  if (body.price !== undefined) data.price = body.price as string;
+  if (body.merchant !== undefined) data.merchant = body.merchant as string;
+  if (body.score !== undefined) data.score = body.score as number | null;
+  if (body.is_featured !== undefined) data.is_featured = body.is_featured as boolean;
+  if (body.featured !== undefined) data.featured = body.featured as boolean;
+  if (body.status !== undefined) data.status = body.status as "draft" | "active" | "archived";
+  if (body.category_id !== undefined) data.category_id = body.category_id as string | null;
+  if (body.cta_text !== undefined) data.cta_text = body.cta_text as string;
+  if (body.deal_text !== undefined) data.deal_text = body.deal_text as string;
+  if (body.deal_expires_at !== undefined) data.deal_expires_at = body.deal_expires_at as string | null;
   return { data, errors: null };
 }
 
@@ -268,7 +293,18 @@ export function validateCreateContent(body: Record<string, unknown>): Validation
 
 export interface UpdateContentInput {
   id: string;
-  [key: string]: unknown;
+  title?: string;
+  slug?: string;
+  body?: string;
+  excerpt?: string;
+  featured_image?: string;
+  content_type?: string;
+  type?: string;
+  status?: "draft" | "review" | "published" | "archived";
+  category_id?: string | null;
+  tags?: string[];
+  author?: string | null;
+  publish_at?: string | null;
 }
 
 export function validateUpdateContent(body: Record<string, unknown>): ValidationResult<UpdateContentInput> {
@@ -296,10 +332,18 @@ export function validateUpdateContent(body: Record<string, unknown>): Validation
   if (Object.keys(errors).length > 0) return { data: null, errors };
 
   const data: UpdateContentInput = { id: body.id as string };
-  const allowedFields = ["title", "slug", "body", "excerpt", "featured_image", "content_type", "type", "status", "category_id", "tags", "author", "publish_at"];
-  for (const field of allowedFields) {
-    if (body[field] !== undefined) data[field] = body[field];
-  }
+  if (body.title !== undefined) data.title = body.title as string;
+  if (body.slug !== undefined) data.slug = body.slug as string;
+  if (body.body !== undefined) data.body = body.body as string;
+  if (body.excerpt !== undefined) data.excerpt = body.excerpt as string;
+  if (body.featured_image !== undefined) data.featured_image = body.featured_image as string;
+  if (body.content_type !== undefined) data.content_type = body.content_type as string;
+  if (body.type !== undefined) data.type = body.type as string;
+  if (body.status !== undefined) data.status = body.status as "draft" | "review" | "published" | "archived";
+  if (body.category_id !== undefined) data.category_id = body.category_id as string | null;
+  if (body.tags !== undefined) data.tags = body.tags as string[];
+  if (body.author !== undefined) data.author = body.author as string | null;
+  if (body.publish_at !== undefined) data.publish_at = body.publish_at as string | null;
   return { data, errors: null };
 }
 

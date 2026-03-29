@@ -5,13 +5,13 @@ import { timingSafeEqual } from "crypto";
  * Verify cron job authentication via Authorization header.
  * Expects: Authorization: Bearer <CRON_SECRET>
  *
- * Returns true if CRON_SECRET is not set (dev mode) or if the token matches.
+ * Fails closed: rejects all requests when CRON_SECRET is not configured.
  */
 export function verifyCronAuth(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
 
-  // In development without CRON_SECRET, allow all requests
-  if (!cronSecret) return true;
+  // Fail closed — CRON_SECRET must always be configured
+  if (!cronSecret) return false;
 
   const authHeader = request.headers.get("authorization") ?? "";
   const token = authHeader.startsWith("Bearer ")
@@ -20,9 +20,10 @@ export function verifyCronAuth(request: NextRequest): boolean {
 
   if (!token) return false;
 
-  const a = Buffer.from(token);
-  const b = Buffer.from(cronSecret);
-  if (a.length !== b.length) {
+  const encoder = new TextEncoder();
+  const a = encoder.encode(token);
+  const b = encoder.encode(cronSecret);
+  if (a.byteLength !== b.byteLength) {
     timingSafeEqual(a, a);
     return false;
   }

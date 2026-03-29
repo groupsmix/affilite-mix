@@ -1,7 +1,12 @@
 /**
  * Simple in-memory rate limiter using a sliding window.
- * Suitable for single-instance deployments (Cloudflare Workers / Node).
- * For multi-instance, replace with KV-based counters.
+ *
+ * WARNING: This implementation is per-isolate and resets on cold starts.
+ * It is NOT effective for serverless / multi-instance deployments such as
+ * Cloudflare Workers. For production, replace with a durable store
+ * (e.g. Cloudflare KV, Durable Objects, or Supabase-backed counters).
+ *
+ * TODO: Replace with distributed rate limiting before production launch.
  */
 
 interface RateLimitEntry {
