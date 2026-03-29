@@ -371,7 +371,7 @@ CREATE TABLE content (
   content_type     text NOT NULL DEFAULT 'article'
                    CHECK (content_type IN (
                      'article', 'review', 'comparison', 'guide', 'blog',
-                     'brand-spotlight', 'occasion', 'budget', 'recipient'
+                     -- Removed: 'brand-spotlight', 'occasion', 'budget', 'recipient' (use tags instead)
                    )),
   status           text NOT NULL DEFAULT 'draft'
                    CHECK (status IN ('draft', 'review', 'published', 'scheduled', 'archived')),
@@ -1240,8 +1240,6 @@ TURNSTILE_SECRET_KEY=xxx
 # Cron auth (prevent public access to cron endpoints)
 CRON_SECRET=<random string>
 
-# Dev override
-SITE_OVERRIDE=                                # "crypto" | "watches" | "arabic-tools" (local dev only)
 ```
 
 ### 6.4 Cloudflare KV Usage

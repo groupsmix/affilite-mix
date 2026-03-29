@@ -7,8 +7,12 @@ import {
   getTopReferrers,
   getDailyClicks,
 } from "@/lib/dal/affiliate-clicks";
+import { countProducts } from "@/lib/dal/products";
 import { redirect } from "next/navigation";
 import { ClickChart } from "./click-chart";
+
+/** Configurable estimated revenue per click (in USD). Adjust per niche. */
+const EST_REVENUE_PER_CLICK = 0.35;
 
 export default async function AnalyticsPage() {
   const session = await requireAdminSession();
@@ -33,6 +37,7 @@ export default async function AnalyticsPage() {
     topReferrers,
     dailyClicks,
     recentClicks,
+    totalProducts,
   ] = await Promise.all([
     getClickCount(siteId, todayStart),
     getClickCount(siteId, sevenDaysAgo),
@@ -42,7 +47,19 @@ export default async function AnalyticsPage() {
     getTopReferrers(siteId, thirtyDaysAgo, 10),
     getDailyClicks(siteId, 30),
     getRecentClicks(siteId, 20),
+    countProducts({ siteId, status: "active" }),
   ]);
+
+  // CTR estimate: clicks / (products * 30 days * ~100 impressions/product/day)
+  const estimatedImpressions30d = totalProducts * 30 * 100;
+  const ctr30d = estimatedImpressions30d > 0 ? (clicks30d / estimatedImpressions30d) * 100 : 0;
+
+  // Revenue estimates
+  const estRevenue30d = clicks30d * EST_REVENUE_PER_CLICK;
+  const estRevenue7d = clicks7d * EST_REVENUE_PER_CLICK;
+
+  // Total referrer clicks for percentage calculation
+  const totalReferrerClicks = topReferrers.reduce((sum, r) => sum + r.click_count, 0);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -60,6 +77,39 @@ export default async function AnalyticsPage() {
         <StatCard label="All time" value={clicksAllTime} />
       </div>
 
+      {/* Revenue & CTR cards */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <p className="text-sm text-gray-500">Est. Revenue (30d)</p>
+          <p className="mt-1 text-3xl font-bold text-green-700">${estRevenue30d.toFixed(2)}</p>
+          <p className="mt-1 text-xs text-gray-400">@ ${EST_REVENUE_PER_CLICK}/click</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <p className="text-sm text-gray-500">Est. Revenue (7d)</p>
+          <p className="mt-1 text-3xl font-bold text-green-700">${estRevenue7d.toFixed(2)}</p>
+          <p className="mt-1 text-xs text-gray-400">@ ${EST_REVENUE_PER_CLICK}/click</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <p className="text-sm text-gray-500">Est. CTR (30d)</p>
+          <p className="mt-1 text-3xl font-bold text-gray-900">{ctr30d.toFixed(2)}%</p>
+          <p className="mt-1 text-xs text-gray-400">{clicks30d} clicks / ~{estimatedImpressions30d.toLocaleString()} impressions</p>
+        </div>
+      </div>
+
+      {/* Conversion Funnel */}
+      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Conversion Funnel (30d)</h2>
+        <div className="flex items-center gap-2">
+          <FunnelStep label="Active Products" value={totalProducts} width={100} color="bg-blue-500" />
+          <FunnelArrow />
+          <FunnelStep label="Impressions (est.)" value={estimatedImpressions30d} width={80} color="bg-indigo-500" />
+          <FunnelArrow />
+          <FunnelStep label="Clicks" value={clicks30d} width={60} color="bg-purple-500" />
+          <FunnelArrow />
+          <FunnelStep label="Revenue (est.)" value={`$${estRevenue30d.toFixed(0)}`} width={40} color="bg-green-500" />
+        </div>
+      </section>
+
       {/* Click trend chart */}
       <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Clicks — Last 30 Days</h2>
@@ -67,7 +117,7 @@ export default async function AnalyticsPage() {
       </section>
 
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
-        {/* Top products */}
+        {/* Top products with CTR */}
         <section className="rounded-lg border border-gray-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Top Clicked Products</h2>
           {topProducts.length === 0 ? (
@@ -78,6 +128,7 @@ export default async function AnalyticsPage() {
                 <tr className="border-b border-gray-100 text-left text-gray-500">
                   <th className="pb-2 font-medium">Product</th>
                   <th className="pb-2 text-right font-medium">Clicks</th>
+                  <th className="pb-2 text-right font-medium">Est. Rev</th>
                 </tr>
               </thead>
               <tbody>
@@ -85,6 +136,7 @@ export default async function AnalyticsPage() {
                   <tr key={i} className="border-b border-gray-50">
                     <td className="py-2 text-gray-900">{p.product_name}</td>
                     <td className="py-2 text-right font-medium text-gray-700">{p.click_count}</td>
+                    <td className="py-2 text-right text-green-700">${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -92,7 +144,7 @@ export default async function AnalyticsPage() {
           )}
         </section>
 
-        {/* Top referrers */}
+        {/* Top referrers with percentages */}
         <section className="rounded-lg border border-gray-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Top Referring Pages</h2>
           {topReferrers.length === 0 ? (
@@ -103,15 +155,20 @@ export default async function AnalyticsPage() {
                 <tr className="border-b border-gray-100 text-left text-gray-500">
                   <th className="pb-2 font-medium">Referrer</th>
                   <th className="pb-2 text-right font-medium">Clicks</th>
+                  <th className="pb-2 text-right font-medium">%</th>
                 </tr>
               </thead>
               <tbody>
-                {topReferrers.map((r, i) => (
-                  <tr key={i} className="border-b border-gray-50">
-                    <td className="max-w-[200px] truncate py-2 text-gray-900">{r.referrer}</td>
-                    <td className="py-2 text-right font-medium text-gray-700">{r.click_count}</td>
-                  </tr>
-                ))}
+                {topReferrers.map((r, i) => {
+                  const pct = totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
+                  return (
+                    <tr key={i} className="border-b border-gray-50">
+                      <td className="max-w-[200px] truncate py-2 text-gray-900">{r.referrer}</td>
+                      <td className="py-2 text-right font-medium text-gray-700">{r.click_count}</td>
+                      <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -167,5 +224,23 @@ function StatCard({ label, value }: { label: string; value: number }) {
       <p className="text-sm text-gray-500">{label}</p>
       <p className="mt-1 text-3xl font-bold text-gray-900">{value.toLocaleString()}</p>
     </div>
+  );
+}
+
+function FunnelStep({ label, value, width, color }: { label: string; value: number | string; width: number; color: string }) {
+  return (
+    <div className="flex-1 text-center">
+      <div className={`mx-auto h-2 rounded-full ${color}`} style={{ width: `${width}%` }} />
+      <p className="mt-2 text-lg font-bold text-gray-900">{typeof value === "number" ? value.toLocaleString() : value}</p>
+      <p className="text-xs text-gray-500">{label}</p>
+    </div>
+  );
+}
+
+function FunnelArrow() {
+  return (
+    <svg className="h-4 w-4 flex-shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
   );
 }
