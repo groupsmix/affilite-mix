@@ -62,7 +62,7 @@ export async function createSite(input: {
       domain: input.domain,
       language: input.language ?? "en",
       direction: input.direction ?? "ltr",
-    } as never)
+    })
     .select()
     .single();
 
@@ -78,7 +78,7 @@ export async function updateSite(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input as never)
+    .update(input)
     .eq("id", id)
     .select()
     .single();

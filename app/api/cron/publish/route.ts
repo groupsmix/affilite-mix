@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     .overrideTypes<Pick<ContentRow, "id" | "title" | "slug">[]>();
 
   if (contentError) {
+    console.error("[api/cron/publish] Failed to fetch scheduled content:", contentError);
     return NextResponse.json({ error: contentError.message }, { status: 500 });
   }
 
@@ -38,10 +39,11 @@ export async function POST(request: NextRequest) {
     const ids = contentItems.map((item) => item.id);
     const { error: updateError } = await sb
       .from("content")
-      .update({ status: "published" } as never)
+      .update({ status: "published" })
       .in("id", ids);
 
     if (updateError) {
+      console.error("[api/cron/publish] Failed to publish content:", updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
     results.published_content = contentItems.length;
@@ -62,6 +64,7 @@ export async function POST(request: NextRequest) {
     .overrideTypes<Pick<ProductRow, "id" | "name" | "slug">[]>();
 
   if (expiredError) {
+    console.error("[api/cron/publish] Failed to fetch expired products:", expiredError);
     return NextResponse.json({ error: expiredError.message }, { status: 500 });
   }
 
@@ -69,10 +72,11 @@ export async function POST(request: NextRequest) {
     const ids = expiredProducts.map((p) => p.id);
     const { error: archiveError } = await sb
       .from("products")
-      .update({ status: "archived" } as never)
+      .update({ status: "archived" })
       .in("id", ids);
 
     if (archiveError) {
+      console.error("[api/cron/publish] Failed to archive products:", archiveError);
       return NextResponse.json({ error: archiveError.message }, { status: 500 });
     }
     results.archived_products = expiredProducts.length;

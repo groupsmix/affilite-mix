@@ -57,7 +57,7 @@ export async function createScheduledJob(
       target_id: input.target_id,
       scheduled_for: input.scheduled_for,
       payload: input.payload ?? {},
-    } as never)
+    })
     .select()
     .single();
 
@@ -73,7 +73,7 @@ export async function cancelScheduledJob(
   const sb = getServiceClient();
   const { error } = await sb
     .from(TABLE)
-    .update({ status: "cancelled" } as never)
+    .update({ status: "cancelled" })
     .eq("site_id", siteId)
     .eq("id", jobId)
     .eq("status", "pending");

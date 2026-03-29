@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  try {
   const results: { row: number; name: string; status: "created" | "error"; error?: string }[] = [];
 
   for (let i = 1; i < lines.length; i++) {
@@ -82,6 +83,10 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ created, errors, total: results.length, results });
+  } catch (err) {
+    console.error("[api/admin/products/import] POST failed:", err);
+    return NextResponse.json({ error: "Failed to import products" }, { status: 500 });
+  }
 }
 
 /** Parse a CSV line, handling quoted fields */

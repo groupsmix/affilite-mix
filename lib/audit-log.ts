@@ -25,7 +25,7 @@ export function recordAuditEvent(event: AuditEvent): void {
       entity_id: event.entity_id,
       details: event.details ?? {},
       ip: event.ip ?? "",
-    } as never)
+    })
     .then(({ error }) => {
       if (error) {
         console.error("[audit-log] Failed to record event:", error.message);

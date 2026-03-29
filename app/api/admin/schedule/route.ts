@@ -36,8 +36,13 @@ export async function GET(request: NextRequest) {
     200,
   );
 
-  const jobs = await listScheduledJobs(dbSiteId, status ?? undefined, limit);
-  return NextResponse.json({ jobs });
+  try {
+    const jobs = await listScheduledJobs(dbSiteId, status ?? undefined, limit);
+    return NextResponse.json({ jobs });
+  } catch (err) {
+    console.error("[api/admin/schedule] GET failed:", err);
+    return NextResponse.json({ error: "Failed to list scheduled jobs" }, { status: 500 });
+  }
 }
 
 /**
@@ -65,23 +70,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Validation failed", details: errors }, { status: 400 });
   }
 
-  const job = await createScheduledJob({
-    site_id: dbSiteId,
-    job_type: body.job_type,
-    target_id: body.target_id,
-    scheduled_for: body.scheduled_for,
-    payload: typeof body.payload === "object" && body.payload !== null ? body.payload : {},
-  });
+  try {
+    const job = await createScheduledJob({
+      site_id: dbSiteId,
+      job_type: body.job_type,
+      target_id: body.target_id,
+      scheduled_for: body.scheduled_for,
+      payload: typeof body.payload === "object" && body.payload !== null ? body.payload : {},
+    });
 
-  recordAuditEvent({
-    site_id: dbSiteId,
-    actor: "admin",
-    action: "create",
-    entity_type: "scheduled_job",
-    entity_id: job.id,
-    details: { job_type: body.job_type, target_id: body.target_id, scheduled_for: body.scheduled_for },
-  });
-  return NextResponse.json({ job }, { status: 201 });
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: "admin",
+      action: "create",
+      entity_type: "scheduled_job",
+      entity_id: job.id,
+      details: { job_type: body.job_type, target_id: body.target_id, scheduled_for: body.scheduled_for },
+    });
+    return NextResponse.json({ job }, { status: 201 });
+  } catch (err) {
+    console.error("[api/admin/schedule] POST create failed:", err);
+    return NextResponse.json({ error: "Failed to create scheduled job" }, { status: 500 });
+  }
 }
 
 /**
@@ -100,13 +110,18 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  await cancelScheduledJob(dbSiteId, body.id);
-  recordAuditEvent({
-    site_id: dbSiteId,
-    actor: "admin",
-    action: "cancel",
-    entity_type: "scheduled_job",
-    entity_id: body.id,
-  });
-  return NextResponse.json({ ok: true });
+  try {
+    await cancelScheduledJob(dbSiteId, body.id);
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: "admin",
+      action: "cancel",
+      entity_type: "scheduled_job",
+      entity_id: body.id,
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[api/admin/schedule] DELETE cancel failed:", err);
+    return NextResponse.json({ error: "Failed to cancel scheduled job" }, { status: 500 });
+  }
 }

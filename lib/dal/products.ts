@@ -95,7 +95,7 @@ export async function createProduct(
   input: Omit<ProductRow, "id" | "created_at" | "updated_at">,
 ): Promise<ProductRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).insert(input as never).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return data as ProductRow;
 }
@@ -111,7 +111,7 @@ export async function updateProduct(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input as never)
+    .update(input)
     .eq("site_id", siteId)
     .eq("id", id)
     .select()
@@ -155,7 +155,7 @@ export async function listActiveProducts(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as ProductRow[];
+  return data as unknown as ProductRow[];
 }
 
 /** Escape LIKE/ILIKE special characters so user input is treated literally */
