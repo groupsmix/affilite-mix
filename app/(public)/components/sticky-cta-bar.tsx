@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { ProductRow } from "@/types/database";
+import { getCookieValue } from "@/lib/cookie-utils";
 
 interface StickyCtaBarProps {
   product: ProductRow;
@@ -9,14 +10,28 @@ interface StickyCtaBarProps {
 
 export function StickyCtaBar({ product }: StickyCtaBarProps) {
   const [visible, setVisible] = useState(false);
+  const [cookieConsentResolved, setCookieConsentResolved] = useState(false);
 
   useEffect(() => {
+    // Check if cookie consent has been resolved
+    const consent = getCookieValue("nichehub-cookie-consent");
+    setCookieConsentResolved(consent === "accepted" || consent === "rejected");
+
+    function handleConsentChange() {
+      const updatedConsent = getCookieValue("nichehub-cookie-consent");
+      setCookieConsentResolved(updatedConsent === "accepted" || updatedConsent === "rejected");
+    }
+    window.addEventListener("cookieConsent", handleConsentChange);
+
     function handleScroll() {
       // Show sticky bar after scrolling 400px
       setVisible(window.scrollY > 400);
     }
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("cookieConsent", handleConsentChange);
+    };
   }, []);
 
   if (!visible) return null;
@@ -24,7 +39,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
   const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=sticky`;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-transform">
+    <div className={`fixed left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-all ${cookieConsentResolved ? "bottom-0" : "bottom-[140px] sm:bottom-[100px]"}`}>
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-gray-900">{product.name}</p>

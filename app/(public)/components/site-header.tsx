@@ -1,6 +1,7 @@
 import type { SiteDefinition } from "@/config/site-definition";
 import Link from "next/link";
 import { MobileMenu } from "./mobile-menu";
+import { ActiveNavLinks } from "./active-nav-links";
 
 interface SiteHeaderProps {
   site: SiteDefinition;
@@ -15,15 +16,7 @@ export function SiteHeader({ site }: SiteHeaderProps) {
         </Link>
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 md:flex">
-          {site.nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
-            >
-              {item.title}
-            </Link>
-          ))}
+          <ActiveNavLinks nav={site.nav} />
           <Link
             href="/search"
             className="text-sm font-medium text-gray-400 transition-colors hover:text-gray-900"

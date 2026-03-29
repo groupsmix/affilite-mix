@@ -27,14 +27,15 @@ export async function generateMetadata({
   if (!ct) return { title: "Not Found" };
 
   const url = `https://${site.domain}/${contentType}`;
-  const description = `Browse all ${ct.label.toLowerCase()}s on ${site.name}`;
+  const plural = ct.labelPlural ?? `${ct.label}s`;
+  const description = `Browse all ${plural.toLowerCase()} on ${site.name}`;
 
   return {
-    title: `${ct.label}s — ${site.name}`,
+    title: `${plural} — ${site.name}`,
     description,
     alternates: { canonical: url },
     openGraph: {
-      title: `${ct.label}s — ${site.name}`,
+      title: `${plural} — ${site.name}`,
       description,
       url,
       siteName: site.name,
@@ -43,7 +44,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary",
-      title: `${ct.label}s — ${site.name}`,
+      title: `${plural} — ${site.name}`,
       description,
     },
   };
@@ -90,7 +91,7 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
 
       <header className="mb-8">
         <h1 className="mb-2 text-3xl font-bold">
-          {site.language === "ar" ? ct.label : `${ct.label}s`}
+          {site.language === "ar" ? ct.label : (ct.labelPlural ?? `${ct.label}s`)}
         </h1>
       </header>
 
@@ -113,7 +114,7 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
           <p className="text-lg">
             {site.language === "ar"
               ? `لا يوجد ${ct.label} بعد`
-              : `No ${ct.label.toLowerCase()}s yet`}
+              : `No ${(ct.labelPlural ?? `${ct.label}s`).toLowerCase()} yet`}
           </p>
         </div>
       )}

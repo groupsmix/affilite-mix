@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { getCurrentSite } from "@/lib/site-context";
 import { searchContent } from "@/lib/dal/content";
 import { searchProducts } from "@/lib/dal/products";
 import { ContentCard } from "../components/content-card";
 import { ProductCard } from "../components/product-card";
 import { Breadcrumbs } from "../components/breadcrumbs";
+import { SearchInput } from "./search-input";
 import type { Metadata } from "next";
 
 interface SearchPageProps {
@@ -50,25 +52,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <h1 className="mb-4 text-3xl font-bold">
           {site.language === "ar" ? "بحث" : "Search"}
         </h1>
-        <form action="/search" method="GET">
-          <div className="flex gap-2">
-            <input
-              type="search"
-              name="q"
-              defaultValue={query}
-              placeholder={site.language === "ar" ? "ابحث عن منتجات أو مقالات..." : "Search products or articles..."}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-1"
-              style={{ "--tw-ring-color": "var(--color-accent, #10B981)" } as React.CSSProperties}
-            />
-            <button
-              type="submit"
-              className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: "var(--color-accent, #10B981)" }}
-            >
-              {site.language === "ar" ? "بحث" : "Search"}
-            </button>
-          </div>
-        </form>
+        <Suspense>
+          <SearchInput
+            placeholder={site.language === "ar" ? "ابحث عن منتجات أو مقالات..." : "Search products or articles..."}
+            buttonLabel={site.language === "ar" ? "بحث" : "Search"}
+          />
+        </Suspense>
       </header>
 
       {query.length >= 2 && !hasResults && (
@@ -95,7 +84,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <section className="mb-12">
           <h2 className="mb-4 text-xl font-bold">
             {site.language === "ar" ? site.productLabelPlural : "Products"}
-            <span className="ml-2 text-sm font-normal text-gray-400">({productResults.length})</span>
+            <span className="ms-2 text-sm font-normal text-gray-400">({productResults.length})</span>
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {productResults.map((product) => (
@@ -114,7 +103,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <section className="mb-12">
           <h2 className="mb-4 text-xl font-bold">
             {site.language === "ar" ? "محتوى" : "Content"}
-            <span className="ml-2 text-sm font-normal text-gray-400">({contentResults.length})</span>
+            <span className="ms-2 text-sm font-normal text-gray-400">({contentResults.length})</span>
           </h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {contentResults.map((item) => (

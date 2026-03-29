@@ -5,6 +5,41 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { randomUUID } from "crypto";
 
+/** Build a branded HTML email for newsletter confirmation */
+function buildConfirmationEmail(siteName: string, confirmUrl: string, domain: string, accentColor: string): string {
+  const year = new Date().getFullYear();
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr><td style="background-color:${accentColor};padding:24px 32px;text-align:center;">
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${siteName}</h1>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">Confirm your subscription</h2>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">Thanks for subscribing to <strong>${siteName}</strong>! Please confirm your email address by clicking the button below.</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+            <tr><td style="background-color:${accentColor};border-radius:8px;">
+              <a href="${confirmUrl}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">Confirm my subscription</a>
+            </td></tr>
+          </table>
+          <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">Or copy and paste this link:</p>
+          <p style="margin:0 0 24px;font-size:13px;color:#6b7280;word-break:break-all;">${confirmUrl}</p>
+          <p style="margin:0;font-size:13px;color:#9ca3af;">If you did not sign up, you can safely ignore this email.</p>
+        </td></tr>
+        <tr><td style="padding:16px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${year} ${siteName} &mdash; ${domain}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 /** POST /api/newsletter — Subscribe to the site newsletter (double opt-in) */
 export async function POST(request: Request) {
   try {
@@ -105,12 +140,8 @@ export async function POST(request: Request) {
           from: fromEmail,
           to: [email],
           subject: `Confirm your subscription to ${site.name}`,
-          html: `
-            <p>Thanks for subscribing to <strong>${site.name}</strong>!</p>
-            <p>Please confirm your email by clicking the link below:</p>
-            <p><a href="${confirmUrl}">Confirm my subscription</a></p>
-            <p>If you did not sign up, you can safely ignore this email.</p>
-          `,
+          html: buildConfirmationEmail(site.name, confirmUrl, site.domain, site.theme?.accentColor ?? "#10B981"),
+          text: `Thanks for subscribing to ${site.name}!\n\nPlease confirm your email by visiting the link below:\n${confirmUrl}\n\nIf you did not sign up, you can safely ignore this email.\n\n© ${new Date().getFullYear()} ${site.name} — ${site.domain}`,
         }),
       });
       if (!res.ok) {
