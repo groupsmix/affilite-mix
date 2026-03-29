@@ -25,8 +25,7 @@ function getDealTimeLeft(expiresAt: string | null): string | null {
 }
 
 export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal" }: ProductCardProps) {
-  const destination = Buffer.from(product.affiliate_url).toString("base64");
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&d=${encodeURIComponent(destination)}&t=${sourceType}`;
+  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=${sourceType}`;
   const buttonLabel = product.cta_text || ctaLabel;
   const showDeal = product.deal_text && isDealActive(product.deal_expires_at);
   const dealTimeLeft = getDealTimeLeft(product.deal_expires_at);
