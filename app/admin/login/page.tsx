@@ -75,9 +75,6 @@ export default function AdminLoginPage() {
           className="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           required
         />
-        <p className="mb-4 text-xs text-gray-400">
-          Email is required for per-user accounts. Leave blank to use the legacy shared password.
-        </p>
         <TurnstileWidget
           onVerify={handleTurnstileToken}
           onExpire={handleTurnstileExpire}

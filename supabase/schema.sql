@@ -145,6 +145,12 @@ CREATE INDEX idx_scheduled_jobs_site    ON scheduled_jobs(site_id);
 CREATE INDEX idx_scheduled_jobs_pending ON scheduled_jobs(status, scheduled_for)
   WHERE status = 'pending';
 
+-- Full-text search indexes (GIN)
+CREATE INDEX idx_content_fts_title   ON content USING gin (to_tsvector('simple', title));
+CREATE INDEX idx_content_fts_excerpt ON content USING gin (to_tsvector('simple', excerpt));
+CREATE INDEX idx_products_fts_name   ON products USING gin (to_tsvector('simple', name));
+CREATE INDEX idx_products_fts_desc   ON products USING gin (to_tsvector('simple', description));
+
 -- ═══════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY
 -- ═══════════════════════════════════════════════════════

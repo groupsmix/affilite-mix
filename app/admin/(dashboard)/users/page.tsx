@@ -204,14 +204,7 @@ export default function AdminUsersPage() {
       {users.length === 0 && !error ? (
         <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
           <p className="text-sm text-gray-500">
-            No admin users yet. The system is using the legacy{" "}
-            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">
-              ADMIN_PASSWORD
-            </code>{" "}
-            env var for authentication.
-          </p>
-          <p className="mt-2 text-sm text-gray-500">
-            Add your first admin user above to switch to per-user accounts.
+            No admin users yet. Add your first admin user above to enable login.
           </p>
         </div>
       ) : (
