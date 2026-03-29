@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { timingSafeEqual } from "crypto";
 
 function requireEnvInProduction(name: string, fallback: string): string {
   const value = process.env[name];
@@ -24,9 +25,16 @@ export interface AdminPayload {
   role: "admin";
 }
 
-/** Verify admin credentials (simple password auth for Slice 1) */
+/** Verify admin credentials using timing-safe comparison */
 export function verifyCredentials(password: string): boolean {
-  return password === ADMIN_PASSWORD;
+  const a = Buffer.from(password);
+  const b = Buffer.from(ADMIN_PASSWORD);
+  if (a.length !== b.length) {
+    // Compare against self to keep constant time, then return false
+    timingSafeEqual(a, a);
+    return false;
+  }
+  return timingSafeEqual(a, b);
 }
 
 /** Create a signed JWT for admin session */

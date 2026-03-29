@@ -190,6 +190,11 @@ export async function countPublishedContent(
   return count ?? 0;
 }
 
+/** Escape LIKE/ILIKE special characters so user input is treated literally */
+function escapeLike(value: string): string {
+  return value.replace(/[%_\\]/g, (ch) => `\\${ch}`);
+}
+
 /** Search published content by title (basic search) */
 export async function searchContent(
   siteId: string,
@@ -202,7 +207,7 @@ export async function searchContent(
     .select("*")
     .eq("site_id", siteId)
     .eq("status", "published")
-    .ilike("title", `%${query}%`)
+    .ilike("title", `%${escapeLike(query)}%`)
     .order("updated_at", { ascending: false })
     .limit(limit);
 

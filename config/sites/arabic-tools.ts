@@ -79,6 +79,11 @@ export const arabicToolsSite: SiteDefinition = {
 
   features: {
     blog: { source: "database" },
+    newsletter: true,
+    rssFeed: true,
+    searchModal: true,
+    scheduling: true,
+    comparisons: true,
   },
 
   pages: {

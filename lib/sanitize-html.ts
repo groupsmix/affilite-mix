@@ -1,6 +1,7 @@
 /**
  * Server-side HTML sanitizer.
- * Strips all tags except a safe allowlist to prevent stored XSS.
+ * Uses an allowlist approach — only permitted tags and attributes survive.
+ * Prevents stored XSS from admin-authored content.
  */
 
 const ALLOWED_TAGS = new Set([
@@ -31,38 +32,88 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
 
 const VOID_TAGS = new Set(["br", "hr", "img"]);
 
+const DANGEROUS_PROTOCOLS = /^\s*(javascript|data|vbscript)\s*:/i;
+
 /**
- * Sanitize HTML by stripping dangerous tags and attributes.
- * This is a simple regex-based sanitizer suitable for trusted admin input.
- * For untrusted user input, consider a full DOM-based sanitizer.
+ * Sanitize HTML using a tag/attribute allowlist.
+ * - Strips all tags not in ALLOWED_TAGS
+ * - Strips all attributes not in ALLOWED_ATTRS for that tag
+ * - Removes javascript:/data:/vbscript: protocol in href/src
+ * - Forces rel="noopener noreferrer nofollow" on all <a> tags
+ * - Removes event handler attributes (on*)
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return html;
 
-  // Remove script tags and their content
-  let cleaned = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+  // Process the HTML by replacing tags through a single pass
+  return html.replace(
+    /<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)?\/?>/g,
+    (fullMatch, tagName: string, attrString: string | undefined) => {
+      const tag = tagName.toLowerCase();
 
-  // Remove event handler attributes (onclick, onerror, etc.)
-  cleaned = cleaned.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, "");
+      // Closing tag
+      if (fullMatch.startsWith("</")) {
+        if (!ALLOWED_TAGS.has(tag) || VOID_TAGS.has(tag)) return "";
+        return `</${tag}>`;
+      }
 
-  // Remove javascript: protocol in href/src attributes
-  cleaned = cleaned.replace(/(href|src)\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*')/gi, "$1=\"\"");
+      // Opening / self-closing tag
+      if (!ALLOWED_TAGS.has(tag)) return "";
 
-  // Remove style tags and their content
-  cleaned = cleaned.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
+      const allowedAttrsForTag = ALLOWED_ATTRS[tag];
+      const attrs: string[] = [];
 
-  // Remove iframe, object, embed, form tags and their content
-  cleaned = cleaned.replace(/<(iframe|object|embed|form)\b[^<]*(?:(?!<\/\1>)<[^<]*)*<\/\1>/gi, "");
-  cleaned = cleaned.replace(/<(iframe|object|embed|form)\b[^>]*\/?>/gi, "");
+      if (attrString) {
+        // Parse attributes
+        const attrPattern = /([a-zA-Z][a-zA-Z0-9_-]*)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|(\S+)))?/g;
+        let attrMatch: RegExpExecArray | null;
 
-  // Remove base tags
-  cleaned = cleaned.replace(/<base\b[^>]*\/?>/gi, "");
+        while ((attrMatch = attrPattern.exec(attrString)) !== null) {
+          const attrName = attrMatch[1].toLowerCase();
+          const attrValue = attrMatch[2] ?? attrMatch[3] ?? attrMatch[4] ?? "";
 
-  // Remove meta tags
-  cleaned = cleaned.replace(/<meta\b[^>]*\/?>/gi, "");
+          // Skip event handlers (onclick, onerror, etc.)
+          if (attrName.startsWith("on")) continue;
 
-  // Remove link tags
-  cleaned = cleaned.replace(/<link\b[^>]*\/?>/gi, "");
+          // Skip style attribute (potential XSS vector)
+          if (attrName === "style") continue;
 
-  return cleaned;
+          // Only allow attributes in the allowlist for this tag
+          if (!allowedAttrsForTag || !allowedAttrsForTag.has(attrName)) continue;
+
+          // Check href/src for dangerous protocols
+          if ((attrName === "href" || attrName === "src") && DANGEROUS_PROTOCOLS.test(attrValue)) {
+            continue;
+          }
+
+          attrs.push(`${attrName}="${escapeAttrValue(attrValue)}"`);
+        }
+      }
+
+      // Force safe rel on <a> tags
+      if (tag === "a") {
+        const filteredAttrs = attrs.filter((a) => !a.startsWith("rel="));
+        filteredAttrs.push('rel="noopener noreferrer nofollow"');
+        const attrStr = filteredAttrs.length > 0 ? " " + filteredAttrs.join(" ") : "";
+        return `<a${attrStr}>`;
+      }
+
+      const attrStr = attrs.length > 0 ? " " + attrs.join(" ") : "";
+
+      if (VOID_TAGS.has(tag)) {
+        return `<${tag}${attrStr} />`;
+      }
+
+      return `<${tag}${attrStr}>`;
+    },
+  );
+}
+
+/** Escape special characters in attribute values */
+function escapeAttrValue(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
