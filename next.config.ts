@@ -1,10 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Allow external images from any HTTPS source (R2, affiliate product images, etc.)
+  // Allow external images from known sources only
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "**" },
+      // Cloudflare R2
+      { protocol: "https", hostname: "*.r2.dev" },
+      { protocol: "https", hostname: "*.r2.cloudflarestorage.com" },
+      // Supabase storage
+      { protocol: "https", hostname: "*.supabase.co" },
+      // Common affiliate image CDNs
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "m.media-amazon.com" },
+      { protocol: "https", hostname: "images-na.ssl-images-amazon.com" },
     ],
   },
   // Cloudflare Pages deployment via @opennextjs/cloudflare

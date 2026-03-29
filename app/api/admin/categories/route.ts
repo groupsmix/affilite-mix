@@ -8,6 +8,7 @@ import {
   deleteCategory,
 } from "@/lib/dal/categories";
 import { validateCreateCategory, validateUpdateCategory } from "@/lib/validation";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 export async function GET() {
   const { error, dbSiteId } = await requireAdmin();
@@ -35,6 +36,14 @@ export async function POST(request: NextRequest) {
   });
 
   revalidateTag("categories");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "create",
+    entity_type: "category",
+    entity_id: category.id,
+    details: { name: parsed.data.name, slug: parsed.data.slug },
+  });
   return NextResponse.json(category, { status: 201 });
 }
 
@@ -51,6 +60,14 @@ export async function PATCH(request: NextRequest) {
   const { id, ...updates } = parsed.data;
   const category = await updateCategory(dbSiteId, id, updates);
   revalidateTag("categories");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "update",
+    entity_type: "category",
+    entity_id: id,
+    details: updates,
+  });
   return NextResponse.json(category);
 }
 
@@ -66,5 +83,12 @@ export async function DELETE(request: NextRequest) {
 
   await deleteCategory(dbSiteId, id);
   revalidateTag("categories");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "delete",
+    entity_type: "category",
+    entity_id: id,
+  });
   return NextResponse.json({ ok: true });
 }

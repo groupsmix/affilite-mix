@@ -25,17 +25,26 @@ export function middleware(request: NextRequest) {
   }
 
   // ── CSRF protection for state-changing API routes ─────
-  // Validates the Origin header against the list of known site domains.
-  // NOTE: Some clients/proxies may omit the Origin header entirely. When
-  // Origin is missing the request is currently allowed through. For
-  // stronger protection, consider adding a token-based CSRF mechanism
-  // (e.g. double-submit cookie) as a defence-in-depth fallback.
+  // 1. Validates the Origin header against the list of known site domains.
+  // 2. When Origin is missing, falls back to double-submit cookie:
+  //    compares the x-csrf-token header with the nh_csrf cookie value.
   const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
   if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
     const origin = request.headers.get("origin") ?? "";
     const allowedOrigins = getAllowedOrigins();
-    if (origin && !allowedOrigins.includes(origin)) {
-      return new NextResponse("Forbidden", { status: 403 });
+
+    if (origin) {
+      // Origin header present — validate it
+      if (!allowedOrigins.includes(origin)) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
+    } else {
+      // No Origin header — fall back to double-submit cookie check
+      const csrfHeader = request.headers.get("x-csrf-token") ?? "";
+      const csrfCookie = request.cookies.get("nh_csrf")?.value ?? "";
+      if (!csrfHeader || !csrfCookie || csrfHeader !== csrfCookie) {
+        return new NextResponse("Forbidden — CSRF token mismatch", { status: 403 });
+      }
     }
   }
 
