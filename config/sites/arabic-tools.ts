@@ -1,27 +1,27 @@
-import type { SiteDefinition } from "../site-definition";
+import { defineSite } from "../define-site";
 
-export const arabicToolsSite: SiteDefinition = {
+export const arabicToolsSite = defineSite({
   id: "arabic-tools",
   name: "Arabic Tools",
   domain: "arabictools.wristnerd.site",
   aliases: ["arabic.localhost"],
+  niche: "Arabic Product Reviews",
+  description: "مراجعات وأدوات عربية لمقارنة المنتجات والخدمات التقنية",
   language: "ar",
-  direction: "rtl",
-  locale: "ar_SA",
 
-  brand: {
-    description:
-      "مراجعات وأدوات عربية لمقارنة المنتجات والخدمات التقنية",
-    contactEmail: "contact@arabictools.wristnerd.site",
-    niche: "Arabic Product Reviews",
-  },
+  colors: { primary: "#1E293B", accent: "#10B981" },
 
-  theme: {
-    primaryColor: "#1E293B",
-    accentColor: "#10B981",
-    fontHeading: "IBM Plex Sans Arabic",
-    fontBody: "IBM Plex Sans Arabic",
-  },
+  contentTypes: [
+    { value: "article", label: "مقال", commercial: false, layout: "standard" },
+    { value: "review", label: "مراجعة", commercial: true, layout: "sidebar" },
+    { value: "comparison", label: "مقارنة", commercial: true, layout: "sidebar", minProducts: 2 },
+    { value: "guide", label: "دليل", commercial: false, layout: "standard" },
+  ],
+
+  productLabel: "منتج",
+  productLabelPlural: "منتجات",
+
+  features: ["blog", "newsletter", "rssFeed", "search", "scheduling", "comparisons"],
 
   nav: [
     { title: "الرئيسية", href: "/" },
@@ -42,51 +42,6 @@ export const arabicToolsSite: SiteDefinition = {
     ],
   },
 
-  contentTypes: [
-    {
-      value: "article",
-      label: "مقال",
-      commercial: false,
-      layout: "standard",
-    },
-    {
-      value: "review",
-      label: "مراجعة",
-      commercial: true,
-      layout: "sidebar",
-    },
-    {
-      value: "comparison",
-      label: "مقارنة",
-      commercial: true,
-      layout: "sidebar",
-      minProducts: 2,
-    },
-    {
-      value: "guide",
-      label: "دليل",
-      commercial: false,
-      layout: "standard",
-    },
-  ],
-
-  productLabel: "منتج",
-  productLabelPlural: "منتجات",
-
-  affiliateDisclosure:
-    "قد نحصل على عمولة من الروابط التابعة دون أي تكلفة إضافية عليك.",
-  contentDisclosure:
-    "تحتوي هذه الصفحة على روابط تابعة. قد نحصل على عمولة إذا قمت بالتسجيل.",
-
-  features: {
-    blog: { source: "database" },
-    newsletter: true,
-    rssFeed: true,
-    searchModal: true,
-    scheduling: true,
-    comparisons: true,
-  },
-
   pages: {
     about: {
       title: "عن الموقع",
@@ -102,10 +57,6 @@ export const arabicToolsSite: SiteDefinition = {
     },
   },
 
-  seo: {
-    robotsDisallow: ["/admin/", "/api/"],
-    sitemapStaticPages: [
-      { path: "/", priority: 1, changeFrequency: "daily" },
-    ],
-  },
-};
+  contactPage: false,
+  affiliateDisclosurePage: false,
+});
