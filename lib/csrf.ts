@@ -9,9 +9,9 @@
  * 1. GET /api/auth/csrf → sets __csrf cookie + returns { token }.
  * 2. Client stores the token and sends it as X-CSRF-Token on POST/PATCH/DELETE.
  * 3. Middleware compares cookie value with header value (timing-safe).
+ *
+ * Uses the Web Crypto API exclusively for Cloudflare Workers compatibility.
  */
-
-import { timingSafeEqual, webcrypto } from "crypto";
 
 export const CSRF_COOKIE = "__csrf";
 export const CSRF_HEADER = "x-csrf-token";
@@ -20,20 +20,29 @@ const TOKEN_BYTES = 32;
 /** Generate a cryptographically random CSRF token */
 export function generateCsrfToken(): string {
   const bytes = new Uint8Array(TOKEN_BYTES);
-  webcrypto.getRandomValues(bytes);
+  crypto.getRandomValues(bytes);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Timing-safe comparison of two strings */
+/** Timing-safe comparison of two strings (Web Crypto API compatible) */
 function timingSafeCompare(a: string, b: string): boolean {
   const encoder = new TextEncoder();
   const bufA = encoder.encode(a);
   const bufB = encoder.encode(b);
   if (bufA.byteLength !== bufB.byteLength) {
-    timingSafeEqual(bufA, bufA);
+    // Compare bufA with itself to maintain constant-time behavior
+    let result = 0;
+    for (let i = 0; i < bufA.byteLength; i++) {
+      result |= bufA[i] ^ bufA[i];
+    }
+    void result;
     return false;
   }
-  return timingSafeEqual(bufA, bufB);
+  let result = 0;
+  for (let i = 0; i < bufA.byteLength; i++) {
+    result |= bufA[i] ^ bufB[i];
+  }
+  return result === 0;
 }
 
 /**

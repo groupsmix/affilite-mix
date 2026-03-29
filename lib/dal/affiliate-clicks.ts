@@ -123,6 +123,35 @@ export async function getTopReferrers(
     .slice(0, limit);
 }
 
+/** Get top content pages driving clicks (admin analytics) */
+export async function getTopContentSlugs(
+  siteId: string,
+  since?: string,
+  limit = 10,
+): Promise<{ content_slug: string; click_count: number }[]> {
+  const sb = getServiceClient();
+  let query = sb
+    .from(TABLE)
+    .select("content_slug")
+    .eq("site_id", siteId)
+    .neq("content_slug", "");
+
+  if (since) query = query.gte("created_at", since);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const counts = new Map<string, number>();
+  for (const row of data as { content_slug: string }[]) {
+    counts.set(row.content_slug, (counts.get(row.content_slug) ?? 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([content_slug, click_count]) => ({ content_slug, click_count }))
+    .sort((a, b) => b.click_count - a.click_count)
+    .slice(0, limit);
+}
+
 /** Get daily click counts for a site (admin analytics chart data) */
 export async function getDailyClicks(
   siteId: string,

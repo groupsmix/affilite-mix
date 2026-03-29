@@ -30,6 +30,9 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import type { Metadata } from "next";
 
+/** Revalidate content detail pages every 60 seconds (ISR) */
+export const revalidate = 60;
+
 /** Base64-encode a string using Workers-compatible APIs */
 function toBase64(str: string): string {
   return btoa(String.fromCharCode(...new TextEncoder().encode(str)));
