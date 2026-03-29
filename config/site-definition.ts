@@ -34,6 +34,9 @@ export interface SiteDefinition {
   affiliateDisclosure: string;
   contentDisclosure: string;
 
+  /** Estimated revenue per affiliate click (USD). Used in admin analytics. */
+  estRevenuePerClick?: number;
+
   features: FeatureFlags;
 
   pages: {
@@ -75,6 +78,7 @@ export interface FeatureFlags {
 export interface ContentTypeConfig {
   value: string;
   label: string;
+  labelPlural?: string;
   commercial: boolean;
   layout: "standard" | "sidebar";
   minProducts?: number;

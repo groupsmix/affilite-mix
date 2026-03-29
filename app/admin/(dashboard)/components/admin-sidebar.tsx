@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SiteSwitcher } from "./site-switcher";
+import { getCookieValue } from "@/lib/cookie-utils";
 
 function DashboardIcon({ className }: { className?: string }) {
   return (
@@ -73,10 +74,7 @@ function useActiveSiteName() {
         const res = await fetch("/api/admin/sites");
         if (!res.ok) return;
         const data = await res.json();
-        const cookie = document.cookie
-          .split("; ")
-          .find((c) => c.startsWith("nh_active_site="));
-        const activeSiteId = cookie?.split("=")[1];
+        const activeSiteId = getCookieValue("nh_active_site");
         if (activeSiteId && data.sites) {
           const site = data.sites.find(
             (s: { id: string; name: string }) => s.id === activeSiteId
@@ -122,6 +120,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               key={item.href}
               href={item.href}
               onClick={onNavigate}
+              aria-current={isActive ? "page" : undefined}
               className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-gray-100 text-gray-900"

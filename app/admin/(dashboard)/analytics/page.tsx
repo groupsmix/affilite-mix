@@ -11,9 +11,10 @@ import {
 import { countProducts } from "@/lib/dal/products";
 import { redirect } from "next/navigation";
 import { ClickChart } from "./click-chart";
+import { getSiteById } from "@/config/sites";
 
-/** Configurable estimated revenue per click (in USD). Adjust per niche. */
-const EST_REVENUE_PER_CLICK = 0.35;
+/** Default estimated revenue per click (USD). Overridden by site config. */
+const DEFAULT_EST_REVENUE_PER_CLICK = 0.35;
 
 export default async function AnalyticsPage() {
   const session = await requireAdminSession();
@@ -23,6 +24,8 @@ export default async function AnalyticsPage() {
   }
 
   const siteId = await resolveDbSiteId(session.activeSiteSlug);
+  const siteConfig = getSiteById(session.activeSiteSlug);
+  const EST_REVENUE_PER_CLICK = siteConfig?.estRevenuePerClick ?? DEFAULT_EST_REVENUE_PER_CLICK;
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -81,6 +84,9 @@ export default async function AnalyticsPage() {
       </div>
 
       {/* Revenue & CTR cards */}
+      <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+        Revenue and CTR figures are estimates based on an assumed ${EST_REVENUE_PER_CLICK}/click rate and ~100 impressions/product/day. Actual results will vary. Configure the per-click rate in your site definition.
+      </div>
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Est. Revenue (30d)</p>

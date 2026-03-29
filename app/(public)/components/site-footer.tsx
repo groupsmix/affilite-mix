@@ -39,10 +39,12 @@ export function SiteFooter({ site }: SiteFooterProps) {
           ))}
         </div>
 
-        {/* Newsletter signup */}
-        <div className="mt-8">
-          <NewsletterSignup siteLanguage={site.language} />
-        </div>
+        {/* Newsletter signup — only when feature is enabled */}
+        {site.features.newsletter && (
+          <div className="mt-8">
+            <NewsletterSignup siteLanguage={site.language} />
+          </div>
+        )}
 
         {/* Affiliate disclosure */}
         <div className="mt-8 border-t border-gray-200 pt-6">

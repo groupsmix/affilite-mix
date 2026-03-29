@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 
 interface MobileMenuProps {
@@ -12,11 +12,62 @@ interface MobileMenuProps {
 export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: MobileMenuProps) {
   const [open, setOpen] = useState(false);
   const isRtl = direction === "rtl";
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  const closeMenu = useCallback(() => {
+    setOpen(false);
+    // Return focus to the hamburger button
+    hamburgerRef.current?.focus();
+  }, []);
+
+  // Escape key handler
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") closeMenu();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, closeMenu]);
+
+  // Focus trap within the drawer
+  useEffect(() => {
+    if (!open || !drawerRef.current) return;
+    const drawer = drawerRef.current;
+    const focusableSelector = 'a[href], button:not([disabled]), input, textarea, select, [tabindex]:not([tabindex="-1"])';
+    const focusableElements = drawer.querySelectorAll<HTMLElement>(focusableSelector);
+    if (focusableElements.length === 0) return;
+
+    const firstEl = focusableElements[0];
+    const lastEl = focusableElements[focusableElements.length - 1];
+
+    // Auto-focus the close button (first focusable)
+    firstEl.focus();
+
+    function handleTab(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) {
+          e.preventDefault();
+          lastEl.focus();
+        }
+      } else {
+        if (document.activeElement === lastEl) {
+          e.preventDefault();
+          firstEl.focus();
+        }
+      }
+    }
+    drawer.addEventListener("keydown", handleTab);
+    return () => drawer.removeEventListener("keydown", handleTab);
+  }, [open]);
 
   return (
     <>
       {/* Hamburger button */}
       <button
+        ref={hamburgerRef}
         type="button"
         onClick={() => setOpen(!open)}
         className="inline-flex items-center justify-center rounded-md p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 md:hidden"
@@ -40,15 +91,21 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
           {/* Backdrop */}
           <div
             className="fixed inset-0 z-40 bg-black/30 md:hidden"
-            onClick={() => setOpen(false)}
+            onClick={closeMenu}
           />
           {/* Drawer — slides from left for RTL, right for LTR */}
-          <div className={`fixed inset-y-0 ${isRtl ? "left-0" : "right-0"} z-50 w-64 bg-white shadow-xl md:hidden`}>
+          <div
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={isRtl ? "القائمة" : "Menu"}
+            className={`fixed inset-y-0 ${isRtl ? "left-0" : "right-0"} z-50 w-64 bg-white shadow-xl md:hidden`}
+          >
             <div className={`flex items-center justify-between border-b border-gray-200 px-4 py-3 ${isRtl ? "flex-row-reverse" : ""}`}>
               <span className="text-lg font-bold">{isRtl ? "القائمة" : "Menu"}</span>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={closeMenu}
                 className="rounded-md p-2 text-gray-600 hover:bg-gray-100"
                 aria-label="Close menu"
               >
@@ -62,7 +119,7 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setOpen(false)}
+                  onClick={closeMenu}
                   className="rounded-md px-3 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900"
                 >
                   {item.title}
@@ -70,7 +127,7 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
               ))}
               <Link
                 href="/search"
-                onClick={() => setOpen(false)}
+                onClick={closeMenu}
                 className="flex items-center gap-2 rounded-md px-3 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">

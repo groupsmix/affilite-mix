@@ -1,20 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { getCookieValue } from "@/lib/cookie-utils";
 
 type ConsentState = "pending" | "accepted" | "rejected";
 
 const CONSENT_COOKIE_NAME = "nichehub-cookie-consent";
 const CONSENT_EXPIRY_DAYS = 365;
 
-function getConsentState(): ConsentState {
-  if (typeof document === "undefined") return "pending";
-  const match = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith(`${CONSENT_COOKIE_NAME}=`));
-  if (!match) return "pending";
-  const value = match.split("=")[1];
+function readConsentFromCookie(): ConsentState {
+  const value = getCookieValue(CONSENT_COOKIE_NAME);
   if (value === "accepted" || value === "rejected") return value;
   return "pending";
 }
@@ -29,27 +25,6 @@ function dispatchConsentEvent(accepted: boolean) {
   window.dispatchEvent(
     new CustomEvent("cookieConsent", { detail: { accepted } }),
   );
-}
-
-let consentListeners: Array<() => void> = [];
-
-function subscribeConsent(listener: () => void) {
-  consentListeners.push(listener);
-  return () => {
-    consentListeners = consentListeners.filter((l) => l !== listener);
-  };
-}
-
-function notifyConsentListeners() {
-  consentListeners.forEach((l) => l());
-}
-
-function getConsentSnapshot(): ConsentState {
-  return getConsentState();
-}
-
-function getConsentServerSnapshot(): ConsentState {
-  return "pending";
 }
 
 interface CookieConsentProps {
@@ -75,31 +50,29 @@ const translations = {
 
 export default function CookieConsent({ language = "en" }: CookieConsentProps) {
   const t = language === "ar" ? translations.ar : translations.en;
-  const consent = useSyncExternalStore(
-    subscribeConsent,
-    getConsentSnapshot,
-    getConsentServerSnapshot,
-  );
+  const [consent, setConsent] = useState<ConsentState>("pending");
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (consent === "pending") {
+    const stored = readConsentFromCookie();
+    setConsent(stored);
+    if (stored === "pending") {
       const timer = setTimeout(() => setVisible(true), 500);
       return () => clearTimeout(timer);
     }
-  }, [consent]);
+  }, []);
 
   const handleAccept = useCallback(() => {
     setConsentCookie("accepted");
+    setConsent("accepted");
     setVisible(false);
-    notifyConsentListeners();
     dispatchConsentEvent(true);
   }, []);
 
   const handleReject = useCallback(() => {
     setConsentCookie("rejected");
+    setConsent("rejected");
     setVisible(false);
-    notifyConsentListeners();
     dispatchConsentEvent(false);
   }, []);
 
@@ -156,15 +129,17 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
  * Hook for other components to check cookie consent status.
  */
 export function useCookieConsent(): { accepted: boolean } {
-  const consent = useSyncExternalStore(
-    (listener) => {
-      const handler = () => listener();
-      window.addEventListener("cookieConsent", handler);
-      return () => window.removeEventListener("cookieConsent", handler);
-    },
-    () => getConsentState() === "accepted",
-    () => false,
-  );
+  const [accepted, setAccepted] = useState(false);
 
-  return { accepted: consent };
+  useEffect(() => {
+    setAccepted(readConsentFromCookie() === "accepted");
+
+    function handleConsentChange() {
+      setAccepted(readConsentFromCookie() === "accepted");
+    }
+    window.addEventListener("cookieConsent", handleConsentChange);
+    return () => window.removeEventListener("cookieConsent", handleConsentChange);
+  }, []);
+
+  return { accepted };
 }
