@@ -13,9 +13,8 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Skip if no API token is set — Cloudflare Pages native GitHub
-    # integration handles deployment in that case.
-    if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    # Skip if no Cloudflare credentials are set
+    if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' || secrets.CLOUDFLARE_API_KEY != '' }}
     permissions:
       contents: read
       deployments: write
@@ -43,13 +42,16 @@ jobs:
             exit 1
           fi
 
-      # Build the OpenNext bundle for Cloudflare Pages
+      # Build the OpenNext bundle for Cloudflare Workers
       - run: npx @opennextjs/cloudflare build
 
-      # Deploy to Cloudflare Pages (single deployment target)
-      # Deploy using wrangler.jsonc config (pages_build_output_dir)
-      - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy --project-name=affilite-mix --branch=main --commit-dirty=true
+      # Deploy to Cloudflare Workers via opennextjs-cloudflare
+      # Supports both API Token (CLOUDFLARE_API_TOKEN) and
+      # Global API Key (CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL)
+      - name: Deploy to Cloudflare
+        run: npx opennextjs-cloudflare deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
