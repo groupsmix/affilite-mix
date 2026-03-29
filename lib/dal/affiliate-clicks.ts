@@ -72,26 +72,16 @@ export async function getTopProducts(
   limit = 10,
 ): Promise<{ product_name: string; click_count: number }[]> {
   const sb = getServiceClient();
-  let query = sb
-    .from(TABLE)
-    .select("product_name")
-    .eq("site_id", siteId);
+  const sinceDate = since ?? new Date(0).toISOString();
 
-  if (since) query = query.gte("created_at", since);
+  const { data, error } = await sb.rpc("get_top_products", {
+    p_site_id: siteId,
+    p_since: sinceDate,
+    p_limit: limit,
+  });
 
-  const { data, error } = await query;
   if (error) throw error;
-
-  // Aggregate in JS since Supabase JS client doesn't support GROUP BY
-  const counts = new Map<string, number>();
-  for (const row of data as { product_name: string }[]) {
-    counts.set(row.product_name, (counts.get(row.product_name) ?? 0) + 1);
-  }
-
-  return Array.from(counts.entries())
-    .map(([product_name, click_count]) => ({ product_name, click_count }))
-    .sort((a, b) => b.click_count - a.click_count)
-    .slice(0, limit);
+  return (data ?? []) as { product_name: string; click_count: number }[];
 }
 
 /** Get top referring pages for a site (admin analytics) */
@@ -101,26 +91,16 @@ export async function getTopReferrers(
   limit = 10,
 ): Promise<{ referrer: string; click_count: number }[]> {
   const sb = getServiceClient();
-  let query = sb
-    .from(TABLE)
-    .select("referrer")
-    .eq("site_id", siteId);
+  const sinceDate = since ?? new Date(0).toISOString();
 
-  if (since) query = query.gte("created_at", since);
+  const { data, error } = await sb.rpc("get_top_referrers", {
+    p_site_id: siteId,
+    p_since: sinceDate,
+    p_limit: limit,
+  });
 
-  const { data, error } = await query;
   if (error) throw error;
-
-  const counts = new Map<string, number>();
-  for (const row of data as { referrer: string }[]) {
-    const ref = row.referrer || "(direct)";
-    counts.set(ref, (counts.get(ref) ?? 0) + 1);
-  }
-
-  return Array.from(counts.entries())
-    .map(([referrer, click_count]) => ({ referrer, click_count }))
-    .sort((a, b) => b.click_count - a.click_count)
-    .slice(0, limit);
+  return (data ?? []) as { referrer: string; click_count: number }[];
 }
 
 /** Get top content pages driving clicks (admin analytics) */
@@ -130,26 +110,16 @@ export async function getTopContentSlugs(
   limit = 10,
 ): Promise<{ content_slug: string; click_count: number }[]> {
   const sb = getServiceClient();
-  let query = sb
-    .from(TABLE)
-    .select("content_slug")
-    .eq("site_id", siteId)
-    .neq("content_slug", "");
+  const sinceDate = since ?? new Date(0).toISOString();
 
-  if (since) query = query.gte("created_at", since);
+  const { data, error } = await sb.rpc("get_top_content_slugs", {
+    p_site_id: siteId,
+    p_since: sinceDate,
+    p_limit: limit,
+  });
 
-  const { data, error } = await query;
   if (error) throw error;
-
-  const counts = new Map<string, number>();
-  for (const row of data as { content_slug: string }[]) {
-    counts.set(row.content_slug, (counts.get(row.content_slug) ?? 0) + 1);
-  }
-
-  return Array.from(counts.entries())
-    .map(([content_slug, click_count]) => ({ content_slug, click_count }))
-    .sort((a, b) => b.click_count - a.click_count)
-    .slice(0, limit);
+  return (data ?? []) as { content_slug: string; click_count: number }[];
 }
 
 /** Get daily click counts for a site (admin analytics chart data) */
@@ -161,19 +131,18 @@ export async function getDailyClicks(
   const since = new Date();
   since.setDate(since.getDate() - days);
 
-  const { data, error } = await sb
-    .from(TABLE)
-    .select("created_at")
-    .eq("site_id", siteId)
-    .gte("created_at", since.toISOString());
+  const { data, error } = await sb.rpc("get_daily_clicks", {
+    p_site_id: siteId,
+    p_since: since.toISOString(),
+  });
 
   if (error) throw error;
 
-  // Aggregate by date in JS
+  // Build a lookup from the RPC results
+  const rpcData = (data ?? []) as { date: string; count: number }[];
   const counts = new Map<string, number>();
-  for (const row of data as { created_at: string }[]) {
-    const date = row.created_at.split("T")[0];
-    counts.set(date, (counts.get(date) ?? 0) + 1);
+  for (const row of rpcData) {
+    counts.set(row.date, Number(row.count));
   }
 
   // Fill missing dates with 0
