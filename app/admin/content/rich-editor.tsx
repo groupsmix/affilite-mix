@@ -203,14 +203,12 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
     },
   });
 
-  // Sync external value changes (e.g. when loading saved content)
+  // Sync external value changes (e.g. when loading saved content or form reset)
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       editor.commands.setContent(value, { emitUpdate: false });
     }
-    // Only sync when value changes externally, not on every editor update
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor]);
+  }, [editor, value]);
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
