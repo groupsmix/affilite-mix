@@ -12,7 +12,7 @@ export const cryptoToolsSite: SiteDefinition = {
   brand: {
     description:
       "Compare crypto exchanges, wallets, and DeFi tools — honest reviews and affiliate deals.",
-    contactEmail: "contact@wristnerd.site",
+    contactEmail: "contact@crypto.wristnerd.site",
     niche: "Cryptocurrency Tools & Reviews",
   },
 
