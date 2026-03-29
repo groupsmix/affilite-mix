@@ -134,9 +134,10 @@ Navigate to [http://localhost:3000/admin/login](http://localhost:3000/admin/logi
 
 1. Create a new site config in `config/sites/` (copy an existing one as a template)
 2. Add it to the `allSites` array in `config/sites/index.ts`
-3. Add the domain to `next.config.ts` `images.remotePatterns` if needed
-4. Insert a matching row into the `sites` database table
-5. Point the domain's DNS to your Cloudflare Pages deployment
+3. Insert a matching row into the `sites` database table
+4. Point the domain's DNS to your Cloudflare Pages deployment
+
+> **Note:** `next.config.ts` automatically derives `images.remotePatterns` from all registered sites — no manual update needed.
 
 ## Deployment
 
