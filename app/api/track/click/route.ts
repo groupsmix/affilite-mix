@@ -20,6 +20,7 @@ function isValidDestination(url: string): boolean {
 }
 
 export async function GET(request: NextRequest) {
+  try {
   const ip = request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? "unknown";
@@ -73,4 +74,8 @@ export async function GET(request: NextRequest) {
 
   // 302 redirect to the product's affiliate URL
   return NextResponse.redirect(destinationUrl, 302);
+  } catch (err) {
+    console.error("[api/track/click] GET failed:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

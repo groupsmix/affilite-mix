@@ -15,15 +15,20 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
   }
 
-  await setLinkedProducts(parsed.data.content_id, dbSiteId, parsed.data.links);
-  revalidateTag("content");
-  recordAuditEvent({
-    site_id: dbSiteId,
-    actor: "admin",
-    action: "update",
-    entity_type: "content_products",
-    entity_id: parsed.data.content_id,
-    details: { linked_count: parsed.data.links.length },
-  });
-  return NextResponse.json({ ok: true });
+  try {
+    await setLinkedProducts(parsed.data.content_id, dbSiteId, parsed.data.links);
+    revalidateTag("content");
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: "admin",
+      action: "update",
+      entity_type: "content_products",
+      entity_id: parsed.data.content_id,
+      details: { linked_count: parsed.data.links.length },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[api/admin/content-products] PUT failed:", err);
+    return NextResponse.json({ error: "Failed to update linked products" }, { status: 500 });
+  }
 }
