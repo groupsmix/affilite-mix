@@ -30,5 +30,14 @@
 			"binding": "NEXT_INC_CACHE_R2_BUCKET",
 			"bucket_name": "next-inc-cache"
 		}
+	],
+	// KV namespace for distributed rate limiting
+	// Create with: wrangler kv:namespace create RATE_LIMIT_KV
+	// Then replace the id below with the real namespace ID
+	"kv_namespaces": [
+		{
+			"binding": "RATE_LIMIT_KV",
+			"id": "REPLACE_WITH_REAL_NAMESPACE_ID"
+		}
 	]
 }

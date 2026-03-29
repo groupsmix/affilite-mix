@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 /** POST /api/newsletter — Subscribe to the site newsletter */
 export async function POST(request: Request) {
@@ -20,6 +21,15 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
+
+  const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json(
+      { error: turnstileResult.error ?? "Captcha verification failed" },
+      { status: 403 },
+    );
+  }
+
   const email = (body.email ?? "").trim().toLowerCase();
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

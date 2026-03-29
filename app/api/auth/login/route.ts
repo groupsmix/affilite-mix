@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCredentials, createToken, COOKIE_NAME } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 /** 5 login attempts per 15 minutes per IP */
 const LOGIN_RATE_LIMIT = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
@@ -21,7 +22,15 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { password } = body as { password?: string };
+  const { password, turnstileToken } = body as { password?: string; turnstileToken?: string };
+
+  const turnstileResult = await verifyTurnstile(turnstileToken, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json(
+      { error: turnstileResult.error ?? "Captcha verification failed" },
+      { status: 403 },
+    );
+  }
 
   if (!password) {
     return NextResponse.json(

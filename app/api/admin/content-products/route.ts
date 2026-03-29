@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
 import { setLinkedProducts } from "@/lib/dal/content-products";
 import { validateSetLinkedProducts } from "@/lib/validation";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 export async function PUT(request: NextRequest) {
   const { error, dbSiteId } = await requireAdmin();
@@ -16,5 +17,13 @@ export async function PUT(request: NextRequest) {
 
   await setLinkedProducts(parsed.data.content_id, dbSiteId, parsed.data.links);
   revalidateTag("content");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "update",
+    entity_type: "content_products",
+    entity_id: parsed.data.content_id,
+    details: { linked_count: parsed.data.links.length },
+  });
   return NextResponse.json({ ok: true });
 }

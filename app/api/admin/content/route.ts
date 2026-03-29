@@ -9,6 +9,7 @@ import {
 } from "@/lib/dal/content";
 import { validateCreateContent, validateUpdateContent } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/sanitize-html";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 export async function GET(request: NextRequest) {
   const { error, dbSiteId } = await requireAdmin();
@@ -55,6 +56,14 @@ export async function POST(request: NextRequest) {
   });
 
   revalidateTag("content");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "create",
+    entity_type: "content",
+    entity_id: content.id,
+    details: { title: data.title, slug: data.slug, type: data.type },
+  });
   return NextResponse.json(content, { status: 201 });
 }
 
@@ -80,6 +89,14 @@ export async function PATCH(request: NextRequest) {
   }
   const content = await updateContent(dbSiteId, id, updates);
   revalidateTag("content");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "update",
+    entity_type: "content",
+    entity_id: id,
+    details: { fields: Object.keys(updates) },
+  });
   return NextResponse.json(content);
 }
 
@@ -95,5 +112,12 @@ export async function DELETE(request: NextRequest) {
 
   await deleteContent(dbSiteId, id);
   revalidateTag("content");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "delete",
+    entity_type: "content",
+    entity_id: id,
+  });
   return NextResponse.json({ ok: true });
 }
