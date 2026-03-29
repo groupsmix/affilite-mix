@@ -3,8 +3,8 @@ import type { SiteDefinition } from "../site-definition";
 export const cryptoToolsSite: SiteDefinition = {
   id: "crypto-tools",
   name: "Crypto Tools",
-  domain: "wristnerd.site",
-  aliases: ["crypto.localhost"],
+  domain: "crypto.wristnerd.site",
+  aliases: ["crypto.localhost", "wristnerd.site"],
   language: "en",
   direction: "ltr",
   locale: "en_US",
