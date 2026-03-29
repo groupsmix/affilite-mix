@@ -8,6 +8,7 @@ import {
   deleteProduct,
 } from "@/lib/dal/products";
 import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 export async function GET(request: NextRequest) {
   const { error, dbSiteId } = await requireAdmin();
@@ -55,6 +56,14 @@ export async function POST(request: NextRequest) {
   });
 
   revalidateTag("products");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "create",
+    entity_type: "product",
+    entity_id: product.id,
+    details: { name: data.name, slug: data.slug },
+  });
   return NextResponse.json(product, { status: 201 });
 }
 
@@ -71,6 +80,14 @@ export async function PATCH(request: NextRequest) {
   const { id, ...updates } = parsed.data;
   const product = await updateProduct(dbSiteId, id, updates);
   revalidateTag("products");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "update",
+    entity_type: "product",
+    entity_id: id,
+    details: updates,
+  });
   return NextResponse.json(product);
 }
 
@@ -86,5 +103,12 @@ export async function DELETE(request: NextRequest) {
 
   await deleteProduct(dbSiteId, id);
   revalidateTag("products");
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "delete",
+    entity_type: "product",
+    entity_id: id,
+  });
   return NextResponse.json({ ok: true });
 }

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getUploadUrl, isR2Configured } from "@/lib/r2";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 /** POST /api/admin/upload — get a presigned R2 upload URL */
 export async function POST(request: Request) {
-  const { error } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   if (!isR2Configured()) {
@@ -28,6 +29,14 @@ export async function POST(request: Request) {
 
   try {
     const { uploadUrl, publicUrl } = await getUploadUrl(fileName, contentType);
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: "admin",
+      action: "upload",
+      entity_type: "image",
+      entity_id: fileName,
+      details: { contentType, publicUrl },
+    });
     return NextResponse.json({ uploadUrl, publicUrl });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Upload failed";

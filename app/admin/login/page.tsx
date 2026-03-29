@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const router = useRouter();
+
+  const handleTurnstileToken = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken(null);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,7 +27,7 @@ export default function AdminLoginPage() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ password, turnstileToken }),
     });
 
     if (res.ok) {
@@ -54,10 +64,14 @@ export default function AdminLoginPage() {
           className="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           required
         />
+        <TurnstileWidget
+          onVerify={handleTurnstileToken}
+          onExpire={handleTurnstileExpire}
+        />
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+          className="mt-4 w-full rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>
