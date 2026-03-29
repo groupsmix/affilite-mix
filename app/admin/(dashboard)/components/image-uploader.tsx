@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface ImageUploaderProps {
   value: string;
@@ -20,18 +21,28 @@ export function ImageUploader({ value, onChange, label = "Image" }: ImageUploade
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
   const uploadFile = useCallback(async (file: File) => {
     setError("");
+
+    // Client-side file size validation
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 10MB limit`);
+      return;
+    }
+
     setUploading(true);
 
     try {
       // 1. Get presigned URL from our API
-      const res = await fetch("/api/admin/upload", {
+      const res = await fetchWithCsrf("/api/admin/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, "_"),
           contentType: file.type,
+          fileSize: file.size,
         }),
       });
 

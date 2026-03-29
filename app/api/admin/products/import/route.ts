@@ -54,6 +54,8 @@ export async function POST(request: NextRequest) {
         affiliate_url: row.affiliate_url ?? "",
         image_url: row.image_url ?? "",
         price: row.price ?? "",
+        price_amount: row.price_amount ? parseFloat(row.price_amount) : null,
+        price_currency: row.price_currency ?? "USD",
         merchant: row.merchant ?? "",
         score: row.score ? parseFloat(row.score) : null,
         featured: row.featured === "true",

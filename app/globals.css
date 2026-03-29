@@ -3,8 +3,8 @@
 :root {
   --color-primary: #1e293b;
   --color-accent: #10b981;
-  --font-heading: "IBM Plex Sans Arabic", sans-serif;
-  --font-body: "IBM Plex Sans Arabic", sans-serif;
+  --font-heading: "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
 }
 
 body {

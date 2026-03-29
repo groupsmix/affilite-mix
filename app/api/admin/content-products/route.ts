@@ -6,7 +6,7 @@ import { validateSetLinkedProducts } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 
 export async function PUT(request: NextRequest) {
-  const { error, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const raw = await request.json();
@@ -20,7 +20,7 @@ export async function PUT(request: NextRequest) {
     revalidateTag("content");
     recordAuditEvent({
       site_id: dbSiteId,
-      actor: "admin",
+      actor: session.email ?? session.userId ?? "admin",
       action: "update",
       entity_type: "content_products",
       entity_id: parsed.data.content_id,
