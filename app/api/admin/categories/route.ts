@@ -14,8 +14,13 @@ export async function GET() {
   const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const categories = await listCategories(dbSiteId);
-  return NextResponse.json(categories);
+  try {
+    const categories = await listCategories(dbSiteId);
+    return NextResponse.json(categories);
+  } catch (err) {
+    console.error("[api/admin/categories] GET failed:", err);
+    return NextResponse.json({ error: "Failed to list categories" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -28,23 +33,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
   }
 
-  const category = await createCategory({
-    site_id: dbSiteId,
-    name: parsed.data.name,
-    slug: parsed.data.slug,
-    description: parsed.data.description,
-  });
+  try {
+    const category = await createCategory({
+      site_id: dbSiteId,
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      description: parsed.data.description,
+    });
 
-  revalidateTag("categories");
-  recordAuditEvent({
-    site_id: dbSiteId,
-    actor: "admin",
-    action: "create",
-    entity_type: "category",
-    entity_id: category.id,
-    details: { name: parsed.data.name, slug: parsed.data.slug },
-  });
-  return NextResponse.json(category, { status: 201 });
+    revalidateTag("categories");
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: "admin",
+      action: "create",
+      entity_type: "category",
+      entity_id: category.id,
+      details: { name: parsed.data.name, slug: parsed.data.slug },
+    });
+    return NextResponse.json(category, { status: 201 });
+  } catch (err) {
+    console.error("[api/admin/categories] POST create failed:", err);
+    return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: NextRequest) {
@@ -58,17 +68,22 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { id, ...updates } = parsed.data;
-  const category = await updateCategory(dbSiteId, id, updates);
-  revalidateTag("categories");
-  recordAuditEvent({
-    site_id: dbSiteId,
-    actor: "admin",
-    action: "update",
-    entity_type: "category",
-    entity_id: id,
-    details: updates,
-  });
-  return NextResponse.json(category);
+  try {
+    const category = await updateCategory(dbSiteId, id, updates);
+    revalidateTag("categories");
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: "admin",
+      action: "update",
+      entity_type: "category",
+      entity_id: id,
+      details: updates,
+    });
+    return NextResponse.json(category);
+  } catch (err) {
+    console.error("[api/admin/categories] PATCH update failed:", err);
+    return NextResponse.json({ error: "Failed to update category" }, { status: 500 });
+  }
 }
 
 export async function DELETE(request: NextRequest) {
@@ -81,14 +96,19 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  await deleteCategory(dbSiteId, id);
-  revalidateTag("categories");
-  recordAuditEvent({
-    site_id: dbSiteId,
-    actor: "admin",
-    action: "delete",
-    entity_type: "category",
-    entity_id: id,
-  });
-  return NextResponse.json({ ok: true });
+  try {
+    await deleteCategory(dbSiteId, id);
+    revalidateTag("categories");
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: "admin",
+      action: "delete",
+      entity_type: "category",
+      entity_id: id,
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[api/admin/categories] DELETE failed:", err);
+    return NextResponse.json({ error: "Failed to delete category" }, { status: 500 });
+  }
 }

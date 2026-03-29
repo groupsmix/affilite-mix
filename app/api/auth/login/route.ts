@@ -7,6 +7,7 @@ import { verifyTurnstile } from "@/lib/turnstile";
 const LOGIN_RATE_LIMIT = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
 
 export async function POST(request: NextRequest) {
+  try {
   const ip = request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? "unknown";
@@ -61,4 +62,8 @@ export async function POST(request: NextRequest) {
   });
 
   return response;
+  } catch (err) {
+    console.error("[api/auth/login] POST failed:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

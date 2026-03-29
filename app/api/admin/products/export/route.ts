@@ -7,6 +7,7 @@ export async function GET() {
   const guard = await requireAdmin();
   if (guard.error) return guard.error;
 
+  try {
   const products = await listProducts({ siteId: guard.dbSiteId });
 
   const headers = [
@@ -60,4 +61,8 @@ export async function GET() {
       "Content-Disposition": `attachment; filename="products-${guard.siteSlug}-${new Date().toISOString().split("T")[0]}.csv"`,
     },
   });
+  } catch (err) {
+    console.error("[api/admin/products/export] GET failed:", err);
+    return NextResponse.json({ error: "Failed to export products" }, { status: 500 });
+  }
 }
