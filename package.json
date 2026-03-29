@@ -11,7 +11,10 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "test": "vitest run"
+    "test": "vitest run",
+    "add-site": "tsx scripts/add-site.ts",
+    "pause-site": "tsx scripts/pause-site.ts",
+    "redesign-site": "tsx scripts/redesign-site.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1018.0",
@@ -39,6 +42,7 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.5.14",
     "postcss": "^8.5.8",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.0",
     "vitest": "^4.1.2"
   }
