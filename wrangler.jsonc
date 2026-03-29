@@ -30,7 +30,7 @@
 	"kv_namespaces": [
 		{
 			"binding": "RATE_LIMIT_KV",
-			"id": "REPLACE_WITH_REAL_NAMESPACE_ID"
+			"id": "7ac37dff0a794542b0c766f38e73f105"
 		}
 	],
 	// R2 incremental cache — create the bucket in the Cloudflare dashboard first
