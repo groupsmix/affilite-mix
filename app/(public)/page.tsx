@@ -7,6 +7,7 @@ import { ContentCard } from "./components/content-card";
 import { ProductCard } from "./components/product-card";
 import { NewsletterSignup } from "./components/newsletter-signup";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./components/json-ld";
+import { WatchHomepage } from "./components/watch-homepage";
 import Link from "next/link";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,6 +44,18 @@ export default async function HomePage() {
     listFeaturedProducts(site.id, 6),
     listCategories(site.id),
   ]);
+
+  // Render custom homepage for sites with the feature enabled
+  if (site.features.customHomepage) {
+    return (
+      <WatchHomepage
+        site={site}
+        recentContent={recentContent}
+        featuredProducts={featuredProducts}
+        categories={categories}
+      />
+    );
+  }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";
   const ctaLabel = site.language === "ar" ? "احصل على العرض" : "View Deal";

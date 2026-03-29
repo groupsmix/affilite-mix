@@ -40,6 +40,8 @@ export interface SiteDefinition {
     about: { title: string; description: string };
     privacy: { title: string; description: string };
     terms: { title: string; description: string };
+    contact?: { title: string; description: string; email: string };
+    affiliateDisclosurePage?: { title: string; description: string };
   };
 
   seo: {
@@ -62,6 +64,9 @@ export interface FeatureFlags {
   scheduling?: boolean;
   comparisons?: boolean;
   deals?: boolean;
+  cookieConsent?: boolean;
+  taxonomyPages?: boolean;
+  customHomepage?: boolean;
 }
 
 export interface ContentTypeConfig {
