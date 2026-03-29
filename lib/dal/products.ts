@@ -163,13 +163,46 @@ function escapeLike(value: string): string {
   return value.replace(/[%_\\]/g, (ch) => `\\${ch}`);
 }
 
-/** Search active products by name (basic search) */
+/**
+ * Build a tsquery string from raw user input.
+ * Splits on whitespace and joins with `&` (AND) so every term must match.
+ * Each token is sanitised to prevent tsquery syntax errors.
+ */
+function toTsquery(raw: string): string {
+  return raw
+    .replace(/[^\p{L}\p{N}\s]/gu, "") // strip punctuation
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => `${t}:*`) // prefix matching
+    .join(" & ");
+}
+
+/**
+ * Search active products using Postgres full-text search.
+ * Falls back to ILIKE when FTS is unavailable or the query can't form a valid tsquery.
+ */
 export async function searchProducts(
   siteId: string,
   query: string,
   limit = 20,
 ): Promise<ProductRow[]> {
   const sb = getServiceClient();
+  const tsq = toTsquery(query);
+
+  if (tsq) {
+    const { data, error } = await sb
+      .from(TABLE)
+      .select("*")
+      .eq("site_id", siteId)
+      .eq("status", "active")
+      .or(`name.fts.${tsq},description.fts.${tsq}`)
+      .order("score", { ascending: false, nullsFirst: false })
+      .limit(limit);
+
+    if (!error) return data as ProductRow[];
+    // If FTS fails (e.g. column/index not ready), fall through to ILIKE.
+  }
+
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
