@@ -42,6 +42,8 @@ export const watchToolsSite: SiteDefinition = {
       { title: "About", href: "/about" },
       { title: "Privacy Policy", href: "/privacy" },
       { title: "Terms of Service", href: "/terms" },
+      { title: "Affiliate Disclosure", href: "/affiliate-disclosure" },
+      { title: "Contact", href: "/contact" },
     ],
   },
 
@@ -91,6 +93,9 @@ export const watchToolsSite: SiteDefinition = {
     scheduling: true,
     comparisons: true,
     deals: true,
+    cookieConsent: true,
+    taxonomyPages: true,
+    customHomepage: true,
   },
 
   pages: {
@@ -106,6 +111,15 @@ export const watchToolsSite: SiteDefinition = {
       title: "Terms of Service",
       description: "Terms and conditions of use",
     },
+    contact: {
+      title: "Contact Us",
+      description: "Get in touch with the WristNerd team",
+      email: "contact@wristnerd.xyz",
+    },
+    affiliateDisclosurePage: {
+      title: "Affiliate Disclosure",
+      description: "How we earn revenue and maintain editorial independence",
+    },
   },
 
   seo: {
@@ -113,6 +127,8 @@ export const watchToolsSite: SiteDefinition = {
     sitemapStaticPages: [
       { path: "/", priority: 1, changeFrequency: "daily" },
       { path: "/gift-finder", priority: 0.9, changeFrequency: "weekly" },
+      { path: "/contact", priority: 0.3, changeFrequency: "yearly" },
+      { path: "/affiliate-disclosure", priority: 0.2, changeFrequency: "yearly" },
     ],
   },
 };
