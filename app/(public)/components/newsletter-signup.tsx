@@ -10,6 +10,7 @@ interface NewsletterSignupProps {
 export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
@@ -42,6 +43,13 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
         return;
       }
 
+      const data = await res.json();
+      setSuccessMsg(
+        data.message ??
+          (isAr
+            ? "يرجى التحقق من بريدك الإلكتروني لتأكيد اشتراكك."
+            : "Almost there! Check your inbox and click the confirmation link to complete your subscription.")
+      );
       setStatus("success");
       setEmail("");
     } catch {
@@ -52,14 +60,17 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
 
   if (status === "success") {
     return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center">
-        <p className="text-lg font-medium text-emerald-800">
-          {isAr ? "تم الاشتراك بنجاح!" : "You're subscribed!"}
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+          <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+          </svg>
+        </div>
+        <p className="text-lg font-medium text-amber-800">
+          {isAr ? "تحقق من بريدك الإلكتروني" : "Check your inbox"}
         </p>
-        <p className="mt-1 text-sm text-emerald-600">
-          {isAr
-            ? "شكراً لاشتراكك. ستصلك أحدث المقالات والعروض."
-            : "Thanks for subscribing. You'll receive our latest articles and deals."}
+        <p className="mt-1 text-sm text-amber-700">
+          {successMsg}
         </p>
       </div>
     );

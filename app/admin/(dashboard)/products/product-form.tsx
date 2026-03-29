@@ -37,6 +37,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [affiliateUrl, setAffiliateUrl] = useState(product?.affiliate_url ?? "");
   const [imageUrl, setImageUrl] = useState(product?.image_url ?? "");
   const [price, setPrice] = useState(product?.price ?? "");
+  const [priceAmount, setPriceAmount] = useState<string>(product?.price_amount?.toString() ?? "");
+  const [priceCurrency, setPriceCurrency] = useState(product?.price_currency ?? "USD");
   const [merchant, setMerchant] = useState(product?.merchant ?? "");
   const [score, setScore] = useState<string>(product?.score?.toString() ?? "");
   const [isFeatured, setIsFeatured] = useState(product?.featured ?? false);
@@ -59,6 +61,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError("");
 
@@ -69,6 +72,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       affiliate_url: affiliateUrl,
       image_url: imageUrl,
       price,
+      price_amount: priceAmount ? Number(priceAmount) : null,
+      price_currency: priceCurrency,
       merchant,
       score: score ? Number(score) : null,
       featured: isFeatured,
@@ -106,6 +111,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
+      <fieldset disabled={saving} className={`space-y-4 ${saving ? "opacity-60" : ""}`}>
       {error && (
         <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
       )}
@@ -169,15 +175,47 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Price</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Price (display)</label>
           <input
             type="text"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
+            placeholder="e.g. $29.99"
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
         </div>
 
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Price Amount</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={priceAmount}
+            onChange={(e) => setPriceAmount(e.target.value)}
+            placeholder="29.99"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Currency</label>
+          <select
+            value={priceCurrency}
+            onChange={(e) => setPriceCurrency(e.target.value)}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+            <option value="SAR">SAR</option>
+            <option value="AED">AED</option>
+            <option value="EGP">EGP</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">Merchant</label>
           <input
@@ -316,6 +354,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           Cancel
         </button>
       </div>
+      </fieldset>
     </form>
   );
 }

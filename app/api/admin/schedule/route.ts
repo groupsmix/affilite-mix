@@ -22,7 +22,7 @@ const JOB_TYPES = new Set([
  *   ?limit=50        — max results (optional, default 50)
  */
 export async function GET(request: NextRequest) {
-  const { error, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const status = request.nextUrl.searchParams.get("status") as
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
  * Body: { job_type, target_id, scheduled_for, payload? }
  */
 export async function POST(request: NextRequest) {
-  const { error, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const body = await request.json();
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     recordAuditEvent({
       site_id: dbSiteId,
-      actor: "admin",
+      actor: session.email ?? session.userId ?? "admin",
       action: "create",
       entity_type: "scheduled_job",
       entity_id: job.id,
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
  * Body: { id }
  */
 export async function DELETE(request: NextRequest) {
-  const { error, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const body = await request.json();
@@ -114,7 +114,7 @@ export async function DELETE(request: NextRequest) {
     await cancelScheduledJob(dbSiteId, body.id);
     recordAuditEvent({
       site_id: dbSiteId,
-      actor: "admin",
+      actor: session.email ?? session.userId ?? "admin",
       action: "cancel",
       entity_type: "scheduled_job",
       entity_id: body.id,

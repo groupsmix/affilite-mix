@@ -31,6 +31,8 @@ export interface ProductRow {
   affiliate_url: string;
   image_url: string;
   price: string;
+  price_amount: number | null;
+  price_currency: string;
   merchant: string;
   score: number | null;
   featured: boolean;
