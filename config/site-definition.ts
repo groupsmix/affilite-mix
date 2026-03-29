@@ -55,6 +55,7 @@ export interface SiteDefinition {
 export interface FeatureFlags {
   blog?: { source: "database" };
   brandSpotlights?: boolean;
+  giftFinder?: boolean;
   newsletter?: boolean;
   rssFeed?: boolean;
   searchModal?: boolean;
