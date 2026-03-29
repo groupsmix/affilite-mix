@@ -2,15 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { verifyPassword } from "@/lib/password";
-
-function requireEnvInProduction(name: string, fallback: string): string {
-  const value = process.env[name];
-  if (value) return value;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(`${name} environment variable is required in production`);
-  }
-  return fallback;
-}
+import { requireEnvInProduction } from "@/lib/env";
 
 const JWT_SECRET = requireEnvInProduction("JWT_SECRET", "dev-secret-change-me");
 const COOKIE_NAME = "nh_admin_token";

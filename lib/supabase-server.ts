@@ -1,13 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-
-function requireEnvInProduction(name: string, fallback: string): string {
-  const value = process.env[name];
-  if (value) return value;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(`${name} environment variable is required in production`);
-  }
-  return fallback;
-}
+import { requireEnvInProduction } from "@/lib/env";
 
 const supabaseUrl = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL", "");
 const serviceRoleKey = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY", "");
