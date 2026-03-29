@@ -89,12 +89,14 @@ CREATE TABLE content_products (
 
 -- NEWSLETTER SUBSCRIBERS
 CREATE TABLE newsletter_subscribers (
-  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  site_id     uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-  email       text NOT NULL,
-  status      text NOT NULL DEFAULT 'active'
-              CHECK (status IN ('active', 'unsubscribed')),
-  created_at  timestamptz DEFAULT now(),
+  id                  uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  site_id             uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  email               text NOT NULL,
+  status              text NOT NULL DEFAULT 'pending'
+                      CHECK (status IN ('pending', 'active', 'unsubscribed')),
+  confirmation_token  text,
+  confirmed_at        timestamptz,
+  created_at          timestamptz DEFAULT now(),
   UNIQUE(site_id, email)
 );
 

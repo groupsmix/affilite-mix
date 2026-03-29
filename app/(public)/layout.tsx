@@ -33,7 +33,7 @@ export default async function PublicLayout({
       <SiteHeader site={site} />
       <main className="flex-1">{children}</main>
       <SiteFooter site={site} />
-      {site.features.cookieConsent && <CookieConsent />}
+      {site.features.cookieConsent && <CookieConsent language={site.language} />}
     </div>
   );
 }
