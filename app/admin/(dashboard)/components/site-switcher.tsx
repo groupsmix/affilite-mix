@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { getCookieValue } from "@/lib/cookie-utils";
 
 interface SiteInfo {
   id: string;
@@ -29,11 +30,9 @@ export function SiteSwitcher() {
     loadSites();
 
     // Read active site from cookie
-    const cookie = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith("nh_active_site="));
-    if (cookie) {
-      setActiveSiteId(cookie.split("=")[1]);
+    const savedSiteId = getCookieValue("nh_active_site");
+    if (savedSiteId) {
+      setActiveSiteId(savedSiteId);
     }
   }, []);
 
