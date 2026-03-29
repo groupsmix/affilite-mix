@@ -42,10 +42,13 @@ function isUrl(v: unknown): v is string {
 
 // ── Categories ────────────────────────────────────────────
 
+const TAXONOMY_TYPES = new Set(["general", "budget", "occasion", "recipient", "brand"]);
+
 export interface CreateCategoryInput {
   name: string;
   slug: string;
   description: string;
+  taxonomy_type: "general" | "budget" | "occasion" | "recipient" | "brand";
 }
 
 export function validateCreateCategory(body: Record<string, unknown>): ValidationResult<CreateCategoryInput> {
@@ -58,8 +61,20 @@ export function validateCreateCategory(body: Record<string, unknown>): Validatio
     errors.slug = "slug must be a lowercase alphanumeric string with hyphens, max 200 chars";
   }
 
+  if (body.taxonomy_type !== undefined && !TAXONOMY_TYPES.has(body.taxonomy_type as string)) {
+    errors.taxonomy_type = "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
+  }
+
   if (Object.keys(errors).length > 0) return { data: null, errors };
-  return { data: { name: body.name as string, slug: body.slug as string, description: isString(body.description) ? body.description : "" }, errors: null };
+  return {
+    data: {
+      name: body.name as string,
+      slug: body.slug as string,
+      description: isString(body.description) ? body.description : "",
+      taxonomy_type: (TAXONOMY_TYPES.has(body.taxonomy_type as string) ? body.taxonomy_type : "general") as CreateCategoryInput["taxonomy_type"],
+    },
+    errors: null,
+  };
 }
 
 export interface UpdateCategoryInput {
@@ -67,6 +82,7 @@ export interface UpdateCategoryInput {
   name?: string;
   slug?: string;
   description?: string;
+  taxonomy_type?: "general" | "budget" | "occasion" | "recipient" | "brand";
 }
 
 export function validateUpdateCategory(body: Record<string, unknown>): ValidationResult<UpdateCategoryInput> {
@@ -82,11 +98,16 @@ export function validateUpdateCategory(body: Record<string, unknown>): Validatio
     errors.slug = "slug must be a lowercase alphanumeric string with hyphens, max 200 chars";
   }
 
+  if (body.taxonomy_type !== undefined && !TAXONOMY_TYPES.has(body.taxonomy_type as string)) {
+    errors.taxonomy_type = "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
+  }
+
   if (Object.keys(errors).length > 0) return { data: null, errors };
   const data: UpdateCategoryInput = { id: body.id as string };
   if (body.name !== undefined) data.name = body.name as string;
   if (body.slug !== undefined) data.slug = body.slug as string;
   if (body.description !== undefined) data.description = body.description as string;
+  if (body.taxonomy_type !== undefined) data.taxonomy_type = body.taxonomy_type as UpdateCategoryInput["taxonomy_type"];
   return { data, errors: null };
 }
 

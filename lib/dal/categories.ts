@@ -1,5 +1,5 @@
 import { getServiceClient } from "@/lib/supabase-server";
-import type { CategoryRow } from "@/types/database";
+import type { CategoryRow, TaxonomyType } from "@/types/database";
 
 const TABLE = "categories";
 
@@ -10,6 +10,23 @@ export async function listCategories(siteId: string): Promise<CategoryRow[]> {
     .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return data as CategoryRow[];
+}
+
+/** List categories for a site filtered by taxonomy type */
+export async function listCategoriesByTaxonomy(
+  siteId: string,
+  taxonomyType: TaxonomyType,
+): Promise<CategoryRow[]> {
+  const sb = getServiceClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("*")
+    .eq("site_id", siteId)
+    .eq("taxonomy_type", taxonomyType)
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -64,7 +81,7 @@ export async function createCategory(
 export async function updateCategory(
   siteId: string,
   id: string,
-  input: Partial<Pick<CategoryRow, "name" | "slug" | "description">>,
+  input: Partial<Pick<CategoryRow, "name" | "slug" | "description" | "taxonomy_type">>,
 ): Promise<CategoryRow> {
   const sb = getServiceClient();
   const { data, error } = await sb

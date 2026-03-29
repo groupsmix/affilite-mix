@@ -10,12 +10,15 @@ export interface SiteRow {
   created_at: string;
 }
 
+export type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
+
 export interface CategoryRow {
   id: string;
   site_id: string;
   name: string;
   slug: string;
   description: string;
+  taxonomy_type: TaxonomyType;
   created_at: string;
 }
 
