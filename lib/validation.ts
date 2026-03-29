@@ -120,6 +120,8 @@ export interface CreateProductInput {
   affiliate_url: string;
   image_url: string;
   price: string;
+  price_amount: number | null;
+  price_currency: string;
   merchant: string;
   score: number | null;
   featured: boolean;
@@ -177,6 +179,8 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
       affiliate_url: isString(body.affiliate_url) ? body.affiliate_url : "",
       image_url: isString(body.image_url) ? body.image_url : "",
       price: isString(body.price) ? body.price : "",
+      price_amount: isNumber(body.price_amount) ? body.price_amount : null,
+      price_currency: isString(body.price_currency) ? body.price_currency : "USD",
       merchant: isString(body.merchant) ? body.merchant : "",
       score: isNumber(body.score) ? body.score : null,
       featured: isBoolean(body.featured) ? body.featured : false,
@@ -200,6 +204,8 @@ export interface UpdateProductInput {
   affiliate_url?: string;
   image_url?: string;
   price?: string;
+  price_amount?: number | null;
+  price_currency?: string;
   merchant?: string;
   score?: number | null;
   featured?: boolean;
@@ -243,6 +249,8 @@ export function validateUpdateProduct(body: Record<string, unknown>): Validation
   if (body.affiliate_url !== undefined) data.affiliate_url = body.affiliate_url as string;
   if (body.image_url !== undefined) data.image_url = body.image_url as string;
   if (body.price !== undefined) data.price = body.price as string;
+  if (body.price_amount !== undefined) data.price_amount = body.price_amount as number | null;
+  if (body.price_currency !== undefined) data.price_currency = body.price_currency as string;
   if (body.merchant !== undefined) data.merchant = body.merchant as string;
   if (body.score !== undefined) data.score = body.score as number | null;
   if (body.featured !== undefined) data.featured = body.featured as boolean;
@@ -267,7 +275,7 @@ export interface CreateContentInput {
   excerpt: string;
   featured_image: string;
   type: "article" | "review" | "comparison" | "guide" | "blog";
-  status: "draft" | "review" | "published" | "archived";
+  status: "draft" | "review" | "scheduled" | "published" | "archived";
   category_id: string | null;
   tags: string[];
   author: string | null;
@@ -277,7 +285,7 @@ export interface CreateContentInput {
   og_image: string | null;
 }
 
-const CONTENT_STATUSES = new Set(["draft", "review", "published", "archived"]);
+const CONTENT_STATUSES = new Set(["draft", "review", "scheduled", "published", "archived"]);
 
 export function validateCreateContent(body: Record<string, unknown>): ValidationResult<CreateContentInput> {
   const errors: Record<string, string> = {};
@@ -295,7 +303,7 @@ export function validateCreateContent(body: Record<string, unknown>): Validation
     errors.excerpt = "excerpt must be a string";
   }
   if (body.status !== undefined && !CONTENT_STATUSES.has(body.status as string)) {
-    errors.status = "status must be one of: draft, review, published, archived";
+    errors.status = "status must be one of: draft, review, scheduled, published, archived";
   }
   if (body.category_id !== undefined && body.category_id !== null && !isUuid(body.category_id)) {
     errors.category_id = "category_id must be a valid UUID or null";
@@ -313,7 +321,7 @@ export function validateCreateContent(body: Record<string, unknown>): Validation
       excerpt: isString(body.excerpt) ? body.excerpt : "",
       featured_image: isString(body.featured_image) ? body.featured_image : "",
       type: (CONTENT_TYPES.has(body.type as string) ? body.type : "article") as CreateContentInput["type"],
-      status: (CONTENT_STATUSES.has(body.status as string) ? body.status : "draft") as "draft" | "review" | "published" | "archived",
+      status: (CONTENT_STATUSES.has(body.status as string) ? body.status : "draft") as CreateContentInput["status"],
       category_id: isUuid(body.category_id) ? (body.category_id as string) : null,
       tags: Array.isArray(body.tags) ? (body.tags as string[]) : [],
       author: isString(body.author) ? body.author : null,
@@ -334,7 +342,7 @@ export interface UpdateContentInput {
   excerpt?: string;
   featured_image?: string;
   type?: string;
-  status?: "draft" | "review" | "published" | "archived";
+  status?: "draft" | "review" | "scheduled" | "published" | "archived";
   category_id?: string | null;
   tags?: string[];
   author?: string | null;
@@ -360,7 +368,7 @@ export function validateUpdateContent(body: Record<string, unknown>): Validation
     errors.body = "body must be a string";
   }
   if (body.status !== undefined && !CONTENT_STATUSES.has(body.status as string)) {
-    errors.status = "status must be one of: draft, review, published, archived";
+    errors.status = "status must be one of: draft, review, scheduled, published, archived";
   }
   if (body.category_id !== undefined && body.category_id !== null && !isUuid(body.category_id)) {
     errors.category_id = "category_id must be a valid UUID or null";
@@ -375,7 +383,7 @@ export function validateUpdateContent(body: Record<string, unknown>): Validation
   if (body.excerpt !== undefined) data.excerpt = body.excerpt as string;
   if (body.featured_image !== undefined) data.featured_image = body.featured_image as string;
   if (body.type !== undefined) data.type = body.type as string;
-  if (body.status !== undefined) data.status = body.status as "draft" | "review" | "published" | "archived";
+  if (body.status !== undefined) data.status = body.status as UpdateContentInput["status"];
   if (body.category_id !== undefined) data.category_id = body.category_id as string | null;
   if (body.tags !== undefined) data.tags = body.tags as string[];
   if (body.author !== undefined) data.author = body.author as string | null;

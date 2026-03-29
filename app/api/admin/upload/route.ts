@@ -5,7 +5,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 
 /** POST /api/admin/upload — get a presigned R2 upload URL */
 export async function POST(request: Request) {
-  const { error, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   if (!isR2Configured()) {
@@ -15,8 +15,10 @@ export async function POST(request: Request) {
     );
   }
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
   const body = await request.json();
-  const { fileName, contentType } = body;
+  const { fileName, contentType, fileSize } = body;
 
   if (!fileName || !contentType) {
     return NextResponse.json({ error: "fileName and contentType are required" }, { status: 400 });
@@ -27,11 +29,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Only image uploads are allowed" }, { status: 400 });
   }
 
+  // Validate file size
+  if (typeof fileSize === "number" && fileSize > MAX_FILE_SIZE) {
+    return NextResponse.json(
+      { error: `File size exceeds the ${MAX_FILE_SIZE / (1024 * 1024)}MB limit` },
+      { status: 400 },
+    );
+  }
+
   try {
     const { uploadUrl, publicUrl } = await getUploadUrl(fileName, contentType);
     recordAuditEvent({
       site_id: dbSiteId,
-      actor: "admin",
+      actor: session.email ?? session.userId ?? "admin",
       action: "upload",
       entity_type: "image",
       entity_id: fileName,

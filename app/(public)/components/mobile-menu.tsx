@@ -86,21 +86,28 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
       </button>
 
       {/* Mobile drawer */}
-      {open && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/30 md:hidden"
-            onClick={closeMenu}
-          />
-          {/* Drawer — slides from left for RTL, right for LTR */}
-          <div
-            ref={drawerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={isRtl ? "القائمة" : "Menu"}
-            className={`fixed inset-y-0 ${isRtl ? "left-0" : "right-0"} z-50 w-64 bg-white shadow-xl md:hidden`}
-          >
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/30 transition-opacity duration-200 md:hidden ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={closeMenu}
+      />
+      {/* Drawer — slides from left for RTL, right for LTR */}
+      <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={isRtl ? "القائمة" : "Menu"}
+        aria-hidden={!open}
+        className={`fixed inset-y-0 ${isRtl ? "left-0" : "right-0"} z-50 w-64 bg-white shadow-xl transition-transform duration-200 ease-in-out md:hidden ${
+          open
+            ? "translate-x-0"
+            : isRtl
+              ? "-translate-x-full"
+              : "translate-x-full"
+        }`}
+      >
             <div className={`flex items-center justify-between border-b border-gray-200 px-4 py-3 ${isRtl ? "flex-row-reverse" : ""}`}>
               <span className="text-lg font-bold">{isRtl ? "القائمة" : "Menu"}</span>
               <button
@@ -137,8 +144,6 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
               </Link>
             </nav>
           </div>
-        </>
-      )}
     </>
   );
 }

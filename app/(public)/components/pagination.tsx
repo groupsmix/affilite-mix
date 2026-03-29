@@ -5,6 +5,7 @@ interface PaginationProps {
   totalItems: number;
   pageSize: number;
   basePath: string;
+  searchParams?: Record<string, string | string[] | undefined>;
 }
 
 /**
@@ -43,18 +44,34 @@ function getPageNumbers(currentPage: number, totalPages: number): (number | "ell
   return pages;
 }
 
-export function Pagination({ currentPage, totalItems, pageSize, basePath }: PaginationProps) {
+function buildPageUrl(basePath: string, page: number, searchParams?: Record<string, string | string[] | undefined>): string {
+  const params = new URLSearchParams();
+  if (searchParams) {
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (key === "page" || value === undefined) continue;
+      if (Array.isArray(value)) {
+        for (const v of value) params.append(key, v);
+      } else {
+        params.set(key, value);
+      }
+    }
+  }
+  if (page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
+}
+
+export function Pagination({ currentPage, totalItems, pageSize, basePath, searchParams }: PaginationProps) {
   const totalPages = Math.ceil(totalItems / pageSize);
   if (totalPages <= 1) return null;
 
-  const separator = basePath.includes("?") ? "&" : "?";
   const pageNumbers = getPageNumbers(currentPage, totalPages);
 
   return (
     <nav aria-label="Pagination" className="mt-10 flex items-center justify-center gap-2">
       {currentPage > 1 && (
         <Link
-          href={currentPage === 2 ? basePath : `${basePath}${separator}page=${currentPage - 1}`}
+          href={buildPageUrl(basePath, currentPage - 1, searchParams)}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Previous
@@ -75,7 +92,7 @@ export function Pagination({ currentPage, totalItems, pageSize, basePath }: Pagi
         return (
           <Link
             key={item}
-            href={item === 1 ? basePath : `${basePath}${separator}page=${item}`}
+            href={buildPageUrl(basePath, item, searchParams)}
             className={`rounded-md px-3 py-2 text-sm font-medium ${
               item === currentPage
                 ? "bg-gray-900 text-white"
@@ -88,7 +105,7 @@ export function Pagination({ currentPage, totalItems, pageSize, basePath }: Pagi
       })}
       {currentPage < totalPages && (
         <Link
-          href={`${basePath}${separator}page=${currentPage + 1}`}
+          href={buildPageUrl(basePath, currentPage + 1, searchParams)}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Next

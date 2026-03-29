@@ -21,11 +21,11 @@ export async function POST(request: NextRequest) {
   const now = new Date().toISOString();
   const results: Record<string, unknown> = {};
 
-  // 1. Publish scheduled content (draft with publish_at <= now)
+  // 1. Publish scheduled content (draft or scheduled with publish_at <= now)
   const { data: contentItems, error: contentError } = await sb
     .from("content")
     .select("id, title, slug")
-    .eq("status", "draft")
+    .in("status", ["draft", "scheduled"])
     .not("publish_at", "is", null)
     .lte("publish_at", now)
     .overrideTypes<Pick<ContentRow, "id" | "title" | "slug">[]>();
