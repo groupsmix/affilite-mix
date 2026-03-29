@@ -11,6 +11,7 @@ interface ContentListItem {
   type: string;
   status: string;
   author: string | null;
+  publish_at?: string | null;
 }
 
 interface ContentListProps {
@@ -22,6 +23,7 @@ function ContentStatusBadge({ status }: { status: string }) {
     published: "bg-green-100 text-green-700",
     draft: "bg-yellow-100 text-yellow-700",
     review: "bg-blue-100 text-blue-700",
+    scheduled: "bg-indigo-100 text-indigo-700",
     archived: "bg-gray-100 text-gray-600",
   };
   return (
@@ -86,6 +88,11 @@ export function ContentList({ items }: ContentListProps) {
                 <td className="px-4 py-3 text-gray-500">{item.type}</td>
                 <td className="px-4 py-3">
                   <ContentStatusBadge status={item.status} />
+                  {item.publish_at && item.status === "scheduled" && (
+                    <span className="ml-1 text-xs text-indigo-500" title={new Date(item.publish_at).toLocaleString()}>
+                      {new Date(item.publish_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-gray-500">{item.author ?? "—"}</td>
                 <td className="flex gap-2 px-4 py-3">

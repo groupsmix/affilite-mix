@@ -1,0 +1,63 @@
+import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-guard";
+import { listProducts } from "@/lib/dal/products";
+
+/** GET /api/admin/products/export — download all products as CSV */
+export async function GET() {
+  const guard = await requireAdmin();
+  if (guard.error) return guard.error;
+
+  const products = await listProducts({ siteId: guard.dbSiteId });
+
+  const headers = [
+    "name",
+    "slug",
+    "description",
+    "affiliate_url",
+    "image_url",
+    "price",
+    "merchant",
+    "score",
+    "featured",
+    "status",
+    "cta_text",
+    "deal_text",
+    "deal_expires_at",
+  ];
+
+  function escapeCsv(val: string): string {
+    if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+      return `"${val.replace(/"/g, '""')}"`;
+    }
+    return val;
+  }
+
+  const rows = products.map((p) =>
+    [
+      p.name,
+      p.slug,
+      p.description,
+      p.affiliate_url,
+      p.image_url,
+      p.price,
+      p.merchant,
+      p.score?.toString() ?? "",
+      p.featured ? "true" : "false",
+      p.status,
+      p.cta_text,
+      p.deal_text,
+      p.deal_expires_at ?? "",
+    ]
+      .map(escapeCsv)
+      .join(","),
+  );
+
+  const csv = [headers.join(","), ...rows].join("\n");
+
+  return new NextResponse(csv, {
+    headers: {
+      "Content-Type": "text/csv",
+      "Content-Disposition": `attachment; filename="products-${guard.siteSlug}-${new Date().toISOString().split("T")[0]}.csv"`,
+    },
+  });
+}

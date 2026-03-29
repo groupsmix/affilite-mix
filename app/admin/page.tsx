@@ -72,7 +72,7 @@ export default async function AdminDashboard() {
     alerts.push({
       type: "info",
       message: `${scheduledContent} content item(s) scheduled for future publishing`,
-      href: "/admin/content",
+      href: "/admin/content?status=scheduled",
     });
   }
   if (draftContent > 0) {
@@ -168,6 +168,44 @@ export default async function AdminDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Upcoming Scheduled Content */}
+      {scheduledContent > 0 && (
+        <section className="mb-8 rounded-lg border border-indigo-200 bg-indigo-50 p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-indigo-700">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Upcoming Scheduled
+            </h2>
+            <Link href="/admin/content?status=scheduled" className="text-xs font-medium text-indigo-600 hover:underline">
+              View all
+            </Link>
+          </div>
+          <ul className="space-y-2">
+            {contentItems
+              .filter((c) => c.publish_at && new Date(c.publish_at) > now)
+              .sort((a, b) => new Date(a.publish_at!).getTime() - new Date(b.publish_at!).getTime())
+              .slice(0, 5)
+              .map((c) => (
+                <li key={c.id} className="flex items-center justify-between text-sm">
+                  <Link href={`/admin/content/${c.id}`} className="font-medium text-indigo-900 hover:underline">
+                    {c.title}
+                  </Link>
+                  <span className="text-xs text-indigo-600">
+                    {new Date(c.publish_at!).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top products */}
