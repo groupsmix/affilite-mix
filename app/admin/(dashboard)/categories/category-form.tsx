@@ -15,6 +15,7 @@ export function CategoryForm({ category }: CategoryFormProps) {
   const [name, setName] = useState(category?.name ?? "");
   const [slug, setSlug] = useState(category?.slug ?? "");
   const [description, setDescription] = useState(category?.description ?? "");
+  const [taxonomyType, setTaxonomyType] = useState<"general" | "budget" | "occasion" | "recipient" | "brand">(category?.taxonomy_type ?? "general");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,7 +31,7 @@ export function CategoryForm({ category }: CategoryFormProps) {
     setSaving(true);
     setError("");
 
-    const payload = { name, slug, description };
+    const payload = { name, slug, description, taxonomy_type: taxonomyType };
 
     const res = isEdit
       ? await fetch("/api/admin/categories", {
@@ -83,6 +84,21 @@ export function CategoryForm({ category }: CategoryFormProps) {
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           required
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">Taxonomy Type</label>
+        <select
+          value={taxonomyType}
+          onChange={(e) => setTaxonomyType(e.target.value as typeof taxonomyType)}
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        >
+          <option value="general">General</option>
+          <option value="budget">Budget</option>
+          <option value="occasion">Occasion</option>
+          <option value="recipient">Recipient</option>
+          <option value="brand">Brand</option>
+        </select>
       </div>
 
       <div>
