@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ProductRow } from "@/types/database";
 import type { CategoryRow } from "@/types/database";
 import { ImageUploader } from "../components/image-uploader";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface ProductFormProps {
   product?: ProductRow;
@@ -62,12 +63,12 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     };
 
     const res = isEdit
-      ? await fetch("/api/admin/products", {
+      ? await fetchWithCsrf("/api/admin/products", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: product.id, ...payload }),
         })
-      : await fetch("/api/admin/products", {
+      : await fetchWithCsrf("/api/admin/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
