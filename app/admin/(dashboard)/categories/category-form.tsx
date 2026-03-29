@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CategoryRow } from "@/types/database";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface CategoryFormProps {
   category?: CategoryRow;
@@ -34,12 +35,12 @@ export function CategoryForm({ category }: CategoryFormProps) {
     const payload = { name, slug, description, taxonomy_type: taxonomyType };
 
     const res = isEdit
-      ? await fetch("/api/admin/categories", {
+      ? await fetchWithCsrf("/api/admin/categories", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: category.id, ...payload }),
         })
-      : await fetch("/api/admin/categories", {
+      : await fetchWithCsrf("/api/admin/categories", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
