@@ -16,12 +16,14 @@ CREATE TABLE sites (
 
 -- CATEGORIES
 CREATE TABLE categories (
-  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  site_id     uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-  name        text NOT NULL,
-  slug        text NOT NULL,
-  description text DEFAULT '',
-  created_at  timestamptz DEFAULT now(),
+  id             uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  site_id        uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  name           text NOT NULL,
+  slug           text NOT NULL,
+  description    text DEFAULT '',
+  taxonomy_type  text NOT NULL DEFAULT 'general'
+                 CHECK (taxonomy_type IN ('general', 'budget', 'occasion', 'recipient', 'brand')),
+  created_at     timestamptz DEFAULT now(),
   UNIQUE(site_id, slug)
 );
 
@@ -128,6 +130,7 @@ CREATE TABLE scheduled_jobs (
 -- ═══════════════════════════════════════════════════════
 
 CREATE INDEX idx_categories_site        ON categories(site_id);
+CREATE INDEX idx_categories_taxonomy    ON categories(site_id, taxonomy_type);
 CREATE INDEX idx_products_site          ON products(site_id);
 CREATE INDEX idx_products_site_slug     ON products(site_id, slug);
 CREATE INDEX idx_products_site_featured ON products(site_id, featured)
@@ -304,6 +307,48 @@ INSERT INTO content (site_id, title, slug, body, excerpt, type, status, category
    'article', 'published',
    (SELECT c.id FROM categories c JOIN sites s ON c.site_id = s.id WHERE s.slug = 'crypto-tools' AND c.slug = 'wallets'),
    ARRAY['wallets', 'security', 'guide'], 'CryptoTools Team');
+
+-- ═══════════════════════════════════════════════════════
+-- SEED: watch-tools site
+-- ═══════════════════════════════════════════════════════
+
+INSERT INTO sites (slug, name, domain, language, direction)
+VALUES ('watch-tools', 'WristNerd', 'wristnerd.xyz', 'en', 'ltr');
+
+-- Watch-tools taxonomy categories (budget)
+WITH watch AS (SELECT id FROM sites WHERE slug = 'watch-tools')
+INSERT INTO categories (site_id, name, slug, description, taxonomy_type) VALUES
+  ((SELECT id FROM watch), 'Under $100', 'under-100', 'Great starter watches under $100', 'budget'),
+  ((SELECT id FROM watch), 'Under $200', 'under-200', 'Sweet spot for gift watches under $200', 'budget'),
+  ((SELECT id FROM watch), 'Under $300', 'under-300', 'Premium quality watches under $300', 'budget'),
+  ((SELECT id FROM watch), 'Under $500', 'under-500', 'Luxury territory watches under $500', 'budget'),
+  ((SELECT id FROM watch), '$500+', 'luxury-500-plus', 'The best of the best — luxury watches $500 and up', 'budget');
+
+-- Watch-tools taxonomy categories (occasion)
+WITH watch AS (SELECT id FROM sites WHERE slug = 'watch-tools')
+INSERT INTO categories (site_id, name, slug, description, taxonomy_type) VALUES
+  ((SELECT id FROM watch), 'Father''s Day', 'fathers-day', 'Perfect watches for Father''s Day gifts', 'occasion'),
+  ((SELECT id FROM watch), 'Christmas', 'christmas', 'Top watch picks for Christmas gifting', 'occasion'),
+  ((SELECT id FROM watch), 'Birthday', 'birthday', 'Birthday-worthy watches for every budget', 'occasion'),
+  ((SELECT id FROM watch), 'Valentine''s Day', 'valentines-day', 'Romantic watch gifts for Valentine''s Day', 'occasion'),
+  ((SELECT id FROM watch), 'Anniversary', 'anniversary', 'Celebrate milestones with a timeless watch', 'occasion'),
+  ((SELECT id FROM watch), 'Graduation', 'graduation', 'Mark the achievement with a graduation watch', 'occasion');
+
+-- Watch-tools taxonomy categories (recipient)
+WITH watch AS (SELECT id FROM sites WHERE slug = 'watch-tools')
+INSERT INTO categories (site_id, name, slug, description, taxonomy_type) VALUES
+  ((SELECT id FROM watch), 'For Him', 'for-him', 'Watch gift guides curated for men', 'recipient'),
+  ((SELECT id FROM watch), 'For Her', 'for-her', 'Watch gift guides curated for women', 'recipient'),
+  ((SELECT id FROM watch), 'For Teens', 'for-teens', 'Stylish and affordable watches for teenagers', 'recipient');
+
+-- Watch-tools taxonomy categories (brand)
+WITH watch AS (SELECT id FROM sites WHERE slug = 'watch-tools')
+INSERT INTO categories (site_id, name, slug, description, taxonomy_type) VALUES
+  ((SELECT id FROM watch), 'Seiko', 'seiko', 'Seiko watches — Japanese craftsmanship since 1881', 'brand'),
+  ((SELECT id FROM watch), 'Orient', 'orient', 'Orient watches — affordable mechanical excellence', 'brand'),
+  ((SELECT id FROM watch), 'Tissot', 'tissot', 'Tissot watches — Swiss precision since 1853', 'brand'),
+  ((SELECT id FROM watch), 'Hamilton', 'hamilton', 'Hamilton watches — American heritage, Swiss made', 'brand'),
+  ((SELECT id FROM watch), 'Casio', 'casio', 'Casio watches — innovation and durability', 'brand');
 
 -- Arabic-tools categories
 WITH arabic AS (SELECT id FROM sites WHERE slug = 'arabic-tools')

@@ -40,6 +40,7 @@ export default async function CategoriesPage() {
               <tr>
                 <th className="px-4 py-3 font-medium text-gray-700">Name</th>
                 <th className="px-4 py-3 font-medium text-gray-700">Slug</th>
+                <th className="px-4 py-3 font-medium text-gray-700">Type</th>
                 <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
               </tr>
             </thead>
@@ -48,6 +49,11 @@ export default async function CategoriesPage() {
                 <tr key={cat.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
                   <td className="px-4 py-3 text-gray-500">{cat.slug}</td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                      {cat.taxonomy_type}
+                    </span>
+                  </td>
                   <td className="flex gap-2 px-4 py-3">
                     <Link
                       href={`/admin/categories/${cat.id}`}
