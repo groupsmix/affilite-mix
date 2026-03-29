@@ -30,7 +30,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
           <p className="truncate font-semibold text-gray-900">{product.name}</p>
           <div className="flex items-center gap-2 text-sm">
             {product.price && (
-              <span className="font-bold text-emerald-600">{product.price}</span>
+              <span className="font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
             )}
             {product.score !== null && (
               <span className="text-amber-700">{product.score}/10</span>
@@ -41,7 +41,8 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
           href={trackUrl}
           target="_blank"
           rel="noopener noreferrer nofollow"
-          className="shrink-0 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+          className="shrink-0 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
+          style={{ backgroundColor: "var(--color-accent, #10B981)" }}
         >
           {product.cta_text || "Get Best Deal"}
         </a>

@@ -25,7 +25,7 @@ export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
       )}
       <div className="p-5">
         <Link href={href}>
-          <h3 className="mb-2 text-xl font-semibold leading-tight hover:text-emerald-600">
+          <h3 className="mb-2 text-xl font-semibold leading-tight transition-colors hover:[color:var(--color-accent,#10B981)]">
             {content.title}
           </h3>
         </Link>

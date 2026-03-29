@@ -33,7 +33,8 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
             {products.map((p) => (
               <td
                 key={p.id}
-                className="border-b border-gray-100 px-4 py-3 text-center font-semibold text-emerald-600"
+                className="border-b border-gray-100 px-4 py-3 text-center font-semibold"
+                style={{ color: "var(--color-accent, #10B981)" }}
               >
                 {p.price || "—"}
               </td>
@@ -85,7 +86,8 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
                     href={`/api/track/click?p=${encodeURIComponent(p.slug)}&t=comparison`}
                     target="_blank"
                     rel="noopener noreferrer nofollow"
-                    className="inline-block rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                    className="inline-block rounded-md px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                    style={{ backgroundColor: "var(--color-accent, #10B981)" }}
                   >
                     {p.cta_text || "View Deal"}
                   </a>

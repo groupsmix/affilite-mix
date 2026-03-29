@@ -6,57 +6,8 @@ import { ProductCard } from "./product-card";
 import { NewsletterSignup } from "./newsletter-signup";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 
-const occasions = [
-  { href: "/occasion/fathers-day", label: "Father's Day", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" },
-  { href: "/occasion/christmas", label: "Christmas", icon: "M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" },
-  { href: "/occasion/birthday", label: "Birthday", icon: "M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0A1.75 1.75 0 003 15.546V12a9 9 0 0118 0v3.546z" },
-  { href: "/occasion/valentines-day", label: "Valentine's Day", icon: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" },
-  { href: "/occasion/anniversary", label: "Anniversary", icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" },
-  { href: "/occasion/graduation", label: "Graduation", icon: "M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" },
-];
-
-const budgets = [
-  { href: "/budget/under-100", label: "Under $100", desc: "Great starter watches" },
-  { href: "/budget/under-200", label: "Under $200", desc: "Sweet spot for gifts" },
-  { href: "/budget/under-300", label: "Under $300", desc: "Premium quality" },
-  { href: "/budget/under-500", label: "Under $500", desc: "Luxury territory" },
-  { href: "/budget/luxury-500-plus", label: "$500+", desc: "The best of the best" },
-];
-
-const editorsPicks = [
-  {
-    name: "Seiko Presage SRPD37",
-    tagline: "Best Overall Gift Watch",
-    badge: "Editor's Choice",
-    score: 9.2,
-    price: "$280\u2013$320",
-    href: "/review/seiko-presage-srpd37",
-  },
-  {
-    name: "Orient Bambino V2",
-    tagline: "Best Under $200",
-    badge: "Best Value",
-    score: 9.1,
-    price: "$130\u2013$170",
-    href: "/review/orient-bambino-v2",
-  },
-  {
-    name: "Tissot PRX Powermatic 80",
-    tagline: "Best Modern Classic",
-    badge: "Top Rated",
-    score: 9.3,
-    price: "$450\u2013$500",
-    href: "/review/tissot-prx-powermatic-80",
-  },
-  {
-    name: "Hamilton Khaki Field",
-    tagline: "Best Adventure Watch",
-    badge: "Editor's Choice",
-    score: 9.0,
-    price: "$400\u2013$500",
-    href: "/review/hamilton-khaki-field-mechanical",
-  },
-];
+/** Default SVG path for occasion icons when no category-specific icon is available. */
+const DEFAULT_OCCASION_ICON = "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z";
 
 interface WatchHomepageProps {
   site: SiteDefinition;
@@ -73,6 +24,37 @@ export function WatchHomepage({
 }: WatchHomepageProps) {
   const locale = "en-US";
   const ctaLabel = "View Deal";
+
+  // Derive occasions and budgets from categories (data-driven)
+  const occasions = categories
+    .filter((c) => c.taxonomy_type === "occasion")
+    .map((c) => ({
+      href: `/occasion/${c.slug}`,
+      label: c.name,
+      icon: DEFAULT_OCCASION_ICON,
+    }));
+
+  const budgets = categories
+    .filter((c) => c.taxonomy_type === "budget")
+    .map((c) => ({
+      href: `/budget/${c.slug}`,
+      label: c.name,
+      desc: c.description || "",
+    }));
+
+  // Editor's picks: top-scored featured products (data-driven)
+  const editorsPicks = featuredProducts
+    .filter((p) => p.score !== null)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, 4)
+    .map((p) => ({
+      name: p.name,
+      tagline: p.description?.slice(0, 40) || "",
+      badge: "Top Rated",
+      score: p.score ?? 0,
+      price: p.price || "",
+      href: `/review/${p.slug}`,
+    }));
 
   return (
     <div>
@@ -362,7 +344,7 @@ export function WatchHomepage({
                   <div className="flex items-center justify-between border-t border-gray-100 pt-3">
                     <span className="text-sm font-medium text-gray-500">{watch.price}</span>
                     <span className="flex items-center gap-1">
-                      <span className="text-sm font-bold text-emerald-600">{watch.score}</span>
+                      <span className="text-sm font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{watch.score}</span>
                       <span className="text-xs text-gray-400">/10</span>
                     </span>
                   </div>
