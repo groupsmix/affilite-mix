@@ -4,6 +4,7 @@ import { listCategories } from "@/lib/dal/categories";
 import { listProducts } from "@/lib/dal/products";
 import { getLinkedProducts } from "@/lib/dal/content-products";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getSiteById } from "@/config/sites";
 import { notFound } from "next/navigation";
 import { ContentForm } from "../content-form";
 
@@ -33,6 +34,7 @@ export default async function EditContentPage({
         categories={categories}
         products={products}
         linkedProducts={linkedProducts}
+        contentTypes={getSiteById(session.activeSiteSlug!)?.contentTypes}
       />
     </div>
   );

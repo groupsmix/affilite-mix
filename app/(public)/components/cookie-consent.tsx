@@ -52,7 +52,29 @@ function getConsentServerSnapshot(): ConsentState {
   return "pending";
 }
 
-export default function CookieConsent() {
+interface CookieConsentProps {
+  language?: string;
+}
+
+const translations = {
+  en: {
+    title: "We value your privacy",
+    body: "We use essential cookies to make this site work. With your consent, we also use analytics cookies to understand how you interact with our content and affiliate cookies to track conversions. You can change your preferences at any time.",
+    reject: "Reject Non-Essential",
+    accept: "Accept All",
+    privacy: "Privacy Policy",
+  },
+  ar: {
+    title: "نحن نقدر خصوصيتك",
+    body: "نستخدم ملفات تعريف الارتباط الأساسية لتشغيل هذا الموقع. بموافقتك، نستخدم أيضًا ملفات تعريف الارتباط التحليلية لفهم كيفية تفاعلك مع المحتوى وملفات تعريف الارتباط التابعة لتتبع التحويلات. يمكنك تغيير تفضيلاتك في أي وقت.",
+    reject: "رفض غير الأساسية",
+    accept: "قبول الكل",
+    privacy: "سياسة الخصوصية",
+  },
+} as const;
+
+export default function CookieConsent({ language = "en" }: CookieConsentProps) {
+  const t = language === "ar" ? translations.ar : translations.en;
   const consent = useSyncExternalStore(
     subscribeConsent,
     getConsentSnapshot,
@@ -96,19 +118,16 @@ export default function CookieConsent() {
         <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:gap-6">
           <div className="flex-1">
             <h2 className="mb-2 text-lg font-semibold text-gray-900">
-              We value your privacy
+              {t.title}
             </h2>
             <p className="text-sm leading-relaxed text-gray-600">
-              We use essential cookies to make this site work. With your consent,
-              we also use analytics cookies to understand how you interact with
-              our content and affiliate cookies to track conversions. You can
-              change your preferences at any time.{" "}
+              {t.body}{" "}
               <Link
                 href="/privacy"
                 className="underline transition-colors hover:text-gray-900"
                 style={{ color: "var(--color-accent, #10B981)" }}
               >
-                Privacy Policy
+                {t.privacy}
               </Link>
             </p>
           </div>
@@ -117,14 +136,14 @@ export default function CookieConsent() {
               onClick={handleReject}
               className="min-h-[44px] rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
             >
-              Reject Non-Essential
+              {t.reject}
             </button>
             <button
               onClick={handleAccept}
               className="min-h-[44px] rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #10B981)" }}
             >
-              Accept All
+              {t.accept}
             </button>
           </div>
         </div>

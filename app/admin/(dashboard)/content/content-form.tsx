@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ContentRow, CategoryRow, ProductRow, ContentProductRow } from "@/types/database";
+import type { ContentTypeConfig } from "@/config/site-definition";
 import dynamic from "next/dynamic";
 import { ProductLinker } from "./product-linker";
 import { ImageUploader } from "../components/image-uploader";
@@ -18,9 +19,19 @@ interface ContentFormProps {
   categories: CategoryRow[];
   products: ProductRow[];
   linkedProducts?: (ContentProductRow & { product: ProductRow })[];
+  contentTypes?: ContentTypeConfig[];
 }
 
-export function ContentForm({ content, categories, products, linkedProducts }: ContentFormProps) {
+const DEFAULT_CONTENT_TYPES: ContentTypeConfig[] = [
+  { value: "article", label: "Article", commercial: false, layout: "standard" },
+  { value: "review", label: "Review", commercial: true, layout: "sidebar" },
+  { value: "comparison", label: "Comparison", commercial: true, layout: "sidebar", minProducts: 2 },
+  { value: "guide", label: "Guide", commercial: false, layout: "standard" },
+  { value: "blog", label: "Blog", commercial: false, layout: "standard" },
+];
+
+export function ContentForm({ content, categories, products, linkedProducts, contentTypes }: ContentFormProps) {
+  const siteContentTypes = contentTypes ?? DEFAULT_CONTENT_TYPES;
   const router = useRouter();
   const isEdit = !!content;
 
@@ -181,11 +192,9 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
             onChange={(e) => setContentType(e.target.value as ContentRow["type"])}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
-            <option value="article">Article</option>
-            <option value="review">Review</option>
-            <option value="comparison">Comparison</option>
-            <option value="guide">Guide</option>
-            <option value="blog">Blog</option>
+            {siteContentTypes.map((ct) => (
+              <option key={ct.value} value={ct.value}>{ct.label}</option>
+            ))}
           </select>
         </div>
 
