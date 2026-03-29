@@ -9,15 +9,17 @@ export default async function PublicLayout({
 }) {
   const site = await getCurrentSite();
 
+  const fontMap: Record<string, string> = {
+    "Inter": "var(--font-inter), sans-serif",
+    "IBM Plex Sans Arabic": "var(--font-ibm-plex-arabic), sans-serif",
+    "Playfair Display": "var(--font-playfair), serif",
+  };
+
   const cssVars = {
     "--color-primary": site.theme.primaryColor,
     "--color-accent": site.theme.accentColor,
-    "--font-heading": site.theme.fontHeading === "Inter"
-      ? "var(--font-inter), sans-serif"
-      : "var(--font-ibm-plex-arabic), sans-serif",
-    "--font-body": site.theme.fontBody === "Inter"
-      ? "var(--font-inter), sans-serif"
-      : "var(--font-ibm-plex-arabic), sans-serif",
+    "--font-heading": fontMap[site.theme.fontHeading] ?? "var(--font-inter), sans-serif",
+    "--font-body": fontMap[site.theme.fontBody] ?? "var(--font-inter), sans-serif",
   } as React.CSSProperties;
 
   return (
