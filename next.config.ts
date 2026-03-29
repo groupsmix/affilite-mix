@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { allSites } from "./config/sites";
 
 const nextConfig: NextConfig = {
   // Restrict external images to known sources (R2 bucket, Supabase storage, site domains)
@@ -9,9 +10,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.r2.cloudflarestorage.com" },
       // Supabase storage
       { protocol: "https", hostname: "*.supabase.co" },
-      // Site domains (for OG images, etc.)
-      { protocol: "https", hostname: "arabic.wristnerd.site" },
-      { protocol: "https", hostname: "wristnerd.site" },
+      // Site domains (for OG images, etc.) — derived from config/sites/
+      ...allSites.map((site) => ({ protocol: "https" as const, hostname: site.domain })),
       // Common affiliate product image CDNs
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "m.media-amazon.com" },
