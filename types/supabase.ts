@@ -479,7 +479,24 @@ export interface Database {
     };
 
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      get_top_products: {
+        Args: { p_site_id: string; p_since: string; p_limit: number };
+        Returns: { product_name: string; click_count: number }[];
+      };
+      get_top_referrers: {
+        Args: { p_site_id: string; p_since: string; p_limit: number };
+        Returns: { referrer: string; click_count: number }[];
+      };
+      get_top_content_slugs: {
+        Args: { p_site_id: string; p_since: string; p_limit: number };
+        Returns: { content_slug: string; click_count: number }[];
+      };
+      get_daily_clicks: {
+        Args: { p_site_id: string; p_since: string };
+        Returns: { date: string; count: number }[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

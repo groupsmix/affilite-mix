@@ -82,7 +82,7 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
               <td key={p.id} className="border-t border-gray-200 px-4 py-3 text-center">
                 {p.affiliate_url && (
                   <a
-                    href={`/api/track/click?p=${encodeURIComponent(p.slug)}&d=${encodeURIComponent(Buffer.from(p.affiliate_url).toString("base64"))}&t=comparison`}
+                    href={`/api/track/click?p=${encodeURIComponent(p.slug)}&t=comparison`}
                     target="_blank"
                     rel="noopener noreferrer nofollow"
                     className="inline-block rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
