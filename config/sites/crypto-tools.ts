@@ -3,8 +3,8 @@ import type { SiteDefinition } from "../site-definition";
 export const cryptoToolsSite: SiteDefinition = {
   id: "crypto-tools",
   name: "Crypto Tools",
-  domain: "wristnerd.site",
-  aliases: ["crypto.localhost"],
+  domain: "crypto.wristnerd.site",
+  aliases: ["crypto.localhost", "wristnerd.site"],
   language: "en",
   direction: "ltr",
   locale: "en_US",
@@ -12,7 +12,7 @@ export const cryptoToolsSite: SiteDefinition = {
   brand: {
     description:
       "Compare crypto exchanges, wallets, and DeFi tools — honest reviews and affiliate deals.",
-    contactEmail: "contact@wristnerd.site",
+    contactEmail: "contact@crypto.wristnerd.site",
     niche: "Cryptocurrency Tools & Reviews",
   },
 
