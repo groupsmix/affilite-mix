@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       name: parsed.data.name,
       slug: parsed.data.slug,
       description: parsed.data.description,
+      taxonomy_type: parsed.data.taxonomy_type,
     });
 
     revalidateTag("categories");
