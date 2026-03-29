@@ -1,12 +1,20 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
 	"name": "nichehub",
-	"pages_build_output_dir": ".open-next",
 	"compatibility_date": "2026-03-17",
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	// Runtime environment variables available to the Worker
+	"vars": {
+		"SITE_OVERRIDE": "arabic-tools"
+	},
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
@@ -15,6 +23,11 @@
 			"service": "nichehub"
 		}
 	],
+	"images": {
+		// Enable image optimization
+		// see https://opennext.js.org/cloudflare/howtos/image
+		"binding": "IMAGES"
+	},
 	// R2 incremental cache — create the bucket in the Cloudflare dashboard first
 	"r2_buckets": [
 		{
