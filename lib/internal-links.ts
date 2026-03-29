@@ -1,10 +1,5 @@
 import type { ProductRow } from "@/types/database";
 
-/** Base64-encode a string using Workers-compatible APIs */
-function toBase64(str: string): string {
-  return btoa(String.fromCharCode(...new TextEncoder().encode(str)));
-}
-
 /**
  * Auto-link product name mentions in HTML content body.
  * Only links the first occurrence of each product name to avoid cluttering.
@@ -81,7 +76,7 @@ function replaceFirst(
   const match = pattern.exec(text);
   if (!match) return { text, didReplace: false };
 
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&d=${encodeURIComponent(toBase64(product.affiliate_url))}&t=inline`;
+  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=inline`;
   const link = `<a href="${trackUrl}" target="_blank" rel="noopener noreferrer nofollow" class="text-emerald-600 font-medium hover:underline">${match[2]}</a>`;
 
   const replaced =
