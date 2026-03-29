@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 /** POST /api/newsletter — Subscribe to the site newsletter */
 export async function POST(request: Request) {
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
     request.headers.get("cf-connecting-ip") ??
     "unknown";
 
-  const rl = checkRateLimit(`newsletter:${ip}`, { maxRequests: 5, windowMs: 15 * 60 * 1000 });
+  const rl = await checkRateLimit(`newsletter:${ip}`, { maxRequests: 5, windowMs: 15 * 60 * 1000 });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
@@ -21,6 +22,18 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const email = (body.email ?? "").trim().toLowerCase();
+
+  // Verify Turnstile token (skipped in dev if not configured)
+  const turnstile = await verifyTurnstileToken(
+    body.turnstileToken ?? null,
+    ip,
+  );
+  if (!turnstile.success) {
+    return NextResponse.json(
+      { error: turnstile.error ?? "Bot verification failed" },
+      { status: 403 },
+    );
+  }
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
