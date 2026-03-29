@@ -5,6 +5,7 @@ import {
   createScheduledJob,
   cancelScheduledJob,
 } from "@/lib/dal/scheduled-jobs";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 const JOB_TYPES = new Set([
   "publish_content",
@@ -72,6 +73,14 @@ export async function POST(request: NextRequest) {
     payload: typeof body.payload === "object" && body.payload !== null ? body.payload : {},
   });
 
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "create",
+    entity_type: "scheduled_job",
+    entity_id: job.id,
+    details: { job_type: body.job_type, target_id: body.target_id, scheduled_for: body.scheduled_for },
+  });
   return NextResponse.json({ job }, { status: 201 });
 }
 
@@ -92,5 +101,12 @@ export async function DELETE(request: NextRequest) {
   }
 
   await cancelScheduledJob(dbSiteId, body.id);
+  recordAuditEvent({
+    site_id: dbSiteId,
+    actor: "admin",
+    action: "cancel",
+    entity_type: "scheduled_job",
+    entity_id: body.id,
+  });
   return NextResponse.json({ ok: true });
 }

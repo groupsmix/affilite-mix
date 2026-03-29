@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { verifyTurnstileToken } from "@/lib/turnstile";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 /** POST /api/newsletter — Subscribe to the site newsletter */
 export async function POST(request: Request) {
@@ -21,19 +21,17 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const email = (body.email ?? "").trim().toLowerCase();
 
   // Verify Turnstile token (skipped in dev if not configured)
-  const turnstile = await verifyTurnstileToken(
-    body.turnstileToken ?? null,
-    ip,
-  );
-  if (!turnstile.success) {
+  const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
+  if (!turnstileResult.success) {
     return NextResponse.json(
-      { error: turnstile.error ?? "Bot verification failed" },
+      { error: turnstileResult.error ?? "Captcha verification failed" },
       { status: 403 },
     );
   }
+
+  const email = (body.email ?? "").trim().toLowerCase();
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });

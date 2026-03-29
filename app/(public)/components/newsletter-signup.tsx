@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
 
 interface NewsletterSignupProps {
   siteLanguage?: string;
@@ -10,8 +11,17 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const isAr = siteLanguage === "ar";
+
+  const handleTurnstileToken = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken(null);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,7 +32,7 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
       const res = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, turnstileToken }),
       });
 
       if (!res.ok) {
@@ -65,24 +75,30 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
           ? "احصل على أحدث المراجعات والعروض الحصرية مباشرة في بريدك."
           : "Get the latest reviews and exclusive deals delivered to your inbox."}
       </p>
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder={isAr ? "بريدك الإلكتروني" : "your@email.com"}
-          required
-          className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={isAr ? "بريدك الإلكتروني" : "your@email.com"}
+            required
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+          <button
+            type="submit"
+            disabled={status === "loading"}
+            className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {status === "loading"
+              ? (isAr ? "جاري..." : "...")
+              : (isAr ? "اشترك" : "Subscribe")}
+          </button>
+        </div>
+        <TurnstileWidget
+          onVerify={handleTurnstileToken}
+          onExpire={handleTurnstileExpire}
         />
-        <button
-          type="submit"
-          disabled={status === "loading"}
-          className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
-        >
-          {status === "loading"
-            ? (isAr ? "جاري..." : "...")
-            : (isAr ? "اشترك" : "Subscribe")}
-        </button>
       </form>
       {status === "error" && errorMsg && (
         <p className="mt-2 text-xs text-red-500">{errorMsg}</p>
