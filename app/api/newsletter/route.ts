@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const { error } = await sb
     .from("newsletter_subscribers")
     .upsert(
-      { site_id: site.id, email, status: "active" },
+      { site_id: site.id, email, status: "active" } as never,
       { onConflict: "site_id,email" },
     );
 

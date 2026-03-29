@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { getServiceClient } from "@/lib/supabase-server";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import type { ContentRow, ProductRow } from "@/types/database";
 
 /**
  * POST /api/cron/publish — Publish scheduled content & products, archive expired items.
@@ -25,7 +26,8 @@ export async function POST(request: NextRequest) {
     .select("id, title, slug")
     .eq("status", "draft")
     .not("publish_at", "is", null)
-    .lte("publish_at", now);
+    .lte("publish_at", now)
+    .overrideTypes<Pick<ContentRow, "id" | "title" | "slug">[]>();
 
   if (contentError) {
     return NextResponse.json({ error: contentError.message }, { status: 500 });
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
     const ids = contentItems.map((item) => item.id);
     const { error: updateError } = await sb
       .from("content")
-      .update({ status: "published" })
+      .update({ status: "published" } as never)
       .in("id", ids);
 
     if (updateError) {
@@ -55,7 +57,8 @@ export async function POST(request: NextRequest) {
     .select("id, name, slug")
     .eq("status", "active")
     .not("deal_expires_at", "is", null)
-    .lte("deal_expires_at", now);
+    .lte("deal_expires_at", now)
+    .overrideTypes<Pick<ProductRow, "id" | "name" | "slug">[]>();
 
   if (expiredError) {
     return NextResponse.json({ error: expiredError.message }, { status: 500 });
@@ -65,7 +68,7 @@ export async function POST(request: NextRequest) {
     const ids = expiredProducts.map((p) => p.id);
     const { error: archiveError } = await sb
       .from("products")
-      .update({ status: "archived" })
+      .update({ status: "archived" } as never)
       .in("id", ids);
 
     if (archiveError) {
