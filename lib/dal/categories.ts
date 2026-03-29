@@ -30,7 +30,7 @@ export async function getCategoryById(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as CategoryRow) ?? null;
+  return (data as unknown as CategoryRow) ?? null;
 }
 
 /** Get a single category by slug */
@@ -47,7 +47,7 @@ export async function getCategoryBySlug(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as CategoryRow) ?? null;
+  return (data as unknown as CategoryRow) ?? null;
 }
 
 /** Create a category */
@@ -55,7 +55,7 @@ export async function createCategory(
   input: Omit<CategoryRow, "id" | "created_at">,
 ): Promise<CategoryRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input as never).select().single();
   if (error) throw error;
   return data as CategoryRow;
 }
@@ -69,7 +69,7 @@ export async function updateCategory(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input)
+    .update(input as never)
     .eq("site_id", siteId)
     .eq("id", id)
     .select()

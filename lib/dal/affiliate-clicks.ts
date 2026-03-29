@@ -22,7 +22,7 @@ export async function recordClick(
     affiliate_url: input.affiliate_url,
     content_slug: input.content_slug ?? "",
     referrer: input.referrer ?? "",
-  });
+  } as never);
 
   // Fire-and-forget: log but don't throw
   if (error) {
