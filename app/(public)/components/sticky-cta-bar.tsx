@@ -21,8 +21,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
 
   if (!visible) return null;
 
-  const destination = Buffer.from(product.affiliate_url).toString("base64");
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&d=${encodeURIComponent(destination)}&t=sticky`;
+  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=sticky`;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-transform">
