@@ -1,28 +1,18 @@
 import { requireAdminSession } from "../components/admin-guard";
-import { allSites } from "@/config/sites";
-import { SiteCard } from "./site-card";
+import { SiteManager } from "./site-manager";
 
 export default async function SitePickerPage() {
   await requireAdminSession();
 
-  const sites = allSites.map((s) => ({
-    id: s.id,
-    name: s.name,
-    domain: s.domain,
-    niche: s.brand.niche,
-  }));
-
   return (
-    <div className="mx-auto max-w-2xl py-8">
-      <h1 className="mb-2 text-2xl font-bold text-gray-900">Select a Site</h1>
-      <p className="mb-8 text-sm text-gray-500">
-        Choose which business you want to manage.
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {sites.map((site) => (
-          <SiteCard key={site.id} site={site} />
-        ))}
+    <div className="mx-auto max-w-5xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Site Management</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Create, edit, and manage your niche sites. Select a site to start managing it.
+        </p>
       </div>
+      <SiteManager />
     </div>
   );
 }

@@ -231,13 +231,15 @@ export function validateUpdateProduct(body: Record<string, unknown>): Validation
 
 // ── Content ───────────────────────────────────────────────
 
+export const CONTENT_TYPES = new Set(["article", "review", "comparison", "guide", "blog"]);
+
 export interface CreateContentInput {
   title: string;
   slug: string;
   body: string;
   excerpt: string;
   featured_image: string;
-  type: string;
+  type: "article" | "review" | "comparison" | "guide" | "blog";
   status: "draft" | "review" | "published" | "archived";
   category_id: string | null;
   tags: string[];
@@ -283,7 +285,7 @@ export function validateCreateContent(body: Record<string, unknown>): Validation
       body: isString(body.body) ? body.body : "",
       excerpt: isString(body.excerpt) ? body.excerpt : "",
       featured_image: isString(body.featured_image) ? body.featured_image : "",
-      type: isString(body.content_type) ? body.content_type : isString(body.type) ? body.type : "article",
+      type: (CONTENT_TYPES.has(body.content_type as string) ? body.content_type : CONTENT_TYPES.has(body.type as string) ? body.type : "article") as CreateContentInput["type"],
       status: (CONTENT_STATUSES.has(body.status as string) ? body.status : "draft") as "draft" | "review" | "published" | "archived",
       category_id: isUuid(body.category_id) ? (body.category_id as string) : null,
       tags: Array.isArray(body.tags) ? (body.tags as string[]) : [],
