@@ -59,6 +59,8 @@ export async function POST(request: NextRequest) {
       cta_text: data.cta_text ?? "",
       deal_text: data.deal_text ?? "",
       deal_expires_at: data.deal_expires_at ?? null,
+      pros: data.pros ?? "",
+      cons: data.cons ?? "",
     });
 
     revalidateTag("products");

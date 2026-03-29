@@ -5,14 +5,69 @@ import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
-import { useEffect } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 interface RichEditorProps {
   value: string;
   onChange: (html: string) => void;
 }
 
+/** Inline popover for entering a URL (used for both links and images). */
+function UrlPopover({
+  label,
+  placeholder,
+  onSubmit,
+  onCancel,
+}: {
+  label: string;
+  placeholder: string;
+  onSubmit: (url: string) => void;
+  onCancel: () => void;
+}) {
+  const [url, setUrl] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="absolute left-0 top-full z-50 mt-1 flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+      <label className="text-xs font-medium text-gray-500">{label}</label>
+      <input
+        ref={inputRef}
+        type="url"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && url) { e.preventDefault(); onSubmit(url); }
+          if (e.key === "Escape") onCancel();
+        }}
+        placeholder={placeholder}
+        className="w-56 rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+      />
+      <button
+        type="button"
+        onClick={() => { if (url) onSubmit(url); }}
+        className="rounded bg-gray-800 px-2 py-1 text-xs font-medium text-white hover:bg-gray-700"
+      >
+        Add
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+  const [showLinkPopover, setShowLinkPopover] = useState(false);
+  const [showImagePopover, setShowImagePopover] = useState(false);
+
   if (!editor) return null;
 
   const btnClass = (active: boolean) =>
@@ -21,20 +76,6 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         ? "bg-gray-800 text-white"
         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
     }`;
-
-  function addImage() {
-    const url = prompt("Image URL:");
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
-  }
-
-  function addLink() {
-    const url = prompt("Link URL:");
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
-    }
-  }
 
   return (
     <div className="flex flex-wrap gap-1 border-b border-gray-200 bg-gray-50 px-2 py-1.5">
@@ -146,14 +187,27 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 
       <span className="mx-1 border-l border-gray-300" />
 
-      <button
-        type="button"
-        onClick={addLink}
-        className={btnClass(editor.isActive("link"))}
-        title="Add Link"
-      >
-        Link
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => { setShowLinkPopover(!showLinkPopover); setShowImagePopover(false); }}
+          className={btnClass(editor.isActive("link"))}
+          title="Add Link"
+        >
+          Link
+        </button>
+        {showLinkPopover && (
+          <UrlPopover
+            label="URL"
+            placeholder="https://example.com"
+            onSubmit={(url) => {
+              editor.chain().focus().setLink({ href: url }).run();
+              setShowLinkPopover(false);
+            }}
+            onCancel={() => setShowLinkPopover(false)}
+          />
+        )}
+      </div>
       {editor.isActive("link") && (
         <button
           type="button"
@@ -164,14 +218,27 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           Unlink
         </button>
       )}
-      <button
-        type="button"
-        onClick={addImage}
-        className={btnClass(false)}
-        title="Insert Image"
-      >
-        Image
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => { setShowImagePopover(!showImagePopover); setShowLinkPopover(false); }}
+          className={btnClass(false)}
+          title="Insert Image"
+        >
+          Image
+        </button>
+        {showImagePopover && (
+          <UrlPopover
+            label="Image URL"
+            placeholder="https://example.com/image.jpg"
+            onSubmit={(url) => {
+              editor.chain().focus().setImage({ src: url }).run();
+              setShowImagePopover(false);
+            }}
+            onCancel={() => setShowImagePopover(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }

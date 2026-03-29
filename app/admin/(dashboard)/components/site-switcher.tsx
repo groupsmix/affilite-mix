@@ -67,7 +67,14 @@ export function SiteSwitcher() {
 
   const activeSite = sites.find((s) => s.id === activeSiteId);
 
-  if (sites.length === 0) return null;
+  if (sites.length === 0) {
+    return (
+      <div className="flex w-full items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+        <span className="h-6 w-6 animate-pulse rounded bg-gray-200" />
+        <span className="h-4 flex-1 animate-pulse rounded bg-gray-200" />
+      </div>
+    );
+  }
 
   return (
     <div ref={dropdownRef} className="relative">

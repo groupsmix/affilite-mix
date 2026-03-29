@@ -62,6 +62,8 @@ export async function POST(request: NextRequest) {
         cta_text: row.cta_text ?? "",
         deal_text: row.deal_text ?? "",
         deal_expires_at: row.deal_expires_at || null,
+        pros: row.pros ?? "",
+        cons: row.cons ?? "",
       });
       results.push({ row: i + 1, name: row.name, status: "created" });
     } catch (err) {

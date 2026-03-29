@@ -46,6 +46,8 @@ CREATE TABLE products (
   cta_text      text DEFAULT '',
   deal_text     text DEFAULT '',
   deal_expires_at timestamptz,
+  pros          text DEFAULT '',
+  cons          text DEFAULT '',
   created_at    timestamptz DEFAULT now(),
   updated_at    timestamptz DEFAULT now(),
   UNIQUE(site_id, slug)

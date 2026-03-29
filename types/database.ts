@@ -39,6 +39,8 @@ export interface ProductRow {
   cta_text: string;
   deal_text: string;
   deal_expires_at: string | null;
+  pros: string;
+  cons: string;
   created_at: string;
   updated_at: string;
 }
