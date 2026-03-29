@@ -155,6 +155,11 @@ export async function listActiveProducts(
   return data as ProductRow[];
 }
 
+/** Escape LIKE/ILIKE special characters so user input is treated literally */
+function escapeLike(value: string): string {
+  return value.replace(/[%_\\]/g, (ch) => `\\${ch}`);
+}
+
 /** Search active products by name (basic search) */
 export async function searchProducts(
   siteId: string,
@@ -167,7 +172,7 @@ export async function searchProducts(
     .select("*")
     .eq("site_id", siteId)
     .eq("status", "active")
-    .ilike("name", `%${query}%`)
+    .ilike("name", `%${escapeLike(query)}%`)
     .order("score", { ascending: false, nullsFirst: false })
     .limit(limit);
 

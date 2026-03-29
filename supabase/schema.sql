@@ -104,6 +104,22 @@ CREATE TABLE affiliate_clicks (
   created_at      timestamptz DEFAULT now()
 );
 
+-- SCHEDULED JOBS — ledger for all scheduled operations
+CREATE TABLE scheduled_jobs (
+  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  site_id     uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  job_type    text NOT NULL
+              CHECK (job_type IN ('publish_content', 'activate_product', 'archive_content', 'archive_product', 'custom')),
+  target_id   uuid NOT NULL,
+  scheduled_for timestamptz NOT NULL,
+  status      text NOT NULL DEFAULT 'pending'
+              CHECK (status IN ('pending', 'executed', 'failed', 'cancelled')),
+  payload     jsonb DEFAULT '{}',
+  executed_at timestamptz,
+  error       text,
+  created_at  timestamptz DEFAULT now()
+);
+
 -- ═══════════════════════════════════════════════════════
 -- INDEXES
 -- ═══════════════════════════════════════════════════════
@@ -122,6 +138,9 @@ CREATE INDEX idx_content_updated        ON content(site_id, updated_at DESC)
 CREATE INDEX idx_clicks_site            ON affiliate_clicks(site_id);
 CREATE INDEX idx_clicks_created         ON affiliate_clicks(created_at DESC);
 CREATE INDEX idx_newsletter_site        ON newsletter_subscribers(site_id);
+CREATE INDEX idx_scheduled_jobs_site    ON scheduled_jobs(site_id);
+CREATE INDEX idx_scheduled_jobs_pending ON scheduled_jobs(status, scheduled_for)
+  WHERE status = 'pending';
 
 -- ═══════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY
@@ -134,6 +153,7 @@ ALTER TABLE content           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_products  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE affiliate_clicks  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scheduled_jobs        ENABLE ROW LEVEL SECURITY;
 
 -- Public read policies (anon key)
 CREATE POLICY "public_read_sites"
