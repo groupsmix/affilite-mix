@@ -51,7 +51,7 @@ export async function getContentById(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as ContentRow) ?? null;
+  return (data as unknown as ContentRow) ?? null;
 }
 
 /** Get a single content item by slug */
@@ -74,7 +74,7 @@ export async function getContentBySlug(
   const { data, error } = await query.single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as ContentRow) ?? null;
+  return (data as unknown as ContentRow) ?? null;
 }
 
 /** Create content */
@@ -82,7 +82,7 @@ export async function createContent(
   input: Omit<ContentRow, "id" | "created_at" | "updated_at">,
 ): Promise<ContentRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input as never).select().single();
   if (error) throw error;
   return data as ContentRow;
 }
@@ -98,7 +98,7 @@ export async function updateContent(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input)
+    .update(input as never)
     .eq("site_id", siteId)
     .eq("id", id)
     .select()
