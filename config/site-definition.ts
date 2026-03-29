@@ -52,6 +52,9 @@ export interface SiteDefinition {
       changeFrequency: string;
     }[];
   };
+
+  /** Homepage template preset. Set by defineSite(). Defaults to "standard". */
+  _homepagePreset?: "standard" | "cinematic" | "minimal";
 }
 
 export interface FeatureFlags {

@@ -11,7 +11,10 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "test": "vitest run"
+    "test": "vitest run",
+    "add-site": "npx tsx scripts/add-site.ts",
+    "pause-site": "npx tsx scripts/pause-site.ts",
+    "redesign-site": "npx tsx scripts/redesign-site.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1018.0",

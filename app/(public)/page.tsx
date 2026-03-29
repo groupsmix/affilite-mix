@@ -7,7 +7,8 @@ import { ContentCard } from "./components/content-card";
 import { ProductCard } from "./components/product-card";
 import { NewsletterSignup } from "./components/newsletter-signup";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./components/json-ld";
-import { WatchHomepage } from "./components/watch-homepage";
+import { CinematicHomepage } from "./components/homepage-cinematic";
+import { MinimalHomepage } from "./components/homepage-minimal";
 import Link from "next/link";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -45,16 +46,17 @@ export default async function HomePage() {
     listCategories(site.id),
   ]);
 
-  // Render custom homepage for sites with the feature enabled
-  if (site.features.customHomepage) {
-    return (
-      <WatchHomepage
-        site={site}
-        recentContent={recentContent}
-        featuredProducts={featuredProducts}
-        categories={categories}
-      />
-    );
+  const homepageProps = { site, recentContent, featuredProducts, categories };
+
+  // Render homepage based on preset template
+  const preset = site._homepagePreset ?? (site.features.customHomepage ? "cinematic" : "standard");
+
+  if (preset === "cinematic") {
+    return <CinematicHomepage {...homepageProps} />;
+  }
+
+  if (preset === "minimal") {
+    return <MinimalHomepage {...homepageProps} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";
