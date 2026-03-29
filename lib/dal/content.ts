@@ -1,5 +1,6 @@
 import { getServiceClient } from "@/lib/supabase-server";
 import type { ContentRow } from "@/types/database";
+import { escapeLike, toTsquery } from "./search-utils";
 
 const TABLE = "content";
 
@@ -191,25 +192,6 @@ export async function countPublishedContent(
   const { count, error } = await query;
   if (error) throw error;
   return count ?? 0;
-}
-
-/** Escape LIKE/ILIKE special characters so user input is treated literally */
-function escapeLike(value: string): string {
-  return value.replace(/[%_\\]/g, (ch) => `\\${ch}`);
-}
-
-/**
- * Build a tsquery string from raw user input.
- * Splits on whitespace and joins with `&` (AND) so every term must match.
- * Each token is sanitised to prevent tsquery syntax errors.
- */
-function toTsquery(raw: string): string {
-  return raw
-    .replace(/[^\p{L}\p{N}\s]/gu, "") // strip punctuation
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((t) => `${t}:*`) // prefix matching
-    .join(" & ");
 }
 
 /**
