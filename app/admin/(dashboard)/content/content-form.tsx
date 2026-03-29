@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { ContentRow, CategoryRow, ProductRow, ContentProductRow } from "@/types/database";
 import type { ContentTypeConfig } from "@/config/site-definition";
@@ -34,6 +34,22 @@ export function ContentForm({ content, categories, products, linkedProducts, con
   const siteContentTypes = contentTypes ?? DEFAULT_CONTENT_TYPES;
   const router = useRouter();
   const isEdit = !!content;
+  const isDirtyRef = useRef(false);
+
+  // Warn before navigating away with unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirtyRef.current) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
+  function markDirty() {
+    isDirtyRef.current = true;
+  }
 
   const [title, setTitle] = useState(content?.title ?? "");
   const [slug, setSlug] = useState(content?.slug ?? "");
@@ -127,6 +143,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
       });
     }
 
+    isDirtyRef.current = false;
     router.push("/admin/content");
     router.refresh();
   }
@@ -146,6 +163,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
             onChange={(e) => {
               setTitle(e.target.value);
               if (!isEdit) setSlug(autoSlug(e.target.value));
+              markDirty();
             }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             required
@@ -156,7 +174,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
           <input
             type="text"
             value={slug}
-            onChange={(e) => setSlug(e.target.value)}
+            onChange={(e) => { setSlug(e.target.value); markDirty(); }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             required
           />
@@ -167,7 +185,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
         <label className="mb-1 block text-sm font-medium text-gray-700">Excerpt</label>
         <textarea
           value={excerpt}
-          onChange={(e) => setExcerpt(e.target.value)}
+          onChange={(e) => { setExcerpt(e.target.value); markDirty(); }}
           rows={2}
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
@@ -181,7 +199,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
 
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Body</label>
-        <RichEditor value={body} onChange={setBody} />
+        <RichEditor value={body} onChange={(html) => { setBody(html); markDirty(); }} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

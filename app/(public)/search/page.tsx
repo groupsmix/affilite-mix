@@ -57,12 +57,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               name="q"
               defaultValue={query}
               placeholder={site.language === "ar" ? "ابحث عن منتجات أو مقالات..." : "Search products or articles..."}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              autoFocus
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-1"
+              style={{ "--tw-ring-color": "var(--color-accent, #10B981)" } as React.CSSProperties}
             />
             <button
               type="submit"
-              className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+              className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
+              style={{ backgroundColor: "var(--color-accent, #10B981)" }}
             >
               {site.language === "ar" ? "بحث" : "Search"}
             </button>

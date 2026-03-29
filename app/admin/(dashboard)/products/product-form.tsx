@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { ProductRow } from "@/types/database";
 import type { CategoryRow } from "@/types/database";
@@ -15,6 +15,21 @@ interface ProductFormProps {
 export function ProductForm({ product, categories }: ProductFormProps) {
   const router = useRouter();
   const isEdit = !!product;
+  const isDirtyRef = useRef(false);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirtyRef.current) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
+  function markDirty() {
+    isDirtyRef.current = true;
+  }
 
   const [name, setName] = useState(product?.name ?? "");
   const [slug, setSlug] = useState(product?.slug ?? "");
@@ -30,6 +45,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [ctaText, setCtaText] = useState(product?.cta_text ?? "");
   const [dealText, setDealText] = useState(product?.deal_text ?? "");
   const [dealExpiresAt, setDealExpiresAt] = useState(product?.deal_expires_at ?? "");
+  const [pros, setPros] = useState(product?.pros ?? "");
+  const [cons, setCons] = useState(product?.cons ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,6 +77,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       cta_text: ctaText,
       deal_text: dealText,
       deal_expires_at: dealExpiresAt || null,
+      pros,
+      cons,
     };
 
     const res = isEdit
@@ -75,6 +94,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         });
 
     if (res.ok) {
+      isDirtyRef.current = false;
       router.push("/admin/products");
       router.refresh();
     } else {
@@ -99,6 +119,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             onChange={(e) => {
               setName(e.target.value);
               if (!isEdit) setSlug(autoSlug(e.target.value));
+              markDirty();
             }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             required
@@ -110,7 +131,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <input
             type="text"
             value={slug}
-            onChange={(e) => setSlug(e.target.value)}
+            onChange={(e) => { setSlug(e.target.value); markDirty(); }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             required
           />
@@ -121,7 +142,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
         <textarea
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => { setDescription(e.target.value); markDirty(); }}
           rows={3}
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
@@ -239,6 +260,29 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             type="datetime-local"
             value={dealExpiresAt ? dealExpiresAt.slice(0, 16) : ""}
             onChange={(e) => setDealExpiresAt(e.target.value ? new Date(e.target.value).toISOString() : "")}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Pros (one per line)</label>
+          <textarea
+            value={pros}
+            onChange={(e) => setPros(e.target.value)}
+            rows={3}
+            placeholder={"Great battery life\nExcellent display\nAffordable price"}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Cons (one per line)</label>
+          <textarea
+            value={cons}
+            onChange={(e) => setCons(e.target.value)}
+            rows={3}
+            placeholder={"No wireless charging\nBulky design"}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
         </div>

@@ -128,6 +128,8 @@ export interface CreateProductInput {
   cta_text: string;
   deal_text: string;
   deal_expires_at: string | null;
+  pros: string;
+  cons: string;
 }
 
 const PRODUCT_STATUSES = new Set(["draft", "active", "archived"]);
@@ -183,6 +185,8 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
       cta_text: isString(body.cta_text) ? body.cta_text : "",
       deal_text: isString(body.deal_text) ? body.deal_text : "",
       deal_expires_at: isString(body.deal_expires_at) ? body.deal_expires_at : null,
+      pros: isString(body.pros) ? body.pros : "",
+      cons: isString(body.cons) ? body.cons : "",
     },
     errors: null,
   };
@@ -204,6 +208,8 @@ export interface UpdateProductInput {
   cta_text?: string;
   deal_text?: string;
   deal_expires_at?: string | null;
+  pros?: string;
+  cons?: string;
 }
 
 export function validateUpdateProduct(body: Record<string, unknown>): ValidationResult<UpdateProductInput> {
@@ -245,6 +251,8 @@ export function validateUpdateProduct(body: Record<string, unknown>): Validation
   if (body.cta_text !== undefined) data.cta_text = body.cta_text as string;
   if (body.deal_text !== undefined) data.deal_text = body.deal_text as string;
   if (body.deal_expires_at !== undefined) data.deal_expires_at = body.deal_expires_at as string | null;
+  if (body.pros !== undefined) data.pros = body.pros as string;
+  if (body.cons !== undefined) data.cons = body.cons as string;
   return { data, errors: null };
 }
 

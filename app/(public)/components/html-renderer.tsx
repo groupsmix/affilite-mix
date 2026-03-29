@@ -76,7 +76,8 @@ export function HtmlRenderer({ html }: HtmlRendererProps) {
 
   return (
     <div
-      className="prose prose-lg max-w-none prose-headings:font-semibold prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg"
+      className="prose prose-lg max-w-none prose-headings:font-semibold prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg"
+      style={{ "--tw-prose-links": "var(--color-accent, #10B981)" } as React.CSSProperties}
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );
