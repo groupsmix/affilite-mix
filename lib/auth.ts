@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, webcrypto } from "crypto";
 
 function requireEnvInProduction(name: string, fallback: string): string {
   const value = process.env[name];
@@ -27,9 +27,10 @@ export interface AdminPayload {
 
 /** Verify admin credentials using timing-safe comparison */
 export function verifyCredentials(password: string): boolean {
-  const a = Buffer.from(password);
-  const b = Buffer.from(ADMIN_PASSWORD);
-  if (a.length !== b.length) {
+  const encoder = new TextEncoder();
+  const a = encoder.encode(password);
+  const b = encoder.encode(ADMIN_PASSWORD);
+  if (a.byteLength !== b.byteLength) {
     // Compare against self to keep constant time, then return false
     timingSafeEqual(a, a);
     return false;
@@ -43,6 +44,8 @@ export async function createToken(payload: { role: "admin" }): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(EXPIRY)
+    .setAudience("nichehub")
+    .setIssuer("nichehub")
     .sign(getSecretKey());
 }
 
@@ -51,7 +54,10 @@ export async function verifyToken(
   token: string,
 ): Promise<AdminPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getSecretKey());
+    const { payload } = await jwtVerify(token, getSecretKey(), {
+      audience: "nichehub",
+      issuer: "nichehub",
+    });
     return payload as unknown as AdminPayload;
   } catch {
     return null;
