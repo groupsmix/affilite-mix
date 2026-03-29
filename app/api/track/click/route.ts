@@ -5,19 +5,8 @@ import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
-
 /** 60 click-tracking requests per minute per IP */
 const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
-
-function isValidDestination(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return ALLOWED_PROTOCOLS.has(parsed.protocol);
-  } catch {
-    return false;
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,11 +29,10 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = request.nextUrl;
   const productSlug = searchParams.get("p");
-  const destination = searchParams.get("d");
 
-  if (!productSlug || !destination) {
+  if (!productSlug) {
     return NextResponse.json(
-      { error: "Missing required parameters: p, d" },
+      { error: "Missing required parameter: p" },
       { status: 400 },
     );
   }
@@ -58,9 +46,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Use the product's stored affiliate URL as the canonical redirect target.
-  // The `d` parameter is only used as a hint for backwards compat but the
-  // actual redirect always goes to the DB-stored URL, preventing open redirects.
+  // Always use the DB-stored affiliate URL, preventing open redirects.
   const destinationUrl = product.affiliate_url;
 
   // Record click (fire-and-forget)

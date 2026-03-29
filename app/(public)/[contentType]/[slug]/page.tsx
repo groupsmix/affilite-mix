@@ -33,11 +33,6 @@ import type { Metadata } from "next";
 /** Revalidate content detail pages every 60 seconds (ISR) */
 export const revalidate = 60;
 
-/** Base64-encode a string using Workers-compatible APIs */
-function toBase64(str: string): string {
-  return btoa(String.fromCharCode(...new TextEncoder().encode(str)));
-}
-
 interface ContentPageProps {
   params: Promise<{ contentType: string; slug: string }>;
   searchParams: Promise<{ preview?: string }>;
@@ -229,7 +224,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
             </div>
             {heroProduct.affiliate_url && (
               <a
-                href={`/api/track/click?p=${encodeURIComponent(heroProduct.slug)}&d=${encodeURIComponent(toBase64(heroProduct.affiliate_url))}&t=hero`}
+                href={`/api/track/click?p=${encodeURIComponent(heroProduct.slug)}&t=hero`}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
                 className="inline-block rounded-lg bg-emerald-600 px-6 py-3 text-center font-medium text-white transition-colors hover:bg-emerald-700"
