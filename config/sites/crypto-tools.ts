@@ -81,6 +81,12 @@ export const cryptoToolsSite: SiteDefinition = {
 
   features: {
     blog: { source: "database" },
+    newsletter: true,
+    rssFeed: true,
+    searchModal: true,
+    scheduling: true,
+    comparisons: true,
+    deals: true,
   },
 
   pages: {

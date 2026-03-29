@@ -55,6 +55,12 @@ export interface SiteDefinition {
 export interface FeatureFlags {
   blog?: { source: "database" };
   brandSpotlights?: boolean;
+  newsletter?: boolean;
+  rssFeed?: boolean;
+  searchModal?: boolean;
+  scheduling?: boolean;
+  comparisons?: boolean;
+  deals?: boolean;
 }
 
 export interface ContentTypeConfig {
