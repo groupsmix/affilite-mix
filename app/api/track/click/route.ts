@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   const ip = request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? "unknown";
-  const rl = checkRateLimit(`click:${ip}`, CLICK_RATE_LIMIT);
+  const rl = await checkRateLimit(`click:${ip}`, CLICK_RATE_LIMIT);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },
