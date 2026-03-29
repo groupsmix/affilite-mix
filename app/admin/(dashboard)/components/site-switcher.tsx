@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface SiteInfo {
   id: string;
@@ -50,7 +51,7 @@ export function SiteSwitcher() {
     if (siteId === activeSiteId || switching) return;
     setSwitching(true);
 
-    const res = await fetch("/api/admin/sites/select", {
+    const res = await fetchWithCsrf("/api/admin/sites/select", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ siteId }),

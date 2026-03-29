@@ -6,6 +6,7 @@ import type { ContentRow, CategoryRow, ProductRow, ContentProductRow } from "@/t
 import dynamic from "next/dynamic";
 import { ProductLinker } from "./product-linker";
 import { ImageUploader } from "../components/image-uploader";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 const RichEditor = dynamic(() =>
   import("./rich-editor").then((m) => m.RichEditor),
@@ -85,12 +86,12 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
     };
 
     const res = isEdit
-      ? await fetch("/api/admin/content", {
+      ? await fetchWithCsrf("/api/admin/content", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: content.id, ...payload }),
         })
-      : await fetch("/api/admin/content", {
+      : await fetchWithCsrf("/api/admin/content", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -108,7 +109,7 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
 
     // Save product links
     if (contentId) {
-      await fetch("/api/admin/content-products", {
+      await fetchWithCsrf("/api/admin/content-products", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content_id: contentId, links }),

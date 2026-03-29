@@ -6,10 +6,12 @@ import Link from "next/link";
 interface MobileMenuProps {
   nav: { title: string; href: string }[];
   searchLabel?: string;
+  direction?: "ltr" | "rtl";
 }
 
-export function MobileMenu({ nav, searchLabel = "Search" }: MobileMenuProps) {
+export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: MobileMenuProps) {
   const [open, setOpen] = useState(false);
+  const isRtl = direction === "rtl";
 
   return (
     <>
@@ -40,10 +42,10 @@ export function MobileMenu({ nav, searchLabel = "Search" }: MobileMenuProps) {
             className="fixed inset-0 z-40 bg-black/30 md:hidden"
             onClick={() => setOpen(false)}
           />
-          {/* Drawer */}
-          <div className="fixed inset-y-0 right-0 z-50 w-64 bg-white shadow-xl md:hidden">
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <span className="text-lg font-bold">Menu</span>
+          {/* Drawer — slides from left for RTL, right for LTR */}
+          <div className={`fixed inset-y-0 ${isRtl ? "left-0" : "right-0"} z-50 w-64 bg-white shadow-xl md:hidden`}>
+            <div className={`flex items-center justify-between border-b border-gray-200 px-4 py-3 ${isRtl ? "flex-row-reverse" : ""}`}>
+              <span className="text-lg font-bold">{isRtl ? "القائمة" : "Menu"}</span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
