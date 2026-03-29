@@ -1,6 +1,8 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { timingSafeEqual, webcrypto } from "crypto";
+import { timingSafeEqual } from "crypto";
+import { getAdminUserByEmail, hasAdminUsers } from "@/lib/dal/admin-users";
+import { verifyPassword } from "@/lib/password";
 
 function requireEnvInProduction(name: string, fallback: string): string {
   const value = process.env[name];
@@ -12,7 +14,7 @@ function requireEnvInProduction(name: string, fallback: string): string {
 }
 
 const JWT_SECRET = requireEnvInProduction("JWT_SECRET", "dev-secret-change-me");
-const ADMIN_PASSWORD = requireEnvInProduction("ADMIN_PASSWORD", "admin");
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 const COOKIE_NAME = "nh_admin_token";
 const EXPIRY = "24h";
 
@@ -21,25 +23,61 @@ function getSecretKey() {
 }
 
 export interface AdminPayload {
-  siteId?: string;
-  role: "admin";
+  email?: string;
+  userId?: string;
+  role: "admin" | "super_admin";
 }
 
-/** Verify admin credentials using timing-safe comparison */
-export function verifyCredentials(password: string): boolean {
+/**
+ * Legacy: verify admin credentials using the shared ADMIN_PASSWORD env var.
+ * Used as a fallback when no admin_users exist in the database.
+ */
+export function verifyLegacyPassword(password: string): boolean {
+  if (!ADMIN_PASSWORD) return false;
   const encoder = new TextEncoder();
   const a = encoder.encode(password);
   const b = encoder.encode(ADMIN_PASSWORD);
   if (a.byteLength !== b.byteLength) {
-    // Compare against self to keep constant time, then return false
     timingSafeEqual(a, a);
     return false;
   }
   return timingSafeEqual(a, b);
 }
 
+/**
+ * Authenticate a user. Tries per-user DB accounts first, then falls back
+ * to the legacy ADMIN_PASSWORD env var if no admin_users exist.
+ */
+export async function authenticateUser(
+  email: string | undefined,
+  password: string,
+): Promise<AdminPayload | null> {
+  const dbUsersExist = await hasAdminUsers();
+
+  if (dbUsersExist && email) {
+    const user = await getAdminUserByEmail(email);
+    if (!user) return null;
+
+    const valid = await verifyPassword(password, user.password_hash);
+    if (!valid) return null;
+
+    return {
+      email: user.email,
+      userId: user.id,
+      role: user.role,
+    };
+  }
+
+  // Fall back to legacy ADMIN_PASSWORD (no email needed)
+  if (!dbUsersExist && verifyLegacyPassword(password)) {
+    return { role: "admin" };
+  }
+
+  return null;
+}
+
 /** Create a signed JWT for admin session */
-export async function createToken(payload: { role: "admin" }): Promise<string> {
+export async function createToken(payload: AdminPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()

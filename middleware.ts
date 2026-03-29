@@ -11,15 +11,8 @@ export function middleware(request: NextRequest) {
   const { pathname, hostname } = request.nextUrl;
 
   // ── Resolve site ──────────────────────────────────────
-  const siteOverride = process.env.SITE_OVERRIDE;
-  let siteId: string | undefined;
-
-  if (siteOverride) {
-    siteId = siteOverride;
-  } else {
-    const site = getSiteByDomain(hostname);
-    siteId = site?.id;
-  }
+  const site = getSiteByDomain(hostname);
+  const siteId = site?.id;
 
   if (!siteId) {
     return new NextResponse("Site not found", { status: 404 });
