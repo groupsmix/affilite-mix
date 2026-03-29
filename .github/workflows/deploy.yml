@@ -13,6 +13,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Skip if no API token is set — Cloudflare Pages native GitHub
+    # integration handles deployment in that case.
+    if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
     permissions:
       contents: read
       deployments: write
@@ -34,8 +37,6 @@ jobs:
           [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] && missing="$missing NEXT_PUBLIC_SUPABASE_ANON_KEY"
           [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && missing="$missing SUPABASE_SERVICE_ROLE_KEY"
           [ -z "$JWT_SECRET" ] && missing="$missing JWT_SECRET"
-          [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] && missing="$missing CLOUDFLARE_API_TOKEN"
-          [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
           if [ -n "$missing" ]; then
             echo "::error::Missing required secrets:$missing"
             echo "Configure these in GitHub repo Settings → Secrets and variables → Actions"
@@ -46,8 +47,9 @@ jobs:
       - run: npx @opennextjs/cloudflare build
 
       # Deploy to Cloudflare Pages (single deployment target)
+      # Deploy using wrangler.jsonc config (pages_build_output_dir)
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy .open-next/assets --project-name=affilite-mix --branch=main --commit-dirty=true
+        run: npx wrangler pages deploy --project-name=affilite-mix --branch=main --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
