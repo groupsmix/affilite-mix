@@ -198,13 +198,47 @@ function escapeLike(value: string): string {
   return value.replace(/[%_\\]/g, (ch) => `\\${ch}`);
 }
 
-/** Search published content by title (basic search) */
+/**
+ * Build a tsquery string from raw user input.
+ * Splits on whitespace and joins with `&` (AND) so every term must match.
+ * Each token is sanitised to prevent tsquery syntax errors.
+ */
+function toTsquery(raw: string): string {
+  return raw
+    .replace(/[^\p{L}\p{N}\s]/gu, "") // strip punctuation
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => `${t}:*`) // prefix matching
+    .join(" & ");
+}
+
+/**
+ * Search published content using Postgres full-text search.
+ * Falls back to ILIKE when the query cannot be converted to a valid tsquery
+ * (e.g. only punctuation) or when the FTS column doesn't exist yet.
+ */
 export async function searchContent(
   siteId: string,
   query: string,
   limit = 20,
 ): Promise<ContentRow[]> {
   const sb = getServiceClient();
+  const tsq = toTsquery(query);
+
+  if (tsq) {
+    const { data, error } = await sb
+      .from(TABLE)
+      .select("*")
+      .eq("site_id", siteId)
+      .eq("status", "published")
+      .or(`title.fts.${tsq},excerpt.fts.${tsq}`)
+      .order("updated_at", { ascending: false })
+      .limit(limit);
+
+    if (!error) return data as ContentRow[];
+    // If FTS fails (e.g. column/index not ready), fall through to ILIKE.
+  }
+
   const { data, error } = await sb
     .from(TABLE)
     .select("*")

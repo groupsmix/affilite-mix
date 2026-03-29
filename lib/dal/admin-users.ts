@@ -107,8 +107,7 @@ export async function countAdminUsers(): Promise<number> {
 
 /**
  * Check if the admin_users table exists and has any rows.
- * Returns false if the table doesn't exist or has no users,
- * meaning the system should fall back to ADMIN_PASSWORD.
+ * Returns false if the table doesn't exist or has no users.
  */
 export async function hasAdminUsers(): Promise<boolean> {
   try {

@@ -2,8 +2,7 @@
 -- ADMIN USERS — per-user admin accounts
 -- ════════════════════════════════════════════════════
 -- Run this migration against your Supabase database to enable
--- per-user admin accounts. The old ADMIN_PASSWORD env var is
--- kept as a fallback for bootstrapping the first admin user.
+-- per-user admin accounts.
 
 CREATE TABLE IF NOT EXISTS admin_users (
   id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
