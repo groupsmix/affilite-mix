@@ -5,11 +5,11 @@ on:
     branches: [main]
 
 env:
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder' }}
-  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder' }}
-  JWT_SECRET: ${{ secrets.JWT_SECRET || 'placeholder' }}
-  ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'placeholder' }}
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  JWT_SECRET: ${{ secrets.JWT_SECRET }}
+  ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
   SITE_OVERRIDE: arabic-tools
 
 jobs:
@@ -28,30 +28,29 @@ jobs:
 
       - run: npm ci
 
-      # Build the OpenNext bundle
+      # Fail fast if required secrets are missing
+      - name: Verify required secrets
+        run: |
+          missing=""
+          [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] && missing="$missing NEXT_PUBLIC_SUPABASE_URL"
+          [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] && missing="$missing NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] && missing="$missing SUPABASE_SERVICE_ROLE_KEY"
+          [ -z "$JWT_SECRET" ] && missing="$missing JWT_SECRET"
+          [ -z "$ADMIN_PASSWORD" ] && missing="$missing ADMIN_PASSWORD"
+          [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] && missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets:$missing"
+            echo "Configure these in GitHub repo Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+      # Build the OpenNext bundle for Cloudflare Pages
       - run: npx @opennextjs/cloudflare build
 
-      # Deploy to Cloudflare Workers
-      - name: Deploy to Workers
-        run: npx wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # Deploy to Cloudflare Pages (pre-bundled worker + static assets)
-      - name: Prepare Pages deployment
-        run: |
-          npx wrangler deploy --dry-run --outdir .open-next/bundled
-          mkdir -p .pages-deploy
-          cp .open-next/bundled/worker.js .pages-deploy/_worker.js
-          cp -r .open-next/assets/* .pages-deploy/
-          echo '{"version":1,"include":["/*"],"exclude":["/_next/static/*","/BUILD_ID"]}' > .pages-deploy/_routes.json
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy to Pages
-        run: npx wrangler pages deploy .pages-deploy --project-name=affilite-mix --branch=main --commit-dirty=true
+      # Deploy to Cloudflare Pages (single deployment target)
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler pages deploy .open-next/assets --project-name=affilite-mix --branch=main --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

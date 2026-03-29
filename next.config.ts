@@ -1,15 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Allow external images from known sources only
+  // Restrict external images to known sources (R2 bucket, Supabase storage, site domains)
   images: {
     remotePatterns: [
-      // Cloudflare R2
+      // Cloudflare R2 public bucket (custom domain or default)
       { protocol: "https", hostname: "*.r2.dev" },
       { protocol: "https", hostname: "*.r2.cloudflarestorage.com" },
       // Supabase storage
       { protocol: "https", hostname: "*.supabase.co" },
-      // Common affiliate image CDNs
+      // Site domains (for OG images, etc.)
+      { protocol: "https", hostname: "arabic.wristnerd.site" },
+      { protocol: "https", hostname: "wristnerd.site" },
+      // Common affiliate product image CDNs
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "m.media-amazon.com" },
       { protocol: "https", hostname: "images-na.ssl-images-amazon.com" },

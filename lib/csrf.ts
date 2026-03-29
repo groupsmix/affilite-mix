@@ -1,46 +1,49 @@
 /**
- * CSRF double-submit cookie utilities.
+ * Double-submit cookie CSRF protection.
  *
- * Issues a random CSRF token as an httpOnly cookie and exposes it via a
- * GET endpoint. Clients attach the token as an `x-csrf-token` header on
- * state-changing requests. The middleware validates that the header value
- * matches the cookie value using timing-safe comparison.
+ * When Origin header is missing (some proxies/clients strip it), this provides
+ * defence-in-depth: a random token is stored in a cookie and must be sent back
+ * as the X-CSRF-Token header on every state-changing request.
+ *
+ * Flow:
+ * 1. GET /api/auth/csrf → sets __csrf cookie + returns { token }.
+ * 2. Client stores the token and sends it as X-CSRF-Token on POST/PATCH/DELETE.
+ * 3. Middleware compares cookie value with header value (timing-safe).
  */
 
-import { cookies } from "next/headers";
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, webcrypto } from "crypto";
 
-export const CSRF_COOKIE = "nh_csrf";
+export const CSRF_COOKIE = "__csrf";
+export const CSRF_HEADER = "x-csrf-token";
 const TOKEN_BYTES = 32;
 
-/** Generate a hex-encoded random CSRF token */
+/** Generate a cryptographically random CSRF token */
 export function generateCsrfToken(): string {
-  const buf = new Uint8Array(TOKEN_BYTES);
-  crypto.getRandomValues(buf);
-  return Array.from(buf)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  const bytes = new Uint8Array(TOKEN_BYTES);
+  webcrypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Read the current CSRF token from the cookie jar (server-side) */
-export async function getCsrfTokenFromCookie(): Promise<string | undefined> {
-  const cookieStore = await cookies();
-  return cookieStore.get(CSRF_COOKIE)?.value;
-}
-
-/**
- * Compare two CSRF tokens in constant time.
- * Returns false if either token is missing or they differ.
- */
-export function csrfTokensMatch(a: string | undefined | null, b: string | undefined | null): boolean {
-  if (!a || !b) return false;
+/** Timing-safe comparison of two strings */
+function timingSafeCompare(a: string, b: string): boolean {
   const encoder = new TextEncoder();
   const bufA = encoder.encode(a);
   const bufB = encoder.encode(b);
   if (bufA.byteLength !== bufB.byteLength) {
-    // Compare against self to keep timing constant, then return false
     timingSafeEqual(bufA, bufA);
     return false;
   }
   return timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Validate the CSRF double-submit cookie.
+ * Returns true if the cookie and header match (timing-safe).
+ */
+export function validateCsrfToken(
+  cookieValue: string | undefined,
+  headerValue: string | undefined,
+): boolean {
+  if (!cookieValue || !headerValue) return false;
+  return timingSafeCompare(cookieValue, headerValue);
 }

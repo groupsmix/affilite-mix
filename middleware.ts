@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSiteByDomain, allSites } from "@/config/sites";
+import { validateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 
 /**
  * Middleware: resolves domain → site_id and injects x-site-id header.
- * Also handles CSRF protection for state-changing API routes.
+ * Also handles CSRF protection for state-changing API routes using both
+ * Origin validation and a double-submit cookie fallback.
  */
 export function middleware(request: NextRequest) {
   const { pathname, hostname } = request.nextUrl;
@@ -13,7 +15,6 @@ export function middleware(request: NextRequest) {
   let siteId: string | undefined;
 
   if (siteOverride) {
-    // Local dev: use env override
     siteId = siteOverride;
   } else {
     const site = getSiteByDomain(hostname);
@@ -25,9 +26,6 @@ export function middleware(request: NextRequest) {
   }
 
   // ── CSRF protection for state-changing API routes ─────
-  // 1. Validates the Origin header against the list of known site domains.
-  // 2. When Origin is missing, falls back to double-submit cookie:
-  //    compares the x-csrf-token header with the nh_csrf cookie value.
   const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
   if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
     const origin = request.headers.get("origin") ?? "";
@@ -39,11 +37,14 @@ export function middleware(request: NextRequest) {
         return new NextResponse("Forbidden", { status: 403 });
       }
     } else {
-      // No Origin header — fall back to double-submit cookie check
-      const csrfHeader = request.headers.get("x-csrf-token") ?? "";
-      const csrfCookie = request.cookies.get("nh_csrf")?.value ?? "";
-      if (!csrfHeader || !csrfCookie || csrfHeader !== csrfCookie) {
-        return new NextResponse("Forbidden — CSRF token mismatch", { status: 403 });
+      // Origin header missing — fall back to double-submit cookie check.
+      // The CSRF token endpoint (GET /api/auth/csrf) is exempt.
+      if (pathname !== "/api/auth/csrf") {
+        const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
+        const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
+        if (!validateCsrfToken(cookieValue, headerValue)) {
+          return new NextResponse("Forbidden – missing CSRF token", { status: 403 });
+        }
       }
     }
   }
