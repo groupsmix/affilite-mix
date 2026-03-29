@@ -45,6 +45,7 @@ CREATE TABLE products (
   deal_text     text DEFAULT '',
   deal_expires_at timestamptz,
   created_at    timestamptz DEFAULT now(),
+  updated_at    timestamptz DEFAULT now(),
   UNIQUE(site_id, slug)
 );
 
@@ -68,6 +69,9 @@ CREATE TABLE content (
   tags        text[] DEFAULT '{}',
   author      text,
   publish_at  timestamptz,
+  meta_title  text,
+  meta_description text,
+  og_image    text,
   created_at  timestamptz DEFAULT now(),
   updated_at  timestamptz DEFAULT now(),
   UNIQUE(site_id, slug)
@@ -194,6 +198,10 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER content_updated_at
   BEFORE UPDATE ON content
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER products_updated_at
+  BEFORE UPDATE ON products
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ═══════════════════════════════════════════════════════
