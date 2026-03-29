@@ -214,14 +214,14 @@ CREATE TRIGGER products_updated_at
 -- ═══════════════════════════════════════════════════════
 
 INSERT INTO sites (slug, name, domain, language, direction)
-VALUES ('arabic-tools', 'Arabic Tools', 'arabic-tools.example.com', 'ar', 'rtl');
+VALUES ('arabic-tools', 'Arabic Tools', 'arabictools.wristnerd.site', 'ar', 'rtl');
 
 -- ═══════════════════════════════════════════════════════
 -- SEED: crypto-tools site
 -- ═══════════════════════════════════════════════════════
 
 INSERT INTO sites (slug, name, domain, language, direction)
-VALUES ('crypto-tools', 'Crypto Tools', 'crypto-tools.example.com', 'en', 'ltr');
+VALUES ('crypto-tools', 'Crypto Tools', 'crypto.wristnerd.site', 'en', 'ltr');
 
 -- Crypto categories
 WITH crypto AS (SELECT id FROM sites WHERE slug = 'crypto-tools')
