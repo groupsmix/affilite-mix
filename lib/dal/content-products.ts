@@ -8,7 +8,7 @@ export async function linkProduct(
   input: ContentProductRow,
 ): Promise<ContentProductRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).insert(input as never).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return data as ContentProductRow;
 }
@@ -52,7 +52,7 @@ export async function updateProductLink(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input as never)
+    .update(input)
     .eq("content_id", contentId)
     .eq("product_id", productId)
     .select()
@@ -86,6 +86,6 @@ export async function setLinkedProducts(
     content_id: contentId,
   }));
 
-  const { error: insError } = await sb.from(TABLE).insert(rows as never);
+  const { error: insError } = await sb.from(TABLE).insert(rows);
   if (insError) throw insError;
 }
