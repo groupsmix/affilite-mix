@@ -8,7 +8,6 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
-	"main": ".open-next/worker.js",
 	"pages_build_output_dir": ".open-next/assets",
 	"services": [
 		{
