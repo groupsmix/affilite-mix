@@ -70,7 +70,7 @@ export async function getProductById(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as ProductRow) ?? null;
+  return (data as unknown as ProductRow) ?? null;
 }
 
 /** Get a single product by slug */
@@ -87,7 +87,7 @@ export async function getProductBySlug(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as ProductRow) ?? null;
+  return (data as unknown as ProductRow) ?? null;
 }
 
 /** Create a product */
@@ -95,7 +95,7 @@ export async function createProduct(
   input: Omit<ProductRow, "id" | "created_at">,
 ): Promise<ProductRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input as never).select().single();
   if (error) throw error;
   return data as ProductRow;
 }
@@ -111,7 +111,7 @@ export async function updateProduct(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input)
+    .update(input as never)
     .eq("site_id", siteId)
     .eq("id", id)
     .select()

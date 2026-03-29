@@ -21,6 +21,7 @@ export async function resolveDbSiteId(slug: string): Promise<string> {
     throw new Error(`Site not found in database for slug: ${slug}`);
   }
 
-  cache.set(slug, data.id);
-  return data.id;
+  const row = data as unknown as { id: string };
+  cache.set(slug, row.id);
+  return row.id;
 }
