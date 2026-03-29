@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     siteId: dbSiteId,
     contentType: searchParams.get("content_type") ?? undefined,
     status:
-      (searchParams.get("status") as "draft" | "review" | "published" | "archived") ?? undefined,
+      (searchParams.get("status") as "draft" | "review" | "published" | "scheduled" | "archived") ?? undefined,
     categoryId: searchParams.get("category_id") ?? undefined,
     limit: searchParams.get("limit") ? Number(searchParams.get("limit")) : undefined,
     offset: searchParams.get("offset") ? Number(searchParams.get("offset")) : undefined,
@@ -97,7 +97,7 @@ export async function PATCH(request: NextRequest) {
   if (typeof updates.body === "string") {
     updates.body = sanitizeHtml(updates.body);
   }
-  const content = await updateContent(dbSiteId, id, updates);
+  const content = await updateContent(dbSiteId, id, updates as Parameters<typeof updateContent>[2]);
   revalidateTag("content");
   recordAuditEvent({
     site_id: dbSiteId,

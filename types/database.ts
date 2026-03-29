@@ -48,8 +48,8 @@ export interface ContentRow {
   body: string;
   excerpt: string;
   featured_image: string;
-  type: string;
-  status: "draft" | "review" | "published" | "archived";
+  type: "article" | "review" | "comparison" | "guide" | "blog";
+  status: "draft" | "review" | "published" | "scheduled" | "archived";
   category_id: string | null;
   tags: string[];
   author: string | null;

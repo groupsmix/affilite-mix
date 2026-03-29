@@ -177,7 +177,7 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
           <label className="mb-1 block text-sm font-medium text-gray-700">Type</label>
           <select
             value={contentType}
-            onChange={(e) => setContentType(e.target.value)}
+            onChange={(e) => setContentType(e.target.value as ContentRow["type"])}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
             <option value="article">Article</option>
@@ -185,10 +185,6 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
             <option value="comparison">Comparison</option>
             <option value="guide">Guide</option>
             <option value="blog">Blog</option>
-            <option value="brand-spotlight">Brand Spotlight</option>
-            <option value="occasion">Occasion</option>
-            <option value="budget">Budget</option>
-            <option value="recipient">Recipient</option>
           </select>
         </div>
 
@@ -221,7 +217,44 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* Scheduling Section — prominent */}
+      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 className="text-sm font-semibold text-indigo-900">Schedule Publishing</h3>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-indigo-800">Publish Date & Time</label>
+            <input
+              type="datetime-local"
+              value={publishAt ? publishAt.slice(0, 16) : ""}
+              onChange={(e) => setPublishAt(e.target.value ? new Date(e.target.value).toISOString() : "")}
+              className="w-full rounded border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-indigo-600">
+              {publishAt
+                ? `Scheduled for ${new Date(publishAt).toLocaleString()}`
+                : "Leave empty to publish immediately when status is set to Published"}
+            </p>
+          </div>
+          {publishAt && (
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => setPublishAt("")}
+                className="rounded-md border border-indigo-300 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+              >
+                Clear Schedule
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">Author</label>
           <input
@@ -239,16 +272,6 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
             onChange={(e) => setTagsStr(e.target.value)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Schedule Publish</label>
-          <input
-            type="datetime-local"
-            value={publishAt ? publishAt.slice(0, 16) : ""}
-            onChange={(e) => setPublishAt(e.target.value ? new Date(e.target.value).toISOString() : "")}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-          <p className="mt-1 text-xs text-gray-400">Leave empty for immediate action</p>
         </div>
       </div>
 

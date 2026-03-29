@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ProductList } from "./product-list";
 import { Pagination } from "@/app/(public)/components/pagination";
+import { CsvTools } from "./csv-tools";
 
 const PAGE_SIZE = 20;
 
@@ -33,6 +34,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         >
           Add Product
         </Link>
+      </div>
+
+      <div className="mb-6">
+        <CsvTools />
       </div>
 
       {products.length === 0 ? (
