@@ -14,7 +14,7 @@ import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import { getSiteById } from "@/config/sites";
 
 export async function GET(request: NextRequest) {
-  const { error, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const raw = await request.json();
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     revalidateTag("content");
     recordAuditEvent({
       site_id: dbSiteId,
-      actor: "admin",
+      actor: session.email ?? session.userId ?? "admin",
       action: "create",
       entity_type: "content",
       entity_id: content.id,
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const { error, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const raw = await request.json();
@@ -112,7 +112,7 @@ export async function PATCH(request: NextRequest) {
     revalidateTag("content");
     recordAuditEvent({
       site_id: dbSiteId,
-      actor: "admin",
+      actor: session.email ?? session.userId ?? "admin",
       action: "update",
       entity_type: "content",
       entity_id: id,
@@ -136,7 +136,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const { error, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
@@ -150,7 +150,7 @@ export async function DELETE(request: NextRequest) {
     revalidateTag("content");
     recordAuditEvent({
       site_id: dbSiteId,
-      actor: "admin",
+      actor: session.email ?? session.userId ?? "admin",
       action: "delete",
       entity_type: "content",
       entity_id: id,

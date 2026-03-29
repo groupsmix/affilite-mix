@@ -24,20 +24,19 @@ export function middleware(request: NextRequest) {
     const origin = request.headers.get("origin") ?? "";
     const allowedOrigins = getAllowedOrigins();
 
-    if (origin) {
-      // Origin header present — validate it
-      if (!allowedOrigins.includes(origin)) {
-        return new NextResponse("Forbidden", { status: 403 });
-      }
-    } else {
-      // Origin header missing — fall back to double-submit cookie check.
-      // The CSRF token endpoint (GET /api/auth/csrf) is exempt.
-      if (pathname !== "/api/auth/csrf") {
-        const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
-        const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
-        if (!validateCsrfToken(cookieValue, headerValue)) {
-          return new NextResponse("Forbidden – missing CSRF token", { status: 403 });
-        }
+    // 1. If Origin is present, reject mismatched origins immediately
+    if (origin && !allowedOrigins.includes(origin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // 2. Always validate the CSRF double-submit cookie token
+    //    (regardless of whether Origin is present)
+    //    The CSRF token endpoint itself is exempt.
+    if (pathname !== "/api/auth/csrf") {
+      const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
+      const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
+      if (!validateCsrfToken(cookieValue, headerValue)) {
+        return new NextResponse("Forbidden – missing CSRF token", { status: 403 });
       }
     }
   }

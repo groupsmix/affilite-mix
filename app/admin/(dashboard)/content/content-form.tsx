@@ -87,6 +87,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError("");
 
@@ -150,6 +151,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
+      <fieldset disabled={saving} className={`space-y-6 ${saving ? "opacity-60" : ""}`}>
       {error && (
         <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
       )}
@@ -225,6 +227,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
           >
             <option value="draft">Draft</option>
             <option value="review">Review</option>
+            <option value="scheduled">Scheduled</option>
             <option value="published">Published</option>
             <option value="archived">Archived</option>
           </select>
@@ -380,6 +383,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
           Cancel
         </button>
       </div>
+      </fieldset>
     </form>
   );
 }
