@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
 import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
 import CookieConsent from "./components/cookie-consent";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getCurrentSite();
+  return {
+    icons: site.brand.faviconUrl ? { icon: site.brand.faviconUrl } : undefined,
+  };
+}
 
 export default async function PublicLayout({
   children,
@@ -30,8 +38,14 @@ export default async function PublicLayout({
       style={cssVars}
       className="flex min-h-screen flex-col"
     >
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"
+      >
+        {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
+      </a>
       <SiteHeader site={site} />
-      <main className="flex-1">{children}</main>
+      <main id="main-content" className="flex-1">{children}</main>
       <SiteFooter site={site} />
       {site.features.cookieConsent && <CookieConsent language={site.language} />}
     </div>

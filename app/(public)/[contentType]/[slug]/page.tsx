@@ -2,6 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getContentBySlug, getRelatedContent } from "@/lib/dal/content";
 import { getLinkedProducts } from "@/lib/dal/content-products";
 import { injectProductLinks } from "@/lib/internal-links";
+import { getAdminSession } from "@/lib/auth";
 import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
 import { ContentCard } from "../../components/content-card";
@@ -81,6 +82,14 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   const { preview } = await searchParams;
   const site = await getCurrentSite();
   const isPreview = preview === "true";
+
+  // Preview mode requires admin authentication
+  if (isPreview) {
+    const session = await getAdminSession();
+    if (!session) {
+      notFound();
+    }
+  }
 
   // Prevent accessing admin or api routes through this catch-all
   if (contentType === "admin" || contentType === "api" || contentType === "category") {

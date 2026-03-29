@@ -11,7 +11,9 @@ export default function PublicError({
     <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-4 py-16 text-center">
       <h2 className="mb-2 text-2xl font-bold text-gray-900">Something went wrong</h2>
       <p className="mb-6 text-sm text-gray-500">
-        {error.message || "An unexpected error occurred. Please try again."}
+        {process.env.NODE_ENV === "development"
+          ? error.message || "An unexpected error occurred. Please try again."
+          : "An unexpected error occurred. Please try again."}
       </p>
       <button
         onClick={reset}
