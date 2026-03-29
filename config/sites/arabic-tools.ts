@@ -4,6 +4,7 @@ export const arabicToolsSite: SiteDefinition = {
   id: "arabic-tools",
   name: "Arabic Tools",
   domain: "arabictools.wristnerd.site",
+  aliases: ["arabic.localhost"],
   language: "ar",
   direction: "rtl",
   locale: "ar_SA",
