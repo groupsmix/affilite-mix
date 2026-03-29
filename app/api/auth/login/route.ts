@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCredentials, createToken, COOKIE_NAME } from "@/lib/auth";
+import { authenticateUser, createToken, COOKIE_NAME } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 
@@ -22,7 +22,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { password, turnstileToken } = body as { password?: string; turnstileToken?: string };
+  const { email, password, turnstileToken } = body as {
+    email?: string;
+    password?: string;
+    turnstileToken?: string;
+  };
 
   // Verify Turnstile token (skipped in dev if not configured)
   const turnstileResult = await verifyTurnstile(turnstileToken, ip);
@@ -40,11 +44,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!verifyCredentials(password)) {
+  const authResult = await authenticateUser(email, password);
+  if (!authResult) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  const token = await createToken({ role: "admin" });
+  const token = await createToken(authResult);
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set(COOKIE_NAME, token, {

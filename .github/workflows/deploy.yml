@@ -10,7 +10,6 @@ env:
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   JWT_SECRET: ${{ secrets.JWT_SECRET }}
   ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-  SITE_OVERRIDE: arabic-tools
 
 jobs:
   deploy:

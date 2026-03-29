@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
 
 export default function AdminLoginPage() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,7 +28,7 @@ export default function AdminLoginPage() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password, turnstileToken }),
+      body: JSON.stringify({ email: email || undefined, password, turnstileToken }),
     });
 
     if (res.ok) {
@@ -55,6 +56,16 @@ export default function AdminLoginPage() {
           </div>
         )}
         <label className="mb-2 block text-sm font-medium text-gray-700">
+          Email
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="admin@example.com"
+          className="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        />
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           Password
         </label>
         <input
@@ -64,6 +75,9 @@ export default function AdminLoginPage() {
           className="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           required
         />
+        <p className="mb-4 text-xs text-gray-400">
+          Email is required for per-user accounts. Leave blank to use the legacy shared password.
+        </p>
         <TurnstileWidget
           onVerify={handleTurnstileToken}
           onExpire={handleTurnstileExpire}

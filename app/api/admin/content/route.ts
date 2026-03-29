@@ -10,6 +10,8 @@ import {
 import { validateCreateContent, validateUpdateContent } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { pingSitemapIndexers } from "@/lib/sitemap-ping";
+import { getSiteById } from "@/config/sites";
 
 export async function GET(request: NextRequest) {
   const { error, dbSiteId } = await requireAdmin();
@@ -53,6 +55,9 @@ export async function POST(request: NextRequest) {
     tags: data.tags,
     author: data.author,
     publish_at: data.publish_at,
+    meta_title: data.meta_title,
+    meta_description: data.meta_description,
+    og_image: data.og_image,
   });
 
   revalidateTag("content");
@@ -64,6 +69,16 @@ export async function POST(request: NextRequest) {
     entity_id: content.id,
     details: { title: data.title, slug: data.slug, type: data.type },
   });
+
+  // Ping search engines when content is published
+  if (data.status === "published") {
+    const siteSlug = request.headers.get("x-site-id");
+    const site = siteSlug ? getSiteById(siteSlug) : null;
+    if (site) {
+      pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
+    }
+  }
+
   return NextResponse.json(content, { status: 201 });
 }
 
@@ -97,6 +112,16 @@ export async function PATCH(request: NextRequest) {
     entity_id: id,
     details: { fields: Object.keys(updates) },
   });
+
+  // Ping search engines when content is published
+  if (updates.status === "published") {
+    const siteSlug = request.headers.get("x-site-id");
+    const site = siteSlug ? getSiteById(siteSlug) : null;
+    if (site) {
+      pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
+    }
+  }
+
   return NextResponse.json(content);
 }
 
