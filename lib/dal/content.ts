@@ -82,7 +82,7 @@ export async function createContent(
   input: Omit<ContentRow, "id" | "created_at" | "updated_at">,
 ): Promise<ContentRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).insert(input as never).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return data as ContentRow;
 }
@@ -98,7 +98,7 @@ export async function updateContent(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input as never)
+    .update(input)
     .eq("site_id", siteId)
     .eq("id", id)
     .select()

@@ -55,7 +55,7 @@ export async function createCategory(
   input: Omit<CategoryRow, "id" | "created_at">,
 ): Promise<CategoryRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).insert(input as never).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return data as CategoryRow;
 }
@@ -69,7 +69,7 @@ export async function updateCategory(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input as never)
+    .update(input)
     .eq("site_id", siteId)
     .eq("id", id)
     .select()

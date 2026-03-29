@@ -56,7 +56,7 @@ export async function createAdminUser(input: {
       password_hash: input.password_hash,
       name: input.name,
       role: input.role ?? "admin",
-    } as never)
+    })
     .select()
     .single();
 
@@ -72,7 +72,7 @@ export async function updateAdminUser(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input as never)
+    .update(input)
     .eq("id", id)
     .select()
     .single();
