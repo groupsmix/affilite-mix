@@ -25,6 +25,11 @@ export function middleware(request: NextRequest) {
   }
 
   // ── CSRF protection for state-changing API routes ─────
+  // Validates the Origin header against the list of known site domains.
+  // NOTE: Some clients/proxies may omit the Origin header entirely. When
+  // Origin is missing the request is currently allowed through. For
+  // stronger protection, consider adding a token-based CSRF mechanism
+  // (e.g. double-submit cookie) as a defence-in-depth fallback.
   const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
   if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
     const origin = request.headers.get("origin") ?? "";

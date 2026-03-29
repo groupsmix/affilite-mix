@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ContentRow } from "@/types/database";
-import type { CategoryRow } from "@/types/database";
-import type { ProductRow } from "@/types/database";
-import type { ContentProductRow } from "@/types/database";
+import type { ContentRow, CategoryRow, ProductRow, ContentProductRow } from "@/types/database";
 import dynamic from "next/dynamic";
 import { ProductLinker } from "./product-linker";
 import { ImageUploader } from "../components/image-uploader";

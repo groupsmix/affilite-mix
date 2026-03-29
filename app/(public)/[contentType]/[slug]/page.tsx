@@ -30,6 +30,11 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import type { Metadata } from "next";
 
+/** Base64-encode a string using Workers-compatible APIs */
+function toBase64(str: string): string {
+  return btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+}
+
 interface ContentPageProps {
   params: Promise<{ contentType: string; slug: string }>;
   searchParams: Promise<{ preview?: string }>;
@@ -221,7 +226,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
             </div>
             {heroProduct.affiliate_url && (
               <a
-                href={`/api/track/click?p=${encodeURIComponent(heroProduct.slug)}&d=${encodeURIComponent(Buffer.from(heroProduct.affiliate_url).toString("base64"))}&t=hero`}
+                href={`/api/track/click?p=${encodeURIComponent(heroProduct.slug)}&d=${encodeURIComponent(toBase64(heroProduct.affiliate_url))}&t=hero`}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
                 className="inline-block rounded-lg bg-emerald-600 px-6 py-3 text-center font-medium text-white transition-colors hover:bg-emerald-700"

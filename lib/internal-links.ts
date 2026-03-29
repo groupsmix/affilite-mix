@@ -1,5 +1,10 @@
 import type { ProductRow } from "@/types/database";
 
+/** Base64-encode a string using Workers-compatible APIs */
+function toBase64(str: string): string {
+  return btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+}
+
 /**
  * Auto-link product name mentions in HTML content body.
  * Only links the first occurrence of each product name to avoid cluttering.
@@ -16,6 +21,9 @@ export function injectProductLinks(
   for (const product of products) {
     const name = product.name;
     if (!name || name.length < 3) continue;
+
+    // Skip products without an affiliate URL — no tracking link to generate
+    if (!product.affiliate_url) continue;
 
     // Escape special regex characters in product name
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -73,7 +81,7 @@ function replaceFirst(
   const match = pattern.exec(text);
   if (!match) return { text, didReplace: false };
 
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&d=${encodeURIComponent(Buffer.from(product.affiliate_url).toString("base64"))}&t=inline`;
+  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&d=${encodeURIComponent(toBase64(product.affiliate_url))}&t=inline`;
   const link = `<a href="${trackUrl}" target="_blank" rel="noopener noreferrer nofollow" class="text-emerald-600 font-medium hover:underline">${match[2]}</a>`;
 
   const replaced =

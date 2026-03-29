@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import type { ProductRow } from "@/types/database";
 
 interface ProductLink {
@@ -16,6 +17,7 @@ interface ProductLinkerProps {
 const ROLES = ["hero", "featured", "related", "vs-left", "vs-right"] as const;
 
 export function ProductLinker({ products, links, onChange }: ProductLinkerProps) {
+  const selectRef = useRef<HTMLSelectElement>(null);
   const linkedIds = new Set(links.map((l) => l.product_id));
   const availableProducts = products.filter((p) => !linkedIds.has(p.id));
 
@@ -120,7 +122,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
       {availableProducts.length > 0 && (
         <div className="flex items-center gap-2">
           <select
-            id="add-product-select"
+            ref={selectRef}
             defaultValue=""
             className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm"
           >
@@ -132,8 +134,8 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
           <button
             type="button"
             onClick={() => {
-              const select = document.getElementById("add-product-select") as HTMLSelectElement;
-              if (select.value) {
+              const select = selectRef.current;
+              if (select?.value) {
                 addProduct(select.value);
                 select.value = "";
               }

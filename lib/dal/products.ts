@@ -26,8 +26,11 @@ export async function listProducts(
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
   if (opts.status) query = query.eq("status", opts.status);
   if (opts.featured !== undefined) query = query.eq("featured", opts.featured);
-  if (opts.limit) query = query.limit(opts.limit);
-  if (opts.offset) query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
+  if (opts.offset) {
+    query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
+  } else if (opts.limit) {
+    query = query.limit(opts.limit);
+  }
 
   const { data, error } = await query;
   if (error) throw error;

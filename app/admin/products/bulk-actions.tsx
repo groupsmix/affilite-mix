@@ -25,7 +25,9 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
         }),
       ),
     );
-    const failed = results.filter((r) => r.status === "rejected").length;
+    const failed = results.filter(
+      (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok),
+    ).length;
     if (failed > 0) {
       alert(`${failed} update(s) failed`);
     }
@@ -42,7 +44,9 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
         fetch(`/api/admin/products?id=${id}`, { method: "DELETE" }),
       ),
     );
-    const failed = results.filter((r) => r.status === "rejected").length;
+    const failed = results.filter(
+      (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok),
+    ).length;
     if (failed > 0) {
       alert(`${failed} deletion(s) failed`);
     }
