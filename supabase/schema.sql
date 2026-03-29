@@ -60,8 +60,7 @@ CREATE TABLE content (
   featured_image text DEFAULT '',
   type        text NOT NULL DEFAULT 'article'
               CHECK (type IN (
-                'article', 'review', 'comparison', 'guide', 'blog',
-                'brand-spotlight', 'occasion', 'budget', 'recipient'
+                'article', 'review', 'comparison', 'guide', 'blog'
               )),
   status      text NOT NULL DEFAULT 'draft'
               CHECK (status IN ('draft', 'review', 'published', 'archived')),
