@@ -1,12 +1,17 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "nichehub",
-	"pages_build_output_dir": ".open-next",
+	"main": ".open-next/worker.js",
 	"compatibility_date": "2026-03-17",
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	// Static assets served by Workers
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
 	// Runtime environment variables available to the Worker
 	"vars": {
 		"SITE_OVERRIDE": "arabic-tools"
