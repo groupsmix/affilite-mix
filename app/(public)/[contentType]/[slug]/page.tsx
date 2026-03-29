@@ -213,7 +213,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
               )}
               <div className="mt-2 flex items-center gap-3">
                 {heroProduct.price && (
-                  <span className="text-xl font-bold text-emerald-600">{heroProduct.price}</span>
+                  <span className="text-xl font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{heroProduct.price}</span>
                 )}
                 {heroProduct.score !== null && (
                   <span className="rounded bg-amber-100 px-2.5 py-1 text-sm font-semibold text-amber-800">
@@ -227,7 +227,8 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
                 href={`/api/track/click?p=${encodeURIComponent(heroProduct.slug)}&t=hero`}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
-                className="inline-block rounded-lg bg-emerald-600 px-6 py-3 text-center font-medium text-white transition-colors hover:bg-emerald-700"
+                className="inline-block rounded-lg px-6 py-3 text-center font-medium text-white transition-colors hover:opacity-90"
+                style={{ backgroundColor: "var(--color-accent, #10B981)" }}
               >
                 {heroProduct.cta_text || (site.language === "ar" ? "احصل على العرض" : "Get This Deal")}
               </a>
@@ -241,16 +242,13 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         <ComparisonTable products={comparisonProducts} />
       )}
 
-      {/* Pros/Cons for review pages */}
-      {isReview && heroProduct && heroProduct.description && (() => {
-        const desc = heroProduct.description;
-        const prosMatch = desc.match(/(?:pros?|advantages?|strengths?)[:;\n]([\s\S]*?)(?:cons?|disadvantages?|weaknesses?|$)/i);
-        const consMatch = desc.match(/(?:cons?|disadvantages?|weaknesses?)[:;\n]([\s\S]*?)$/i);
-        const pros = prosMatch
-          ? prosMatch[1].split(/[;\n•\-\*]/).map((s) => s.trim()).filter(Boolean)
+      {/* Pros/Cons for review pages — uses structured data from product fields */}
+      {isReview && heroProduct && (heroProduct.pros || heroProduct.cons) && (() => {
+        const pros = heroProduct.pros
+          ? heroProduct.pros.split("\n").map((s) => s.trim()).filter(Boolean)
           : [];
-        const cons = consMatch
-          ? consMatch[1].split(/[;\n•\-\*]/).map((s) => s.trim()).filter(Boolean)
+        const cons = heroProduct.cons
+          ? heroProduct.cons.split("\n").map((s) => s.trim()).filter(Boolean)
           : [];
         return <ProsCons pros={pros} cons={cons} language={site.language} />;
       })()}

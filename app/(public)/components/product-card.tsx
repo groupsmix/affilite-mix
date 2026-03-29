@@ -58,7 +58,7 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
       )}
       <div className="mb-3 flex items-center gap-3">
         {product.price && (
-          <span className="text-lg font-bold text-emerald-600">{product.price}</span>
+          <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
         )}
         {product.score !== null && (
           <span className="rounded bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-800">
@@ -71,7 +71,8 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
           href={trackUrl}
           target="_blank"
           rel="noopener noreferrer nofollow"
-          className="block w-full rounded-md bg-emerald-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+          className="block w-full rounded-md px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
+          style={{ backgroundColor: "var(--color-accent, #10B981)" }}
         >
           {buttonLabel}
         </a>
