@@ -3,12 +3,12 @@ import {
   TaxonomyPage,
   generateTaxonomyMetadata,
   generateTaxonomyStaticParams,
-  TAXONOMY_REVALIDATE,
 } from "../../components/taxonomy-page";
 
 const CONFIG = { prefix: "occasion", label: "Shop by Occasion" } as const;
 
-export const revalidate = TAXONOMY_REVALIDATE;
+/** ISR: revalidate every 60 seconds */
+export const revalidate = 60;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
