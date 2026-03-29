@@ -1,27 +1,20 @@
-import type { SiteDefinition } from "../site-definition";
+import { defineSite } from "../define-site";
 
-export const cryptoToolsSite: SiteDefinition = {
+export const cryptoToolsSite = defineSite({
   id: "crypto-tools",
   name: "Crypto Tools",
   domain: "crypto.wristnerd.site",
   aliases: ["crypto.localhost", "wristnerd.site"],
-  language: "en",
-  direction: "ltr",
-  locale: "en_US",
+  niche: "Cryptocurrency Tools & Reviews",
+  description: "Compare crypto exchanges, wallets, and DeFi tools — honest reviews and affiliate deals.",
 
-  brand: {
-    description:
-      "Compare crypto exchanges, wallets, and DeFi tools — honest reviews and affiliate deals.",
-    contactEmail: "contact@crypto.wristnerd.site",
-    niche: "Cryptocurrency Tools & Reviews",
-  },
+  colors: { primary: "#0F172A", accent: "#F59E0B" },
+  fonts: "modern",
 
-  theme: {
-    primaryColor: "#0F172A",
-    accentColor: "#F59E0B",
-    fontHeading: "Inter",
-    fontBody: "Inter",
-  },
+  features: ["blog", "newsletter", "rssFeed", "search", "scheduling", "comparisons", "deals"],
+
+  contentDisclosure:
+    "This page contains affiliate links. We may earn a commission if you sign up through our links.",
 
   nav: [
     { title: "Home", href: "/" },
@@ -43,52 +36,6 @@ export const cryptoToolsSite: SiteDefinition = {
     ],
   },
 
-  contentTypes: [
-    {
-      value: "article",
-      label: "Article",
-      commercial: false,
-      layout: "standard",
-    },
-    {
-      value: "review",
-      label: "Review",
-      commercial: true,
-      layout: "sidebar",
-    },
-    {
-      value: "comparison",
-      label: "Comparison",
-      commercial: true,
-      layout: "sidebar",
-      minProducts: 2,
-    },
-    {
-      value: "guide",
-      label: "Guide",
-      commercial: false,
-      layout: "standard",
-    },
-  ],
-
-  productLabel: "Product",
-  productLabelPlural: "Products",
-
-  affiliateDisclosure:
-    "This page contains affiliate links. We may earn a commission at no extra cost to you.",
-  contentDisclosure:
-    "This page contains affiliate links. We may earn a commission if you sign up through our links.",
-
-  features: {
-    blog: { source: "database" },
-    newsletter: true,
-    rssFeed: true,
-    searchModal: true,
-    scheduling: true,
-    comparisons: true,
-    deals: true,
-  },
-
   pages: {
     about: {
       title: "About Crypto Tools",
@@ -104,10 +51,6 @@ export const cryptoToolsSite: SiteDefinition = {
     },
   },
 
-  seo: {
-    robotsDisallow: ["/admin/", "/api/"],
-    sitemapStaticPages: [
-      { path: "/", priority: 1, changeFrequency: "daily" },
-    ],
-  },
-};
+  contactPage: false,
+  affiliateDisclosurePage: false,
+});

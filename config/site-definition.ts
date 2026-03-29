@@ -52,6 +52,9 @@ export interface SiteDefinition {
       changeFrequency: string;
     }[];
   };
+
+  /** Homepage template preset. Defaults to "standard". */
+  homepageTemplate?: "standard" | "cinematic" | "minimal";
 }
 
 export interface FeatureFlags {
