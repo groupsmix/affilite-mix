@@ -7,6 +7,9 @@ import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
+/** Revalidate content type listing pages every 60 seconds (ISR) */
+export const revalidate = 60;
+
 const PAGE_SIZE = 12;
 
 interface ContentTypePageProps {

@@ -5,6 +5,7 @@ import {
   getRecentClicks,
   getTopProducts,
   getTopReferrers,
+  getTopContentSlugs,
   getDailyClicks,
 } from "@/lib/dal/affiliate-clicks";
 import { countProducts } from "@/lib/dal/products";
@@ -35,6 +36,7 @@ export default async function AnalyticsPage() {
     clicksAllTime,
     topProducts,
     topReferrers,
+    topContent,
     dailyClicks,
     recentClicks,
     totalProducts,
@@ -45,6 +47,7 @@ export default async function AnalyticsPage() {
     getClickCount(siteId),
     getTopProducts(siteId, thirtyDaysAgo, 10),
     getTopReferrers(siteId, thirtyDaysAgo, 10),
+    getTopContentSlugs(siteId, thirtyDaysAgo, 10),
     getDailyClicks(siteId, 30),
     getRecentClicks(siteId, 20),
     countProducts({ siteId, status: "active" }),
@@ -174,6 +177,38 @@ export default async function AnalyticsPage() {
           )}
         </section>
       </div>
+
+      {/* Top content driving clicks */}
+      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Top Content Driving Clicks (30d)</h2>
+        {topContent.length === 0 ? (
+          <p className="text-sm text-gray-400">No content click data yet</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left text-gray-500">
+                <th className="pb-2 font-medium">Content Page</th>
+                <th className="pb-2 text-right font-medium">Clicks</th>
+                <th className="pb-2 text-right font-medium">% of Total</th>
+                <th className="pb-2 text-right font-medium">Est. Rev</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topContent.map((c, i) => {
+                const pct = clicks30d > 0 ? (c.click_count / clicks30d) * 100 : 0;
+                return (
+                  <tr key={i} className="border-b border-gray-50">
+                    <td className="max-w-[300px] truncate py-2 text-gray-900">{c.content_slug}</td>
+                    <td className="py-2 text-right font-medium text-gray-700">{c.click_count}</td>
+                    <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
+                    <td className="py-2 text-right text-green-700">${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       {/* Recent clicks */}
       <section className="rounded-lg border border-gray-200 bg-white p-6">

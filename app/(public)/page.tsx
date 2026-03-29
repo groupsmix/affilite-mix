@@ -33,6 +33,9 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/** Revalidate homepage every 60 seconds (ISR) */
+export const revalidate = 60;
+
 export default async function HomePage() {
   const site = await getCurrentSite();
   const [recentContent, featuredProducts, categories] = await Promise.all([
@@ -74,9 +77,11 @@ export default async function HomePage() {
       {/* Featured Products */}
       {featuredProducts.length > 0 && (
         <section className="mb-12">
-          <h2 className="mb-6 text-2xl font-bold">
-            {site.productLabelPlural}
-          </h2>
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-bold">
+              {site.productLabelPlural}
+            </h2>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {featuredProducts.map((product) => (
               <ProductCard
@@ -93,9 +98,17 @@ export default async function HomePage() {
       {/* Recent Content */}
       {recentContent.length > 0 && (
         <section className="mb-12">
-          <h2 className="mb-6 text-2xl font-bold">
-            {site.language === "ar" ? "أحدث المحتوى" : "Latest Content"}
-          </h2>
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-bold">
+              {site.language === "ar" ? "أحدث المحتوى" : "Latest Content"}
+            </h2>
+            <Link
+              href={`/${site.contentTypes[0]?.value ?? "article"}`}
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
+            >
+              {site.language === "ar" ? "عرض الكل ←" : "View all →"}
+            </Link>
+          </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {recentContent.map((content) => (
               <ContentCard key={content.id} content={content} locale={locale} />
