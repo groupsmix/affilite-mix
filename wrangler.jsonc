@@ -7,6 +7,10 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	// Runtime environment variables available to the Worker
+	"vars": {
+		"SITE_OVERRIDE": "arabic-tools"
+	},
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
