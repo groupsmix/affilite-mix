@@ -1,20 +1,24 @@
-// This config is used by @opennextjs/cloudflare for Cloudflare Pages builds.
-// Do NOT use `wrangler deploy` — deploy via `wrangler pages deploy` (see deploy.yml).
+// Wrangler config for @opennextjs/cloudflare Workers deployment.
+// Deploy via: npx opennextjs-cloudflare build && npx opennextjs-cloudflare deploy
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "nichehub",
+	"name": "affilite-mix",
+	"main": ".open-next/worker.js",
 	"compatibility_date": "2026-03-17",
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
-	"pages_build_output_dir": ".open-next/assets",
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
 			// see https://opennext.js.org/cloudflare/caching
 			"binding": "WORKER_SELF_REFERENCE",
-			"service": "nichehub"
+			"service": "affilite-mix"
 		}
 	],
 	// KV namespace for distributed rate limiting
