@@ -243,6 +243,9 @@ export interface CreateContentInput {
   tags: string[];
   author: string | null;
   publish_at: string | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  og_image: string | null;
 }
 
 const CONTENT_STATUSES = new Set(["draft", "review", "published", "archived"]);
@@ -286,6 +289,9 @@ export function validateCreateContent(body: Record<string, unknown>): Validation
       tags: Array.isArray(body.tags) ? (body.tags as string[]) : [],
       author: isString(body.author) ? body.author : null,
       publish_at: isString(body.publish_at) && body.publish_at !== "" ? body.publish_at : null,
+      meta_title: isString(body.meta_title) && body.meta_title !== "" ? body.meta_title : null,
+      meta_description: isString(body.meta_description) && body.meta_description !== "" ? body.meta_description : null,
+      og_image: isString(body.og_image) && body.og_image !== "" ? body.og_image : null,
     },
     errors: null,
   };
@@ -305,6 +311,9 @@ export interface UpdateContentInput {
   tags?: string[];
   author?: string | null;
   publish_at?: string | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  og_image?: string | null;
 }
 
 export function validateUpdateContent(body: Record<string, unknown>): ValidationResult<UpdateContentInput> {
@@ -344,6 +353,9 @@ export function validateUpdateContent(body: Record<string, unknown>): Validation
   if (body.tags !== undefined) data.tags = body.tags as string[];
   if (body.author !== undefined) data.author = body.author as string | null;
   if (body.publish_at !== undefined) data.publish_at = body.publish_at as string | null;
+  if (body.meta_title !== undefined) data.meta_title = isString(body.meta_title) && body.meta_title !== "" ? body.meta_title : null;
+  if (body.meta_description !== undefined) data.meta_description = isString(body.meta_description) && body.meta_description !== "" ? body.meta_description : null;
+  if (body.og_image !== undefined) data.og_image = isString(body.og_image) && body.og_image !== "" ? body.og_image : null;
   return { data, errors: null };
 }
 

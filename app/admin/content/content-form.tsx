@@ -34,6 +34,9 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
   const [tagsStr, setTagsStr] = useState((content?.tags ?? []).join(", "));
   const [author, setAuthor] = useState(content?.author ?? "");
   const [publishAt, setPublishAt] = useState(content?.publish_at ?? "");
+  const [metaTitle, setMetaTitle] = useState(content?.meta_title ?? "");
+  const [metaDescription, setMetaDescription] = useState(content?.meta_description ?? "");
+  const [ogImage, setOgImage] = useState(content?.og_image ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -76,6 +79,9 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
       tags,
       author: author || null,
       publish_at: publishAt || null,
+      meta_title: metaTitle || null,
+      meta_description: metaDescription || null,
+      og_image: ogImage || null,
     };
 
     const res = isEdit
@@ -245,6 +251,50 @@ export function ContentForm({ content, categories, products, linkedProducts }: C
           <p className="mt-1 text-xs text-gray-400">Leave empty for immediate action</p>
         </div>
       </div>
+
+      {/* SEO Meta Fields */}
+      <details className="rounded-lg border border-gray-200 bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+          SEO &amp; Open Graph Settings
+        </summary>
+        <div className="space-y-4 border-t border-gray-200 px-4 py-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Meta Title</label>
+            <input
+              type="text"
+              value={metaTitle}
+              onChange={(e) => setMetaTitle(e.target.value)}
+              placeholder={title || "Defaults to content title"}
+              maxLength={70}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-gray-400">{metaTitle.length}/70 characters</p>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Meta Description</label>
+            <textarea
+              value={metaDescription}
+              onChange={(e) => setMetaDescription(e.target.value)}
+              placeholder={excerpt || "Defaults to content excerpt"}
+              maxLength={160}
+              rows={2}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-gray-400">{metaDescription.length}/160 characters</p>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">OG Image URL</label>
+            <input
+              type="text"
+              value={ogImage}
+              onChange={(e) => setOgImage(e.target.value)}
+              placeholder={featuredImage || "Defaults to featured image"}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-gray-400">Override the Open Graph image for social sharing</p>
+          </div>
+        </div>
+      </details>
 
       {/* Product Linker */}
       <ProductLinker

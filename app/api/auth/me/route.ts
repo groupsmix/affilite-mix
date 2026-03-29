@@ -14,6 +14,7 @@ export async function GET() {
 
   return NextResponse.json({
     role: session.role,
+    email: session.email ?? null,
     activeSite: activeSite ? { id: activeSite.id, name: activeSite.name } : null,
   });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { getServiceClient } from "@/lib/supabase-server";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import type { ContentRow, ProductRow } from "@/types/database";
 
 /**
@@ -81,6 +82,21 @@ export async function POST(request: NextRequest) {
 
   revalidateTag("content");
   revalidateTag("products");
+
+  // Ping search engines if any content was published
+  if ((results.published_content as number) > 0) {
+    // Fetch all active site domains to ping their sitemaps
+    const { data: sites } = await sb
+      .from("sites")
+      .select("domain")
+      .eq("is_active", true)
+      .overrideTypes<{ domain: string }[]>();
+    if (sites) {
+      for (const site of sites) {
+        pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
+      }
+    }
+  }
 
   return NextResponse.json(results);
 }
