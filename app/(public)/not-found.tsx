@@ -2,8 +2,15 @@ import { getCurrentSite } from "@/lib/site-context";
 import Link from "next/link";
 
 export default async function PublicNotFound() {
-  const site = await getCurrentSite();
-  const isArabic = site.language === "ar";
+  let isArabic = false;
+  try {
+    const site = await getCurrentSite();
+    isArabic = site.language === "ar";
+  } catch {
+    // During build-time static generation (e.g. /_not-found), the site
+    // context is unavailable because middleware hasn't run and Supabase
+    // env vars may be missing. Fall back to English defaults.
+  }
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-16 text-center">
