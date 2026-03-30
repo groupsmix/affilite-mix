@@ -17,11 +17,11 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
 
   useEffect(() => {
     // Check if cookie consent has been resolved
-    const consent = getCookieValue("nichehub-cookie-consent");
+    const consent = getCookieValue("nh-cookie-consent");
     setCookieConsentResolved(consent === "accepted" || consent === "rejected");
 
     function handleConsentChange() {
-      const updatedConsent = getCookieValue("nichehub-cookie-consent");
+      const updatedConsent = getCookieValue("nh-cookie-consent");
       setCookieConsentResolved(updatedConsent === "accepted" || updatedConsent === "rejected");
     }
     window.addEventListener("cookieConsent", handleConsentChange);
