@@ -2,7 +2,8 @@ import type { ProductRow } from "@/types/database";
 
 /**
  * Auto-link product name mentions in HTML content body.
- * Only links the first occurrence of each product name to avoid cluttering.
+ * Links the first AND last occurrence of each product name so readers
+ * encounter a clickable link both early and late in long-form content.
  * Skips text already inside <a> tags or HTML attributes.
  */
 export function injectProductLinks(
@@ -23,67 +24,99 @@ export function injectProductLinks(
     // Escape special regex characters in product name
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    // Match the product name as a whole word, but NOT inside an existing <a> tag
-    // Strategy: split on <a...>...</a> segments, only replace in non-anchor parts
-    const anchorPattern = /<a\b[^>]*>[\s\S]*?<\/a>/gi;
-    const parts: string[] = [];
-    let lastIndex = 0;
-    let matched = false;
+    // Collect all non-anchor text segments with their positions
+    const segments = splitAroundAnchors(result);
+    const matchPositions = findAllMatches(segments, escaped);
 
-    let anchorMatch: RegExpExecArray | null;
-    while ((anchorMatch = anchorPattern.exec(result)) !== null) {
-      // Process text before anchor
-      const textBefore = result.slice(lastIndex, anchorMatch.index);
-      if (!matched) {
-        const { text, didReplace } = replaceFirst(textBefore, escaped, product);
-        parts.push(text);
-        if (didReplace) matched = true;
-      } else {
-        parts.push(textBefore);
-      }
-      // Keep anchor as-is
-      parts.push(anchorMatch[0]);
-      lastIndex = anchorMatch.index + anchorMatch[0].length;
+    if (matchPositions.length === 0) continue;
+
+    // Determine which occurrences to link: first and last (may be the same)
+    const indicesToLink = new Set<number>([0, matchPositions.length - 1]);
+
+    // Replace in reverse order to preserve string positions
+    const positionsToReplace = matchPositions
+      .map((pos, idx) => ({ ...pos, shouldLink: indicesToLink.has(idx) }))
+      .filter((p) => p.shouldLink)
+      .reverse();
+
+    for (const pos of positionsToReplace) {
+      const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=inline`;
+      const link = `<a href="${trackUrl}" target="_blank" rel="noopener noreferrer nofollow" class="text-emerald-600 font-medium hover:underline">${pos.matchedText}</a>`;
+      result =
+        result.slice(0, pos.start) +
+        link +
+        result.slice(pos.start + pos.matchedText.length);
     }
-
-    // Process remaining text after last anchor
-    const remaining = result.slice(lastIndex);
-    if (!matched) {
-      const { text } = replaceFirst(remaining, escaped, product);
-      parts.push(text);
-    } else {
-      parts.push(remaining);
-    }
-
-    result = parts.join("");
   }
 
   return result;
 }
 
-function replaceFirst(
-  text: string,
+interface MatchPosition {
+  start: number;
+  matchedText: string;
+}
+
+/** Split the HTML into segments that are outside <a> tags */
+function splitAroundAnchors(
+  html: string,
+): { text: string; offset: number; isAnchor: boolean }[] {
+  const anchorPattern = /<a\b[^>]*>[\s\S]*?<\/a>/gi;
+  const segments: { text: string; offset: number; isAnchor: boolean }[] = [];
+  let lastIndex = 0;
+
+  let anchorMatch: RegExpExecArray | null;
+  while ((anchorMatch = anchorPattern.exec(html)) !== null) {
+    if (anchorMatch.index > lastIndex) {
+      segments.push({
+        text: html.slice(lastIndex, anchorMatch.index),
+        offset: lastIndex,
+        isAnchor: false,
+      });
+    }
+    segments.push({
+      text: anchorMatch[0],
+      offset: anchorMatch.index,
+      isAnchor: true,
+    });
+    lastIndex = anchorMatch.index + anchorMatch[0].length;
+  }
+
+  if (lastIndex < html.length) {
+    segments.push({
+      text: html.slice(lastIndex),
+      offset: lastIndex,
+      isAnchor: false,
+    });
+  }
+
+  return segments;
+}
+
+/** Find all match positions of the product name in non-anchor segments */
+function findAllMatches(
+  segments: { text: string; offset: number; isAnchor: boolean }[],
   escapedName: string,
-  product: ProductRow,
-): { text: string; didReplace: boolean } {
-  // Only match in text content, not inside HTML tags
-  // Use a pattern that ensures we're not inside a tag attribute
+): MatchPosition[] {
+  const positions: MatchPosition[] = [];
   const pattern = new RegExp(
     `(?<=>|^)([^<]*?)\\b(${escapedName})\\b`,
-    "i",
+    "gi",
   );
 
-  const match = pattern.exec(text);
-  if (!match) return { text, didReplace: false };
+  for (const seg of segments) {
+    if (seg.isAnchor) continue;
 
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=inline`;
-  const link = `<a href="${trackUrl}" target="_blank" rel="noopener noreferrer nofollow" class="text-emerald-600 font-medium hover:underline">${match[2]}</a>`;
+    let match: RegExpExecArray | null;
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(seg.text)) !== null) {
+      const matchStart = seg.offset + match.index + match[1].length;
+      positions.push({
+        start: matchStart,
+        matchedText: match[2],
+      });
+    }
+  }
 
-  const replaced =
-    text.slice(0, match.index) +
-    match[1] +
-    link +
-    text.slice(match.index + match[0].length);
-
-  return { text: replaced, didReplace: true };
+  return positions;
 }

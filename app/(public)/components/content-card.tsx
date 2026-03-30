@@ -35,9 +35,9 @@ export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
         )}
         <div className="flex items-center justify-between text-xs text-gray-400">
           <span>{content.type}</span>
-          {content.updated_at && (
-            <time dateTime={content.updated_at}>
-              {new Date(content.updated_at).toLocaleDateString(locale)}
+          {(content.publish_at ?? content.created_at) && (
+            <time dateTime={content.publish_at ?? content.created_at}>
+              {new Date(content.publish_at ?? content.created_at).toLocaleDateString(locale)}
             </time>
           )}
         </div>

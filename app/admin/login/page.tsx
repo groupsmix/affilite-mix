@@ -86,6 +86,9 @@ export default function AdminLoginPage() {
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>
+        <p className="mt-4 text-center text-xs text-gray-400">
+          Forgot your password? Contact the system administrator to reset it.
+        </p>
       </form>
     </div>
   );
