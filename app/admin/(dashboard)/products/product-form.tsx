@@ -159,7 +159,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <input
             type="url"
             value={affiliateUrl}
-            onChange={(e) => setAffiliateUrl(e.target.value)}
+            onChange={(e) => { setAffiliateUrl(e.target.value); markDirty(); }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
         </div>
@@ -178,7 +178,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <input
             type="text"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={(e) => { setPrice(e.target.value); markDirty(); }}
             placeholder="e.g. $29.99"
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
@@ -191,7 +191,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             step="0.01"
             min="0"
             value={priceAmount}
-            onChange={(e) => setPriceAmount(e.target.value)}
+            onChange={(e) => { setPriceAmount(e.target.value); markDirty(); }}
             placeholder="29.99"
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
@@ -201,7 +201,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <label className="mb-1 block text-sm font-medium text-gray-700">Currency</label>
           <select
             value={priceCurrency}
-            onChange={(e) => setPriceCurrency(e.target.value)}
+            onChange={(e) => { setPriceCurrency(e.target.value); markDirty(); }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
             <option value="USD">USD</option>
@@ -220,7 +220,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <input
             type="text"
             value={merchant}
-            onChange={(e) => setMerchant(e.target.value)}
+            onChange={(e) => { setMerchant(e.target.value); markDirty(); }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
         </div>
@@ -233,7 +233,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             max="10"
             step="0.1"
             value={score}
-            onChange={(e) => setScore(e.target.value)}
+            onChange={(e) => { setScore(e.target.value); markDirty(); }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
         </div>
@@ -244,7 +244,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
           <select
             value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
+            onChange={(e) => { setCategoryId(e.target.value); markDirty(); }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
             <option value="">No category</option>
@@ -258,7 +258,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
           <select
             value={status}
-            onChange={(e) => setStatus(e.target.value as ProductRow["status"])}
+            onChange={(e) => { setStatus(e.target.value as ProductRow["status"]); markDirty(); }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           >
             <option value="draft">Draft</option>
@@ -274,7 +274,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <input
             type="text"
             value={ctaText}
-            onChange={(e) => setCtaText(e.target.value)}
+            onChange={(e) => { setCtaText(e.target.value); markDirty(); }}
             placeholder="e.g. Get 50% Off"
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
@@ -285,7 +285,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <input
             type="text"
             value={dealText}
-            onChange={(e) => setDealText(e.target.value)}
+            onChange={(e) => { setDealText(e.target.value); markDirty(); }}
             placeholder="e.g. 20% Off"
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
@@ -299,10 +299,11 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             onChange={(e) => {
               if (!e.target.value) {
                 setDealExpiresAt("");
-                return;
+              } else {
+                // Treat the input value as UTC directly (not local timezone)
+                setDealExpiresAt(e.target.value + ":00.000Z");
               }
-              // Treat the input value as UTC directly (not local timezone)
-              setDealExpiresAt(e.target.value + ":00.000Z");
+              markDirty();
             }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
@@ -319,7 +320,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <label className="mb-1 block text-sm font-medium text-gray-700">Pros (one per line)</label>
           <textarea
             value={pros}
-            onChange={(e) => setPros(e.target.value)}
+            onChange={(e) => { setPros(e.target.value); markDirty(); }}
             rows={3}
             placeholder={"Great battery life\nExcellent display\nAffordable price"}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
@@ -329,7 +330,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <label className="mb-1 block text-sm font-medium text-gray-700">Cons (one per line)</label>
           <textarea
             value={cons}
-            onChange={(e) => setCons(e.target.value)}
+            onChange={(e) => { setCons(e.target.value); markDirty(); }}
             rows={3}
             placeholder={"No wireless charging\nBulky design"}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
@@ -342,7 +343,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <input
             type="checkbox"
             checked={isFeatured}
-            onChange={(e) => setIsFeatured(e.target.checked)}
+            onChange={(e) => { setIsFeatured(e.target.checked); markDirty(); }}
             className="rounded border-gray-300"
           />
           Featured
