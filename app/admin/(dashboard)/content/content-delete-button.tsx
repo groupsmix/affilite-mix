@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { toast } from "sonner";
 
 export function ContentDeleteButton({ id, title }: { id: string; title: string }) {
   const router = useRouter();
@@ -13,9 +14,10 @@ export function ContentDeleteButton({ id, title }: { id: string; title: string }
     setDeleting(true);
     const res = await fetchWithCsrf(`/api/admin/content?id=${id}`, { method: "DELETE" });
     if (res.ok) {
+      toast.success("Content deleted");
       router.refresh();
     } else {
-      alert("Failed to delete content");
+      toast.error("Failed to delete content");
     }
     setDeleting(false);
     setShowConfirm(false);

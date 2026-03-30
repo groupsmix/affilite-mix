@@ -6,6 +6,7 @@ import type { ProductRow, CategoryRow } from "@/types/database";
 import { ImageUploader } from "../components/image-uploader";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { autoSlug } from "@/lib/auto-slug";
+import { toast } from "sonner";
 
 interface ProductFormProps {
   product?: ProductRow;
@@ -94,12 +95,15 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         });
 
     if (res.ok) {
+      toast.success(isEdit ? "Product updated" : "Product created");
       isDirtyRef.current = false;
       router.push("/admin/products");
       router.refresh();
     } else {
       const data = await res.json();
-      setError(data.error ?? "Failed to save");
+      const msg = data.error ?? "Failed to save";
+      setError(msg);
+      toast.error(msg);
     }
     setSaving(false);
   }
