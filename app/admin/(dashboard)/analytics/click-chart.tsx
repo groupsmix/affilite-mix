@@ -56,8 +56,8 @@ export function ClickChart({ data }: ClickChartProps) {
             fontSize: 12,
           }}
           labelStyle={{ color: "#9ca3af", fontSize: 11 }}
-          formatter={(value: number) => [`${value} clicks`, "Clicks"]}
-          labelFormatter={(label: string) => label}
+          formatter={(value) => [`${value} clicks`, "Clicks"]}
+          labelFormatter={(label) => String(label)}
           cursor={{ fill: "rgba(16,185,129,0.08)" }}
         />
         <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
