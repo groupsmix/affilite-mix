@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 /** Refresh interval: 30 minutes in ms */
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
@@ -13,7 +14,7 @@ export function TokenRefresh() {
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
-        await fetch("/api/auth/refresh", { method: "POST" });
+        await fetchWithCsrf("/api/auth/refresh", { method: "POST" });
       } catch {
         // Silently ignore refresh failures — user will be redirected on next
         // server action if the token truly expired.

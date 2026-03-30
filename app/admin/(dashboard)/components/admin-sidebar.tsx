@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SiteSwitcher } from "./site-switcher";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 function DashboardIcon({ className }: { className?: string }) {
   return (
@@ -184,7 +185,7 @@ export function AdminSidebar({ siteName }: { siteName?: string | null }) {
 function LogoutButton() {
   async function handleLogout() {
     try {
-      const res = await fetch("/api/auth/logout", { method: "POST" });
+      const res = await fetchWithCsrf("/api/auth/logout", { method: "POST" });
       if (!res.ok) throw new Error("Logout failed");
     } catch {
       // Still redirect — server-side token should be cleared on the login page load

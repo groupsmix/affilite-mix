@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface SiteInfo {
   id: string;
@@ -82,7 +83,7 @@ export function SiteManager() {
 
     if (editingSite) {
       // Update existing site
-      const res = await fetch("/api/admin/sites", {
+      const res = await fetchWithCsrf("/api/admin/sites", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -101,7 +102,7 @@ export function SiteManager() {
       }
     } else {
       // Create new site
-      const res = await fetch("/api/admin/sites", {
+      const res = await fetchWithCsrf("/api/admin/sites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -122,7 +123,7 @@ export function SiteManager() {
   async function handleDelete(site: SiteInfo) {
     if (!confirm(`Delete "${site.name}"? This will remove all associated data.`)) return;
 
-    const res = await fetch(`/api/admin/sites?id=${site.db_id ?? site.id}`, {
+    const res = await fetchWithCsrf(`/api/admin/sites?id=${site.db_id ?? site.id}`, {
       method: "DELETE",
     });
     if (res.ok) {
@@ -132,7 +133,7 @@ export function SiteManager() {
 
   async function handleSelect(siteId: string) {
     setSelectingId(siteId);
-    const res = await fetch("/api/admin/sites/select", {
+    const res = await fetchWithCsrf("/api/admin/sites/select", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ siteId }),

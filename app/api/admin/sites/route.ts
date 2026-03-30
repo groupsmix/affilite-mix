@@ -8,6 +8,22 @@ import {
   deleteSite,
 } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+/** 100 admin API requests per minute per user session (3.30) */
+const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
+
+async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
+  const key = `admin:${email ?? userId ?? "unknown"}`;
+  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+  return null;
+}
 
 /** GET /api/admin/sites — list all available sites (config + DB) */
 export async function GET() {
@@ -15,6 +31,9 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
 
   // Merge config-defined sites with DB sites
   const configSites = allSites.map((s) => ({
@@ -60,6 +79,9 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
 
   const body = await request.json();
   const { slug, name, domain, language, direction } = body as {
@@ -112,6 +134,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
+
   const body = await request.json();
   const { id, name, domain, language, direction } = body as {
     id?: string;
@@ -159,6 +184,9 @@ export async function DELETE(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
 
   const { searchParams } = request.nextUrl;
   const id = searchParams.get("id");
