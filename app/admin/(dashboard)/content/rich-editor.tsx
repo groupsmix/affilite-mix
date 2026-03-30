@@ -12,6 +12,21 @@ interface RichEditorProps {
   onChange: (html: string) => void;
 }
 
+/** Convert a YouTube or Vimeo URL to an embeddable URL. */
+function toEmbedUrl(url: string): string | null {
+  // YouTube: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
+  const ytMatch = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/,
+  );
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+
+  // Vimeo: vimeo.com/ID
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+
+  return null;
+}
+
 /** Inline popover for entering a URL (used for both links and images). */
 function UrlPopover({
   label,
@@ -67,6 +82,7 @@ function UrlPopover({
 function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   const [showLinkPopover, setShowLinkPopover] = useState(false);
   const [showImagePopover, setShowImagePopover] = useState(false);
+  const [showVideoPopover, setShowVideoPopover] = useState(false);
 
   if (!editor) return null;
 
@@ -221,7 +237,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
       <div className="relative">
         <button
           type="button"
-          onClick={() => { setShowImagePopover(!showImagePopover); setShowLinkPopover(false); }}
+          onClick={() => { setShowImagePopover(!showImagePopover); setShowLinkPopover(false); setShowVideoPopover(false); }}
           className={btnClass(false)}
           title="Insert Image"
         >
@@ -236,6 +252,32 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
               setShowImagePopover(false);
             }}
             onCancel={() => setShowImagePopover(false)}
+          />
+        )}
+      </div>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => { setShowVideoPopover(!showVideoPopover); setShowLinkPopover(false); setShowImagePopover(false); }}
+          className={btnClass(false)}
+          title="Embed Video"
+        >
+          Video
+        </button>
+        {showVideoPopover && (
+          <UrlPopover
+            label="Video URL"
+            placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
+            onSubmit={(url) => {
+              const embedUrl = toEmbedUrl(url);
+              if (embedUrl) {
+                editor.chain().focus().insertContent(
+                  `<div data-video-embed="true"><iframe src="${embedUrl}" frameborder="0" allowfullscreen style="width:100%;aspect-ratio:16/9;"></iframe></div>`,
+                ).run();
+              }
+              setShowVideoPopover(false);
+            }}
+            onCancel={() => setShowVideoPopover(false)}
           />
         )}
       </div>
