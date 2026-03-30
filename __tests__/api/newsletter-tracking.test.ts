@@ -112,7 +112,7 @@ describe("cron authentication", () => {
   });
 
   it("rejects wrong secret", () => {
-    const authHeader = "Bearer wrong-secret";
+    const authHeader: string = "Bearer wrong-secret";
     const cronSecret = "test-secret";
     const isValid = authHeader === `Bearer ${cronSecret}`;
     expect(isValid).toBe(false);
