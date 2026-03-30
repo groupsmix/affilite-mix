@@ -36,6 +36,7 @@ CREATE TABLE products (
   description   text DEFAULT '',
   affiliate_url text DEFAULT '',
   image_url     text DEFAULT '',
+  image_alt     text DEFAULT '',
   price         text DEFAULT '',
   merchant      text DEFAULT '',
   score         real CHECK (score >= 0 AND score <= 10),
