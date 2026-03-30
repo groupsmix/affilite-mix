@@ -1,8 +1,11 @@
 import Link from "next/link";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
+
+type CategoryWithCount = CategoryRow & { product_count: number };
 import { ContentCard } from "./content-card";
 import { ProductCard } from "./product-card";
+import { GiftWorthinessScore } from "./gift-worthiness-score";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 
 /** Default SVG path for occasion icons when no category-specific icon is available. */
@@ -12,7 +15,7 @@ interface WatchHomepageProps {
   site: SiteDefinition;
   recentContent: ContentRow[];
   featuredProducts: ProductRow[];
-  categories: CategoryRow[];
+  categories: CategoryWithCount[];
 }
 
 export function WatchHomepage({
@@ -341,10 +344,7 @@ export function WatchHomepage({
                   </h3>
                   <div className="flex items-center justify-between border-t border-gray-100 pt-3">
                     <span className="text-sm font-medium text-gray-500">{watch.price}</span>
-                    <span className="flex items-center gap-1">
-                      <span className="text-sm font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{watch.score}</span>
-                      <span className="text-xs text-gray-400">/10</span>
-                    </span>
+                    <GiftWorthinessScore score={watch.score} size="sm" showLabel={false} />
                   </div>
                 </div>
               </Link>
@@ -366,13 +366,20 @@ export function WatchHomepage({
               </h2>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {categories.map((cat) => (
+              {categories.map((cat, i) => (
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
-                  className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                  className={`rounded-lg border bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${i === 0 ? "border-current/20 ring-1 ring-current/10" : "border-gray-200"}`}
+                  style={i === 0 ? { borderColor: "var(--color-accent)" } : undefined}
                 >
                   <h3 className="font-semibold text-gray-900">{cat.name}</h3>
+                  {cat.description && (
+                    <p className="mt-1 line-clamp-2 text-sm text-gray-500">{cat.description}</p>
+                  )}
+                  <span className="mt-2 inline-block text-xs text-gray-400">
+                    {cat.product_count} {cat.product_count === 1 ? "product" : "products"}
+                  </span>
                 </Link>
               ))}
             </div>

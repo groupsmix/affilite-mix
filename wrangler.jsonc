@@ -36,5 +36,12 @@
 			"binding": "NEXT_INC_CACHE_R2_BUCKET",
 			"bucket_name": "next-inc-cache"
 		}
-	]
+	],
+	// Cron triggers — publish scheduled content & archive expired products
+	// Runs every 5 minutes. The worker will POST to /api/cron/publish
+	// with the CRON_SECRET from environment variables.
+	// Set CRON_SECRET via: wrangler secret put CRON_SECRET
+	"triggers": {
+		"crons": ["*/5 * * * *"]
+	}
 }

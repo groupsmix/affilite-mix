@@ -15,10 +15,18 @@ function readConsentFromCookie(): ConsentState {
   return "pending";
 }
 
+const CONSENT_STORAGE_KEY = "nichehub-cookie-consent";
+
 function setConsentCookie(value: "accepted" | "rejected") {
   const expires = new Date();
   expires.setDate(expires.getDate() + CONSENT_EXPIRY_DAYS);
   document.cookie = `${CONSENT_COOKIE_NAME}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+  // Also write to localStorage so other tabs can detect the change via the storage event
+  try {
+    localStorage.setItem(CONSENT_STORAGE_KEY, value);
+  } catch {
+    // localStorage may be unavailable (e.g. private browsing)
+  }
 }
 
 function dispatchConsentEvent(accepted: boolean) {
@@ -169,8 +177,22 @@ export function useCookieConsent(): { accepted: boolean } {
     function handleConsentChange() {
       setAccepted(readConsentFromCookie() === "accepted");
     }
+
+    // Listen for same-tab consent changes
     window.addEventListener("cookieConsent", handleConsentChange);
-    return () => window.removeEventListener("cookieConsent", handleConsentChange);
+
+    // Listen for cross-tab consent changes via localStorage storage event
+    function handleStorageChange(e: StorageEvent) {
+      if (e.key === CONSENT_STORAGE_KEY) {
+        handleConsentChange();
+      }
+    }
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("cookieConsent", handleConsentChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   return { accepted };
