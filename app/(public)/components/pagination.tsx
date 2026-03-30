@@ -72,7 +72,7 @@ export function Pagination({ currentPage, totalItems, pageSize, basePath, search
       {currentPage > 1 && (
         <Link
           href={buildPageUrl(basePath, currentPage - 1, searchParams)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
         >
           Previous
         </Link>
@@ -93,7 +93,8 @@ export function Pagination({ currentPage, totalItems, pageSize, basePath, search
           <Link
             key={item}
             href={buildPageUrl(basePath, item, searchParams)}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${
+            aria-current={item === currentPage ? "page" : undefined}
+            className={`rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 ${
               item === currentPage
                 ? "bg-gray-900 text-white"
                 : "border border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -106,7 +107,7 @@ export function Pagination({ currentPage, totalItems, pageSize, basePath, search
       {currentPage < totalPages && (
         <Link
           href={buildPageUrl(basePath, currentPage + 1, searchParams)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
         >
           Next
         </Link>

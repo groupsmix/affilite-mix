@@ -1,12 +1,17 @@
 import { Suspense } from "react";
+import { headers } from "next/headers";
 import { getCurrentSite } from "@/lib/site-context";
 import { searchContent } from "@/lib/dal/content";
 import { searchProducts } from "@/lib/dal/products";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { ContentCard } from "../components/content-card";
 import { ProductCard } from "../components/product-card";
 import { Breadcrumbs } from "../components/breadcrumbs";
 import { SearchInput } from "./search-input";
 import type { Metadata } from "next";
+
+/** Rate limit: 30 searches per minute per IP */
+const SEARCH_RATE_LIMIT = { maxRequests: 30, windowMs: 60_000 };
 
 interface SearchPageProps {
   searchParams: Promise<{ q?: string }>;
@@ -29,12 +34,25 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   let contentResults: Awaited<ReturnType<typeof searchContent>> = [];
   let productResults: Awaited<ReturnType<typeof searchProducts>> = [];
+  let rateLimited = false;
 
   if (query.length >= 2) {
-    [contentResults, productResults] = await Promise.all([
-      searchContent(site.id, query, 12),
-      searchProducts(site.id, query, 12),
-    ]);
+    // Rate limit search queries to prevent abuse
+    const headerList = await headers();
+    const ip =
+      headerList.get("cf-connecting-ip") ??
+      headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      "unknown";
+    const rl = await checkRateLimit(`search:${ip}`, SEARCH_RATE_LIMIT);
+
+    if (!rl.allowed) {
+      rateLimited = true;
+    } else {
+      [contentResults, productResults] = await Promise.all([
+        searchContent(site.id, query, 12),
+        searchProducts(site.id, query, 12),
+      ]);
+    }
   }
 
   const hasResults = contentResults.length > 0 || productResults.length > 0;
@@ -60,8 +78,19 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         </Suspense>
       </header>
 
+      {/* Rate limit message */}
+      {rateLimited && (
+        <div className="py-16 text-center text-gray-400">
+          <p className="text-lg">
+            {site.language === "ar"
+              ? "أنت تبحث بسرعة كبيرة. يرجى الانتظار قليلاً والمحاولة مرة أخرى."
+              : "You're searching too quickly. Please wait a moment and try again."}
+          </p>
+        </div>
+      )}
+
       {/* Screen reader announcement for search results */}
-      {query.length >= 2 && (
+      {query.length >= 2 && !rateLimited && (
         <div className="sr-only" role="status" aria-live="polite">
           {hasResults
             ? (site.language === "ar"
