@@ -1,5 +1,5 @@
 import { getServiceClient } from "@/lib/supabase-server";
-import type { ContentProductRow, ProductRow } from "@/types/database";
+import type { ContentProductRow, ContentRow, ProductRow } from "@/types/database";
 
 const TABLE = "content_products";
 
@@ -60,6 +60,22 @@ export async function updateProductLink(
 
   if (error) throw error;
   return data as ContentProductRow;
+}
+
+/** Get content items that link to a given product */
+export async function getRelatedContentForProduct(
+  productId: string,
+): Promise<ContentRow[]> {
+  const sb = getServiceClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("content:content(*)")
+    .eq("product_id", productId);
+
+  if (error) throw error;
+  return (data ?? [])
+    .map((row) => (row as unknown as { content: ContentRow }).content)
+    .filter(Boolean);
 }
 
 /** Replace all linked products for a content item */

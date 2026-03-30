@@ -11,8 +11,8 @@ import {
 import { countProducts } from "@/lib/dal/products";
 import { redirect } from "next/navigation";
 import { ClickChart } from "./click-chart";
-import { LocalTime } from "./local-time";
 import { ExpandableTable } from "./expandable-table";
+import { LocalTime } from "./local-time";
 import { getSiteById } from "@/config/sites";
 
 /** Default estimated revenue per click (USD). Overridden by site config. */
@@ -250,9 +250,9 @@ export default async function AnalyticsPage() {
                 {recentClicks.map((click) => (
                   <tr key={click.id} className="border-b border-gray-50">
                     <td className="py-2 text-gray-900">{click.product_name}</td>
-                    <td className="py-2 text-gray-600">{click.content_slug || "—"}</td>
+                    <td className="py-2 text-gray-600">{click.content_slug || "\u2014"}</td>
                     <td className="max-w-[200px] truncate py-2 text-gray-600">
-                      {click.referrer || "—"}
+                      {click.referrer || "\u2014"}
                     </td>
                     <td className="py-2 text-right text-gray-400">
                       <LocalTime dateTime={click.created_at} />
