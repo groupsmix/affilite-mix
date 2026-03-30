@@ -3,14 +3,22 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getRecentContent } from "@/lib/dal/content";
 import { listFeaturedProducts } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
+import dynamic from "next/dynamic";
 import { ContentCard } from "./components/content-card";
 import { ProductCard } from "./components/product-card";
 import { NewsletterSignup } from "./components/newsletter-signup";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./components/json-ld";
-import { WatchHomepage } from "./components/watch-homepage";
-import { CinematicHomepage } from "./components/homepage-cinematic";
-import { MinimalHomepage } from "./components/homepage-minimal";
 import Link from "next/link";
+
+const WatchHomepage = dynamic(() =>
+  import("./components/watch-homepage").then((m) => m.WatchHomepage)
+);
+const CinematicHomepage = dynamic(() =>
+  import("./components/homepage-cinematic").then((m) => m.CinematicHomepage)
+);
+const MinimalHomepage = dynamic(() =>
+  import("./components/homepage-minimal").then((m) => m.MinimalHomepage)
+);
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();

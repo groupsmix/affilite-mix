@@ -143,7 +143,7 @@ export function ImageUploader({ value, onChange, label = "Image" }: ImageUploade
       {/* Preview */}
       {value && (
         <div className="relative mt-2 h-32 overflow-hidden rounded-md border border-gray-200">
-          <Image src={value} alt="Preview" fill className="object-cover" unoptimized />
+          <Image src={value} alt="Preview" fill className="object-cover" sizes="(max-width: 768px) 100vw, 672px" />
         </div>
       )}
     </div>
