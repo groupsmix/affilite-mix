@@ -3,6 +3,7 @@
 import type { ProductRow } from "@/types/database";
 import Image from "next/image";
 import { useCookieConsent } from "./cookie-consent";
+import { GiftWorthinessScore } from "./gift-worthiness-score";
 
 interface ProductCardProps {
   product: ProductRow;
@@ -81,6 +82,7 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
             alt={product.image_alt || product.name}
             width={320}
             height={160}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="h-40 w-full object-contain"
           />
         </div>
@@ -94,13 +96,7 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
           <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
         )}
         {product.score !== null && (
-          <span
-            className="rounded bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-800"
-            role="img"
-            aria-label={`Product score: ${product.score} out of 10`}
-          >
-            {product.score}/10
-          </span>
+          <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
         )}
       </div>
       {product.affiliate_url && (
