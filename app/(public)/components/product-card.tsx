@@ -1,3 +1,5 @@
+"use client";
+
 import type { ProductRow } from "@/types/database";
 import Image from "next/image";
 
@@ -24,8 +26,33 @@ function getDealTimeLeft(expiresAt: string | null): string | null {
   return `${hours}h left`;
 }
 
+/**
+ * Fire-and-forget click tracking, then navigate to the affiliate URL directly.
+ * Decouples tracking from navigation so tracking failures don't block the user.
+ */
+function handleCtaClick(e: React.MouseEvent<HTMLAnchorElement>, slug: string, sourceType: string) {
+  e.preventDefault();
+  const href = e.currentTarget.getAttribute("data-href");
+  if (!href) return;
+
+  const trackUrl = `/api/track/click?p=${encodeURIComponent(slug)}&t=${sourceType}`;
+
+  // Fire-and-forget tracking via sendBeacon or fetch with keepalive
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(trackUrl);
+    } else {
+      fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
+    }
+  } catch {
+    // Tracking failure should never block navigation
+  }
+
+  // Navigate directly to the affiliate URL
+  window.open(href, "_blank", "noopener,noreferrer");
+}
+
 export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal" }: ProductCardProps) {
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=${sourceType}`;
   const buttonLabel = product.cta_text || ctaLabel;
   const showDeal = product.deal_text && isDealActive(product.deal_expires_at);
   const dealTimeLeft = getDealTimeLeft(product.deal_expires_at);
@@ -68,7 +95,9 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
       </div>
       {product.affiliate_url && (
         <a
-          href={trackUrl}
+          href={product.affiliate_url}
+          data-href={product.affiliate_url}
+          onClick={(e) => handleCtaClick(e, product.slug, sourceType)}
           target="_blank"
           rel="noopener noreferrer nofollow"
           className="block w-full rounded-md px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:opacity-90"

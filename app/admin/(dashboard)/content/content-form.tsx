@@ -81,7 +81,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
   function autoSlug(value: string) {
     return value
       .toLowerCase()
-      .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+      .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
   }
 
@@ -258,16 +258,23 @@ export function ContentForm({ content, categories, products, linkedProducts, con
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-indigo-800">Publish Date & Time</label>
+            <label className="mb-1 block text-sm font-medium text-indigo-800">Publish Date & Time (UTC)</label>
             <input
               type="datetime-local"
               value={publishAt ? publishAt.slice(0, 16) : ""}
-              onChange={(e) => setPublishAt(e.target.value ? new Date(e.target.value).toISOString() : "")}
+              onChange={(e) => {
+                if (!e.target.value) {
+                  setPublishAt("");
+                  return;
+                }
+                // Treat the input value as UTC directly (not local timezone)
+                setPublishAt(e.target.value + ":00.000Z");
+              }}
               className="w-full rounded border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
             />
             <p className="mt-1 text-xs text-indigo-600">
               {publishAt
-                ? `Scheduled for ${new Date(publishAt).toLocaleString()}`
+                ? `Scheduled for ${new Date(publishAt).toUTCString()}`
                 : "Leave empty to publish immediately when status is set to Published"}
             </p>
           </div>
