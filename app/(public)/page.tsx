@@ -6,7 +6,6 @@ import { listCategories } from "@/lib/dal/categories";
 import dynamic from "next/dynamic";
 import { ContentCard } from "./components/content-card";
 import { ProductCard } from "./components/product-card";
-import { NewsletterSignup } from "./components/newsletter-signup";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./components/json-ld";
 import Link from "next/link";
 
@@ -144,11 +143,6 @@ export default async function HomePage() {
           </div>
         </section>
       )}
-
-      {/* Newsletter signup */}
-      <section className="mb-12">
-        <NewsletterSignup siteLanguage={site.language} />
-      </section>
 
       {/* Empty state */}
       {recentContent.length === 0 && featuredProducts.length === 0 && (
