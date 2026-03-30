@@ -13,6 +13,7 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, label: "" });
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (selectedIds.length === 0) return null;
 
@@ -46,7 +47,6 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
   }
 
   async function bulkDelete() {
-    if (!confirm(`Delete ${selectedIds.length} product(s)? This cannot be undone.`)) return;
     const total = selectedIds.length;
     setLoading(true);
     setProgress({ current: 0, total, label: "Deleting" });
@@ -102,13 +102,32 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
       >
         Archive
       </button>
-      <button
-        onClick={bulkDelete}
-        disabled={loading}
-        className="rounded bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-      >
-        Delete
-      </button>
+      {confirmDelete ? (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="text-xs font-medium text-red-700">Delete {selectedIds.length} product(s)?</span>
+          <button
+            onClick={() => { setConfirmDelete(false); bulkDelete(); }}
+            disabled={loading}
+            className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={() => setConfirmDelete(false)}
+            className="text-xs text-gray-500 hover:text-gray-700"
+          >
+            Cancel
+          </button>
+        </span>
+      ) : (
+        <button
+          onClick={() => setConfirmDelete(true)}
+          disabled={loading}
+          className="rounded bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          Delete
+        </button>
+      )}
       <button
         onClick={onClear}
         className="ml-auto text-xs text-blue-600 hover:underline"
