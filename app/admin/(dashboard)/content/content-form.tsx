@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import { ProductLinker } from "./product-linker";
 import { ImageUploader } from "../components/image-uploader";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { autoSlug } from "@/lib/auto-slug";
 
 const RichEditor = dynamic(() =>
   import("./rich-editor").then((m) => m.RichEditor),
@@ -77,13 +78,6 @@ export function ContentForm({ content, categories, products, linkedProducts, con
       role: lp.role,
     })) ?? []
   );
-
-  function autoSlug(value: string) {
-    return value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -268,14 +262,19 @@ export function ContentForm({ content, categories, products, linkedProducts, con
                   return;
                 }
                 // Treat the input value as UTC directly (not local timezone)
-                setPublishAt(e.target.value + ":00.000Z");
+                const newDate = e.target.value + ":00.000Z";
+                setPublishAt(newDate);
+                // Auto-set status to "scheduled" when a future publish date is chosen and status is draft
+                if (status === "draft") {
+                  setStatus("scheduled");
+                }
               }}
               className="w-full rounded border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
             />
             <p className="mt-1 text-xs text-indigo-600">
               {publishAt
-                ? `Scheduled for ${new Date(publishAt).toUTCString()}`
-                : "Leave empty to publish immediately when status is set to Published"}
+                ? `Scheduled for ${new Date(publishAt).toUTCString()}. Status will be set to "Scheduled" automatically.`
+                : "Set a date to schedule publishing. Status will auto-switch to Scheduled."}
             </p>
           </div>
           {publishAt && (
