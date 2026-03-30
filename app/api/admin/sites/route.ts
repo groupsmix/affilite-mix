@@ -73,11 +73,15 @@ export async function GET() {
   return NextResponse.json({ sites: mergedSites });
 }
 
-/** POST /api/admin/sites — create a new site */
+/** POST /api/admin/sites — create a new site (super_admin only) */
 export async function POST(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
   }
 
   const rlError = await enforceRateLimit(session.email, session.userId);
@@ -127,11 +131,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** PATCH /api/admin/sites — update an existing site */
+/** PATCH /api/admin/sites — update an existing site (super_admin only) */
 export async function PATCH(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
   }
 
   const rlError = await enforceRateLimit(session.email, session.userId);
@@ -178,11 +186,15 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-/** DELETE /api/admin/sites — delete a site */
+/** DELETE /api/admin/sites — delete a site (super_admin only) */
 export async function DELETE(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
   }
 
   const rlError = await enforceRateLimit(session.email, session.userId);

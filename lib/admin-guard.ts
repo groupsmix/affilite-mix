@@ -12,6 +12,23 @@ type AdminResult =
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
 /**
+ * Assert that the authenticated session has the required role.
+ * Returns a 403 NextResponse if the role is insufficient, or null if OK.
+ */
+export function assertRole(
+  session: AdminPayload,
+  requiredRole: "admin" | "super_admin",
+): NextResponse | null {
+  if (requiredRole === "super_admin" && session.role !== "super_admin") {
+    return NextResponse.json(
+      { error: "Forbidden: super_admin role required" },
+      { status: 403 },
+    );
+  }
+  return null;
+}
+
+/**
  * Shared admin guard for all /api/admin/* routes.
  * - Verifies the admin JWT session exists
  * - Enforces per-session rate limiting (100 req/min)
@@ -60,4 +77,19 @@ export async function requireAdmin(): Promise<AdminResult> {
 
   const dbSiteId = await resolveDbSiteId(siteSlug);
   return { error: null, session, dbSiteId, siteSlug };
+}
+
+/**
+ * Convenience wrapper: calls requireAdmin() then asserts super_admin role.
+ * Returns the same AdminResult shape — with a 403 error if the role is insufficient.
+ */
+export async function requireSuperAdmin(): Promise<AdminResult> {
+  const result = await requireAdmin();
+  if (result.error) return result;
+
+  const forbidden = assertRole(result.session, "super_admin");
+  if (forbidden) {
+    return { error: forbidden, session: null, dbSiteId: null, siteSlug: null };
+  }
+  return result;
 }

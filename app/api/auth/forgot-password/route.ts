@@ -3,6 +3,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { getCurrentSite } from "@/lib/site-context";
 
 /**
  * POST /api/auth/forgot-password
@@ -78,8 +79,10 @@ export async function POST(request: Request) {
     const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {
+      const site = await getCurrentSite();
+      const fallbackFromEmail = `noreply@${site.domain}`;
       const fromEmail =
-        process.env.NEWSLETTER_FROM_EMAIL ?? "noreply@nichehub.app";
+        process.env.NEWSLETTER_FROM_EMAIL ?? fallbackFromEmail;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -90,7 +93,7 @@ export async function POST(request: Request) {
           from: fromEmail,
           to: [email],
           subject: "Password Reset Request",
-          html: buildResetEmail(resetUrl),
+          html: buildResetEmail(resetUrl, site.name),
           text: `You requested a password reset.\n\nClick the link below to reset your password:\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you did not request this, you can safely ignore this email.`,
         }),
       });
@@ -118,7 +121,7 @@ export async function POST(request: Request) {
   }
 }
 
-function buildResetEmail(resetUrl: string): string {
+function buildResetEmail(resetUrl: string, siteName = "Admin"): string {
   const year = new Date().getFullYear();
   return `<!DOCTYPE html>
 <html lang="en">
@@ -143,7 +146,7 @@ function buildResetEmail(resetUrl: string): string {
           <p style="margin:0;font-size:13px;color:#9ca3af;">If you did not request this reset, you can safely ignore this email.</p>
         </td></tr>
         <tr><td style="padding:16px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-          <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${year} NicheHub Admin</p>
+          <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${year} ${siteName}</p>
         </td></tr>
       </table>
     </td></tr>
