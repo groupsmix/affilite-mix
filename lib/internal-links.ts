@@ -31,7 +31,7 @@ export function injectProductLinks(
 
     // Collect all non-anchor text segments with their positions
     const segments = splitAroundAnchors(result);
-    const matchPositions = findAllMatches(segments, escaped);
+    const matchPositions = findAllMatches(segments, escaped, result);
 
     if (matchPositions.length === 0) continue;
 
@@ -98,10 +98,31 @@ function splitAroundAnchors(
   return segments;
 }
 
+/**
+ * Check whether a position in the original HTML falls inside an <a> element
+ * by scanning backwards for unclosed anchor tags. This is a safety net on top
+ * of splitAroundAnchors to catch edge-cases like inline elements (<strong>,
+ * <em>) nested inside anchors.
+ */
+function isInsideAnchorTag(html: string, position: number): boolean {
+  const before = html.slice(0, position);
+  const openPattern = /<a\b[^>]*>/gi;
+  const closePattern = /<\/a>/gi;
+
+  let openCount = 0;
+  let m: RegExpExecArray | null;
+
+  while ((m = openPattern.exec(before)) !== null) openCount++;
+  while ((m = closePattern.exec(before)) !== null) openCount--;
+
+  return openCount > 0;
+}
+
 /** Find all match positions of the product name in non-anchor segments */
 function findAllMatches(
   segments: { text: string; offset: number; isAnchor: boolean }[],
   escapedName: string,
+  fullHtml: string,
 ): MatchPosition[] {
   const positions: MatchPosition[] = [];
   const pattern = new RegExp(
@@ -116,6 +137,8 @@ function findAllMatches(
     pattern.lastIndex = 0;
     while ((match = pattern.exec(seg.text)) !== null) {
       const matchStart = seg.offset + match.index + match[1].length;
+      // Double-check: skip if this position is inside an <a> ancestor
+      if (isInsideAnchorTag(fullHtml, matchStart)) continue;
       positions.push({
         start: matchStart,
         matchedText: match[2],

@@ -3,8 +3,8 @@
 :root {
   --color-primary: #1e293b;
   --color-accent: #10b981;
-  --font-heading: "Inter", sans-serif;
-  --font-body: "Inter", sans-serif;
+  --font-heading: var(--font-inter), "Inter", sans-serif;
+  --font-body: var(--font-inter), "Inter", sans-serif;
 }
 
 body {
