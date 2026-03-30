@@ -27,11 +27,13 @@ export default async function PublicLayout({
   const cssVars = {
     "--color-primary": site.theme.primaryColor,
     "--color-accent": site.theme.accentColor,
+    "--color-accent-text": site.theme.accentTextColor,
     "--font-heading": fontMap[site.theme.fontHeading] ?? "var(--font-inter), sans-serif",
     "--font-body": fontMap[site.theme.fontBody] ?? "var(--font-inter), sans-serif",
     // Namespaced aliases to avoid third-party conflicts (#16)
     "--nh-color-primary": site.theme.primaryColor,
     "--nh-color-accent": site.theme.accentColor,
+    "--nh-color-accent-text": site.theme.accentTextColor,
     "--nh-font-heading": fontMap[site.theme.fontHeading] ?? "var(--font-inter), sans-serif",
     "--nh-font-body": fontMap[site.theme.fontBody] ?? "var(--font-inter), sans-serif",
   } as React.CSSProperties;
