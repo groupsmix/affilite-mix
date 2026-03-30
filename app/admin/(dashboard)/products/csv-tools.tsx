@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 export function CsvTools() {
   const [importing, setImporting] = useState(false);
@@ -34,7 +35,7 @@ export function CsvTools() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/admin/products/import", {
+    const res = await fetchWithCsrf("/api/admin/products/import", {
       method: "POST",
       body: formData,
     });

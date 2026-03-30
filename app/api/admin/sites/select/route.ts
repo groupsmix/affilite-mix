@@ -2,12 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { getSiteById } from "@/config/sites";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+/** 100 admin API requests per minute per user session (3.30) */
+const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
 /** POST /api/admin/sites/select — set the active site cookie */
 export async function POST(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rlKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
+  const rl = await checkRateLimit(rlKey, ADMIN_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
   }
 
   const body = await request.json();
