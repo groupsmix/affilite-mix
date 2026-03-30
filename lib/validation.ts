@@ -155,6 +155,9 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
   if (body.image_url !== undefined && body.image_url !== "" && !isUrl(body.image_url)) {
     errors.image_url = "image_url must be a valid URL or empty string";
   }
+  if (isString(body.image_url) && body.image_url !== "" && (!isString(body.image_alt) || body.image_alt.trim() === "")) {
+    errors.image_alt = "image_alt is required when image_url is provided — describe what is shown in the image, not just the product name";
+  }
   if (body.price !== undefined && !isString(body.price)) {
     errors.price = "price must be a string";
   }

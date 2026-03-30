@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser, createToken, COOKIE_NAME } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /** 5 login attempts per 15 minutes per IP */
 const LOGIN_RATE_LIMIT = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
 
 export async function POST(request: NextRequest) {
   try {
-  const ip = request.headers.get("cf-connecting-ip")
-    ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? "unknown";
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`login:${ip}`, LOGIN_RATE_LIMIT);
   if (!rl.allowed) {
     return NextResponse.json(
@@ -35,6 +34,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: turnstileResult.error ?? "Captcha verification failed" },
       { status: 403 },
+    );
+  }
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json(
+      { error: "Valid email is required" },
+      { status: 400 },
     );
   }
 
