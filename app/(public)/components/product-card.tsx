@@ -2,6 +2,7 @@
 
 import type { ProductRow } from "@/types/database";
 import Image from "next/image";
+import { useCookieConsent } from "./cookie-consent";
 
 interface ProductCardProps {
   product: ProductRow;
@@ -30,14 +31,8 @@ function getDealTimeLeft(expiresAt: string | null): string | null {
  * Fire-and-forget click tracking, then navigate to the affiliate URL directly.
  * Decouples tracking from navigation so tracking failures don't block the user.
  */
-function handleCtaClick(e: React.MouseEvent<HTMLAnchorElement>, slug: string, sourceType: string) {
-  e.preventDefault();
-  const href = e.currentTarget.getAttribute("data-href");
-  if (!href) return;
-
+function fireTrackingBeacon(slug: string, sourceType: string) {
   const trackUrl = `/api/track/click?p=${encodeURIComponent(slug)}&t=${sourceType}`;
-
-  // Fire-and-forget tracking via sendBeacon or fetch with keepalive
   try {
     if (navigator.sendBeacon) {
       navigator.sendBeacon(trackUrl);
@@ -47,15 +42,26 @@ function handleCtaClick(e: React.MouseEvent<HTMLAnchorElement>, slug: string, so
   } catch {
     // Tracking failure should never block navigation
   }
-
-  // Navigate directly to the affiliate URL
-  window.open(href, "_blank", "noopener,noreferrer");
 }
 
 export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal" }: ProductCardProps) {
+  const { accepted: consentAccepted } = useCookieConsent();
   const buttonLabel = product.cta_text || ctaLabel;
   const showDeal = product.deal_text && isDealActive(product.deal_expires_at);
   const dealTimeLeft = getDealTimeLeft(product.deal_expires_at);
+
+  function handleCtaClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault();
+    const href = e.currentTarget.getAttribute("data-href");
+    if (!href) return;
+
+    // Only track clicks when cookie consent has been accepted
+    if (consentAccepted) {
+      fireTrackingBeacon(product.slug, sourceType);
+    }
+
+    window.open(href, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <div className="relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
@@ -88,7 +94,11 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
           <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
         )}
         {product.score !== null && (
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-800">
+          <span
+            className="rounded bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-800"
+            role="img"
+            aria-label={`Product score: ${product.score} out of 10`}
+          >
             {product.score}/10
           </span>
         )}
@@ -97,7 +107,7 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
         <a
           href={product.affiliate_url}
           data-href={product.affiliate_url}
-          onClick={(e) => handleCtaClick(e, product.slug, sourceType)}
+          onClick={handleCtaClick}
           target="_blank"
           rel="noopener noreferrer nofollow"
           className="block w-full rounded-md px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
