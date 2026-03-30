@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface NewsletterSignupProps {
   siteLanguage?: string;
@@ -30,7 +31,7 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
     setErrorMsg("");
 
     try {
-      const res = await fetch("/api/newsletter", {
+      const res = await fetchWithCsrf("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, turnstileToken }),

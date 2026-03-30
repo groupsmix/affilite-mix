@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { getCookieValue } from "@/lib/cookie-utils";
 
@@ -84,10 +84,37 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
     dispatchConsentEvent(false);
   }, []);
 
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const [bannerHeight, setBannerHeight] = useState(0);
+
+  useEffect(() => {
+    if (!visible || consent !== "pending") {
+      document.documentElement.style.removeProperty("--cookie-banner-height");
+      return;
+    }
+    function measure() {
+      if (bannerRef.current) {
+        const h = bannerRef.current.offsetHeight;
+        setBannerHeight(h);
+        document.documentElement.style.setProperty("--cookie-banner-height", `${h}px`);
+      }
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      document.documentElement.style.removeProperty("--cookie-banner-height");
+    };
+  }, [visible, consent]);
+
   if (consent !== "pending" || !visible) return null;
 
   return (
+    <>
+    {/* Spacer to prevent banner from covering page content */}
+    {bannerHeight > 0 && <div style={{ height: bannerHeight }} />}
     <div
+      ref={bannerRef}
       role="dialog"
       aria-label="Cookie consent"
       className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 md:p-6"
@@ -162,6 +189,7 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
