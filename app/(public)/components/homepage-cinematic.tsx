@@ -127,7 +127,8 @@ export function CinematicHomepage({
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
-                  className={`group flex flex-col items-center rounded-xl border bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md lg:p-8 ${i === 0 ? "ring-1 ring-current/10" : "border-gray-200"}`}
+                  aria-label={`Browse ${cat.name} category`}
+                  className={`group flex flex-col items-center rounded-xl border bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 lg:p-8 ${i === 0 ? "ring-1 ring-current/10" : "border-gray-200"}`}
                   style={i === 0 ? { borderColor: "var(--color-accent)" } : undefined}
                 >
                   <span

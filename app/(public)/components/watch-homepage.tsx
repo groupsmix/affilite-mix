@@ -206,7 +206,8 @@ export function WatchHomepage({
               <Link
                 key={occ.href}
                 href={occ.href}
-                className="group flex flex-col items-center rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md lg:p-8"
+                aria-label={`Shop watches for ${occ.label}`}
+                className="group flex flex-col items-center rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 lg:p-8"
               >
                 <span
                   className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl transition-all duration-500"
@@ -255,7 +256,8 @@ export function WatchHomepage({
               <Link
                 key={b.href}
                 href={b.href}
-                className="group flex flex-col items-center rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-7 shadow-sm transition-all duration-300 hover:shadow-md lg:p-8"
+                aria-label={`Shop watches in ${b.label} budget range`}
+                className="group flex flex-col items-center rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-7 shadow-sm transition-all duration-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 lg:p-8"
               >
                 <span
                   className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-500"
