@@ -119,6 +119,7 @@ export interface CreateProductInput {
   description: string;
   affiliate_url: string;
   image_url: string;
+  image_alt: string;
   price: string;
   price_amount: number | null;
   price_currency: string;
@@ -178,6 +179,7 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
       description: isString(body.description) ? body.description : "",
       affiliate_url: isString(body.affiliate_url) ? body.affiliate_url : "",
       image_url: isString(body.image_url) ? body.image_url : "",
+      image_alt: isString(body.image_alt) ? body.image_alt : "",
       price: isString(body.price) ? body.price : "",
       price_amount: isNumber(body.price_amount) ? body.price_amount : null,
       price_currency: isString(body.price_currency) ? body.price_currency : "USD",
@@ -203,6 +205,7 @@ export interface UpdateProductInput {
   description?: string;
   affiliate_url?: string;
   image_url?: string;
+  image_alt?: string;
   price?: string;
   price_amount?: number | null;
   price_currency?: string;
@@ -248,6 +251,7 @@ export function validateUpdateProduct(body: Record<string, unknown>): Validation
   if (body.description !== undefined) data.description = body.description as string;
   if (body.affiliate_url !== undefined) data.affiliate_url = body.affiliate_url as string;
   if (body.image_url !== undefined) data.image_url = body.image_url as string;
+  if (body.image_alt !== undefined) data.image_alt = body.image_alt as string;
   if (body.price !== undefined) data.price = body.price as string;
   if (body.price_amount !== undefined) data.price_amount = body.price_amount as number | null;
   if (body.price_currency !== undefined) data.price_currency = body.price_currency as string;

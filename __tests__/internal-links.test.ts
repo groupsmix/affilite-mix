@@ -11,6 +11,7 @@ function makeProduct(overrides: Partial<ProductRow> = {}): ProductRow {
     description: "",
     affiliate_url: "https://example.com/buy",
     image_url: "",
+    image_alt: "",
     price: "$10",
     price_amount: 10,
     price_currency: "USD",
