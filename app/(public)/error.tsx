@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { captureException } from "@/lib/sentry";
+import { reportError } from "@/lib/report-error";
 
 const translations = {
   en: {
@@ -39,7 +39,7 @@ export default function PublicError({
   reset: () => void;
 }) {
   useEffect(() => {
-    captureException(error, { boundary: "public", digest: error.digest });
+    reportError(error, { boundary: "public", digest: error.digest });
   }, [error]);
 
   const lang = detectLanguage();
