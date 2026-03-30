@@ -11,7 +11,7 @@ import "./globals.css";
  */
 
 export const metadata: Metadata = {
-  title: "NicheHub",
+  title: "Admin",
   description: "Multi-site affiliate platform",
 };
 
