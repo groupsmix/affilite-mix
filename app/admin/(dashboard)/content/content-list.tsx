@@ -54,7 +54,42 @@ export function ContentList({ items }: ContentListProps) {
     <>
       <ContentBulkActions selectedIds={selectedIds} onClear={() => setSelectedIds([])} />
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white">
+      {/* Card layout on mobile */}
+      <div className="mt-4 grid gap-3 md:hidden">
+        {items.map((item) => (
+          <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-4">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(item.id)}
+                  onChange={() => toggleSelect(item.id)}
+                  className="rounded border-gray-300"
+                />
+                <h3 className="font-medium text-gray-900">{item.title}</h3>
+              </div>
+              <ContentStatusBadge status={item.status} />
+            </div>
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+              <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{item.type}</span>
+              {item.author && <span>by {item.author}</span>}
+            </div>
+            <div className="flex gap-3">
+              <Link
+                href={`/admin/content/${item.id}`}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Edit
+              </Link>
+              <ContentDeleteButton id={item.id} title={item.title} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Table layout on md+ screens */}
+      <div className="mt-4 hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
+        <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
@@ -112,6 +147,7 @@ export function ContentList({ items }: ContentListProps) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </>
   );
