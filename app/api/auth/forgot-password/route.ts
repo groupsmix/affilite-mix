@@ -4,6 +4,7 @@ import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getCurrentSite } from "@/lib/site-context";
+import { isValidEmail } from "@/lib/validators";
 
 /**
  * POST /api/auth/forgot-password
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const email = (body.email ?? "").trim().toLowerCase();
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || !isValidEmail(email)) {
       return NextResponse.json(
         { error: "Valid email is required" },
         { status: 400 },

@@ -3,6 +3,7 @@ import { authenticateUser, createToken, COOKIE_NAME } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
+import { isValidEmail } from "@/lib/validators";
 
 /** 5 login attempts per 15 minutes per IP */
 const LOGIN_RATE_LIMIT = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!email || !isValidEmail(email)) {
     return NextResponse.json(
       { error: "Valid email is required" },
       { status: 400 },
