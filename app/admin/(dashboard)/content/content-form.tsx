@@ -9,6 +9,8 @@ import { ProductLinker } from "./product-linker";
 import { ImageUploader } from "../components/image-uploader";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { autoSlug } from "@/lib/auto-slug";
+import { toast } from "sonner";
+import { ErrorBoundary } from "../components/error-boundary";
 
 const RichEditor = dynamic(() =>
   import("./rich-editor").then((m) => m.RichEditor),
@@ -121,7 +123,9 @@ export function ContentForm({ content, categories, products, linkedProducts, con
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error ?? "Failed to save");
+      const msg = data.error ?? "Failed to save";
+      setError(msg);
+      toast.error(msg);
       setSaving(false);
       return;
     }
@@ -138,6 +142,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
       });
     }
 
+    toast.success(isEdit ? "Content updated" : "Content created");
     isDirtyRef.current = false;
     router.push("/admin/content");
     router.refresh();
@@ -195,7 +200,19 @@ export function ContentForm({ content, categories, products, linkedProducts, con
 
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Body</label>
-        <RichEditor value={body} onChange={(html) => { setBody(html); markDirty(); }} />
+        <ErrorBoundary
+          fallback={
+            <textarea
+              value={body}
+              onChange={(e) => { setBody(e.target.value); markDirty(); }}
+              rows={12}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"
+              placeholder="Rich editor failed to load. You can use HTML here instead."
+            />
+          }
+        >
+          <RichEditor value={body} onChange={(html) => { setBody(html); markDirty(); }} />
+        </ErrorBoundary>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

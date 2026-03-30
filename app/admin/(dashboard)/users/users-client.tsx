@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { toast } from "sonner";
 
 interface AdminUser {
   id: string;
@@ -60,6 +61,7 @@ export function UsersClient() {
     });
 
     if (res.ok) {
+      toast.success("User created");
       setShowForm(false);
       setEmail("");
       setName("");
@@ -68,7 +70,9 @@ export function UsersClient() {
       fetchUsers();
     } else {
       const data = await res.json();
-      setFormError(data.error ?? "Failed to create user");
+      const msg = data.error ?? "Failed to create user";
+      setFormError(msg);
+      toast.error(msg);
     }
     setFormSaving(false);
   }
@@ -86,7 +90,12 @@ export function UsersClient() {
     if (!confirm(`Delete admin user ${user.email}? This cannot be undone.`)) {
       return;
     }
-    await fetchWithCsrf(`/api/admin/users?id=${user.id}`, { method: "DELETE" });
+    const res = await fetchWithCsrf(`/api/admin/users?id=${user.id}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("User deleted");
+    } else {
+      toast.error("Failed to delete user");
+    }
     fetchUsers();
   }
 
