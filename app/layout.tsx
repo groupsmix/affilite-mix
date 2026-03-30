@@ -2,6 +2,18 @@ import type { Metadata } from "next";
 import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
+/*
+ * All three font families are declared here so that their CSS variables are
+ * available to every site. next/font automatically subsets and self-hosts
+ * the fonts; the browser only downloads the ones actually referenced in
+ * computed styles (via font-display: swap). Per-site font selection happens
+ * in app/(public)/layout.tsx which maps site.theme.fontHeading / fontBody
+ * to the appropriate CSS variable.
+ *
+ * If the number of fonts grows significantly, consider dynamic next/font
+ * loading per-site to reduce the initial CSS payload.
+ */
+
 export const metadata: Metadata = {
   title: "NicheHub",
   description: "Multi-site affiliate platform",

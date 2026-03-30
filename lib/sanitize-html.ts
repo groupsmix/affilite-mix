@@ -2,6 +2,13 @@
  * Server-side HTML sanitizer.
  * Uses an allowlist approach — only permitted tags and attributes survive.
  * Prevents stored XSS from admin-authored content.
+ *
+ * NOTE: This regex-based sanitizer works well for trusted admin input but
+ * should be supplemented with a proper HTML parser (e.g. DOMPurify with JSDOM)
+ * before allowing any user-generated content. DOMPurify is not added here
+ * because JSDOM is incompatible with the Cloudflare Workers runtime. When/if
+ * the sanitization pipeline moves to a Node.js environment, add DOMPurify
+ * as a secondary check after this fast-path pass.
  */
 
 const ALLOWED_TAGS = new Set([

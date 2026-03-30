@@ -11,6 +11,7 @@ import {
 import { countProducts } from "@/lib/dal/products";
 import { redirect } from "next/navigation";
 import { ClickChart } from "./click-chart";
+import { LocalTime } from "./local-time";
 import { getSiteById } from "@/config/sites";
 
 /** Default estimated revenue per click (USD). Overridden by site config. */
@@ -241,12 +242,7 @@ export default async function AnalyticsPage() {
                       {click.referrer || "—"}
                     </td>
                     <td className="py-2 text-right text-gray-400">
-                      {new Date(click.created_at).toLocaleString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      <LocalTime dateTime={click.created_at} />
                     </td>
                   </tr>
                 ))}

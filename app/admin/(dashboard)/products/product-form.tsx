@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import type { ProductRow } from "@/types/database";
-import type { CategoryRow } from "@/types/database";
+import type { ProductRow, CategoryRow } from "@/types/database";
 import { ImageUploader } from "../components/image-uploader";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
