@@ -220,7 +220,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
 
   if (showResults) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8" aria-live="polite">
         {/* Results header */}
         <div className="mb-12 animate-[fadeIn_0.5s_ease-out] text-center">
           <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
@@ -236,7 +236,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
         </div>
 
         {error && (
-          <div className="mb-8 rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <div className="mb-8 rounded-xl border border-red-200 bg-red-50 p-6 text-center" role="alert" aria-live="assertive">
             <div className="mb-3">
               <svg className="mx-auto h-10 w-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />

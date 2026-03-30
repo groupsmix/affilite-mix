@@ -1,10 +1,15 @@
+import { randomUUID } from "crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { verifyPassword } from "@/lib/password";
 import { requireEnvInProduction } from "@/lib/env";
 
-const JWT_SECRET = requireEnvInProduction("JWT_SECRET", "dev-secret-change-me");
+const devFallback = randomUUID() + randomUUID();
+const JWT_SECRET = requireEnvInProduction("JWT_SECRET", devFallback);
+if (JWT_SECRET === devFallback) {
+  console.warn("JWT_SECRET not set — using random dev fallback (sessions will not persist across restarts)");
+}
 const COOKIE_NAME = "nh_admin_token";
 const EXPIRY = "24h";
 

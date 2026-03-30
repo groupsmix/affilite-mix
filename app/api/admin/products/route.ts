@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
       description: data.description,
       affiliate_url: data.affiliate_url,
       image_url: data.image_url,
+      image_alt: data.image_alt ?? "",
       price: data.price,
       price_amount: data.price_amount,
       price_currency: data.price_currency,

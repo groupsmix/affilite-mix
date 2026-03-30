@@ -30,6 +30,7 @@ export interface ProductRow {
   description: string;
   affiliate_url: string;
   image_url: string;
+  image_alt: string;
   price: string;
   price_amount: number | null;
   price_currency: string;
