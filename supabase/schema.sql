@@ -11,6 +11,7 @@ CREATE TABLE sites (
   domain      text NOT NULL DEFAULT '',
   language    text NOT NULL DEFAULT 'en',
   direction   text NOT NULL DEFAULT 'ltr',
+  is_active   boolean DEFAULT true,
   created_at  timestamptz DEFAULT now()
 );
 
@@ -38,6 +39,8 @@ CREATE TABLE products (
   image_url     text DEFAULT '',
   image_alt     text DEFAULT '',
   price         text DEFAULT '',
+  price_amount  numeric,
+  price_currency text DEFAULT 'USD',
   merchant      text DEFAULT '',
   score         real CHECK (score >= 0 AND score <= 10),
   featured      boolean DEFAULT false,
@@ -68,7 +71,7 @@ CREATE TABLE content (
                 'article', 'review', 'comparison', 'guide', 'blog'
               )),
   status      text NOT NULL DEFAULT 'draft'
-              CHECK (status IN ('draft', 'review', 'published', 'archived')),
+              CHECK (status IN ('draft', 'review', 'published', 'scheduled', 'archived')),
   category_id uuid REFERENCES categories(id) ON DELETE SET NULL,
   tags        text[] DEFAULT '{}',
   author      text,
