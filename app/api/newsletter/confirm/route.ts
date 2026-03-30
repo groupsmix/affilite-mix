@@ -9,7 +9,9 @@ export async function GET(request: NextRequest) {
   try {
     const token = request.nextUrl.searchParams.get("token");
     if (!token) {
-      return NextResponse.json({ error: "Missing confirmation token" }, { status: 400 });
+      return NextResponse.redirect(
+        new URL("/newsletter/confirmed?error=missing_token", request.url),
+      );
     }
 
     const sb = getServiceClient();
@@ -23,14 +25,13 @@ export async function GET(request: NextRequest) {
 
     if (fetchError || !subscriber) {
       console.error("[api/newsletter/confirm] Token lookup failed:", fetchError);
-      return NextResponse.json(
-        { error: "Invalid or expired confirmation token" },
-        { status: 404 },
+      return NextResponse.redirect(
+        new URL("/newsletter/confirmed?error=invalid_token", request.url),
       );
     }
 
     if (subscriber.status === "active" && subscriber.confirmed_at) {
-      return NextResponse.json({ ok: true, message: "Already confirmed." });
+      return NextResponse.redirect(new URL("/newsletter/confirmed", request.url));
     }
 
     // Activate the subscription
@@ -45,10 +46,12 @@ export async function GET(request: NextRequest) {
 
     if (updateError) {
       console.error("[api/newsletter/confirm] Failed to activate subscriber:", updateError);
-      return NextResponse.json({ error: "Failed to confirm subscription" }, { status: 500 });
+      return NextResponse.redirect(
+        new URL("/newsletter/confirmed?error=update_failed", request.url),
+      );
     }
 
-    return NextResponse.json({ ok: true, message: "Subscription confirmed!" });
+    return NextResponse.redirect(new URL("/newsletter/confirmed", request.url));
   } catch (err) {
     console.error("[api/newsletter/confirm] GET failed:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
