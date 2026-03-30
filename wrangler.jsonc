@@ -37,6 +37,16 @@
 			"bucket_name": "next-inc-cache"
 		}
 	],
+	// Custom domain routes for all production sites.
+	// Each site's domain must also have a DNS CNAME record pointing to the
+	// Cloudflare Workers custom domain (or a proxied DNS record in the
+	// Cloudflare dashboard).
+	// See: https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
+	"routes": [
+		{ "pattern": "wristnerd.xyz", "custom_domain": true },
+		{ "pattern": "arabictools.wristnerd.site", "custom_domain": true },
+		{ "pattern": "crypto.wristnerd.site", "custom_domain": true }
+	],
 	// Cron triggers — publish scheduled content & archive expired products
 	// Runs every 5 minutes. The worker will POST to /api/cron/publish
 	// with the CRON_SECRET from environment variables.

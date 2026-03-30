@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Ensure Tailwind v4 scans all source directories for class names (3.33) */
+@source "../app";
+@source "../lib";
+@source "../config";
+@source "../components";
+
 :root {
   --color-primary: #1e293b;
   --color-accent: #10b981;

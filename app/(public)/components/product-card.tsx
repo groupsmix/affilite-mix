@@ -4,6 +4,7 @@ import type { ProductRow } from "@/types/database";
 import Image from "next/image";
 import { useCookieConsent } from "./cookie-consent";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
+import { shimmerPlaceholder } from "@/lib/image-placeholder";
 
 interface ProductCardProps {
   product: ProductRow;
@@ -83,6 +84,8 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
             width={320}
             height={160}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            placeholder="blur"
+            blurDataURL={shimmerPlaceholder(320, 160)}
             className="h-40 w-full object-contain"
           />
         </div>

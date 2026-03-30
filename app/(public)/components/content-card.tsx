@@ -1,6 +1,7 @@
 import type { ContentRow } from "@/types/database";
 import Link from "next/link";
 import Image from "next/image";
+import { shimmerPlaceholder } from "@/lib/image-placeholder";
 
 interface ContentCardProps {
   content: ContentRow;
@@ -20,6 +21,8 @@ export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
             width={400}
             height={176}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            placeholder="blur"
+            blurDataURL={shimmerPlaceholder(400, 176)}
             className="h-44 w-full object-cover"
           />
         </Link>
