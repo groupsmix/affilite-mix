@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { captureException } from "@/lib/sentry";
+import { reportError } from "@/lib/report-error";
 
 export default function AdminError({
   error,
@@ -12,7 +12,7 @@ export default function AdminError({
   reset: () => void;
 }) {
   useEffect(() => {
-    captureException(error, { boundary: "admin", digest: error.digest });
+    reportError(error, { boundary: "admin", digest: error.digest });
   }, [error]);
 
   return (
