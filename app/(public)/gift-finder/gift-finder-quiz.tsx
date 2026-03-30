@@ -68,10 +68,10 @@ const steps = [
     id: "recipient",
     title: "Who are you buying for?",
     options: [
-      { value: "husband", label: "Husband" },
-      { value: "dad", label: "Dad" },
-      { value: "boyfriend", label: "Boyfriend" },
-      { value: "son", label: "Son" },
+      { value: "partner", label: "Partner / Spouse" },
+      { value: "parent", label: "Parent" },
+      { value: "significant_other", label: "Significant Other" },
+      { value: "child", label: "Son / Daughter" },
       { value: "friend", label: "Friend" },
       { value: "self", label: "Myself" },
     ],
@@ -80,7 +80,7 @@ const steps = [
     id: "occasion",
     title: "What\u2019s the occasion?",
     options: [
-      { value: "fathers_day", label: "Father\u2019s Day" },
+      { value: "holiday", label: "Holiday Gift" },
       { value: "christmas", label: "Christmas" },
       { value: "birthday", label: "Birthday" },
       { value: "valentines", label: "Valentine\u2019s Day" },
@@ -319,7 +319,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
                   <a
                     href={product.affiliate_url}
                     onClick={(e) => handleCtaClick(e, product)}
-                    rel="nofollow sponsored noopener"
+                    rel="noopener noreferrer nofollow"
                     target="_blank"
                     className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white transition-shadow hover:shadow-lg"
                     style={{ backgroundColor: "var(--color-accent)" }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
 
@@ -109,6 +109,54 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [resetError, setResetError] = useState("");
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<Element | null>(null);
+
+  useEffect(() => {
+    previousActiveElement.current = document.activeElement;
+
+    // Focus the first focusable element inside the modal
+    const firstInput = overlayRef.current?.querySelector<HTMLElement>(
+      'input, button, [tabindex]:not([tabindex="-1"])'
+    );
+    firstInput?.focus();
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key === "Tab" && overlayRef.current) {
+        const focusable = overlayRef.current.querySelectorAll<HTMLElement>(
+          'input, button, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    // Prevent body scroll
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = origOverflow;
+      // Return focus to trigger button
+      if (previousActiveElement.current instanceof HTMLElement) {
+        previousActiveElement.current.focus();
+      }
+    };
+  }, [onClose]);
 
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault();
@@ -131,9 +179,16 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="forgot-password-title"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-        <h3 className="mb-2 text-lg font-semibold text-gray-900">Reset Password</h3>
+        <h3 id="forgot-password-title" className="mb-2 text-lg font-semibold text-gray-900">Reset Password</h3>
         {sent ? (
           <>
             <p className="mb-4 text-sm text-gray-600">
