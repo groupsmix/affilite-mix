@@ -15,7 +15,30 @@ export function middleware(request: NextRequest) {
   const siteId = site?.id;
 
   if (!siteId) {
-    return new NextResponse("Site not found", { status: 404 });
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Site Not Found</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f9fafb; color: #1e293b; }
+    .container { text-align: center; max-width: 480px; padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    p { color: #64748b; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Site Not Found</h1>
+    <p>This site is not configured. If you believe this is an error, please contact support.</p>
+  </div>
+</body>
+</html>`;
+    return new NextResponse(html, {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   // ── CSRF protection for state-changing API routes ─────
