@@ -4,6 +4,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
+import { isValidEmail } from "@/lib/validators";
 
 /** Build a branded HTML email for newsletter confirmation */
 function buildConfirmationEmail(siteName: string, confirmUrl: string, domain: string, accentColor: string): string {
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
     const email = (body.email ?? "").trim().toLowerCase();
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || !isValidEmail(email)) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
 

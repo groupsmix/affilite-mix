@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
+import Youtube from "@tiptap/extension-youtube";
 import { useEffect, useState, useRef, useCallback } from "react";
 
 interface RichEditorProps {
@@ -67,6 +68,7 @@ function UrlPopover({
 function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   const [showLinkPopover, setShowLinkPopover] = useState(false);
   const [showImagePopover, setShowImagePopover] = useState(false);
+  const [showVideoPopover, setShowVideoPopover] = useState(false);
 
   if (!editor) return null;
 
@@ -239,6 +241,27 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           />
         )}
       </div>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => { setShowVideoPopover(!showVideoPopover); setShowLinkPopover(false); setShowImagePopover(false); }}
+          className={btnClass(editor.isActive("youtube"))}
+          title="Embed YouTube/Vimeo Video"
+        >
+          Video
+        </button>
+        {showVideoPopover && (
+          <UrlPopover
+            label="Video URL"
+            placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
+            onSubmit={(url) => {
+              editor.commands.setYoutubeVideo({ src: url });
+              setShowVideoPopover(false);
+            }}
+            onCancel={() => setShowVideoPopover(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -257,6 +280,11 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
         HTMLAttributes: { class: "rounded-lg" },
       }),
       Underline,
+      Youtube.configure({
+        HTMLAttributes: { class: "rounded-lg" },
+        width: 640,
+        height: 360,
+      }),
     ],
     content: value,
     onUpdate: ({ editor: e }) => {
