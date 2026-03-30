@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SiteSwitcher } from "./site-switcher";
-import { getCookieValue } from "@/lib/cookie-utils";
 
 function DashboardIcon({ className }: { className?: string }) {
   return (
@@ -65,35 +64,9 @@ const navItems = [
   { href: "/admin/users", label: "Users", icon: <UsersIcon className={iconSize} /> },
 ];
 
-function useActiveSiteName() {
-  const [siteName, setSiteName] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadSiteName() {
-      try {
-        const res = await fetch("/api/admin/sites");
-        if (!res.ok) return;
-        const data = await res.json();
-        const activeSiteId = getCookieValue("nh_active_site");
-        if (activeSiteId && data.sites) {
-          const site = data.sites.find(
-            (s: { id: string; name: string }) => s.id === activeSiteId
-          );
-          if (site) setSiteName(site.name);
-        }
-      } catch {
-        // ignore — fallback to "Admin Panel"
-      }
-    }
-    loadSiteName();
-  }, []);
-
-  return siteName;
-}
-
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ onNavigate, siteName }: { onNavigate?: () => void; siteName?: string | null }) {
   const pathname = usePathname();
-  const siteName = useActiveSiteName();
 
   return (
     <>
@@ -140,7 +113,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function AdminSidebar() {
+export function AdminSidebar({ siteName }: { siteName?: string | null }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -197,12 +170,12 @@ export function AdminSidebar() {
             </svg>
           </button>
         </div>
-        <SidebarContent onNavigate={() => setMobileOpen(false)} />
+        <SidebarContent onNavigate={() => setMobileOpen(false)} siteName={siteName} />
       </aside>
 
       {/* Desktop sidebar */}
       <aside className="hidden w-56 shrink-0 flex-col border-r border-gray-200 bg-white lg:flex">
-        <SidebarContent />
+        <SidebarContent siteName={siteName} />
       </aside>
     </>
   );
