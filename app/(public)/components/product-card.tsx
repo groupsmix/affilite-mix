@@ -2,6 +2,7 @@
 
 import type { ProductRow } from "@/types/database";
 import Image from "next/image";
+import { getCookieValue } from "@/lib/cookie-utils";
 
 interface ProductCardProps {
   product: ProductRow;
@@ -35,17 +36,19 @@ function handleCtaClick(e: React.MouseEvent<HTMLAnchorElement>, slug: string, so
   const href = e.currentTarget.getAttribute("data-href");
   if (!href) return;
 
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(slug)}&t=${sourceType}`;
-
-  // Fire-and-forget tracking via sendBeacon or fetch with keepalive
-  try {
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(trackUrl);
-    } else {
-      fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
+  // Skip tracking if user rejected non-essential cookies
+  const consent = getCookieValue("nichehub-cookie-consent");
+  if (consent !== "rejected") {
+    const trackUrl = `/api/track/click?p=${encodeURIComponent(slug)}&t=${sourceType}`;
+    try {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(trackUrl);
+      } else {
+        fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
+      }
+    } catch {
+      // Tracking failure should never block navigation
     }
-  } catch {
-    // Tracking failure should never block navigation
   }
 
   // Navigate directly to the affiliate URL
@@ -88,7 +91,11 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
           <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
         )}
         {product.score !== null && (
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-800">
+          <span
+            className="rounded bg-amber-100 px-2 py-0.5 text-sm font-medium text-amber-800"
+            aria-label={`Product score: ${product.score} out of 10`}
+            role="img"
+          >
             {product.score}/10
           </span>
         )}

@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getAnonClient } from "@/lib/supabase-server";
 
 /**
  * Resolves a site slug (e.g. "crypto-tools") to its database UUID.
@@ -11,7 +11,7 @@ export async function resolveDbSiteId(slug: string): Promise<string> {
   const cached = cache.get(slug);
   if (cached && Date.now() < cached.expiresAt) return cached.id;
 
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from("sites")
     .select("id")

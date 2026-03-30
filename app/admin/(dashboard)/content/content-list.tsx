@@ -88,8 +88,12 @@ export function ContentList({ items }: ContentListProps) {
                 <td className="px-4 py-3 text-gray-500">{item.type}</td>
                 <td className="px-4 py-3">
                   <ContentStatusBadge status={item.status} />
-                  {item.publish_at && item.status === "scheduled" && (
-                    <span className="ml-1 text-xs text-indigo-500" title={new Date(item.publish_at).toLocaleString()}>
+                  {item.publish_at && (
+                    <span
+                      className={`ml-1 text-xs ${item.status === "scheduled" ? "text-indigo-500" : "text-gray-400"}`}
+                      title={new Date(item.publish_at).toLocaleString()}
+                    >
+                      {item.status === "scheduled" ? "" : "📅 "}
                       {new Date(item.publish_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}

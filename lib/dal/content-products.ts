@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
 import type { ContentProductRow, ProductRow } from "@/types/database";
 
 const TABLE = "content_products";
@@ -28,11 +28,11 @@ export async function unlinkProduct(
   if (error) throw error;
 }
 
-/** Get all linked products for a content item (with full product data) */
+/** Get all linked products for a content item (public read) */
 export async function getLinkedProducts(
   contentId: string,
 ): Promise<(ContentProductRow & { product: ProductRow })[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*, product:products(*)")
