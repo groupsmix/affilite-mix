@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import type { ProductRow } from "@/types/database";
 import { getCookieValue } from "@/lib/cookie-utils";
 import { useCookieConsent } from "./cookie-consent";
+import { GiftWorthinessScore } from "./gift-worthiness-score";
 
 interface StickyCtaBarProps {
   product: ProductRow;
@@ -68,7 +69,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
               <span className="font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
             )}
             {product.score !== null && (
-              <span className="text-amber-700">{product.score}/10</span>
+              <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
             )}
           </div>
         </div>
