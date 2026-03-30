@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
   try {
     const token = request.nextUrl.searchParams.get("token");
     if (!token) {
-      return NextResponse.json({ error: "Missing unsubscribe token" }, { status: 400 });
+      return NextResponse.redirect(
+        new URL("/newsletter/unsubscribed?error=missing_token", request.url),
+      );
     }
 
     const sb = getServiceClient();
@@ -25,10 +27,12 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("[api/newsletter/unsubscribe] GET failed to update:", error);
-      return NextResponse.json({ error: "Failed to unsubscribe" }, { status: 500 });
+      return NextResponse.redirect(
+        new URL("/newsletter/unsubscribed?error=update_failed", request.url),
+      );
     }
 
-    return NextResponse.json({ ok: true, message: "You have been unsubscribed." });
+    return NextResponse.redirect(new URL("/newsletter/unsubscribed", request.url));
   } catch (err) {
     console.error("[api/newsletter/unsubscribe] GET failed:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
