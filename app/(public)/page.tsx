@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
 import { getRecentContent } from "@/lib/dal/content";
 import { listFeaturedProducts } from "@/lib/dal/products";
-import { listCategories } from "@/lib/dal/categories";
+import { listCategoriesWithProductCount } from "@/lib/dal/categories";
 import dynamic from "next/dynamic";
 import { ContentCard } from "./components/content-card";
 import { ProductCard } from "./components/product-card";
@@ -51,7 +51,7 @@ export default async function HomePage() {
   const [recentContent, featuredProducts, categories] = await Promise.all([
     getRecentContent(site.id, 6),
     listFeaturedProducts(site.id, 6),
-    listCategories(site.id),
+    listCategoriesWithProductCount(site.id),
   ]);
 
   // Render homepage based on template preset
@@ -88,13 +88,19 @@ export default async function HomePage() {
       {categories.length > 0 && (
         <section className="mb-12">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {categories.map((cat) => (
+            {categories.map((cat, i) => (
               <Link
                 key={cat.id}
                 href={`/category/${cat.slug}`}
-                className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                className={`rounded-lg border bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${i === 0 ? "border-emerald-300 ring-1 ring-emerald-100" : "border-gray-200"}`}
               >
                 <h3 className="font-semibold text-gray-900">{cat.name}</h3>
+                {cat.description && (
+                  <p className="mt-1 line-clamp-2 text-sm text-gray-500">{cat.description}</p>
+                )}
+                <span className="mt-2 inline-block text-xs text-gray-400">
+                  {cat.product_count} {cat.product_count === 1 ? "product" : "products"}
+                </span>
               </Link>
             ))}
           </div>
