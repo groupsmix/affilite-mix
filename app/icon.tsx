@@ -8,7 +8,7 @@ export const contentType = "image/png";
 export default async function Icon() {
   const site = await getCurrentSite();
   const letter = site.name.charAt(0).toUpperCase();
-  const bgColor = site.theme.primaryColor || "#111827";
+  const bgColor = site.theme.primaryColor || "#1B2A4A";
 
   return new ImageResponse(
     (
@@ -24,6 +24,7 @@ export default async function Icon() {
           color: "#ffffff",
           fontSize: "20px",
           fontWeight: 700,
+          fontFamily: "sans-serif",
         }}
       >
         {letter}

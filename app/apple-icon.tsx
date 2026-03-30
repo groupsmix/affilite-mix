@@ -8,7 +8,7 @@ export const contentType = "image/png";
 export default async function AppleIcon() {
   const site = await getCurrentSite();
   const letter = site.name.charAt(0).toUpperCase();
-  const bgColor = site.theme.primaryColor || "#111827";
+  const bgColor = site.theme.primaryColor || "#1B2A4A";
 
   return new ImageResponse(
     (
@@ -22,8 +22,9 @@ export default async function AppleIcon() {
           backgroundColor: bgColor,
           borderRadius: "36px",
           color: "#ffffff",
-          fontSize: "120px",
+          fontSize: "110px",
           fontWeight: 700,
+          fontFamily: "sans-serif",
         }}
       >
         {letter}

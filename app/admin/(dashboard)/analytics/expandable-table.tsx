@@ -3,50 +3,32 @@
 import { useState } from "react";
 
 interface ExpandableTableProps {
-  children: React.ReactNode;
-  /** Number of rows to show when collapsed */
-  initialRows?: number;
-  totalRows: number;
+  /** Total rows available */
+  rows: number;
+  /** How many rows to show initially */
+  initialLimit?: number;
+  children: (limit: number) => React.ReactNode;
 }
 
 /**
- * Wraps a <tbody> and shows a "Show more / Show less" toggle
- * when there are more rows than `initialRows`.
+ * Wraps a table section with a "View all" / "Show less" toggle
+ * when the number of rows exceeds the initial limit.
  */
-export function ExpandableTable({
-  children,
-  initialRows = 5,
-  totalRows,
-}: ExpandableTableProps) {
+export function ExpandableTable({ rows, initialLimit = 10, children }: ExpandableTableProps) {
   const [expanded, setExpanded] = useState(false);
-
-  const needsToggle = totalRows > initialRows;
+  const limit = expanded ? rows : initialLimit;
 
   return (
     <>
-      <tbody>
-        {expanded
-          ? children
-          : Array.isArray(children)
-            ? children.slice(0, initialRows)
-            : children}
-      </tbody>
-      {needsToggle && (
-        <tfoot>
-          <tr>
-            <td colSpan={100} className="pt-2 text-center">
-              <button
-                type="button"
-                onClick={() => setExpanded(!expanded)}
-                className="text-xs font-medium text-gray-500 hover:text-gray-700"
-              >
-                {expanded
-                  ? "Show less"
-                  : `Show all ${totalRows} rows`}
-              </button>
-            </td>
-          </tr>
-        </tfoot>
+      {children(limit)}
+      {rows > initialLimit && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="mt-3 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          {expanded ? "Show less" : `View all ${rows} rows`}
+        </button>
       )}
     </>
   );

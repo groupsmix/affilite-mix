@@ -24,6 +24,7 @@
     "@tiptap/extension-image": "^3.21.0",
     "@tiptap/extension-link": "^3.21.0",
     "@tiptap/extension-underline": "^3.21.0",
+    "@tiptap/extension-youtube": "^3.21.0",
     "@tiptap/pm": "^3.21.0",
     "@tiptap/react": "^3.21.0",
     "@tiptap/starter-kit": "^3.21.0",
@@ -32,6 +33,7 @@
     "next": "^15.5.14",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "recharts": "^3.8.1",
     "sonner": "^2.0.7",
     "tailwindcss": "^4.2.2"
   },
