@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { reportError } from "@/lib/report-error";
 
 export default function AdminError({
   error,
@@ -9,6 +11,10 @@ export default function AdminError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    reportError(error, { boundary: "admin", digest: error.digest });
+  }, [error]);
+
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 py-16 text-center">
       <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">

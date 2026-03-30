@@ -9,7 +9,7 @@ export const watchToolsSite = defineSite({
   description:
     "Expert watch gift guides and reviews — honest ratings and a proprietary Gift-Worthiness Score to help you pick the perfect watch.",
 
-  colors: { primary: "#1B2A4A", accent: "#C9A96E" },
+  colors: { primary: "#1B2A4A", accent: "#C9A96E", accentText: "#8B6914" },
   fonts: "classic",
   homepage: "cinematic",
 

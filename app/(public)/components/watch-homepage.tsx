@@ -334,7 +334,7 @@ export function WatchHomepage({
                 <div className="p-6">
                   <p
                     className="mb-2.5 text-xs font-bold uppercase tracking-widest"
-                    style={{ color: "var(--color-accent)" }}
+                    style={{ color: "var(--color-accent-text, var(--color-accent))" }}
                   >
                     {watch.tagline}
                   </p>
@@ -372,6 +372,7 @@ export function WatchHomepage({
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
+                  aria-label={`Browse ${cat.name} category`}
                   className={`rounded-lg border bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${i === 0 ? "border-current/20 ring-1 ring-current/10" : "border-gray-200"}`}
                   style={i === 0 ? { borderColor: "var(--color-accent)" } : undefined}
                 >
@@ -476,7 +477,7 @@ export function WatchHomepage({
               <Link
                 href={`/${site.contentTypes[0]?.value ?? "article"}`}
                 className="text-sm font-medium transition-colors"
-                style={{ color: "var(--color-accent)" }}
+                style={{ color: "var(--color-accent-text, var(--color-accent))" }}
               >
                 View all &rarr;
               </Link>

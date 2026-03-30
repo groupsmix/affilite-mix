@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { reportError } from "@/lib/report-error";
 
 const translations = {
   en: {
@@ -36,6 +38,10 @@ export default function PublicError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    reportError(error, { boundary: "public", digest: error.digest });
+  }, [error]);
+
   const lang = detectLanguage();
   const t = translations[lang];
 
