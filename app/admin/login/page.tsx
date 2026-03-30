@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -26,7 +27,7 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/auth/login", {
+    const res = await fetchWithCsrf("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email || undefined, password, turnstileToken }),
@@ -163,7 +164,7 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
     setSending(true);
     setResetError("");
 
-    const res = await fetch("/api/auth/forgot-password", {
+    const res = await fetchWithCsrf("/api/auth/forgot-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: resetEmail }),
