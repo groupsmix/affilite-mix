@@ -7,6 +7,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ClickChart } from "./analytics/click-chart";
+import { AutoRefresh } from "./components/auto-refresh";
 
 export default async function AdminDashboard() {
   const session = await requireAdminSession();
@@ -117,6 +118,7 @@ export default async function AdminDashboard() {
 
   return (
     <div className="mx-auto max-w-5xl">
+      <AutoRefresh intervalMs={60_000} />
       <h1 className="mb-2 text-2xl font-bold text-gray-900">Dashboard</h1>
       <p className="mb-6 text-sm text-gray-500">
         Managing: <span className="font-medium">{session.activeSiteName ?? session.activeSiteSlug}</span>

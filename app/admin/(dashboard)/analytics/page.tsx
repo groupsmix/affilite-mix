@@ -11,6 +11,7 @@ import {
 import { countProducts } from "@/lib/dal/products";
 import { redirect } from "next/navigation";
 import { ClickChart } from "./click-chart";
+import { ExpandableTable } from "./expandable-table";
 import { LocalTime } from "./local-time";
 import { getSiteById } from "@/config/sites";
 
@@ -141,7 +142,7 @@ export default async function AnalyticsPage() {
                   <th className="pb-2 text-right font-medium">Est. Rev</th>
                 </tr>
               </thead>
-              <tbody>
+              <ExpandableTable initialRows={5} totalRows={topProducts.length}>
                 {topProducts.map((p, i) => (
                   <tr key={i} className="border-b border-gray-50">
                     <td className="py-2 text-gray-900">{p.product_name}</td>
@@ -149,7 +150,7 @@ export default async function AnalyticsPage() {
                     <td className="py-2 text-right text-green-700">${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
                   </tr>
                 ))}
-              </tbody>
+              </ExpandableTable>
             </table>
           )}
         </section>
@@ -168,7 +169,7 @@ export default async function AnalyticsPage() {
                   <th className="pb-2 text-right font-medium">%</th>
                 </tr>
               </thead>
-              <tbody>
+              <ExpandableTable initialRows={5} totalRows={topReferrers.length}>
                 {topReferrers.map((r, i) => {
                   const pct = totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
                   return (
@@ -179,7 +180,7 @@ export default async function AnalyticsPage() {
                     </tr>
                   );
                 })}
-              </tbody>
+              </ExpandableTable>
             </table>
           )}
         </section>

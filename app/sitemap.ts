@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getCurrentSite } from "@/lib/site-context";
 import { listPublishedContent } from "@/lib/dal/content";
 import { listCategories } from "@/lib/dal/categories";
+import { listActiveProducts } from "@/lib/dal/products";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const site = await getCurrentSite();
@@ -17,10 +18,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
   );
 
-  // Dynamic content pages
-  const [content, categories] = await Promise.all([
+  // Dynamic content, category, and product pages
+  const [content, categories, products] = await Promise.all([
     listPublishedContent(site.id, undefined, 1000),
     listCategories(site.id),
+    listActiveProducts(site.id),
   ]);
 
   const contentEntries: MetadataRoute.Sitemap = content.map((item) => ({
@@ -37,5 +39,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticEntries, ...contentEntries, ...categoryEntries];
+  const productEntries: MetadataRoute.Sitemap = products.map((product) => ({
+    url: `${baseUrl}/products/${product.slug}`,
+    lastModified: product.updated_at ? new Date(product.updated_at) : new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
+
+  return [...staticEntries, ...contentEntries, ...categoryEntries, ...productEntries];
 }

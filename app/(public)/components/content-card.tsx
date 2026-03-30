@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { ContentRow } from "@/types/database";
 import Link from "next/link";
 import Image from "next/image";
@@ -10,10 +13,11 @@ interface ContentCardProps {
 
 export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
   const href = `/${content.type}/${content.slug}`;
+  const [imgError, setImgError] = useState(false);
 
   return (
     <article className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      {content.featured_image && (
+      {content.featured_image && !imgError && (
         <Link href={href}>
           <Image
             src={content.featured_image}
@@ -24,6 +28,7 @@ export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
             placeholder="blur"
             blurDataURL={shimmerPlaceholder(400, 176)}
             className="h-44 w-full object-cover"
+            onError={() => setImgError(true)}
           />
         </Link>
       )}
