@@ -6,7 +6,7 @@ import { getCookieValue } from "@/lib/cookie-utils";
 
 type ConsentState = "pending" | "accepted" | "rejected";
 
-const CONSENT_COOKIE_NAME = "nichehub-cookie-consent";
+const CONSENT_COOKIE_NAME = "nh-cookie-consent";
 const CONSENT_EXPIRY_DAYS = 365;
 
 function readConsentFromCookie(): ConsentState {
@@ -15,7 +15,7 @@ function readConsentFromCookie(): ConsentState {
   return "pending";
 }
 
-const CONSENT_STORAGE_KEY = "nichehub-cookie-consent";
+const CONSENT_STORAGE_KEY = "nh-cookie-consent";
 
 function setConsentCookie(value: "accepted" | "rejected") {
   const expires = new Date();
