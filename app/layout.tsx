@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
 import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
+import { getCurrentSite } from "@/lib/site-context";
 import "./globals.css";
 
 /*
- * All three font families are declared here so that their CSS variables are
- * available to every site. next/font automatically subsets and self-hosts
- * the fonts; the browser only downloads the ones actually referenced in
- * computed styles (via font-display: swap). Per-site font selection happens
- * in app/(public)/layout.tsx which maps site.theme.fontHeading / fontBody
- * to the appropriate CSS variable.
- *
- * If the number of fonts grows significantly, consider dynamic next/font
- * loading per-site to reduce the initial CSS payload.
+ * Font families are declared at module scope (required by next/font) but
+ * only the CSS variables actually used by the current site are applied to
+ * the <html> element. This keeps the font CSS payload minimal — the browser
+ * only downloads fonts whose CSS variables are referenced in computed styles.
  */
 
 export const metadata: Metadata = {
@@ -39,13 +35,32 @@ const playfairDisplay = Playfair_Display({
   variable: "--font-playfair",
 });
 
-export default function RootLayout({
+const fontVarMap: Record<string, string> = {
+  "Inter": inter.variable,
+  "IBM Plex Sans Arabic": ibmPlexArabic.variable,
+  "Playfair Display": playfairDisplay.variable,
+};
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const site = await getCurrentSite();
+
+  // Collect only the font CSS variables that this site actually uses
+  const needed = new Set<string>();
+  // Inter is always included as the default / fallback
+  needed.add(inter.variable);
+  if (site.theme?.fontHeading && fontVarMap[site.theme.fontHeading]) {
+    needed.add(fontVarMap[site.theme.fontHeading]);
+  }
+  if (site.theme?.fontBody && fontVarMap[site.theme.fontBody]) {
+    needed.add(fontVarMap[site.theme.fontBody]);
+  }
+
   return (
-    <html className={`${inter.variable} ${ibmPlexArabic.variable} ${playfairDisplay.variable}`}>
+    <html className={Array.from(needed).join(" ")}>
       <body>{children}</body>
     </html>
   );

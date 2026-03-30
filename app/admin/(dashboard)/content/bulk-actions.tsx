@@ -70,7 +70,10 @@ export function ContentBulkActions({ selectedIds, onClear }: BulkActionsProps) {
     router.refresh();
   }
 
+  const pct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+
   return (
+    <div className="space-y-1">
     <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2">
       <span className="text-sm font-medium text-blue-700">
         {loading && progress.total > 0
@@ -111,6 +114,15 @@ export function ContentBulkActions({ selectedIds, onClear }: BulkActionsProps) {
       >
         Clear
       </button>
+    </div>
+    {loading && progress.total > 0 && (
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
+        <div
+          className="h-full rounded-full bg-blue-600 transition-all duration-200"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    )}
     </div>
   );
 }
