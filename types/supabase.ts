@@ -51,6 +51,7 @@ export interface Database {
           name: string;
           slug: string;
           description: string;
+          taxonomy_type: string;
           created_at: string;
         };
         Insert: {
@@ -59,6 +60,7 @@ export interface Database {
           name: string;
           slug: string;
           description?: string;
+          taxonomy_type?: string;
           created_at?: string;
         };
         Update: {
@@ -67,6 +69,7 @@ export interface Database {
           name?: string;
           slug?: string;
           description?: string;
+          taxonomy_type?: string;
           created_at?: string;
         };
         Relationships: [
@@ -90,6 +93,8 @@ export interface Database {
           affiliate_url: string;
           image_url: string;
           price: string;
+          price_amount: number | null;
+          price_currency: string;
           merchant: string;
           score: number | null;
           featured: boolean;
@@ -110,6 +115,8 @@ export interface Database {
           affiliate_url?: string;
           image_url?: string;
           price?: string;
+          price_amount?: number | null;
+          price_currency?: string;
           merchant?: string;
           score?: number | null;
           featured?: boolean;
@@ -130,6 +137,8 @@ export interface Database {
           affiliate_url?: string;
           image_url?: string;
           price?: string;
+          price_amount?: number | null;
+          price_currency?: string;
           merchant?: string;
           score?: number | null;
           featured?: boolean;
@@ -406,6 +415,8 @@ export interface Database {
           name: string;
           role: string;
           is_active: boolean;
+          reset_token: string | null;
+          reset_token_expires_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -416,6 +427,8 @@ export interface Database {
           name?: string;
           role?: string;
           is_active?: boolean;
+          reset_token?: string | null;
+          reset_token_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -426,6 +439,8 @@ export interface Database {
           name?: string;
           role?: string;
           is_active?: boolean;
+          reset_token?: string | null;
+          reset_token_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
