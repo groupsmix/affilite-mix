@@ -7,6 +7,22 @@ import {
   deleteAdminUser,
 } from "@/lib/dal/admin-users";
 import { hashPassword } from "@/lib/password";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+/** 100 admin API requests per minute per user session (3.30) */
+const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
+
+async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
+  const key = `admin:${email ?? userId ?? "unknown"}`;
+  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+  return null;
+}
 
 /** GET /api/admin/users — list all admin users */
 export async function GET() {
@@ -14,6 +30,9 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
 
   try {
     const users = await listAdminUsers();
@@ -35,6 +54,9 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
 
   const body = await request.json();
   const { email, password, name, role } = body as {
@@ -91,6 +113,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
+
   const body = await request.json();
   const { id, name, role, is_active, password } = body as {
     id?: string;
@@ -137,6 +162,9 @@ export async function DELETE(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");

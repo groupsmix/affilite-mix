@@ -31,8 +31,15 @@ export function middleware(request: NextRequest) {
 
     // 2. Always validate the CSRF double-submit cookie token
     //    (regardless of whether Origin is present)
-    //    The CSRF token endpoint itself is exempt.
-    if (pathname !== "/api/auth/csrf") {
+    //    Auth endpoints are exempt: csrf (token issuer), login (pre-auth),
+    //    logout (must always succeed), refresh (background keep-alive).
+    const csrfExemptPaths = new Set([
+      "/api/auth/csrf",
+      "/api/auth/login",
+      "/api/auth/logout",
+      "/api/auth/refresh",
+    ]);
+    if (!csrfExemptPaths.has(pathname)) {
       const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
       const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
       if (!validateCsrfToken(cookieValue, headerValue)) {

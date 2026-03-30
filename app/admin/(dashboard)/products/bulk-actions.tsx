@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface BulkActionsProps {
   selectedIds: string[];
@@ -24,7 +25,7 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
     for (let i = 0; i < total; i++) {
       setProgress({ current: i + 1, total, label: `Updating to ${status}` });
       try {
-        const res = await fetch("/api/admin/products", {
+        const res = await fetchWithCsrf("/api/admin/products", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: selectedIds[i], status }),
@@ -54,7 +55,7 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
     for (let i = 0; i < total; i++) {
       setProgress({ current: i + 1, total, label: "Deleting" });
       try {
-        const res = await fetch(`/api/admin/products?id=${selectedIds[i]}`, { method: "DELETE" });
+        const res = await fetchWithCsrf(`/api/admin/products?id=${selectedIds[i]}`, { method: "DELETE" });
         if (!res.ok) failed++;
       } catch {
         failed++;

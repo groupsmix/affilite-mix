@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 export function ContentDeleteButton({ id, title }: { id: string; title: string }) {
   const router = useRouter();
@@ -10,7 +11,7 @@ export function ContentDeleteButton({ id, title }: { id: string; title: string }
 
   async function handleDelete() {
     setDeleting(true);
-    const res = await fetch(`/api/admin/content?id=${id}`, { method: "DELETE" });
+    const res = await fetchWithCsrf(`/api/admin/content?id=${id}`, { method: "DELETE" });
     if (res.ok) {
       router.refresh();
     } else {

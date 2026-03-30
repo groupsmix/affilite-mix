@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface AdminUser {
   id: string;
@@ -52,7 +53,7 @@ export default function AdminUsersPage() {
     setFormSaving(true);
     setFormError("");
 
-    const res = await fetch("/api/admin/users", {
+    const res = await fetchWithCsrf("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, name, password, role }),
@@ -73,7 +74,7 @@ export default function AdminUsersPage() {
   }
 
   async function handleToggleActive(user: AdminUser) {
-    await fetch("/api/admin/users", {
+    await fetchWithCsrf("/api/admin/users", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: user.id, is_active: !user.is_active }),
@@ -85,7 +86,7 @@ export default function AdminUsersPage() {
     if (!confirm(`Delete admin user ${user.email}? This cannot be undone.`)) {
       return;
     }
-    await fetch(`/api/admin/users?id=${user.id}`, { method: "DELETE" });
+    await fetchWithCsrf(`/api/admin/users?id=${user.id}`, { method: "DELETE" });
     fetchUsers();
   }
 
