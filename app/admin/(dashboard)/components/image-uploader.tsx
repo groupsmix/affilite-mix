@@ -75,7 +75,7 @@ export function ImageUploader({ value, onChange, label = "Image" }: ImageUploade
     } finally {
       setUploading(false);
     }
-  }, [onChange]);
+  }, [onChange, MAX_FILE_SIZE]);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
