@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ProductRow } from "@/types/database";
 import Image from "next/image";
 import { useCookieConsent } from "./cookie-consent";
@@ -48,6 +49,7 @@ function fireTrackingBeacon(slug: string, sourceType: string) {
 
 export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal" }: ProductCardProps) {
   const { accepted: consentAccepted } = useCookieConsent();
+  const [imgError, setImgError] = useState(false);
   const buttonLabel = product.cta_text || ctaLabel;
   const showDeal = product.deal_text && isDealActive(product.deal_expires_at);
   const dealTimeLeft = getDealTimeLeft(product.deal_expires_at);
@@ -76,7 +78,7 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
           )}
         </div>
       )}
-      {product.image_url && (
+      {product.image_url && !imgError && (
         <div className="mb-3 overflow-hidden rounded-md">
           <Image
             src={product.image_url}
@@ -87,6 +89,7 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
             placeholder="blur"
             blurDataURL={shimmerPlaceholder(320, 160)}
             className="h-40 w-full object-contain"
+            onError={() => setImgError(true)}
           />
         </div>
       )}

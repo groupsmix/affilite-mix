@@ -36,10 +36,16 @@ export default async function AdminLayout({
 
   return (
     <div dir={direction} lang={lang} className="flex min-h-screen bg-gray-50" style={cssVars}>
+      <a
+        href="#admin-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"
+      >
+        Skip to main content
+      </a>
       <AdminSidebar siteName={activeSite?.name ?? null} />
       <TokenRefresh />
       <Toaster position="top-right" richColors closeButton />
-      <main className="flex-1 p-6 lg:p-8">{children}</main>
+      <main id="admin-main" className="flex-1 p-6 lg:p-8">{children}</main>
     </div>
   );
 }

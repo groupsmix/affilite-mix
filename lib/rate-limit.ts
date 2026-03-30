@@ -150,6 +150,8 @@ function checkRateLimitMemory(
 
 // ── Public API ──────────────────────────────────────────────────────
 
+let kvWarningLogged = false;
+
 /**
  * Check and record a request against the rate limit.
  *
@@ -164,5 +166,15 @@ export async function checkRateLimit(
   if (kv) {
     return checkRateLimitKV(kv, key, config);
   }
+
+  if (!kvWarningLogged && typeof process !== "undefined" && process.env.NODE_ENV === "production") {
+    kvWarningLogged = true;
+    console.warn(
+      "[rate-limit] WARNING: Cloudflare KV namespace RATE_LIMIT_KV is not available. " +
+      "Falling back to in-memory rate limiting which is per-isolate and ineffective in production. " +
+      "Configure RATE_LIMIT_KV binding in your wrangler.toml or Cloudflare dashboard.",
+    );
+  }
+
   return checkRateLimitMemory(key, config);
 }
