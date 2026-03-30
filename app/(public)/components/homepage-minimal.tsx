@@ -121,7 +121,7 @@ export function MinimalHomepage({
               <Link
                 href={`/${firstContentType}`}
                 className="text-sm font-medium transition-colors"
-                style={{ color: "var(--color-accent)" }}
+                style={{ color: "var(--color-accent-text, var(--color-accent))" }}
               >
                 {site.language === "ar" ? "عرض الكل ←" : "View all →"}
               </Link>

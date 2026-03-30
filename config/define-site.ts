@@ -120,6 +120,12 @@ export interface SiteInput {
     primary: string;
     /** Accent color for CTAs/links, e.g. "#D4A574" */
     accent: string;
+    /**
+     * WCAG AA-compliant darker variant of accent for text on white.
+     * Must have >= 4.5:1 contrast ratio against #FFFFFF.
+     * Defaults to accent if omitted (only safe when accent already passes).
+     */
+    accentText?: string;
   };
 
   /* ── Optional overrides (all have smart defaults) ─────────── */
@@ -261,6 +267,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
     theme: {
       primaryColor: input.colors.primary,
       accentColor: input.colors.accent,
+      accentTextColor: input.colors.accentText ?? input.colors.accent,
       fontHeading: fontConfig.heading,
       fontBody: fontConfig.body,
     },
