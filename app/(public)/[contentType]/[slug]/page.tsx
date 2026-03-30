@@ -30,6 +30,7 @@ import {
 } from "../../components/json-ld";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import { shimmerPlaceholder } from "@/lib/image-placeholder";
 import type { Metadata } from "next";
 
 /** Revalidate content detail pages every 60 seconds (ISR) */
@@ -216,10 +217,12 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
               <div className="shrink-0">
                 <Image
                   src={heroProduct.image_url}
-                  alt={heroProduct.name}
+                  alt={heroProduct.image_alt || heroProduct.name}
                   width={112}
                   height={112}
                   sizes="112px"
+                  placeholder="blur"
+                  blurDataURL={shimmerPlaceholder(112, 112)}
                   className="h-28 w-28 rounded-lg object-contain"
                 />
               </div>
