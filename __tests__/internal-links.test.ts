@@ -73,15 +73,16 @@ describe("injectProductLinks", () => {
     expect(injectProductLinks(html, [product])).toBe(html);
   });
 
-  it("does not link text already inside an anchor tag", () => {
+  it("does not create nested anchors but links text outside anchors", () => {
     const html =
       '<p><a href="/existing">Test Product</a> is mentioned again as Test Product.</p>';
     const result = injectProductLinks(html, [makeProduct()]);
-    // Should not create a nested anchor
-    expect(result).not.toContain("<a");
-    // Wait, it should have the existing anchor plus one new link
+    // Should have the original anchor plus one new link for text outside
     const anchorCount = (result.match(/<a /g) || []).length;
-    // Original anchor + one new link for the second occurrence
-    expect(anchorCount).toBeGreaterThanOrEqual(1);
+    expect(anchorCount).toBe(2);
+    // The existing anchor should be preserved
+    expect(result).toContain('href="/existing"');
+    // The new link should be an affiliate tracking link
+    expect(result).toContain("/api/track/click?p=test-product");
   });
 });
