@@ -117,7 +117,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
       ? await fetchWithCsrf("/api/admin/content", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: content.id, ...payload }),
+          body: JSON.stringify({ id: content?.id, ...payload }),
         })
       : await fetchWithCsrf("/api/admin/content", {
           method: "POST",

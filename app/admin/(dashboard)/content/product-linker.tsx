@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { ProductRow } from "@/types/database";
 
 interface ProductLink {
@@ -18,8 +18,12 @@ const ROLES = ["hero", "featured", "related", "vs-left", "vs-right"] as const;
 
 export function ProductLinker({ products, links, onChange }: ProductLinkerProps) {
   const selectRef = useRef<HTMLSelectElement>(null);
+  const [search, setSearch] = useState("");
   const linkedIds = new Set(links.map((l) => l.product_id));
   const availableProducts = products.filter((p) => !linkedIds.has(p.id));
+  const filteredProducts = search.trim()
+    ? availableProducts.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : availableProducts;
 
   function addProduct(productId: string) {
     onChange([
@@ -120,30 +124,44 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
       )}
 
       {availableProducts.length > 0 && (
-        <div className="flex items-center gap-2">
-          <select
-            ref={selectRef}
-            defaultValue=""
-            className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm"
-          >
-            <option value="" disabled>Select a product to add...</option>
-            {availableProducts.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => {
-              const select = selectRef.current;
-              if (select?.value) {
-                addProduct(select.value);
-                select.value = "";
-              }
-            }}
-            className="rounded bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
-          >
-            Add
-          </button>
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Search ${availableProducts.length} products…`}
+            className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+          />
+          <div className="flex items-center gap-2">
+            <select
+              ref={selectRef}
+              defaultValue=""
+              className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm"
+            >
+              <option value="" disabled>
+                {filteredProducts.length === 0
+                  ? "No matching products"
+                  : `Select from ${filteredProducts.length} product${filteredProducts.length !== 1 ? "s" : ""}…`}
+              </option>
+              {filteredProducts.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                const select = selectRef.current;
+                if (select?.value) {
+                  addProduct(select.value);
+                  select.value = "";
+                  setSearch("");
+                }
+              }}
+              className="rounded bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
+            >
+              Add
+            </button>
+          </div>
         </div>
       )}
     </div>
