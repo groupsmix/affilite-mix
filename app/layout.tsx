@@ -60,7 +60,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html className={Array.from(needed).join(" ")}>
+    <html lang={site.language} dir={site.direction} className={Array.from(needed).join(" ")}>
       <body>{children}</body>
     </html>
   );

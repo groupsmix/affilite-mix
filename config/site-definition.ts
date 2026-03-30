@@ -20,6 +20,12 @@ export interface SiteDefinition {
   theme: {
     primaryColor: string;
     accentColor: string;
+    /**
+     * WCAG AA-compliant variant of accentColor for use as text on white.
+     * Must meet 4.5:1 contrast ratio against #FFFFFF.
+     * Falls back to accentColor if not set.
+     */
+    accentTextColor: string;
     fontHeading: string;
     fontBody: string;
   };

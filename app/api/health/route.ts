@@ -48,6 +48,31 @@ export async function GET() {
     checks.environment = { status: "ok" };
   }
 
+  // Check Resend email service (production-required for newsletter)
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
+    try {
+      const resendStart = Date.now();
+      const res = await fetch("https://api.resend.com/domains", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${resendKey}` },
+      });
+      const resendLatency = Date.now() - resendStart;
+      if (res.ok) {
+        checks.email = { status: "ok", latencyMs: resendLatency };
+      } else {
+        checks.email = { status: "error", latencyMs: resendLatency, error: `Resend API returned ${res.status}` };
+        logger.error("Health check: Resend API error", { status: res.status, latencyMs: resendLatency });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Resend unreachable";
+      checks.email = { status: "error", error: message };
+      logger.error("Health check: Resend unreachable", { error: message });
+    }
+  } else if (process.env.NODE_ENV === "production") {
+    checks.email = { status: "error", error: "RESEND_API_KEY not set" };
+  }
+
   const isHealthy = Object.values(checks).every((c) => c.status === "ok");
 
   return NextResponse.json(
