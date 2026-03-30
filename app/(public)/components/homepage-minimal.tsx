@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
+
+type CategoryWithCount = CategoryRow & { product_count: number };
 import { ContentCard } from "./content-card";
 import { ProductCard } from "./product-card";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
@@ -9,7 +11,7 @@ interface MinimalHomepageProps {
   site: SiteDefinition;
   recentContent: ContentRow[];
   featuredProducts: ProductRow[];
-  categories: CategoryRow[];
+  categories: CategoryWithCount[];
 }
 
 export function MinimalHomepage({
@@ -67,13 +69,16 @@ export function MinimalHomepage({
         {categories.length > 0 && (
           <section className="py-12">
             <div className="flex flex-wrap justify-center gap-3">
-              {categories.map((cat) => (
+              {categories.map((cat, i) => (
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
-                  className="rounded-full border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 transition-all duration-200 hover:border-gray-300 hover:shadow-sm"
+                  className={`rounded-full border px-5 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-sm ${i === 0 ? "border-gray-400 bg-gray-50 text-gray-900" : "border-gray-200 text-gray-700 hover:border-gray-300"}`}
                 >
                   {cat.name}
+                  {cat.product_count > 0 && (
+                    <span className="ml-1.5 text-xs text-gray-400">({cat.product_count})</span>
+                  )}
                 </Link>
               ))}
             </div>

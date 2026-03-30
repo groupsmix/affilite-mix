@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
+
+type CategoryWithCount = CategoryRow & { product_count: number };
 import { ContentCard } from "./content-card";
 import { ProductCard } from "./product-card";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
@@ -9,7 +11,7 @@ interface CinematicHomepageProps {
   site: SiteDefinition;
   recentContent: ContentRow[];
   featuredProducts: ProductRow[];
-  categories: CategoryRow[];
+  categories: CategoryWithCount[];
 }
 
 export function CinematicHomepage({
@@ -121,17 +123,24 @@ export function CinematicHomepage({
               </h2>
             </div>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
-              {categories.map((cat) => (
+              {categories.map((cat, i) => (
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
-                  className="group flex flex-col items-center rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md lg:p-8"
+                  className={`group flex flex-col items-center rounded-xl border bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md lg:p-8 ${i === 0 ? "ring-1 ring-current/10" : "border-gray-200"}`}
+                  style={i === 0 ? { borderColor: "var(--color-accent)" } : undefined}
                 >
                   <span
                     className="text-center text-sm font-semibold transition-colors duration-300"
                     style={{ color: "var(--color-primary)" }}
                   >
                     {cat.name}
+                  </span>
+                  {cat.description && (
+                    <p className="mt-1 text-center text-xs text-gray-400 line-clamp-2">{cat.description}</p>
+                  )}
+                  <span className="mt-2 text-xs text-gray-400">
+                    {cat.product_count} {cat.product_count === 1 ? "product" : "products"}
                   </span>
                 </Link>
               ))}
