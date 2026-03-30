@@ -1,14 +1,19 @@
 import type { ProductRow } from "@/types/database";
+import { getTrackingUrl } from "@/lib/tracking-url";
 
 /**
  * Auto-link product name mentions in HTML content body.
  * Links the first AND last occurrence of each product name so readers
  * encounter a clickable link both early and late in long-form content.
  * Skips text already inside <a> tags or HTML attributes.
+ *
+ * When `hasConsent` is true, links point to the tracking redirect.
+ * When false (default), links point directly to the affiliate URL.
  */
 export function injectProductLinks(
   html: string,
   products: ProductRow[],
+  hasConsent = false,
 ): string {
   if (!products.length || !html) return html;
 
@@ -40,8 +45,8 @@ export function injectProductLinks(
       .reverse();
 
     for (const pos of positionsToReplace) {
-      const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=inline`;
-      const link = `<a href="${trackUrl}" target="_blank" rel="noopener noreferrer nofollow" class="text-emerald-600 font-medium hover:underline">${pos.matchedText}</a>`;
+      const linkUrl = getTrackingUrl(product.slug, "inline", product.affiliate_url, hasConsent);
+      const link = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer nofollow" class="text-emerald-600 font-medium hover:underline">${pos.matchedText}</a>`;
       result =
         result.slice(0, pos.start) +
         link +

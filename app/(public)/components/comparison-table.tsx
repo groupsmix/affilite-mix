@@ -1,10 +1,15 @@
+"use client";
+
 import type { ProductRow } from "@/types/database";
+import { useCookieConsent } from "./cookie-consent";
+import { getTrackingUrl } from "@/lib/tracking-url";
 
 interface ComparisonTableProps {
   products: ProductRow[];
 }
 
 export function ComparisonTable({ products }: ComparisonTableProps) {
+  const { accepted: hasConsent } = useCookieConsent();
   if (products.length < 2) return null;
 
   return (
@@ -46,7 +51,7 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
             </dl>
             {p.affiliate_url && (
               <a
-                href={`/api/track/click?p=${encodeURIComponent(p.slug)}&t=comparison`}
+                href={getTrackingUrl(p.slug, "comparison", p.affiliate_url, hasConsent)}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
                 className="mt-4 block rounded-md px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:opacity-90"
@@ -135,7 +140,7 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
                 <td key={p.id} className="border-t border-gray-200 px-4 py-3 text-center">
                   {p.affiliate_url && (
                     <a
-                      href={`/api/track/click?p=${encodeURIComponent(p.slug)}&t=comparison`}
+                      href={getTrackingUrl(p.slug, "comparison", p.affiliate_url, hasConsent)}
                       target="_blank"
                       rel="noopener noreferrer nofollow"
                       className="inline-block rounded-md px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"

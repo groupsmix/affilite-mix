@@ -3,6 +3,47 @@
 import { useState } from "react";
 import Link from "next/link";
 
+function ResultSkeleton() {
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mb-12 text-center">
+        <div className="mx-auto mb-2 h-4 w-24 animate-pulse rounded bg-gray-200" />
+        <div className="mx-auto mb-4 h-9 w-72 animate-pulse rounded bg-gray-200" />
+        <div className="mx-auto h-5 w-96 max-w-full animate-pulse rounded bg-gray-200" />
+      </div>
+      <div className="space-y-6">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className={`rounded-xl border bg-white p-6 shadow-sm md:p-8 ${
+              i === 0 ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-200"
+            }`}
+          >
+            <div className="mb-4 h-6 w-28 animate-pulse rounded-full bg-gray-200" />
+            <div className="mb-2 h-6 w-48 animate-pulse rounded bg-gray-200" />
+            <div className="mb-3 flex gap-3">
+              <div className="h-5 w-24 animate-pulse rounded bg-gray-200" />
+              <div className="h-5 w-16 animate-pulse rounded bg-gray-200" />
+              <div className="h-5 w-20 animate-pulse rounded-full bg-gray-200" />
+            </div>
+            <div className="mb-5 space-y-2">
+              <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
+              <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
+            </div>
+            <div className="flex gap-3">
+              <div className="h-12 w-32 animate-pulse rounded-full bg-gray-200" />
+              <div className="h-12 w-36 animate-pulse rounded-full bg-gray-200" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-8 text-center text-sm text-gray-400">
+        Finding your perfect matches...
+      </p>
+    </div>
+  );
+}
+
 interface GiftFinderResult {
   name: string;
   slug: string;
@@ -103,10 +144,13 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [animatingStep, setAnimatingStep] = useState(false);
+  const [lastAnswers, setLastAnswers] = useState<Answers | null>(null);
 
   const fetchResults = async (finalAnswers: Answers) => {
     setLoading(true);
     setError(null);
+    setLastAnswers(finalAnswers);
     try {
       const params = new URLSearchParams({
         budget: finalAnswers.budget,
@@ -119,11 +163,19 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
       const data = await res.json();
       setResults(data.results ?? []);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Something went wrong while fetching recommendations. Please try again.");
       setResults([]);
     } finally {
       setLoading(false);
       setShowResults(true);
+    }
+  };
+
+  const retryFetch = () => {
+    if (lastAnswers) {
+      setShowResults(false);
+      setError(null);
+      fetchResults(lastAnswers);
     }
   };
 
@@ -133,7 +185,11 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
     setAnswers(newAnswers);
 
     if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+      setAnimatingStep(true);
+      setTimeout(() => {
+        setCurrentStep(currentStep + 1);
+        setAnimatingStep(false);
+      }, 200);
     } else {
       fetchResults(newAnswers as Answers);
     }
@@ -145,6 +201,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
     setResults([]);
     setShowResults(false);
     setError(null);
+    setLastAnswers(null);
   };
 
   const handleCtaClick = (e: React.MouseEvent<HTMLAnchorElement>, product: GiftFinderResult) => {
@@ -158,19 +215,14 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
   };
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 lg:px-8">
-        <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-amber-400" />
-        <p className="text-gray-500">Finding your perfect {productLabelPlural.toLowerCase()}...</p>
-      </div>
-    );
+    return <ResultSkeleton />;
   }
 
   if (showResults) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
         {/* Results header */}
-        <div className="mb-12 text-center">
+        <div className="mb-12 animate-[fadeIn_0.5s_ease-out] text-center">
           <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
             Your Results
           </p>
@@ -185,13 +237,31 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
 
         {error && (
           <div className="mb-8 rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-            <p className="mb-4 text-red-700">{error}</p>
-            <button
-              onClick={resetQuiz}
-              className="rounded-full border border-red-300 px-6 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
-            >
-              Try Again
-            </button>
+            <div className="mb-3">
+              <svg className="mx-auto h-10 w-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+            </div>
+            <p className="mb-1 text-lg font-semibold text-red-800">Unable to Load Recommendations</p>
+            <p className="mb-5 text-sm text-red-600">{error}</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                onClick={retryFetch}
+                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:opacity-90"
+                style={{ backgroundColor: "var(--color-accent)" }}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Retry
+              </button>
+              <button
+                onClick={resetQuiz}
+                className="rounded-full border border-red-300 px-6 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
+              >
+                Start Over
+              </button>
+            </div>
           </div>
         )}
 
@@ -203,6 +273,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
               className={`rounded-xl border bg-white p-6 shadow-sm md:p-8 ${
                 i === 0 ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-200"
               }`}
+              style={{ animation: `fadeSlideUp 0.4s ease-out ${i * 0.1}s both` }}
             >
               <span
                 className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide text-white ${
@@ -305,6 +376,18 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
             </Link>
           </div>
         </div>
+
+        {/* Keyframe animations */}
+        <style>{`
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -342,33 +425,43 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
         ))}
       </div>
 
-      <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">
-        Step {currentStep + 1} of {steps.length}
-      </p>
-      <h2
-        className="mb-8 text-2xl font-semibold md:text-3xl"
-        style={{ fontFamily: "var(--font-heading)" }}
+      <div
+        className={`transition-all duration-200 ${animatingStep ? "translate-y-2 opacity-0" : "translate-y-0 opacity-100"}`}
       >
-        {step.title}
-      </h2>
+        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">
+          Step {currentStep + 1} of {steps.length}
+        </p>
+        <h2
+          className="mb-8 text-2xl font-semibold md:text-3xl"
+          style={{ fontFamily: "var(--font-heading)" }}
+        >
+          {step.title}
+        </h2>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {step.options.map((option) => (
-          <button
-            key={option.value}
-            onClick={() => handleSelect(option.value)}
-            className="rounded-xl border border-gray-200 bg-white p-6 text-left shadow-sm transition-all hover:border-amber-300 hover:shadow-md"
-          >
-            <span className="text-base font-medium text-gray-800">
-              {option.label}
-            </span>
-          </button>
-        ))}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {step.options.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => handleSelect(option.value)}
+              className="rounded-xl border border-gray-200 bg-white p-6 text-left shadow-sm transition-all hover:border-amber-300 hover:shadow-md"
+            >
+              <span className="text-base font-medium text-gray-800">
+                {option.label}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {currentStep > 0 && (
         <button
-          onClick={() => setCurrentStep(currentStep - 1)}
+          onClick={() => {
+            setAnimatingStep(true);
+            setTimeout(() => {
+              setCurrentStep(currentStep - 1);
+              setAnimatingStep(false);
+            }, 200);
+          }}
           className="mt-8 flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-gray-700"
         >
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

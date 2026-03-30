@@ -34,40 +34,69 @@ export default async function CategoriesPage() {
           </Link>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-200 bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 font-medium text-gray-700">Name</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Slug</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Type</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {categories.map((cat) => (
-                <tr key={cat.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{cat.slug}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                      {cat.taxonomy_type}
-                    </span>
-                  </td>
-                  <td className="flex gap-2 px-4 py-3">
-                    <Link
-                      href={`/admin/categories/${cat.id}`}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      Edit
-                    </Link>
-                    <CategoryDeleteButton id={cat.id} name={cat.name} />
-                  </td>
+        <>
+          {/* Card layout on mobile */}
+          <div className="grid gap-3 md:hidden">
+            {categories.map((cat) => (
+              <div key={cat.id} className="rounded-lg border border-gray-200 bg-white p-4">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <h3 className="font-medium text-gray-900">{cat.name}</h3>
+                  <span className="inline-flex shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                    {cat.taxonomy_type}
+                  </span>
+                </div>
+                <p className="mb-3 truncate text-sm text-gray-500">{cat.slug}</p>
+                <div className="flex gap-3">
+                  <Link
+                    href={`/admin/categories/${cat.id}`}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Edit
+                  </Link>
+                  <CategoryDeleteButton id={cat.id} name={cat.name} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Table layout on md+ screens */}
+          <div className="hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
+            <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-gray-200 bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 font-medium text-gray-700">Name</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Slug</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Type</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {categories.map((cat) => (
+                  <tr key={cat.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
+                    <td className="px-4 py-3 text-gray-500">{cat.slug}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                        {cat.taxonomy_type}
+                      </span>
+                    </td>
+                    <td className="flex gap-2 px-4 py-3">
+                      <Link
+                        href={`/admin/categories/${cat.id}`}
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </Link>
+                      <CategoryDeleteButton id={cat.id} name={cat.name} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
