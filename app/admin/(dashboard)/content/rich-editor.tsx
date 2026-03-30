@@ -13,6 +13,21 @@ interface RichEditorProps {
   onChange: (html: string) => void;
 }
 
+/** Convert a YouTube or Vimeo URL to an embeddable URL. */
+function toEmbedUrl(url: string): string | null {
+  // YouTube: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
+  const ytMatch = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/,
+  );
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+
+  // Vimeo: vimeo.com/ID
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+
+  return null;
+}
+
 /** Inline popover for entering a URL (used for both links and images). */
 function UrlPopover({
   label,
@@ -223,7 +238,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
       <div className="relative">
         <button
           type="button"
-          onClick={() => { setShowImagePopover(!showImagePopover); setShowLinkPopover(false); }}
+          onClick={() => { setShowImagePopover(!showImagePopover); setShowLinkPopover(false); setShowVideoPopover(false); }}
           className={btnClass(false)}
           title="Insert Image"
         >
