@@ -106,21 +106,20 @@ export function WatchHomepage({
             >
               Find the Perfect{" "}
               <br className="hidden sm:block" />
-              Watch Gift{" "}
               <span
                 className="bg-clip-text text-transparent"
                 style={{
                   backgroundImage: `linear-gradient(135deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 70%, white))`,
                 }}
               >
-                for Him
+                Watch Gift
               </span>
             </h1>
 
             {/* Subtitle */}
             <p className="mb-12 max-w-2xl text-lg font-light leading-relaxed text-gray-400 md:text-xl">
               Expert reviews, honest ratings, and a proprietary Gift-Worthiness
-              Score to help you pick a watch he&apos;ll actually love. No fluff, no
+              Score to help you pick a watch they&apos;ll actually love. No fluff, no
               sponsored rankings.
             </p>
 
