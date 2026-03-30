@@ -35,6 +35,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [description, setDescription] = useState(product?.description ?? "");
   const [affiliateUrl, setAffiliateUrl] = useState(product?.affiliate_url ?? "");
   const [imageUrl, setImageUrl] = useState(product?.image_url ?? "");
+  const [imageAlt, setImageAlt] = useState(product?.image_alt ?? "");
   const [price, setPrice] = useState(product?.price ?? "");
   const [priceAmount, setPriceAmount] = useState<string>(product?.price_amount?.toString() ?? "");
   const [priceCurrency, setPriceCurrency] = useState(product?.price_currency ?? "USD");
@@ -70,6 +71,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       description,
       affiliate_url: affiliateUrl,
       image_url: imageUrl,
+      image_alt: imageAlt,
       price,
       price_amount: priceAmount ? Number(priceAmount) : null,
       price_currency: priceCurrency,
@@ -171,6 +173,18 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         onChange={setImageUrl}
         label="Product Image"
       />
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">Image Alt Text</label>
+        <input
+          type="text"
+          value={imageAlt}
+          onChange={(e) => { setImageAlt(e.target.value); markDirty(); }}
+          placeholder="Describe the product image for screen readers"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        />
+        <p className="mt-1 text-xs text-gray-400">Describe the product image for screen readers and SEO.</p>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div>

@@ -78,7 +78,7 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
         <div className="mb-3 overflow-hidden rounded-md">
           <Image
             src={product.image_url}
-            alt={product.name}
+            alt={product.image_alt || product.name}
             width={320}
             height={160}
             className="h-40 w-full object-contain"

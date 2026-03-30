@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
         description: row.description ?? "",
         affiliate_url: row.affiliate_url ?? "",
         image_url: row.image_url ?? "",
+        image_alt: row.image_alt ?? "",
         price: row.price ?? "",
         price_amount: parsedPriceAmount,
         price_currency: row.price_currency ?? "USD",

@@ -60,6 +60,19 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         </Suspense>
       </header>
 
+      {/* Screen reader announcement for search results */}
+      {query.length >= 2 && (
+        <div className="sr-only" role="status" aria-live="polite">
+          {hasResults
+            ? (site.language === "ar"
+                ? `تم العثور على ${productResults.length} منتجات و ${contentResults.length} محتوى`
+                : `Found ${productResults.length} products and ${contentResults.length} articles`)
+            : (site.language === "ar"
+                ? `لا توجد نتائج لـ "${query}"`
+                : `No results found for "${query}"`)}
+        </div>
+      )}
+
       {query.length >= 2 && !hasResults && (
         <div className="py-16 text-center text-gray-400">
           <p className="text-lg">
