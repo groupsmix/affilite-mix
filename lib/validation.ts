@@ -299,6 +299,9 @@ export function validateCreateContent(body: Record<string, unknown>): Validation
   if (body.body !== undefined && !isString(body.body)) {
     errors.body = "body must be a string";
   }
+  if (isString(body.body) && body.body.length > 500_000) {
+    errors.body = "body must be less than 500,000 characters";
+  }
   if (body.excerpt !== undefined && !isString(body.excerpt)) {
     errors.excerpt = "excerpt must be a string";
   }
@@ -366,6 +369,9 @@ export function validateUpdateContent(body: Record<string, unknown>): Validation
   }
   if (body.body !== undefined && !isString(body.body)) {
     errors.body = "body must be a string";
+  }
+  if (body.body !== undefined && isString(body.body) && body.body.length > 500_000) {
+    errors.body = "body must be less than 500,000 characters";
   }
   if (body.status !== undefined && !CONTENT_STATUSES.has(body.status as string)) {
     errors.status = "status must be one of: draft, review, scheduled, published, archived";
