@@ -1,15 +1,12 @@
 /**
  * Server-side HTML sanitizer.
- * Uses an allowlist approach — only permitted tags and attributes survive.
- * Prevents stored XSS from admin-authored content.
+ * Uses htmlparser2 (pure-JS parser) with an allowlist approach — only permitted
+ * tags and attributes survive. Prevents stored XSS from admin-authored content.
  *
- * NOTE: This regex-based sanitizer works well for trusted admin input but
- * should be supplemented with a proper HTML parser (e.g. DOMPurify with JSDOM)
- * before allowing any user-generated content. DOMPurify is not added here
- * because JSDOM is incompatible with the Cloudflare Workers runtime. When/if
- * the sanitization pipeline moves to a Node.js environment, add DOMPurify
- * as a secondary check after this fast-path pass.
+ * Compatible with Cloudflare Workers (no JSDOM / DOMPurify dependency).
  */
+
+import { Parser } from "htmlparser2";
 
 const ALLOWED_TAGS = new Set([
   "h1", "h2", "h3", "h4", "h5", "h6",
@@ -41,81 +38,6 @@ const VOID_TAGS = new Set(["br", "hr", "img"]);
 
 const DANGEROUS_PROTOCOLS = /^\s*(javascript|data|vbscript)\s*:/i;
 
-/**
- * Sanitize HTML using a tag/attribute allowlist.
- * - Strips all tags not in ALLOWED_TAGS
- * - Strips all attributes not in ALLOWED_ATTRS for that tag
- * - Removes javascript:/data:/vbscript: protocol in href/src
- * - Forces rel="noopener noreferrer nofollow" on all <a> tags
- * - Removes event handler attributes (on*)
- */
-export function sanitizeHtml(html: string): string {
-  if (!html) return html;
-
-  // Process the HTML by replacing tags through a single pass
-  return html.replace(
-    /<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)?\/?>/g,
-    (fullMatch, tagName: string, attrString: string | undefined) => {
-      const tag = tagName.toLowerCase();
-
-      // Closing tag
-      if (fullMatch.startsWith("</")) {
-        if (!ALLOWED_TAGS.has(tag) || VOID_TAGS.has(tag)) return "";
-        return `</${tag}>`;
-      }
-
-      // Opening / self-closing tag
-      if (!ALLOWED_TAGS.has(tag)) return "";
-
-      const allowedAttrsForTag = ALLOWED_ATTRS[tag];
-      const attrs: string[] = [];
-
-      if (attrString) {
-        // Parse attributes
-        const attrPattern = /([a-zA-Z][a-zA-Z0-9_-]*)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|(\S+)))?/g;
-        let attrMatch: RegExpExecArray | null;
-
-        while ((attrMatch = attrPattern.exec(attrString)) !== null) {
-          const attrName = attrMatch[1].toLowerCase();
-          const attrValue = attrMatch[2] ?? attrMatch[3] ?? attrMatch[4] ?? "";
-
-          // Skip event handlers (onclick, onerror, etc.)
-          if (attrName.startsWith("on")) continue;
-
-          // Skip style attribute (potential XSS vector)
-          if (attrName === "style") continue;
-
-          // Only allow attributes in the allowlist for this tag
-          if (!allowedAttrsForTag || !allowedAttrsForTag.has(attrName)) continue;
-
-          // Check href/src for dangerous protocols
-          if ((attrName === "href" || attrName === "src") && DANGEROUS_PROTOCOLS.test(attrValue)) {
-            continue;
-          }
-
-          attrs.push(`${attrName}="${escapeAttrValue(attrValue)}"`);
-        }
-      }
-
-      // Force safe rel on <a> tags
-      if (tag === "a") {
-        const filteredAttrs = attrs.filter((a) => !a.startsWith("rel="));
-        filteredAttrs.push('rel="noopener noreferrer nofollow"');
-        const attrStr = filteredAttrs.length > 0 ? " " + filteredAttrs.join(" ") : "";
-        return `<a${attrStr}>`;
-      }
-
-      const attrStr = attrs.length > 0 ? " " + attrs.join(" ") : "";
-
-      if (VOID_TAGS.has(tag)) {
-        return `<${tag}${attrStr} />`;
-      }
-
-      return `<${tag}${attrStr}>`;
-    },
-  );
-}
-
 /** Escape special characters in attribute values */
 function escapeAttrValue(value: string): string {
   return value
@@ -123,4 +45,95 @@ function escapeAttrValue(value: string): string {
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+/**
+ * Build a safe attribute string for an allowed tag.
+ * - Only attributes in ALLOWED_ATTRS for that tag are kept.
+ * - Event handlers (on*) and style attributes are always stripped.
+ * - javascript: / data: / vbscript: protocols in href/src are stripped.
+ * - <a> tags always get rel="noopener noreferrer nofollow".
+ */
+function buildAttrs(tag: string, raw: Record<string, string>): string {
+  const allowedSet = ALLOWED_ATTRS[tag];
+  const parts: string[] = [];
+
+  if (allowedSet) {
+    for (const [name, value] of Object.entries(raw)) {
+      const lc = name.toLowerCase();
+
+      // Always strip event handlers and style
+      if (lc.startsWith("on") || lc === "style") continue;
+
+      if (!allowedSet.has(lc)) continue;
+
+      // Check href/src for dangerous protocols
+      if ((lc === "href" || lc === "src") && DANGEROUS_PROTOCOLS.test(value)) {
+        continue;
+      }
+
+      // Skip user-supplied rel on <a> — we force our own below
+      if (tag === "a" && lc === "rel") continue;
+
+      parts.push(`${lc}="${escapeAttrValue(value)}"`);
+    }
+  }
+
+  // Force safe rel on <a> tags
+  if (tag === "a") {
+    parts.push('rel="noopener noreferrer nofollow"');
+  }
+
+  return parts.length > 0 ? " " + parts.join(" ") : "";
+}
+
+/**
+ * Sanitize HTML using htmlparser2 with a tag/attribute allowlist.
+ * - Strips all tags not in ALLOWED_TAGS
+ * - Strips all attributes not in ALLOWED_ATTRS for that tag
+ * - Removes javascript:/data:/vbscript: protocols in href/src
+ * - Forces rel="noopener noreferrer nofollow" on all <a> tags
+ * - Removes event handler attributes (on*)
+ */
+export function sanitizeHtml(html: string): string {
+  if (!html) return html;
+
+  const chunks: string[] = [];
+
+  const parser = new Parser(
+    {
+      onopentag(name, attribs) {
+        const tag = name.toLowerCase();
+        if (!ALLOWED_TAGS.has(tag)) return;
+
+        const attrStr = buildAttrs(tag, attribs);
+
+        if (VOID_TAGS.has(tag)) {
+          chunks.push(`<${tag}${attrStr} />`);
+        } else {
+          chunks.push(`<${tag}${attrStr}>`);
+        }
+      },
+
+      ontext(text) {
+        chunks.push(text);
+      },
+
+      onclosetag(name) {
+        const tag = name.toLowerCase();
+        if (!ALLOWED_TAGS.has(tag) || VOID_TAGS.has(tag)) return;
+        chunks.push(`</${tag}>`);
+      },
+    },
+    {
+      recognizeSelfClosing: true,
+      lowerCaseTags: true,
+      lowerCaseAttributeNames: true,
+    },
+  );
+
+  parser.write(html);
+  parser.end();
+
+  return chunks.join("");
 }
