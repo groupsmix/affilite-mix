@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ProductRow, CategoryRow } from "@/types/database";
 import { ImageUploader } from "../components/image-uploader";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { autoSlug } from "@/lib/auto-slug";
 
 interface ProductFormProps {
   product?: ProductRow;
@@ -51,13 +52,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [cons, setCons] = useState(product?.cons ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  function autoSlug(value: string) {
-    return value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
