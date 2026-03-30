@@ -50,9 +50,9 @@ export default async function AnalyticsPage() {
     getClickCount(siteId, sevenDaysAgo),
     getClickCount(siteId, thirtyDaysAgo),
     getClickCount(siteId),
-    getTopProducts(siteId, thirtyDaysAgo, 10),
-    getTopReferrers(siteId, thirtyDaysAgo, 10),
-    getTopContentSlugs(siteId, thirtyDaysAgo, 10),
+    getTopProducts(siteId, thirtyDaysAgo, 50),
+    getTopReferrers(siteId, thirtyDaysAgo, 50),
+    getTopContentSlugs(siteId, thirtyDaysAgo, 50),
     getDailyClicks(siteId, 30),
     getRecentClicks(siteId, 20),
     countProducts({ siteId, status: "active" }),
@@ -134,24 +134,28 @@ export default async function AnalyticsPage() {
           {topProducts.length === 0 ? (
             <p className="text-sm text-gray-400">No click data yet</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left text-gray-500">
-                  <th className="pb-2 font-medium">Product</th>
-                  <th className="pb-2 text-right font-medium">Clicks</th>
-                  <th className="pb-2 text-right font-medium">Est. Rev</th>
-                </tr>
-              </thead>
-              <ExpandableTable initialRows={5} totalRows={topProducts.length}>
-                {topProducts.map((p, i) => (
-                  <tr key={i} className="border-b border-gray-50">
-                    <td className="py-2 text-gray-900">{p.product_name}</td>
-                    <td className="py-2 text-right font-medium text-gray-700">{p.click_count}</td>
-                    <td className="py-2 text-right text-green-700">${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
-                  </tr>
-                ))}
-              </ExpandableTable>
-            </table>
+            <ExpandableTable rows={topProducts.length} initialLimit={10}>
+              {(limit) => (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left text-gray-500">
+                      <th className="pb-2 font-medium">Product</th>
+                      <th className="pb-2 text-right font-medium">Clicks</th>
+                      <th className="pb-2 text-right font-medium">Est. Rev</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topProducts.slice(0, limit).map((p, i) => (
+                      <tr key={i} className="border-b border-gray-50">
+                        <td className="py-2 text-gray-900">{p.product_name}</td>
+                        <td className="py-2 text-right font-medium text-gray-700">{p.click_count}</td>
+                        <td className="py-2 text-right text-green-700">${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </ExpandableTable>
           )}
         </section>
 
@@ -161,27 +165,31 @@ export default async function AnalyticsPage() {
           {topReferrers.length === 0 ? (
             <p className="text-sm text-gray-400">No referrer data yet</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left text-gray-500">
-                  <th className="pb-2 font-medium">Referrer</th>
-                  <th className="pb-2 text-right font-medium">Clicks</th>
-                  <th className="pb-2 text-right font-medium">%</th>
-                </tr>
-              </thead>
-              <ExpandableTable initialRows={5} totalRows={topReferrers.length}>
-                {topReferrers.map((r, i) => {
-                  const pct = totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
-                  return (
-                    <tr key={i} className="border-b border-gray-50">
-                      <td className="max-w-[200px] truncate py-2 text-gray-900">{r.referrer}</td>
-                      <td className="py-2 text-right font-medium text-gray-700">{r.click_count}</td>
-                      <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
+            <ExpandableTable rows={topReferrers.length} initialLimit={10}>
+              {(limit) => (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left text-gray-500">
+                      <th className="pb-2 font-medium">Referrer</th>
+                      <th className="pb-2 text-right font-medium">Clicks</th>
+                      <th className="pb-2 text-right font-medium">%</th>
                     </tr>
-                  );
-                })}
-              </ExpandableTable>
-            </table>
+                  </thead>
+                  <tbody>
+                    {topReferrers.slice(0, limit).map((r, i) => {
+                      const pct = totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
+                      return (
+                        <tr key={i} className="border-b border-gray-50">
+                          <td className="max-w-[200px] truncate py-2 text-gray-900">{r.referrer}</td>
+                          <td className="py-2 text-right font-medium text-gray-700">{r.click_count}</td>
+                          <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </ExpandableTable>
           )}
         </section>
       </div>
@@ -192,29 +200,33 @@ export default async function AnalyticsPage() {
         {topContent.length === 0 ? (
           <p className="text-sm text-gray-400">No content click data yet</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 text-left text-gray-500">
-                <th className="pb-2 font-medium">Content Page</th>
-                <th className="pb-2 text-right font-medium">Clicks</th>
-                <th className="pb-2 text-right font-medium">% of Total</th>
-                <th className="pb-2 text-right font-medium">Est. Rev</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topContent.map((c, i) => {
-                const pct = clicks30d > 0 ? (c.click_count / clicks30d) * 100 : 0;
-                return (
-                  <tr key={i} className="border-b border-gray-50">
-                    <td className="max-w-[300px] truncate py-2 text-gray-900">{c.content_slug}</td>
-                    <td className="py-2 text-right font-medium text-gray-700">{c.click_count}</td>
-                    <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
-                    <td className="py-2 text-right text-green-700">${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
+          <ExpandableTable rows={topContent.length} initialLimit={10}>
+            {(limit) => (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-left text-gray-500">
+                    <th className="pb-2 font-medium">Content Page</th>
+                    <th className="pb-2 text-right font-medium">Clicks</th>
+                    <th className="pb-2 text-right font-medium">% of Total</th>
+                    <th className="pb-2 text-right font-medium">Est. Rev</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {topContent.slice(0, limit).map((c, i) => {
+                    const pct = clicks30d > 0 ? (c.click_count / clicks30d) * 100 : 0;
+                    return (
+                      <tr key={i} className="border-b border-gray-50">
+                        <td className="max-w-[300px] truncate py-2 text-gray-900">{c.content_slug}</td>
+                        <td className="py-2 text-right font-medium text-gray-700">{c.click_count}</td>
+                        <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
+                        <td className="py-2 text-right text-green-700">${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </ExpandableTable>
         )}
       </section>
 
@@ -238,9 +250,9 @@ export default async function AnalyticsPage() {
                 {recentClicks.map((click) => (
                   <tr key={click.id} className="border-b border-gray-50">
                     <td className="py-2 text-gray-900">{click.product_name}</td>
-                    <td className="py-2 text-gray-600">{click.content_slug || "—"}</td>
+                    <td className="py-2 text-gray-600">{click.content_slug || "\u2014"}</td>
                     <td className="max-w-[200px] truncate py-2 text-gray-600">
-                      {click.referrer || "—"}
+                      {click.referrer || "\u2014"}
                     </td>
                     <td className="py-2 text-right text-gray-400">
                       <LocalTime dateTime={click.created_at} />

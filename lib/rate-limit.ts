@@ -84,11 +84,15 @@ async function checkRateLimitKV(
 }
 
 // ── In-memory fallback (local dev) ──────────────────────────────────
-// TODO(#8): The in-memory fallback is per-isolate on Cloudflare Workers.
+// WARNING: The in-memory fallback is per-isolate on Cloudflare Workers.
 // An attacker can bypass rate limits by hitting different isolates.
 // Implement distributed rate limiting via Cloudflare KV or Durable Objects
-// before scaling to significant traffic. Acceptable for soft launch.
-// Tracking issue: https://github.com/groupsmix/affilite-mix/issues/new?title=Distributed+rate+limiting
+// before scaling to significant traffic.
+//
+// To configure KV for production:
+//   1. Create a KV namespace: wrangler kv:namespace create RATE_LIMIT_KV
+//   2. Add the binding to wrangler.jsonc under [kv_namespaces]
+//   3. Verify with: wrangler kv:key list --namespace-id=<ID>
 
 interface MemoryRateLimitEntry {
   timestamps: number[];
@@ -150,14 +154,14 @@ function checkRateLimitMemory(
 
 // ── Public API ──────────────────────────────────────────────────────
 
-let kvWarningLogged = false;
-
 /**
  * Check and record a request against the rate limit.
  *
  * Uses Cloudflare KV in production for distributed rate limiting.
  * Falls back to in-memory store in local development.
  */
+let kvFallbackWarned = false;
+
 export async function checkRateLimit(
   key: string,
   config: RateLimitConfig,
@@ -167,12 +171,15 @@ export async function checkRateLimit(
     return checkRateLimitKV(kv, key, config);
   }
 
-  if (!kvWarningLogged && typeof process !== "undefined" && process.env.NODE_ENV === "production") {
-    kvWarningLogged = true;
+  // Log a warning when falling back to in-memory rate limiting.
+  // In production (Cloudflare Workers) this means KV is not configured,
+  // and rate limiting will be ineffective across isolates.
+  if (!kvFallbackWarned) {
+    kvFallbackWarned = true;
     console.warn(
-      "[rate-limit] WARNING: Cloudflare KV namespace RATE_LIMIT_KV is not available. " +
-      "Falling back to in-memory rate limiting which is per-isolate and ineffective in production. " +
-      "Configure RATE_LIMIT_KV binding in your wrangler.toml or Cloudflare dashboard.",
+      "[rate-limit] KV namespace RATE_LIMIT_KV not available — using in-memory fallback. " +
+      "This is expected in local dev but NOT safe for production. " +
+      "See lib/rate-limit.ts for KV configuration instructions.",
     );
   }
 
