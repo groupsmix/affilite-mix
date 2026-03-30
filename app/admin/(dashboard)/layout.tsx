@@ -29,8 +29,11 @@ export default async function AdminLayout({
       } as React.CSSProperties)
     : undefined;
 
+  const direction = activeSite?.direction ?? "ltr";
+  const lang = activeSite?.language ?? "en";
+
   return (
-    <div className="flex min-h-screen bg-gray-50" style={cssVars}>
+    <div dir={direction} lang={lang} className="flex min-h-screen bg-gray-50" style={cssVars}>
       <AdminSidebar />
       <main className="flex-1 p-6 lg:p-8">{children}</main>
     </div>

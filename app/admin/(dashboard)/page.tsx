@@ -20,12 +20,15 @@ export default async function AdminDashboard() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [products, contentItems, clicksToday, clicks7d, topProducts] = await Promise.all([
+  // Fetch all linked content_product rows in parallel with other queries
+  const sb = getServiceClient();
+  const [products, contentItems, clicksToday, clicks7d, topProducts, { data: allLinkedRows }] = await Promise.all([
     listProducts({ siteId: dbSiteId }),
     listContent({ siteId: dbSiteId }),
     getClickCount(dbSiteId, todayStart),
     getClickCount(dbSiteId, sevenDaysAgo),
     getTopProducts(dbSiteId, sevenDaysAgo, 5),
+    sb.from("content_products").select("content_id").eq("site_id", dbSiteId),
   ]);
 
   const activeProducts = products.filter((p) => p.status === "active").length;
@@ -40,16 +43,8 @@ export default async function AdminDashboard() {
   const publishedContentIds = contentItems
     .filter((c) => c.status === "published")
     .map((c) => c.id);
-  let contentWithNoProducts = 0;
-  if (publishedContentIds.length > 0) {
-    const sb = getServiceClient();
-    const { data: linkedRows } = await sb
-      .from("content_products")
-      .select("content_id")
-      .in("content_id", publishedContentIds);
-    const linkedIds = new Set((linkedRows ?? []).map((r: { content_id: string }) => r.content_id));
-    contentWithNoProducts = publishedContentIds.filter((id) => !linkedIds.has(id)).length;
-  }
+  const linkedIds = new Set((allLinkedRows ?? []).map((r: { content_id: string }) => r.content_id));
+  const contentWithNoProducts = publishedContentIds.filter((id) => !linkedIds.has(id)).length;
 
   // Alerts / warnings
   const productsWithNoUrl = products.filter((p) => p.status === "active" && !p.affiliate_url);
