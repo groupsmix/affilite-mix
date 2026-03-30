@@ -3,7 +3,6 @@ import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
 import { ContentCard } from "./content-card";
 import { ProductCard } from "./product-card";
-import { NewsletterSignup } from "./newsletter-signup";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 
 /** Default SVG path for occasion icons when no category-specific icon is available. */
@@ -483,12 +482,6 @@ export function WatchHomepage({
         </section>
       )}
 
-      {/* Newsletter */}
-      <section className="bg-gray-50 py-20 lg:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <NewsletterSignup siteLanguage={site.language} />
-        </div>
-      </section>
     </div>
   );
 }

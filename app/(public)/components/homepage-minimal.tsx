@@ -3,7 +3,6 @@ import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
 import { ContentCard } from "./content-card";
 import { ProductCard } from "./product-card";
-import { NewsletterSignup } from "./newsletter-signup";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 
 interface MinimalHomepageProps {
@@ -126,13 +125,6 @@ export function MinimalHomepage({
                 <ContentCard key={content.id} content={content} locale={locale} />
               ))}
             </div>
-          </section>
-        )}
-
-        {/* Newsletter */}
-        {site.features.newsletter && (
-          <section className="py-12">
-            <NewsletterSignup siteLanguage={site.language} />
           </section>
         )}
 
