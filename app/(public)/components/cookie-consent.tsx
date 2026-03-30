@@ -82,42 +82,74 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
     <div
       role="dialog"
       aria-label="Cookie consent"
-      className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6"
+      className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 md:p-6"
     >
       <div
-        className="mx-auto max-w-4xl rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl md:p-8"
+        className="mx-auto max-w-4xl rounded-xl border border-gray-200 bg-white p-3 shadow-2xl sm:rounded-2xl sm:p-6 md:p-8"
         style={{ borderColor: "color-mix(in srgb, var(--color-primary, #1E293B) 20%, transparent)" }}
       >
-        <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:gap-6">
-          <div className="flex-1">
-            <h2 className="mb-2 text-lg font-semibold text-gray-900">
-              {t.title}
-            </h2>
-            <p className="text-sm leading-relaxed text-gray-600">
-              {t.body}{" "}
-              <Link
-                href="/privacy"
-                className="underline transition-colors hover:text-gray-900"
-                style={{ color: "var(--color-accent, #10B981)" }}
-              >
-                {t.privacy}
-              </Link>
-            </p>
-          </div>
-          <div className="flex w-full shrink-0 flex-col gap-3 sm:flex-row md:w-auto">
+        {/* Mobile: compact single-row layout */}
+        <div className="flex items-center gap-3 sm:hidden">
+          <p className="flex-1 text-xs leading-snug text-gray-600">
+            {t.title}.{" "}
+            <Link
+              href="/privacy"
+              className="underline"
+              style={{ color: "var(--color-accent, #10B981)" }}
+            >
+              {t.privacy}
+            </Link>
+          </p>
+          <div className="flex shrink-0 gap-2">
             <button
               onClick={handleReject}
-              className="min-h-[44px] rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
+              className="min-h-[36px] rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
             >
               {t.reject}
             </button>
             <button
               onClick={handleAccept}
-              className="min-h-[44px] rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:opacity-90"
+              className="min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all duration-300 hover:opacity-90"
               style={{ backgroundColor: "var(--color-accent, #10B981)" }}
             >
               {t.accept}
             </button>
+          </div>
+        </div>
+
+        {/* Desktop / tablet: full layout */}
+        <div className="hidden sm:block">
+          <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:gap-6">
+            <div className="flex-1">
+              <h2 className="mb-2 text-lg font-semibold text-gray-900">
+                {t.title}
+              </h2>
+              <p className="text-sm leading-relaxed text-gray-600">
+                {t.body}{" "}
+                <Link
+                  href="/privacy"
+                  className="underline transition-colors hover:text-gray-900"
+                  style={{ color: "var(--color-accent, #10B981)" }}
+                >
+                  {t.privacy}
+                </Link>
+              </p>
+            </div>
+            <div className="flex w-full shrink-0 flex-col gap-3 sm:flex-row md:w-auto">
+              <button
+                onClick={handleReject}
+                className="min-h-[44px] rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
+              >
+                {t.reject}
+              </button>
+              <button
+                onClick={handleAccept}
+                className="min-h-[44px] rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:opacity-90"
+                style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+              >
+                {t.accept}
+              </button>
+            </div>
           </div>
         </div>
       </div>

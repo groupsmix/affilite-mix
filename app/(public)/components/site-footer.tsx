@@ -4,9 +4,11 @@ import { NewsletterSignup } from "./newsletter-signup";
 
 interface SiteFooterProps {
   site: SiteDefinition;
+  /** When true, skip the newsletter section (e.g. the page already renders one). */
+  hideNewsletter?: boolean;
 }
 
-export function SiteFooter({ site }: SiteFooterProps) {
+export function SiteFooter({ site, hideNewsletter }: SiteFooterProps) {
   return (
     <footer className="border-t border-gray-200 bg-gray-50 py-10">
       <div className="mx-auto max-w-6xl px-4">
@@ -39,8 +41,8 @@ export function SiteFooter({ site }: SiteFooterProps) {
           ))}
         </div>
 
-        {/* Newsletter signup — only when feature is enabled */}
-        {site.features.newsletter && (
+        {/* Newsletter signup — only when feature is enabled and not already on the page */}
+        {site.features.newsletter && !hideNewsletter && (
           <div className="mt-8">
             <NewsletterSignup siteLanguage={site.language} />
           </div>

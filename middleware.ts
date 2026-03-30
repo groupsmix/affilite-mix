@@ -69,8 +69,11 @@ function getAllowedOrigins(): string[] {
       }
     }
   }
-  // Allow localhost for dev
-  origins.push("http://localhost:3000");
+  // Allow localhost for dev (common ports)
+  if (process.env.NODE_ENV === "development") {
+    origins.push("http://localhost:3000");
+    origins.push("http://localhost:3001");
+  }
   return origins;
 }
 
