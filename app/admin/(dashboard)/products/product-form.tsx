@@ -55,7 +55,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   function autoSlug(value: string) {
     return value
       .toLowerCase()
-      .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+      .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
   }
 
@@ -293,13 +293,25 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Deal Expires</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Deal Expires (UTC)</label>
           <input
             type="datetime-local"
             value={dealExpiresAt ? dealExpiresAt.slice(0, 16) : ""}
-            onChange={(e) => setDealExpiresAt(e.target.value ? new Date(e.target.value).toISOString() : "")}
+            onChange={(e) => {
+              if (!e.target.value) {
+                setDealExpiresAt("");
+                return;
+              }
+              // Treat the input value as UTC directly (not local timezone)
+              setDealExpiresAt(e.target.value + ":00.000Z");
+            }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
+          {dealExpiresAt && (
+            <p className="mt-1 text-xs text-gray-500">
+              Expires at: {new Date(dealExpiresAt).toUTCString()}
+            </p>
+          )}
         </div>
       </div>
 

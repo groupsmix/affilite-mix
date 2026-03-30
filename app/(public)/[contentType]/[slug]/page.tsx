@@ -52,15 +52,20 @@ export async function generateMetadata({
 
   const url = `https://${site.domain}/${content.type}/${content.slug}`;
 
+  const metaTitle = content.meta_title || content.title;
+  const metaDesc = content.meta_description || content.excerpt || "";
+  const ogImageUrl = content.og_image || content.featured_image || undefined;
+  const ogImages = ogImageUrl ? [{ url: ogImageUrl }] : undefined;
+
   return {
-    title: `${content.title} — ${site.name}`,
-    description: content.excerpt || "",
+    title: `${metaTitle} — ${site.name}`,
+    description: metaDesc,
     alternates: {
       canonical: url,
     },
     openGraph: {
-      title: `${content.title} — ${site.name}`,
-      description: content.excerpt || content.title,
+      title: `${metaTitle} — ${site.name}`,
+      description: metaDesc || content.title,
       url,
       siteName: site.name,
       locale: site.locale,
@@ -68,11 +73,13 @@ export async function generateMetadata({
       publishedTime: content.created_at,
       modifiedTime: content.updated_at || undefined,
       authors: content.author ? [content.author] : undefined,
+      images: ogImages,
     },
     twitter: {
       card: "summary_large_image",
-      title: `${content.title} — ${site.name}`,
-      description: content.excerpt || content.title,
+      title: `${metaTitle} — ${site.name}`,
+      description: metaDesc || content.title,
+      images: ogImages,
     },
   };
 }
@@ -269,6 +276,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
             content.body,
             linkedProducts.map((lp) => lp.product),
           )}
+          direction={site.direction}
         />
       </div>
 

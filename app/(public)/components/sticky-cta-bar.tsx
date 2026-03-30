@@ -36,7 +36,22 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
 
   if (!visible) return null;
 
-  const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=sticky`;
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault();
+    const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=sticky`;
+    try {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(trackUrl);
+      } else {
+        fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
+      }
+    } catch {
+      // Tracking failure should never block navigation
+    }
+    if (product.affiliate_url) {
+      window.open(product.affiliate_url, "_blank", "noopener,noreferrer");
+    }
+  }
 
   return (
     <div className={`fixed left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-all ${cookieConsentResolved ? "bottom-0" : "bottom-[140px] sm:bottom-[100px]"}`}>
@@ -53,7 +68,8 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
           </div>
         </div>
         <a
-          href={trackUrl}
+          href={product.affiliate_url || "#"}
+          onClick={handleClick}
           target="_blank"
           rel="noopener noreferrer nofollow"
           className="shrink-0 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
