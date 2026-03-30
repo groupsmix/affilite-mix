@@ -45,6 +45,44 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
+    // Per-field validation
+    const fieldErrors: string[] = [];
+
+    if (row.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.slug)) {
+      fieldErrors.push("slug must be lowercase alphanumeric with hyphens (e.g. my-product)");
+    }
+
+    if (row.affiliate_url && !/^https?:\/\/.+/.test(row.affiliate_url)) {
+      fieldErrors.push("affiliate_url must be a valid HTTP(S) URL");
+    }
+
+    if (row.image_url && !/^https?:\/\/.+/.test(row.image_url)) {
+      fieldErrors.push("image_url must be a valid HTTP(S) URL");
+    }
+
+    const parsedPriceAmount = row.price_amount ? parseFloat(row.price_amount) : null;
+    if (row.price_amount && (parsedPriceAmount === null || isNaN(parsedPriceAmount) || parsedPriceAmount < 0)) {
+      fieldErrors.push("price_amount must be a non-negative number");
+    }
+
+    const parsedScore = row.score ? parseFloat(row.score) : null;
+    if (row.score && (parsedScore === null || isNaN(parsedScore) || parsedScore < 0 || parsedScore > 10)) {
+      fieldErrors.push("score must be a number between 0 and 10");
+    }
+
+    if (row.status && !["draft", "active", "archived"].includes(row.status)) {
+      fieldErrors.push(`status must be draft, active, or archived (got "${row.status}")`);
+    }
+
+    if (row.deal_expires_at && isNaN(Date.parse(row.deal_expires_at))) {
+      fieldErrors.push("deal_expires_at must be a valid ISO date");
+    }
+
+    if (fieldErrors.length > 0) {
+      results.push({ row: i + 1, name: row.name, status: "error", error: fieldErrors.join("; ") });
+      continue;
+    }
+
     try {
       await createProduct({
         site_id: guard.dbSiteId,
@@ -54,12 +92,12 @@ export async function POST(request: NextRequest) {
         affiliate_url: row.affiliate_url ?? "",
         image_url: row.image_url ?? "",
         price: row.price ?? "",
-        price_amount: row.price_amount ? parseFloat(row.price_amount) : null,
+        price_amount: parsedPriceAmount,
         price_currency: row.price_currency ?? "USD",
         merchant: row.merchant ?? "",
-        score: row.score ? parseFloat(row.score) : null,
+        score: parsedScore,
         featured: row.featured === "true",
-        status: (["draft", "active", "archived"].includes(row.status) ? row.status : "active") as "draft" | "active" | "archived",
+        status: (row.status as "draft" | "active" | "archived") || "active",
         category_id: null,
         cta_text: row.cta_text ?? "",
         deal_text: row.deal_text ?? "",
