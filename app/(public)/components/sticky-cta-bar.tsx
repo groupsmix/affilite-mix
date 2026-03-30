@@ -38,15 +38,19 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
 
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();
-    const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=sticky`;
-    try {
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(trackUrl);
-      } else {
-        fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
+    // Skip tracking if user rejected non-essential cookies
+    const consent = getCookieValue("nichehub-cookie-consent");
+    if (consent !== "rejected") {
+      const trackUrl = `/api/track/click?p=${encodeURIComponent(product.slug)}&t=sticky`;
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(trackUrl);
+        } else {
+          fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
+        }
+      } catch {
+        // Tracking failure should never block navigation
       }
-    } catch {
-      // Tracking failure should never block navigation
     }
     if (product.affiliate_url) {
       window.open(product.affiliate_url, "_blank", "noopener,noreferrer");

@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
 
 const TABLE = "categories";
@@ -50,12 +50,12 @@ export async function getCategoryById(
   return (data as unknown as CategoryRow) ?? null;
 }
 
-/** Get a single category by slug */
+/** Get a single category by slug (public) */
 export async function getCategoryBySlug(
   siteId: string,
   slug: string,
 ): Promise<CategoryRow | null> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")

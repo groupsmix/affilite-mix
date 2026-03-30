@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
 import type { ContentRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 
@@ -55,13 +55,13 @@ export async function getContentById(
   return (data as unknown as ContentRow) ?? null;
 }
 
-/** Get a single content item by slug */
+/** Get a single content item by slug (public) */
 export async function getContentBySlug(
   siteId: string,
   slug: string,
   includePreview = false,
 ): Promise<ContentRow | null> {
-  const sb = getServiceClient();
+  const sb = includePreview ? getServiceClient() : getAnonClient();
   let query = sb
     .from(TABLE)
     .select("*")
@@ -150,7 +150,7 @@ export async function listPublishedContent(
   limit = 20,
   offset = 0,
 ): Promise<ContentRow[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   let query = sb
     .from(TABLE)
     .select("*")
@@ -180,7 +180,7 @@ export async function countPublishedContent(
   siteId: string,
   contentType?: string,
 ): Promise<number> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   let query = sb
     .from(TABLE)
     .select("id", { count: "exact", head: true })
@@ -204,7 +204,7 @@ export async function searchContent(
   query: string,
   limit = 20,
 ): Promise<ContentRow[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const tsq = toTsquery(query);
 
   if (tsq) {
@@ -241,7 +241,7 @@ export async function getRelatedContent(
   excludeId: string,
   limit = 4,
 ): Promise<ContentRow[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   let query = sb
     .from(TABLE)
     .select("*")
