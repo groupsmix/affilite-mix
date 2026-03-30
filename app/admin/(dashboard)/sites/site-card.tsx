@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface SiteCardProps {
   site: {
@@ -18,7 +19,7 @@ export function SiteCard({ site }: SiteCardProps) {
 
   async function handleSelect() {
     setLoading(true);
-    const res = await fetch("/api/admin/sites/select", {
+    const res = await fetchWithCsrf("/api/admin/sites/select", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ siteId: site.id }),
