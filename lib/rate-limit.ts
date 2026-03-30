@@ -84,6 +84,11 @@ async function checkRateLimitKV(
 }
 
 // ── In-memory fallback (local dev) ──────────────────────────────────
+// TODO(#8): The in-memory fallback is per-isolate on Cloudflare Workers.
+// An attacker can bypass rate limits by hitting different isolates.
+// Implement distributed rate limiting via Cloudflare KV or Durable Objects
+// before scaling to significant traffic. Acceptable for soft launch.
+// Tracking issue: https://github.com/groupsmix/affilite-mix/issues/new?title=Distributed+rate+limiting
 
 interface MemoryRateLimitEntry {
   timestamps: number[];

@@ -46,7 +46,7 @@ export function injectProductLinks(
 
     for (const pos of positionsToReplace) {
       const linkUrl = getTrackingUrl(product.slug, "inline", product.affiliate_url, hasConsent);
-      const link = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer nofollow" class="text-emerald-600 font-medium hover:underline">${pos.matchedText}</a>`;
+      const link = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer nofollow" class="font-medium hover:underline" style="color:var(--nh-color-accent, var(--color-accent, #10B981))">${pos.matchedText}</a>`;
       result =
         result.slice(0, pos.start) +
         link +

@@ -8,7 +8,11 @@ import { checkRateLimit } from "@/lib/rate-limit";
 /** 60 click-tracking requests per minute per IP */
 const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
 
-export async function GET(request: NextRequest) {
+/**
+ * Shared handler for click tracking (used by both GET and POST).
+ * POST support is needed because navigator.sendBeacon() always sends POST.
+ */
+async function handleClick(request: NextRequest) {
   try {
   const ip = request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
@@ -61,7 +65,16 @@ export async function GET(request: NextRequest) {
   // 302 redirect to the product's affiliate URL
   return NextResponse.redirect(destinationUrl, 302);
   } catch (err) {
-    console.error("[api/track/click] GET failed:", err);
+    console.error("[api/track/click] failed:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+export async function GET(request: NextRequest) {
+  return handleClick(request);
+}
+
+/** POST handler — navigator.sendBeacon() always sends POST */
+export async function POST(request: NextRequest) {
+  return handleClick(request);
 }

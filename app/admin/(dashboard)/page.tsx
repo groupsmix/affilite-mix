@@ -2,10 +2,11 @@ import { requireAdminSession } from "./components/admin-guard";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { countProducts, listProducts } from "@/lib/dal/products";
 import { countContent, listContent } from "@/lib/dal/content";
-import { getClickCount, getTopProducts } from "@/lib/dal/affiliate-clicks";
+import { getClickCount, getTopProducts, getDailyClicks } from "@/lib/dal/affiliate-clicks";
 import { getServiceClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ClickChart } from "./analytics/click-chart";
 
 export default async function AdminDashboard() {
   const session = await requireAdminSession();
@@ -36,6 +37,7 @@ export default async function AdminDashboard() {
     activeProductsNoUrl,
     { data: allLinkedRows },
     { count: publishedContentCount },
+    dailyClicks,
   ] = await Promise.all([
     countProducts({ siteId: dbSiteId }),
     countProducts({ siteId: dbSiteId, status: "active" }),
@@ -50,6 +52,7 @@ export default async function AdminDashboard() {
     listProducts({ siteId: dbSiteId, status: "active" }),
     sb.from("content_products").select("content_id").eq("site_id", dbSiteId),
     sb.from("content").select("id", { count: "exact", head: true }).eq("site_id", dbSiteId).eq("status", "published"),
+    getDailyClicks(dbSiteId, 7),
   ]);
 
   const scheduledContent = scheduledContentItems.filter(
@@ -221,6 +224,12 @@ export default async function AdminDashboard() {
           </ul>
         </section>
       )}
+
+      {/* Daily click trend chart (#19) */}
+      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">Click Trend (7d)</h2>
+        <ClickChart data={dailyClicks} />
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top products */}

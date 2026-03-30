@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getCurrentSite } from "@/lib/site-context";
 import { listPublishedContent } from "@/lib/dal/content";
-import { listActiveProducts } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -19,9 +18,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   // Dynamic content pages
-  const [content, products, categories] = await Promise.all([
+  const [content, categories] = await Promise.all([
     listPublishedContent(site.id, undefined, 1000),
-    listActiveProducts(site.id),
     listCategories(site.id),
   ]);
 
@@ -38,10 +36,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "weekly" as const,
     priority: 0.6,
   }));
-
-  // Products don't have their own pages in this architecture,
-  // but we include content pages that link to them
-  void products;
 
   return [...staticEntries, ...contentEntries, ...categoryEntries];
 }

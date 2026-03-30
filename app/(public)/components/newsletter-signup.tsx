@@ -94,12 +94,16 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
             onChange={(e) => setEmail(e.target.value)}
             placeholder={isAr ? "بريدك الإلكتروني" : "your@email.com"}
             required
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-1"
+            style={{ borderColor: undefined }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--nh-color-accent, var(--color-accent, #10B981))"; e.currentTarget.style.boxShadow = "0 0 0 1px var(--nh-color-accent, var(--color-accent, #10B981))"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = ""; e.currentTarget.style.boxShadow = ""; }}
           />
           <button
             type="submit"
             disabled={status === "loading"}
-            className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+            className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
+            style={{ backgroundColor: "var(--nh-color-accent, var(--color-accent, #10B981))" }}
           >
             {status === "loading"
               ? (isAr ? "جاري..." : "...")
