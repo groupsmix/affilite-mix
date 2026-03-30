@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS admin_users (
   role        text NOT NULL DEFAULT 'admin'
               CHECK (role IN ('admin', 'super_admin')),
   is_active   boolean NOT NULL DEFAULT true,
+  reset_token text,
+  reset_token_expires_at timestamptz,
   created_at  timestamptz DEFAULT now(),
   updated_at  timestamptz DEFAULT now()
 );

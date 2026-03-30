@@ -7,6 +7,7 @@ export interface SiteRow {
   domain: string;
   language: string;
   direction: "ltr" | "rtl";
+  is_active: boolean;
   created_at: string;
 }
 
