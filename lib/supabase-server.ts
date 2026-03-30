@@ -10,15 +10,14 @@ const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
  * Server-only Supabase client using the service role key.
  * Bypasses RLS — use only in server-side code (API routes, Server Actions, DAL)
  * for admin operations that genuinely need to bypass RLS.
- * Cached as a singleton to reuse connection pooling and auth caching.
+ *
+ * Note: On Cloudflare Workers / @opennextjs/cloudflare, module-level singletons
+ * may persist across requests within the same isolate or be lost between isolates.
+ * The Supabase JS client is lightweight, so we create a fresh client per request
+ * to avoid stale connections or memory leaks in edge runtimes.
  */
-let cachedClient: SupabaseClient<Database> | null = null;
-
-export function getServiceClient() {
-  if (!cachedClient) {
-    cachedClient = createClient<Database>(supabaseUrl, serviceRoleKey);
-  }
-  return cachedClient;
+export function getServiceClient(): SupabaseClient<Database> {
+  return createClient<Database>(supabaseUrl, serviceRoleKey);
 }
 
 /**
@@ -26,11 +25,6 @@ export function getServiceClient() {
  * Respects RLS policies — use for public-facing queries (content listing, search, etc.)
  * to provide defense-in-depth security.
  */
-let cachedAnonClient: SupabaseClient<Database> | null = null;
-
-export function getAnonClient() {
-  if (!cachedAnonClient) {
-    cachedAnonClient = createClient<Database>(supabaseUrl, anonKey);
-  }
-  return cachedAnonClient;
+export function getAnonClient(): SupabaseClient<Database> {
+  return createClient<Database>(supabaseUrl, anonKey);
 }

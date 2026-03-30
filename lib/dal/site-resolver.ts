@@ -5,6 +5,7 @@ import { getServiceClient } from "@/lib/supabase-server";
  * Caches results in-memory with a 5-minute TTL.
  */
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_SIZE = 100; // prevent unbounded memory growth
 const cache = new Map<string, { id: string; expiresAt: number }>();
 
 export async function resolveDbSiteId(slug: string): Promise<string> {
@@ -23,6 +24,13 @@ export async function resolveDbSiteId(slug: string): Promise<string> {
   }
 
   const row = data as unknown as { id: string };
+
+  // Evict oldest entries if cache exceeds max size
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey !== undefined) cache.delete(firstKey);
+  }
+
   cache.set(slug, { id: row.id, expiresAt: Date.now() + CACHE_TTL_MS });
   return row.id;
 }

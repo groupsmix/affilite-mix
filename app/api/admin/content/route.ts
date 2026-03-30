@@ -139,8 +139,17 @@ export async function DELETE(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const { searchParams } = request.nextUrl;
-  const id = searchParams.get("id");
+  // Accept id from request body (preferred) or query params (backward compat)
+  let id: string | null = null;
+  try {
+    const body = await request.json();
+    id = body?.id ?? null;
+  } catch {
+    // fallback to query params for backward compatibility
+  }
+  if (!id) {
+    id = request.nextUrl.searchParams.get("id");
+  }
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }

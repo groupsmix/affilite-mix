@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * POST /api/auth/forgot-password
@@ -13,10 +14,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
  */
 export async function POST(request: Request) {
   try {
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("cf-connecting-ip") ??
-      "unknown";
+    const ip = getClientIp(request);
 
     // Rate limit: 3 requests per IP per 15 minutes
     const rl = await checkRateLimit(`forgot-password:${ip}`, {

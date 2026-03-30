@@ -12,6 +12,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
+import { toVarName } from "./utils";
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q: string): Promise<string> =>
@@ -141,14 +142,6 @@ async function main() {
     fs.writeFileSync(indexPath, updated, "utf-8");
     console.log(`\n▶️   ${target} unpaused and active again!`);
   }
-}
-
-function toVarName(id: string): string {
-  return id
-    .split("-")
-    .map((w, i) => (i === 0 ? w : w[0].toUpperCase() + w.slice(1)))
-    .join("")
-    .concat("Site");
 }
 
 main().catch((err) => {

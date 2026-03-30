@@ -18,6 +18,9 @@ const StickyCtaBar = dynamic(() =>
 const ReadingProgress = dynamic(() =>
   import("../../components/reading-progress").then((m) => m.ReadingProgress)
 );
+const HeroProductCta = dynamic(() =>
+  import("../../components/hero-product-cta").then((m) => m.HeroProductCta)
+);
 import { ProsCons } from "../../components/pros-cons";
 import { GiftWorthinessScore } from "../../components/gift-worthiness-score";
 import {
@@ -29,8 +32,6 @@ import {
   faqJsonLd,
 } from "../../components/json-ld";
 import { notFound } from "next/navigation";
-import Image from "next/image";
-import { shimmerPlaceholder } from "@/lib/image-placeholder";
 import type { Metadata } from "next";
 
 /** Revalidate content detail pages every 60 seconds (ISR) */
@@ -209,51 +210,9 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         </div>
       )}
 
-      {/* Hero product (for reviews) */}
+      {/* Hero product (for reviews) — uses consent-aware tracking */}
       {isReview && heroProduct && (
-        <div className="mb-8 rounded-lg border border-gray-200 bg-gradient-to-r from-gray-50 to-white p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            {heroProduct.image_url && (
-              <div className="shrink-0">
-                <Image
-                  src={heroProduct.image_url}
-                  alt={heroProduct.image_alt || heroProduct.name}
-                  width={112}
-                  height={112}
-                  sizes="112px"
-                  placeholder="blur"
-                  blurDataURL={shimmerPlaceholder(112, 112)}
-                  className="h-28 w-28 rounded-lg object-contain"
-                />
-              </div>
-            )}
-            <div className="flex-1">
-              <h2 className="text-xl font-bold">{heroProduct.name}</h2>
-              {heroProduct.merchant && (
-                <p className="text-sm text-gray-500">{heroProduct.merchant}</p>
-              )}
-              <div className="mt-2 flex items-center gap-3">
-                {heroProduct.price && (
-                  <span className="text-xl font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{heroProduct.price}</span>
-                )}
-                {heroProduct.score !== null && (
-                  <GiftWorthinessScore score={heroProduct.score} size="sm" showLabel={false} />
-                )}
-              </div>
-            </div>
-            {heroProduct.affiliate_url && (
-              <a
-                href={`/api/track/click?p=${encodeURIComponent(heroProduct.slug)}&t=hero`}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                className="inline-block rounded-lg px-6 py-3 text-center font-medium text-white transition-colors hover:opacity-90"
-                style={{ backgroundColor: "var(--color-accent, #10B981)" }}
-              >
-                {heroProduct.cta_text || (site.language === "ar" ? "احصل على العرض" : "Get This Deal")}
-              </a>
-            )}
-          </div>
-        </div>
+        <HeroProductCta product={heroProduct} language={site.language} />
       )}
 
       {/* Comparison table */}
