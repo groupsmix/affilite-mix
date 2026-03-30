@@ -93,6 +93,49 @@ The app will be available at [http://localhost:3000](http://localhost:3000).
 
 Navigate to [http://localhost:3000/admin/login](http://localhost:3000/admin/login) and log in with the `ADMIN_PASSWORD` you configured (or a database admin user if set up).
 
+## Local Development
+
+This project uses **domain-based multi-tenant routing**. In production, each site is served from its own domain (e.g. `wristnerd.xyz`). In development, the middleware automatically resolves `localhost` to the first registered site so you can get started immediately.
+
+### Quick start (single site)
+
+```bash
+npm run dev
+# Visit http://localhost:3000 — serves the first site in config/sites/index.ts
+```
+
+### Choosing a default site
+
+Set the `NEXT_PUBLIC_DEFAULT_SITE` environment variable in your `.env` to control which site `localhost` resolves to:
+
+```env
+NEXT_PUBLIC_DEFAULT_SITE=watch-tools
+```
+
+Available site IDs are defined in `config/sites/` (e.g. `arabic-tools`, `crypto-tools`, `watch-tools`).
+
+### Testing multi-site routing
+
+Each site config can declare `aliases` (e.g. `watch.localhost`). To test multiple sites simultaneously:
+
+1. Add entries to `/etc/hosts`:
+   ```
+   127.0.0.1  watch.localhost
+   127.0.0.1  crypto.localhost
+   127.0.0.1  arabic.localhost
+   ```
+2. Start the dev server: `npm run dev`
+3. Visit `http://watch.localhost:3000`, `http://crypto.localhost:3000`, etc.
+
+The middleware matches `*.localhost` subdomains against site alias prefixes automatically.
+
+### Running tests
+
+```bash
+npm test              # Unit tests (Vitest)
+npm run test:e2e      # End-to-end tests (Playwright)
+```
+
 ## Scripts
 
 | Command | Description |
