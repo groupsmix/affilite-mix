@@ -7,7 +7,24 @@ import type { ContentRow, ProductRow } from "@/types/database";
 
 /**
  * POST /api/cron/publish — Publish scheduled content & products, archive expired items.
- * Designed to be called by a cron job (e.g., Cloudflare Cron Trigger every 5 minutes).
+ *
+ * ## Production Setup (Cloudflare Pages)
+ *
+ * This endpoint is triggered by the Cloudflare Cron Trigger configured in
+ * `wrangler.jsonc` (runs every 5 minutes via `triggers.crons`).
+ *
+ * Required configuration:
+ * 1. Set the CRON_SECRET environment variable in Cloudflare:
+ *    `wrangler secret put CRON_SECRET`
+ * 2. The cron trigger is defined in `wrangler.jsonc` under `triggers.crons`
+ * 3. The scheduled event handler in `instrumentation.ts` dispatches to this route
+ *
+ * ## Manual Testing
+ *
+ * ```bash
+ * curl -X POST https://your-domain/api/cron/publish \
+ *   -H "Authorization: Bearer YOUR_CRON_SECRET"
+ * ```
  *
  * Secured via CRON_SECRET env var — pass it in the Authorization header:
  *   Authorization: Bearer <CRON_SECRET>
