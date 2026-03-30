@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CategoryRow } from "@/types/database";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { toast } from "sonner";
 
 interface CategoryFormProps {
   category?: CategoryRow;
@@ -47,11 +48,14 @@ export function CategoryForm({ category }: CategoryFormProps) {
         });
 
     if (res.ok) {
+      toast.success(isEdit ? "Category updated" : "Category created");
       router.push("/admin/categories");
       router.refresh();
     } else {
       const data = await res.json();
-      setError(data.error ?? "Failed to save");
+      const msg = data.error ?? "Failed to save";
+      setError(msg);
+      toast.error(msg);
     }
     setSaving(false);
   }

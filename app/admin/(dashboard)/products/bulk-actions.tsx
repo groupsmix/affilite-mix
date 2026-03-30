@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { toast } from "sonner";
 
 interface BulkActionsProps {
   selectedIds: string[];
@@ -38,7 +39,9 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
     }
 
     if (failed > 0) {
-      alert(`${failed} update(s) failed`);
+      toast.error(`${failed} update(s) failed`);
+    } else {
+      toast.success(`${total} product(s) updated to ${status}`);
     }
     setProgress({ current: 0, total: 0, label: "" });
     onClear();
@@ -63,7 +66,9 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
     }
 
     if (failed > 0) {
-      alert(`${failed} deletion(s) failed`);
+      toast.error(`${failed} deletion(s) failed`);
+    } else {
+      toast.success(`${total} product(s) deleted`);
     }
     setProgress({ current: 0, total: 0, label: "" });
     onClear();

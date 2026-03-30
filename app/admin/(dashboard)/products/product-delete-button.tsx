@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { toast } from "sonner";
 
 export function ProductDeleteButton({ id, name }: { id: string; name: string }) {
   const router = useRouter();
@@ -13,9 +14,10 @@ export function ProductDeleteButton({ id, name }: { id: string; name: string }) 
     setDeleting(true);
     const res = await fetchWithCsrf(`/api/admin/products?id=${id}`, { method: "DELETE" });
     if (res.ok) {
+      toast.success("Product deleted");
       router.refresh();
     } else {
-      alert("Failed to delete product");
+      toast.error("Failed to delete product");
     }
     setDeleting(false);
     setShowConfirm(false);

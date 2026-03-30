@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { toast } from "sonner";
 
 export function CategoryDeleteButton({ id, name }: { id: string; name: string }) {
   const router = useRouter();
@@ -13,9 +14,10 @@ export function CategoryDeleteButton({ id, name }: { id: string; name: string })
     setDeleting(true);
     const res = await fetchWithCsrf(`/api/admin/categories?id=${id}`, { method: "DELETE" });
     if (res.ok) {
+      toast.success("Category deleted");
       router.refresh();
     } else {
-      alert("Failed to delete category");
+      toast.error("Failed to delete category");
     }
     setDeleting(false);
     setShowConfirm(false);

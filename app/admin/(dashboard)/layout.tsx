@@ -5,6 +5,7 @@ import { getActiveSiteSlug } from "@/lib/active-site";
 import { getSiteById } from "@/config/sites";
 import { AdminSidebar } from "@/app/admin/(dashboard)/components/admin-sidebar";
 import { TokenRefresh } from "@/app/admin/(dashboard)/components/token-refresh";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -37,6 +38,7 @@ export default async function AdminLayout({
     <div dir={direction} lang={lang} className="flex min-h-screen bg-gray-50" style={cssVars}>
       <AdminSidebar siteName={activeSite?.name ?? null} />
       <TokenRefresh />
+      <Toaster position="top-right" richColors closeButton />
       <main className="flex-1 p-6 lg:p-8">{children}</main>
     </div>
   );
