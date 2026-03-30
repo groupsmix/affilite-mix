@@ -3,7 +3,6 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
-import { randomUUID } from "crypto";
 
 /** Build a branded HTML email for newsletter confirmation */
 function buildConfirmationEmail(siteName: string, confirmUrl: string, domain: string, accentColor: string): string {
@@ -85,7 +84,7 @@ export async function POST(request: Request) {
       .eq("email", email)
       .single();
 
-    const confirmationToken = randomUUID();
+    const confirmationToken = crypto.randomUUID();
 
     if (existing) {
       if (existing.status === "active" && existing.confirmed_at) {

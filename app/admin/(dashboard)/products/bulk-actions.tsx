@@ -11,26 +11,34 @@ interface BulkActionsProps {
 export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0, label: "" });
 
   if (selectedIds.length === 0) return null;
 
   async function bulkUpdateStatus(status: string) {
+    const total = selectedIds.length;
     setLoading(true);
-    const results = await Promise.allSettled(
-      selectedIds.map((id) =>
-        fetch("/api/admin/products", {
+    setProgress({ current: 0, total, label: `Updating to ${status}` });
+    let failed = 0;
+
+    for (let i = 0; i < total; i++) {
+      setProgress({ current: i + 1, total, label: `Updating to ${status}` });
+      try {
+        const res = await fetch("/api/admin/products", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, status }),
-        }),
-      ),
-    );
-    const failed = results.filter(
-      (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok),
-    ).length;
+          body: JSON.stringify({ id: selectedIds[i], status }),
+        });
+        if (!res.ok) failed++;
+      } catch {
+        failed++;
+      }
+    }
+
     if (failed > 0) {
       alert(`${failed} update(s) failed`);
     }
+    setProgress({ current: 0, total: 0, label: "" });
     onClear();
     setLoading(false);
     router.refresh();
@@ -38,18 +46,25 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
 
   async function bulkDelete() {
     if (!confirm(`Delete ${selectedIds.length} product(s)? This cannot be undone.`)) return;
+    const total = selectedIds.length;
     setLoading(true);
-    const results = await Promise.allSettled(
-      selectedIds.map((id) =>
-        fetch(`/api/admin/products?id=${id}`, { method: "DELETE" }),
-      ),
-    );
-    const failed = results.filter(
-      (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok),
-    ).length;
+    setProgress({ current: 0, total, label: "Deleting" });
+    let failed = 0;
+
+    for (let i = 0; i < total; i++) {
+      setProgress({ current: i + 1, total, label: "Deleting" });
+      try {
+        const res = await fetch(`/api/admin/products?id=${selectedIds[i]}`, { method: "DELETE" });
+        if (!res.ok) failed++;
+      } catch {
+        failed++;
+      }
+    }
+
     if (failed > 0) {
       alert(`${failed} deletion(s) failed`);
     }
+    setProgress({ current: 0, total: 0, label: "" });
     onClear();
     setLoading(false);
     router.refresh();
@@ -58,7 +73,9 @@ export function BulkActions({ selectedIds, onClear }: BulkActionsProps) {
   return (
     <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2">
       <span className="text-sm font-medium text-blue-700">
-        {selectedIds.length} selected
+        {loading && progress.total > 0
+          ? `${progress.label} ${progress.current} of ${progress.total}…`
+          : `${selectedIds.length} selected`}
       </span>
       <button
         onClick={() => bulkUpdateStatus("active")}

@@ -7,7 +7,7 @@ import CookieConsent from "./components/cookie-consent";
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
   return {
-    icons: site.brand.faviconUrl ? { icon: site.brand.faviconUrl } : undefined,
+    icons: { icon: site.brand.faviconUrl || "/favicon.svg" },
   };
 }
 

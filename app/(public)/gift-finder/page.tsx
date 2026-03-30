@@ -22,6 +22,12 @@ interface QuizEntry {
  * Watch database for the Gift Finder Quiz.
  * In a future iteration this could be fetched from the Supabase products table,
  * but for now we keep it inline to match the original watch-3000V behaviour.
+ *
+ * TODO: Create a dedicated API endpoint (e.g. /api/gift-finder) that accepts
+ * gift finder parameters (budget range, occasion, recipient type) and returns
+ * filtered products server-side using the taxonomy categories (budget, occasion,
+ * recipient) already in the database schema. This would replace the static
+ * inline data and support large product catalogs efficiently.
  */
 const watchDatabase: QuizEntry[] = [
   {
