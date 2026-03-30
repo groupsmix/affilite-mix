@@ -55,6 +55,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Only super_admin can create users
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+  }
+
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -113,6 +118,11 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Only super_admin can update users
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+  }
+
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -166,11 +176,21 @@ export async function DELETE(request: NextRequest) {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
+  // Only super_admin can delete users
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+  }
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  // Prevent self-deletion
+  if (id === session.userId) {
+    return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
   }
 
   try {

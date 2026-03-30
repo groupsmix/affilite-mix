@@ -28,12 +28,23 @@ export function SiteFooter({ site, hideNewsletter }: SiteFooterProps) {
               <ul className="space-y-1">
                 {items.map((item) => (
                   <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="text-sm text-gray-600 hover:text-gray-900"
-                    >
-                      {item.title}
-                    </Link>
+                    {item.href.startsWith("http") ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-gray-600 hover:text-gray-900"
+                      >
+                        {item.title}
+                      </a>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className="text-sm text-gray-600 hover:text-gray-900"
+                      >
+                        {item.title}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

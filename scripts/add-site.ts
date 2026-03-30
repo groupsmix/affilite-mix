@@ -12,6 +12,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
+import { toVarName } from "./utils";
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q: string): Promise<string> =>
@@ -32,14 +33,6 @@ const FEATURE_OPTIONS = [
   "search",
   "taxonomyPages",
 ] as const;
-
-function toVarName(id: string): string {
-  return id
-    .split("-")
-    .map((w, i) => (i === 0 ? w : w[0].toUpperCase() + w.slice(1)))
-    .join("")
-    .concat("Site");
-}
 
 async function main() {
   console.log("\n🚀  Add a new niche site\n");

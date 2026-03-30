@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
-  const budget = parseInt(searchParams.get("budget") ?? "9999", 10);
+  const budget = Math.min(100000, Math.max(0, parseInt(searchParams.get("budget") ?? "9999", 10)));
   const occasion = searchParams.get("occasion") ?? "";
   const recipient = searchParams.get("recipient") ?? "";
   const style = searchParams.get("style") ?? "";

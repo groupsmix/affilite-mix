@@ -3,6 +3,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /** Build a branded HTML email for newsletter confirmation */
 function buildConfirmationEmail(siteName: string, confirmUrl: string, domain: string, accentColor: string): string {
@@ -43,10 +44,7 @@ function buildConfirmationEmail(siteName: string, confirmUrl: string, domain: st
 export async function POST(request: Request) {
   try {
     // Rate limit: 5 signups per IP per 15 minutes
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("cf-connecting-ip") ??
-      "unknown";
+    const ip = getClientIp(request);
 
     const rl = await checkRateLimit(`newsletter:${ip}`, { maxRequests: 5, windowMs: 15 * 60 * 1000 });
     if (!rl.allowed) {
