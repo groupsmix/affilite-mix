@@ -3,6 +3,7 @@
 import type { ProductRow } from "@/types/database";
 import { useCookieConsent } from "./cookie-consent";
 import { getTrackingUrl } from "@/lib/tracking-url";
+import { GiftWorthinessScore } from "./gift-worthiness-score";
 
 interface ComparisonTableProps {
   products: ProductRow[];
@@ -26,13 +27,11 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
                   {p.price || "—"}
                 </dd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <dt className="font-medium text-gray-600">Score</dt>
                 <dd>
                   {p.score !== null ? (
-                    <span className="inline-block rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800">
-                      {p.score}/10
-                    </span>
+                    <GiftWorthinessScore score={p.score} size="sm" showLabel={false} />
                   ) : (
                     "—"
                   )}
@@ -104,9 +103,9 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
               {products.map((p) => (
                 <td key={p.id} className="border-b border-gray-100 px-4 py-3 text-center">
                   {p.score !== null ? (
-                    <span className="inline-block rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800">
-                      {p.score}/10
-                    </span>
+                    <div className="inline-flex justify-center">
+                      <GiftWorthinessScore score={p.score} size="sm" showLabel={false} />
+                    </div>
                   ) : (
                     "—"
                   )}

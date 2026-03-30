@@ -1,7 +1,7 @@
 import { requireAdminSession } from "./components/admin-guard";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { listProducts } from "@/lib/dal/products";
-import { listContent } from "@/lib/dal/content";
+import { countProducts, listProducts } from "@/lib/dal/products";
+import { countContent, listContent } from "@/lib/dal/content";
 import { getClickCount, getTopProducts } from "@/lib/dal/affiliate-clicks";
 import { getServiceClient } from "@/lib/supabase-server";
 import Link from "next/link";
@@ -20,34 +20,54 @@ export default async function AdminDashboard() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Fetch all linked content_product rows in parallel with other queries
+  // Use count queries instead of fetching all records for stats
   const sb = getServiceClient();
-  const [products, contentItems, clicksToday, clicks7d, topProducts, { data: allLinkedRows }] = await Promise.all([
-    listProducts({ siteId: dbSiteId }),
-    listContent({ siteId: dbSiteId }),
+  const [
+    totalProducts,
+    activeProducts,
+    draftProducts,
+    totalContent,
+    publishedContent,
+    draftContent,
+    clicksToday,
+    clicks7d,
+    topProducts,
+    scheduledContentItems,
+    activeProductsNoUrl,
+    { data: allLinkedRows },
+    { count: publishedContentCount },
+  ] = await Promise.all([
+    countProducts({ siteId: dbSiteId }),
+    countProducts({ siteId: dbSiteId, status: "active" }),
+    countProducts({ siteId: dbSiteId, status: "draft" }),
+    countContent({ siteId: dbSiteId }),
+    countContent({ siteId: dbSiteId, status: "published" }),
+    countContent({ siteId: dbSiteId, status: "draft" }),
     getClickCount(dbSiteId, todayStart),
     getClickCount(dbSiteId, sevenDaysAgo),
     getTopProducts(dbSiteId, sevenDaysAgo, 5),
+    listContent({ siteId: dbSiteId, status: "scheduled" }),
+    listProducts({ siteId: dbSiteId, status: "active" }),
     sb.from("content_products").select("content_id").eq("site_id", dbSiteId),
+    sb.from("content").select("id", { count: "exact", head: true }).eq("site_id", dbSiteId).eq("status", "published"),
   ]);
 
-  const activeProducts = products.filter((p) => p.status === "active").length;
-  const draftProducts = products.filter((p) => p.status === "draft").length;
-  const publishedContent = contentItems.filter((c) => c.status === "published").length;
-  const draftContent = contentItems.filter((c) => c.status === "draft").length;
-  const scheduledContent = contentItems.filter(
+  const scheduledContent = scheduledContentItems.filter(
     (c) => c.publish_at && new Date(c.publish_at) > now,
   ).length;
 
   // Check for published content with no linked products
-  const publishedContentIds = contentItems
-    .filter((c) => c.status === "published")
-    .map((c) => c.id);
   const linkedIds = new Set((allLinkedRows ?? []).map((r: { content_id: string }) => r.content_id));
-  const contentWithNoProducts = publishedContentIds.filter((id) => !linkedIds.has(id)).length;
+  // We need published content IDs to check which ones lack products
+  const { data: publishedContentIds } = await sb
+    .from("content")
+    .select("id")
+    .eq("site_id", dbSiteId)
+    .eq("status", "published");
+  const contentWithNoProducts = (publishedContentIds ?? []).filter((r: { id: string }) => !linkedIds.has(r.id)).length;
 
   // Alerts / warnings
-  const productsWithNoUrl = products.filter((p) => p.status === "active" && !p.affiliate_url);
+  const productsWithNoUrl = activeProductsNoUrl.filter((p) => !p.affiliate_url);
   const alerts: { type: "warning" | "info"; message: string; href?: string }[] = [];
   if (productsWithNoUrl.length > 0) {
     alerts.push({
@@ -129,12 +149,12 @@ export default async function AdminDashboard() {
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Products</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{products.length}</p>
+          <p className="mt-1 text-3xl font-bold text-gray-900">{totalProducts}</p>
           <p className="mt-1 text-xs text-gray-400">{activeProducts} active, {draftProducts} draft</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Content</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{contentItems.length}</p>
+          <p className="mt-1 text-3xl font-bold text-gray-900">{totalContent}</p>
           <p className="mt-1 text-xs text-gray-400">{publishedContent} published, {draftContent} draft</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
@@ -179,7 +199,7 @@ export default async function AdminDashboard() {
             </Link>
           </div>
           <ul className="space-y-2">
-            {contentItems
+            {scheduledContentItems
               .filter((c) => c.publish_at && new Date(c.publish_at) > now)
               .sort((a, b) => new Date(a.publish_at!).getTime() - new Date(b.publish_at!).getTime())
               .slice(0, 5)
@@ -225,8 +245,8 @@ export default async function AdminDashboard() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Manage</h2>
           {[
             { title: "Categories", href: "/admin/categories", description: "Organize your products and content" },
-            { title: "Products", href: "/admin/products", description: `${products.length} products total` },
-            { title: "Content", href: "/admin/content", description: `${contentItems.length} articles total` },
+            { title: "Products", href: "/admin/products", description: `${totalProducts} products total` },
+            { title: "Content", href: "/admin/content", description: `${totalContent} articles total` },
             { title: "Analytics", href: "/admin/analytics", description: "Click tracking & performance" },
           ].map((card) => (
             <Link

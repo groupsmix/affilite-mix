@@ -67,6 +67,42 @@ export async function getCategoryBySlug(
   return (data as unknown as CategoryRow) ?? null;
 }
 
+/** List categories with product counts, sorted by product count descending */
+export async function listCategoriesWithProductCount(
+  siteId: string,
+): Promise<(CategoryRow & { product_count: number })[]> {
+  const sb = getServiceClient();
+
+  // Get all categories
+  const { data: cats, error: catError } = await sb
+    .from(TABLE)
+    .select("*")
+    .eq("site_id", siteId)
+    .order("name", { ascending: true });
+
+  if (catError) throw catError;
+
+  // Get product counts per category
+  const { data: counts, error: countError } = await sb
+    .from("products")
+    .select("category_id")
+    .eq("site_id", siteId)
+    .eq("status", "active")
+    .not("category_id", "is", null);
+
+  if (countError) throw countError;
+
+  const countMap = new Map<string, number>();
+  for (const row of counts ?? []) {
+    const cid = row.category_id as string;
+    countMap.set(cid, (countMap.get(cid) ?? 0) + 1);
+  }
+
+  return (cats as CategoryRow[])
+    .map((cat) => ({ ...cat, product_count: countMap.get(cat.id) ?? 0 }))
+    .sort((a, b) => b.product_count - a.product_count);
+}
+
 /** Create a category */
 export async function createCategory(
   input: Omit<CategoryRow, "id" | "created_at">,

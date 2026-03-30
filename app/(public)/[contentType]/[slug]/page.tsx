@@ -19,6 +19,7 @@ const ReadingProgress = dynamic(() =>
   import("../../components/reading-progress").then((m) => m.ReadingProgress)
 );
 import { ProsCons } from "../../components/pros-cons";
+import { GiftWorthinessScore } from "../../components/gift-worthiness-score";
 import {
   JsonLd,
   articleJsonLd,
@@ -218,6 +219,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
                   alt={heroProduct.name}
                   width={112}
                   height={112}
+                  sizes="112px"
                   className="h-28 w-28 rounded-lg object-contain"
                 />
               </div>
@@ -232,9 +234,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
                   <span className="text-xl font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{heroProduct.price}</span>
                 )}
                 {heroProduct.score !== null && (
-                  <span className="rounded bg-amber-100 px-2.5 py-1 text-sm font-semibold text-amber-800">
-                    {heroProduct.score}/10
-                  </span>
+                  <GiftWorthinessScore score={heroProduct.score} size="sm" showLabel={false} />
                 )}
               </div>
             </div>
