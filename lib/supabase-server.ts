@@ -2,13 +2,14 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 
-// Re-export a minimal untyped client for tables not yet in the generated types.
-// This avoids scattering `(sb as any)` across DAL files.
-type UntypedClient = ReturnType<typeof createClient>;
-
-/** Get a service client without schema type constraints (for tables not in generated types). */
-export function getUntypedServiceClient(): UntypedClient {
-  return createClient(supabaseUrl, serviceRoleKey);
+/**
+ * Service client for tables not yet in the generated Supabase types.
+ * Returns a client without Database generics so `.from("table").insert(...)`
+ * doesn't resolve to `never`. Prefer `getServiceClient()` for typed tables.
+ */
+export function getUntypedServiceClient() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return createClient(supabaseUrl, serviceRoleKey) as any;
 }
 
 const supabaseUrl = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL", "");
