@@ -4,6 +4,7 @@ import { getProductBySlug } from "@/lib/dal/products";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { apiError, rateLimitHeaders } from "@/lib/api-error";
 
 /** 60 click-tracking requests per minute per IP */
 const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -19,13 +20,10 @@ async function handleClick(request: NextRequest) {
     ?? "unknown";
   const rl = await checkRateLimit(`click:${ip}`, CLICK_RATE_LIMIT);
   if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded" },
-      {
-        status: 429,
-        headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
-      },
-    );
+    return apiError(429, "Rate limit exceeded", undefined, {
+      "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)),
+      ...rateLimitHeaders(CLICK_RATE_LIMIT, rl),
+    });
   }
 
   const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
@@ -35,19 +33,13 @@ async function handleClick(request: NextRequest) {
   const productSlug = searchParams.get("p");
 
   if (!productSlug) {
-    return NextResponse.json(
-      { error: "Missing required parameter: p" },
-      { status: 400 },
-    );
+    return apiError(400, "Missing required parameter: p");
   }
 
   // Validate product exists for this site
   const product = await getProductBySlug(siteId, productSlug);
   if (!product || !product.affiliate_url) {
-    return NextResponse.json(
-      { error: "Product not found or has no affiliate URL" },
-      { status: 404 },
-    );
+    return apiError(404, "Product not found or has no affiliate URL");
   }
 
   // Always use the DB-stored affiliate URL, preventing open redirects.
@@ -66,7 +58,7 @@ async function handleClick(request: NextRequest) {
   return NextResponse.redirect(destinationUrl, 302);
   } catch (err) {
     console.error("[api/track/click] failed:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return apiError(500, "Internal server error");
   }
 }
 

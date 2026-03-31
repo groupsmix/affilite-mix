@@ -16,6 +16,10 @@ interface WatchHomepageProps {
   recentContent: ContentRow[];
   featuredProducts: ProductRow[];
   categories: CategoryWithCount[];
+  /** Total number of active products (for trust bar) */
+  productCount?: number;
+  /** Total number of published reviews (for trust bar) */
+  reviewCount?: number;
 }
 
 export function WatchHomepage({
@@ -23,6 +27,8 @@ export function WatchHomepage({
   recentContent,
   featuredProducts,
   categories,
+  productCount = 0,
+  reviewCount = 0,
 }: WatchHomepageProps) {
   const locale = "en-US";
   const ctaLabel = "View Deal";
@@ -157,8 +163,8 @@ export function WatchHomepage({
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-center gap-10 md:gap-16">
             {[
-              { value: "50+", label: "Watches Reviewed" },
-              { value: "14", label: "In-Depth Reviews" },
+              { value: productCount > 0 ? `${productCount}+` : "—", label: "Watches Reviewed" },
+              { value: reviewCount > 0 ? String(reviewCount) : "—", label: "In-Depth Reviews" },
               { value: "5", label: "Gift Score Factors" },
               { value: "0", label: "Sponsored Rankings" },
             ].map((stat, i) => (

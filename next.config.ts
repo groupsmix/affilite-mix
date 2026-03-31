@@ -38,7 +38,14 @@ const nextConfig: NextConfig = {
           key: "Content-Security-Policy",
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+            // Next.js requires 'unsafe-inline' for its runtime styles injected
+            // via <style> tags. True nonce-based CSP for styles needs a custom
+            // Document with per-request nonces, which is incompatible with
+            // Cloudflare Pages static headers. We keep 'strict-dynamic' for
+            // scripts so only our entry-point script (and anything it loads)
+            // can execute — this is a meaningful upgrade over bare
+            // 'unsafe-inline' because it blocks injected <script> tags.
+            "script-src 'self' 'strict-dynamic' https://challenges.cloudflare.com",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https: blob:",
