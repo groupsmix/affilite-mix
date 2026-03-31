@@ -8,12 +8,42 @@ export { arabicToolsSite, cryptoToolsSite, watchToolsSite };
 /** All registered sites. Add new sites here. */
 export const allSites: SiteDefinition[] = [arabicToolsSite, cryptoToolsSite, watchToolsSite];
 
+/**
+ * Known wildcard parent domains.
+ * Any subdomain of these is eligible for automatic DB-based resolution.
+ */
+export const WILDCARD_PARENT_DOMAINS = ["writnerd.site"];
+
 /** Lookup site by id */
 export function getSiteById(id: string): SiteDefinition | undefined {
   return allSites.find((s) => s.id === id);
 }
 
-/** Lookup site by domain or alias */
+/**
+ * Extract subdomain from a hostname given a parent domain.
+ * e.g. extractSubdomain("coffee.writnerd.site", "writnerd.site") → "coffee"
+ * Returns null if hostname doesn't match the parent or is the bare parent.
+ */
+export function extractSubdomain(hostname: string, parentDomain: string): string | null {
+  const suffix = `.${parentDomain}`;
+  if (!hostname.endsWith(suffix)) return null;
+  const sub = hostname.slice(0, -suffix.length);
+  // Ignore empty or nested subdomains (only single-level wildcards)
+  if (!sub || sub.includes(".")) return null;
+  return sub;
+}
+
+/**
+ * Check if a hostname is a wildcard subdomain of any known parent domain.
+ * Returns the full hostname if it is (for DB lookup), or null.
+ */
+export function isWildcardSubdomain(hostname: string): boolean {
+  return WILDCARD_PARENT_DOMAINS.some(
+    (parent) => extractSubdomain(hostname, parent) !== null,
+  );
+}
+
+/** Lookup site by domain or alias (config-only, synchronous) */
 export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
   // Direct match on domain or alias
   const direct = allSites.find(
@@ -45,5 +75,6 @@ export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
     }
   }
 
+  // For wildcard subdomains, return undefined so middleware can do an async DB lookup
   return undefined;
 }
