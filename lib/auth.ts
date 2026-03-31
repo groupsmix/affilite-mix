@@ -56,8 +56,8 @@ export async function createToken(payload: AdminPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(EXPIRY)
-    .setAudience("nichehub")
-    .setIssuer("nichehub")
+    .setAudience("affiliate-platform")
+    .setIssuer("affiliate-platform")
     .sign(getSecretKey());
 }
 
@@ -67,8 +67,8 @@ export async function verifyToken(
 ): Promise<AdminPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), {
-      audience: "nichehub",
-      issuer: "nichehub",
+      audience: "affiliate-platform",
+      issuer: "affiliate-platform",
     });
     return payload as unknown as AdminPayload;
   } catch {

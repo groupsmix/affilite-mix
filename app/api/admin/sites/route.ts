@@ -25,7 +25,7 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
   return null;
 }
 
-/** GET /api/admin/sites — list all available sites (config + DB) */
+/** GET /api/admin/sites — list all available sites (DB-first, config fallback) */
 export async function GET() {
   const session = await getAdminSession();
   if (!session) {
@@ -35,17 +35,15 @@ export async function GET() {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
-  // Merge config-defined sites with DB sites
-  const configSites = allSites.map((s) => ({
-    id: s.id,
-    name: s.name,
-    domain: s.domain,
-    language: s.language,
-    direction: s.direction,
-    source: "config" as const,
-  }));
-
-  let dbSites: { id: string; slug: string; name: string; domain: string; language: string; direction: string; source: "database"; created_at: string; db_id: string }[] = [];
+  // Try DB first — returns full SiteRow data with all fields
+  let dbSites: {
+    id: string; slug: string; name: string; domain: string;
+    language: string; direction: string; is_active: boolean;
+    monetization_type: string; est_revenue_per_click: number;
+    theme: Record<string, unknown>; features: Record<string, boolean>;
+    meta_title: string | null; meta_description: string | null;
+    source: "database"; db_id: string; created_at: string;
+  }[] = [];
   try {
     const rows = await listSites();
     dbSites = rows.map((r) => ({
@@ -55,6 +53,13 @@ export async function GET() {
       domain: r.domain,
       language: r.language,
       direction: r.direction,
+      is_active: r.is_active,
+      monetization_type: r.monetization_type,
+      est_revenue_per_click: r.est_revenue_per_click,
+      theme: r.theme,
+      features: r.features,
+      meta_title: r.meta_title,
+      meta_description: r.meta_description,
       source: "database" as const,
       created_at: r.created_at,
       db_id: r.id,
@@ -63,7 +68,16 @@ export async function GET() {
     // DB might not be reachable; fall back to config-only
   }
 
-  // Merge: DB sites take precedence if slug matches a config site
+  // Config fallback for sites not in DB
+  const configSites = allSites.map((s) => ({
+    id: s.id,
+    name: s.name,
+    domain: s.domain,
+    language: s.language,
+    direction: s.direction,
+    source: "config" as const,
+  }));
+
   const dbSlugs = new Set(dbSites.map((s) => s.id));
   const mergedSites = [
     ...dbSites,
@@ -88,12 +102,10 @@ export async function POST(request: NextRequest) {
   if (rlError) return rlError;
 
   const body = await request.json();
-  const { slug, name, domain, language, direction } = body as {
+  const { slug, name, domain } = body as {
     slug?: string;
     name?: string;
     domain?: string;
-    language?: string;
-    direction?: "ltr" | "rtl";
   };
 
   if (!slug || !name || !domain) {
@@ -111,7 +123,28 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const site = await createSite({ slug, name, domain, language, direction });
+    const site = await createSite({
+      slug,
+      name,
+      domain,
+      language: body.language,
+      direction: body.direction,
+      is_active: body.is_active,
+      monetization_type: body.monetization_type,
+      est_revenue_per_click: body.est_revenue_per_click,
+      ad_config: body.ad_config,
+      theme: body.theme,
+      logo_url: body.logo_url,
+      favicon_url: body.favicon_url,
+      nav_items: body.nav_items,
+      footer_nav: body.footer_nav,
+      features: body.features,
+      meta_title: body.meta_title,
+      meta_description: body.meta_description,
+      og_image_url: body.og_image_url,
+      social_links: body.social_links,
+      custom_css: body.custom_css,
+    });
     recordAuditEvent({
       site_id: site.id,
       actor: session.email ?? "admin",
@@ -146,23 +179,29 @@ export async function PATCH(request: NextRequest) {
   if (rlError) return rlError;
 
   const body = await request.json();
-  const { id, name, domain, language, direction } = body as {
-    id?: string;
-    name?: string;
-    domain?: string;
-    language?: string;
-    direction?: "ltr" | "rtl";
-  };
+  const { id } = body as { id?: string };
 
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const updates: Record<string, string> = {};
-  if (name !== undefined) updates.name = name;
-  if (domain !== undefined) updates.domain = domain;
-  if (language !== undefined) updates.language = language;
-  if (direction !== undefined) updates.direction = direction;
+  // Build updates from all allowed fields
+  const allowedFields = [
+    "name", "domain", "language", "direction", "is_active",
+    "monetization_type", "est_revenue_per_click", "ad_config",
+    "theme", "logo_url", "favicon_url",
+    "nav_items", "footer_nav",
+    "features",
+    "meta_title", "meta_description", "og_image_url",
+    "social_links", "custom_css",
+  ] as const;
+
+  const updates: Record<string, unknown> = {};
+  for (const field of allowedFields) {
+    if (body[field] !== undefined) {
+      updates[field] = body[field];
+    }
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
@@ -176,7 +215,7 @@ export async function PATCH(request: NextRequest) {
       action: "update",
       entity_type: "site",
       entity_id: id,
-      details: updates,
+      details: updates as Record<string, unknown>,
     });
     return NextResponse.json(site);
   } catch (err) {
