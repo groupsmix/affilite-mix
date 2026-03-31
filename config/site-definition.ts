@@ -63,7 +63,7 @@ export interface SiteDefinition {
   };
 
   /** Homepage template preset. Defaults to "standard". */
-  homepageTemplate?: "standard" | "cinematic" | "minimal";
+  homepageTemplate?: "standard" | "cinematic" | "minimal" | "watch";
 }
 
 export interface FeatureFlags {

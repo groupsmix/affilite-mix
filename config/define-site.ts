@@ -22,7 +22,7 @@ const FONT_PRESETS: Record<FontPreset, { heading: string; body: string }> = {
 /*  Homepage presets                                                    */
 /* ------------------------------------------------------------------ */
 
-export type HomepagePreset = "standard" | "cinematic" | "minimal";
+export type HomepagePreset = "standard" | "cinematic" | "minimal" | "watch";
 
 /* ------------------------------------------------------------------ */
 /*  Feature shorthands                                                 */
@@ -211,7 +211,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
 
   // Apply homepage preset
   const homepage = input.homepage ?? "standard";
-  if (homepage === "cinematic" || homepage === "minimal") {
+  if (homepage === "cinematic" || homepage === "minimal" || homepage === "watch") {
     features.customHomepage = true;
   }
 

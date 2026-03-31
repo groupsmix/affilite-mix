@@ -559,6 +559,10 @@ export interface Database {
         Args: { p_site_id: string; p_since: string };
         Returns: { date: string; count: number }[];
       };
+      get_distinct_audit_actions: {
+        Args: { p_site_id: string };
+        Returns: { action: string }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
