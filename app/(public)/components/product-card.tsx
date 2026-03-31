@@ -7,6 +7,7 @@ import { useCookieConsent } from "./cookie-consent";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
 import { highlightText } from "./highlight-text";
+import { formatPrice } from "@/lib/format-price";
 
 interface ProductCardProps {
   product: ProductRow;
@@ -104,8 +105,12 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
         <p className="mb-1 text-sm text-gray-500">{product.merchant}</p>
       )}
       <div className="mb-3 flex items-center gap-3">
-        {product.price && (
-          <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
+        {(product.price_amount !== null || product.price) && (
+          <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>
+            {product.price_amount !== null
+              ? formatPrice(product.price_amount, product.price_currency)
+              : product.price}
+          </span>
         )}
         {product.score !== null && (
           <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />

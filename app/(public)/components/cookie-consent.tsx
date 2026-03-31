@@ -65,9 +65,30 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
     const stored = readConsentFromCookie();
     setConsent(stored);
     if (stored === "pending") {
-      const timer = setTimeout(() => setVisible(true), 500);
+      // Short delay allows cross-tab localStorage sync to settle before showing
+      const timer = setTimeout(() => {
+        // Re-check after delay in case another tab accepted in the meantime
+        const latest = readConsentFromCookie();
+        if (latest === "pending") {
+          setVisible(true);
+        } else {
+          setConsent(latest);
+        }
+      }, 500);
       return () => clearTimeout(timer);
     }
+  }, []);
+
+  // Listen for cross-tab consent changes via localStorage storage event
+  useEffect(() => {
+    function handleStorageChange(e: StorageEvent) {
+      if (e.key === CONSENT_STORAGE_KEY && (e.newValue === "accepted" || e.newValue === "rejected")) {
+        setConsent(e.newValue);
+        setVisible(false);
+      }
+    }
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const handleAccept = useCallback(() => {
