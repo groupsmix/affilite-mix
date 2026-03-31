@@ -1,36 +1,30 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getSiteRowBySlug, getSiteRowByDomain } from "@/lib/dal/sites";
+import type { SiteRow } from "@/types/database";
 
 /**
  * Resolves a site slug (e.g. "crypto-tools") to its database UUID.
- * Caches results in-memory with a 5-minute TTL.
+ * Uses the cached getSiteRowBySlug from the sites DAL.
  */
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_CACHE_SIZE = 100; // prevent unbounded memory growth
-const cache = new Map<string, { id: string; expiresAt: number }>();
-
 export async function resolveDbSiteId(slug: string): Promise<string> {
-  const cached = cache.get(slug);
-  if (cached && Date.now() < cached.expiresAt) return cached.id;
-
-  const sb = getServiceClient();
-  const { data, error } = await sb
-    .from("sites")
-    .select("id")
-    .eq("slug", slug)
-    .single();
-
-  if (error || !data) {
+  const row = await getSiteRowBySlug(slug);
+  if (!row) {
     throw new Error(`Site not found in database for slug: ${slug}`);
   }
-
-  const row = data as unknown as { id: string };
-
-  // Evict oldest entries if cache exceeds max size
-  if (cache.size >= MAX_CACHE_SIZE) {
-    const firstKey = cache.keys().next().value;
-    if (firstKey !== undefined) cache.delete(firstKey);
-  }
-
-  cache.set(slug, { id: row.id, expiresAt: Date.now() + CACHE_TTL_MS });
   return row.id;
+}
+
+/**
+ * Resolves a hostname to a full SiteRow from the database.
+ * Returns null if no matching site is found.
+ */
+export async function resolveDbSiteByDomain(domain: string): Promise<SiteRow | null> {
+  return getSiteRowByDomain(domain);
+}
+
+/**
+ * Resolves a slug to a full SiteRow from the database.
+ * Returns null if no matching site is found.
+ */
+export async function resolveDbSiteBySlug(slug: string): Promise<SiteRow | null> {
+  return getSiteRowBySlug(slug);
 }
