@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "add-site": "tsx scripts/add-site.ts",
     "pause-site": "tsx scripts/pause-site.ts",
-    "redesign-site": "tsx scripts/redesign-site.ts"
+    "redesign-site": "tsx scripts/redesign-site.ts",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1018.0",
