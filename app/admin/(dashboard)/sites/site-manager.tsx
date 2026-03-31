@@ -104,7 +104,15 @@ const emptySite: SiteFormData = {
   custom_css: "",
 };
 
-type FormSection = "basic" | "monetization" | "theme" | "navigation" | "features" | "seo" | "social" | "css";
+type FormSection =
+  | "basic"
+  | "monetization"
+  | "theme"
+  | "navigation"
+  | "features"
+  | "seo"
+  | "social"
+  | "css";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                             */
@@ -188,15 +196,21 @@ function siteToForm(site: SiteInfo): SiteFormData {
 /*  Section label component                                             */
 /* ------------------------------------------------------------------ */
 
-function SectionTab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function SectionTab({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-        active
-          ? "bg-gray-900 text-white"
-          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+        active ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
       }`}
     >
       {label}
@@ -236,9 +250,7 @@ function NavItemsEditor({
           + Add
         </button>
       </div>
-      {items.length === 0 && (
-        <p className="text-xs text-gray-400">No items added yet.</p>
-      )}
+      {items.length === 0 && <p className="text-xs text-gray-400">No items added yet.</p>}
       <div className="space-y-2">
         {items.map((item, i) => (
           <div key={i} className="flex gap-2">
@@ -292,6 +304,7 @@ export function SiteManager() {
   const [error, setError] = useState("");
   const [selectingId, setSelectingId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<FormSection>("basic");
+  const [confirmDeleteSite, setConfirmDeleteSite] = useState<SiteInfo | null>(null);
 
   const loadSites = useCallback(async () => {
     setLoading(true);
@@ -361,9 +374,8 @@ export function SiteManager() {
     await loadSites();
   }
 
-  async function handleDelete(site: SiteInfo) {
-    if (!confirm(`Delete "${site.name}"? This will remove all associated data.`)) return;
-
+  async function handleDeleteConfirmed(site: SiteInfo) {
+    setConfirmDeleteSite(null);
     const res = await fetchWithCsrf(`/api/admin/sites?id=${site.db_id ?? site.id}`, {
       method: "DELETE",
     });
@@ -386,7 +398,8 @@ export function SiteManager() {
   }
 
   /* --- Input helpers ------------------------------------------------ */
-  const inputCls = "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none";
+  const inputCls =
+    "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none";
   const labelCls = "mb-1 block text-sm font-medium text-gray-700";
 
   if (loading) {
@@ -417,22 +430,22 @@ export function SiteManager() {
           <h2 className="mb-4 text-lg font-semibold text-gray-900">
             {editingSite ? `Edit: ${editingSite.name}` : "Add New Site"}
           </h2>
-          {error && (
-            <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
-          )}
+          {error && <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
 
           {/* Section tabs */}
           <div className="mb-6 flex flex-wrap gap-2">
-            {([
-              ["basic", "Basic"],
-              ["monetization", "Monetization"],
-              ["theme", "Theme"],
-              ["navigation", "Navigation"],
-              ["features", "Features"],
-              ["seo", "SEO"],
-              ["social", "Social"],
-              ["css", "Custom CSS"],
-            ] as [FormSection, string][]).map(([key, label]) => (
+            {(
+              [
+                ["basic", "Basic"],
+                ["monetization", "Monetization"],
+                ["theme", "Theme"],
+                ["navigation", "Navigation"],
+                ["features", "Features"],
+                ["seo", "SEO"],
+                ["social", "Social"],
+                ["css", "Custom CSS"],
+              ] as [FormSection, string][]
+            ).map(([key, label]) => (
               <SectionTab
                 key={key}
                 label={label}
@@ -459,7 +472,9 @@ export function SiteManager() {
                       className={`${inputCls} disabled:bg-gray-100 disabled:text-gray-500`}
                       required
                     />
-                    <p className="mt-1 text-xs text-gray-400">Lowercase, hyphens only. Cannot change after creation.</p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      Lowercase, hyphens only. Cannot change after creation.
+                    </p>
                   </div>
                   <div>
                     <label className={labelCls}>Name</label>
@@ -499,7 +514,9 @@ export function SiteManager() {
                     <label className={labelCls}>Direction</label>
                     <select
                       value={form.direction}
-                      onChange={(e) => setForm({ ...form, direction: e.target.value as "ltr" | "rtl" })}
+                      onChange={(e) =>
+                        setForm({ ...form, direction: e.target.value as "ltr" | "rtl" })
+                      }
                       className={inputCls}
                     >
                       <option value="ltr">Left-to-Right (LTR)</option>
@@ -515,7 +532,9 @@ export function SiteManager() {
                     onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
                     className="h-4 w-4 rounded border-gray-300"
                   />
-                  <label htmlFor="is_active" className="text-sm text-gray-700">Active</label>
+                  <label htmlFor="is_active" className="text-sm text-gray-700">
+                    Active
+                  </label>
                 </div>
               </>
             )}
@@ -527,7 +546,12 @@ export function SiteManager() {
                   <label className={labelCls}>Monetization Type</label>
                   <select
                     value={form.monetization_type}
-                    onChange={(e) => setForm({ ...form, monetization_type: e.target.value as "affiliate" | "ads" | "both" })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        monetization_type: e.target.value as "affiliate" | "ads" | "both",
+                      })
+                    }
                     className={inputCls}
                   >
                     <option value="affiliate">Affiliate</option>
@@ -542,7 +566,9 @@ export function SiteManager() {
                     step="0.01"
                     min="0"
                     value={form.est_revenue_per_click}
-                    onChange={(e) => setForm({ ...form, est_revenue_per_click: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setForm({ ...form, est_revenue_per_click: parseFloat(e.target.value) || 0 })
+                    }
                     className={inputCls}
                   />
                 </div>
@@ -576,13 +602,17 @@ export function SiteManager() {
                       <input
                         type="color"
                         value={form.theme_secondary_color}
-                        onChange={(e) => setForm({ ...form, theme_secondary_color: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, theme_secondary_color: e.target.value })
+                        }
                         className="h-10 w-12 cursor-pointer rounded border border-gray-300"
                       />
                       <input
                         type="text"
                         value={form.theme_secondary_color}
-                        onChange={(e) => setForm({ ...form, theme_secondary_color: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, theme_secondary_color: e.target.value })
+                        }
                         className={inputCls}
                       />
                     </div>
@@ -629,7 +659,9 @@ export function SiteManager() {
                     <label className={labelCls}>Layout Variant</label>
                     <select
                       value={form.theme_layout_variant}
-                      onChange={(e) => setForm({ ...form, theme_layout_variant: e.target.value as LayoutVariant })}
+                      onChange={(e) =>
+                        setForm({ ...form, theme_layout_variant: e.target.value as LayoutVariant })
+                      }
                       className={inputCls}
                     >
                       <option value="standard">Standard</option>
@@ -637,7 +669,9 @@ export function SiteManager() {
                       <option value="minimal">Minimal</option>
                       <option value="directory">Directory</option>
                     </select>
-                    <p className="mt-1 text-xs text-gray-400">Controls the overall page layout style.</p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      Controls the overall page layout style.
+                    </p>
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -668,18 +702,22 @@ export function SiteManager() {
                   <label className={labelCls}>Theme Preview</label>
                   <div
                     className="mt-2 overflow-hidden rounded-lg border border-gray-200"
-                    style={{
-                      "--preview-primary": form.theme_primary_color,
-                      "--preview-secondary": form.theme_secondary_color,
-                      "--preview-accent": form.theme_accent_color,
-                    } as React.CSSProperties}
+                    style={
+                      {
+                        "--preview-primary": form.theme_primary_color,
+                        "--preview-secondary": form.theme_secondary_color,
+                        "--preview-accent": form.theme_accent_color,
+                      } as React.CSSProperties
+                    }
                   >
                     {/* Preview header */}
                     <div
                       className="flex items-center justify-between px-4 py-3"
                       style={{ backgroundColor: form.theme_primary_color }}
                     >
-                      <span className="text-sm font-bold text-white">{form.name || "Site Name"}</span>
+                      <span className="text-sm font-bold text-white">
+                        {form.name || "Site Name"}
+                      </span>
                       <div className="flex gap-3">
                         <span className="text-xs text-white/70">Home</span>
                         <span className="text-xs text-white/70">Reviews</span>
@@ -694,8 +732,12 @@ export function SiteManager() {
                       >
                         Sample Heading
                       </h3>
-                      <p className="mb-3 text-xs text-gray-600" style={{ fontFamily: form.theme_font }}>
-                        This is a preview of how your niche site will look with these theme settings.
+                      <p
+                        className="mb-3 text-xs text-gray-600"
+                        style={{ fontFamily: form.theme_font }}
+                      >
+                        This is a preview of how your niche site will look with these theme
+                        settings.
                       </p>
                       <div className="flex gap-2">
                         <button
@@ -745,12 +787,17 @@ export function SiteManager() {
             {activeSection === "features" && (
               <div className="space-y-3">
                 <p className="text-sm text-gray-500">Toggle features on or off for this site.</p>
-                {([
-                  ["features_newsletter", "Newsletter", "Enable newsletter signup"],
-                  ["features_giftFinder", "Gift Finder", "Enable gift finder tool"],
-                  ["features_search", "Search", "Enable site search"],
-                ] as [keyof SiteFormData, string, string][]).map(([key, label, desc]) => (
-                  <div key={key} className="flex items-center justify-between rounded-md border border-gray-200 p-3">
+                {(
+                  [
+                    ["features_newsletter", "Newsletter", "Enable newsletter signup"],
+                    ["features_giftFinder", "Gift Finder", "Enable gift finder tool"],
+                    ["features_search", "Search", "Enable site search"],
+                  ] as [keyof SiteFormData, string, string][]
+                ).map(([key, label, desc]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between rounded-md border border-gray-200 p-3"
+                  >
                     <div>
                       <p className="text-sm font-medium text-gray-900">{label}</p>
                       <p className="text-xs text-gray-500">{desc}</p>
@@ -805,12 +852,14 @@ export function SiteManager() {
             {/* ---- Social section ---- */}
             {activeSection === "social" && (
               <div className="grid gap-4 sm:grid-cols-2">
-                {([
-                  ["social_twitter", "Twitter / X"],
-                  ["social_facebook", "Facebook"],
-                  ["social_instagram", "Instagram"],
-                  ["social_youtube", "YouTube"],
-                ] as [keyof SiteFormData, string][]).map(([key, label]) => (
+                {(
+                  [
+                    ["social_twitter", "Twitter / X"],
+                    ["social_facebook", "Facebook"],
+                    ["social_instagram", "Instagram"],
+                    ["social_youtube", "YouTube"],
+                  ] as [keyof SiteFormData, string][]
+                ).map(([key, label]) => (
                   <div key={key}>
                     <label className={labelCls}>{label}</label>
                     <input
@@ -836,7 +885,9 @@ export function SiteManager() {
                   rows={10}
                   className={`${inputCls} font-mono text-xs`}
                 />
-                <p className="mt-1 text-xs text-gray-400">CSS applied after the default theme styles.</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  CSS applied after the default theme styles.
+                </p>
               </div>
             )}
 
@@ -864,10 +915,7 @@ export function SiteManager() {
       {/* Sites list */}
       <div className="grid gap-4 sm:grid-cols-2">
         {sites.map((site) => (
-          <div
-            key={site.id}
-            className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
-          >
+          <div key={site.id} className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-lg font-bold text-white">
@@ -884,9 +932,11 @@ export function SiteManager() {
                       {site.direction.toUpperCase()}
                     </span>
                     {site.source === "database" && site.is_active !== undefined && (
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-                        site.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
-                      }`}>
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs ${
+                          site.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                        }`}
+                      >
                         {site.is_active ? "Active" : "Inactive"}
                       </span>
                     )}
@@ -895,11 +945,13 @@ export function SiteManager() {
                         {site.monetization_type}
                       </span>
                     )}
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-                      site.source === "database"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-500"
-                    }`}>
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-xs ${
+                        site.source === "database"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
                       {site.source}
                     </span>
                   </div>
@@ -926,7 +978,7 @@ export function SiteManager() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(site)}
+                    onClick={() => setConfirmDeleteSite(site)}
                     className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                   >
                     Delete
@@ -948,6 +1000,34 @@ export function SiteManager() {
           >
             Create your first site
           </button>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {confirmDeleteSite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete Site</h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Are you sure you want to delete{" "}
+              <strong>&ldquo;{confirmDeleteSite.name}&rdquo;</strong>? This will remove all
+              associated data.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDeleteSite(null)}
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteConfirmed(confirmDeleteSite)}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

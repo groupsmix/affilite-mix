@@ -31,6 +31,7 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -100,9 +101,9 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
     setSaving(false);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this ad placement?")) return;
+  async function handleDeleteConfirmed(id: string) {
     setDeletingId(id);
+    setConfirmDeleteId(null);
 
     try {
       const res = await fetchWithCsrf(`/api/admin/ads/${id}`, { method: "DELETE" });
@@ -137,7 +138,10 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
     <div>
       <div className="mb-4 flex justify-end">
         <button
-          onClick={() => { resetForm(); setShowForm(true); }}
+          onClick={() => {
+            resetForm();
+            setShowForm(true);
+          }}
           className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
         >
           + New Ad Placement
@@ -186,14 +190,18 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Placement Type</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Placement Type
+                </label>
                 <select
                   value={placementType}
                   onChange={(e) => setPlacementType(e.target.value as AdPlacementType)}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 >
                   {PLACEMENT_TYPES.map((pt) => (
-                    <option key={pt.value} value={pt.value}>{pt.label}</option>
+                    <option key={pt.value} value={pt.value}>
+                      {pt.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -208,7 +216,9 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 >
                   {PROVIDERS.map((p) => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -225,7 +235,9 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Ad Code / Snippet</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Ad Code / Snippet
+              </label>
               <textarea
                 value={adCode}
                 onChange={(e) => setAdCode(e.target.value)}
@@ -243,7 +255,9 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                 onChange={(e) => setIsActive(e.target.checked)}
                 className="rounded border-gray-300"
               />
-              <label htmlFor="is_active" className="text-sm text-gray-700">Active</label>
+              <label htmlFor="is_active" className="text-sm text-gray-700">
+                Active
+              </label>
             </div>
 
             <div className="flex gap-3">
@@ -271,7 +285,8 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
           <p className="text-gray-500">No ad placements configured yet.</p>
           <p className="mt-1 text-sm text-gray-400">
-            Create ad placements for sites with &quot;ads&quot; or &quot;both&quot; monetization type.
+            Create ad placements for sites with &quot;ads&quot; or &quot;both&quot; monetization
+            type.
           </p>
         </div>
       ) : (
@@ -285,16 +300,16 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                   <button
                     onClick={() => handleToggleActive(ad)}
                     className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                      ad.is_active
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-500"
+                      ad.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                     }`}
                   >
                     {ad.is_active ? "Active" : "Inactive"}
                   </button>
                 </div>
                 <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-gray-500">
-                  <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{ad.placement_type}</span>
+                  <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">
+                    {ad.placement_type}
+                  </span>
                   <span>{ad.provider}</span>
                   <span className="text-xs text-gray-400">Priority: {ad.priority}</span>
                 </div>
@@ -306,7 +321,7 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(ad.id)}
+                    onClick={() => setConfirmDeleteId(ad.id)}
                     disabled={deletingId === ad.id}
                     className="text-sm text-red-600 hover:underline disabled:opacity-50"
                   >
@@ -340,9 +355,7 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                       <button
                         onClick={() => handleToggleActive(ad)}
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                          ad.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-500"
+                          ad.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                         }`}
                       >
                         {ad.is_active ? "Active" : "Inactive"}
@@ -357,7 +370,7 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(ad.id)}
+                        onClick={() => setConfirmDeleteId(ad.id)}
                         disabled={deletingId === ad.id}
                         className="text-sm text-red-600 hover:underline disabled:opacity-50"
                       >
@@ -370,6 +383,31 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
             </table>
           </div>
         </>
+      )}
+      {/* Delete confirmation dialog */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete Ad Placement</h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Are you sure you want to delete this ad placement? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteConfirmed(confirmDeleteId)}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

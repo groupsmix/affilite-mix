@@ -17,7 +17,9 @@ export function CategoryForm({ category }: CategoryFormProps) {
   const [name, setName] = useState(category?.name ?? "");
   const [slug, setSlug] = useState(category?.slug ?? "");
   const [description, setDescription] = useState(category?.description ?? "");
-  const [taxonomyType, setTaxonomyType] = useState<"general" | "budget" | "occasion" | "recipient" | "brand">(category?.taxonomy_type ?? "general");
+  const [taxonomyType, setTaxonomyType] = useState<
+    "general" | "budget" | "occasion" | "recipient" | "brand"
+  >(category?.taxonomy_type ?? "general");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -62,9 +64,7 @@ export function CategoryForm({ category }: CategoryFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-lg space-y-4">
-      {error && (
-        <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
-      )}
+      {error && <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
 
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
@@ -97,6 +97,7 @@ export function CategoryForm({ category }: CategoryFormProps) {
           value={taxonomyType}
           onChange={(e) => setTaxonomyType(e.target.value as typeof taxonomyType)}
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          required
         >
           <option value="general">General</option>
           <option value="budget">Budget</option>
