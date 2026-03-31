@@ -1,4 +1,4 @@
-import { getUntypedServiceClient } from "@/lib/supabase-server";
+import { getServiceClient } from "@/lib/supabase-server";
 import { assertRows, hasNumberProp } from "./type-guards";
 
 const TABLE = "ad_impressions";
@@ -9,7 +9,7 @@ export async function recordAdImpression(
   adPlacementId: string,
   pagePath: string,
 ): Promise<void> {
-  const sb = getUntypedServiceClient();
+  const sb = getServiceClient();
   const today = new Date().toISOString().split("T")[0];
 
   // Try to find existing row for today
@@ -44,7 +44,7 @@ export async function getAdImpressionStats(
   startDate: string,
   endDate?: string,
 ): Promise<{ ad_placement_id: string; total_impressions: number }[]> {
-  const sb = getUntypedServiceClient();
+  const sb = getServiceClient();
   let query = sb
     .from(TABLE)
     .select("ad_placement_id, count")

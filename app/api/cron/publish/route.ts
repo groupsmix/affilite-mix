@@ -49,22 +49,29 @@ export async function POST(request: NextRequest) {
     .overrideTypes<Pick<ContentRow, "id" | "title" | "slug">[]>();
 
   if (contentError) {
-    captureException(contentError, { context: "[api/cron/publish] Failed to fetch scheduled content:" });
+    captureException(contentError, {
+      context: "[api/cron/publish] Failed to fetch scheduled content:",
+    });
     return NextResponse.json({ error: contentError.message }, { status: 500 });
   }
 
   if (contentItems && contentItems.length > 0) {
+    // Use optimistic locking: only update rows still in "scheduled" status
+    // to prevent double-publishing if another cron instance runs concurrently.
     const ids = contentItems.map((item) => item.id);
-    const { error: updateError } = await sb
+    const { data: updated, error: updateError } = await sb
       .from("content")
       .update({ status: "published" })
-      .in("id", ids);
+      .in("id", ids)
+      .eq("status", "scheduled")
+      .select("id")
+      .overrideTypes<{ id: string }[]>();
 
     if (updateError) {
       captureException(updateError, { context: "[api/cron/publish] Failed to publish content:" });
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
-    results.published_content = contentItems.length;
+    results.published_content = updated?.length ?? 0;
   } else {
     results.published_content = 0;
   }
@@ -82,22 +89,28 @@ export async function POST(request: NextRequest) {
     .overrideTypes<Pick<ProductRow, "id" | "name" | "slug">[]>();
 
   if (expiredError) {
-    captureException(expiredError, { context: "[api/cron/publish] Failed to fetch expired products:" });
+    captureException(expiredError, {
+      context: "[api/cron/publish] Failed to fetch expired products:",
+    });
     return NextResponse.json({ error: expiredError.message }, { status: 500 });
   }
 
   if (expiredProducts && expiredProducts.length > 0) {
+    // Optimistic locking: only archive rows still in "active" status
     const ids = expiredProducts.map((p) => p.id);
-    const { error: archiveError } = await sb
+    const { data: archived, error: archiveError } = await sb
       .from("products")
       .update({ status: "archived" })
-      .in("id", ids);
+      .in("id", ids)
+      .eq("status", "active")
+      .select("id")
+      .overrideTypes<{ id: string }[]>();
 
     if (archiveError) {
       captureException(archiveError, { context: "[api/cron/publish] Failed to archive products:" });
       return NextResponse.json({ error: archiveError.message }, { status: 500 });
     }
-    results.archived_products = expiredProducts.length;
+    results.archived_products = archived?.length ?? 0;
   } else {
     results.archived_products = 0;
   }

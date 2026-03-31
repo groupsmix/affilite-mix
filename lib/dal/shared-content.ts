@@ -1,4 +1,4 @@
-import { getUntypedServiceClient } from "@/lib/supabase-server";
+import { getServiceClient } from "@/lib/supabase-server";
 import { assertRow, assertRows } from "./type-guards";
 
 const TABLE = "shared_content";
@@ -17,7 +17,7 @@ export async function shareContent(
   sourceSiteId: string,
   targetSiteId: string,
 ): Promise<SharedContentRow> {
-  const sb = getUntypedServiceClient();
+  const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .insert({
@@ -33,11 +33,8 @@ export async function shareContent(
 }
 
 /** Remove a cross-niche share */
-export async function unshareContent(
-  contentId: string,
-  targetSiteId: string,
-): Promise<void> {
-  const sb = getUntypedServiceClient();
+export async function unshareContent(contentId: string, targetSiteId: string): Promise<void> {
+  const sb = getServiceClient();
   const { error } = await sb
     .from(TABLE)
     .delete()
@@ -48,10 +45,8 @@ export async function unshareContent(
 }
 
 /** List all sites a piece of content is shared to */
-export async function listSharedTargets(
-  contentId: string,
-): Promise<SharedContentRow[]> {
-  const sb = getUntypedServiceClient();
+export async function listSharedTargets(contentId: string): Promise<SharedContentRow[]> {
+  const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -63,10 +58,8 @@ export async function listSharedTargets(
 }
 
 /** List content shared TO a given site (from other sites) */
-export async function listContentSharedToSite(
-  targetSiteId: string,
-): Promise<SharedContentRow[]> {
-  const sb = getUntypedServiceClient();
+export async function listContentSharedToSite(targetSiteId: string): Promise<SharedContentRow[]> {
+  const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")

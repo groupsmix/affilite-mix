@@ -1,4 +1,4 @@
-import { getUntypedServiceClient } from "@/lib/supabase-server";
+import { getServiceClient } from "@/lib/supabase-server";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { AdPlacementRow, AdPlacementType } from "@/types/database";
 
@@ -6,7 +6,7 @@ const TABLE = "ad_placements";
 
 /** List all ad placements for a site */
 export async function listAdPlacements(siteId: string): Promise<AdPlacementRow[]> {
-  const sb = getUntypedServiceClient();
+  const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -22,7 +22,7 @@ export async function listActiveAdPlacements(
   siteId: string,
   placementType?: AdPlacementType,
 ): Promise<AdPlacementRow[]> {
-  const sb = getUntypedServiceClient();
+  const sb = getServiceClient();
   let query = sb
     .from(TABLE)
     .select("*")
@@ -44,7 +44,7 @@ export async function getAdPlacementById(
   siteId: string,
   id: string,
 ): Promise<AdPlacementRow | null> {
-  const sb = getUntypedServiceClient();
+  const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -60,7 +60,7 @@ export async function getAdPlacementById(
 export async function createAdPlacement(
   input: Omit<AdPlacementRow, "id" | "created_at">,
 ): Promise<AdPlacementRow> {
-  const sb = getUntypedServiceClient();
+  const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<AdPlacementRow>(data, "AdPlacement");
@@ -72,7 +72,7 @@ export async function updateAdPlacement(
   id: string,
   input: Partial<Omit<AdPlacementRow, "id" | "site_id" | "created_at">>,
 ): Promise<AdPlacementRow> {
-  const sb = getUntypedServiceClient();
+  const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .update(input)
@@ -86,16 +86,9 @@ export async function updateAdPlacement(
 }
 
 /** Delete an ad placement */
-export async function deleteAdPlacement(
-  siteId: string,
-  id: string,
-): Promise<void> {
-  const sb = getUntypedServiceClient();
-  const { error } = await sb
-    .from(TABLE)
-    .delete()
-    .eq("site_id", siteId)
-    .eq("id", id);
+export async function deleteAdPlacement(siteId: string, id: string): Promise<void> {
+  const sb = getServiceClient();
+  const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;
 }
