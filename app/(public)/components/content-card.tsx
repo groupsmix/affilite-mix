@@ -5,13 +5,16 @@ import type { ContentRow } from "@/types/database";
 import Link from "next/link";
 import Image from "next/image";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
+import { highlightText } from "./highlight-text";
 
 interface ContentCardProps {
   content: ContentRow;
   locale?: string;
+  /** Optional search query to highlight matching terms */
+  searchQuery?: string;
 }
 
-export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
+export function ContentCard({ content, locale = "en-US", searchQuery }: ContentCardProps) {
   const href = `/${content.type}/${content.slug}`;
   const [imgError, setImgError] = useState(false);
 
@@ -35,11 +38,11 @@ export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
       <div className="p-5">
         <Link href={href}>
           <h3 className="mb-2 text-xl font-semibold leading-tight transition-colors hover:[color:var(--color-accent,#10B981)]">
-            {content.title}
+            {searchQuery ? highlightText(content.title, searchQuery) : content.title}
           </h3>
         </Link>
         {content.excerpt && (
-          <p className="mb-3 line-clamp-2 text-sm text-gray-600">{content.excerpt}</p>
+          <p className="mb-3 line-clamp-2 text-sm text-gray-600">{searchQuery ? highlightText(content.excerpt, searchQuery) : content.excerpt}</p>
         )}
         <div className="flex items-center justify-between text-xs text-gray-400">
           <span>{content.type}</span>

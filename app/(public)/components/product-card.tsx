@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useCookieConsent } from "./cookie-consent";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
+import { highlightText } from "./highlight-text";
 
 interface ProductCardProps {
   product: ProductRow;
@@ -14,6 +15,8 @@ interface ProductCardProps {
   /** Optional link to a related review/article for this product */
   relatedContentHref?: string;
   relatedContentLabel?: string;
+  /** Optional search query to highlight matching terms */
+  searchQuery?: string;
 }
 
 function isDealActive(expiresAt: string | null): boolean {
@@ -50,7 +53,7 @@ function fireTrackingBeacon(slug: string, sourceType: string) {
   }
 }
 
-export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal", relatedContentHref, relatedContentLabel }: ProductCardProps) {
+export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal", relatedContentHref, relatedContentLabel, searchQuery }: ProductCardProps) {
   const { accepted: consentAccepted } = useCookieConsent();
   const [imgError, setImgError] = useState(false);
   const buttonLabel = product.cta_text || ctaLabel;
@@ -96,7 +99,7 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
           />
         </div>
       )}
-      <h3 className="mb-1 text-lg font-semibold leading-tight">{product.name}</h3>
+      <h3 className="mb-1 text-lg font-semibold leading-tight">{searchQuery ? highlightText(product.name, searchQuery) : product.name}</h3>
       {product.merchant && (
         <p className="mb-1 text-sm text-gray-500">{product.merchant}</p>
       )}
