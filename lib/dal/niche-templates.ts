@@ -1,4 +1,5 @@
 import { getUntypedServiceClient } from "@/lib/supabase-server";
+import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 const TABLE = "niche_templates";
 
@@ -31,7 +32,7 @@ export async function listNicheTemplates(): Promise<NicheTemplateRow[]> {
     .order("name", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as NicheTemplateRow[];
+  return assertRows<NicheTemplateRow>(data ?? []);
 }
 
 /** Get a single template by slug */
@@ -46,7 +47,7 @@ export async function getNicheTemplateBySlug(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as NicheTemplateRow) ?? null;
+  return rowOrNull<NicheTemplateRow>(data);
 }
 
 /** Create a new niche template */
@@ -61,7 +62,7 @@ export async function createNicheTemplate(
     .single();
 
   if (error) throw error;
-  return data as NicheTemplateRow;
+  return assertRow<NicheTemplateRow>(data, "NicheTemplate");
 }
 
 /** Update an existing niche template */
@@ -78,7 +79,7 @@ export async function updateNicheTemplate(
     .single();
 
   if (error) throw error;
-  return data as NicheTemplateRow;
+  return assertRow<NicheTemplateRow>(data, "NicheTemplate");
 }
 
 /** Delete a niche template (only non-builtin) */

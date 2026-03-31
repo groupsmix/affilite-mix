@@ -1,5 +1,6 @@
 import { getServiceClient } from "@/lib/supabase-server";
 import type { AffiliateClickRow } from "@/types/database";
+import { assertRows } from "./type-guards";
 
 const TABLE = "affiliate_clicks";
 
@@ -65,7 +66,7 @@ export async function getRecentClicks(
     .limit(limit);
 
   if (error) throw error;
-  return data as AffiliateClickRow[];
+  return assertRows<AffiliateClickRow>(data);
 }
 
 /** Get top clicked products for a site (admin analytics) */
@@ -84,7 +85,7 @@ export async function getTopProducts(
   });
 
   if (error) throw error;
-  return (data ?? []) as { product_name: string; click_count: number }[];
+  return assertRows<{ product_name: string; click_count: number }>(data ?? []);
 }
 
 /** Get top referring pages for a site (admin analytics) */
@@ -103,7 +104,7 @@ export async function getTopReferrers(
   });
 
   if (error) throw error;
-  return (data ?? []) as { referrer: string; click_count: number }[];
+  return assertRows<{ referrer: string; click_count: number }>(data ?? []);
 }
 
 /** Get top content pages driving clicks (admin analytics) */
@@ -122,7 +123,7 @@ export async function getTopContentSlugs(
   });
 
   if (error) throw error;
-  return (data ?? []) as { content_slug: string; click_count: number }[];
+  return assertRows<{ content_slug: string; click_count: number }>(data ?? []);
 }
 
 /** Get daily click counts for a site (admin analytics chart data) */
@@ -142,7 +143,7 @@ export async function getDailyClicks(
   if (error) throw error;
 
   // Build a lookup from the RPC results
-  const rpcData = (data ?? []) as { date: string; count: number }[];
+  const rpcData = assertRows<{ date: string; count: number }>(data ?? []);
   const counts = new Map<string, number>();
   for (const row of rpcData) {
     counts.set(row.date, Number(row.count));

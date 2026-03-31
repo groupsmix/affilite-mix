@@ -1,6 +1,7 @@
 import { getServiceClient } from "@/lib/supabase-server";
 import type { ContentRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
+import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 
 const TABLE = "content";
 
@@ -35,7 +36,7 @@ export async function listContent(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as ContentRow[];
+  return assertRows<ContentRow>(data);
 }
 
 /** Get a single content item by id */
@@ -52,7 +53,7 @@ export async function getContentById(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as ContentRow) ?? null;
+  return rowOrNull<ContentRow>(data);
 }
 
 /** Get a single content item by slug */
@@ -75,7 +76,7 @@ export async function getContentBySlug(
   const { data, error } = await query.single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as ContentRow) ?? null;
+  return rowOrNull<ContentRow>(data);
 }
 
 /** Create content */
@@ -85,7 +86,7 @@ export async function createContent(
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
-  return data as ContentRow;
+  return assertRow<ContentRow>(data, "Content");
 }
 
 /** Update content (saves previous body for version history) */
@@ -107,8 +108,8 @@ export async function updateContent(
       .eq("id", id)
       .single();
 
-    if (current) {
-      (input as Record<string, unknown>).body_previous = (current as { body: string }).body;
+    if (current && hasStringProp(current, "body")) {
+      (input as Record<string, unknown>).body_previous = current.body;
     }
   }
 
@@ -121,7 +122,7 @@ export async function updateContent(
     .single();
 
   if (error) throw error;
-  return data as ContentRow;
+  return assertRow<ContentRow>(data, "Content");
 }
 
 /** Delete content */
@@ -179,7 +180,7 @@ export async function listPublishedContent(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as ContentRow[];
+  return assertRows<ContentRow>(data);
 }
 
 /** Get recent published content (for homepage) */
@@ -232,7 +233,7 @@ export async function searchContent(
       .order("updated_at", { ascending: false })
       .limit(limit);
 
-    if (!error) return data as ContentRow[];
+    if (!error) return assertRows<ContentRow>(data);
     // If FTS fails (e.g. column/index not ready), fall through to ILIKE.
   }
 
@@ -246,7 +247,7 @@ export async function searchContent(
     .limit(limit);
 
   if (error) throw error;
-  return data as ContentRow[];
+  return assertRows<ContentRow>(data);
 }
 
 /** Get related content by category (excluding a specific content id) */
@@ -270,5 +271,5 @@ export async function getRelatedContent(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as ContentRow[];
+  return assertRows<ContentRow>(data);
 }

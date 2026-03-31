@@ -70,6 +70,7 @@ export function ContentForm({ content, categories, products, linkedProducts, con
   const [ogImage, setOgImage] = useState(content?.og_image ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   // Product linker state
   const [links, setLinks] = useState<
@@ -372,6 +373,41 @@ export function ContentForm({ content, categories, products, linkedProducts, con
           </div>
         </div>
       </details>
+
+      {/* Version History */}
+      {isEdit && content?.body_previous && (
+        <details
+          className="rounded-lg border border-amber-200 bg-amber-50"
+          open={showVersionHistory}
+          onToggle={(e) => setShowVersionHistory((e.target as HTMLDetailsElement).open)}
+        >
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-amber-800 hover:bg-amber-100">
+            Version History
+          </summary>
+          <div className="border-t border-amber-200 px-4 py-4">
+            <p className="mb-2 text-xs text-amber-700">
+              Previous version of the body content (before last edit):
+            </p>
+            <div
+              className="mb-3 max-h-48 overflow-auto rounded border border-amber-200 bg-white p-3 text-sm text-gray-700"
+              dangerouslySetInnerHTML={{ __html: content.body_previous }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Restore previous version? Current body will be replaced.")) {
+                  setBody(content.body_previous!);
+                  markDirty();
+                  toast.success("Previous version restored. Save to persist.");
+                }
+              }}
+              className="rounded-md border border-amber-400 bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-200"
+            >
+              Restore Previous Version
+            </button>
+          </div>
+        </details>
+      )}
 
       {/* Product Linker */}
       <ProductLinker

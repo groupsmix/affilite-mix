@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase-server";
+import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 export interface AdminUserRow {
   id: string;
@@ -26,7 +27,7 @@ export async function getAdminUserByEmail(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as AdminUserRow) ?? null;
+  return rowOrNull<AdminUserRow>(data);
 }
 
 /** List all admin users */
@@ -38,7 +39,7 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return data as AdminUserRow[];
+  return assertRows<AdminUserRow>(data);
 }
 
 /** Create a new admin user */
@@ -61,7 +62,7 @@ export async function createAdminUser(input: {
     .single();
 
   if (error) throw error;
-  return data as AdminUserRow;
+  return assertRow<AdminUserRow>(data, "AdminUser");
 }
 
 /** Update an admin user */
@@ -78,7 +79,7 @@ export async function updateAdminUser(
     .single();
 
   if (error) throw error;
-  return data as AdminUserRow;
+  return assertRow<AdminUserRow>(data, "AdminUser");
 }
 
 /** Delete an admin user */
