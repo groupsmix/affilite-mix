@@ -3,6 +3,7 @@ import { getContentBySlug, getRelatedContent } from "@/lib/dal/content";
 import { getLinkedProducts } from "@/lib/dal/content-products";
 import { injectProductLinks } from "@/lib/internal-links";
 import { getAdminSession } from "@/lib/auth";
+import { validatePreviewToken } from "@/lib/preview-token";
 import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
 import { ContentCard } from "../../components/content-card";
@@ -39,15 +40,30 @@ export const revalidate = 60;
 
 interface ContentPageProps {
   params: Promise<{ contentType: string; slug: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; token?: string }>;
 }
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: ContentPageProps): Promise<Metadata> {
   const { slug } = await params;
+  const { preview, token } = await searchParams;
   const site = await getCurrentSite();
-  const content = await getContentBySlug(site.id, slug);
+
+  // Support preview mode in metadata generation
+  let isPreview = false;
+  if (preview === "true") {
+    if (token) {
+      const tokenPayload = await validatePreviewToken(token);
+      isPreview = !!(tokenPayload && tokenPayload.slug === slug);
+    } else {
+      const session = await getAdminSession();
+      isPreview = !!session;
+    }
+  }
+
+  const content = await getContentBySlug(site.id, slug, isPreview);
 
   if (!content) {
     return { title: site.language === "ar" ? "غير موجود" : "Not Found" };
@@ -89,15 +105,26 @@ export async function generateMetadata({
 
 export default async function ContentPage({ params, searchParams }: ContentPageProps) {
   const { contentType, slug } = await params;
-  const { preview } = await searchParams;
+  const { preview, token } = await searchParams;
   const site = await getCurrentSite();
-  const isPreview = preview === "true";
+  let isPreview = false;
 
-  // Preview mode requires admin authentication
-  if (isPreview) {
-    const session = await getAdminSession();
-    if (!session) {
-      notFound();
+  // Preview mode: authenticate via admin session or preview token
+  if (preview === "true") {
+    if (token) {
+      // Token-based preview (shareable with non-admin reviewers)
+      const tokenPayload = await validatePreviewToken(token);
+      if (!tokenPayload || tokenPayload.slug !== slug) {
+        notFound();
+      }
+      isPreview = true;
+    } else {
+      // Session-based preview (admin users)
+      const session = await getAdminSession();
+      if (!session) {
+        notFound();
+      }
+      isPreview = true;
     }
   }
 

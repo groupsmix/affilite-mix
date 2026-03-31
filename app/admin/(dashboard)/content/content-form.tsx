@@ -10,6 +10,7 @@ import { ImageUploader } from "../components/image-uploader";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { autoSlug } from "@/lib/auto-slug";
 import { toast } from "sonner";
+import { useCallback } from "react";
 import { ErrorBoundary } from "../components/error-boundary";
 
 const RichEditor = dynamic(() =>
@@ -71,6 +72,38 @@ export function ContentForm({ content, categories, products, linkedProducts, con
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [generatingPreview, setGeneratingPreview] = useState(false);
+
+  const handlePreview = useCallback(async () => {
+    if (!slug) return;
+    // Published content can be previewed directly with session-based auth
+    if (status === "published") {
+      window.open(`/${contentType}/${slug}?preview=true`, "_blank");
+      return;
+    }
+    // Draft/scheduled content needs a short-lived preview token
+    setGeneratingPreview(true);
+    try {
+      const res = await fetchWithCsrf("/api/admin/preview-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, contentType }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to generate preview link");
+        return;
+      }
+      window.open(
+        `/${contentType}/${slug}?preview=true&token=${data.token}`,
+        "_blank",
+      );
+    } catch {
+      toast.error("Failed to generate preview link");
+    } finally {
+      setGeneratingPreview(false);
+    }
+  }, [slug, status, contentType]);
 
   // Product linker state
   const [links, setLinks] = useState<
@@ -425,14 +458,14 @@ export function ContentForm({ content, categories, products, linkedProducts, con
           {saving ? "Saving..." : isEdit ? "Update" : "Create"}
         </button>
         {isEdit && slug && (
-          <a
-            href={`/${contentType}/${slug}?preview=true`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+          <button
+            type="button"
+            onClick={handlePreview}
+            disabled={generatingPreview}
+            className="inline-flex items-center rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
           >
-            Preview
-          </a>
+            {generatingPreview ? "Generating..." : "Preview"}
+          </button>
         )}
         <button
           type="button"

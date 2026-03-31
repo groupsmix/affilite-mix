@@ -144,24 +144,39 @@ export default async function AnalyticsPage() {
           ) : (
             <ExpandableTable rows={topProducts.length} initialLimit={10}>
               {(limit) => (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left text-gray-500">
-                      <th className="pb-2 font-medium">Product</th>
-                      <th className="pb-2 text-right font-medium">Clicks</th>
-                      <th className="pb-2 text-right font-medium">Est. Rev</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <>
+                  {/* Mobile cards */}
+                  <div className="grid gap-2 sm:hidden">
                     {topProducts.slice(0, limit).map((p, i) => (
-                      <tr key={i} className="border-b border-gray-50">
-                        <td className="py-2 text-gray-900">{p.product_name}</td>
-                        <td className="py-2 text-right font-medium text-gray-700">{p.click_count}</td>
-                        <td className="py-2 text-right text-green-700">${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
-                      </tr>
+                      <div key={i} className="rounded-lg border border-gray-100 p-3">
+                        <p className="font-medium text-gray-900">{p.product_name}</p>
+                        <div className="mt-1 flex items-center gap-3 text-sm">
+                          <span className="text-gray-500">{p.click_count} clicks</span>
+                          <span className="text-green-700">${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</span>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                  {/* Desktop table */}
+                  <table className="hidden w-full text-sm sm:table">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-left text-gray-500">
+                        <th className="pb-2 font-medium">Product</th>
+                        <th className="pb-2 text-right font-medium">Clicks</th>
+                        <th className="pb-2 text-right font-medium">Est. Rev</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topProducts.slice(0, limit).map((p, i) => (
+                        <tr key={i} className="border-b border-gray-50">
+                          <td className="py-2 text-gray-900">{p.product_name}</td>
+                          <td className="py-2 text-right font-medium text-gray-700">{p.click_count}</td>
+                          <td className="py-2 text-right text-green-700">${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
               )}
             </ExpandableTable>
           )}
@@ -175,27 +190,45 @@ export default async function AnalyticsPage() {
           ) : (
             <ExpandableTable rows={topReferrers.length} initialLimit={10}>
               {(limit) => (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left text-gray-500">
-                      <th className="pb-2 font-medium">Referrer</th>
-                      <th className="pb-2 text-right font-medium">Clicks</th>
-                      <th className="pb-2 text-right font-medium">%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <>
+                  {/* Mobile cards */}
+                  <div className="grid gap-2 sm:hidden">
                     {topReferrers.slice(0, limit).map((r, i) => {
                       const pct = totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
                       return (
-                        <tr key={i} className="border-b border-gray-50">
-                          <td className="max-w-[200px] truncate py-2 text-gray-900">{r.referrer}</td>
-                          <td className="py-2 text-right font-medium text-gray-700">{r.click_count}</td>
-                          <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
-                        </tr>
+                        <div key={i} className="rounded-lg border border-gray-100 p-3">
+                          <p className="truncate font-medium text-gray-900">{r.referrer}</p>
+                          <div className="mt-1 flex items-center gap-3 text-sm">
+                            <span className="text-gray-500">{r.click_count} clicks</span>
+                            <span className="text-gray-400">{pct.toFixed(1)}%</span>
+                          </div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </div>
+                  {/* Desktop table */}
+                  <table className="hidden w-full text-sm sm:table">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-left text-gray-500">
+                        <th className="pb-2 font-medium">Referrer</th>
+                        <th className="pb-2 text-right font-medium">Clicks</th>
+                        <th className="pb-2 text-right font-medium">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topReferrers.slice(0, limit).map((r, i) => {
+                        const pct = totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
+                        return (
+                          <tr key={i} className="border-b border-gray-50">
+                            <td className="max-w-[200px] truncate py-2 text-gray-900">{r.referrer}</td>
+                            <td className="py-2 text-right font-medium text-gray-700">{r.click_count}</td>
+                            <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </>
               )}
             </ExpandableTable>
           )}
@@ -210,29 +243,48 @@ export default async function AnalyticsPage() {
         ) : (
           <ExpandableTable rows={topContent.length} initialLimit={10}>
             {(limit) => (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 text-left text-gray-500">
-                    <th className="pb-2 font-medium">Content Page</th>
-                    <th className="pb-2 text-right font-medium">Clicks</th>
-                    <th className="pb-2 text-right font-medium">% of Total</th>
-                    <th className="pb-2 text-right font-medium">Est. Rev</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <>
+                {/* Mobile cards */}
+                <div className="grid gap-2 sm:hidden">
                   {topContent.slice(0, limit).map((c, i) => {
                     const pct = clicks30d > 0 ? (c.click_count / clicks30d) * 100 : 0;
                     return (
-                      <tr key={i} className="border-b border-gray-50">
-                        <td className="max-w-[300px] truncate py-2 text-gray-900">{c.content_slug}</td>
-                        <td className="py-2 text-right font-medium text-gray-700">{c.click_count}</td>
-                        <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
-                        <td className="py-2 text-right text-green-700">${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
-                      </tr>
+                      <div key={i} className="rounded-lg border border-gray-100 p-3">
+                        <p className="truncate font-medium text-gray-900">{c.content_slug}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-sm">
+                          <span className="text-gray-500">{c.click_count} clicks</span>
+                          <span className="text-gray-400">{pct.toFixed(1)}%</span>
+                          <span className="text-green-700">${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</span>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+                {/* Desktop table */}
+                <table className="hidden w-full text-sm sm:table">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left text-gray-500">
+                      <th className="pb-2 font-medium">Content Page</th>
+                      <th className="pb-2 text-right font-medium">Clicks</th>
+                      <th className="pb-2 text-right font-medium">% of Total</th>
+                      <th className="pb-2 text-right font-medium">Est. Rev</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topContent.slice(0, limit).map((c, i) => {
+                      const pct = clicks30d > 0 ? (c.click_count / clicks30d) * 100 : 0;
+                      return (
+                        <tr key={i} className="border-b border-gray-50">
+                          <td className="max-w-[300px] truncate py-2 text-gray-900">{c.content_slug}</td>
+                          <td className="py-2 text-right font-medium text-gray-700">{c.click_count}</td>
+                          <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
+                          <td className="py-2 text-right text-green-700">${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
             )}
           </ExpandableTable>
         )}
@@ -242,7 +294,17 @@ export default async function AnalyticsPage() {
       {adImpressionStats.length > 0 && (
         <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Ad Impressions (30d)</h2>
-          <table className="w-full text-sm">
+          {/* Mobile cards */}
+          <div className="grid gap-2 sm:hidden">
+            {adImpressionStats.map((stat) => (
+              <div key={stat.ad_placement_id} className="rounded-lg border border-gray-100 p-3">
+                <p className="truncate font-mono text-xs text-gray-900">{stat.ad_placement_id}</p>
+                <p className="mt-1 text-sm font-medium text-gray-700">{stat.total_impressions.toLocaleString()} impressions</p>
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <table className="hidden w-full text-sm sm:table">
             <thead>
               <tr className="border-b border-gray-100 text-left text-gray-500">
                 <th className="pb-2 font-medium">Placement ID</th>
@@ -267,32 +329,54 @@ export default async function AnalyticsPage() {
         {recentClicks.length === 0 ? (
           <p className="text-sm text-gray-400">No clicks recorded yet</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left text-gray-500">
-                  <th className="pb-2 font-medium">Product</th>
-                  <th className="pb-2 font-medium">Source</th>
-                  <th className="pb-2 font-medium">Referrer</th>
-                  <th className="pb-2 text-right font-medium">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentClicks.map((click) => (
-                  <tr key={click.id} className="border-b border-gray-50">
-                    <td className="py-2 text-gray-900">{click.product_name}</td>
-                    <td className="py-2 text-gray-600">{click.content_slug || "\u2014"}</td>
-                    <td className="max-w-[200px] truncate py-2 text-gray-600">
-                      {click.referrer || "\u2014"}
-                    </td>
-                    <td className="py-2 text-right text-gray-400">
+          <>
+            {/* Mobile cards */}
+            <div className="grid gap-2 sm:hidden">
+              {recentClicks.map((click) => (
+                <div key={click.id} className="rounded-lg border border-gray-100 p-3">
+                  <p className="font-medium text-gray-900">{click.product_name}</p>
+                  <div className="mt-1 space-y-0.5 text-sm">
+                    {click.content_slug && (
+                      <p className="text-gray-600">Source: {click.content_slug}</p>
+                    )}
+                    {click.referrer && (
+                      <p className="truncate text-gray-500">Ref: {click.referrer}</p>
+                    )}
+                    <p className="text-gray-400">
                       <LocalTime dateTime={click.created_at} />
-                    </td>
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-left text-gray-500">
+                    <th className="pb-2 font-medium">Product</th>
+                    <th className="pb-2 font-medium">Source</th>
+                    <th className="pb-2 font-medium">Referrer</th>
+                    <th className="pb-2 text-right font-medium">Time</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {recentClicks.map((click) => (
+                    <tr key={click.id} className="border-b border-gray-50">
+                      <td className="py-2 text-gray-900">{click.product_name}</td>
+                      <td className="py-2 text-gray-600">{click.content_slug || "\u2014"}</td>
+                      <td className="max-w-[200px] truncate py-2 text-gray-600">
+                        {click.referrer || "\u2014"}
+                      </td>
+                      <td className="py-2 text-right text-gray-400">
+                        <LocalTime dateTime={click.created_at} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
     </div>
