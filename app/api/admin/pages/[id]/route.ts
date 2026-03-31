@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import { getPageById, updatePage, deletePage } from "@/lib/dal/pages";
 
 type Params = { params: Promise<{ id: string }> };
@@ -8,10 +8,8 @@ type Params = { params: Promise<{ id: string }> };
  * GET /api/admin/pages/:id  — get a single page
  */
 export async function GET(_request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   try {
     const { id } = await params;
@@ -31,10 +29,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
  * Body: { slug?, title?, body?, is_published?, sort_order? }
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   try {
     const { id } = await params;
@@ -51,10 +47,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
  * DELETE /api/admin/pages/:id  — delete a page
  */
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   try {
     const { id } = await params;

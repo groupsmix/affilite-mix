@@ -1,26 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
-import { getActiveSiteSlug } from "@/lib/active-site";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { requireAdmin } from "@/lib/admin-guard";
 import { listPages, createPage } from "@/lib/dal/pages";
 
 /**
  * GET /api/admin/pages  — list all pages for the current site
  */
 export async function GET() {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const siteSlug = await getActiveSiteSlug();
-  if (!siteSlug) {
-    return NextResponse.json({ error: "No active site selected" }, { status: 400 });
-  }
+  const { error, dbSiteId } = await requireAdmin();
+  if (error) return error;
 
   try {
-    const siteId = await resolveDbSiteId(siteSlug);
-    const pages = await listPages(siteId);
+    const pages = await listPages(dbSiteId);
     return NextResponse.json(pages);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
@@ -33,29 +23,18 @@ export async function GET() {
  * Body: { slug, title, body, is_published?, sort_order? }
  */
 export async function POST(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const siteSlug = await getActiveSiteSlug();
-  if (!siteSlug) {
-    return NextResponse.json({ error: "No active site selected" }, { status: 400 });
-  }
+  const { error, dbSiteId } = await requireAdmin();
+  if (error) return error;
 
   try {
-    const siteId = await resolveDbSiteId(siteSlug);
     const body = await request.json();
 
     if (!body.slug || !body.title) {
-      return NextResponse.json(
-        { error: "slug and title are required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "slug and title are required" }, { status: 400 });
     }
 
     const page = await createPage({
-      site_id: siteId,
+      site_id: dbSiteId,
       slug: body.slug,
       title: body.title,
       body: body.body ?? "",
