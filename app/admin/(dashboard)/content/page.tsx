@@ -87,6 +87,7 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
         totalItems={totalContent}
         pageSize={PAGE_SIZE}
         basePath="/admin/content"
+        searchParams={{ status: statusFilter }}
       />
     </div>
   );
