@@ -21,6 +21,7 @@ export function register() {
   const conditionalInProd: { name: string; description: string }[] = [
     { name: "CRON_SECRET", description: "Secret for authenticating cron job requests" },
     { name: "RESEND_API_KEY", description: "Resend API key for transactional emails (password reset, newsletter confirmation)" },
+    { name: "SENTRY_DSN", description: "Sentry DSN for error monitoring (https://sentry.io)" },
   ];
 
   const missing: string[] = [];
