@@ -37,7 +37,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
     };
   }, []);
 
-  if (!visible) return null;
+  if (!visible || !cookieConsentResolved) return null;
 
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();
@@ -60,7 +60,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
   }
 
   return (
-    <div className={`fixed left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-all ${cookieConsentResolved ? "bottom-0" : "bottom-[140px] sm:bottom-[100px]"}`}>
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-all">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-gray-900">{product.name}</p>
