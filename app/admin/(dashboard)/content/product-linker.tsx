@@ -84,6 +84,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
                   onClick={() => moveUp(idx)}
                   disabled={idx === 0}
                   className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                  aria-label={`Move ${getProductName(link.product_id)} up`}
                 >
                   ▲
                 </button>
@@ -92,6 +93,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
                   onClick={() => moveDown(idx)}
                   disabled={idx === links.length - 1}
                   className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                  aria-label={`Move ${getProductName(link.product_id)} down`}
                 >
                   ▼
                 </button>
@@ -115,6 +117,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
                 type="button"
                 onClick={() => removeProduct(link.product_id)}
                 className="text-xs text-red-500 hover:text-red-700"
+                aria-label={`Remove ${getProductName(link.product_id)}`}
               >
                 Remove
               </button>
