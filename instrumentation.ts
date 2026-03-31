@@ -59,6 +59,13 @@ export function register() {
     }
   }
 
+  // Warn if ADMIN_PASSWORD is set in production — DB-based auth should be used instead
+  if (process.env.NODE_ENV === "production" && process.env.ADMIN_PASSWORD) {
+    logger.warn(
+      "ADMIN_PASSWORD is set in production. This legacy fallback should be removed — use database-managed admin accounts instead.",
+    );
+  }
+
   // Verify KV rate-limit binding availability (only warn in production)
   if (process.env.NODE_ENV === "production") {
     try {
