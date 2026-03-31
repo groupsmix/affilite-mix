@@ -238,6 +238,29 @@ export default async function AnalyticsPage() {
         )}
       </section>
 
+      {/* Ad Impression Stats */}
+      {adImpressionStats.length > 0 && (
+        <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Ad Impressions (30d)</h2>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left text-gray-500">
+                <th className="pb-2 font-medium">Placement ID</th>
+                <th className="pb-2 text-right font-medium">Impressions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {adImpressionStats.map((stat) => (
+                <tr key={stat.ad_placement_id} className="border-b border-gray-50">
+                  <td className="py-2 font-mono text-xs text-gray-900">{stat.ad_placement_id}</td>
+                  <td className="py-2 text-right font-medium text-gray-700">{stat.total_impressions.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {/* Recent clicks */}
       <section className="rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Recent Clicks</h2>
