@@ -14,6 +14,8 @@ import { ClickChart } from "./click-chart";
 import { ExpandableTable } from "./expandable-table";
 import { LocalTime } from "./local-time";
 import { getSiteById } from "@/config/sites";
+import { MultiNicheOverview } from "./multi-niche-overview";
+import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
 
 /** Default estimated revenue per click (USD). Overridden by site config. */
 const DEFAULT_EST_REVENUE_PER_CLICK = 0.35;
@@ -25,6 +27,7 @@ export default async function AnalyticsPage() {
     redirect("/admin/sites");
   }
 
+  const isSuperAdmin = session.role === "super_admin";
   const siteId = await resolveDbSiteId(session.activeSiteSlug);
   const siteConfig = getSiteById(session.activeSiteSlug);
   const EST_REVENUE_PER_CLICK = siteConfig?.estRevenuePerClick ?? DEFAULT_EST_REVENUE_PER_CLICK;
@@ -45,6 +48,7 @@ export default async function AnalyticsPage() {
     dailyClicks,
     recentClicks,
     totalProducts,
+    adImpressionStats,
   ] = await Promise.all([
     getClickCount(siteId, todayStart),
     getClickCount(siteId, sevenDaysAgo),
@@ -56,6 +60,7 @@ export default async function AnalyticsPage() {
     getDailyClicks(siteId, 30),
     getRecentClicks(siteId, 20),
     countProducts({ siteId, status: "active" }),
+    getAdImpressionStats(siteId, thirtyDaysAgo),
   ]);
 
   // CTR estimate: clicks / (products * 30 days * ~100 impressions/product/day)
@@ -76,6 +81,9 @@ export default async function AnalyticsPage() {
         Affiliate click data for{" "}
         <span className="font-medium">{session.activeSiteName ?? session.activeSiteSlug}</span>
       </p>
+
+      {/* Multi-niche overview for super_admin */}
+      {isSuperAdmin && <MultiNicheOverview />}
 
       {/* Summary cards */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

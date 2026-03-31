@@ -21,7 +21,7 @@ export function ContentCard({ content, locale = "en-US" }: ContentCardProps) {
         <Link href={href}>
           <Image
             src={content.featured_image}
-            alt={content.title}
+            alt={`Featured image for ${content.title}`}
             width={400}
             height={176}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

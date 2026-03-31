@@ -127,3 +127,29 @@ export interface AffiliateClickRow {
   referrer: string;
   created_at: string;
 }
+
+export type AdPlacementType = "sidebar" | "in_content" | "header" | "footer" | "between_posts";
+export type AdProvider = "adsense" | "carbon" | "ethicalads" | "custom";
+
+export interface AdPlacementRow {
+  id: string;
+  site_id: string;
+  name: string;
+  placement_type: AdPlacementType;
+  provider: AdProvider;
+  ad_code: string | null;
+  config: Record<string, unknown>;
+  is_active: boolean;
+  priority: number;
+  created_at: string;
+}
+
+export interface AdImpressionRow {
+  id: string;
+  site_id: string;
+  ad_placement_id: string;
+  page_path: string;
+  impression_date: string;
+  count: number;
+  created_at: string;
+}
