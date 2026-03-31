@@ -1,11 +1,20 @@
 /**
- * Password hashing using Web Crypto API (compatible with Cloudflare Workers / Edge).
- * Uses PBKDF2 with SHA-256, 100k iterations, and a random 16-byte salt.
+ * Password hashing using bcrypt (via bcryptjs for Cloudflare Workers compatibility).
+ *
+ * New passwords are hashed with bcrypt (cost factor 12).
+ * Legacy PBKDF2-SHA256 hashes (format "salt:hash") are still verified for
+ * backwards compatibility, but verifyPassword signals when a rehash is needed
+ * so callers can upgrade hashes on next successful login.
  */
 
-const ITERATIONS = 100_000;
-const KEY_LENGTH = 32; // bytes
-const SALT_LENGTH = 16; // bytes
+import bcrypt from "bcryptjs";
+
+const BCRYPT_ROUNDS = 12;
+
+// ── Legacy PBKDF2 helpers (read-only, for migrating existing hashes) ────
+
+const PBKDF2_ITERATIONS = 100_000;
+const PBKDF2_KEY_LENGTH = 32; // bytes
 
 function toHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer))
@@ -18,7 +27,7 @@ function fromHex(hex: string): Uint8Array {
   return new Uint8Array(pairs.map((b) => parseInt(b, 16)));
 }
 
-async function deriveKey(
+async function pbkdf2DeriveKey(
   password: string,
   salt: Uint8Array,
 ): Promise<ArrayBuffer> {
@@ -35,23 +44,16 @@ async function deriveKey(
     {
       name: "PBKDF2",
       salt,
-      iterations: ITERATIONS,
+      iterations: PBKDF2_ITERATIONS,
       hash: "SHA-256",
     },
     keyMaterial,
-    KEY_LENGTH * 8,
+    PBKDF2_KEY_LENGTH * 8,
   );
 }
 
-/** Hash a password and return a storable string: "salt:hash" */
-export async function hashPassword(password: string): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
-  const derived = await deriveKey(password, salt);
-  return `${toHex(salt.buffer as ArrayBuffer)}:${toHex(derived)}`;
-}
-
-/** Verify a password against a stored hash */
-export async function verifyPassword(
+/** Verify a password against a legacy PBKDF2 "salt:hash" string */
+async function verifyPbkdf2(
   password: string,
   storedHash: string,
 ): Promise<boolean> {
@@ -59,7 +61,7 @@ export async function verifyPassword(
   if (!saltHex || !hashHex) return false;
 
   const salt = fromHex(saltHex);
-  const derived = await deriveKey(password, salt);
+  const derived = await pbkdf2DeriveKey(password, salt);
   const derivedHex = toHex(derived);
 
   // Constant-time comparison
@@ -69,4 +71,44 @@ export async function verifyPassword(
     result |= derivedHex.charCodeAt(i) ^ hashHex.charCodeAt(i);
   }
   return result === 0;
+}
+
+// ── Public API ──────────────────────────────────────────────────────────
+
+/** Detect whether a stored hash is a legacy PBKDF2 format ("hex:hex") */
+function isLegacyHash(storedHash: string): boolean {
+  return !storedHash.startsWith("$2") && storedHash.includes(":");
+}
+
+/** Hash a password using bcrypt and return a storable string */
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+export interface VerifyResult {
+  valid: boolean;
+  /** True when the hash is a legacy PBKDF2 hash that should be upgraded to bcrypt */
+  needsRehash: boolean;
+}
+
+/**
+ * Verify a password against a stored hash.
+ *
+ * Supports both bcrypt hashes (preferred) and legacy PBKDF2 "salt:hash" strings.
+ * When a legacy hash is verified successfully, `needsRehash` is set to `true`
+ * so the caller can re-hash and persist the upgraded bcrypt hash.
+ */
+export async function verifyPassword(
+  password: string,
+  storedHash: string,
+): Promise<VerifyResult> {
+  if (!storedHash) return { valid: false, needsRehash: false };
+
+  if (isLegacyHash(storedHash)) {
+    const valid = await verifyPbkdf2(password, storedHash);
+    return { valid, needsRehash: valid };
+  }
+
+  const valid = await bcrypt.compare(password, storedHash);
+  return { valid, needsRehash: false };
 }

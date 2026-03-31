@@ -1,8 +1,9 @@
 import { randomUUID } from "crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { getAdminUserByEmail } from "@/lib/dal/admin-users";
-import { verifyPassword } from "@/lib/password";
+import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
+import { verifyPassword, hashPassword } from "@/lib/password";
+import { logger } from "@/lib/logger";
 import { requireEnvInProduction } from "@/lib/env";
 
 const devFallback = randomUUID() + randomUUID();
@@ -40,8 +41,20 @@ export async function authenticateUser(
   const user = await getAdminUserByEmail(email);
   if (!user) return null;
 
-  const valid = await verifyPassword(password, user.password_hash);
+  const { valid, needsRehash } = await verifyPassword(password, user.password_hash);
   if (!valid) return null;
+
+  // Transparent rehash: upgrade legacy PBKDF2 hashes to bcrypt on successful login
+  if (needsRehash) {
+    try {
+      const newHash = await hashPassword(password);
+      await updateAdminUser(user.id, { password_hash: newHash });
+      logger.info("Rehashed password from PBKDF2 to bcrypt", { userId: user.id });
+    } catch {
+      // Rehash failure is non-critical — the user is already authenticated
+      logger.warn("Failed to rehash password on login", { userId: user.id });
+    }
+  }
 
   return {
     email: user.email,
