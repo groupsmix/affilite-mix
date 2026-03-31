@@ -78,8 +78,54 @@ export async function MultiNicheOverview() {
         </div>
       </div>
 
-      {/* Per-niche table */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      {/* Per-niche cards on mobile */}
+      <div className="grid gap-3 md:hidden">
+        {sorted.map((niche) => (
+          <div key={niche.siteId} className="rounded-lg border border-gray-200 bg-white p-4">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div>
+                <Link
+                  href={`/admin/analytics`}
+                  className="font-medium text-gray-900 hover:text-blue-600"
+                >
+                  {niche.name}
+                </Link>
+                <p className="text-xs text-gray-400">{niche.slug}</p>
+              </div>
+              <span
+                className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                  niche.isActive
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-500"
+                }`}
+              >
+                {niche.isActive ? "Active" : "Inactive"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-gray-500">Clicks (7d): </span>
+                <span className="font-medium text-gray-900">{niche.clicks7d.toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Today: </span>
+                <span className="text-gray-600">{niche.clicksToday.toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Products: </span>
+                <span className="text-gray-600">{niche.totalProducts}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Content: </span>
+                <span className="text-gray-600">{niche.totalContent}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-niche table on md+ */}
+      <div className="hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
