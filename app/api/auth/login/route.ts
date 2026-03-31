@@ -3,7 +3,7 @@ import { authenticateUser, createToken, COOKIE_NAME } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
-import { isValidEmail } from "@/lib/validators";
+import { isValidEmail } from "@/lib/validation";
 import { apiError, rateLimitHeaders } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 

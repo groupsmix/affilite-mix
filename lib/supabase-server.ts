@@ -6,6 +6,10 @@ import type { Database } from "@/types/supabase";
  * Service client for tables not yet in the generated Supabase types.
  * Returns a client without Database generics so `.from("table").insert(...)`
  * doesn't resolve to `never`. Prefer `getServiceClient()` for typed tables.
+ *
+ * TODO: Regenerate Supabase types to include all tables (niche_templates,
+ * ad_placements, pages, shared_content), then remove this function and
+ * migrate all callers to `getServiceClient()`.
  */
 export function getUntypedServiceClient() {
   // eslint-disable-next-line
