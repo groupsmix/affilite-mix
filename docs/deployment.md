@@ -2,7 +2,7 @@
 
 ## Overview
 
-NicheHub uses **wildcard DNS** so that any new niche site (subdomain) works automatically
+Affilite-Mix uses **wildcard DNS** so that any new niche site (subdomain) works automatically
 without manual Cloudflare DNS configuration. Once the one-time setup below is complete,
 creating a new site in the admin panel with domain `my-niche.writnerd.site` will
 make it live immediately.

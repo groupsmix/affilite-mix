@@ -1,4 +1,4 @@
-# NicheHub — Production Architecture Document v2.0
+# Affilite-Mix — Production Architecture Document v2.0
 
 > **Version:** 2.0 (Cloudflare-Native Edition)  
 > **Status:** Engineering Reference  
@@ -27,13 +27,13 @@
 
 ## 1. System Overview and Goals
 
-### What NicheHub Is
+### What Affilite-Mix Is
 
-NicheHub is a **single-codebase, multi-site affiliate platform** that powers unlimited niche review and comparison sites from one repository, one database, and one admin dashboard. Each deployed site (crypto exchanges, luxury watches, Arabic product reviews, kitchen gadgets, fitness gear, or anything else) is fully isolated from the visitor's perspective while sharing all platform infrastructure behind the scenes.
+Affilite-Mix is a **single-codebase, multi-site affiliate platform** that powers unlimited niche review and comparison sites from one repository, one database, and one admin dashboard. Each deployed site (crypto exchanges, luxury watches, Arabic product reviews, kitchen gadgets, fitness gear, or anything else) is fully isolated from the visitor's perspective while sharing all platform infrastructure behind the scenes.
 
 ### Before vs After
 
-| Before (4 repos) | After (NicheHub) |
+| Before (4 repos) | After (Affilite-Mix) |
 |---|---|
 | 4 separate codebases to maintain | 1 codebase |
 | 4 separate databases | 1 Supabase project |
@@ -257,7 +257,7 @@ sequenceDiagram
 
 ### 3.1 Service Boundaries
 
-NicheHub is a **modular monolith**, not microservices. For a small team, microservices add operational complexity with no benefit. The codebase is organised into clearly bounded modules that can be extracted if scale demands it later.
+Affilite-Mix is a **modular monolith**, not microservices. For a small team, microservices add operational complexity with no benefit. The codebase is organised into clearly bounded modules that can be extracted if scale demands it later.
 
 ```
 Core modules:
@@ -1231,8 +1231,8 @@ CF_KV_NAMESPACE_ID=xxx
 R2_ACCOUNT_ID=xxx
 R2_ACCESS_KEY_ID=xxx
 R2_SECRET_ACCESS_KEY=xxx
-R2_BUCKET_NAME=nichehub-media
-R2_PUBLIC_URL=https://media.nichehub.io
+R2_BUCKET_NAME=affilite-mix-media
+R2_PUBLIC_URL=https://media.affilite-mix.io
 
 # Cloudflare Turnstile
 TURNSTILE_SECRET_KEY=xxx
@@ -1291,7 +1291,7 @@ export async function getUploadUrl(fileName: string, contentType: string): Promi
 }
 
 // Admin uploads directly to R2 via presigned URL.
-// Public serves from R2 custom domain: media.nichehub.io/uploads/xxx.jpg
+// Public serves from R2 custom domain: media.affilite-mix.io/uploads/xxx.jpg
 ```
 
 ### 6.6 Cloudflare Cache Purge on Publish
@@ -1580,7 +1580,7 @@ In steady state, the vast majority of public page requests are served from Cloud
 ## 11. Folder / Project Structure
 
 ```
-nichehub/
+affilite-mix/
 │
 ├── app/                                 # Next.js App Router
 │   ├── (public)/                        # Public-facing routes
@@ -1803,7 +1803,7 @@ export const allSites: SiteDefinition[] = [
 
 **Step 4 — Add domain to Cloudflare Pages (1 min)**
 ```
-Cloudflare Dashboard → Pages → nichehub → Custom Domains → Add → fitnesspicks.com
+Cloudflare Dashboard → Pages → affilite-mix → Custom Domains → Add → fitnesspicks.com
 ```
 
 **Step 5 — Set up email routing (1 min)**
@@ -1845,7 +1845,7 @@ Existing sites are completely unaffected.
 ## 13. Migration Strategy from Current Repos
 
 ### Phase 1: Build the Platform (Week 1-4)
-- Set up nichehub repo with schema, config system, middleware, shared components
+- Set up affilite-mix repo with schema, config system, middleware, shared components
 - Build admin dashboard (port from arabic-affiliate-site — most complete)
 - Build public pages
 
