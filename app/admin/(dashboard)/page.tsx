@@ -8,9 +8,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ClickChart } from "./analytics/click-chart";
 import { AutoRefresh } from "./components/auto-refresh";
+import { NicheHealthPanel } from "./components/niche-health";
 
 export default async function AdminDashboard() {
   const session = await requireAdminSession();
+  const isSuperAdmin = session.role === "super_admin";
 
   if (!session.activeSiteSlug) {
     redirect("/admin/sites");
@@ -232,6 +234,9 @@ export default async function AdminDashboard() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">Click Trend (7d)</h2>
         <ClickChart data={dailyClicks} />
       </section>
+
+      {/* Niche Health for super_admin */}
+      {isSuperAdmin && <NicheHealthPanel />}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top products */}
