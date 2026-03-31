@@ -30,7 +30,9 @@ function ContentStatusBadge({ status }: { status: string }) {
     archived: "bg-gray-100 text-gray-600",
   };
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${colors[status] ?? "bg-gray-100 text-gray-600"}`}>
+    <span
+      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${colors[status] ?? "bg-gray-100 text-gray-600"}`}
+    >
       {status}
     </span>
   );
@@ -63,9 +65,7 @@ export function ContentList({ items }: ContentListProps) {
   }
 
   function toggleSelect(id: string) {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   function toggleAll() {
@@ -123,70 +123,75 @@ export function ContentList({ items }: ContentListProps) {
       {/* Table layout on md+ screens */}
       <div className="mt-4 hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
         <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50">
-            <tr>
-              <th className="px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.length === items.length && items.length > 0}
-                  onChange={toggleAll}
-                  className="rounded border-gray-300"
-                />
-              </th>
-              <th className="px-4 py-3 font-medium text-gray-700">Title</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Type</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Status</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Author</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {items.map((item) => (
-              <tr key={item.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3">
+          <table className="w-full text-start text-sm">
+            <thead className="border-b border-gray-200 bg-gray-50">
+              <tr>
+                <th className="px-4 py-3">
                   <input
                     type="checkbox"
-                    checked={selectedIds.includes(item.id)}
-                    onChange={() => toggleSelect(item.id)}
+                    checked={selectedIds.length === items.length && items.length > 0}
+                    onChange={toggleAll}
                     className="rounded border-gray-300"
                   />
-                </td>
-                <td className="px-4 py-3 font-medium text-gray-900">{item.title}</td>
-                <td className="px-4 py-3 text-gray-500">{item.type}</td>
-                <td className="px-4 py-3">
-                  <ContentStatusBadge status={item.status} />
-                  {item.publish_at && (
-                    <span
-                      className={`ml-1 text-xs ${item.status === "scheduled" ? "text-indigo-500" : "text-gray-400"}`}
-                      title={new Date(item.publish_at).toLocaleString()}
-                    >
-                      {item.status !== "scheduled" && "📅 "}
-                      {new Date(item.publish_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-gray-500">{item.author ?? "—"}</td>
-                <td className="flex gap-2 px-4 py-3">
-                  <Link
-                    href={`/admin/content/${item.id}`}
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Edit
-                  </Link>
-                  <button
-                    onClick={() => handleClone(item.id, item.title)}
-                    disabled={cloningId === item.id}
-                    className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                  >
-                    {cloningId === item.id ? "Cloning…" : "Clone"}
-                  </button>
-                  <ContentDeleteButton id={item.id} title={item.title} />
-                </td>
+                </th>
+                <th className="px-4 py-3 font-medium text-gray-700">Title</th>
+                <th className="px-4 py-3 font-medium text-gray-700">Type</th>
+                <th className="px-4 py-3 font-medium text-gray-700">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-700">Author</th>
+                <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {items.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      className="rounded border-gray-300"
+                    />
+                  </td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{item.title}</td>
+                  <td className="px-4 py-3 text-gray-500">{item.type}</td>
+                  <td className="px-4 py-3">
+                    <ContentStatusBadge status={item.status} />
+                    {item.publish_at && (
+                      <span
+                        className={`ms-1 text-xs ${item.status === "scheduled" ? "text-indigo-500" : "text-gray-400"}`}
+                        title={new Date(item.publish_at).toLocaleString()}
+                      >
+                        {item.status !== "scheduled" && "📅 "}
+                        {new Date(item.publish_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{item.author ?? "—"}</td>
+                  <td className="flex gap-2 px-4 py-3">
+                    <Link
+                      href={`/admin/content/${item.id}`}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      Edit
+                    </Link>
+                    <button
+                      onClick={() => handleClone(item.id, item.title)}
+                      disabled={cloningId === item.id}
+                      className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                    >
+                      {cloningId === item.id ? "Cloning…" : "Clone"}
+                    </button>
+                    <ContentDeleteButton id={item.id} title={item.title} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </>

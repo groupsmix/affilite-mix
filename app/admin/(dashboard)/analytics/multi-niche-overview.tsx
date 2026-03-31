@@ -61,7 +61,9 @@ export async function MultiNicheOverview() {
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Total Sites</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{sites.length}</p>
-          <p className="mt-1 text-xs text-gray-400">{sites.filter((s) => s.is_active).length} active</p>
+          <p className="mt-1 text-xs text-gray-400">
+            {sites.filter((s) => s.is_active).length} active
+          </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Total Clicks (7d)</p>
@@ -94,9 +96,7 @@ export async function MultiNicheOverview() {
               </div>
               <span
                 className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                  niche.isActive
-                    ? "bg-green-100 text-green-700"
-                    : "bg-gray-100 text-gray-500"
+                  niche.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                 }`}
               >
                 {niche.isActive ? "Active" : "Inactive"}
@@ -126,14 +126,14 @@ export async function MultiNicheOverview() {
 
       {/* Per-niche table on md+ */}
       <div className="hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-gray-200 bg-gray-50">
             <tr>
               <th className="px-4 py-3 font-medium text-gray-700">Niche</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-700">Clicks (7d)</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-700">Today</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-700">Products</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-700">Content</th>
+              <th className="px-4 py-3 text-end font-medium text-gray-700">Clicks (7d)</th>
+              <th className="px-4 py-3 text-end font-medium text-gray-700">Today</th>
+              <th className="px-4 py-3 text-end font-medium text-gray-700">Products</th>
+              <th className="px-4 py-3 text-end font-medium text-gray-700">Content</th>
               <th className="px-4 py-3 font-medium text-gray-700">Status</th>
             </tr>
           </thead>
@@ -149,24 +149,18 @@ export async function MultiNicheOverview() {
                   </Link>
                   <p className="text-xs text-gray-400">{niche.slug}</p>
                 </td>
-                <td className="px-4 py-3 text-right font-medium text-gray-900">
+                <td className="px-4 py-3 text-end font-medium text-gray-900">
                   {niche.clicks7d.toLocaleString()}
                 </td>
-                <td className="px-4 py-3 text-right text-gray-600">
+                <td className="px-4 py-3 text-end text-gray-600">
                   {niche.clicksToday.toLocaleString()}
                 </td>
-                <td className="px-4 py-3 text-right text-gray-600">
-                  {niche.totalProducts}
-                </td>
-                <td className="px-4 py-3 text-right text-gray-600">
-                  {niche.totalContent}
-                </td>
+                <td className="px-4 py-3 text-end text-gray-600">{niche.totalProducts}</td>
+                <td className="px-4 py-3 text-end text-gray-600">{niche.totalContent}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      niche.isActive
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-500"
+                      niche.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                     }`}
                   >
                     {niche.isActive ? "Active" : "Inactive"}

@@ -279,7 +279,7 @@ export function AdminSidebar({ siteName }: { siteName?: string | null }) {
             />
           </svg>
         </button>
-        <span className="ml-3 text-sm font-semibold text-gray-900">Admin</span>
+        <span className="ms-3 text-sm font-semibold text-gray-900">Admin</span>
       </div>
 
       {/* Spacer for mobile header */}
@@ -295,8 +295,8 @@ export function AdminSidebar({ siteName }: { siteName?: string | null }) {
 
       {/* Mobile slide-out drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white shadow-xl transition-transform duration-200 lg:hidden ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 start-0 z-50 flex w-64 flex-col bg-white shadow-xl transition-transform duration-200 lg:hidden ${
+          mobileOpen ? "translate-x-0 rtl:-translate-x-0" : "-translate-x-full rtl:translate-x-full"
         }`}
       >
         <div className="flex items-center justify-end border-b border-gray-200 px-4 py-2">
@@ -320,7 +320,7 @@ export function AdminSidebar({ siteName }: { siteName?: string | null }) {
       </aside>
 
       {/* Desktop sidebar */}
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-gray-200 bg-white lg:flex">
+      <aside className="hidden w-56 shrink-0 flex-col border-e border-gray-200 bg-white lg:flex">
         <SidebarContent siteName={siteName} />
       </aside>
     </>
@@ -341,7 +341,7 @@ function LogoutButton() {
   return (
     <button
       onClick={handleLogout}
-      className="w-full rounded-md px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+      className="w-full rounded-md px-3 py-2 text-start text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
     >
       Sign out
     </button>
