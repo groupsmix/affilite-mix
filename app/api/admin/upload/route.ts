@@ -25,9 +25,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "fileName and contentType are required" }, { status: 400 });
   }
 
-  // Validate content type is an image
-  if (!contentType.startsWith("image/")) {
-    return NextResponse.json({ error: "Only image uploads are allowed" }, { status: 400 });
+  // Validate content type against an explicit allowlist.
+  // SVG is intentionally excluded — SVGs can contain embedded JavaScript
+  // and are a known XSS vector when served from the same origin.
+  const ALLOWED_IMAGE_TYPES = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "image/avif",
+  ]);
+  if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
+    return NextResponse.json(
+      { error: "Only image uploads are allowed (JPEG, PNG, WebP, GIF, AVIF)" },
+      { status: 400 },
+    );
   }
 
   // Validate file size
