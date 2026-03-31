@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase-server";
+import { escapeLike } from "./search-utils";
 import { assertRows } from "./type-guards";
 
 export interface AuditLogEntry {
@@ -37,7 +38,7 @@ export async function listAuditLogs(
     .order("created_at", { ascending: false });
 
   if (filters?.action) query = query.eq("action", filters.action);
-  if (filters?.actor) query = query.ilike("actor", `%${filters.actor}%`);
+  if (filters?.actor) query = query.ilike("actor", `%${escapeLike(filters.actor)}%`);
   if (filters?.entityType) query = query.eq("entity_type", filters.entityType);
 
   query = query.range(offset, offset + limit - 1);
