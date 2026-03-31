@@ -16,7 +16,19 @@
     "add-site": "tsx scripts/add-site.ts",
     "pause-site": "tsx scripts/pause-site.ts",
     "redesign-site": "tsx scripts/redesign-site.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1018.0",
@@ -51,7 +63,10 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.5.14",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "postcss": "^8.5.8",
+    "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "~5.8.0",
     "vitest": "^4.1.2"
