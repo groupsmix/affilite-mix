@@ -726,6 +726,40 @@ export interface Database {
         ];
       };
 
+      web_vitals: {
+        Row: {
+          id: string;
+          name: string;
+          value: number;
+          metric_id: string | null;
+          page: string | null;
+          href: string | null;
+          rating: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          value: number;
+          metric_id?: string | null;
+          page?: string | null;
+          href?: string | null;
+          rating?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          value?: number;
+          metric_id?: string | null;
+          page?: string | null;
+          href?: string | null;
+          rating?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+
       niche_templates: {
         Row: {
           id: string;
@@ -802,6 +836,18 @@ export interface Database {
       get_daily_clicks: {
         Args: { p_site_id: string; p_since: string };
         Returns: { date: string; count: number }[];
+      };
+      get_niche_health_stats: {
+        Args: { p_seven_days_ago: string; p_fourteen_days_ago: string };
+        Returns: {
+          site_id: string;
+          total_products: number;
+          total_content: number;
+          clicks_7d: number;
+          clicks_prev_7d: number;
+          last_published_at: string | null;
+          subscriber_count: number;
+        }[];
       };
     };
     Enums: Record<string, never>;
