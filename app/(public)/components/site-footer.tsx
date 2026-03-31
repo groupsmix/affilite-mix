@@ -6,9 +6,11 @@ interface SiteFooterProps {
   site: SiteDefinition;
   /** When true, skip the newsletter section (e.g. the page already renders one). */
   hideNewsletter?: boolean;
+  /** Optional dynamic footer nav items from DB (renders as a flat list alongside config nav) */
+  dbFooterNav?: { label: string; href: string; icon?: string }[];
 }
 
-export function SiteFooter({ site, hideNewsletter }: SiteFooterProps) {
+export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProps) {
   return (
     <footer className="border-t border-gray-200 bg-gray-50 py-10">
       <div className="mx-auto max-w-6xl px-4">
@@ -19,7 +21,7 @@ export function SiteFooter({ site, hideNewsletter }: SiteFooterProps) {
             <p className="text-sm text-gray-600">{site.brand.description}</p>
           </div>
 
-          {/* Footer nav sections */}
+          {/* Footer nav sections (from config) */}
           {Object.entries(site.footerNav).map(([section, items]) => (
             <div key={section}>
               <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
@@ -50,6 +52,38 @@ export function SiteFooter({ site, hideNewsletter }: SiteFooterProps) {
               </ul>
             </div>
           ))}
+
+          {/* Dynamic footer nav from DB */}
+          {dbFooterNav && dbFooterNav.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
+                Pages
+              </h4>
+              <ul className="space-y-1">
+                {dbFooterNav.map((item) => (
+                  <li key={item.href}>
+                    {item.href.startsWith("http") ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-gray-600 hover:text-gray-900"
+                      >
+                        {item.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className="text-sm text-gray-600 hover:text-gray-900"
+                      >
+                        {item.label}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Newsletter signup — only when feature is enabled and not already on the page */}

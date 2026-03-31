@@ -106,6 +106,18 @@ export interface ContentProductRow {
   role: "hero" | "featured" | "related" | "vs-left" | "vs-right";
 }
 
+export interface PageRow {
+  id: string;
+  site_id: string;
+  slug: string;
+  title: string;
+  body: string;
+  is_published: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AffiliateClickRow {
   id: string;
   site_id: string;
