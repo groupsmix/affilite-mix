@@ -95,7 +95,9 @@ export default async function AnalyticsPage() {
 
       {/* Revenue & CTR cards */}
       <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-        Revenue and CTR figures are estimates based on an assumed ${EST_REVENUE_PER_CLICK}/click rate and ~100 impressions/product/day. Actual results will vary. Configure the per-click rate in your site definition.
+        Revenue and CTR figures are estimates based on an assumed ${EST_REVENUE_PER_CLICK}/click
+        rate and ~100 impressions/product/day. Actual results will vary. Configure the per-click
+        rate in your site definition.
       </div>
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-gray-200 bg-white p-5">
@@ -111,7 +113,9 @@ export default async function AnalyticsPage() {
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Est. CTR (30d)</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{ctr30d.toFixed(2)}%</p>
-          <p className="mt-1 text-xs text-gray-400">{clicks30d} clicks / ~{estimatedImpressions30d.toLocaleString()} impressions</p>
+          <p className="mt-1 text-xs text-gray-400">
+            {clicks30d} clicks / ~{estimatedImpressions30d.toLocaleString()} impressions
+          </p>
         </div>
       </div>
 
@@ -119,13 +123,28 @@ export default async function AnalyticsPage() {
       <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Conversion Funnel (30d)</h2>
         <div className="flex items-center gap-2">
-          <FunnelStep label="Active Products" value={totalProducts} width={100} color="bg-blue-500" />
+          <FunnelStep
+            label="Active Products"
+            value={totalProducts}
+            width={100}
+            color="bg-blue-500"
+          />
           <FunnelArrow />
-          <FunnelStep label="Impressions (est.)" value={estimatedImpressions30d} width={80} color="bg-indigo-500" />
+          <FunnelStep
+            label="Impressions (est.)"
+            value={estimatedImpressions30d}
+            width={80}
+            color="bg-indigo-500"
+          />
           <FunnelArrow />
           <FunnelStep label="Clicks" value={clicks30d} width={60} color="bg-purple-500" />
           <FunnelArrow />
-          <FunnelStep label="Revenue (est.)" value={`$${estRevenue30d.toFixed(0)}`} width={40} color="bg-green-500" />
+          <FunnelStep
+            label="Revenue (est.)"
+            value={`$${estRevenue30d.toFixed(0)}`}
+            width={40}
+            color="bg-green-500"
+          />
         </div>
       </section>
 
@@ -152,7 +171,9 @@ export default async function AnalyticsPage() {
                         <p className="font-medium text-gray-900">{p.product_name}</p>
                         <div className="mt-1 flex items-center gap-3 text-sm">
                           <span className="text-gray-500">{p.click_count} clicks</span>
-                          <span className="text-green-700">${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</span>
+                          <span className="text-green-700">
+                            ${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -160,18 +181,22 @@ export default async function AnalyticsPage() {
                   {/* Desktop table */}
                   <table className="hidden w-full text-sm sm:table">
                     <thead>
-                      <tr className="border-b border-gray-100 text-left text-gray-500">
+                      <tr className="border-b border-gray-100 text-start text-gray-500">
                         <th className="pb-2 font-medium">Product</th>
-                        <th className="pb-2 text-right font-medium">Clicks</th>
-                        <th className="pb-2 text-right font-medium">Est. Rev</th>
+                        <th className="pb-2 text-end font-medium">Clicks</th>
+                        <th className="pb-2 text-end font-medium">Est. Rev</th>
                       </tr>
                     </thead>
                     <tbody>
                       {topProducts.slice(0, limit).map((p, i) => (
                         <tr key={i} className="border-b border-gray-50">
                           <td className="py-2 text-gray-900">{p.product_name}</td>
-                          <td className="py-2 text-right font-medium text-gray-700">{p.click_count}</td>
-                          <td className="py-2 text-right text-green-700">${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
+                          <td className="py-2 text-end font-medium text-gray-700">
+                            {p.click_count}
+                          </td>
+                          <td className="py-2 text-end text-green-700">
+                            ${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -194,7 +219,8 @@ export default async function AnalyticsPage() {
                   {/* Mobile cards */}
                   <div className="grid gap-2 sm:hidden">
                     {topReferrers.slice(0, limit).map((r, i) => {
-                      const pct = totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
+                      const pct =
+                        totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
                       return (
                         <div key={i} className="rounded-lg border border-gray-100 p-3">
                           <p className="truncate font-medium text-gray-900">{r.referrer}</p>
@@ -209,20 +235,25 @@ export default async function AnalyticsPage() {
                   {/* Desktop table */}
                   <table className="hidden w-full text-sm sm:table">
                     <thead>
-                      <tr className="border-b border-gray-100 text-left text-gray-500">
+                      <tr className="border-b border-gray-100 text-start text-gray-500">
                         <th className="pb-2 font-medium">Referrer</th>
-                        <th className="pb-2 text-right font-medium">Clicks</th>
-                        <th className="pb-2 text-right font-medium">%</th>
+                        <th className="pb-2 text-end font-medium">Clicks</th>
+                        <th className="pb-2 text-end font-medium">%</th>
                       </tr>
                     </thead>
                     <tbody>
                       {topReferrers.slice(0, limit).map((r, i) => {
-                        const pct = totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
+                        const pct =
+                          totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
                         return (
                           <tr key={i} className="border-b border-gray-50">
-                            <td className="max-w-[200px] truncate py-2 text-gray-900">{r.referrer}</td>
-                            <td className="py-2 text-right font-medium text-gray-700">{r.click_count}</td>
-                            <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
+                            <td className="max-w-[200px] truncate py-2 text-gray-900">
+                              {r.referrer}
+                            </td>
+                            <td className="py-2 text-end font-medium text-gray-700">
+                              {r.click_count}
+                            </td>
+                            <td className="py-2 text-end text-gray-500">{pct.toFixed(1)}%</td>
                           </tr>
                         );
                       })}
@@ -237,7 +268,9 @@ export default async function AnalyticsPage() {
 
       {/* Top content driving clicks */}
       <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Top Content Driving Clicks (30d)</h2>
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          Top Content Driving Clicks (30d)
+        </h2>
         {topContent.length === 0 ? (
           <p className="text-sm text-gray-400">No content click data yet</p>
         ) : (
@@ -254,7 +287,9 @@ export default async function AnalyticsPage() {
                         <div className="mt-1 flex flex-wrap items-center gap-3 text-sm">
                           <span className="text-gray-500">{c.click_count} clicks</span>
                           <span className="text-gray-400">{pct.toFixed(1)}%</span>
-                          <span className="text-green-700">${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</span>
+                          <span className="text-green-700">
+                            ${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}
+                          </span>
                         </div>
                       </div>
                     );
@@ -263,11 +298,11 @@ export default async function AnalyticsPage() {
                 {/* Desktop table */}
                 <table className="hidden w-full text-sm sm:table">
                   <thead>
-                    <tr className="border-b border-gray-100 text-left text-gray-500">
+                    <tr className="border-b border-gray-100 text-start text-gray-500">
                       <th className="pb-2 font-medium">Content Page</th>
-                      <th className="pb-2 text-right font-medium">Clicks</th>
-                      <th className="pb-2 text-right font-medium">% of Total</th>
-                      <th className="pb-2 text-right font-medium">Est. Rev</th>
+                      <th className="pb-2 text-end font-medium">Clicks</th>
+                      <th className="pb-2 text-end font-medium">% of Total</th>
+                      <th className="pb-2 text-end font-medium">Est. Rev</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -275,10 +310,16 @@ export default async function AnalyticsPage() {
                       const pct = clicks30d > 0 ? (c.click_count / clicks30d) * 100 : 0;
                       return (
                         <tr key={i} className="border-b border-gray-50">
-                          <td className="max-w-[300px] truncate py-2 text-gray-900">{c.content_slug}</td>
-                          <td className="py-2 text-right font-medium text-gray-700">{c.click_count}</td>
-                          <td className="py-2 text-right text-gray-500">{pct.toFixed(1)}%</td>
-                          <td className="py-2 text-right text-green-700">${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}</td>
+                          <td className="max-w-[300px] truncate py-2 text-gray-900">
+                            {c.content_slug}
+                          </td>
+                          <td className="py-2 text-end font-medium text-gray-700">
+                            {c.click_count}
+                          </td>
+                          <td className="py-2 text-end text-gray-500">{pct.toFixed(1)}%</td>
+                          <td className="py-2 text-end text-green-700">
+                            ${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}
+                          </td>
                         </tr>
                       );
                     })}
@@ -299,23 +340,27 @@ export default async function AnalyticsPage() {
             {adImpressionStats.map((stat) => (
               <div key={stat.ad_placement_id} className="rounded-lg border border-gray-100 p-3">
                 <p className="truncate font-mono text-xs text-gray-900">{stat.ad_placement_id}</p>
-                <p className="mt-1 text-sm font-medium text-gray-700">{stat.total_impressions.toLocaleString()} impressions</p>
+                <p className="mt-1 text-sm font-medium text-gray-700">
+                  {stat.total_impressions.toLocaleString()} impressions
+                </p>
               </div>
             ))}
           </div>
           {/* Desktop table */}
           <table className="hidden w-full text-sm sm:table">
             <thead>
-              <tr className="border-b border-gray-100 text-left text-gray-500">
+              <tr className="border-b border-gray-100 text-start text-gray-500">
                 <th className="pb-2 font-medium">Placement ID</th>
-                <th className="pb-2 text-right font-medium">Impressions</th>
+                <th className="pb-2 text-end font-medium">Impressions</th>
               </tr>
             </thead>
             <tbody>
               {adImpressionStats.map((stat) => (
                 <tr key={stat.ad_placement_id} className="border-b border-gray-50">
                   <td className="py-2 font-mono text-xs text-gray-900">{stat.ad_placement_id}</td>
-                  <td className="py-2 text-right font-medium text-gray-700">{stat.total_impressions.toLocaleString()}</td>
+                  <td className="py-2 text-end font-medium text-gray-700">
+                    {stat.total_impressions.toLocaleString()}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -353,11 +398,11 @@ export default async function AnalyticsPage() {
             <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-left text-gray-500">
+                  <tr className="border-b border-gray-100 text-start text-gray-500">
                     <th className="pb-2 font-medium">Product</th>
                     <th className="pb-2 font-medium">Source</th>
                     <th className="pb-2 font-medium">Referrer</th>
-                    <th className="pb-2 text-right font-medium">Time</th>
+                    <th className="pb-2 text-end font-medium">Time</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -368,7 +413,7 @@ export default async function AnalyticsPage() {
                       <td className="max-w-[200px] truncate py-2 text-gray-600">
                         {click.referrer || "\u2014"}
                       </td>
-                      <td className="py-2 text-right text-gray-400">
+                      <td className="py-2 text-end text-gray-400">
                         <LocalTime dateTime={click.created_at} />
                       </td>
                     </tr>
@@ -392,11 +437,23 @@ function StatCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function FunnelStep({ label, value, width, color }: { label: string; value: number | string; width: number; color: string }) {
+function FunnelStep({
+  label,
+  value,
+  width,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  width: number;
+  color: string;
+}) {
   return (
     <div className="flex-1 text-center">
       <div className={`mx-auto h-2 rounded-full ${color}`} style={{ width: `${width}%` }} />
-      <p className="mt-2 text-lg font-bold text-gray-900">{typeof value === "number" ? value.toLocaleString() : value}</p>
+      <p className="mt-2 text-lg font-bold text-gray-900">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
       <p className="text-xs text-gray-500">{label}</p>
     </div>
   );
@@ -404,7 +461,12 @@ function FunnelStep({ label, value, width, color }: { label: string; value: numb
 
 function FunnelArrow() {
   return (
-    <svg className="h-4 w-4 flex-shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg
+      className="h-4 w-4 flex-shrink-0 text-gray-300"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   );

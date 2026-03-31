@@ -208,10 +208,11 @@ ALTER TABLE scheduled_jobs        ENABLE ROW LEVEL SECURITY;
 
 -- Public read policies (anon key)
 CREATE POLICY "public_read_sites"
-  ON sites FOR SELECT USING (true);
+  ON sites FOR SELECT USING (is_active = true);
 
 CREATE POLICY "public_read_categories"
-  ON categories FOR SELECT USING (true);
+  ON categories FOR SELECT
+  USING (EXISTS (SELECT 1 FROM sites WHERE sites.id = categories.site_id AND sites.is_active = true));
 
 CREATE POLICY "public_read_active_products"
   ON products FOR SELECT USING (status = 'active');
@@ -220,14 +221,38 @@ CREATE POLICY "public_read_published_content"
   ON content FOR SELECT USING (status = 'published');
 
 CREATE POLICY "public_read_content_products"
-  ON content_products FOR SELECT USING (true);
+  ON content_products FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM content c
+      WHERE c.id = content_products.content_id AND c.status = 'published'
+    )
+  );
 
--- Anonymous write policies (public actions)
+-- Anonymous write policies (public actions) — validate site_id exists
 CREATE POLICY "public_insert_clicks"
-  ON affiliate_clicks FOR INSERT WITH CHECK (true);
+  ON affiliate_clicks FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM sites WHERE sites.id = affiliate_clicks.site_id));
 
 CREATE POLICY "public_insert_newsletter"
-  ON newsletter_subscribers FOR INSERT WITH CHECK (true);
+  ON newsletter_subscribers FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM sites WHERE sites.id = newsletter_subscribers.site_id));
+
+-- Service-role policies (defense-in-depth, scoped to service_role)
+CREATE POLICY "service_full_access_categories"
+  ON categories FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_products"
+  ON products FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_content"
+  ON content FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_content_products"
+  ON content_products FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_clicks"
+  ON affiliate_clicks FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_newsletter"
+  ON newsletter_subscribers FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_scheduled_jobs"
+  ON scheduled_jobs FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 -- Note: All admin operations use the Supabase service key (bypasses RLS).
 

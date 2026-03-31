@@ -112,9 +112,7 @@ export function UsersClient() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Admin Users</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Manage who can access the admin dashboard.
-          </p>
+          <p className="mt-1 text-sm text-gray-500">Manage who can access the admin dashboard.</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -128,8 +126,8 @@ export function UsersClient() {
         <div className="mb-4 rounded bg-yellow-50 p-3 text-sm text-yellow-700">
           {error}
           <p className="mt-1 text-xs">
-            If you haven&apos;t run the admin_users migration yet, create the
-            table first using <code>supabase/admin-users.sql</code>.
+            If you haven&apos;t run the admin_users migration yet, create the table first using{" "}
+            <code>supabase/admin-users.sql</code>.
           </p>
         </div>
       )}
@@ -139,19 +137,13 @@ export function UsersClient() {
           onSubmit={handleCreate}
           className="mb-6 rounded-lg border border-gray-200 bg-white p-4"
         >
-          <h2 className="mb-4 text-sm font-semibold text-gray-700">
-            New Admin User
-          </h2>
+          <h2 className="mb-4 text-sm font-semibold text-gray-700">New Admin User</h2>
           {formError && (
-            <div className="mb-3 rounded bg-red-50 p-2 text-sm text-red-600">
-              {formError}
-            </div>
+            <div className="mb-3 rounded bg-red-50 p-2 text-sm text-red-600">{formError}</div>
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Email
-              </label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
               <input
                 type="email"
                 value={email}
@@ -161,9 +153,7 @@ export function UsersClient() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Name
-              </label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
               <input
                 type="text"
                 value={name}
@@ -172,9 +162,7 @@ export function UsersClient() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Password
-              </label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Password</label>
               <input
                 type="password"
                 value={password}
@@ -186,14 +174,10 @@ export function UsersClient() {
               <p className="mt-1 text-xs text-gray-400">Minimum 8 characters</p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Role
-              </label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Role</label>
               <select
                 value={role}
-                onChange={(e) =>
-                  setRole(e.target.value as "admin" | "super_admin")
-                }
+                onChange={(e) => setRole(e.target.value as "admin" | "super_admin")}
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
               >
                 <option value="admin">Admin</option>
@@ -230,9 +214,7 @@ export function UsersClient() {
                   </div>
                   <span
                     className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                      user.is_active
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-500"
+                      user.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                     }`}
                   >
                     {user.is_active ? "Active" : "Inactive"}
@@ -270,75 +252,75 @@ export function UsersClient() {
           {/* Table layout on md+ screens */}
           <div className="hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
             <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                    Role
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase text-gray-500">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
-                      {user.email}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                      {user.name || "\u2014"}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          user.role === "super_admin"
-                            ? "bg-purple-100 text-purple-700"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
-                      >
-                        {user.role === "super_admin" ? "Super Admin" : "Admin"}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          user.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        {user.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
-                      <button
-                        onClick={() => handleToggleActive(user)}
-                        className="mr-2 text-gray-500 hover:text-gray-700"
-                      >
-                        {user.is_active ? "Deactivate" : "Activate"}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Delete
-                      </button>
-                    </td>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-start text-xs font-medium uppercase text-gray-500">
+                      Email
+                    </th>
+                    <th className="px-4 py-3 text-start text-xs font-medium uppercase text-gray-500">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-start text-xs font-medium uppercase text-gray-500">
+                      Role
+                    </th>
+                    <th className="px-4 py-3 text-start text-xs font-medium uppercase text-gray-500">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-end text-xs font-medium uppercase text-gray-500">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {users.map((user) => (
+                    <tr key={user.id}>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
+                        {user.email}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                        {user.name || "\u2014"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            user.role === "super_admin"
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}
+                        >
+                          {user.role === "super_admin" ? "Super Admin" : "Admin"}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            user.is_active
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {user.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-end text-sm">
+                        <button
+                          onClick={() => handleToggleActive(user)}
+                          className="me-2 text-gray-500 hover:text-gray-700"
+                        >
+                          {user.is_active ? "Deactivate" : "Activate"}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(user)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </>
