@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getUntypedServiceClient } from "@/lib/supabase-server";
 
 const TABLE = "shared_content";
 
@@ -16,14 +16,14 @@ export async function shareContent(
   sourceSiteId: string,
   targetSiteId: string,
 ): Promise<SharedContentRow> {
-  const sb = getServiceClient();
+  const sb = getUntypedServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .insert({
       content_id: contentId,
       source_site_id: sourceSiteId,
       target_site_id: targetSiteId,
-    } as Record<string, unknown>)
+    })
     .select()
     .single();
 
@@ -36,7 +36,7 @@ export async function unshareContent(
   contentId: string,
   targetSiteId: string,
 ): Promise<void> {
-  const sb = getServiceClient();
+  const sb = getUntypedServiceClient();
   const { error } = await sb
     .from(TABLE)
     .delete()
@@ -50,7 +50,7 @@ export async function unshareContent(
 export async function listSharedTargets(
   contentId: string,
 ): Promise<SharedContentRow[]> {
-  const sb = getServiceClient();
+  const sb = getUntypedServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -58,14 +58,14 @@ export async function listSharedTargets(
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as unknown as SharedContentRow[];
+  return (data ?? []) as SharedContentRow[];
 }
 
 /** List content shared TO a given site (from other sites) */
 export async function listContentSharedToSite(
   targetSiteId: string,
 ): Promise<SharedContentRow[]> {
-  const sb = getServiceClient();
+  const sb = getUntypedServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -73,5 +73,5 @@ export async function listContentSharedToSite(
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as unknown as SharedContentRow[];
+  return (data ?? []) as SharedContentRow[];
 }

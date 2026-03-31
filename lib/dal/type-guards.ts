@@ -6,7 +6,7 @@
  */
 
 /** Asserts that `value` is a non-null object and returns it typed as T. */
-export function assertRow<T extends Record<string, unknown>>(
+export function assertRow<T>(
   value: unknown,
   label: string,
 ): T {
@@ -20,7 +20,7 @@ export function assertRow<T extends Record<string, unknown>>(
 }
 
 /** Returns value typed as T if non-null, otherwise null. */
-export function rowOrNull<T extends Record<string, unknown>>(
+export function rowOrNull<T>(
   value: unknown,
 ): T | null {
   if (value === null || value === undefined) return null;
@@ -29,7 +29,7 @@ export function rowOrNull<T extends Record<string, unknown>>(
 }
 
 /** Assert an array of rows */
-export function assertRows<T extends Record<string, unknown>>(
+export function assertRows<T>(
   value: unknown,
 ): T[] {
   if (!Array.isArray(value)) return [];

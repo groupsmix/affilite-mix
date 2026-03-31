@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       category_id: original.category_id,
       tags: original.tags,
       author: original.author,
+      publish_at: null,
       meta_title: original.meta_title,
       meta_description: original.meta_description,
       og_image: original.og_image,
