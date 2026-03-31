@@ -24,7 +24,7 @@ export default async function AdminDashboard() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Use count queries instead of fetching all records for stats
+  // Batch all dashboard queries in a single Promise.all to eliminate N+1 patterns
   const sb = getServiceClient();
   const [
     totalProducts,
@@ -41,6 +41,7 @@ export default async function AdminDashboard() {
     { data: allLinkedRows },
     { count: publishedContentCount },
     dailyClicks,
+    { data: publishedContentIds },
   ] = await Promise.all([
     countProducts({ siteId: dbSiteId }),
     countProducts({ siteId: dbSiteId, status: "active" }),
@@ -54,8 +55,13 @@ export default async function AdminDashboard() {
     listContent({ siteId: dbSiteId, status: "scheduled" }),
     listProducts({ siteId: dbSiteId, status: "active" }),
     sb.from("content_products").select("content_id").eq("site_id", dbSiteId),
-    sb.from("content").select("id", { count: "exact", head: true }).eq("site_id", dbSiteId).eq("status", "published"),
+    sb
+      .from("content")
+      .select("id", { count: "exact", head: true })
+      .eq("site_id", dbSiteId)
+      .eq("status", "published"),
     getDailyClicks(dbSiteId, 7),
+    sb.from("content").select("id").eq("site_id", dbSiteId).eq("status", "published"),
   ]);
 
   const scheduledContent = scheduledContentItems.filter(
@@ -64,13 +70,9 @@ export default async function AdminDashboard() {
 
   // Check for published content with no linked products
   const linkedIds = new Set((allLinkedRows ?? []).map((r: { content_id: string }) => r.content_id));
-  // We need published content IDs to check which ones lack products
-  const { data: publishedContentIds } = await sb
-    .from("content")
-    .select("id")
-    .eq("site_id", dbSiteId)
-    .eq("status", "published");
-  const contentWithNoProducts = (publishedContentIds ?? []).filter((r: { id: string }) => !linkedIds.has(r.id)).length;
+  const contentWithNoProducts = (publishedContentIds ?? []).filter(
+    (r: { id: string }) => !linkedIds.has(r.id),
+  ).length;
 
   // Alerts / warnings
   const productsWithNoUrl = activeProductsNoUrl.filter((p) => !p.affiliate_url);
@@ -123,7 +125,8 @@ export default async function AdminDashboard() {
       <AutoRefresh intervalMs={60_000} />
       <h1 className="mb-2 text-2xl font-bold text-gray-900">Dashboard</h1>
       <p className="mb-6 text-sm text-gray-500">
-        Managing: <span className="font-medium">{session.activeSiteName ?? session.activeSiteSlug}</span>
+        Managing:{" "}
+        <span className="font-medium">{session.activeSiteName ?? session.activeSiteSlug}</span>
       </p>
 
       {/* Alerts */}
@@ -153,16 +156,20 @@ export default async function AdminDashboard() {
       )}
 
       {/* Stats cards */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div aria-live="polite" className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Products</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{totalProducts}</p>
-          <p className="mt-1 text-xs text-gray-400">{activeProducts} active, {draftProducts} draft</p>
+          <p className="mt-1 text-xs text-gray-400">
+            {activeProducts} active, {draftProducts} draft
+          </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Content</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{totalContent}</p>
-          <p className="mt-1 text-xs text-gray-400">{publishedContent} published, {draftContent} draft</p>
+          <p className="mt-1 text-xs text-gray-400">
+            {publishedContent} published, {draftContent} draft
+          </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Clicks Today</p>
@@ -176,7 +183,9 @@ export default async function AdminDashboard() {
 
       {/* Quick actions */}
       <div className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">Quick Actions</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+          Quick Actions
+        </h2>
         <div className="flex flex-wrap gap-2">
           {quickActions.map((action) => (
             <Link
@@ -197,11 +206,19 @@ export default async function AdminDashboard() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-indigo-700">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               Upcoming Scheduled
             </h2>
-            <Link href="/admin/content?status=scheduled" className="text-xs font-medium text-indigo-600 hover:underline">
+            <Link
+              href="/admin/content?status=scheduled"
+              className="text-xs font-medium text-indigo-600 hover:underline"
+            >
               View all
             </Link>
           </div>
@@ -212,7 +229,10 @@ export default async function AdminDashboard() {
               .slice(0, 5)
               .map((c) => (
                 <li key={c.id} className="flex items-center justify-between text-sm">
-                  <Link href={`/admin/content/${c.id}`} className="font-medium text-indigo-900 hover:underline">
+                  <Link
+                    href={`/admin/content/${c.id}`}
+                    className="font-medium text-indigo-900 hover:underline"
+                  >
                     {c.title}
                   </Link>
                   <span className="text-xs text-indigo-600">
@@ -231,7 +251,9 @@ export default async function AdminDashboard() {
 
       {/* Daily click trend chart (#19) */}
       <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">Click Trend (7d)</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+          Click Trend (7d)
+        </h2>
         <ClickChart data={dailyClicks} />
       </section>
 
@@ -241,7 +263,9 @@ export default async function AdminDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top products */}
         <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">Top Products (7d)</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+            Top Products (7d)
+          </h2>
           {topProducts.length === 0 ? (
             <p className="text-sm text-gray-400">No click data yet</p>
           ) : (
@@ -260,10 +284,26 @@ export default async function AdminDashboard() {
         <div className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Manage</h2>
           {[
-            { title: "Categories", href: "/admin/categories", description: "Organize your products and content" },
-            { title: "Products", href: "/admin/products", description: `${totalProducts} products total` },
-            { title: "Content", href: "/admin/content", description: `${totalContent} articles total` },
-            { title: "Analytics", href: "/admin/analytics", description: "Click tracking & performance" },
+            {
+              title: "Categories",
+              href: "/admin/categories",
+              description: "Organize your products and content",
+            },
+            {
+              title: "Products",
+              href: "/admin/products",
+              description: `${totalProducts} products total`,
+            },
+            {
+              title: "Content",
+              href: "/admin/content",
+              description: `${totalContent} articles total`,
+            },
+            {
+              title: "Analytics",
+              href: "/admin/analytics",
+              description: "Click tracking & performance",
+            },
           ].map((card) => (
             <Link
               key={card.href}

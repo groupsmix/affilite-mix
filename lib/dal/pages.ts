@@ -1,9 +1,9 @@
-import { getUntypedServiceClient } from "@/lib/supabase-server";
+import { getServiceClient } from "@/lib/supabase-server";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { PageRow } from "@/types/database";
 
 function pagesTable() {
-  return getUntypedServiceClient().from("pages");
+  return getServiceClient().from("pages");
 }
 
 /* ------------------------------------------------------------------ */
@@ -34,10 +34,7 @@ export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
 }
 
 /** Get a single page by slug within a site */
-export async function getPageBySlug(
-  siteId: string,
-  slug: string,
-): Promise<PageRow | null> {
+export async function getPageBySlug(siteId: string, slug: string): Promise<PageRow | null> {
   const { data, error } = await pagesTable()
     .select("*")
     .eq("site_id", siteId)
@@ -50,10 +47,7 @@ export async function getPageBySlug(
 
 /** Get a single page by id */
 export async function getPageById(id: string): Promise<PageRow | null> {
-  const { data, error } = await pagesTable()
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data, error } = await pagesTable().select("*").eq("id", id).single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<PageRow>(data);
@@ -93,11 +87,7 @@ export async function updatePage(
   id: string,
   input: Partial<Pick<PageRow, "slug" | "title" | "body" | "is_published" | "sort_order">>,
 ): Promise<PageRow> {
-  const { data, error } = await pagesTable()
-    .update(input)
-    .eq("id", id)
-    .select()
-    .single();
+  const { data, error } = await pagesTable().update(input).eq("id", id).select().single();
 
   if (error) throw error;
   return assertRow<PageRow>(data, "Page");
@@ -110,13 +100,9 @@ export async function deletePage(id: string): Promise<void> {
 }
 
 /** Bulk update sort order */
-export async function reorderPages(
-  pages: { id: string; sort_order: number }[],
-): Promise<void> {
+export async function reorderPages(pages: { id: string; sort_order: number }[]): Promise<void> {
   for (const p of pages) {
-    const { error } = await pagesTable()
-      .update({ sort_order: p.sort_order })
-      .eq("id", p.id);
+    const { error } = await pagesTable().update({ sort_order: p.sort_order }).eq("id", p.id);
     if (error) throw error;
   }
 }
