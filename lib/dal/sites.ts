@@ -180,7 +180,8 @@ export async function createSite(input: {
 
   const { data, error } = await sb
     .from(TABLE)
-    .insert(row)
+    // eslint-disable-next-line
+    .insert(row as any)
     .select()
     .single();
 
@@ -197,7 +198,8 @@ export async function updateSite(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .update(input)
+    // eslint-disable-next-line
+    .update(input as any)
     .eq("id", id)
     .select()
     .single();
