@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       meta_title: data.meta_title,
       meta_description: data.meta_description,
       og_image: data.og_image,
+      body_previous: null,
     });
 
     revalidateTag("content");

@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase-server";
+import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 const TABLE = "scheduled_jobs";
 
@@ -41,7 +42,7 @@ export async function listScheduledJobs(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as ScheduledJobRow[];
+  return assertRows<ScheduledJobRow>(data);
 }
 
 /** Create a scheduled job */
@@ -62,7 +63,7 @@ export async function createScheduledJob(
     .single();
 
   if (error) throw error;
-  return data as ScheduledJobRow;
+  return assertRow<ScheduledJobRow>(data, "ScheduledJob");
 }
 
 /** Cancel a scheduled job */
@@ -95,5 +96,5 @@ export async function getScheduledJobById(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as ScheduledJobRow) ?? null;
+  return rowOrNull<ScheduledJobRow>(data);
 }

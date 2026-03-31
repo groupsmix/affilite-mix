@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase-server";
+import { assertRows } from "./type-guards";
 
 export interface AuditLogEntry {
   id: string;
@@ -43,7 +44,7 @@ export async function listAuditLogs(
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as AuditLogEntry[];
+  return assertRows<AuditLogEntry>(data ?? []);
 }
 
 /** Get distinct actions for filter dropdown */
@@ -56,6 +57,6 @@ export async function getDistinctActions(siteId: string): Promise<string[]> {
     .order("action");
 
   if (error) throw error;
-  const unique = new Set((data ?? []).map((d: { action: string }) => d.action));
+  const unique = new Set(assertRows<{ action: string }>(data ?? []).map((d) => d.action));
   return Array.from(unique);
 }

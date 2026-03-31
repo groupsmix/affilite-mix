@@ -1,5 +1,5 @@
 import { getUntypedServiceClient } from "@/lib/supabase-server";
-import { hasNumberProp } from "./type-guards";
+import { assertRows, hasNumberProp } from "./type-guards";
 
 const TABLE = "ad_impressions";
 
@@ -26,7 +26,7 @@ export async function recordAdImpression(
     await sb
       .from(TABLE)
       .update({ count: existing.count + 1 })
-      .eq("id", (existing as Record<string, unknown>).id);
+      .eq("id", (existing as unknown as { id: string }).id);
   } else {
     await sb.from(TABLE).insert({
       site_id: siteId,
@@ -60,7 +60,7 @@ export async function getAdImpressionStats(
 
   // Aggregate by placement
   const map = new Map<string, number>();
-  for (const row of (data ?? []) as { ad_placement_id: string; count: number }[]) {
+  for (const row of assertRows<{ ad_placement_id: string; count: number }>(data ?? [])) {
     map.set(row.ad_placement_id, (map.get(row.ad_placement_id) ?? 0) + row.count);
   }
 

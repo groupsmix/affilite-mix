@@ -1,5 +1,6 @@
 import { getServiceClient } from "@/lib/supabase-server";
 import type { SiteRow } from "@/types/database";
+import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 const TABLE = "sites";
 
@@ -50,7 +51,7 @@ export async function listSites(): Promise<SiteRow[]> {
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  const rows = data as SiteRow[];
+  const rows = assertRows<SiteRow>(data);
 
   allSitesCache = { value: rows, expiresAt: Date.now() + CACHE_TTL_MS };
   return rows;
@@ -74,7 +75,7 @@ export async function getSiteRowById(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as SiteRow) ?? null;
+  return rowOrNull<SiteRow>(data);
 }
 
 /** Get a single site by slug (cached) */
@@ -92,7 +93,7 @@ export async function getSiteRowBySlug(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  const row = (data as unknown as SiteRow) ?? null;
+  const row = rowOrNull<SiteRow>(data);
 
   if (row) {
     evictOldest(siteBySlugCache);
@@ -116,7 +117,7 @@ export async function getSiteRowByDomain(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  const row = (data as unknown as SiteRow) ?? null;
+  const row = rowOrNull<SiteRow>(data);
 
   if (row) {
     evictOldest(siteByDomainCache);
@@ -180,14 +181,13 @@ export async function createSite(input: {
 
   const { data, error } = await sb
     .from(TABLE)
-    // eslint-disable-next-line
     .insert(row as any)
     .select()
     .single();
 
   if (error) throw error;
   invalidateSiteCache();
-  return data as SiteRow;
+  return assertRow<SiteRow>(data, "Site");
 }
 
 /** Update a site */
@@ -198,7 +198,6 @@ export async function updateSite(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    // eslint-disable-next-line
     .update(input as any)
     .eq("id", id)
     .select()
@@ -206,7 +205,7 @@ export async function updateSite(
 
   if (error) throw error;
   invalidateSiteCache();
-  return data as SiteRow;
+  return assertRow<SiteRow>(data, "Site");
 }
 
 /** Soft-delete a site (deactivate) */
