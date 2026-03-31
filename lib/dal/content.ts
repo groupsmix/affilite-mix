@@ -88,7 +88,7 @@ export async function createContent(
   return data as ContentRow;
 }
 
-/** Update content */
+/** Update content (saves previous body for version history) */
 export async function updateContent(
   siteId: string,
   id: string,
@@ -97,6 +97,21 @@ export async function updateContent(
   >,
 ): Promise<ContentRow> {
   const sb = getServiceClient();
+
+  // If body is being updated, save current body as body_previous for versioning
+  if (typeof input.body === "string") {
+    const { data: current } = await sb
+      .from(TABLE)
+      .select("body")
+      .eq("site_id", siteId)
+      .eq("id", id)
+      .single();
+
+    if (current) {
+      (input as Record<string, unknown>).body_previous = (current as { body: string }).body;
+    }
+  }
+
   const { data, error } = await sb
     .from(TABLE)
     .update(input)
