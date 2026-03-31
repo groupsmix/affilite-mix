@@ -3,6 +3,7 @@ import { getAdminSession } from "@/lib/auth";
 import { getSiteRowById, updateSite, deleteSite } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { captureException } from "@/lib/sentry";
 
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
@@ -99,7 +100,7 @@ export async function PUT(
     });
     return NextResponse.json(site);
   } catch (err) {
-    console.error("[api/admin/sites/[id]] PUT update failed:", err);
+    captureException(err, { context: "[api/admin/sites/[id]] PUT update failed:" });
     const message = err instanceof Error ? err.message : "Failed to update site";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -135,7 +136,7 @@ export async function DELETE(
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/sites/[id]] DELETE failed:", err);
+    captureException(err, { context: "[api/admin/sites/[id]] DELETE failed:" });
     const message = err instanceof Error ? err.message : "Failed to delete site";
     return NextResponse.json({ error: message }, { status: 500 });
   }

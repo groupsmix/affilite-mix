@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
+import { captureException } from "@/lib/sentry";
 
 /**
  * GET /api/newsletter/unsubscribe?token=<uuid>
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
       .eq("id", token);
 
     if (error) {
-      console.error("[api/newsletter/unsubscribe] GET failed to update:", error);
+      captureException(error, { context: "[api/newsletter/unsubscribe] GET failed to update:" });
       return NextResponse.redirect(
         new URL("/newsletter/unsubscribed?error=update_failed", request.url),
       );
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(new URL("/newsletter/unsubscribed", request.url));
   } catch (err) {
-    console.error("[api/newsletter/unsubscribe] GET failed:", err);
+    captureException(err, { context: "[api/newsletter/unsubscribe] GET failed:" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -58,13 +59,13 @@ export async function POST(request: NextRequest) {
       .eq("email", email);
 
     if (error) {
-      console.error("[api/newsletter/unsubscribe] POST failed to update:", error);
+      captureException(error, { context: "[api/newsletter/unsubscribe] POST failed to update:" });
       return NextResponse.json({ error: "Failed to unsubscribe" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, message: "You have been unsubscribed." });
   } catch (err) {
-    console.error("[api/newsletter/unsubscribe] POST failed:", err);
+    captureException(err, { context: "[api/newsletter/unsubscribe] POST failed:" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

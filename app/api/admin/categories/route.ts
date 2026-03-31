@@ -9,6 +9,7 @@ import {
 } from "@/lib/dal/categories";
 import { validateCreateCategory, validateUpdateCategory } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 export async function GET() {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -18,7 +19,7 @@ export async function GET() {
     const categories = await listCategories(dbSiteId);
     return NextResponse.json(categories);
   } catch (err) {
-    console.error("[api/admin/categories] GET failed:", err);
+    captureException(err, { context: "[api/admin/categories] GET failed:" });
     return NextResponse.json({ error: "Failed to list categories" }, { status: 500 });
   }
 }
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(category, { status: 201 });
   } catch (err) {
-    console.error("[api/admin/categories] POST create failed:", err);
+    captureException(err, { context: "[api/admin/categories] POST create failed:" });
     return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
   }
 }
@@ -82,7 +83,7 @@ export async function PATCH(request: NextRequest) {
     });
     return NextResponse.json(category);
   } catch (err) {
-    console.error("[api/admin/categories] PATCH update failed:", err);
+    captureException(err, { context: "[api/admin/categories] PATCH update failed:" });
     return NextResponse.json({ error: "Failed to update category" }, { status: 500 });
   }
 }
@@ -118,7 +119,7 @@ export async function DELETE(request: NextRequest) {
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/categories] DELETE failed:", err);
+    captureException(err, { context: "[api/admin/categories] DELETE failed:" });
     return NextResponse.json({ error: "Failed to delete category" }, { status: 500 });
   }
 }

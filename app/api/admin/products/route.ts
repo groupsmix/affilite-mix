@@ -9,6 +9,7 @@ import {
 } from "@/lib/dal/products";
 import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 export async function GET(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(products);
   } catch (err) {
-    console.error("[api/admin/products] GET failed:", err);
+    captureException(err, { context: "[api/admin/products] GET failed:" });
     return NextResponse.json({ error: "Failed to list products" }, { status: 500 });
   }
 }
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(product, { status: 201 });
   } catch (err) {
-    console.error("[api/admin/products] POST create failed:", err);
+    captureException(err, { context: "[api/admin/products] POST create failed:" });
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
   }
 }
@@ -106,7 +107,7 @@ export async function PATCH(request: NextRequest) {
     });
     return NextResponse.json(product);
   } catch (err) {
-    console.error("[api/admin/products] PATCH update failed:", err);
+    captureException(err, { context: "[api/admin/products] PATCH update failed:" });
     return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
   }
 }
@@ -142,7 +143,7 @@ export async function DELETE(request: NextRequest) {
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/products] DELETE failed:", err);
+    captureException(err, { context: "[api/admin/products] DELETE failed:" });
     return NextResponse.json({ error: "Failed to delete product" }, { status: 500 });
   }
 }

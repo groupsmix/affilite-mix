@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getUploadUrl, isR2Configured } from "@/lib/r2";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 /** POST /api/admin/upload — get a presigned R2 upload URL */
 export async function POST(request: Request) {
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ uploadUrl, publicUrl });
   } catch (err) {
-    console.error("[api/admin/upload] POST failed:", err);
+    captureException(err, { context: "[api/admin/upload] POST failed:" });
     const message = err instanceof Error ? err.message : "Upload failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

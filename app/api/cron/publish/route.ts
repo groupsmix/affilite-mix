@@ -4,6 +4,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import type { ContentRow, ProductRow } from "@/types/database";
+import { captureException } from "@/lib/sentry";
 
 /**
  * POST /api/cron/publish — Publish scheduled content & products, archive expired items.
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     .overrideTypes<Pick<ContentRow, "id" | "title" | "slug">[]>();
 
   if (contentError) {
-    console.error("[api/cron/publish] Failed to fetch scheduled content:", contentError);
+    captureException(contentError, { context: "[api/cron/publish] Failed to fetch scheduled content:" });
     return NextResponse.json({ error: contentError.message }, { status: 500 });
   }
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       .in("id", ids);
 
     if (updateError) {
-      console.error("[api/cron/publish] Failed to publish content:", updateError);
+      captureException(updateError, { context: "[api/cron/publish] Failed to publish content:" });
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
     results.published_content = contentItems.length;
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
     .overrideTypes<Pick<ProductRow, "id" | "name" | "slug">[]>();
 
   if (expiredError) {
-    console.error("[api/cron/publish] Failed to fetch expired products:", expiredError);
+    captureException(expiredError, { context: "[api/cron/publish] Failed to fetch expired products:" });
     return NextResponse.json({ error: expiredError.message }, { status: 500 });
   }
 
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       .in("id", ids);
 
     if (archiveError) {
-      console.error("[api/cron/publish] Failed to archive products:", archiveError);
+      captureException(archiveError, { context: "[api/cron/publish] Failed to archive products:" });
       return NextResponse.json({ error: archiveError.message }, { status: 500 });
     }
     results.archived_products = expiredProducts.length;

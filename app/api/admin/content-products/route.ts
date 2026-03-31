@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { setLinkedProducts } from "@/lib/dal/content-products";
 import { validateSetLinkedProducts } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 export async function PUT(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -28,7 +29,7 @@ export async function PUT(request: NextRequest) {
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/content-products] PUT failed:", err);
+    captureException(err, { context: "[api/admin/content-products] PUT failed:" });
     return NextResponse.json({ error: "Failed to update linked products" }, { status: 500 });
   }
 }

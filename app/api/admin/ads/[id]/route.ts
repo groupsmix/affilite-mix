@@ -6,6 +6,7 @@ import {
 } from "@/lib/dal/ad-placements";
 import { recordAuditEvent } from "@/lib/audit-log";
 import type { AdPlacementType, AdProvider } from "@/types/database";
+import { captureException } from "@/lib/sentry";
 
 const VALID_PLACEMENT_TYPES: AdPlacementType[] = ["sidebar", "in_content", "header", "footer", "between_posts"];
 const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom"];
@@ -51,7 +52,7 @@ export async function PUT(
 
     return NextResponse.json(ad);
   } catch (err) {
-    console.error("[api/admin/ads] PUT failed:", err);
+    captureException(err, { context: "[api/admin/ads] PUT failed:" });
     return NextResponse.json({ error: "Failed to update ad placement" }, { status: 500 });
   }
 }
@@ -78,7 +79,7 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/ads] DELETE failed:", err);
+    captureException(err, { context: "[api/admin/ads] DELETE failed:" });
     return NextResponse.json({ error: "Failed to delete ad placement" }, { status: 500 });
   }
 }

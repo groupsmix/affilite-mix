@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { hashPassword } from "@/lib/password";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { captureException } from "@/lib/sentry";
 
 /**
  * POST /api/auth/reset-password
@@ -83,13 +84,13 @@ export async function POST(request: Request) {
       .eq("id", user.id);
 
     if (updateError) {
-      console.error("[api/auth/reset-password] Failed to update password:", updateError);
+      captureException(updateError, { context: "[api/auth/reset-password] Failed to update password:" });
       return NextResponse.json({ error: "Failed to reset password" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, message: "Password has been reset successfully." });
   } catch (err) {
-    console.error("[api/auth/reset-password] POST failed:", err);
+    captureException(err, { context: "[api/auth/reset-password] POST failed:" });
     return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
   }
 }
