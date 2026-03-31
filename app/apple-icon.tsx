@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getCurrentSite } from "@/lib/site-context";
+import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 
 export const runtime = "edge";
 export const size = { width: 180, height: 180 };
@@ -7,8 +8,36 @@ export const contentType = "image/png";
 
 export default async function AppleIcon() {
   const site = await getCurrentSite();
+
+  // Check for custom favicon_url from DB (used for apple-icon too)
+  try {
+    const dbSite = await resolveDbSiteBySlug(site.id);
+    if (dbSite?.favicon_url) {
+      const res = await fetch(dbSite.favicon_url);
+      if (res.ok) {
+        const buffer = await res.arrayBuffer();
+        return new Response(buffer, {
+          headers: { "Content-Type": "image/png" },
+        });
+      }
+    }
+  } catch {
+    // Fall through to generated icon
+  }
+
+  // Read per-site primary color from DB theme, falling back to config
+  let bgColor = site.theme.primaryColor || "#1B2A4A";
+  try {
+    const dbSite = await resolveDbSiteBySlug(site.id);
+    if (dbSite) {
+      const t = dbSite.theme as Record<string, string> | null;
+      if (t?.primary_color) bgColor = t.primary_color;
+    }
+  } catch {
+    // Use config color
+  }
+
   const letter = site.name.charAt(0).toUpperCase();
-  const bgColor = site.theme.primaryColor || "#1B2A4A";
 
   return new ImageResponse(
     (

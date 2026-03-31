@@ -1,26 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSiteByDomain, allSites } from "@/config/sites";
+import { getSiteByDomain, allSites, isWildcardSubdomain } from "@/config/sites";
 import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 
 /**
- * Middleware: resolves domain → site_id and injects x-site-id header.
- * Also handles CSRF protection for state-changing API routes using both
- * Origin validation and a double-submit cookie fallback.
+ * Returns a styled "Niche not found" HTML page.
  */
-export function middleware(request: NextRequest) {
-  const { pathname, hostname } = request.nextUrl;
-
-  // ── Resolve site ──────────────────────────────────────
-  const site = getSiteByDomain(hostname);
-  const siteId = site?.id;
-
-  if (!siteId) {
-    const html = `<!DOCTYPE html>
+function nicheNotFoundResponse(): NextResponse {
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Site Not Found</title>
+  <title>Niche Not Found</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f9fafb; color: #1e293b; }
     .container { text-align: center; max-width: 480px; padding: 2rem; }
@@ -30,22 +21,60 @@ export function middleware(request: NextRequest) {
 </head>
 <body>
   <div class="container">
-    <h1>Site Not Found</h1>
-    <p>This site is not configured. If you believe this is an error, please contact support.</p>
+    <h1>Niche Not Found</h1>
+    <p>This niche site is not configured or is no longer active. If you believe this is an error, please contact support.</p>
   </div>
 </body>
 </html>`;
-    return new NextResponse(html, {
-      status: 404,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
+  return new NextResponse(html, {
+    status: 404,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
+/**
+ * Middleware: resolves domain → site_id and injects x-site-id header.
+ * Supports wildcard subdomain routing — any *.writnerd.site subdomain
+ * is automatically resolved via DB lookup.
+ * Also handles CSRF protection for state-changing API routes.
+ */
+export async function middleware(request: NextRequest) {
+  const { pathname, hostname } = request.nextUrl;
+
+  // ── Resolve site ──────────────────────────────────────
+  // 1. Try static config lookup first (fast, no DB call)
+  let site = getSiteByDomain(hostname);
+  let siteId = site?.id;
+
+  // 2. For wildcard subdomains (e.g. coffee.writnerd.site), do an async DB lookup
+  if (!siteId && isWildcardSubdomain(hostname)) {
+    try {
+      const dbRes = await fetch(
+        new URL(`/api/internal/resolve-site?domain=${encodeURIComponent(hostname)}`, request.url),
+      );
+      if (dbRes.ok) {
+        const data = await dbRes.json();
+        if (data.siteId && data.isActive) {
+          siteId = data.siteId;
+        } else if (data.siteId && !data.isActive) {
+          // Site exists but is deactivated
+          return nicheNotFoundResponse();
+        }
+      }
+    } catch {
+      // DB lookup failed; fall through to 404
+    }
+  }
+
+  if (!siteId) {
+    return nicheNotFoundResponse();
   }
 
   // ── CSRF protection for state-changing API routes ─────
   const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
   if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
     const origin = request.headers.get("origin") ?? "";
-    const allowedOrigins = getAllowedOrigins();
+    const allowedOrigins = getAllowedOrigins(hostname);
 
     // 1. If Origin is present, reject mismatched origins immediately
     if (origin && !allowedOrigins.includes(origin)) {
@@ -97,7 +126,7 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
-function getAllowedOrigins(): string[] {
+function getAllowedOrigins(requestHostname?: string): string[] {
   const origins: string[] = [];
   for (const site of allSites) {
     origins.push(`https://${site.domain}`);
@@ -108,6 +137,11 @@ function getAllowedOrigins(): string[] {
         origins.push(`http://${alias}`);
       }
     }
+  }
+  // Allow the current request hostname (covers wildcard subdomains resolved via DB)
+  if (requestHostname) {
+    origins.push(`https://${requestHostname}`);
+    origins.push(`http://${requestHostname}`);
   }
   // Allow localhost for dev (common ports)
   if (process.env.NODE_ENV === "development") {
@@ -125,7 +159,8 @@ export const config = {
      * - _next/image (image optimization)
      * - favicon.ico
      * - public assets
+     * - /api/internal/* (internal APIs called by middleware itself)
      */
-    "/((?!_next/static|_next/image|favicon.ico|fonts/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|fonts/|api/internal/).*)",
   ],
 };

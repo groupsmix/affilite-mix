@@ -32,6 +32,8 @@ interface NavItem {
   icon?: string;
 }
 
+type LayoutVariant = "standard" | "magazine" | "minimal" | "directory";
+
 interface SiteFormData {
   slug: string;
   name: string;
@@ -45,7 +47,9 @@ interface SiteFormData {
   // Theme
   theme_primary_color: string;
   theme_secondary_color: string;
+  theme_accent_color: string;
   theme_font: string;
+  theme_layout_variant: LayoutVariant;
   // URLs
   logo_url: string;
   favicon_url: string;
@@ -80,7 +84,9 @@ const emptySite: SiteFormData = {
   est_revenue_per_click: 0.35,
   theme_primary_color: "#1f2937",
   theme_secondary_color: "#3b82f6",
+  theme_accent_color: "#10b981",
   theme_font: "Inter",
+  theme_layout_variant: "standard",
   logo_url: "",
   favicon_url: "",
   nav_items: [],
@@ -117,7 +123,9 @@ function formToPayload(form: SiteFormData) {
     theme: {
       primary_color: form.theme_primary_color,
       secondary_color: form.theme_secondary_color,
+      accent_color: form.theme_accent_color,
       font: form.theme_font,
+      layout_variant: form.theme_layout_variant,
     },
     logo_url: form.logo_url || null,
     favicon_url: form.favicon_url || null,
@@ -155,7 +163,9 @@ function siteToForm(site: SiteInfo): SiteFormData {
     est_revenue_per_click: site.est_revenue_per_click ?? 0.35,
     theme_primary_color: theme.primary_color ?? "#1f2937",
     theme_secondary_color: theme.secondary_color ?? "#3b82f6",
+    theme_accent_color: theme.accent_color ?? "#10b981",
     theme_font: theme.font ?? "Inter",
+    theme_layout_variant: (theme.layout_variant as LayoutVariant) ?? "standard",
     logo_url: "",
     favicon_url: "",
     nav_items: [],
@@ -578,6 +588,25 @@ export function SiteManager() {
                     </div>
                   </div>
                   <div>
+                    <label className={labelCls}>Accent Color</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={form.theme_accent_color}
+                        onChange={(e) => setForm({ ...form, theme_accent_color: e.target.value })}
+                        className="h-10 w-12 cursor-pointer rounded border border-gray-300"
+                      />
+                      <input
+                        type="text"
+                        value={form.theme_accent_color}
+                        onChange={(e) => setForm({ ...form, theme_accent_color: e.target.value })}
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
                     <label className={labelCls}>Font</label>
                     <select
                       value={form.theme_font}
@@ -585,6 +614,8 @@ export function SiteManager() {
                       className={inputCls}
                     >
                       <option value="Inter">Inter</option>
+                      <option value="Playfair Display">Playfair Display</option>
+                      <option value="IBM Plex Sans Arabic">IBM Plex Sans Arabic</option>
                       <option value="Roboto">Roboto</option>
                       <option value="Open Sans">Open Sans</option>
                       <option value="Lato">Lato</option>
@@ -593,6 +624,20 @@ export function SiteManager() {
                       <option value="Noto Sans Arabic">Noto Sans Arabic</option>
                       <option value="Cairo">Cairo</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Layout Variant</label>
+                    <select
+                      value={form.theme_layout_variant}
+                      onChange={(e) => setForm({ ...form, theme_layout_variant: e.target.value as LayoutVariant })}
+                      className={inputCls}
+                    >
+                      <option value="standard">Standard</option>
+                      <option value="magazine">Magazine</option>
+                      <option value="minimal">Minimal</option>
+                      <option value="directory">Directory</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-400">Controls the overall page layout style.</p>
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -615,6 +660,66 @@ export function SiteManager() {
                       placeholder="https://..."
                       className={inputCls}
                     />
+                  </div>
+                </div>
+
+                {/* Live Theme Preview */}
+                <div>
+                  <label className={labelCls}>Theme Preview</label>
+                  <div
+                    className="mt-2 overflow-hidden rounded-lg border border-gray-200"
+                    style={{
+                      "--preview-primary": form.theme_primary_color,
+                      "--preview-secondary": form.theme_secondary_color,
+                      "--preview-accent": form.theme_accent_color,
+                    } as React.CSSProperties}
+                  >
+                    {/* Preview header */}
+                    <div
+                      className="flex items-center justify-between px-4 py-3"
+                      style={{ backgroundColor: form.theme_primary_color }}
+                    >
+                      <span className="text-sm font-bold text-white">{form.name || "Site Name"}</span>
+                      <div className="flex gap-3">
+                        <span className="text-xs text-white/70">Home</span>
+                        <span className="text-xs text-white/70">Reviews</span>
+                        <span className="text-xs text-white/70">Guides</span>
+                      </div>
+                    </div>
+                    {/* Preview body */}
+                    <div className="bg-white p-4">
+                      <h3
+                        className="mb-1 text-base font-bold"
+                        style={{ color: form.theme_primary_color, fontFamily: form.theme_font }}
+                      >
+                        Sample Heading
+                      </h3>
+                      <p className="mb-3 text-xs text-gray-600" style={{ fontFamily: form.theme_font }}>
+                        This is a preview of how your niche site will look with these theme settings.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="rounded px-3 py-1.5 text-xs font-medium text-white"
+                          style={{ backgroundColor: form.theme_secondary_color }}
+                        >
+                          Primary Button
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded px-3 py-1.5 text-xs font-medium text-white"
+                          style={{ backgroundColor: form.theme_accent_color }}
+                        >
+                          Accent Button
+                        </button>
+                      </div>
+                    </div>
+                    {/* Preview footer */}
+                    <div className="border-t border-gray-200 bg-gray-50 px-4 py-2">
+                      <span className="text-xs text-gray-400">
+                        Layout: {form.theme_layout_variant} &middot; Font: {form.theme_font}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </>

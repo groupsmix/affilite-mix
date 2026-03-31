@@ -1,22 +1,29 @@
-import type { SiteDefinition } from "@/config/site-definition";
+import type { SiteDefinition, NavItem } from "@/config/site-definition";
 import Link from "next/link";
 import { MobileMenu } from "./mobile-menu";
 import { ActiveNavLinks } from "./active-nav-links";
 
 interface SiteHeaderProps {
   site: SiteDefinition;
+  /** Optional dynamic nav items from DB (overrides site.nav if provided) */
+  dbNavItems?: { label: string; href: string; icon?: string }[];
 }
 
-export function SiteHeader({ site }: SiteHeaderProps) {
+export function SiteHeader({ site, dbNavItems }: SiteHeaderProps) {
+  // If DB nav items are provided and non-empty, convert them to NavItem format
+  const nav: NavItem[] = dbNavItems && dbNavItems.length > 0
+    ? dbNavItems.map((item) => ({ title: item.label, href: item.href }))
+    : site.nav;
+
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/" className="text-xl font-bold" style={{ color: site.theme.primaryColor }}>
+        <Link href="/" className="text-xl font-bold" style={{ color: "var(--color-primary)" }}>
           {site.name}
         </Link>
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 md:flex">
-          <ActiveNavLinks nav={site.nav} />
+          <ActiveNavLinks nav={nav} />
           <Link
             href="/search"
             className="text-sm font-medium text-gray-400 transition-colors hover:text-gray-900"
@@ -28,7 +35,7 @@ export function SiteHeader({ site }: SiteHeaderProps) {
           </Link>
         </nav>
         {/* Mobile nav */}
-        <MobileMenu nav={site.nav} searchLabel={site.language === "ar" ? "بحث" : "Search"} direction={site.direction} />
+        <MobileMenu nav={nav} searchLabel={site.language === "ar" ? "بحث" : "Search"} direction={site.direction} />
       </div>
     </header>
   );
