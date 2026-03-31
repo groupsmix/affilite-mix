@@ -8,7 +8,9 @@
 
 :root {
   --color-primary: #1e293b;
+  --color-secondary: #3b82f6;
   --color-accent: #10b981;
+  --color-accent-text: #10b981;
   --font-heading: var(--font-inter), "Inter", sans-serif;
   --font-body: var(--font-inter), "Inter", sans-serif;
 }

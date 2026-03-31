@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
+import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
+import { ThemeProvider } from "./components/theme-provider";
+import type { SiteThemeConfig, LayoutVariant } from "./components/theme-provider";
 import CookieConsent from "./components/cookie-consent";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -18,37 +21,66 @@ export default async function PublicLayout({
 }) {
   const site = await getCurrentSite();
 
-  const fontMap: Record<string, string> = {
-    "Inter": "var(--font-inter), sans-serif",
-    "IBM Plex Sans Arabic": "var(--font-ibm-plex-arabic), sans-serif",
-    "Playfair Display": "var(--font-playfair), serif",
+  // Read DB row for dynamic theme overrides, nav items, and footer nav
+  let dbTheme: Partial<SiteThemeConfig> = {};
+  let dbNavItems: { label: string; href: string; icon?: string }[] = [];
+  let dbFooterNav: { label: string; href: string; icon?: string }[] = [];
+  try {
+    const dbSite = await resolveDbSiteBySlug(site.id);
+    if (dbSite) {
+      const t = dbSite.theme as Record<string, string> | null;
+      dbTheme = {
+        primaryColor: t?.primary_color || site.theme.primaryColor,
+        secondaryColor: t?.secondary_color || site.theme.accentColor,
+        accentColor: t?.accent_color || site.theme.accentColor,
+        accentTextColor: t?.accent_text_color || site.theme.accentTextColor,
+        fontHeading: t?.font_heading || site.theme.fontHeading,
+        fontBody: t?.font_body || t?.font || site.theme.fontBody,
+        layoutVariant: (t?.layout_variant as LayoutVariant) || "standard",
+        customCss: dbSite.custom_css,
+      };
+      // Dynamic navigation from DB
+      if (Array.isArray(dbSite.nav_items) && dbSite.nav_items.length > 0) {
+        dbNavItems = dbSite.nav_items;
+      }
+      if (Array.isArray(dbSite.footer_nav) && dbSite.footer_nav.length > 0) {
+        dbFooterNav = dbSite.footer_nav;
+      }
+    }
+  } catch {
+    // Fall back to config-based theme
+  }
+
+  // Merge: DB theme overrides config theme
+  const themeConfig: Partial<SiteThemeConfig> = {
+    primaryColor: site.theme.primaryColor,
+    secondaryColor: site.theme.accentColor,
+    accentColor: site.theme.accentColor,
+    accentTextColor: site.theme.accentTextColor,
+    fontHeading: site.theme.fontHeading,
+    fontBody: site.theme.fontBody,
+    layoutVariant: "standard",
+    ...dbTheme,
   };
 
-  const cssVars = {
-    "--color-primary": site.theme.primaryColor,
-    "--color-accent": site.theme.accentColor,
-    "--color-accent-text": site.theme.accentTextColor,
-    "--font-heading": fontMap[site.theme.fontHeading] ?? "var(--font-inter), sans-serif",
-    "--font-body": fontMap[site.theme.fontBody] ?? "var(--font-inter), sans-serif",
-  } as React.CSSProperties;
-
   return (
-    <div
-      lang={site.language}
-      dir={site.direction}
-      style={cssVars}
-      className="flex min-h-screen flex-col"
-    >
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"
+    <ThemeProvider theme={themeConfig}>
+      <div
+        lang={site.language}
+        dir={site.direction}
+        className="flex min-h-screen flex-col"
       >
-        {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
-      </a>
-      <SiteHeader site={site} />
-      <main id="main-content" className="flex-1">{children}</main>
-      <SiteFooter site={site} />
-      {site.features.cookieConsent && <CookieConsent language={site.language} />}
-    </div>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"
+        >
+          {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
+        </a>
+        <SiteHeader site={site} dbNavItems={dbNavItems} />
+        <main id="main-content" className="flex-1">{children}</main>
+        <SiteFooter site={site} dbFooterNav={dbFooterNav} />
+        {site.features.cookieConsent && <CookieConsent language={site.language} />}
+      </div>
+    </ThemeProvider>
   );
 }
