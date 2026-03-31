@@ -60,12 +60,11 @@ export default async function HomePage() {
   const homepageProps = { site, recentContent, featuredProducts, categories, productCount, reviewCount };
   const template = site.homepageTemplate ?? (site.features.customHomepage ? "cinematic" : "standard");
 
+  if (template === "watch") {
+    return <WatchHomepage {...homepageProps} />;
+  }
+
   if (template === "cinematic") {
-    // WatchHomepage is the existing cinematic implementation (watch-specific)
-    // For other cinematic sites, use the generic CinematicHomepage
-    if (site.id === "watch-tools") {
-      return <WatchHomepage {...homepageProps} />;
-    }
     return <CinematicHomepage {...homepageProps} />;
   }
 

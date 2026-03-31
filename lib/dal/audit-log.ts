@@ -51,13 +51,10 @@ export async function listAuditLogs(
 /** Get distinct actions for filter dropdown */
 export async function getDistinctActions(siteId: string): Promise<string[]> {
   const sb = getServiceClient();
-  const { data, error } = await sb
-    .from("audit_log")
-    .select("action")
-    .eq("site_id", siteId)
-    .order("action");
+  const { data, error } = await sb.rpc("get_distinct_audit_actions", {
+    p_site_id: siteId,
+  });
 
   if (error) throw error;
-  const unique = new Set(assertRows<{ action: string }>(data ?? []).map((d) => d.action));
-  return Array.from(unique);
+  return (data ?? []).map((d: { action: string }) => d.action);
 }

@@ -11,7 +11,7 @@ export const watchToolsSite = defineSite({
 
   colors: { primary: "#1B2A4A", accent: "#C9A96E", accentText: "#8B6914" },
   fonts: "classic",
-  homepage: "cinematic",
+  homepage: "watch",
 
   productLabel: "Watch",
   productLabelPlural: "Watches",
