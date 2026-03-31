@@ -5,6 +5,7 @@ import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail } from "@/lib/validators";
 import { apiError, rateLimitHeaders } from "@/lib/api-error";
+import { captureException } from "@/lib/sentry";
 
 /** 5 login attempts per 15 minutes per IP */
 const LOGIN_RATE_LIMIT_IP = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
 
   return response;
   } catch (err) {
-    console.error("[api/auth/login] POST failed:", err);
+    captureException(err, { context: "[api/auth/login] POST failed:" });
     return apiError(500, "Internal server error");
   }
 }

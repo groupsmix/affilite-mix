@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { recordAdImpression } from "@/lib/dal/ad-impressions";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getCurrentSite } from "@/lib/site-context";
+import { captureException } from "@/lib/sentry";
 
 /** POST — record an ad impression from the public site */
 export async function POST(request: NextRequest) {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/ads/impressions] POST failed:", err);
+    captureException(err, { context: "[api/admin/ads/impressions] POST failed:" });
     return NextResponse.json({ error: "Failed to record impression" }, { status: 500 });
   }
 }

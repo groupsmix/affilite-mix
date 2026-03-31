@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
+import { captureException } from "@/lib/sentry";
 
 /**
  * GET /api/newsletter/confirm?token=<uuid>
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (fetchError || !subscriber) {
-      console.error("[api/newsletter/confirm] Token lookup failed:", fetchError);
+      captureException(fetchError, { context: "[api/newsletter/confirm] Token lookup failed:" });
       return NextResponse.redirect(
         new URL("/newsletter/confirmed?error=invalid_token", request.url),
       );
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
       .eq("id", subscriber.id);
 
     if (updateError) {
-      console.error("[api/newsletter/confirm] Failed to activate subscriber:", updateError);
+      captureException(updateError, { context: "[api/newsletter/confirm] Failed to activate subscriber:" });
       return NextResponse.redirect(
         new URL("/newsletter/confirmed?error=update_failed", request.url),
       );
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(new URL("/newsletter/confirmed", request.url));
   } catch (err) {
-    console.error("[api/newsletter/confirm] GET failed:", err);
+    captureException(err, { context: "[api/newsletter/confirm] GET failed:" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

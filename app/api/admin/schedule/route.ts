@@ -6,6 +6,7 @@ import {
   cancelScheduledJob,
 } from "@/lib/dal/scheduled-jobs";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 const JOB_TYPES = new Set([
   "publish_content",
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     const jobs = await listScheduledJobs(dbSiteId, status ?? undefined, limit);
     return NextResponse.json({ jobs });
   } catch (err) {
-    console.error("[api/admin/schedule] GET failed:", err);
+    captureException(err, { context: "[api/admin/schedule] GET failed:" });
     return NextResponse.json({ error: "Failed to list scheduled jobs" }, { status: 500 });
   }
 }
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ job }, { status: 201 });
   } catch (err) {
-    console.error("[api/admin/schedule] POST create failed:", err);
+    captureException(err, { context: "[api/admin/schedule] POST create failed:" });
     return NextResponse.json({ error: "Failed to create scheduled job" }, { status: 500 });
   }
 }
@@ -121,7 +122,7 @@ export async function DELETE(request: NextRequest) {
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/schedule] DELETE cancel failed:", err);
+    captureException(err, { context: "[api/admin/schedule] DELETE cancel failed:" });
     return NextResponse.json({ error: "Failed to cancel scheduled job" }, { status: 500 });
   }
 }

@@ -8,6 +8,7 @@ import {
 } from "@/lib/dal/admin-users";
 import { hashPassword } from "@/lib/password";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { captureException } from "@/lib/sentry";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -40,7 +41,7 @@ export async function GET() {
     const safe = users.map(({ password_hash: _ph, ...rest }) => rest);
     return NextResponse.json(safe);
   } catch (err) {
-    console.error("Failed to list admin users:", err);
+    captureException(err, { context: "Failed to list admin users:" });
     return NextResponse.json(
       { error: "Failed to list users" },
       { status: 500 },
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
       err instanceof Error && err.message.includes("duplicate")
         ? "An admin user with this email already exists"
         : "Failed to create user";
-    console.error("Failed to create admin user:", err);
+    captureException(err, { context: "Failed to create admin user:" });
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
@@ -158,7 +159,7 @@ export async function PATCH(request: NextRequest) {
     const { password_hash: _ph, ...safe } = user;
     return NextResponse.json(safe);
   } catch (err) {
-    console.error("Failed to update admin user:", err);
+    captureException(err, { context: "Failed to update admin user:" });
     return NextResponse.json(
       { error: "Failed to update user" },
       { status: 500 },
@@ -197,7 +198,7 @@ export async function DELETE(request: NextRequest) {
     await deleteAdminUser(id);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Failed to delete admin user:", err);
+    captureException(err, { context: "Failed to delete admin user:" });
     return NextResponse.json(
       { error: "Failed to delete user" },
       { status: 500 },

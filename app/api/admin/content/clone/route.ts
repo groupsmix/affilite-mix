@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getContentById, createContent } from "@/lib/dal/content";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 export async function POST(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(cloned, { status: 201 });
   } catch (err) {
-    console.error("[api/admin/content/clone] POST failed:", err);
+    captureException(err, { context: "[api/admin/content/clone] POST failed:" });
     return NextResponse.json({ error: "Failed to clone content" }, { status: 500 });
   }
 }

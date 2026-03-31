@@ -6,6 +6,7 @@ import {
 } from "@/lib/dal/ad-placements";
 import { recordAuditEvent } from "@/lib/audit-log";
 import type { AdPlacementType, AdProvider } from "@/types/database";
+import { captureException } from "@/lib/sentry";
 
 const VALID_PLACEMENT_TYPES: AdPlacementType[] = ["sidebar", "in_content", "header", "footer", "between_posts"];
 const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom"];
@@ -18,7 +19,7 @@ export async function GET() {
     const ads = await listAdPlacements(dbSiteId);
     return NextResponse.json(ads);
   } catch (err) {
-    console.error("[api/admin/ads] GET failed:", err);
+    captureException(err, { context: "[api/admin/ads] GET failed:" });
     return NextResponse.json({ error: "Failed to list ad placements" }, { status: 500 });
   }
 }
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(ad, { status: 201 });
   } catch (err) {
-    console.error("[api/admin/ads] POST failed:", err);
+    captureException(err, { context: "[api/admin/ads] POST failed:" });
     return NextResponse.json({ error: "Failed to create ad placement" }, { status: 500 });
   }
 }
