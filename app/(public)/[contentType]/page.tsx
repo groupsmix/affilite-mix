@@ -93,6 +93,28 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
         <h1 className="mb-2 text-3xl font-bold">
           {site.language === "ar" ? ct.label : (ct.labelPlural ?? `${ct.label}s`)}
         </h1>
+        {/* Content type filter tabs */}
+        {site.contentTypes.length > 1 && (
+          <nav className="mt-4 flex flex-wrap gap-2" aria-label="Content type filter">
+            {site.contentTypes.map((t) => {
+              const isActive = t.value === contentType;
+              return (
+                <a
+                  key={t.value}
+                  href={`/${t.value}`}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {t.labelPlural ?? `${t.label}s`}
+                </a>
+              );
+            })}
+          </nav>
+        )}
       </header>
 
       {items.length > 0 ? (
