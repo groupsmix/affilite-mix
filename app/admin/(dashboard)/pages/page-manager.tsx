@@ -41,6 +41,7 @@ export function PageManager() {
   const [form, setForm] = useState<PageFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeletePage, setConfirmDeletePage] = useState<PageInfo | null>(null);
 
   const loadPages = useCallback(async () => {
     try {
@@ -120,8 +121,8 @@ export function PageManager() {
     }
   }
 
-  async function handleDelete(page: PageInfo) {
-    if (!confirm(`Delete page "${page.title}"?`)) return;
+  async function handleDeleteConfirmed(page: PageInfo) {
+    setConfirmDeletePage(null);
     try {
       await fetch(`/api/admin/pages/${page.id}`, {
         method: "DELETE",
@@ -227,9 +228,7 @@ export function PageManager() {
                   className={inputCls}
                   required
                 />
-                <p className="mt-1 text-xs text-gray-400">
-                  URL: /p/{form.slug || "slug"}
-                </p>
+                <p className="mt-1 text-xs text-gray-400">URL: /p/{form.slug || "slug"}</p>
               </div>
             </div>
 
@@ -243,7 +242,8 @@ export function PageManager() {
                 className={`${inputCls} font-mono text-xs`}
               />
               <p className="mt-1 text-xs text-gray-400">
-                Supports HTML. A rich text editor (TipTap) can be integrated for a better editing experience.
+                Supports HTML. A rich text editor (TipTap) can be integrated for a better editing
+                experience.
               </p>
             </div>
 
@@ -322,8 +322,17 @@ export function PageManager() {
                     className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
                     title="Move up"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
-                      <path fillRule="evenodd" d="M8 3.293l-4.354 4.354a.5.5 0 01-.707-.707l5.007-5.008a.5.5 0 01.708 0l5.007 5.008a.5.5 0 01-.707.707L8 3.293z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                      className="h-3.5 w-3.5"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8 3.293l-4.354 4.354a.5.5 0 01-.707-.707l5.007-5.008a.5.5 0 01.708 0l5.007 5.008a.5.5 0 01-.707.707L8 3.293z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </button>
                   <button
@@ -333,8 +342,17 @@ export function PageManager() {
                     className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
                     title="Move down"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
-                      <path fillRule="evenodd" d="M8 12.707l4.354-4.354a.5.5 0 01.707.707l-5.007 5.008a.5.5 0 01-.708 0L2.339 9.06a.5.5 0 01.707-.707L8 12.707z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                      className="h-3.5 w-3.5"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8 12.707l4.354-4.354a.5.5 0 01.707.707l-5.007 5.008a.5.5 0 01-.708 0L2.339 9.06a.5.5 0 01.707-.707L8 12.707z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -348,9 +366,7 @@ export function PageManager() {
               <div className="flex items-center gap-3">
                 <span
                   className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-                    page.is_published
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-500"
+                    page.is_published ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                   }`}
                 >
                   {page.is_published ? "Published" : "Draft"}
@@ -364,7 +380,7 @@ export function PageManager() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(page)}
+                  onClick={() => setConfirmDeletePage(page)}
                   className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                 >
                   Delete
@@ -372,6 +388,33 @@ export function PageManager() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {/* Delete confirmation dialog */}
+      {confirmDeletePage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete Page</h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Are you sure you want to delete{" "}
+              <strong>&ldquo;{confirmDeletePage.title}&rdquo;</strong>? This action cannot be
+              undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDeletePage(null)}
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteConfirmed(confirmDeletePage)}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

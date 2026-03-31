@@ -24,7 +24,7 @@ export function ContentCard({ content, locale = "en-US", searchQuery }: ContentC
         <Link href={href}>
           <Image
             src={content.featured_image}
-            alt={`Featured image for ${content.title}`}
+            alt=""
             width={400}
             height={176}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -42,7 +42,9 @@ export function ContentCard({ content, locale = "en-US", searchQuery }: ContentC
           </h3>
         </Link>
         {content.excerpt && (
-          <p className="mb-3 line-clamp-2 text-sm text-gray-600">{searchQuery ? highlightText(content.excerpt, searchQuery) : content.excerpt}</p>
+          <p className="mb-3 line-clamp-2 text-sm text-gray-600">
+            {searchQuery ? highlightText(content.excerpt, searchQuery) : content.excerpt}
+          </p>
         )}
         <div className="flex items-center justify-between text-xs text-gray-400">
           <span>{content.type}</span>
