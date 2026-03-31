@@ -1,4 +1,4 @@
-import type { SiteDefinition } from "../site-definition";
+import type { SiteDefinition, FeatureFlags } from "../site-definition";
 import { arabicToolsSite } from "./arabic-tools";
 import { cryptoToolsSite } from "./crypto-tools";
 import { watchToolsSite } from "./watch-tools";
@@ -7,6 +7,119 @@ export { arabicToolsSite, cryptoToolsSite, watchToolsSite };
 
 /** All registered sites. Add new sites here. */
 export const allSites: SiteDefinition[] = [arabicToolsSite, cryptoToolsSite, watchToolsSite];
+
+/* ------------------------------------------------------------------ */
+/*  TS → DB row derivation (single source of truth)                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Shape of the DB-compatible row derived from a SiteDefinition.
+ * Does NOT include `id` or timestamps — those are managed by Postgres.
+ */
+export interface DerivedSiteRow {
+  slug: string;
+  name: string;
+  domain: string;
+  language: string;
+  direction: "ltr" | "rtl";
+  is_active: boolean;
+  monetization_type: "affiliate" | "ads" | "both";
+  est_revenue_per_click: number;
+  theme: Record<string, string>;
+  logo_url: string | null;
+  favicon_url: string | null;
+  nav_items: { label: string; href: string }[];
+  footer_nav: { label: string; href: string }[];
+  features: Record<string, boolean>;
+  meta_title: string;
+  meta_description: string;
+}
+
+/**
+ * Flatten FeatureFlags (which has `blog: { source: "database" }`) into
+ * a plain `Record<string, boolean>` for the DB `features` jsonb column.
+ */
+function flattenFeatureFlags(flags: FeatureFlags): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const [key, val] of Object.entries(flags)) {
+    out[key] = val != null && val !== false;
+  }
+  return out;
+}
+
+/**
+ * Derive a DB-compatible site row from a SiteDefinition.
+ *
+ * This is the canonical way to generate seed / sync data for the `sites`
+ * table — it eliminates the need to manually duplicate values from the TS
+ * config into SQL migrations.
+ */
+export function toSiteRow(site: SiteDefinition): DerivedSiteRow {
+  return {
+    slug: site.id,
+    name: site.name,
+    domain: site.domain,
+    language: site.language,
+    direction: site.direction,
+    is_active: true,
+    monetization_type: "affiliate",
+    est_revenue_per_click: site.estRevenuePerClick ?? 0.35,
+    theme: {
+      primaryColor: site.theme.primaryColor,
+      accentColor: site.theme.accentColor,
+      accentTextColor: site.theme.accentTextColor,
+      fontHeading: site.theme.fontHeading,
+      fontBody: site.theme.fontBody,
+    },
+    logo_url: site.brand.logo ?? null,
+    favicon_url: site.brand.faviconUrl ?? null,
+    nav_items: site.nav.map((n) => ({ label: n.title, href: n.href })),
+    footer_nav: Object.values(site.footerNav)
+      .flat()
+      .map((n) => ({ label: n.title, href: n.href })),
+    features: flattenFeatureFlags(site.features),
+    meta_title: `${site.name} — ${site.brand.niche}`,
+    meta_description: site.brand.description,
+  };
+}
+
+/**
+ * Generate an upsert SQL statement for a SiteDefinition.
+ * Useful for generating seed migrations from the TS config.
+ */
+export function toSiteUpsertSQL(site: SiteDefinition): string {
+  const row = toSiteRow(site);
+  const esc = (s: string) => s.replace(/'/g, "''");
+  return `INSERT INTO sites (slug, name, domain, language, direction, is_active, monetization_type, est_revenue_per_click, theme, nav_items, footer_nav, features, meta_title, meta_description)
+VALUES (
+  '${esc(row.slug)}',
+  '${esc(row.name)}',
+  '${esc(row.domain)}',
+  '${esc(row.language)}',
+  '${esc(row.direction)}',
+  ${row.is_active},
+  '${row.monetization_type}',
+  ${row.est_revenue_per_click},
+  '${esc(JSON.stringify(row.theme))}'::jsonb,
+  '${esc(JSON.stringify(row.nav_items))}'::jsonb,
+  '${esc(JSON.stringify(row.footer_nav))}'::jsonb,
+  '${esc(JSON.stringify(row.features))}'::jsonb,
+  '${esc(row.meta_title)}',
+  '${esc(row.meta_description)}'
+)
+ON CONFLICT (slug) DO UPDATE SET
+  name = EXCLUDED.name,
+  domain = EXCLUDED.domain,
+  is_active = EXCLUDED.is_active,
+  monetization_type = EXCLUDED.monetization_type,
+  est_revenue_per_click = EXCLUDED.est_revenue_per_click,
+  theme = EXCLUDED.theme,
+  nav_items = EXCLUDED.nav_items,
+  footer_nav = EXCLUDED.footer_nav,
+  features = EXCLUDED.features,
+  meta_title = EXCLUDED.meta_title,
+  meta_description = EXCLUDED.meta_description;`;
+}
 
 /**
  * Known wildcard parent domains.
@@ -38,19 +151,13 @@ export function extractSubdomain(hostname: string, parentDomain: string): string
  * Returns the full hostname if it is (for DB lookup), or null.
  */
 export function isWildcardSubdomain(hostname: string): boolean {
-  return WILDCARD_PARENT_DOMAINS.some(
-    (parent) => extractSubdomain(hostname, parent) !== null,
-  );
+  return WILDCARD_PARENT_DOMAINS.some((parent) => extractSubdomain(hostname, parent) !== null);
 }
 
 /** Lookup site by domain or alias (config-only, synchronous) */
 export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
   // Direct match on domain or alias
-  const direct = allSites.find(
-    (s) =>
-      s.domain === hostname ||
-      s.aliases?.includes(hostname),
-  );
+  const direct = allSites.find((s) => s.domain === hostname || s.aliases?.includes(hostname));
   if (direct) return direct;
 
   // Development fallback: resolve localhost / *.localhost to a site
@@ -58,9 +165,7 @@ export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
     // Check for <site>.localhost subdomains (e.g. watch.localhost)
     if (hostname.endsWith(".localhost")) {
       const prefix = hostname.replace(/\.localhost$/, "");
-      const byAlias = allSites.find((s) =>
-        s.aliases?.some((a) => a.startsWith(prefix + ".")),
-      );
+      const byAlias = allSites.find((s) => s.aliases?.some((a) => a.startsWith(prefix + ".")));
       if (byAlias) return byAlias;
     }
 

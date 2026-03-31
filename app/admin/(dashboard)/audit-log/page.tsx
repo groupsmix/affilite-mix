@@ -111,7 +111,7 @@ export default async function AuditLogPage({
                 <p className="text-sm text-gray-600">
                   {log.entity_type}
                   {log.entity_id && (
-                    <span className="ml-1 text-gray-400">#{log.entity_id.slice(0, 8)}</span>
+                    <span className="ms-1 text-gray-400">#{log.entity_id.slice(0, 8)}</span>
                   )}
                 </p>
                 {Object.keys(log.details).length > 0 && (
@@ -127,7 +127,7 @@ export default async function AuditLogPage({
           <div className="hidden overflow-x-auto rounded-lg border border-gray-200 bg-white md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 text-left text-gray-500">
+                <tr className="border-b border-gray-100 bg-gray-50 text-start text-gray-500">
                   <th className="px-4 py-3 font-medium">Time</th>
                   <th className="px-4 py-3 font-medium">Actor</th>
                   <th className="px-4 py-3 font-medium">Action</th>
@@ -150,13 +150,11 @@ export default async function AuditLogPage({
                     <td className="px-4 py-2 text-gray-600">
                       {log.entity_type}
                       {log.entity_id && (
-                        <span className="ml-1 text-gray-400">#{log.entity_id.slice(0, 8)}</span>
+                        <span className="ms-1 text-gray-400">#{log.entity_id.slice(0, 8)}</span>
                       )}
                     </td>
                     <td className="max-w-[200px] truncate px-4 py-2 text-xs text-gray-400">
-                      {Object.keys(log.details).length > 0
-                        ? JSON.stringify(log.details)
-                        : "—"}
+                      {Object.keys(log.details).length > 0 ? JSON.stringify(log.details) : "—"}
                     </td>
                   </tr>
                 ))}
