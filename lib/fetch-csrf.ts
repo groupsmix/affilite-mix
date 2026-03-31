@@ -9,6 +9,7 @@
  */
 
 import { CSRF_HEADER } from "@/lib/csrf";
+import { toast } from "sonner";
 
 let csrfToken: string | null = null;
 let csrfTokenFetchedAt: number = 0;
@@ -62,6 +63,7 @@ export async function fetchWithCsrf(
     const freshToken = await fetchCsrfToken();
     const retryHeaders = new Headers(opts.headers);
     retryHeaders.set(CSRF_HEADER, freshToken);
+    toast.info("Your session token was refreshed. Please try again.");
     return fetch(url, { ...opts, headers: retryHeaders });
   }
 

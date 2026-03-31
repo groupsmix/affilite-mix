@@ -211,7 +211,7 @@ export function productJsonLd(site: SiteDefinition, product: ProductRow) {
     data.offers = {
       "@type": "Offer",
       price: product.price.replace(/[^0-9.]/g, "") || undefined,
-      priceCurrency: "USD",
+      priceCurrency: product.price_currency || "USD",
       availability: "https://schema.org/InStock",
       url: product.affiliate_url || undefined,
     };
