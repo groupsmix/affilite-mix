@@ -10,7 +10,7 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  { ignores: [".open-next/**"] },
+  { ignores: [".open-next/**", ".next/**"] },
   ...compat.extends("next/core-web-vitals"),
 ];
 
