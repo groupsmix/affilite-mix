@@ -1,8 +1,5 @@
 import { listSites } from "@/lib/dal/sites";
-import { countProducts } from "@/lib/dal/products";
-import { countContent } from "@/lib/dal/content";
-import { getClickCount } from "@/lib/dal/affiliate-clicks";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getNicheHealthStats } from "@/lib/dal/niche-health";
 import Link from "next/link";
 
 interface NicheHealth {
@@ -19,50 +16,31 @@ interface NicheHealth {
 }
 
 export async function NicheHealthPanel() {
-  const sites = await listSites();
-  const sb = getServiceClient();
-
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-  const healthData: NicheHealth[] = await Promise.all(
-    sites.filter((s) => s.is_active).map(async (site) => {
-      const [
-        totalProducts,
-        totalContent,
-        clicks7d,
-        clicksPrev7d,
-        lastPublished,
-        { count: subscriberCount },
-      ] = await Promise.all([
-        countProducts({ siteId: site.id }),
-        countContent({ siteId: site.id }),
-        getClickCount(site.id, sevenDaysAgo),
-        getClickCount(site.id, fourteenDaysAgo).then((total) =>
-          getClickCount(site.id, sevenDaysAgo).then((recent) => total - recent),
-        ),
-        sb
-          .from("content")
-          .select("updated_at")
-          .eq("site_id", site.id)
-          .eq("status", "published")
-          .order("updated_at", { ascending: false })
-          .limit(1),
-        sb
-          .from("newsletter_subscribers")
-          .select("id", { count: "exact", head: true })
-          .eq("site_id", site.id),
-      ]);
+  // Fetch sites and aggregated stats in parallel (single RPC replaces N+1 queries)
+  const [sites, stats] = await Promise.all([
+    listSites(),
+    getNicheHealthStats(sevenDaysAgo, fourteenDaysAgo),
+  ]);
 
-      const lastPublishedAt =
-        lastPublished.data && lastPublished.data.length > 0
-          ? (lastPublished.data[0] as { updated_at: string }).updated_at
-          : null;
+  const statsMap = new Map(stats.map((s) => [s.site_id, s]));
+
+  const healthData: NicheHealth[] = sites
+    .filter((s) => s.is_active)
+    .map((site) => {
+      const s = statsMap.get(site.id);
+      const totalProducts = s?.total_products ?? 0;
+      const totalContent = s?.total_content ?? 0;
+      const clicks7d = s?.clicks_7d ?? 0;
+      const clicksPrev7d = s?.clicks_prev_7d ?? 0;
+      const lastPublishedAt = s?.last_published_at ?? null;
+      const subscriberCount = s?.subscriber_count ?? 0;
 
       const issues: string[] = [];
 
-      // Flag issues
       if (clicks7d === 0) {
         issues.push("No clicks in 7 days");
       }
@@ -89,11 +67,10 @@ export async function NicheHealthPanel() {
         clicks7d,
         clicksPrev7d,
         lastPublishedAt,
-        subscriberCount: subscriberCount ?? 0,
+        subscriberCount,
         issues,
       };
-    }),
-  );
+    });
 
   // Sort: niches with issues first, then by click count descending
   const sorted = [...healthData].sort((a, b) => {
@@ -118,8 +95,7 @@ export async function NicheHealthPanel() {
           <ul className="space-y-1">
             {nichesNeedingAttention.map((n) => (
               <li key={n.siteId} className="text-sm text-amber-700">
-                <span className="font-medium">{n.name}:</span>{" "}
-                {n.issues.join(", ")}
+                <span className="font-medium">{n.name}:</span> {n.issues.join(", ")}
               </li>
             ))}
           </ul>
@@ -137,8 +113,7 @@ export async function NicheHealthPanel() {
 
           const daysSincePublish = niche.lastPublishedAt
             ? Math.floor(
-                (now.getTime() - new Date(niche.lastPublishedAt).getTime()) /
-                  (1000 * 60 * 60 * 24),
+                (now.getTime() - new Date(niche.lastPublishedAt).getTime()) / (1000 * 60 * 60 * 24),
               )
             : null;
 

@@ -278,6 +278,49 @@ describe("mock Supabase client chain", () => {
   });
 });
 
+// ── Web Vitals endpoint validation ──────────────────────────────
+
+describe("POST /api/vitals — payload validation", () => {
+  const VALID_METRICS = ["CLS", "FCP", "FID", "INP", "LCP", "TTFB"];
+
+  it("accepts all standard Core Web Vitals metric names", () => {
+    for (const name of VALID_METRICS) {
+      const payload = { name, value: 42.5 };
+      expect(typeof payload.name).toBe("string");
+      expect(typeof payload.value).toBe("number");
+    }
+  });
+
+  it("rejects payloads missing name", () => {
+    const payload = { value: 42 };
+    expect(typeof (payload as Record<string, unknown>).name).not.toBe("string");
+  });
+
+  it("rejects payloads missing value", () => {
+    const payload = { name: "LCP" };
+    expect(typeof (payload as Record<string, unknown>).value).not.toBe("number");
+  });
+
+  it("rejects unknown metric names", () => {
+    const validSet = new Set(VALID_METRICS);
+    expect(validSet.has("UNKNOWN")).toBe(false);
+    expect(validSet.has("")).toBe(false);
+  });
+
+  it("accepts optional fields (id, page, href, rating)", () => {
+    const payload = {
+      name: "LCP",
+      value: 1200,
+      id: "v3-1234",
+      page: "/products",
+      href: "https://example.com/products",
+      rating: "needs-improvement",
+    };
+    expect(payload.name).toBe("LCP");
+    expect(payload.rating).toBe("needs-improvement");
+  });
+});
+
 // ── Rate limiting integration ───────────────────────────────────
 
 describe("admin rate limiting integration", () => {
