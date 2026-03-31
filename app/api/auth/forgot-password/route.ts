@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getCurrentSite } from "@/lib/site-context";
 import { isValidEmail } from "@/lib/validators";
+import { captureException } from "@/lib/sentry";
 
 /**
  * POST /api/auth/forgot-password
@@ -66,10 +67,7 @@ export async function POST(request: Request) {
       .eq("id", user.id);
 
     if (updateError) {
-      console.error(
-        "[api/auth/forgot-password] Failed to store reset token:",
-        updateError,
-      );
+      captureException(updateError, { context: "[api/auth/forgot-password] Failed to store reset token" });
       // Don't expose internal errors — still return success
       return successResponse;
     }
@@ -100,10 +98,7 @@ export async function POST(request: Request) {
       });
       if (!res.ok) {
         const errBody = await res.text();
-        console.error(
-          "[api/auth/forgot-password] Failed to send reset email via Resend:",
-          errBody,
-        );
+        captureException(new Error(errBody), { context: "[api/auth/forgot-password] Failed to send reset email via Resend" });
       }
     } else {
       console.warn(
@@ -114,7 +109,7 @@ export async function POST(request: Request) {
 
     return successResponse;
   } catch (err) {
-    console.error("[api/auth/forgot-password] POST failed:", err);
+    captureException(err, { context: "[api/auth/forgot-password] POST failed:" });
     return NextResponse.json(
       { error: "Failed to process request" },
       { status: 500 },

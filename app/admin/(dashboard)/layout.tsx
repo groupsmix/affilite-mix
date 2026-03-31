@@ -44,7 +44,12 @@ export default async function AdminLayout({
       </a>
       <AdminSidebar siteName={activeSite?.name ?? null} />
       <TokenRefresh />
-      <Toaster position="top-right" richColors closeButton />
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        containerAriaLabel="Notifications"
+      />
       <main id="admin-main" className="flex-1 p-6 lg:p-8">{children}</main>
     </div>
   );

@@ -5,6 +5,7 @@ import {
   createNicheTemplate,
   deleteNicheTemplate,
 } from "@/lib/dal/niche-templates";
+import { captureException } from "@/lib/sentry";
 
 /** List all available niche templates */
 export async function GET() {
@@ -15,7 +16,7 @@ export async function GET() {
     const templates = await listNicheTemplates();
     return NextResponse.json(templates);
   } catch (err) {
-    console.error("[api/admin/sites/templates] GET failed:", err);
+    captureException(err, { context: "[api/admin/sites/templates] GET failed:" });
     return NextResponse.json({ error: "Failed to list templates" }, { status: 500 });
   }
 }
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(template, { status: 201 });
   } catch (err) {
-    console.error("[api/admin/sites/templates] POST failed:", err);
+    captureException(err, { context: "[api/admin/sites/templates] POST failed:" });
     return NextResponse.json({ error: "Failed to create template" }, { status: 500 });
   }
 }
@@ -69,7 +70,7 @@ export async function DELETE(request: NextRequest) {
     await deleteNicheTemplate(id);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/sites/templates] DELETE failed:", err);
+    captureException(err, { context: "[api/admin/sites/templates] DELETE failed:" });
     return NextResponse.json({ error: "Failed to delete template" }, { status: 500 });
   }
 }

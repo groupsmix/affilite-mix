@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { createProduct } from "@/lib/dal/products";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 /** POST /api/admin/products/import — bulk import products from CSV */
 export async function POST(request: NextRequest) {
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ created, errors, total: results.length, results });
   } catch (err) {
-    console.error("[api/admin/products/import] POST failed:", err);
+    captureException(err, { context: "[api/admin/products/import] POST failed:" });
     return NextResponse.json({ error: "Failed to import products" }, { status: 500 });
   }
 }
