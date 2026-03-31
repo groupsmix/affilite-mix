@@ -11,6 +11,10 @@ if (JWT_SECRET === devFallback) {
   console.warn("JWT_SECRET not set — using random dev fallback (sessions will not persist across restarts)");
 }
 const COOKIE_NAME = "nh_admin_token";
+/** Cookie tracking last admin activity for idle-timeout enforcement */
+const ACTIVITY_COOKIE = "nh_admin_activity";
+/** Admin sessions expire after 30 minutes of inactivity */
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const EXPIRY = "24h";
 
 function getSecretKey() {
@@ -77,8 +81,35 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
+
+  // Check idle timeout — if the user hasn't performed an action in the
+  // last IDLE_TIMEOUT_MS we treat the session as expired.
+  const lastActivity = cookieStore.get(ACTIVITY_COOKIE)?.value;
+  if (lastActivity) {
+    const elapsed = Date.now() - Number(lastActivity);
+    if (elapsed > IDLE_TIMEOUT_MS) return null;
+  }
+
   return verifyToken(token);
 }
 
+/**
+ * Touch the admin activity timestamp.
+ * Call this in admin API routes so the idle-timeout cookie stays fresh.
+ */
+export function touchAdminActivity(): { name: string; value: string; options: Record<string, unknown> } {
+  return {
+    name: ACTIVITY_COOKIE,
+    value: String(Date.now()),
+    options: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict" as const,
+      path: "/",
+      maxAge: 60 * 60 * 24,
+    },
+  };
+}
+
 /** Cookie name for admin auth */
-export { COOKIE_NAME };
+export { COOKIE_NAME, ACTIVITY_COOKIE };

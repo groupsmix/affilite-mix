@@ -48,7 +48,7 @@ export function HeroProductCta({ product, language }: HeroProductCtaProps) {
           )}
           <div className="mt-2 flex items-center gap-3">
             {product.price && (
-              <span className="text-xl font-bold" style={{ color: "var(--nh-color-accent, #10B981)" }}>{product.price}</span>
+              <span className="text-xl font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
             )}
             {product.score !== null && (
               <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />
@@ -61,7 +61,7 @@ export function HeroProductCta({ product, language }: HeroProductCtaProps) {
             target="_blank"
             rel="noopener noreferrer nofollow"
             className="inline-block rounded-lg px-6 py-3 text-center font-medium text-white transition-colors hover:opacity-90"
-            style={{ backgroundColor: "var(--nh-color-accent, #10B981)" }}
+            style={{ backgroundColor: "var(--color-accent, #10B981)" }}
           >
             {product.cta_text || (language === "ar" ? "احصل على العرض" : "Get This Deal")}
           </a>

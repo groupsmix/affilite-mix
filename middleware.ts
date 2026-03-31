@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSiteByDomain, allSites } from "@/config/sites";
-import { validateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
+import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 
 /**
  * Middleware: resolves domain → site_id and injects x-site-id header.
@@ -75,9 +75,26 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-site-id", siteId);
 
-  return NextResponse.next({
+  const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
+
+  // ── CSRF token rotation on state-changing requests ──────
+  // Rotate the CSRF token after every successful state-changing request
+  // for defence-in-depth (one-time-use tokens).
+  if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
+    const newToken = generateCsrfToken();
+    response.cookies.set(CSRF_COOKIE, newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 60 * 60 * 4,
+    });
+    response.headers.set("x-csrf-token-refreshed", newToken);
+  }
+
+  return response;
 }
 
 function getAllowedOrigins(): string[] {

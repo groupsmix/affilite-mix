@@ -48,6 +48,9 @@ export async function getClickCount(
   return count ?? 0;
 }
 
+/** Columns returned for click listings */
+const CLICK_COLUMNS = "id, site_id, product_name, affiliate_url, content_slug, referrer, created_at" as const;
+
 /** Get recent clicks for a site (admin) */
 export async function getRecentClicks(
   siteId: string,
@@ -56,7 +59,7 @@ export async function getRecentClicks(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(CLICK_COLUMNS)
     .eq("site_id", siteId)
     .order("created_at", { ascending: false })
     .limit(limit);

@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
+import { apiError, rateLimitHeaders } from "@/lib/api-error";
 
 /** Build a branded HTML email for newsletter confirmation */
 function buildConfirmationEmail(siteName: string, confirmUrl: string, domain: string, accentColor: string): string {
@@ -47,12 +48,13 @@ export async function POST(request: Request) {
     // Rate limit: 5 signups per IP per 15 minutes
     const ip = getClientIp(request);
 
-    const rl = await checkRateLimit(`newsletter:${ip}`, { maxRequests: 5, windowMs: 15 * 60 * 1000 });
+    const nlRateConfig = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
+    const rl = await checkRateLimit(`newsletter:${ip}`, nlRateConfig);
     if (!rl.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 },
-      );
+      return apiError(429, "Too many requests. Please try again later.", undefined, {
+        "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)),
+        ...rateLimitHeaders(nlRateConfig, rl),
+      });
     }
 
     const body = await request.json();
@@ -60,16 +62,13 @@ export async function POST(request: Request) {
     // Verify Turnstile token (skipped in dev if not configured)
     const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
     if (!turnstileResult.success) {
-      return NextResponse.json(
-        { error: turnstileResult.error ?? "Captcha verification failed" },
-        { status: 403 },
-      );
+      return apiError(403, turnstileResult.error ?? "Captcha verification failed");
     }
 
     const email = normalizeEmail(body.email ?? "");
 
     if (!email || !isValidEmail(email)) {
-      return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
+      return apiError(400, "Valid email is required");
     }
 
     const site = await getCurrentSite();
@@ -102,7 +101,7 @@ export async function POST(request: Request) {
 
       if (updateError) {
         console.error("[api/newsletter] Failed to update subscriber for re-confirmation:", updateError);
-        return NextResponse.json({ error: "Failed to subscribe" }, { status: 500 });
+        return apiError(500, "Failed to subscribe");
       }
     } else {
       // Insert new subscriber with pending status
@@ -117,7 +116,7 @@ export async function POST(request: Request) {
 
       if (insertError) {
         console.error("[api/newsletter] Failed to insert subscriber:", insertError);
-        return NextResponse.json({ error: "Failed to subscribe" }, { status: 500 });
+        return apiError(500, "Failed to subscribe");
       }
     }
 
@@ -157,6 +156,6 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[api/newsletter] POST failed:", err);
-    return NextResponse.json({ error: "Failed to subscribe" }, { status: 500 });
+    return apiError(500, "Failed to subscribe");
   }
 }
