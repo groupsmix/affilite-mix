@@ -2,9 +2,18 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 
+// Re-export a minimal untyped client for tables not yet in the generated types.
+// This avoids scattering `(sb as any)` across DAL files.
+type UntypedClient = ReturnType<typeof createClient>;
+
+/** Get a service client without schema type constraints (for tables not in generated types). */
+export function getUntypedServiceClient(): UntypedClient {
+  return createClient(supabaseUrl, serviceRoleKey);
+}
+
 const supabaseUrl = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL", "");
 const serviceRoleKey = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY", "");
-const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
+const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");  
 
 /**
  * Server-only Supabase client using the service role key.
