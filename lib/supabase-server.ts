@@ -3,22 +3,18 @@ import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 
 /**
- * Service client for tables not yet in the generated Supabase types.
- * Returns a client without Database generics so `.from("table").insert(...)`
- * doesn't resolve to `never`. Prefer `getServiceClient()` for typed tables.
- *
- * TODO: Regenerate Supabase types to include all tables (niche_templates,
- * ad_placements, pages, shared_content), then remove this function and
- * migrate all callers to `getServiceClient()`.
+ * @deprecated All callers have been migrated to `getServiceClient()`.
+ * Supabase types now include all tables (pages, ad_placements,
+ * ad_impressions, shared_content, niche_templates). This function is
+ * kept only for backwards compatibility — do NOT use in new code.
  */
 export function getUntypedServiceClient() {
-  // eslint-disable-next-line
-  return createClient(supabaseUrl, serviceRoleKey) as any;
+  return createClient(supabaseUrl, serviceRoleKey) as unknown as ReturnType<typeof createClient>;
 }
 
 const supabaseUrl = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL", "");
 const serviceRoleKey = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY", "");
-const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");  
+const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
 
 /**
  * Server-only Supabase client using the service role key.
