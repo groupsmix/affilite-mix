@@ -46,7 +46,7 @@ export async function getUploadUrl(
     throw new Error("R2_BUCKET_NAME and R2_PUBLIC_URL must be set.");
   }
 
-  const key = `uploads/${Date.now()}-${fileName}`;
+  const key = `uploads/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${fileName}`;
   const client = getR2Client();
 
   const command = new PutObjectCommand({
