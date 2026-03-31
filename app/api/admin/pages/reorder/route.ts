@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import { reorderPages } from "@/lib/dal/pages";
 
 /**
@@ -7,19 +7,14 @@ import { reorderPages } from "@/lib/dal/pages";
  * Body: { pages: [{ id, sort_order }] }
  */
 export async function PUT(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   try {
     const body = await request.json();
 
     if (!Array.isArray(body.pages)) {
-      return NextResponse.json(
-        { error: "pages array is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "pages array is required" }, { status: 400 });
     }
 
     await reorderPages(body.pages);

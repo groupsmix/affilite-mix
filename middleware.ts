@@ -41,6 +41,14 @@ function nicheNotFoundResponse(): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname, hostname } = request.nextUrl;
 
+  // ── 7.4  Canonical URL: strip trailing slashes ────────
+  // Redirect /foo/ → /foo to avoid duplicate content (except root /)
+  if (pathname !== "/" && pathname.endsWith("/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace(/\/+$/, "");
+    return NextResponse.redirect(url, 308);
+  }
+
   // ── Resolve site ──────────────────────────────────────
   // 1. Try static config lookup first (fast, no DB call)
   let site = getSiteByDomain(hostname);
