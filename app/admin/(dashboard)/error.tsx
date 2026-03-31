@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 
 export default function AdminError({
@@ -9,6 +10,11 @@ export default function AdminError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    // Report to error tracking (e.g. Sentry) so admin errors are observable
+    reportError(error);
+  }, [error]);
+
   return (
     <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-4 py-16 text-center">
       <h2 className="mb-2 text-2xl font-bold text-gray-900">Admin Error</h2>
