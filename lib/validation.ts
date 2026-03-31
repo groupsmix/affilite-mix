@@ -47,6 +47,17 @@ function isUrl(v: unknown): v is string {
   }
 }
 
+/** Validate that a URL uses the https:// scheme (prevents javascript:, data:, etc.) */
+function isHttpsUrl(v: unknown): v is string {
+  if (!isString(v)) return false;
+  try {
+    const url = new URL(v);
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 // ── Categories ────────────────────────────────────────────
 
 const TAXONOMY_TYPES = new Set(["general", "budget", "occasion", "recipient", "brand"]);
@@ -156,8 +167,8 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
   if (body.description !== undefined && body.description !== "" && !isString(body.description)) {
     errors.description = "description must be a string";
   }
-  if (body.affiliate_url !== undefined && body.affiliate_url !== "" && !isUrl(body.affiliate_url)) {
-    errors.affiliate_url = "affiliate_url must be a valid URL or empty string";
+  if (body.affiliate_url !== undefined && body.affiliate_url !== "" && !isHttpsUrl(body.affiliate_url)) {
+    errors.affiliate_url = "affiliate_url must be a valid HTTPS URL or empty string";
   }
   if (body.image_url !== undefined && body.image_url !== "" && !isUrl(body.image_url)) {
     errors.image_url = "image_url must be a valid URL or empty string";
@@ -242,6 +253,9 @@ export function validateUpdateProduct(body: Record<string, unknown>): Validation
   }
   if (body.slug !== undefined && (!isSlug(body.slug) || (body.slug as string).length > 200)) {
     errors.slug = "slug must be a lowercase alphanumeric string with hyphens, max 200 chars";
+  }
+  if (body.affiliate_url !== undefined && body.affiliate_url !== "" && !isHttpsUrl(body.affiliate_url)) {
+    errors.affiliate_url = "affiliate_url must be a valid HTTPS URL or empty string";
   }
   if (body.score !== undefined && body.score !== null && (!isNumber(body.score) || body.score < 0 || body.score > 10)) {
     errors.score = "score must be a number between 0 and 10, or null";
