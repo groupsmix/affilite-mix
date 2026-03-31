@@ -14,15 +14,20 @@ export async function generateMetadata(): Promise<Metadata> {
     return { title: "Not Found" };
   }
 
+  const isAr = site.language === "ar";
+  const title = isAr ? "اتصل بنا" : contactPage.title;
+  const description = isAr
+    ? "تواصل معنا لأي استفسارات أو اقتراحات أو فرص تعاون."
+    : contactPage.description;
   const url = `https://${site.domain}/contact`;
 
   return {
-    title: `${contactPage.title} — ${site.name}`,
-    description: contactPage.description,
+    title: `${title} — ${site.name}`,
+    description,
     alternates: { canonical: url },
     openGraph: {
-      title: `${contactPage.title} — ${site.name}`,
-      description: contactPage.description,
+      title: `${title} — ${site.name}`,
+      description,
       url,
       siteName: site.name,
       locale: site.locale,
@@ -39,9 +44,11 @@ export default async function ContactPage() {
     redirect("/");
   }
 
+  const isAr = site.language === "ar";
+
   const breadcrumbs = breadcrumbJsonLd(site, [
     { name: site.name, path: "/" },
-    { name: contactPage.title, path: "/contact" },
+    { name: isAr ? "اتصل بنا" : contactPage.title, path: "/contact" },
   ]);
 
   return (
@@ -51,47 +58,91 @@ export default async function ContactPage() {
       <Breadcrumbs
         items={[
           { label: site.name, href: "/" },
-          { label: contactPage.title },
+          { label: isAr ? "اتصل بنا" : contactPage.title },
         ]}
       />
 
       <header className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">{contactPage.title}</h1>
-        <p className="text-gray-600">{contactPage.description}</p>
+        <h1 className="mb-2 text-3xl font-bold">
+          {isAr ? "اتصل بنا" : contactPage.title}
+        </h1>
+        <p className="text-gray-600">
+          {isAr
+            ? "تواصل معنا لأي استفسارات أو اقتراحات أو فرص تعاون."
+            : contactPage.description}
+        </p>
       </header>
 
       <div className="prose max-w-none">
         <p>
-          Have a question, suggestion, or want to work with us? We&apos;d love to
-          hear from you.
+          {isAr
+            ? "هل لديك سؤال أو اقتراح أو ترغب في العمل معنا؟ يسعدنا سماع رأيك."
+            : "Have a question, suggestion, or want to work with us? We\u2019d love to hear from you."}
         </p>
 
-        <h2>Get in Touch</h2>
+        <h2>{isAr ? "تواصل معنا" : "Get in Touch"}</h2>
         <p>
-          The best way to reach us is by email at{" "}
-          <a
-            href={`mailto:${contactPage.email}`}
-            className="font-medium transition-colors"
-            style={{ color: "var(--color-accent, #10B981)" }}
-          >
-            {contactPage.email}
-          </a>
-          .
+          {isAr ? (
+            <>
+              أفضل طريقة للتواصل معنا هي عبر البريد الإلكتروني على{" "}
+              <a
+                href={`mailto:${contactPage.email}`}
+                className="font-medium transition-colors"
+                style={{ color: "var(--color-accent, #10B981)" }}
+              >
+                {contactPage.email}
+              </a>
+              .
+            </>
+          ) : (
+            <>
+              The best way to reach us is by email at{" "}
+              <a
+                href={`mailto:${contactPage.email}`}
+                className="font-medium transition-colors"
+                style={{ color: "var(--color-accent, #10B981)" }}
+              >
+                {contactPage.email}
+              </a>
+              .
+            </>
+          )}
         </p>
 
-        <h2>What We Can Help With</h2>
+        <h2>{isAr ? "كيف يمكننا مساعدتك" : "What We Can Help With"}</h2>
         <ul>
-          <li>Questions about our reviews or recommendations</li>
-          <li>Suggestions for products or topics to cover</li>
-          <li>Partnership and collaboration inquiries</li>
-          <li>Corrections or feedback on our content</li>
-          <li>General questions about {site.name}</li>
+          <li>
+            {isAr
+              ? "أسئلة حول مراجعاتنا أو توصياتنا"
+              : "Questions about our reviews or recommendations"}
+          </li>
+          <li>
+            {isAr
+              ? "اقتراحات لمنتجات أو مواضيع لتغطيتها"
+              : "Suggestions for products or topics to cover"}
+          </li>
+          <li>
+            {isAr
+              ? "استفسارات الشراكة والتعاون"
+              : "Partnership and collaboration inquiries"}
+          </li>
+          <li>
+            {isAr
+              ? "تصحيحات أو ملاحظات على محتوانا"
+              : "Corrections or feedback on our content"}
+          </li>
+          <li>
+            {isAr
+              ? `أسئلة عامة حول ${site.name}`
+              : `General questions about ${site.name}`}
+          </li>
         </ul>
 
-        <h2>Response Time</h2>
+        <h2>{isAr ? "وقت الاستجابة" : "Response Time"}</h2>
         <p>
-          We aim to respond to all emails within 1-2 business days. For urgent
-          matters, please include &quot;URGENT&quot; in the subject line.
+          {isAr
+            ? "نسعى للرد على جميع الرسائل خلال يوم إلى يومي عمل. للأمور العاجلة، يرجى كتابة \"عاجل\" في عنوان الرسالة."
+            : "We aim to respond to all emails within 1-2 business days. For urgent matters, please include \"URGENT\" in the subject line."}
         </p>
       </div>
     </div>
