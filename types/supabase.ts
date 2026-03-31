@@ -539,6 +539,250 @@ export interface Database {
           },
         ];
       };
+
+      pages: {
+        Row: {
+          id: string;
+          site_id: string;
+          slug: string;
+          title: string;
+          body: string;
+          is_published: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          slug: string;
+          title: string;
+          body?: string;
+          is_published?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          slug?: string;
+          title?: string;
+          body?: string;
+          is_published?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pages_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      ad_placements: {
+        Row: {
+          id: string;
+          site_id: string;
+          name: string;
+          placement_type: string;
+          provider: string;
+          ad_code: string | null;
+          config: Record<string, unknown>;
+          is_active: boolean;
+          priority: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          name: string;
+          placement_type: string;
+          provider: string;
+          ad_code?: string | null;
+          config?: Record<string, unknown>;
+          is_active?: boolean;
+          priority?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          name?: string;
+          placement_type?: string;
+          provider?: string;
+          ad_code?: string | null;
+          config?: Record<string, unknown>;
+          is_active?: boolean;
+          priority?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ad_placements_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      ad_impressions: {
+        Row: {
+          id: string;
+          site_id: string;
+          ad_placement_id: string;
+          page_path: string;
+          impression_date: string;
+          count: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          ad_placement_id: string;
+          page_path: string;
+          impression_date: string;
+          count?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          ad_placement_id?: string;
+          page_path?: string;
+          impression_date?: string;
+          count?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ad_impressions_ad_placement_id_fkey";
+            columns: ["ad_placement_id"];
+            isOneToOne: false;
+            referencedRelation: "ad_placements";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ad_impressions_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      shared_content: {
+        Row: {
+          id: string;
+          content_id: string;
+          source_site_id: string;
+          target_site_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          content_id: string;
+          source_site_id: string;
+          target_site_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          content_id?: string;
+          source_site_id?: string;
+          target_site_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shared_content_content_id_fkey";
+            columns: ["content_id"];
+            isOneToOne: false;
+            referencedRelation: "content";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shared_content_source_site_id_fkey";
+            columns: ["source_site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shared_content_target_site_id_fkey";
+            columns: ["target_site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      niche_templates: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          description: string;
+          default_theme: Record<string, unknown>;
+          default_nav: Record<string, unknown>[];
+          default_footer: Record<string, unknown>[];
+          default_features: Record<string, boolean>;
+          monetization_type: string;
+          language: string;
+          direction: string;
+          custom_css: string;
+          social_links: Record<string, string>;
+          is_builtin: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          description?: string;
+          default_theme?: Record<string, unknown>;
+          default_nav?: Record<string, unknown>[];
+          default_footer?: Record<string, unknown>[];
+          default_features?: Record<string, boolean>;
+          monetization_type?: string;
+          language?: string;
+          direction?: string;
+          custom_css?: string;
+          social_links?: Record<string, string>;
+          is_builtin?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          description?: string;
+          default_theme?: Record<string, unknown>;
+          default_nav?: Record<string, unknown>[];
+          default_footer?: Record<string, unknown>[];
+          default_features?: Record<string, boolean>;
+          monetization_type?: string;
+          language?: string;
+          direction?: string;
+          custom_css?: string;
+          social_links?: Record<string, string>;
+          is_builtin?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
 
     Views: Record<string, never>;
