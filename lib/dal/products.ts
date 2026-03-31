@@ -45,7 +45,7 @@ export async function countProducts(
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("site_id", opts.siteId);
 
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);

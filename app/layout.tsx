@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
 import { getCurrentSite } from "@/lib/site-context";
+import { WebVitals } from "./web-vitals";
 import "./globals.css";
 
 /*
@@ -61,7 +62,10 @@ export default async function RootLayout({
 
   return (
     <html lang={site.language} dir={site.direction} className={Array.from(needed).join(" ")}>
-      <body>{children}</body>
+      <body>
+        <WebVitals />
+        {children}
+      </body>
     </html>
   );
 }

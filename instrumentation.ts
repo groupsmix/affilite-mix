@@ -59,20 +59,17 @@ export function register() {
     }
   }
 
-  // Verify KV rate-limit binding availability
-  try {
-    const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
-    if (!kv || typeof kv !== "object" || !("get" in kv)) {
-      if (process.env.NODE_ENV === "production") {
+  // Verify KV rate-limit binding availability (only warn in production)
+  if (process.env.NODE_ENV === "production") {
+    try {
+      const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
+      if (!kv || typeof kv !== "object" || !("get" in kv)) {
         logger.warn(
-          "RATE_LIMIT_KV binding not available — rate limiting will fall back to per-isolate in-memory store. " +
-          "This is NOT safe for production. Verify the KV namespace binding in your Cloudflare dashboard.",
+          "RATE_LIMIT_KV binding not available — rate limiting will use in-memory fallback (not safe for production).",
         );
       }
-    } else {
-      logger.info("KV rate-limit binding verified");
+    } catch {
+      // Not running in Workers — expected in local dev
     }
-  } catch {
-    // Not running in Workers — expected in local dev
   }
 }
