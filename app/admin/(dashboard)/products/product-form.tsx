@@ -247,6 +247,17 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
         </div>
+        <div className="flex items-end pb-1">
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={isFeatured}
+              onChange={(e) => { setIsFeatured(e.target.checked); markDirty(); }}
+              className="rounded border-gray-300"
+            />
+            Featured product
+          </label>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -346,18 +357,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           />
         </div>
-      </div>
-
-      <div className="flex gap-6">
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={isFeatured}
-            onChange={(e) => { setIsFeatured(e.target.checked); markDirty(); }}
-            className="rounded border-gray-300"
-          />
-          Featured
-        </label>
       </div>
 
       <div className="flex gap-3 pt-2">

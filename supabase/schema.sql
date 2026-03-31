@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════
--- NicheHub — Schema (matches live Supabase DB)
+-- Affilite-Mix — Schema (matches live Supabase DB)
 -- ═══════════════════════════════════════════════════════
 
 -- SITES — master registry

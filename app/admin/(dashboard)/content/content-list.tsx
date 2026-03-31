@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ContentBulkActions } from "./bulk-actions";
 import { ContentDeleteButton } from "./content-delete-button";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { toast } from "sonner";
 
 interface ContentListItem {
   id: string;
@@ -34,7 +37,30 @@ function ContentStatusBadge({ status }: { status: string }) {
 }
 
 export function ContentList({ items }: ContentListProps) {
+  const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [cloningId, setCloningId] = useState<string | null>(null);
+
+  async function handleClone(id: string, title: string) {
+    setCloningId(id);
+    try {
+      const res = await fetchWithCsrf(`/api/admin/content/clone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        toast.success(`Cloned "${title}"`);
+        router.refresh();
+      } else {
+        const data = await res.json();
+        toast.error(data.error ?? "Failed to clone");
+      }
+    } catch {
+      toast.error("Failed to clone content");
+    }
+    setCloningId(null);
+  }
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) =>
@@ -81,6 +107,13 @@ export function ContentList({ items }: ContentListProps) {
               >
                 Edit
               </Link>
+              <button
+                onClick={() => handleClone(item.id, item.title)}
+                disabled={cloningId === item.id}
+                className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+              >
+                {cloningId === item.id ? "Cloning…" : "Clone"}
+              </button>
               <ContentDeleteButton id={item.id} title={item.title} />
             </div>
           </div>
@@ -141,6 +174,13 @@ export function ContentList({ items }: ContentListProps) {
                   >
                     Edit
                   </Link>
+                  <button
+                    onClick={() => handleClone(item.id, item.title)}
+                    disabled={cloningId === item.id}
+                    className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  >
+                    {cloningId === item.id ? "Cloning…" : "Clone"}
+                  </button>
                   <ContentDeleteButton id={item.id} title={item.title} />
                 </td>
               </tr>

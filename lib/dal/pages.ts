@@ -1,13 +1,9 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getUntypedServiceClient } from "@/lib/supabase-server";
+import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { PageRow } from "@/types/database";
 
-// The "pages" table is not yet in the auto-generated Supabase types,
-// so we use a loosely-typed helper to avoid TS errors on insert/update.
-// eslint-disable-next-line
 function pagesTable() {
-  const sb = getServiceClient();
-  // eslint-disable-next-line
-  return (sb as any).from("pages");
+  return getUntypedServiceClient().from("pages");
 }
 
 /* ------------------------------------------------------------------ */
@@ -22,7 +18,7 @@ export async function listPages(siteId: string): Promise<PageRow[]> {
     .order("sort_order", { ascending: true });
 
   if (error) throw error;
-  return data as PageRow[];
+  return assertRows<PageRow>(data);
 }
 
 /** List only published pages for a site */
@@ -34,7 +30,7 @@ export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
     .order("sort_order", { ascending: true });
 
   if (error) throw error;
-  return data as PageRow[];
+  return assertRows<PageRow>(data);
 }
 
 /** Get a single page by slug within a site */
@@ -49,7 +45,7 @@ export async function getPageBySlug(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as PageRow) ?? null;
+  return rowOrNull<PageRow>(data);
 }
 
 /** Get a single page by id */
@@ -60,7 +56,7 @@ export async function getPageById(id: string): Promise<PageRow | null> {
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as PageRow) ?? null;
+  return rowOrNull<PageRow>(data);
 }
 
 /* ------------------------------------------------------------------ */
@@ -89,7 +85,7 @@ export async function createPage(input: {
     .single();
 
   if (error) throw error;
-  return data as PageRow;
+  return assertRow<PageRow>(data, "Page");
 }
 
 /** Update a page */
@@ -104,7 +100,7 @@ export async function updatePage(
     .single();
 
   if (error) throw error;
-  return data as PageRow;
+  return assertRow<PageRow>(data, "Page");
 }
 
 /** Delete a page */

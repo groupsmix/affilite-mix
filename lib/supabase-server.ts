@@ -2,9 +2,19 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 
+/**
+ * Service client for tables not yet in the generated Supabase types.
+ * Returns a client without Database generics so `.from("table").insert(...)`
+ * doesn't resolve to `never`. Prefer `getServiceClient()` for typed tables.
+ */
+export function getUntypedServiceClient() {
+  // eslint-disable-next-line
+  return createClient(supabaseUrl, serviceRoleKey) as any;
+}
+
 const supabaseUrl = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL", "");
 const serviceRoleKey = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY", "");
-const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
+const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");  
 
 /**
  * Server-only Supabase client using the service role key.
