@@ -26,6 +26,7 @@ export function UsersClient() {
   const [role, setRole] = useState<"admin" | "super_admin">("admin");
   const [formError, setFormError] = useState("");
   const [formSaving, setFormSaving] = useState(false);
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<AdminUser | null>(null);
 
   async function fetchUsers() {
     setLoading(true);
@@ -86,10 +87,8 @@ export function UsersClient() {
     fetchUsers();
   }
 
-  async function handleDelete(user: AdminUser) {
-    if (!confirm(`Delete admin user ${user.email}? This cannot be undone.`)) {
-      return;
-    }
+  async function handleDeleteConfirmed(user: AdminUser) {
+    setConfirmDeleteUser(null);
     const res = await fetchWithCsrf(`/api/admin/users?id=${user.id}`, { method: "DELETE" });
     if (res.ok) {
       toast.success("User deleted");
@@ -239,7 +238,7 @@ export function UsersClient() {
                     {user.is_active ? "Deactivate" : "Activate"}
                   </button>
                   <button
-                    onClick={() => handleDelete(user)}
+                    onClick={() => setConfirmDeleteUser(user)}
                     className="text-red-500 hover:text-red-700"
                   >
                     Delete
@@ -311,7 +310,7 @@ export function UsersClient() {
                           {user.is_active ? "Deactivate" : "Activate"}
                         </button>
                         <button
-                          onClick={() => handleDelete(user)}
+                          onClick={() => setConfirmDeleteUser(user)}
                           className="text-red-500 hover:text-red-700"
                         >
                           Delete
@@ -324,6 +323,32 @@ export function UsersClient() {
             </div>
           </div>
         </>
+      )}
+      {/* Delete confirmation dialog */}
+      {confirmDeleteUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete Admin User</h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Are you sure you want to delete <strong>{confirmDeleteUser.email}</strong>? This
+              action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDeleteUser(null)}
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteConfirmed(confirmDeleteUser)}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
