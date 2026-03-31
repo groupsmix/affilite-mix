@@ -112,7 +112,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
       <fieldset disabled={saving} className={`space-y-4 ${saving ? "opacity-60" : ""}`}>
       {error && (
-        <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
+        <div role="alert" aria-live="polite" className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
