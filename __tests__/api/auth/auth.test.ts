@@ -53,13 +53,13 @@ describe("password hashing (login flow)", () => {
   it("authenticates with correct password", async () => {
     const hash = await hashPassword("correct-password");
     const result = await verifyPassword("correct-password", hash);
-    expect(result).toBe(true);
+    expect(result.valid).toBe(true);
   });
 
   it("rejects incorrect password", async () => {
     const hash = await hashPassword("correct-password");
     const result = await verifyPassword("wrong-password", hash);
-    expect(result).toBe(false);
+    expect(result.valid).toBe(false);
   });
 });
 

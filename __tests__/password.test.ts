@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 describe("hashPassword", () => {
-  it("returns a salt:hash string", async () => {
+  it("returns a bcrypt hash string", async () => {
     const result = await hashPassword("my-secret");
-    expect(result).toMatch(/^[0-9a-f]+:[0-9a-f]+$/);
+    expect(result).toMatch(/^\$2[aby]\$/);
   });
 
   it("produces different hashes for the same password (random salt)", async () => {
@@ -15,25 +15,26 @@ describe("hashPassword", () => {
 });
 
 describe("verifyPassword", () => {
-  it("returns true for a correct password", async () => {
+  it("returns valid=true for a correct bcrypt password", async () => {
     const hash = await hashPassword("correct-password");
     const result = await verifyPassword("correct-password", hash);
-    expect(result).toBe(true);
+    expect(result.valid).toBe(true);
+    expect(result.needsRehash).toBe(false);
   });
 
-  it("returns false for an incorrect password", async () => {
+  it("returns valid=false for an incorrect password", async () => {
     const hash = await hashPassword("correct-password");
     const result = await verifyPassword("wrong-password", hash);
-    expect(result).toBe(false);
+    expect(result.valid).toBe(false);
   });
 
-  it("returns false for a malformed hash", async () => {
+  it("returns valid=false for a malformed hash", async () => {
     const result = await verifyPassword("password", "not-a-valid-hash");
-    expect(result).toBe(false);
+    expect(result.valid).toBe(false);
   });
 
-  it("returns false for empty stored hash", async () => {
+  it("returns valid=false for empty stored hash", async () => {
     const result = await verifyPassword("password", "");
-    expect(result).toBe(false);
+    expect(result.valid).toBe(false);
   });
 });
