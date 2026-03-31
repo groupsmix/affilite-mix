@@ -9,16 +9,33 @@ import CookieConsent from "./components/cookie-consent";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+
+  // Pull per-niche SEO metadata from the DB site record
+  let metaTitle: string | undefined;
+  let metaDescription: string | undefined;
+  let ogImageUrl: string | undefined;
+  try {
+    const dbSite = await resolveDbSiteBySlug(site.id);
+    if (dbSite) {
+      metaTitle = dbSite.meta_title ?? undefined;
+      metaDescription = dbSite.meta_description ?? undefined;
+      ogImageUrl = (dbSite.og_image_url as string) ?? undefined;
+    }
+  } catch {
+    // Fall back to config-based metadata
+  }
+
   return {
+    title: metaTitle || site.name,
+    description: metaDescription || `${site.name} — curated content and product recommendations`,
     icons: { icon: site.brand.faviconUrl || "/favicon.svg" },
+    ...(ogImageUrl && {
+      openGraph: { images: [{ url: ogImageUrl }] },
+    }),
   };
 }
 
-export default async function PublicLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
 
   // Read DB row for dynamic theme overrides, nav items, and footer nav
@@ -65,11 +82,7 @@ export default async function PublicLayout({
 
   return (
     <ThemeProvider theme={themeConfig}>
-      <div
-        lang={site.language}
-        dir={site.direction}
-        className="flex min-h-screen flex-col"
-      >
+      <div lang={site.language} dir={site.direction} className="flex min-h-screen flex-col">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"
@@ -77,7 +90,9 @@ export default async function PublicLayout({
           {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
         </a>
         <SiteHeader site={site} dbNavItems={dbNavItems} />
-        <main id="main-content" className="flex-1">{children}</main>
+        <main id="main-content" className="flex-1">
+          {children}
+        </main>
         <SiteFooter site={site} dbFooterNav={dbFooterNav} />
         {site.features.cookieConsent && <CookieConsent language={site.language} />}
       </div>
