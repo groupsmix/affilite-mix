@@ -36,6 +36,12 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
 
 const VOID_TAGS = new Set(["br", "hr", "img"]);
 
+/**
+ * Heading level remapping: <h1> in user-authored content is demoted to <h2>
+ * to preserve the page's heading hierarchy (the page already has its own <h1>).
+ */
+const HEADING_REMAP: Record<string, string> = { h1: "h2" };
+
 const DANGEROUS_PROTOCOLS = /^\s*(javascript|data|vbscript)\s*:/i;
 
 /** Escape special characters in attribute values */
@@ -103,9 +109,11 @@ export function sanitizeHtml(html: string): string {
   const parser = new Parser(
     {
       onopentag(name, attribs) {
-        const tag = name.toLowerCase();
-        if (!ALLOWED_TAGS.has(tag)) return;
+        const raw = name.toLowerCase();
+        if (!ALLOWED_TAGS.has(raw)) return;
 
+        // Remap h1 → h2 so user content doesn't break page heading hierarchy
+        const tag = HEADING_REMAP[raw] ?? raw;
         const attrStr = buildAttrs(tag, attribs);
 
         if (VOID_TAGS.has(tag)) {
@@ -120,8 +128,9 @@ export function sanitizeHtml(html: string): string {
       },
 
       onclosetag(name) {
-        const tag = name.toLowerCase();
-        if (!ALLOWED_TAGS.has(tag) || VOID_TAGS.has(tag)) return;
+        const raw = name.toLowerCase();
+        if (!ALLOWED_TAGS.has(raw) || VOID_TAGS.has(raw)) return;
+        const tag = HEADING_REMAP[raw] ?? raw;
         chunks.push(`</${tag}>`);
       },
     },
