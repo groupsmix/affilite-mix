@@ -1,5 +1,7 @@
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow } from "@/types/database";
+import { parseDocument, DomUtils } from "htmlparser2";
+import type { Element, Text, ChildNode } from "domhandler";
 
 interface JsonLdProps {
   data: Record<string, unknown>;
@@ -128,17 +130,50 @@ export function reviewJsonLd(
   return base;
 }
 
-/** FAQ schema — extracts Q&A pairs from HTML content with h3 questions */
+/** Recursively extract plain text from a DOM node */
+function getTextContent(node: ChildNode): string {
+  if (node.type === "text") return (node as Text).data;
+  if (node.type === "tag") {
+    return (node as Element).children.map(getTextContent).join("");
+  }
+  return "";
+}
+
+const HEADING_TAGS = new Set(["h2", "h3", "h4"]);
+
+/**
+ * FAQ schema — extracts Q&A pairs from HTML content.
+ * Uses htmlparser2 to robustly parse HTML and find heading+content pairs
+ * where the heading text ends with "?". Handles nested markup, varied
+ * heading levels (h2-h4), and whitespace between elements.
+ */
 export function faqJsonLd(html: string): Record<string, unknown> | null {
-  // Match patterns like <h3>Question?</h3> followed by <p>Answer</p>
-  const faqRegex = /<h[23][^>]*>([^<]*\?)<\/h[23]>\s*<p[^>]*>([^<]+)<\/p>/gi;
+  const doc = parseDocument(html);
+  const topLevel = DomUtils.getChildren(doc);
   const pairs: { question: string; answer: string }[] = [];
-  let match;
-  while ((match = faqRegex.exec(html)) !== null) {
-    const question = match[1].trim();
-    const answer = match[2].trim();
-    if (question && answer) {
-      pairs.push({ question, answer });
+
+  for (let i = 0; i < topLevel.length; i++) {
+    const node = topLevel[i];
+    if (node.type !== "tag") continue;
+    const el = node as Element;
+
+    if (!HEADING_TAGS.has(el.tagName)) continue;
+
+    const headingText = getTextContent(el).trim();
+    if (!headingText.endsWith("?")) continue;
+
+    // Collect all sibling content until the next heading as the answer
+    const answerParts: string[] = [];
+    for (let j = i + 1; j < topLevel.length; j++) {
+      const sibling = topLevel[j];
+      if (sibling.type === "tag" && HEADING_TAGS.has((sibling as Element).tagName)) break;
+      const text = getTextContent(sibling).trim();
+      if (text) answerParts.push(text);
+    }
+
+    const answer = answerParts.join(" ");
+    if (answer) {
+      pairs.push({ question: headingText, answer });
     }
   }
 
