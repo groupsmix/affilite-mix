@@ -8,7 +8,7 @@ import type { Database } from "@/types/supabase";
  * doesn't resolve to `never`. Prefer `getServiceClient()` for typed tables.
  */
 export function getUntypedServiceClient() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line
   return createClient(supabaseUrl, serviceRoleKey) as any;
 }
 
