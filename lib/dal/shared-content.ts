@@ -1,4 +1,5 @@
 import { getUntypedServiceClient } from "@/lib/supabase-server";
+import { assertRow, assertRows } from "./type-guards";
 
 const TABLE = "shared_content";
 
@@ -28,7 +29,7 @@ export async function shareContent(
     .single();
 
   if (error) throw error;
-  return data as unknown as SharedContentRow;
+  return assertRow<SharedContentRow>(data, "SharedContent");
 }
 
 /** Remove a cross-niche share */
@@ -58,7 +59,7 @@ export async function listSharedTargets(
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as SharedContentRow[];
+  return assertRows<SharedContentRow>(data ?? []);
 }
 
 /** List content shared TO a given site (from other sites) */
@@ -73,5 +74,5 @@ export async function listContentSharedToSite(
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as SharedContentRow[];
+  return assertRows<SharedContentRow>(data ?? []);
 }

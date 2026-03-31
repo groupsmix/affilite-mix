@@ -1,6 +1,7 @@
 import { getServiceClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
+import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 const TABLE = "products";
 
@@ -35,7 +36,7 @@ export async function listProducts(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as ProductRow[];
+  return assertRows<ProductRow>(data);
 }
 
 /** Count products matching filters */
@@ -71,7 +72,7 @@ export async function getProductById(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as ProductRow) ?? null;
+  return rowOrNull<ProductRow>(data);
 }
 
 /** Get a single product by slug */
@@ -88,7 +89,7 @@ export async function getProductBySlug(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as ProductRow) ?? null;
+  return rowOrNull<ProductRow>(data);
 }
 
 /** Create a product */
@@ -98,7 +99,7 @@ export async function createProduct(
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
-  return data as ProductRow;
+  return assertRow<ProductRow>(data, "Product");
 }
 
 /** Update a product */
@@ -119,7 +120,7 @@ export async function updateProduct(
     .single();
 
   if (error) throw error;
-  return data as ProductRow;
+  return assertRow<ProductRow>(data, "Product");
 }
 
 /** Delete a product */
@@ -156,7 +157,7 @@ export async function listActiveProducts(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as unknown as ProductRow[];
+  return assertRows<ProductRow>(data);
 }
 
 /**
@@ -181,7 +182,7 @@ export async function searchProducts(
       .order("score", { ascending: false, nullsFirst: false })
       .limit(limit);
 
-    if (!error) return data as ProductRow[];
+    if (!error) return assertRows<ProductRow>(data);
     // If FTS fails (e.g. column/index not ready), fall through to ILIKE.
   }
 
@@ -195,7 +196,7 @@ export async function searchProducts(
     .limit(limit);
 
   if (error) throw error;
-  return data as ProductRow[];
+  return assertRows<ProductRow>(data);
 }
 
 /** List featured products for a site */
@@ -214,5 +215,5 @@ export async function listFeaturedProducts(
     .limit(limit);
 
   if (error) throw error;
-  return data as ProductRow[];
+  return assertRows<ProductRow>(data);
 }

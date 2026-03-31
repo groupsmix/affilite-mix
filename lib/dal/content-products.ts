@@ -1,5 +1,6 @@
 import { getServiceClient } from "@/lib/supabase-server";
 import type { ContentProductRow, ContentRow, ProductRow } from "@/types/database";
+import { assertRow, assertRows } from "./type-guards";
 
 const TABLE = "content_products";
 
@@ -10,7 +11,7 @@ export async function linkProduct(
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
-  return data as ContentProductRow;
+  return assertRow<ContentProductRow>(data, "ContentProduct");
 }
 
 /** Unlink a product from a content item */
@@ -40,7 +41,7 @@ export async function getLinkedProducts(
     .order("content_id", { ascending: true });
 
   if (error) throw error;
-  return data as (ContentProductRow & { product: ProductRow })[];
+  return assertRows<ContentProductRow & { product: ProductRow }>(data);
 }
 
 /** Update link metadata (role) */
@@ -59,7 +60,7 @@ export async function updateProductLink(
     .single();
 
   if (error) throw error;
-  return data as ContentProductRow;
+  return assertRow<ContentProductRow>(data, "ContentProduct");
 }
 
 /** Get content items that link to a given product */
@@ -73,8 +74,8 @@ export async function getRelatedContentForProduct(
     .eq("product_id", productId);
 
   if (error) throw error;
-  return (data ?? [])
-    .map((row) => (row as unknown as { content: ContentRow }).content)
+  return assertRows<{ content: ContentRow }>(data ?? [])
+    .map((row) => row.content)
     .filter(Boolean);
 }
 

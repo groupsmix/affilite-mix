@@ -1,5 +1,6 @@
 import { getServiceClient } from "@/lib/supabase-server";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
+import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 
 const TABLE = "categories";
 
@@ -13,7 +14,7 @@ export async function listCategories(siteId: string): Promise<CategoryRow[]> {
     .order("name", { ascending: true });
 
   if (error) throw error;
-  return data as CategoryRow[];
+  return assertRows<CategoryRow>(data);
 }
 
 /** List categories for a site filtered by taxonomy type */
@@ -30,7 +31,7 @@ export async function listCategoriesByTaxonomy(
     .order("name", { ascending: true });
 
   if (error) throw error;
-  return data as CategoryRow[];
+  return assertRows<CategoryRow>(data);
 }
 
 /** Get a single category by id */
@@ -47,7 +48,7 @@ export async function getCategoryById(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as CategoryRow) ?? null;
+  return rowOrNull<CategoryRow>(data);
 }
 
 /** Get a single category by slug */
@@ -64,7 +65,7 @@ export async function getCategoryBySlug(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as CategoryRow) ?? null;
+  return rowOrNull<CategoryRow>(data);
 }
 
 /** List categories with product counts, sorted by product count descending */
@@ -94,11 +95,12 @@ export async function listCategoriesWithProductCount(
 
   const countMap = new Map<string, number>();
   for (const row of counts ?? []) {
-    const cid = row.category_id as string;
-    countMap.set(cid, (countMap.get(cid) ?? 0) + 1);
+    if (hasStringProp(row, "category_id")) {
+      countMap.set(row.category_id, (countMap.get(row.category_id) ?? 0) + 1);
+    }
   }
 
-  return (cats as CategoryRow[])
+  return assertRows<CategoryRow>(cats)
     .map((cat) => ({ ...cat, product_count: countMap.get(cat.id) ?? 0 }))
     .sort((a, b) => b.product_count - a.product_count);
 }
@@ -110,7 +112,7 @@ export async function createCategory(
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
-  return data as CategoryRow;
+  return assertRow<CategoryRow>(data, "Category");
 }
 
 /** Update a category */
@@ -129,7 +131,7 @@ export async function updateCategory(
     .single();
 
   if (error) throw error;
-  return data as CategoryRow;
+  return assertRow<CategoryRow>(data, "Category");
 }
 
 /** Delete a category */
