@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
-import { getRecentContent } from "@/lib/dal/content";
-import { listFeaturedProducts } from "@/lib/dal/products";
+import { getRecentContent, countPublishedContent } from "@/lib/dal/content";
+import { listFeaturedProducts, countProducts } from "@/lib/dal/products";
 import { listCategoriesWithProductCount } from "@/lib/dal/categories";
 import dynamic from "next/dynamic";
 import { ContentCard } from "./components/content-card";
@@ -48,14 +48,16 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const site = await getCurrentSite();
-  const [recentContent, featuredProducts, categories] = await Promise.all([
+  const [recentContent, featuredProducts, categories, productCount, reviewCount] = await Promise.all([
     getRecentContent(site.id, 6),
     listFeaturedProducts(site.id, 6),
     listCategoriesWithProductCount(site.id),
+    countProducts({ siteId: site.id, status: "active" }),
+    countPublishedContent(site.id, "review"),
   ]);
 
   // Render homepage based on template preset
-  const homepageProps = { site, recentContent, featuredProducts, categories };
+  const homepageProps = { site, recentContent, featuredProducts, categories, productCount, reviewCount };
   const template = site.homepageTemplate ?? (site.features.customHomepage ? "cinematic" : "standard");
 
   if (template === "cinematic") {

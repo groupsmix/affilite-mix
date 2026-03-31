@@ -9,6 +9,7 @@ import {
 } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { captureException } from "@/lib/sentry";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(site, { status: 201 });
   } catch (err) {
-    console.error("[api/admin/sites] POST create failed:", err);
+    captureException(err, { context: "[api/admin/sites] POST create failed:" });
     const message = err instanceof Error ? err.message : "Failed to create site";
     if (message.includes("duplicate") || message.includes("unique")) {
       return NextResponse.json({ error: "A site with this slug or domain already exists" }, { status: 409 });
@@ -219,7 +220,7 @@ export async function PATCH(request: NextRequest) {
     });
     return NextResponse.json(site);
   } catch (err) {
-    console.error("[api/admin/sites] PATCH update failed:", err);
+    captureException(err, { context: "[api/admin/sites] PATCH update failed:" });
     const message = err instanceof Error ? err.message : "Failed to update site";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -256,7 +257,7 @@ export async function DELETE(request: NextRequest) {
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/sites] DELETE failed:", err);
+    captureException(err, { context: "[api/admin/sites] DELETE failed:" });
     const message = err instanceof Error ? err.message : "Failed to delete site";
     return NextResponse.json({ error: message }, { status: 500 });
   }

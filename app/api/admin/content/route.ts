@@ -12,6 +12,7 @@ import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import { getSiteById } from "@/config/sites";
+import { captureException } from "@/lib/sentry";
 
 export async function GET(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(content);
   } catch (err) {
-    console.error("[api/admin/content] GET failed:", err);
+    captureException(err, { context: "[api/admin/content] GET failed:" });
     return NextResponse.json({ error: "Failed to list content" }, { status: 500 });
   }
 }
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(content, { status: 201 });
   } catch (err) {
-    console.error("[api/admin/content] POST create failed:", err);
+    captureException(err, { context: "[api/admin/content] POST create failed:" });
     return NextResponse.json({ error: "Failed to create content" }, { status: 500 });
   }
 }
@@ -131,7 +132,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json(content);
   } catch (err) {
-    console.error("[api/admin/content] PATCH update failed:", err);
+    captureException(err, { context: "[api/admin/content] PATCH update failed:" });
     return NextResponse.json({ error: "Failed to update content" }, { status: 500 });
   }
 }
@@ -167,7 +168,7 @@ export async function DELETE(request: NextRequest) {
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/content] DELETE failed:", err);
+    captureException(err, { context: "[api/admin/content] DELETE failed:" });
     return NextResponse.json({ error: "Failed to delete content" }, { status: 500 });
   }
 }

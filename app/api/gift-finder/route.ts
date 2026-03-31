@@ -3,6 +3,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getAnonClient } from "@/lib/supabase-server";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import type { ProductRow } from "@/types/database";
+import { captureException } from "@/lib/sentry";
 
 /**
  * GET /api/gift-finder?budget=500&occasion=birthday&recipient=husband&style=classic
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
     .limit(50);
 
   if (error) {
-    console.error("[api/gift-finder] query failed:", error);
+    captureException(error, { context: "[api/gift-finder] query failed:" });
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
   }
 

@@ -171,9 +171,23 @@ export async function checkRateLimit(
     return checkRateLimitKV(kv, key, config);
   }
 
-  // Log a warning when falling back to in-memory rate limiting.
-  // In production (Cloudflare Workers) this means KV is not configured,
-  // and rate limiting will be ineffective across isolates.
+  // In production, fail closed: reject requests when KV is unavailable
+  // rather than falling through to per-isolate in-memory rate limiting
+  // that an attacker can trivially bypass.
+  if (process.env.NODE_ENV === "production") {
+    if (!kvFallbackWarned) {
+      kvFallbackWarned = true;
+      console.error(
+        "[rate-limit] CRITICAL: KV namespace RATE_LIMIT_KV not available in production. " +
+        "Rate-limited requests will be rejected. " +
+        "Configure the KV binding in wrangler.jsonc to restore service. " +
+        "See lib/rate-limit.ts for KV configuration instructions.",
+      );
+    }
+    return { allowed: false, remaining: 0, retryAfterMs: 60_000 };
+  }
+
+  // In local development, fall back to in-memory rate limiting.
   if (!kvFallbackWarned) {
     kvFallbackWarned = true;
     console.warn(

@@ -183,11 +183,15 @@ export function productJsonLd(site: SiteDefinition, product: ProductRow) {
   }
 
   if (product.score !== null) {
-    data.aggregateRating = {
-      "@type": "AggregateRating",
-      ratingValue: product.score,
-      bestRating: 10,
-      ratingCount: 1,
+    data.review = {
+      "@type": "Review",
+      reviewRating: {
+        "@type": "Rating",
+        ratingValue: product.score,
+        bestRating: 10,
+        worstRating: 0,
+      },
+      author: { "@type": "Organization", name: site.name },
     };
   }
 

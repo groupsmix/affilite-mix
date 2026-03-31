@@ -8,6 +8,7 @@ import {
 } from "@/lib/dal/affiliate-clicks";
 import { countContent } from "@/lib/dal/content";
 import { countProducts } from "@/lib/dal/products";
+import { captureException } from "@/lib/sentry";
 
 /**
  * GET /api/admin/analytics — Dashboard analytics for the active site.
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err) {
-    console.error("[api/admin/analytics] GET failed:", err);
+    captureException(err, { context: "[api/admin/analytics] GET failed:" });
     return NextResponse.json({ error: "Failed to load analytics" }, { status: 500 });
   }
 }

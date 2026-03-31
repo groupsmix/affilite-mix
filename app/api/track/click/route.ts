@@ -5,6 +5,7 @@ import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { apiError, rateLimitHeaders } from "@/lib/api-error";
+import { captureException } from "@/lib/sentry";
 
 /** 60 click-tracking requests per minute per IP */
 const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -57,7 +58,7 @@ async function handleClick(request: NextRequest) {
   // 302 redirect to the product's affiliate URL
   return NextResponse.redirect(destinationUrl, 302);
   } catch (err) {
-    console.error("[api/track/click] failed:", err);
+    captureException(err, { context: "[api/track/click] failed:" });
     return apiError(500, "Internal server error");
   }
 }

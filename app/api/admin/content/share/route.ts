@@ -6,6 +6,7 @@ import {
   listSharedTargets,
 } from "@/lib/dal/shared-content";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 /** List sites a piece of content is shared to */
 export async function GET(request: NextRequest) {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     const targets = await listSharedTargets(contentId);
     return NextResponse.json(targets);
   } catch (err) {
-    console.error("[api/admin/content/share] GET failed:", err);
+    captureException(err, { context: "[api/admin/content/share] GET failed:" });
     return NextResponse.json({ error: "Failed to list shares" }, { status: 500 });
   }
 }
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(shared, { status: 201 });
   } catch (err) {
-    console.error("[api/admin/content/share] POST failed:", err);
+    captureException(err, { context: "[api/admin/content/share] POST failed:" });
     return NextResponse.json({ error: "Failed to share content" }, { status: 500 });
   }
 }
@@ -85,7 +86,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[api/admin/content/share] DELETE failed:", err);
+    captureException(err, { context: "[api/admin/content/share] DELETE failed:" });
     return NextResponse.json({ error: "Failed to unshare content" }, { status: 500 });
   }
 }

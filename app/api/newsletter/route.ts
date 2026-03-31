@@ -6,6 +6,7 @@ import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
 import { apiError, rateLimitHeaders } from "@/lib/api-error";
+import { captureException } from "@/lib/sentry";
 
 /** Build a branded HTML email for newsletter confirmation */
 function buildConfirmationEmail(siteName: string, confirmUrl: string, domain: string, accentColor: string): string {
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
         .eq("id", existing.id);
 
       if (updateError) {
-        console.error("[api/newsletter] Failed to update subscriber for re-confirmation:", updateError);
+        captureException(updateError, { context: "[api/newsletter] Failed to update subscriber for re-confirmation:" });
         return apiError(500, "Failed to subscribe");
       }
     } else {
@@ -115,14 +116,14 @@ export async function POST(request: Request) {
         });
 
       if (insertError) {
-        console.error("[api/newsletter] Failed to insert subscriber:", insertError);
+        captureException(insertError, { context: "[api/newsletter] Failed to insert subscriber:" });
         return apiError(500, "Failed to subscribe");
       }
     }
 
     // Send confirmation email
     // Uses RESEND_API_KEY if available; otherwise logs the confirmation link
-    const confirmUrl = `${request.headers.get("origin") ?? ""}/api/newsletter/confirm?token=${confirmationToken}`;
+    const confirmUrl = `${request.headers.get("origin") ?? ""}/newsletter/confirm?token=${confirmationToken}`;
     const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {
@@ -143,7 +144,7 @@ export async function POST(request: Request) {
       });
       if (!res.ok) {
         const errBody = await res.text();
-        console.error("[api/newsletter] Failed to send confirmation email via Resend:", errBody);
+        captureException(new Error(errBody), { context: "[api/newsletter] Failed to send confirmation email via Resend" });
         // Don't fail the request — subscriber is saved, they can retry
       }
     } else {
@@ -155,7 +156,7 @@ export async function POST(request: Request) {
       message: "Please check your email to confirm your subscription.",
     });
   } catch (err) {
-    console.error("[api/newsletter] POST failed:", err);
+    captureException(err, { context: "[api/newsletter] POST failed:" });
     return apiError(500, "Failed to subscribe");
   }
 }
