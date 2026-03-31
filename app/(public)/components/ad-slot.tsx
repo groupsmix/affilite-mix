@@ -2,6 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { listActiveAdPlacements } from "@/lib/dal/ad-placements";
 import type { AdPlacementType, AdPlacementRow } from "@/types/database";
+import { SandboxedAd } from "./sandboxed-ad";
 
 interface AdSlotProps {
   placement: AdPlacementType;
@@ -15,27 +16,18 @@ interface AdSlotProps {
 export async function AdSlot({ placement }: AdSlotProps) {
   const site = await getCurrentSite();
 
-  // Check monetization type from DB
-  let monetizationType: string = "affiliate";
-  try {
-    const dbSite = await resolveDbSiteBySlug(site.id);
-    if (dbSite) {
-      monetizationType = dbSite.monetization_type ?? "affiliate";
-    }
-  } catch {
-    // Default to affiliate
-  }
-
-  if (monetizationType !== "ads" && monetizationType !== "both") {
-    return null;
-  }
-
+  // Single DB lookup — avoids the duplicate query that previously existed
   let ads: AdPlacementRow[] = [];
   try {
     const dbSite = await resolveDbSiteBySlug(site.id);
-    if (dbSite) {
-      ads = await listActiveAdPlacements(dbSite.id, placement);
+    if (!dbSite) return null;
+
+    const monetizationType = dbSite.monetization_type ?? "affiliate";
+    if (monetizationType !== "ads" && monetizationType !== "both") {
+      return null;
     }
+
+    ads = await listActiveAdPlacements(dbSite.id, placement);
   } catch {
     return null;
   }
@@ -51,43 +43,23 @@ export async function AdSlot({ placement }: AdSlotProps) {
   );
 }
 
+/**
+ * Renders ad code inside a sandboxed iframe to prevent XSS.
+ * All providers — including known ones like AdSense — are isolated so that
+ * compromised admin accounts or malicious ad snippets cannot access the
+ * parent page's DOM, cookies, or storage.
+ */
 function AdRenderer({ ad }: { ad: AdPlacementRow }) {
-  switch (ad.provider) {
-    case "adsense":
-      return (
-        <div className="adsense-ad my-4">
-          {ad.ad_code && (
-            <div dangerouslySetInnerHTML={{ __html: ad.ad_code }} />
-          )}
-        </div>
-      );
-    case "carbon":
-      return (
-        <div className="carbon-ad my-4" id={`carbon-ad-${ad.id}`}>
-          {ad.ad_code && (
-            <div dangerouslySetInnerHTML={{ __html: ad.ad_code }} />
-          )}
-        </div>
-      );
-    case "ethicalads":
-      return (
-        <div className="ethical-ad my-4" data-ea-publisher={(ad.config as Record<string, string>).publisher_id ?? ""} data-ea-type="image">
-          {ad.ad_code && (
-            <div dangerouslySetInnerHTML={{ __html: ad.ad_code }} />
-          )}
-        </div>
-      );
-    case "custom":
-      return (
-        <div className="custom-ad my-4">
-          {ad.ad_code && (
-            <div dangerouslySetInnerHTML={{ __html: ad.ad_code }} />
-          )}
-        </div>
-      );
-    default:
-      return null;
-  }
+  if (!ad.ad_code) return null;
+
+  return (
+    <div className={`${ad.provider}-ad my-4`}>
+      <SandboxedAd
+        adCode={ad.ad_code}
+        provider={ad.provider}
+      />
+    </div>
+  );
 }
 
 /** Sidebar ad placement wrapper */
