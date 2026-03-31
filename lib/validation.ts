@@ -20,6 +20,13 @@ function isBoolean(v: unknown): v is boolean {
   return typeof v === "boolean";
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Validate an email address format. */
+export function isValidEmail(email: string): boolean {
+  return EMAIL_RE.test(email);
+}
+
 const SLUG_RE = /^[a-z0-9-]+$/;
 
 function isSlug(v: unknown): v is string {
