@@ -116,9 +116,9 @@ export default async function AnalyticsPage() {
       </div>
 
       {/* Conversion Funnel */}
-      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+      <section aria-label="Conversion Funnel" className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Conversion Funnel (30d)</h2>
-        <div className="flex items-center gap-2">
+        <div role="img" aria-label={`Active Products: ${totalProducts}, Estimated Impressions: ${estimatedImpressions30d.toLocaleString()}, Clicks: ${clicks30d}, Revenue: $${estRevenue30d.toFixed(0)}`} className="flex items-center gap-2">
           <FunnelStep label="Active Products" value={totalProducts} width={100} color="bg-blue-500" />
           <FunnelArrow />
           <FunnelStep label="Impressions (est.)" value={estimatedImpressions30d} width={80} color="bg-indigo-500" />
@@ -393,10 +393,11 @@ function StatCard({ label, value }: { label: string; value: number }) {
 }
 
 function FunnelStep({ label, value, width, color }: { label: string; value: number | string; width: number; color: string }) {
+  const displayValue = typeof value === "number" ? value.toLocaleString() : value;
   return (
-    <div className="flex-1 text-center">
+    <div className="flex-1 text-center" aria-hidden="true">
       <div className={`mx-auto h-2 rounded-full ${color}`} style={{ width: `${width}%` }} />
-      <p className="mt-2 text-lg font-bold text-gray-900">{typeof value === "number" ? value.toLocaleString() : value}</p>
+      <p className="mt-2 text-lg font-bold text-gray-900">{displayValue}</p>
       <p className="text-xs text-gray-500">{label}</p>
     </div>
   );
@@ -404,7 +405,7 @@ function FunnelStep({ label, value, width, color }: { label: string; value: numb
 
 function FunnelArrow() {
   return (
-    <svg className="h-4 w-4 flex-shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="h-4 w-4 flex-shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   );
