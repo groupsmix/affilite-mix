@@ -1,6 +1,10 @@
 import { getServiceClient } from "@/lib/supabase-server";
 import type { SiteRow } from "@/types/database";
+import type { Database } from "@/types/supabase";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+
+type SiteInsert = Database["public"]["Tables"]["sites"]["Insert"];
+type SiteUpdate = Database["public"]["Tables"]["sites"]["Update"];
 
 const TABLE = "sites";
 
@@ -155,7 +159,7 @@ export async function createSite(input: {
 }): Promise<SiteRow> {
   const sb = getServiceClient();
 
-  const row: Record<string, unknown> = {
+  const row: SiteInsert = {
     slug: input.slug,
     name: input.name,
     domain: input.domain,
@@ -181,7 +185,7 @@ export async function createSite(input: {
 
   const { data, error } = await sb
     .from(TABLE)
-    .insert(row as any)
+    .insert(row)
     .select()
     .single();
 
@@ -196,9 +200,10 @@ export async function updateSite(
   input: Partial<Omit<SiteRow, "id" | "slug" | "created_at" | "updated_at">>,
 ): Promise<SiteRow> {
   const sb = getServiceClient();
+  const updates: SiteUpdate = { ...input };
   const { data, error } = await sb
     .from(TABLE)
-    .update(input as any)
+    .update(updates)
     .eq("id", id)
     .select()
     .single();
