@@ -12,7 +12,38 @@ CREATE TABLE sites (
   language    text NOT NULL DEFAULT 'en',
   direction   text NOT NULL DEFAULT 'ltr',
   is_active   boolean DEFAULT true,
-  created_at  timestamptz DEFAULT now()
+
+  -- Monetization
+  monetization_type text DEFAULT 'affiliate'
+                    CHECK (monetization_type IN ('affiliate', 'ads', 'both')),
+  est_revenue_per_click numeric DEFAULT 0.35,
+  ad_config   jsonb DEFAULT '{}',
+
+  -- Theming
+  theme       jsonb DEFAULT '{}',
+  logo_url    text,
+  favicon_url text,
+
+  -- Navigation
+  nav_items   jsonb DEFAULT '[]',
+  footer_nav  jsonb DEFAULT '[]',
+
+  -- Features
+  features    jsonb DEFAULT '{"newsletter": true, "giftFinder": false, "search": true}',
+
+  -- SEO
+  meta_title       text,
+  meta_description text,
+  og_image_url     text,
+
+  -- Social links
+  social_links jsonb DEFAULT '{}',
+
+  -- Custom CSS overrides
+  custom_css  text,
+
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
 );
 
 -- CATEGORIES
@@ -218,6 +249,10 @@ CREATE TRIGGER content_updated_at
 
 CREATE TRIGGER products_updated_at
   BEFORE UPDATE ON products
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER sites_updated_at
+  BEFORE UPDATE ON sites
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ═══════════════════════════════════════════════════════

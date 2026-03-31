@@ -8,7 +8,37 @@ export interface SiteRow {
   language: string;
   direction: "ltr" | "rtl";
   is_active: boolean;
+
+  // Monetization
+  monetization_type: "affiliate" | "ads" | "both";
+  est_revenue_per_click: number;
+  ad_config: Record<string, unknown>;
+
+  // Theming
+  theme: Record<string, unknown>;
+  logo_url: string | null;
+  favicon_url: string | null;
+
+  // Navigation
+  nav_items: { label: string; href: string; icon?: string }[];
+  footer_nav: { label: string; href: string; icon?: string }[];
+
+  // Features
+  features: Record<string, boolean>;
+
+  // SEO
+  meta_title: string | null;
+  meta_description: string | null;
+  og_image_url: string | null;
+
+  // Social links
+  social_links: Record<string, string>;
+
+  // Custom CSS overrides
+  custom_css: string | null;
+
   created_at: string;
+  updated_at: string;
 }
 
 export type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
