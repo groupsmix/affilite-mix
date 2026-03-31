@@ -22,4 +22,4 @@ CREATE POLICY "Allow anonymous inserts" ON web_vitals
   FOR INSERT TO anon WITH CHECK (true);
 
 CREATE POLICY "Allow service role full access" ON web_vitals
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
+  FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
