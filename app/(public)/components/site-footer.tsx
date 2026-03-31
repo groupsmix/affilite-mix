@@ -1,6 +1,7 @@
 import type { SiteDefinition } from "@/config/site-definition";
 import Link from "next/link";
 import { NewsletterSignup } from "./newsletter-signup";
+import { CookieSettingsButton } from "./cookie-settings-button";
 
 interface SiteFooterProps {
   site: SiteDefinition;
@@ -40,10 +41,7 @@ export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProp
                         {item.title}
                       </a>
                     ) : (
-                      <Link
-                        href={item.href}
-                        className="text-sm text-gray-600 hover:text-gray-900"
-                      >
+                      <Link href={item.href} className="text-sm text-gray-600 hover:text-gray-900">
                         {item.title}
                       </Link>
                     )}
@@ -72,10 +70,7 @@ export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProp
                         {item.label}
                       </a>
                     ) : (
-                      <Link
-                        href={item.href}
-                        className="text-sm text-gray-600 hover:text-gray-900"
-                      >
+                      <Link href={item.href} className="text-sm text-gray-600 hover:text-gray-900">
                         {item.label}
                       </Link>
                     )}
@@ -96,9 +91,19 @@ export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProp
         {/* Affiliate disclosure */}
         <div className="mt-8 border-t border-gray-200 pt-6">
           <p className="text-xs text-gray-400">{site.affiliateDisclosure}</p>
-          <p className="mt-2 text-xs text-gray-400">
-            &copy; {new Date().getFullYear()} {site.name}
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400">
+            <span>
+              &copy; {new Date().getFullYear()} {site.name}
+            </span>
+            <span aria-hidden="true">&middot;</span>
+            <Link href="/privacy" className="hover:text-gray-600">
+              {site.language === "ar" ? "سياسة الخصوصية" : "Privacy Policy"}
+            </Link>
+            <span aria-hidden="true">&middot;</span>
+            <CookieSettingsButton
+              label={site.language === "ar" ? "إعدادات ملفات تعريف الارتباط" : "Cookie Settings"}
+            />
+          </div>
         </div>
       </div>
     </footer>

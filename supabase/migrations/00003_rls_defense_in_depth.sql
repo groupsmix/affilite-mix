@@ -17,7 +17,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "service_full_access_categories"
       ON categories FOR ALL
-      USING (true) WITH CHECK (true);
+      USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
   END IF;
 END $$;
 
@@ -28,7 +28,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "service_full_access_products"
       ON products FOR ALL
-      USING (true) WITH CHECK (true);
+      USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
   END IF;
 END $$;
 
@@ -39,7 +39,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "service_full_access_content"
       ON content FOR ALL
-      USING (true) WITH CHECK (true);
+      USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
   END IF;
 END $$;
 
@@ -50,7 +50,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "service_full_access_content_products"
       ON content_products FOR ALL
-      USING (true) WITH CHECK (true);
+      USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
   END IF;
 END $$;
 
@@ -61,7 +61,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "service_full_access_clicks"
       ON affiliate_clicks FOR ALL
-      USING (true) WITH CHECK (true);
+      USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
   END IF;
 END $$;
 
@@ -72,7 +72,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "service_full_access_newsletter"
       ON newsletter_subscribers FOR ALL
-      USING (true) WITH CHECK (true);
+      USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
   END IF;
 END $$;
 
@@ -83,7 +83,7 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "service_full_access_scheduled_jobs"
       ON scheduled_jobs FOR ALL
-      USING (true) WITH CHECK (true);
+      USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
   END IF;
 END $$;
 
@@ -117,6 +117,6 @@ DO $$ BEGIN
   ) THEN
     CREATE POLICY "service_full_access_audit_log"
       ON audit_log FOR ALL
-      USING (true) WITH CHECK (true);
+      USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
   END IF;
 END $$;
