@@ -275,57 +275,101 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-200 bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 font-medium text-gray-700">Name</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Type</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Provider</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Status</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Priority</th>
-                <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {placements.map((ad) => (
-                <tr key={ad.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{ad.name}</td>
-                  <td className="px-4 py-3 text-gray-500">{ad.placement_type}</td>
-                  <td className="px-4 py-3 text-gray-500">{ad.provider}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleToggleActive(ad)}
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        ad.is_active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {ad.is_active ? "Active" : "Inactive"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{ad.priority}</td>
-                  <td className="flex gap-2 px-4 py-3">
-                    <button
-                      onClick={() => startEdit(ad)}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(ad.id)}
-                      disabled={deletingId === ad.id}
-                      className="text-sm text-red-600 hover:underline disabled:opacity-50"
-                    >
-                      {deletingId === ad.id ? "Deleting..." : "Delete"}
-                    </button>
-                  </td>
+        <>
+          {/* Mobile cards */}
+          <div className="grid gap-3 md:hidden">
+            {placements.map((ad) => (
+              <div key={ad.id} className="rounded-lg border border-gray-200 bg-white p-4">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <h3 className="font-medium text-gray-900">{ad.name}</h3>
+                  <button
+                    onClick={() => handleToggleActive(ad)}
+                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      ad.is_active
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {ad.is_active ? "Active" : "Inactive"}
+                  </button>
+                </div>
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                  <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{ad.placement_type}</span>
+                  <span>{ad.provider}</span>
+                  <span className="text-xs text-gray-400">Priority: {ad.priority}</span>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => startEdit(ad)}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(ad.id)}
+                    disabled={deletingId === ad.id}
+                    className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    {deletingId === ad.id ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-gray-200 bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 font-medium text-gray-700">Name</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Type</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Provider</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Status</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Priority</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {placements.map((ad) => (
+                  <tr key={ad.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{ad.name}</td>
+                    <td className="px-4 py-3 text-gray-500">{ad.placement_type}</td>
+                    <td className="px-4 py-3 text-gray-500">{ad.provider}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleToggleActive(ad)}
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          ad.is_active
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {ad.is_active ? "Active" : "Inactive"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">{ad.priority}</td>
+                    <td className="flex gap-2 px-4 py-3">
+                      <button
+                        onClick={() => startEdit(ad)}
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(ad.id)}
+                        disabled={deletingId === ad.id}
+                        className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                      >
+                        {deletingId === ad.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
