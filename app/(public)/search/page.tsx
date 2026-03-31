@@ -135,6 +135,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 product={product}
                 sourceType="search"
                 ctaLabel={ctaLabel}
+                searchQuery={query}
               />
             ))}
           </div>
@@ -149,7 +150,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {contentResults.map((item) => (
-              <ContentCard key={item.id} content={item} locale={locale} />
+              <ContentCard key={item.id} content={item} locale={locale} searchQuery={query} />
             ))}
           </div>
         </section>
