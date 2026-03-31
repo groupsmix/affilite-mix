@@ -46,6 +46,14 @@ const translations = {
     reject: "Reject Non-Essential",
     accept: "Accept All",
     privacy: "Privacy Policy",
+    details: "Cookie details",
+    cookieList: [
+      { name: "nh-cookie-consent", purpose: "Stores your cookie consent preference", type: "Essential" },
+      { name: "nh_active_site", purpose: "Remembers your active site selection", type: "Essential" },
+      { name: "nh_admin_token", purpose: "Admin session authentication (JWT)", type: "Essential" },
+      { name: "nh_csrf", purpose: "CSRF protection token", type: "Essential" },
+      { name: "Affiliate tracking", purpose: "Tracks affiliate link clicks for conversion attribution", type: "Non-essential" },
+    ],
   },
   ar: {
     title: "نحن نقدر خصوصيتك",
@@ -53,6 +61,14 @@ const translations = {
     reject: "رفض غير الأساسية",
     accept: "قبول الكل",
     privacy: "سياسة الخصوصية",
+    details: "تفاصيل ملفات تعريف الارتباط",
+    cookieList: [
+      { name: "nh-cookie-consent", purpose: "يخزن تفضيل موافقة ملفات تعريف الارتباط", type: "أساسي" },
+      { name: "nh_active_site", purpose: "يتذكر اختيار الموقع النشط", type: "أساسي" },
+      { name: "nh_admin_token", purpose: "مصادقة جلسة المشرف (JWT)", type: "أساسي" },
+      { name: "nh_csrf", purpose: "رمز حماية CSRF", type: "أساسي" },
+      { name: "تتبع الشركات التابعة", purpose: "يتتبع نقرات روابط الشركات التابعة لإسناد التحويل", type: "غير أساسي" },
+    ],
   },
 } as const;
 
@@ -60,6 +76,7 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
   const t = language === "ar" ? translations.ar : translations.en;
   const [consent, setConsent] = useState<ConsentState>("pending");
   const [visible, setVisible] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     const stored = readConsentFromCookie();
@@ -169,6 +186,33 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
                   {t.privacy}
                 </Link>
               </p>
+              <button
+                onClick={() => setShowDetails((v) => !v)}
+                className="mt-1 text-xs font-medium text-gray-500 underline hover:text-gray-700"
+                type="button"
+              >
+                {t.details}
+              </button>
+              {showDetails && (
+                <table className="mt-2 w-full text-xs text-gray-600">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-left">
+                      <th className="pb-1 pr-3 font-semibold">Cookie</th>
+                      <th className="pb-1 pr-3 font-semibold">Purpose</th>
+                      <th className="pb-1 font-semibold">Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {t.cookieList.map((c) => (
+                      <tr key={c.name} className="border-b border-gray-100">
+                        <td className="py-1 pr-3 font-mono">{c.name}</td>
+                        <td className="py-1 pr-3">{c.purpose}</td>
+                        <td className="py-1">{c.type}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
             <div className="flex w-full shrink-0 flex-col gap-3 sm:flex-row md:w-auto">
               <button
