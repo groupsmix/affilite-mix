@@ -1,6 +1,6 @@
 # Data Backup Strategy
 
-This document outlines the backup and disaster recovery strategy for the NicheHub affiliate platform.
+This document outlines the backup and disaster recovery strategy for the Affilite-Mix affiliate platform.
 
 ## 1. Supabase Built-in Backups
 

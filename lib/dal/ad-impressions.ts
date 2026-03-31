@@ -1,8 +1,7 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getUntypedServiceClient } from "@/lib/supabase-server";
+import { hasNumberProp } from "./type-guards";
 
-// ad_impressions is not in the generated Supabase types yet (migration pending),
-// so we use the untyped `.from()` overload via a type-level cast.
-const TABLE = "ad_impressions" as "sites"; // cast to known table to satisfy TS
+const TABLE = "ad_impressions";
 
 /** Record an ad impression (upserts daily count) */
 export async function recordAdImpression(
@@ -10,13 +9,12 @@ export async function recordAdImpression(
   adPlacementId: string,
   pagePath: string,
 ): Promise<void> {
-  const sb = getServiceClient();
+  const sb = getUntypedServiceClient();
   const today = new Date().toISOString().split("T")[0];
 
-  // Try to increment existing row for today
-  // eslint-disable-next-line
-  const { data: existing } = await (sb as any)
-    .from("ad_impressions")
+  // Try to find existing row for today
+  const { data: existing } = await sb
+    .from(TABLE)
     .select("id, count")
     .eq("site_id", siteId)
     .eq("ad_placement_id", adPlacementId)
@@ -24,15 +22,13 @@ export async function recordAdImpression(
     .eq("impression_date", today)
     .single();
 
-  if (existing) {
-    // eslint-disable-next-line
-    await (sb as any)
-      .from("ad_impressions")
-      .update({ count: (existing.count as number) + 1 })
-      .eq("id", existing.id);
+  if (existing && hasNumberProp(existing, "count")) {
+    await sb
+      .from(TABLE)
+      .update({ count: existing.count + 1 })
+      .eq("id", (existing as Record<string, unknown>).id);
   } else {
-    // eslint-disable-next-line
-    await (sb as any).from("ad_impressions").insert({
+    await sb.from(TABLE).insert({
       site_id: siteId,
       ad_placement_id: adPlacementId,
       page_path: pagePath,
@@ -48,10 +44,9 @@ export async function getAdImpressionStats(
   startDate: string,
   endDate?: string,
 ): Promise<{ ad_placement_id: string; total_impressions: number }[]> {
-  const sb = getServiceClient();
-  // eslint-disable-next-line
-  let query = (sb as any)
-    .from("ad_impressions")
+  const sb = getUntypedServiceClient();
+  let query = sb
+    .from(TABLE)
     .select("ad_placement_id, count")
     .eq("site_id", siteId)
     .gte("impression_date", startDate);

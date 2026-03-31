@@ -11,6 +11,9 @@ interface ProductCardProps {
   product: ProductRow;
   sourceType?: string;
   ctaLabel?: string;
+  /** Optional link to a related review/article for this product */
+  relatedContentHref?: string;
+  relatedContentLabel?: string;
 }
 
 function isDealActive(expiresAt: string | null): boolean {
@@ -47,7 +50,7 @@ function fireTrackingBeacon(slug: string, sourceType: string) {
   }
 }
 
-export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal" }: ProductCardProps) {
+export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal", relatedContentHref, relatedContentLabel }: ProductCardProps) {
   const { accepted: consentAccepted } = useCookieConsent();
   const [imgError, setImgError] = useState(false);
   const buttonLabel = product.cta_text || ctaLabel;
@@ -116,6 +119,15 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
           style={{ backgroundColor: "var(--color-accent, #10B981)" }}
         >
           {buttonLabel}
+        </a>
+      )}
+      {relatedContentHref && (
+        <a
+          href={relatedContentHref}
+          className="mt-2 block text-center text-xs font-medium transition-colors hover:underline"
+          style={{ color: "var(--color-accent, #10B981)" }}
+        >
+          {relatedContentLabel ?? "Read our review →"}
         </a>
       )}
     </div>

@@ -1,22 +1,20 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getUntypedServiceClient } from "@/lib/supabase-server";
+import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { AdPlacementRow, AdPlacementType } from "@/types/database";
 
-// ad_placements is not in the generated Supabase types yet (migration pending),
-// so we cast the client for insert/update calls.
 const TABLE = "ad_placements";
 
 /** List all ad placements for a site */
 export async function listAdPlacements(siteId: string): Promise<AdPlacementRow[]> {
-  const sb = getServiceClient();
-  // eslint-disable-next-line
-  const { data, error } = await (sb as any)
+  const sb = getUntypedServiceClient();
+  const { data, error } = await sb
     .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
     .order("priority", { ascending: true });
 
   if (error) throw error;
-  return data as AdPlacementRow[];
+  return assertRows<AdPlacementRow>(data);
 }
 
 /** List active ad placements for a site, optionally filtered by placement type */
@@ -24,9 +22,8 @@ export async function listActiveAdPlacements(
   siteId: string,
   placementType?: AdPlacementType,
 ): Promise<AdPlacementRow[]> {
-  const sb = getServiceClient();
-  // eslint-disable-next-line
-  let query = (sb as any)
+  const sb = getUntypedServiceClient();
+  let query = sb
     .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
@@ -39,7 +36,7 @@ export async function listActiveAdPlacements(
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as AdPlacementRow[];
+  return assertRows<AdPlacementRow>(data);
 }
 
 /** Get a single ad placement by id */
@@ -47,9 +44,8 @@ export async function getAdPlacementById(
   siteId: string,
   id: string,
 ): Promise<AdPlacementRow | null> {
-  const sb = getServiceClient();
-  // eslint-disable-next-line
-  const { data, error } = await (sb as any)
+  const sb = getUntypedServiceClient();
+  const { data, error } = await sb
     .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
@@ -57,18 +53,17 @@ export async function getAdPlacementById(
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return (data as unknown as AdPlacementRow) ?? null;
+  return rowOrNull<AdPlacementRow>(data);
 }
 
 /** Create an ad placement */
 export async function createAdPlacement(
   input: Omit<AdPlacementRow, "id" | "created_at">,
 ): Promise<AdPlacementRow> {
-  const sb = getServiceClient();
-  // eslint-disable-next-line
-  const { data, error } = await (sb as any).from(TABLE).insert(input).select().single();
+  const sb = getUntypedServiceClient();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
-  return data as AdPlacementRow;
+  return assertRow<AdPlacementRow>(data, "AdPlacement");
 }
 
 /** Update an ad placement */
@@ -77,9 +72,8 @@ export async function updateAdPlacement(
   id: string,
   input: Partial<Omit<AdPlacementRow, "id" | "site_id" | "created_at">>,
 ): Promise<AdPlacementRow> {
-  const sb = getServiceClient();
-  // eslint-disable-next-line
-  const { data, error } = await (sb as any)
+  const sb = getUntypedServiceClient();
+  const { data, error } = await sb
     .from(TABLE)
     .update(input)
     .eq("site_id", siteId)
@@ -88,7 +82,7 @@ export async function updateAdPlacement(
     .single();
 
   if (error) throw error;
-  return data as AdPlacementRow;
+  return assertRow<AdPlacementRow>(data, "AdPlacement");
 }
 
 /** Delete an ad placement */
@@ -96,9 +90,8 @@ export async function deleteAdPlacement(
   siteId: string,
   id: string,
 ): Promise<void> {
-  const sb = getServiceClient();
-  // eslint-disable-next-line
-  const { error } = await (sb as any)
+  const sb = getUntypedServiceClient();
+  const { error } = await sb
     .from(TABLE)
     .delete()
     .eq("site_id", siteId)
