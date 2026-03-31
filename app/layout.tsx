@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
 import { getCurrentSite } from "@/lib/site-context";
+import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { WebVitals } from "./web-vitals";
 import "./globals.css";
 
@@ -11,10 +12,43 @@ import "./globals.css";
  * only downloads fonts whose CSS variables are referenced in computed styles.
  */
 
-export const metadata: Metadata = {
-  title: "Admin",
-  description: "Multi-site affiliate platform",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const site = await getCurrentSite();
+    const dbSite = await resolveDbSiteBySlug(site.id);
+
+    const title = dbSite?.meta_title || site.name;
+    const description =
+      dbSite?.meta_description || site.brand.description || "Multi-site affiliate platform";
+    const ogImage = dbSite?.og_image_url || undefined;
+
+    return {
+      title: {
+        default: title,
+        template: `%s | ${title}`,
+      },
+      description,
+      openGraph: {
+        title,
+        description,
+        siteName: site.name,
+        type: "website",
+        ...(ogImage ? { images: [{ url: ogImage }] } : {}),
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        ...(ogImage ? { images: [ogImage] } : {}),
+      },
+    };
+  } catch {
+    return {
+      title: "Admin",
+      description: "Multi-site affiliate platform",
+    };
+  }
+}
 
 const inter = Inter({
   subsets: ["latin"],

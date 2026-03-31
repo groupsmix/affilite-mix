@@ -153,14 +153,25 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Affiliate URL</label>
-        <input
-          type="url"
-          value={affiliateUrl}
-          onChange={(e) => { setAffiliateUrl(e.target.value); markDirty(); }}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Affiliate URL</label>
+          <input
+            type="url"
+            value={affiliateUrl}
+            onChange={(e) => { setAffiliateUrl(e.target.value); markDirty(); }}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Merchant</label>
+          <input
+            type="text"
+            value={merchant}
+            onChange={(e) => { setMerchant(e.target.value); markDirty(); }}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
       </div>
 
       <ImageUploader
@@ -223,17 +234,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Merchant</label>
-          <input
-            type="text"
-            value={merchant}
-            onChange={(e) => { setMerchant(e.target.value); markDirty(); }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">Score (0–10)</label>
           <input
