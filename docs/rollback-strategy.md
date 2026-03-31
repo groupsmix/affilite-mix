@@ -141,7 +141,19 @@ curl -X POST https://wristnerd.xyz/api/revalidate \
 
 ---
 
-## 7. Communication Template
+## 7. Post-Rollback Checklist
+
+After rolling back:
+
+- [ ] Verify all three domains are serving correctly
+- [ ] Check Sentry for new errors (the rollback itself should not cause errors)
+- [ ] Notify the team about the rollback and the reason
+- [ ] Create a post-mortem document describing what went wrong
+- [ ] Fix the issue in a new branch, test thoroughly, then redeploy
+
+---
+
+## 8. Communication Template
 
 When a bad deployment is detected, notify stakeholders:
 
