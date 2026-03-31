@@ -1,4 +1,4 @@
-# How to Use Cloudflare Smartly for NicheHub
+# How to Use Cloudflare Smartly for Affilite-Mix
 
 > You're already paying $5/month for Workers. Here's how to squeeze maximum value from Cloudflare's ecosystem — most of this is **free** or included in your plan.
 
@@ -40,7 +40,7 @@ Your Next.js app deploys to Cloudflare Pages. This replaces Vercel entirely.
 - Preview deployments on every PR (same as Vercel)
 - Global CDN with 300+ edge locations
 
-**How it helps NicheHub:**
+**How it helps Affilite-Mix:**
 - Each domain (cryptocompare.ai, wristnerd.xyz, etc.) is a Custom Domain on the same Pages project
 - Zero per-request charges — you never worry about traffic spikes
 - Static pages are cached globally — visitors get sub-50ms load times
@@ -90,7 +90,7 @@ S3-compatible object storage with **zero egress fees**. You only pay for storage
 **Smart pattern:**
 ```
 Upload: Admin → /api/upload → presigned R2 URL → upload directly to R2
-Serve:  Visitor → media.nichehub.io (R2 custom domain) → image
+Serve:  Visitor → media.affilite-mix.io (R2 custom domain) → image
 ```
 
 No images flow through your server. Admin uploads directly to R2, visitors download directly from R2's CDN.
@@ -157,7 +157,7 @@ Forward emails from any of your domains to your real inbox. No email hosting nee
 
 You probably already use this. But here's what to maximize:
 
-**Smart DNS tricks for NicheHub:**
+**Smart DNS tricks for Affilite-Mix:**
 - **Proxy mode (orange cloud)** on all domains = DDoS protection + CDN + SSL automatic
 - **Page Rules** — redirect `www.cryptocompare.ai` → `cryptocompare.ai` (free, no code)
 - **CNAME flattening** — point apex domains to Cloudflare Pages without issues
@@ -169,7 +169,7 @@ You probably already use this. But here's what to maximize:
 
 Cache your HTML pages at Cloudflare's edge. Visitors get pages from the nearest data center instead of hitting your server.
 
-**Smart cache rules for NicheHub:**
+**Smart cache rules for Affilite-Mix:**
 
 | URL Pattern | Cache TTL | Purge On |
 |---|---|---|
@@ -214,7 +214,7 @@ Load tracking scripts (GA4, affiliate network pixels, Facebook Pixel) **server-s
 - Rate limiting rules (block IPs that hammer your API)
 - Challenge suspicious requests before they hit your server
 
-**Smart rules for NicheHub:**
+**Smart rules for Affilite-Mix:**
 - Rate limit `/api/track/click` to 60/min per IP (prevent click fraud)
 - Rate limit `/api/newsletter` to 3/hour per IP (prevent spam)
 - Block known bad bots from accessing `/admin/*`

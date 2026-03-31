@@ -1,4 +1,4 @@
-# NicheHub — Multi-Site Affiliate Platform
+# Affilite-Mix — Multi-Site Affiliate Platform
 
 A multi-tenant affiliate content platform built with **Next.js 15** (App Router), **Supabase**, **Tailwind CSS v4**, and deployed to **Cloudflare Pages** via `@opennextjs/cloudflare`.
 

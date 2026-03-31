@@ -1,4 +1,4 @@
--- NicheHub Affiliate Platform — Initial Schema
+-- Affilite-Mix Affiliate Platform — Initial Schema
 -- This migration creates all tables, indexes, RLS policies, and RPC functions
 -- required by the application.
 
