@@ -2,19 +2,24 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 
-/**
- * @deprecated All callers have been migrated to `getServiceClient()`.
- * Supabase types now include all tables (pages, ad_placements,
- * ad_impressions, shared_content, niche_templates). This function is
- * kept only for backwards compatibility — do NOT use in new code.
- */
-export function getUntypedServiceClient() {
-  return createClient(supabaseUrl, serviceRoleKey) as unknown as ReturnType<typeof createClient>;
-}
-
 const supabaseUrl = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL", "");
 const serviceRoleKey = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY", "");
 const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
+
+// Warn in production if the Supabase URL is not using the pooler endpoint.
+// Direct connections will exhaust PostgreSQL's connection limit on edge runtimes
+// (Cloudflare Workers) where each request opens a new connection.
+if (
+  process.env.NODE_ENV === "production" &&
+  supabaseUrl &&
+  !supabaseUrl.includes("pooler.supabase")
+) {
+  console.warn(
+    "NEXT_PUBLIC_SUPABASE_URL does not appear to use the Supabase connection pooler. " +
+      "In production on edge runtimes, use the pooler URL (e.g. https://xxx.pooler.supabase.com) " +
+      "to avoid exhausting PostgreSQL connection limits.",
+  );
+}
 
 /**
  * Server-only Supabase client using the service role key.

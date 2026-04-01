@@ -1,13 +1,11 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
 import type { ContentProductRow, ContentRow, ProductRow } from "@/types/database";
 import { assertRow, assertRows } from "./type-guards";
 
 const TABLE = "content_products";
 
 /** Link a product to a content item */
-export async function linkProduct(
-  input: ContentProductRow,
-): Promise<ContentProductRow> {
+export async function linkProduct(input: ContentProductRow): Promise<ContentProductRow> {
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
@@ -15,10 +13,7 @@ export async function linkProduct(
 }
 
 /** Unlink a product from a content item */
-export async function unlinkProduct(
-  contentId: string,
-  productId: string,
-): Promise<void> {
+export async function unlinkProduct(contentId: string, productId: string): Promise<void> {
   const sb = getServiceClient();
   const { error } = await sb
     .from(TABLE)
@@ -33,7 +28,7 @@ export async function unlinkProduct(
 export async function getLinkedProducts(
   contentId: string,
 ): Promise<(ContentProductRow & { product: ProductRow })[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*, product:products(*)")
@@ -64,10 +59,8 @@ export async function updateProductLink(
 }
 
 /** Get content items that link to a given product */
-export async function getRelatedContentForProduct(
-  productId: string,
-): Promise<ContentRow[]> {
-  const sb = getServiceClient();
+export async function getRelatedContentForProduct(productId: string): Promise<ContentRow[]> {
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("content:content(*)")
@@ -88,10 +81,7 @@ export async function setLinkedProducts(
   const sb = getServiceClient();
 
   // Delete existing links
-  const { error: delError } = await sb
-    .from(TABLE)
-    .delete()
-    .eq("content_id", contentId);
+  const { error: delError } = await sb.from(TABLE).delete().eq("content_id", contentId);
 
   if (delError) throw delError;
 
