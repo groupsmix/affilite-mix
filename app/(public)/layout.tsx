@@ -6,6 +6,7 @@ import { SiteFooter } from "./components/site-footer";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig, LayoutVariant } from "./components/theme-provider";
 import CookieConsent from "./components/cookie-consent";
+import { logger } from "@/lib/logger";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -21,8 +22,10 @@ export async function generateMetadata(): Promise<Metadata> {
       metaDescription = dbSite.meta_description ?? undefined;
       ogImageUrl = (dbSite.og_image_url as string) ?? undefined;
     }
-  } catch {
-    // Fall back to config-based metadata
+  } catch (err) {
+    logger.warn("Failed to load DB metadata for public layout, falling back to config", {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 
   return {
@@ -64,8 +67,10 @@ export default async function PublicLayout({ children }: { children: React.React
         dbFooterNav = dbSite.footer_nav;
       }
     }
-  } catch {
-    // Fall back to config-based theme
+  } catch (err) {
+    logger.warn("Failed to load DB theme/nav for public layout, falling back to config", {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 
   // Merge: DB theme overrides config theme

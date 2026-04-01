@@ -69,7 +69,9 @@ export interface CreateCategoryInput {
   taxonomy_type: "general" | "budget" | "occasion" | "recipient" | "brand";
 }
 
-export function validateCreateCategory(body: Record<string, unknown>): ValidationResult<CreateCategoryInput> {
+export function validateCreateCategory(
+  body: Record<string, unknown>,
+): ValidationResult<CreateCategoryInput> {
   const errors: Record<string, string> = {};
 
   if (!isString(body.name) || body.name.length < 1 || body.name.length > 200) {
@@ -80,7 +82,8 @@ export function validateCreateCategory(body: Record<string, unknown>): Validatio
   }
 
   if (body.taxonomy_type !== undefined && !TAXONOMY_TYPES.has(body.taxonomy_type as string)) {
-    errors.taxonomy_type = "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
+    errors.taxonomy_type =
+      "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
   }
 
   if (Object.keys(errors).length > 0) return { data: null, errors };
@@ -89,7 +92,9 @@ export function validateCreateCategory(body: Record<string, unknown>): Validatio
       name: body.name as string,
       slug: body.slug as string,
       description: isString(body.description) ? body.description : "",
-      taxonomy_type: (TAXONOMY_TYPES.has(body.taxonomy_type as string) ? body.taxonomy_type : "general") as CreateCategoryInput["taxonomy_type"],
+      taxonomy_type: (TAXONOMY_TYPES.has(body.taxonomy_type as string)
+        ? body.taxonomy_type
+        : "general") as CreateCategoryInput["taxonomy_type"],
     },
     errors: null,
   };
@@ -103,13 +108,18 @@ export interface UpdateCategoryInput {
   taxonomy_type?: "general" | "budget" | "occasion" | "recipient" | "brand";
 }
 
-export function validateUpdateCategory(body: Record<string, unknown>): ValidationResult<UpdateCategoryInput> {
+export function validateUpdateCategory(
+  body: Record<string, unknown>,
+): ValidationResult<UpdateCategoryInput> {
   const errors: Record<string, string> = {};
 
   if (!isUuid(body.id)) {
     errors.id = "id must be a valid UUID";
   }
-  if (body.name !== undefined && (!isString(body.name) || body.name.length < 1 || body.name.length > 200)) {
+  if (
+    body.name !== undefined &&
+    (!isString(body.name) || body.name.length < 1 || body.name.length > 200)
+  ) {
     errors.name = "name must be a string between 1 and 200 characters";
   }
   if (body.slug !== undefined && (!isSlug(body.slug) || (body.slug as string).length > 200)) {
@@ -117,7 +127,8 @@ export function validateUpdateCategory(body: Record<string, unknown>): Validatio
   }
 
   if (body.taxonomy_type !== undefined && !TAXONOMY_TYPES.has(body.taxonomy_type as string)) {
-    errors.taxonomy_type = "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
+    errors.taxonomy_type =
+      "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
   }
 
   if (Object.keys(errors).length > 0) return { data: null, errors };
@@ -125,7 +136,8 @@ export function validateUpdateCategory(body: Record<string, unknown>): Validatio
   if (body.name !== undefined) data.name = body.name as string;
   if (body.slug !== undefined) data.slug = body.slug as string;
   if (body.description !== undefined) data.description = body.description as string;
-  if (body.taxonomy_type !== undefined) data.taxonomy_type = body.taxonomy_type as UpdateCategoryInput["taxonomy_type"];
+  if (body.taxonomy_type !== undefined)
+    data.taxonomy_type = body.taxonomy_type as UpdateCategoryInput["taxonomy_type"];
   return { data, errors: null };
 }
 
@@ -155,7 +167,9 @@ export interface CreateProductInput {
 
 const PRODUCT_STATUSES = new Set(["draft", "active", "archived"]);
 
-export function validateCreateProduct(body: Record<string, unknown>): ValidationResult<CreateProductInput> {
+export function validateCreateProduct(
+  body: Record<string, unknown>,
+): ValidationResult<CreateProductInput> {
   const errors: Record<string, string> = {};
 
   if (!isString(body.name) || body.name.length < 1 || body.name.length > 200) {
@@ -167,14 +181,23 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
   if (body.description !== undefined && body.description !== "" && !isString(body.description)) {
     errors.description = "description must be a string";
   }
-  if (body.affiliate_url !== undefined && body.affiliate_url !== "" && !isHttpsUrl(body.affiliate_url)) {
+  if (
+    body.affiliate_url !== undefined &&
+    body.affiliate_url !== "" &&
+    !isHttpsUrl(body.affiliate_url)
+  ) {
     errors.affiliate_url = "affiliate_url must be a valid HTTPS URL or empty string";
   }
   if (body.image_url !== undefined && body.image_url !== "" && !isUrl(body.image_url)) {
     errors.image_url = "image_url must be a valid URL or empty string";
   }
-  if (isString(body.image_url) && body.image_url !== "" && (!isString(body.image_alt) || body.image_alt.trim() === "")) {
-    errors.image_alt = "image_alt is required when image_url is provided — describe what is shown in the image, not just the product name";
+  if (
+    isString(body.image_url) &&
+    body.image_url !== "" &&
+    (!isString(body.image_alt) || body.image_alt.trim() === "")
+  ) {
+    errors.image_alt =
+      "image_alt is required when image_url is provided — describe what is shown in the image, not just the product name";
   }
   if (body.price !== undefined && !isString(body.price)) {
     errors.price = "price must be a string";
@@ -182,7 +205,11 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
   if (body.merchant !== undefined && !isString(body.merchant)) {
     errors.merchant = "merchant must be a string";
   }
-  if (body.score !== undefined && body.score !== null && (!isNumber(body.score) || body.score < 0 || body.score > 10)) {
+  if (
+    body.score !== undefined &&
+    body.score !== null &&
+    (!isNumber(body.score) || body.score < 0 || body.score > 10)
+  ) {
     errors.score = "score must be a number between 0 and 10, or null";
   }
   if (body.status !== undefined && !PRODUCT_STATUSES.has(body.status as string)) {
@@ -207,7 +234,10 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
       merchant: isString(body.merchant) ? body.merchant : "",
       score: isNumber(body.score) ? body.score : null,
       featured: isBoolean(body.featured) ? body.featured : false,
-      status: (PRODUCT_STATUSES.has(body.status as string) ? body.status : "active") as "draft" | "active" | "archived",
+      status: (PRODUCT_STATUSES.has(body.status as string) ? body.status : "active") as
+        | "draft"
+        | "active"
+        | "archived",
       category_id: isUuid(body.category_id) ? (body.category_id as string) : null,
       cta_text: isString(body.cta_text) ? body.cta_text : "",
       deal_text: isString(body.deal_text) ? body.deal_text : "",
@@ -242,22 +272,35 @@ export interface UpdateProductInput {
   cons?: string;
 }
 
-export function validateUpdateProduct(body: Record<string, unknown>): ValidationResult<UpdateProductInput> {
+export function validateUpdateProduct(
+  body: Record<string, unknown>,
+): ValidationResult<UpdateProductInput> {
   const errors: Record<string, string> = {};
 
   if (!isUuid(body.id)) {
     errors.id = "id must be a valid UUID";
   }
-  if (body.name !== undefined && (!isString(body.name) || body.name.length < 1 || body.name.length > 200)) {
+  if (
+    body.name !== undefined &&
+    (!isString(body.name) || body.name.length < 1 || body.name.length > 200)
+  ) {
     errors.name = "name must be a string between 1 and 200 characters";
   }
   if (body.slug !== undefined && (!isSlug(body.slug) || (body.slug as string).length > 200)) {
     errors.slug = "slug must be a lowercase alphanumeric string with hyphens, max 200 chars";
   }
-  if (body.affiliate_url !== undefined && body.affiliate_url !== "" && !isHttpsUrl(body.affiliate_url)) {
+  if (
+    body.affiliate_url !== undefined &&
+    body.affiliate_url !== "" &&
+    !isHttpsUrl(body.affiliate_url)
+  ) {
     errors.affiliate_url = "affiliate_url must be a valid HTTPS URL or empty string";
   }
-  if (body.score !== undefined && body.score !== null && (!isNumber(body.score) || body.score < 0 || body.score > 10)) {
+  if (
+    body.score !== undefined &&
+    body.score !== null &&
+    (!isNumber(body.score) || body.score < 0 || body.score > 10)
+  ) {
     errors.score = "score must be a number between 0 and 10, or null";
   }
   if (body.status !== undefined && !PRODUCT_STATUSES.has(body.status as string)) {
@@ -286,7 +329,8 @@ export function validateUpdateProduct(body: Record<string, unknown>): Validation
   if (body.category_id !== undefined) data.category_id = body.category_id as string | null;
   if (body.cta_text !== undefined) data.cta_text = body.cta_text as string;
   if (body.deal_text !== undefined) data.deal_text = body.deal_text as string;
-  if (body.deal_expires_at !== undefined) data.deal_expires_at = body.deal_expires_at as string | null;
+  if (body.deal_expires_at !== undefined)
+    data.deal_expires_at = body.deal_expires_at as string | null;
   if (body.pros !== undefined) data.pros = body.pros as string;
   if (body.cons !== undefined) data.cons = body.cons as string;
   return { data, errors: null };
@@ -315,7 +359,9 @@ export interface CreateContentInput {
 
 const CONTENT_STATUSES = new Set(["draft", "review", "scheduled", "published", "archived"]);
 
-export function validateCreateContent(body: Record<string, unknown>): ValidationResult<CreateContentInput> {
+export function validateCreateContent(
+  body: Record<string, unknown>,
+): ValidationResult<CreateContentInput> {
   const errors: Record<string, string> = {};
 
   if (!isString(body.title) || body.title.length < 1 || body.title.length > 500) {
@@ -351,14 +397,21 @@ export function validateCreateContent(body: Record<string, unknown>): Validation
       body: isString(body.body) ? body.body : "",
       excerpt: isString(body.excerpt) ? body.excerpt : "",
       featured_image: isString(body.featured_image) ? body.featured_image : "",
-      type: (CONTENT_TYPES.has(body.type as string) ? body.type : "article") as CreateContentInput["type"],
-      status: (CONTENT_STATUSES.has(body.status as string) ? body.status : "draft") as CreateContentInput["status"],
+      type: (CONTENT_TYPES.has(body.type as string)
+        ? body.type
+        : "article") as CreateContentInput["type"],
+      status: (CONTENT_STATUSES.has(body.status as string)
+        ? body.status
+        : "draft") as CreateContentInput["status"],
       category_id: isUuid(body.category_id) ? (body.category_id as string) : null,
       tags: Array.isArray(body.tags) ? (body.tags as string[]) : [],
       author: isString(body.author) ? body.author : null,
       publish_at: isString(body.publish_at) && body.publish_at !== "" ? body.publish_at : null,
       meta_title: isString(body.meta_title) && body.meta_title !== "" ? body.meta_title : null,
-      meta_description: isString(body.meta_description) && body.meta_description !== "" ? body.meta_description : null,
+      meta_description:
+        isString(body.meta_description) && body.meta_description !== ""
+          ? body.meta_description
+          : null,
       og_image: isString(body.og_image) && body.og_image !== "" ? body.og_image : null,
     },
     errors: null,
@@ -372,7 +425,7 @@ export interface UpdateContentInput {
   body?: string;
   excerpt?: string;
   featured_image?: string;
-  type?: string;
+  type?: "article" | "review" | "comparison" | "guide" | "blog";
   status?: "draft" | "review" | "scheduled" | "published" | "archived";
   category_id?: string | null;
   tags?: string[];
@@ -383,13 +436,18 @@ export interface UpdateContentInput {
   og_image?: string | null;
 }
 
-export function validateUpdateContent(body: Record<string, unknown>): ValidationResult<UpdateContentInput> {
+export function validateUpdateContent(
+  body: Record<string, unknown>,
+): ValidationResult<UpdateContentInput> {
   const errors: Record<string, string> = {};
 
   if (!isUuid(body.id)) {
     errors.id = "id must be a valid UUID";
   }
-  if (body.title !== undefined && (!isString(body.title) || body.title.length < 1 || body.title.length > 500)) {
+  if (
+    body.title !== undefined &&
+    (!isString(body.title) || body.title.length < 1 || body.title.length > 500)
+  ) {
     errors.title = "title must be a string between 1 and 500 characters";
   }
   if (body.slug !== undefined && (!isSlug(body.slug) || (body.slug as string).length > 500)) {
@@ -400,6 +458,9 @@ export function validateUpdateContent(body: Record<string, unknown>): Validation
   }
   if (body.body !== undefined && isString(body.body) && body.body.length > 500_000) {
     errors.body = "body must be less than 500,000 characters";
+  }
+  if (body.type !== undefined && !CONTENT_TYPES.has(body.type as string)) {
+    errors.type = "type must be one of: article, review, comparison, guide, blog";
   }
   if (body.status !== undefined && !CONTENT_STATUSES.has(body.status as string)) {
     errors.status = "status must be one of: draft, review, scheduled, published, archived";
@@ -416,15 +477,21 @@ export function validateUpdateContent(body: Record<string, unknown>): Validation
   if (body.body !== undefined) data.body = body.body as string;
   if (body.excerpt !== undefined) data.excerpt = body.excerpt as string;
   if (body.featured_image !== undefined) data.featured_image = body.featured_image as string;
-  if (body.type !== undefined) data.type = body.type as string;
+  if (body.type !== undefined) data.type = body.type as UpdateContentInput["type"];
   if (body.status !== undefined) data.status = body.status as UpdateContentInput["status"];
   if (body.category_id !== undefined) data.category_id = body.category_id as string | null;
   if (body.tags !== undefined) data.tags = body.tags as string[];
   if (body.author !== undefined) data.author = body.author as string | null;
   if (body.publish_at !== undefined) data.publish_at = body.publish_at as string | null;
-  if (body.meta_title !== undefined) data.meta_title = isString(body.meta_title) && body.meta_title !== "" ? body.meta_title : null;
-  if (body.meta_description !== undefined) data.meta_description = isString(body.meta_description) && body.meta_description !== "" ? body.meta_description : null;
-  if (body.og_image !== undefined) data.og_image = isString(body.og_image) && body.og_image !== "" ? body.og_image : null;
+  if (body.meta_title !== undefined)
+    data.meta_title = isString(body.meta_title) && body.meta_title !== "" ? body.meta_title : null;
+  if (body.meta_description !== undefined)
+    data.meta_description =
+      isString(body.meta_description) && body.meta_description !== ""
+        ? body.meta_description
+        : null;
+  if (body.og_image !== undefined)
+    data.og_image = isString(body.og_image) && body.og_image !== "" ? body.og_image : null;
   return { data, errors: null };
 }
 
@@ -442,7 +509,9 @@ export interface SetLinkedProductsInput {
   links: ContentProductLink[];
 }
 
-export function validateSetLinkedProducts(body: Record<string, unknown>): ValidationResult<SetLinkedProductsInput> {
+export function validateSetLinkedProducts(
+  body: Record<string, unknown>,
+): ValidationResult<SetLinkedProductsInput> {
   const errors: Record<string, string> = {};
 
   if (!isUuid(body.content_id)) {
@@ -458,7 +527,8 @@ export function validateSetLinkedProducts(body: Record<string, unknown>): Valida
         errors[`links[${i}].product_id`] = "product_id must be a valid UUID";
       }
       if (!isString(link.role) || !LINK_ROLES.has(link.role)) {
-        errors[`links[${i}].role`] = "role must be one of: hero, featured, related, vs-left, vs-right";
+        errors[`links[${i}].role`] =
+          "role must be one of: hero, featured, related, vs-left, vs-right";
       }
     }
   }
