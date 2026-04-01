@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
@@ -76,7 +76,7 @@ export async function getProductById(siteId: string, id: string): Promise<Produc
 
 /** Get a single product by slug */
 export async function getProductBySlug(siteId: string, slug: string): Promise<ProductRow | null> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -141,7 +141,7 @@ export async function listActiveProducts(
   siteId: string,
   categorySlug?: string,
 ): Promise<ProductRow[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   let query = sb
     .from(TABLE)
     .select("*, categories!inner(slug)")
@@ -167,7 +167,7 @@ export async function searchProducts(
   query: string,
   limit = 20,
 ): Promise<ProductRow[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const tsq = toTsquery(query);
 
   if (tsq) {
@@ -199,7 +199,7 @@ export async function searchProducts(
 
 /** List featured products for a site */
 export async function listFeaturedProducts(siteId: string, limit = 6): Promise<ProductRow[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)

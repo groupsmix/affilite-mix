@@ -3,6 +3,7 @@ import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google"
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { WebVitals } from "./web-vitals";
+import { logger } from "@/lib/logger";
 import "./globals.css";
 
 /*
@@ -45,7 +46,10 @@ export async function generateMetadata(): Promise<Metadata> {
         ...(ogImage ? { images: [ogImage] } : {}),
       },
     };
-  } catch {
+  } catch (err) {
+    logger.warn("Failed to generate metadata from DB, falling back to defaults", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return {
       title: "Admin",
       description: "Multi-site affiliate platform",

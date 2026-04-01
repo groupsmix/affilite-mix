@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
 import type { SiteRow } from "@/types/database";
 import type { Database } from "@/types/supabase";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
@@ -84,7 +84,7 @@ export async function getSiteRowBySlug(slug: string): Promise<SiteRow | null> {
   const cached = siteBySlugCache.get(slug);
   if (cached && Date.now() < cached.expiresAt) return cached.value;
 
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
 
   if (error && error.code !== "PGRST116") throw error;
@@ -102,7 +102,7 @@ export async function getSiteRowByDomain(domain: string): Promise<SiteRow | null
   const cached = siteByDomainCache.get(domain);
   if (cached && Date.now() < cached.expiresAt) return cached.value;
 
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb.from(TABLE).select("*").eq("domain", domain).single();
 
   if (error && error.code !== "PGRST116") throw error;
