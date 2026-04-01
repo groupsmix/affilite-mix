@@ -6,6 +6,7 @@ import { SiteFooter } from "./components/site-footer";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig, LayoutVariant } from "./components/theme-provider";
 import CookieConsent from "./components/cookie-consent";
+import { Toaster } from "sonner";
 import { logger } from "@/lib/logger";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -100,6 +101,7 @@ export default async function PublicLayout({ children }: { children: React.React
         </main>
         <SiteFooter site={site} dbFooterNav={dbFooterNav} />
         {site.features.cookieConsent && <CookieConsent language={site.language} />}
+        <Toaster position="bottom-right" richColors closeButton />
       </div>
     </ThemeProvider>
   );
