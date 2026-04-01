@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface PageInfo {
   id: string;
@@ -45,7 +46,7 @@ export function PageManager() {
 
   const loadPages = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/pages", { credentials: "include" });
+      const res = await fetchWithCsrf("/api/admin/pages", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setPages(data);
@@ -88,7 +89,7 @@ export function PageManager() {
 
     try {
       if (editingPage) {
-        const res = await fetch(`/api/admin/pages/${editingPage.id}`, {
+        const res = await fetchWithCsrf(`/api/admin/pages/${editingPage.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -100,7 +101,7 @@ export function PageManager() {
           return;
         }
       } else {
-        const res = await fetch("/api/admin/pages", {
+        const res = await fetchWithCsrf("/api/admin/pages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -124,7 +125,7 @@ export function PageManager() {
   async function handleDeleteConfirmed(page: PageInfo) {
     setConfirmDeletePage(null);
     try {
-      await fetch(`/api/admin/pages/${page.id}`, {
+      await fetchWithCsrf(`/api/admin/pages/${page.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -141,7 +142,7 @@ export function PageManager() {
     const reordered = newPages.map((p, i) => ({ id: p.id, sort_order: i }));
     setPages(newPages);
     try {
-      await fetch("/api/admin/pages/reorder", {
+      await fetchWithCsrf("/api/admin/pages/reorder", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -160,7 +161,7 @@ export function PageManager() {
     const reordered = newPages.map((p, i) => ({ id: p.id, sort_order: i }));
     setPages(newPages);
     try {
-      await fetch("/api/admin/pages/reorder", {
+      await fetchWithCsrf("/api/admin/pages/reorder", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
