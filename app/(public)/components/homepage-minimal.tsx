@@ -98,12 +98,13 @@ export function MinimalHomepage({
               {site.productLabelPlural}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredProducts.map((product) => (
+              {featuredProducts.map((product, i) => (
                 <ProductCard
                   key={product.id}
                   product={product}
                   sourceType="homepage"
                   ctaLabel={ctaLabel}
+                  priority={i === 0}
                 />
               ))}
             </div>
@@ -129,8 +130,13 @@ export function MinimalHomepage({
               </Link>
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {recentContent.map((content) => (
-                <ContentCard key={content.id} content={content} locale={locale} />
+              {recentContent.map((content, i) => (
+                <ContentCard
+                  key={content.id}
+                  content={content}
+                  locale={locale}
+                  priority={i === 0}
+                />
               ))}
             </div>
           </section>

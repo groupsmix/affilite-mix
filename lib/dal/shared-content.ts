@@ -2,6 +2,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { assertRow, assertRows } from "./type-guards";
 
 const TABLE = "shared_content";
+const LIST_COLUMNS = "id, content_id, source_site_id, target_site_id, created_at" as const;
 
 interface SharedContentRow {
   id: string;
@@ -49,7 +50,7 @@ export async function listSharedTargets(contentId: string): Promise<SharedConten
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("content_id", contentId)
     .order("created_at", { ascending: true });
 
@@ -62,7 +63,7 @@ export async function listContentSharedToSite(targetSiteId: string): Promise<Sha
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("target_site_id", targetSiteId)
     .order("created_at", { ascending: true });
 

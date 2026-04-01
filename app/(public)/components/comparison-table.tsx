@@ -68,7 +68,7 @@ export function ComparisonTable({ products }: ComparisonTableProps) {
         <table className="w-full border-collapse rounded-lg border border-gray-200 text-sm">
           <thead>
             <tr className="bg-gray-50">
-              <th className="border-b border-gray-200 px-4 py-3 text-left font-medium text-gray-500">
+              <th className="border-b border-gray-200 px-4 py-3 text-start font-medium text-gray-500">
                 Feature
               </th>
               {products.map((p) => (
