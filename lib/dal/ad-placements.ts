@@ -4,7 +4,7 @@ import type { AdPlacementRow, AdPlacementType } from "@/types/database";
 
 const TABLE = "ad_placements";
 const LIST_COLUMNS =
-  "id, site_id, name, placement_type, provider, is_active, priority, created_at" as const;
+  "id, site_id, name, placement_type, provider, ad_code, config, is_active, priority, created_at" as const;
 
 /** List all ad placements for a site */
 export async function listAdPlacements(siteId: string): Promise<AdPlacementRow[]> {
