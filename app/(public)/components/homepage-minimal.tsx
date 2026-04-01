@@ -78,7 +78,7 @@ export function MinimalHomepage({
                 >
                   {cat.name}
                   {cat.product_count > 0 && (
-                    <span className="ml-1.5 text-xs text-gray-400">({cat.product_count})</span>
+                    <span className="ml-1.5 text-xs text-gray-500">({cat.product_count})</span>
                   )}
                 </Link>
               ))}
@@ -136,7 +136,7 @@ export function MinimalHomepage({
 
         {/* Empty state */}
         {recentContent.length === 0 && featuredProducts.length === 0 && (
-          <div className="py-24 text-center text-gray-400">
+          <div className="py-24 text-center text-gray-500">
             <p className="text-lg">
               {site.language === "ar" ? "لا يوجد محتوى بعد" : "No content yet"}
             </p>

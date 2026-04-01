@@ -13,7 +13,10 @@ interface PaginationProps {
  * Always shows first, last, and up to 2 pages around the current page.
  * Example: 1 ... 4 5 [6] 7 8 ... 17
  */
-function getPageNumbers(currentPage: number, totalPages: number): (number | "ellipsis-start" | "ellipsis-end")[] {
+function getPageNumbers(
+  currentPage: number,
+  totalPages: number,
+): (number | "ellipsis-start" | "ellipsis-end")[] {
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
@@ -44,7 +47,11 @@ function getPageNumbers(currentPage: number, totalPages: number): (number | "ell
   return pages;
 }
 
-function buildPageUrl(basePath: string, page: number, searchParams?: Record<string, string | string[] | undefined>): string {
+function buildPageUrl(
+  basePath: string,
+  page: number,
+  searchParams?: Record<string, string | string[] | undefined>,
+): string {
   const params = new URLSearchParams();
   if (searchParams) {
     for (const [key, value] of Object.entries(searchParams)) {
@@ -61,7 +68,13 @@ function buildPageUrl(basePath: string, page: number, searchParams?: Record<stri
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
-export function Pagination({ currentPage, totalItems, pageSize, basePath, searchParams }: PaginationProps) {
+export function Pagination({
+  currentPage,
+  totalItems,
+  pageSize,
+  basePath,
+  searchParams,
+}: PaginationProps) {
   const totalPages = Math.ceil(totalItems / pageSize);
   if (totalPages <= 1) return null;
 
@@ -80,11 +93,7 @@ export function Pagination({ currentPage, totalItems, pageSize, basePath, search
       {pageNumbers.map((item) => {
         if (item === "ellipsis-start" || item === "ellipsis-end") {
           return (
-            <span
-              key={item}
-              className="px-2 py-2 text-sm text-gray-400"
-              aria-hidden="true"
-            >
+            <span key={item} className="px-2 py-2 text-sm text-gray-500" aria-hidden="true">
               &hellip;
             </span>
           );

@@ -10,13 +10,13 @@ import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./components/json-ld"
 import Link from "next/link";
 
 const WatchHomepage = dynamic(() =>
-  import("./components/watch-homepage").then((m) => m.WatchHomepage)
+  import("./components/watch-homepage").then((m) => m.WatchHomepage),
 );
 const CinematicHomepage = dynamic(() =>
-  import("./components/homepage-cinematic").then((m) => m.CinematicHomepage)
+  import("./components/homepage-cinematic").then((m) => m.CinematicHomepage),
 );
 const MinimalHomepage = dynamic(() =>
-  import("./components/homepage-minimal").then((m) => m.MinimalHomepage)
+  import("./components/homepage-minimal").then((m) => m.MinimalHomepage),
 );
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -48,17 +48,26 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const site = await getCurrentSite();
-  const [recentContent, featuredProducts, categories, productCount, reviewCount] = await Promise.all([
-    getRecentContent(site.id, 6),
-    listFeaturedProducts(site.id, 6),
-    listCategoriesWithProductCount(site.id),
-    countProducts({ siteId: site.id, status: "active" }),
-    countPublishedContent(site.id, "review"),
-  ]);
+  const [recentContent, featuredProducts, categories, productCount, reviewCount] =
+    await Promise.all([
+      getRecentContent(site.id, 6),
+      listFeaturedProducts(site.id, 6),
+      listCategoriesWithProductCount(site.id),
+      countProducts({ siteId: site.id, status: "active" }),
+      countPublishedContent(site.id, "review"),
+    ]);
 
   // Render homepage based on template preset
-  const homepageProps = { site, recentContent, featuredProducts, categories, productCount, reviewCount };
-  const template = site.homepageTemplate ?? (site.features.customHomepage ? "cinematic" : "standard");
+  const homepageProps = {
+    site,
+    recentContent,
+    featuredProducts,
+    categories,
+    productCount,
+    reviewCount,
+  };
+  const template =
+    site.homepageTemplate ?? (site.features.customHomepage ? "cinematic" : "standard");
 
   if (template === "cinematic") {
     // WatchHomepage is the existing cinematic implementation (watch-specific)
@@ -100,7 +109,7 @@ export default async function HomePage() {
                 {cat.description && (
                   <p className="mt-1 line-clamp-2 text-sm text-gray-500">{cat.description}</p>
                 )}
-                <span className="mt-2 inline-block text-xs text-gray-400">
+                <span className="mt-2 inline-block text-xs text-gray-500">
                   {cat.product_count} {cat.product_count === 1 ? "product" : "products"}
                 </span>
               </Link>
@@ -113,9 +122,7 @@ export default async function HomePage() {
       {featuredProducts.length > 0 && (
         <section className="mb-12">
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold">
-              {site.productLabelPlural}
-            </h2>
+            <h2 className="text-2xl font-bold">{site.productLabelPlural}</h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {featuredProducts.map((product) => (
@@ -154,7 +161,7 @@ export default async function HomePage() {
 
       {/* Empty state */}
       {recentContent.length === 0 && featuredProducts.length === 0 && (
-        <div className="py-16 text-center text-gray-400">
+        <div className="py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar" ? "لا يوجد محتوى بعد" : "No content yet"}
           </p>

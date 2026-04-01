@@ -17,7 +17,7 @@ export function HtmlRenderer({ html, direction = "ltr" }: HtmlRendererProps) {
   return (
     <div
       dir={direction}
-      className={`prose prose-lg max-w-none prose-headings:font-semibold prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg ${isRtl ? "text-right" : ""}`}
+      className={`prose prose-lg max-w-none prose-headings:font-semibold prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-pre:overflow-x-auto ${isRtl ? "text-right" : ""}`}
       style={{ "--tw-prose-links": "var(--color-accent, #10B981)" } as React.CSSProperties}
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />
