@@ -95,11 +95,79 @@ To add another parent domain (e.g. `myniche.com`):
 2. Set up the wildcard CNAME in that domain's Cloudflare zone
 3. Add the wildcard custom domain in Cloudflare Pages
 
+## Staging & Preview Environments
+
+Cloudflare Pages automatically creates **preview deployments** for every PR branch.
+Use these as staging environments to validate changes before merging to `main`.
+
+### Recommended Workflow
+
+1. Push changes to a feature branch and open a PR
+2. CI runs lint → test → typecheck → build → npm audit (`.github/workflows/ci.yml`)
+3. Cloudflare Pages deploys a preview at `<branch>.affilite-mix.pages.dev`
+4. Smoke-test the preview deployment (especially admin flows and public pages)
+5. Merge to `main` → production deploy triggers automatically
+
+### Preview Environment Limitations
+
+- Preview deployments share the **production Supabase database** unless you
+  configure a separate project. For schema-breaking changes, use a staging
+  Supabase project and set its URL/keys as environment variables for the
+  preview branch in the Cloudflare Pages dashboard.
+- KV namespaces and R2 buckets can be configured per-environment in
+  `wrangler.jsonc` using `[env.staging]` sections if needed.
+
+## Pre-Deploy Checklist
+
+Before merging to `main` (which triggers an automatic production deploy):
+
+1. **Database migrations first** — If the PR includes new migration files in
+   `supabase/migrations/`, apply them to the production database **before**
+   merging. The deploy pipeline does not run migrations automatically.
+
+   ```bash
+   # Option A: Supabase CLI (recommended)
+   npx supabase db push --db-url "$DATABASE_URL"
+
+   # Option B: Apply a specific migration manually
+   psql "$DATABASE_URL" -f supabase/migrations/00024_index_content_status_publish_at.sql
+   ```
+
+2. **Verify CI passes** — All checks in `.github/workflows/ci.yml` must be green.
+3. **Test preview deployment** — Verify the Cloudflare Pages preview works correctly.
+4. **Merge PR** → production deploy runs via `.github/workflows/deploy.yml`.
+5. **Verify production** — Spot-check key pages and admin flows after deploy.
+
+> **Why migrations aren't automated:** The deploy pipeline builds and deploys
+> the Worker but does not have direct database access. Migrations require the
+> Supabase service role key and direct DB connection, which are intentionally
+> separated from the CI/CD pipeline for security.
+
+## Cron Jobs
+
+Cron triggers are configured in `wrangler.jsonc` under `triggers.crons` and
+are deployed automatically with the Worker. No manual setup is needed after
+the initial deployment.
+
+| Schedule      | Endpoint                    | Purpose                                              |
+| ------------- | --------------------------- | ---------------------------------------------------- |
+| `*/5 * * * *` | `/api/cron/publish`         | Publish scheduled content & archive expired products |
+| (on-demand)   | `/api/cron/sitemap-refresh` | Regenerate sitemaps                                  |
+
+Cron endpoints are protected by `CRON_SECRET`. Set it via:
+
+```bash
+wrangler secret put CRON_SECRET
+```
+
+If the Worker is redeployed to a new project, cron triggers will be
+recreated automatically from `wrangler.jsonc` — no manual reconfiguration needed.
+
 ## Troubleshooting
 
-| Issue | Solution |
-|---|---|
+| Issue                              | Solution                                                                                                                    |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | "Niche Not Found" for a valid site | Check that the site's `domain` field in the DB matches exactly (e.g. `coffee.writnerd.site`) and that `is_active` is `true` |
-| SSL certificate error | Wait a few minutes for Cloudflare to provision the certificate, or check that Universal SSL is enabled |
-| Subdomain not resolving | Verify the wildcard CNAME record exists in Cloudflare DNS |
-| Existing subdomain stopped working | Explicit DNS records take priority over wildcards — make sure you haven't accidentally deleted one |
+| SSL certificate error              | Wait a few minutes for Cloudflare to provision the certificate, or check that Universal SSL is enabled                      |
+| Subdomain not resolving            | Verify the wildcard CNAME record exists in Cloudflare DNS                                                                   |
+| Existing subdomain stopped working | Explicit DNS records take priority over wildcards — make sure you haven't accidentally deleted one                          |
