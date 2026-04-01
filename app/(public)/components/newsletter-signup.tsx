@@ -49,7 +49,7 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
         data.message ??
           (isAr
             ? "يرجى التحقق من بريدك الإلكتروني لتأكيد اشتراكك."
-            : "Almost there! Check your inbox and click the confirmation link to complete your subscription.")
+            : "Almost there! Check your inbox and click the confirmation link to complete your subscription."),
       );
       setStatus("success");
       setEmail("");
@@ -61,18 +61,30 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
 
   if (status === "success") {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center" role="status" aria-live="polite">
+      <div
+        className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center"
+        role="status"
+        aria-live="polite"
+      >
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
-          <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+          <svg
+            className="h-6 w-6 text-amber-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+            />
           </svg>
         </div>
         <p className="text-lg font-medium text-amber-800">
           {isAr ? "تحقق من بريدك الإلكتروني" : "Check your inbox"}
         </p>
-        <p className="mt-1 text-sm text-amber-700">
-          {successMsg}
-        </p>
+        <p className="mt-1 text-sm text-amber-700">{successMsg}</p>
       </div>
     );
   }
@@ -96,9 +108,14 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
             placeholder={isAr ? "بريدك الإلكتروني" : "your@email.com"}
             required
             className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-1"
-            style={{ borderColor: undefined }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-accent, #10B981)"; e.currentTarget.style.boxShadow = "0 0 0 1px var(--color-accent, #10B981)"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = ""; e.currentTarget.style.boxShadow = ""; }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "var(--color-accent, #10B981)";
+              e.currentTarget.style.boxShadow = "0 0 0 1px var(--color-accent, #10B981)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "";
+              e.currentTarget.style.boxShadow = "";
+            }}
           />
           <button
             type="submit"
@@ -106,18 +123,15 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
             className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
             style={{ backgroundColor: "var(--color-accent, #10B981)" }}
           >
-            {status === "loading"
-              ? (isAr ? "جاري..." : "...")
-              : (isAr ? "اشترك" : "Subscribe")}
+            {status === "loading" ? (isAr ? "جاري..." : "...") : isAr ? "اشترك" : "Subscribe"}
           </button>
         </div>
-        <TurnstileWidget
-          onVerify={handleTurnstileToken}
-          onExpire={handleTurnstileExpire}
-        />
+        <TurnstileWidget onVerify={handleTurnstileToken} onExpire={handleTurnstileExpire} />
       </form>
       {status === "error" && errorMsg && (
-        <p className="mt-2 text-xs text-red-500" role="alert" aria-live="assertive">{errorMsg}</p>
+        <p className="mt-2 text-xs text-red-500" role="alert" aria-live="assertive">
+          {errorMsg}
+        </p>
       )}
     </div>
   );
