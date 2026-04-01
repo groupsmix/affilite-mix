@@ -42,6 +42,15 @@ function nicheNotFoundResponse(): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname, hostname } = request.nextUrl;
 
+  // ── Trailing-slash normalization (SA9) ─────────────────
+  // Redirect /foo/ → /foo to prevent duplicate canonical URLs.
+  // Skip the root path "/" and Next.js internals.
+  if (pathname !== "/" && pathname.endsWith("/") && !pathname.startsWith("/api/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace(/\/+$/, "");
+    return NextResponse.redirect(url, 308);
+  }
+
   // ── Resolve site ──────────────────────────────────────
   // 1. Try static config lookup first (fast, no DB call)
   let site = getSiteByDomain(hostname);

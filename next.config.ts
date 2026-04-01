@@ -52,6 +52,8 @@ const nextConfig: NextConfig = {
             "img-src 'self' data: https: blob:",
             "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com",
             "frame-src https://challenges.cloudflare.com",
+            "worker-src 'self' blob:",
+            "manifest-src 'self'",
             "object-src 'none'",
             "base-uri 'self'",
             "form-action 'self'",
