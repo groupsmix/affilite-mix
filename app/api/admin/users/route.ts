@@ -10,6 +10,7 @@ import { hashPassword } from "@/lib/password";
 import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -62,8 +63,9 @@ export async function POST(request: NextRequest) {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
-  const body = await request.json();
-  const { email, password, name, role } = body as {
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const { email, password, name, role } = bodyOrError as {
     email?: string;
     password?: string;
     name?: string;
@@ -131,8 +133,9 @@ export async function PATCH(request: NextRequest) {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
-  const body = await request.json();
-  const { id, name, role, is_active, password } = body as {
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const { id, name, role, is_active, password } = bodyOrError as {
     id?: string;
     name?: string;
     role?: string;

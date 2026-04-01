@@ -4,6 +4,7 @@ import { getSiteRowById, updateSite, deleteSite } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
@@ -20,10 +21,7 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 }
 
 /** GET /api/admin/sites/[id] — get a single site by DB id */
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -42,10 +40,7 @@ export async function GET(
 }
 
 /** PUT /api/admin/sites/[id] — update a site (super_admin only) */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -64,17 +59,31 @@ export async function PUT(
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
 
-  const body = await request.json();
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const body = bodyOrError;
 
   // Build updates object from allowed fields
   const allowedFields = [
-    "name", "domain", "language", "direction", "is_active",
-    "monetization_type", "est_revenue_per_click", "ad_config",
-    "theme", "logo_url", "favicon_url",
-    "nav_items", "footer_nav",
+    "name",
+    "domain",
+    "language",
+    "direction",
+    "is_active",
+    "monetization_type",
+    "est_revenue_per_click",
+    "ad_config",
+    "theme",
+    "logo_url",
+    "favicon_url",
+    "nav_items",
+    "footer_nav",
     "features",
-    "meta_title", "meta_description", "og_image_url",
-    "social_links", "custom_css",
+    "meta_title",
+    "meta_description",
+    "og_image_url",
+    "social_links",
+    "custom_css",
   ] as const;
 
   const updates: Record<string, unknown> = {};
