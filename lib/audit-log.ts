@@ -12,23 +12,29 @@ export interface AuditEvent {
 
 /**
  * Record an audit event in the audit_log table.
- * Fire-and-forget — errors are logged but never block the caller.
+ * Awaitable with a single retry on failure.
+ * Callers may fire-and-forget or await for compliance-critical paths.
  */
-export function recordAuditEvent(event: AuditEvent): void {
+export async function recordAuditEvent(event: AuditEvent): Promise<void> {
+  const row = {
+    site_id: event.site_id,
+    actor: event.actor,
+    action: event.action,
+    entity_type: event.entity_type,
+    entity_id: event.entity_id,
+    details: event.details ?? {},
+    ip: event.ip ?? "",
+  };
+
   const sb = getServiceClient();
-  sb.from("audit_log")
-    .insert({
-      site_id: event.site_id,
-      actor: event.actor,
-      action: event.action,
-      entity_type: event.entity_type,
-      entity_id: event.entity_id,
-      details: event.details ?? {},
-      ip: event.ip ?? "",
-    })
-    .then(({ error }) => {
-      if (error) {
-        console.error("[audit-log] Failed to record event:", error.message);
-      }
-    });
+  const { error } = await sb.from("audit_log").insert(row);
+
+  if (error) {
+    console.error("[audit-log] Insert failed, retrying once:", error.message);
+    // Single retry
+    const { error: retryError } = await sb.from("audit_log").insert(row);
+    if (retryError) {
+      console.error("[audit-log] Retry also failed:", retryError.message);
+    }
+  }
 }

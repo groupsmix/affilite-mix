@@ -5,35 +5,35 @@
  * so we use runtime checks instead of bare `as` casts where practical.
  */
 
-/** Asserts that `value` is a non-null object and returns it typed as T. */
-export function assertRow<T>(
-  value: unknown,
-  label: string,
-): T {
+/** Asserts that `value` is a non-null object with at least an `id` property and returns it typed as T. */
+export function assertRow<T>(value: unknown, label: string): T {
   if (value === null || value === undefined) {
     throw new Error(`Expected a row (${label}) but got ${String(value)}`);
   }
-  if (typeof value !== "object") {
+  if (typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`Expected an object (${label}) but got ${typeof value}`);
+  }
+  // Validate that the row has an `id` property (all DB rows have one)
+  if (!("id" in value)) {
+    throw new Error(`Row (${label}) is missing required 'id' property`);
   }
   return value as T;
 }
 
-/** Returns value typed as T if non-null, otherwise null. */
-export function rowOrNull<T>(
-  value: unknown,
-): T | null {
+/** Returns value typed as T if non-null and is a valid object, otherwise null. */
+export function rowOrNull<T>(value: unknown): T | null {
   if (value === null || value === undefined) return null;
-  if (typeof value !== "object") return null;
+  if (typeof value !== "object" || Array.isArray(value)) return null;
   return value as T;
 }
 
-/** Assert an array of rows */
-export function assertRows<T>(
-  value: unknown,
-): T[] {
+/** Assert an array of rows, filtering out any non-object entries. */
+export function assertRows<T>(value: unknown): T[] {
   if (!Array.isArray(value)) return [];
-  return value as T[];
+  // Filter out any entries that are not valid row objects
+  return value.filter(
+    (item): item is T => item !== null && typeof item === "object" && !Array.isArray(item),
+  );
 }
 
 /** Type guard: checks that value has a specific string property */

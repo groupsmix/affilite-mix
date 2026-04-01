@@ -16,15 +16,15 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 15 (App Router) |
-| Database | Supabase (PostgreSQL + RLS) |
-| Styling | Tailwind CSS v4 |
-| Rich text editor | TipTap |
-| Image storage | Cloudflare R2 (S3-compatible) |
-| Bot protection | Cloudflare Turnstile |
-| Deployment | Cloudflare Pages via `@opennextjs/cloudflare` |
+| Layer            | Technology                                    |
+| ---------------- | --------------------------------------------- |
+| Framework        | Next.js 15 (App Router)                       |
+| Database         | Supabase (PostgreSQL + RLS)                   |
+| Styling          | Tailwind CSS v4                               |
+| Rich text editor | TipTap                                        |
+| Image storage    | Cloudflare R2 (S3-compatible)                 |
+| Bot protection   | Cloudflare Turnstile                          |
+| Deployment       | Cloudflare Pages via `@opennextjs/cloudflare` |
 
 ## Getting Started
 
@@ -50,23 +50,23 @@ cp .env.example .env
 
 Edit `.env` and fill in your values:
 
-| Variable | Required | Description |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-only) |
-| `JWT_SECRET` | Yes | Random 64-byte hex string for admin JWT signing |
-| `ADMIN_PASSWORD` | Yes | Legacy admin password (fallback when no DB users exist) |
-| `CRON_SECRET` | Prod | Secret for authenticating cron job requests |
-| `R2_ACCOUNT_ID` | Optional | Cloudflare R2 account ID for image uploads |
-| `R2_ACCESS_KEY_ID` | Optional | R2 access key |
-| `R2_SECRET_ACCESS_KEY` | Optional | R2 secret key |
-| `R2_BUCKET_NAME` | Optional | R2 bucket name |
-| `R2_PUBLIC_URL` | Optional | Public URL for R2 bucket |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Optional | Turnstile site key (captcha) |
-| `TURNSTILE_SECRET_KEY` | Optional | Turnstile secret key |
-| `CLOUDFLARE_API_TOKEN` | Deploy | For cache purge operations |
-| `CLOUDFLARE_ZONE_ID` | Deploy | Cloudflare zone ID |
+| Variable                         | Required | Description                                                             |
+| -------------------------------- | -------- | ----------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`       | Yes      | Your Supabase project URL                                               |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Yes      | Supabase anon/public key                                                |
+| `SUPABASE_SERVICE_ROLE_KEY`      | Yes      | Supabase service role key (server-only)                                 |
+| `JWT_SECRET`                     | Yes      | Random 64-byte hex string for admin JWT signing                         |
+| `ADMIN_PASSWORD`                 | No       | **Deprecated.** Legacy fallback — use DB-managed admin accounts instead |
+| `CRON_SECRET`                    | Prod     | Secret for authenticating cron job requests                             |
+| `R2_ACCOUNT_ID`                  | Optional | Cloudflare R2 account ID for image uploads                              |
+| `R2_ACCESS_KEY_ID`               | Optional | R2 access key                                                           |
+| `R2_SECRET_ACCESS_KEY`           | Optional | R2 secret key                                                           |
+| `R2_BUCKET_NAME`                 | Optional | R2 bucket name                                                          |
+| `R2_PUBLIC_URL`                  | Optional | Public URL for R2 bucket                                                |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Optional | Turnstile site key (captcha)                                            |
+| `TURNSTILE_SECRET_KEY`           | Optional | Turnstile secret key                                                    |
+| `CLOUDFLARE_API_TOKEN`           | Deploy   | For cache purge operations                                              |
+| `CLOUDFLARE_ZONE_ID`             | Deploy   | Cloudflare zone ID                                                      |
 
 ### 3. Set up the database
 
@@ -91,7 +91,7 @@ The app will be available at [http://localhost:3000](http://localhost:3000).
 
 ### 5. Access the admin panel
 
-Navigate to [http://localhost:3000/admin/login](http://localhost:3000/admin/login) and log in with the `ADMIN_PASSWORD` you configured (or a database admin user if set up).
+Navigate to [http://localhost:3000/admin/login](http://localhost:3000/admin/login) and log in with a database-managed admin account.
 
 ## Local Development
 
@@ -138,15 +138,15 @@ npm run test:e2e      # End-to-end tests (Playwright)
 
 ## Scripts
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run typecheck` | Run TypeScript type checking |
-| `npm run preview` | Build and preview Cloudflare Pages locally |
-| `npm run deploy` | Build and deploy to Cloudflare Pages |
+| Command             | Description                                |
+| ------------------- | ------------------------------------------ |
+| `npm run dev`       | Start development server                   |
+| `npm run build`     | Production build                           |
+| `npm run start`     | Start production server                    |
+| `npm run lint`      | Run ESLint                                 |
+| `npm run typecheck` | Run TypeScript type checking               |
+| `npm run preview`   | Build and preview Cloudflare Pages locally |
+| `npm run deploy`    | Build and deploy to Cloudflare Pages       |
 
 ## Project Structure
 
@@ -187,11 +187,11 @@ npm run test:e2e      # End-to-end tests (Playwright)
 The project deploys to Cloudflare Pages via GitHub Actions (`.github/workflows/deploy.yml`).
 
 Required GitHub Secrets:
+
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `JWT_SECRET`
-- `ADMIN_PASSWORD`
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
