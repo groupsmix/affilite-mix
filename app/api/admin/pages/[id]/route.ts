@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { getPageById, updatePage, deletePage } from "@/lib/dal/pages";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 /** 100 admin API requests per minute per user session */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -61,6 +62,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
     const body = await request.json();
+    if (body.body !== undefined) {
+      body.body = sanitizeHtml(body.body);
+    }
     const page = await updatePage(id, body);
     return NextResponse.json(page);
   } catch (err) {

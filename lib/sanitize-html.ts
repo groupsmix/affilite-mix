@@ -9,16 +9,44 @@
 import { Parser } from "htmlparser2";
 
 const ALLOWED_TAGS = new Set([
-  "h1", "h2", "h3", "h4", "h5", "h6",
-  "p", "br", "hr",
-  "ul", "ol", "li",
-  "a", "img",
-  "strong", "b", "em", "i", "u", "s", "del", "ins",
-  "blockquote", "pre", "code",
-  "table", "thead", "tbody", "tfoot", "tr", "th", "td",
-  "div", "span",
-  "figure", "figcaption",
-  "sup", "sub",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "p",
+  "br",
+  "hr",
+  "ul",
+  "ol",
+  "li",
+  "a",
+  "img",
+  "strong",
+  "b",
+  "em",
+  "i",
+  "u",
+  "s",
+  "del",
+  "ins",
+  "blockquote",
+  "pre",
+  "code",
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "th",
+  "td",
+  "div",
+  "span",
+  "figure",
+  "figcaption",
+  "sup",
+  "sub",
 ]);
 
 const ALLOWED_ATTRS: Record<string, Set<string>> = {
@@ -101,6 +129,33 @@ function buildAttrs(tag: string, raw: Record<string, string>): string {
  * - Forces rel="noopener noreferrer nofollow" on all <a> tags
  * - Removes event handler attributes (on*)
  */
+/**
+ * Sanitize CSS by stripping dangerous patterns that could be used for
+ * data exfiltration or UI manipulation:
+ * - @import rules (can load external stylesheets)
+ * - url() values (can exfiltrate data via external requests)
+ * - expression() (IE CSS expressions — legacy XSS vector)
+ * - behavior/binding properties (IE/Mozilla XSS vectors)
+ * - javascript:/data: protocols
+ */
+export function sanitizeCss(css: string): string {
+  if (!css) return css;
+
+  return (
+    css
+      // Strip @import rules
+      .replace(/@import\s+[^;]+;?/gi, "/* @import removed */")
+      // Strip url() values (used for data exfiltration)
+      .replace(/url\s*\([^)]*\)/gi, "/* url() removed */")
+      // Strip expression() (IE CSS expressions)
+      .replace(/expression\s*\([^)]*\)/gi, "/* expression() removed */")
+      // Strip -moz-binding (Mozilla XSS vector)
+      .replace(/-moz-binding\s*:[^;]+;?/gi, "/* -moz-binding removed */")
+      // Strip behavior (IE XSS vector)
+      .replace(/behavior\s*:[^;]+;?/gi, "/* behavior removed */")
+  );
+}
+
 export function sanitizeHtml(html: string): string {
   if (!html) return html;
 

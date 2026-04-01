@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo } from "react";
+import { sanitizeCss } from "@/lib/sanitize-html";
 
 /* ------------------------------------------------------------------ */
 /*  Layout variants                                                     */
@@ -57,13 +58,10 @@ interface ThemeProviderProps {
  * can then use `var(--color-primary)`, `var(--color-secondary)`, etc.
  */
 export function ThemeProvider({ theme, children }: ThemeProviderProps) {
-  const merged = useMemo<SiteThemeConfig>(
-    () => ({ ...defaultTheme, ...theme }),
-    [theme],
-  );
+  const merged = useMemo<SiteThemeConfig>(() => ({ ...defaultTheme, ...theme }), [theme]);
 
   const fontMap: Record<string, string> = {
-    "Inter": "var(--font-inter), sans-serif",
+    Inter: "var(--font-inter), sans-serif",
     "IBM Plex Sans Arabic": "var(--font-ibm-plex-arabic), sans-serif",
     "Playfair Display": "var(--font-playfair), serif",
   };
@@ -82,7 +80,7 @@ export function ThemeProvider({ theme, children }: ThemeProviderProps) {
     <ThemeContext.Provider value={merged}>
       <div style={cssVars} data-layout={merged.layoutVariant}>
         {merged.customCss && (
-          <style dangerouslySetInnerHTML={{ __html: merged.customCss }} />
+          <style dangerouslySetInnerHTML={{ __html: sanitizeCss(merged.customCss!) }} />
         )}
         {children}
       </div>
