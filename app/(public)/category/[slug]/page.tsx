@@ -4,7 +4,7 @@ import { listContent, countContent } from "@/lib/dal/content";
 import { listActiveProducts } from "@/lib/dal/products";
 import { ContentCard } from "../../components/content-card";
 import { ProductCard } from "../../components/product-card";
-import { Pagination } from "../../components/pagination";
+import { Pagination, PaginationHead } from "../../components/pagination";
 import { Breadcrumbs } from "../../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../../components/json-ld";
 import { notFound } from "next/navigation";
@@ -134,6 +134,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         </div>
       ) : null}
 
+      <PaginationHead
+        currentPage={currentPage}
+        totalItems={totalContent}
+        pageSize={PAGE_SIZE}
+        baseUrl={`https://${site.domain}/category/${category.slug}`}
+      />
       <Pagination
         currentPage={currentPage}
         totalItems={totalContent}
