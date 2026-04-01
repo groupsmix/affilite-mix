@@ -39,8 +39,7 @@ jobs:
         run: |
           OUTPUT=$(npx wrangler deploy \
             --name "affilite-mix-preview-pr-${{ github.event.pull_request.number }}" \
-            --no-bundle \
-            .open-next/worker.js 2>&1) || true
+            --no-bundle 2>&1) || true
           echo "$OUTPUT"
           # Extract the preview URL from wrangler output
           PREVIEW_URL=$(echo "$OUTPUT" | grep -oP 'https://[^\s]+\.workers\.dev' | head -1)
