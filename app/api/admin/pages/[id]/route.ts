@@ -1,23 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import { getPageById, updatePage, deletePage } from "@/lib/dal/pages";
-import { checkRateLimit } from "@/lib/rate-limit";
 import { sanitizeHtml } from "@/lib/sanitize-html";
-
-/** 100 admin API requests per minute per user session */
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
-
-async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
-  const key = `admin:${email ?? userId ?? "unknown"}`;
-  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
-    );
-  }
-  return null;
-}
+import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -25,13 +11,8 @@ type Params = { params: Promise<{ id: string }> };
  * GET /api/admin/pages/:id  — get a single page
  */
 export async function GET(_request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const rlError = await enforceRateLimit(session.email, session.userId);
-  if (rlError) return rlError;
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   try {
     const { id } = await params;
@@ -41,8 +22,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
     }
     return NextResponse.json(page);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    captureException(err, { context: "[api/admin/pages] GET by id failed:" });
+    return NextResponse.json({ error: "Failed to get page" }, { status: 500 });
   }
 }
 
@@ -51,13 +32,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
  * Body: { slug?, title?, body?, is_published?, sort_order? }
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const rlError = await enforceRateLimit(session.email, session.userId);
-  if (rlError) return rlError;
+  const { error, session, dbSiteId } = await requireAdmin();
+  if (error) return error;
 
   try {
     const { id } = await params;
@@ -66,10 +42,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       body.body = sanitizeHtml(body.body);
     }
     const page = await updatePage(id, body);
+
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: session.email ?? session.userId ?? "admin",
+      action: "update",
+      entity_type: "page",
+      entity_id: id,
+      details: { fields: Object.keys(body) },
+    });
+
     return NextResponse.json(page);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    captureException(err, { context: "[api/admin/pages] PATCH failed:" });
+    return NextResponse.json({ error: "Failed to update page" }, { status: 500 });
   }
 }
 
@@ -77,20 +63,24 @@ export async function PATCH(request: NextRequest, { params }: Params) {
  * DELETE /api/admin/pages/:id  — delete a page
  */
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const rlError = await enforceRateLimit(session.email, session.userId);
-  if (rlError) return rlError;
+  const { error, session, dbSiteId } = await requireAdmin();
+  if (error) return error;
 
   try {
     const { id } = await params;
     await deletePage(id);
+
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: session.email ?? session.userId ?? "admin",
+      action: "delete",
+      entity_type: "page",
+      entity_id: id,
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    captureException(err, { context: "[api/admin/pages] DELETE failed:" });
+    return NextResponse.json({ error: "Failed to delete page" }, { status: 500 });
   }
 }

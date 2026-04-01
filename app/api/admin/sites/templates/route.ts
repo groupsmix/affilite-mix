@@ -5,6 +5,7 @@ import {
   createNicheTemplate,
   deleteNicheTemplate,
 } from "@/lib/dal/niche-templates";
+import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 
 /** List all available niche templates */
@@ -23,7 +24,7 @@ export async function GET() {
 
 /** Create a new niche template */
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const body = await request.json();
@@ -49,6 +50,15 @@ export async function POST(request: NextRequest) {
       social_links: rest.social_links ?? {},
     });
 
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: session.email ?? session.userId ?? "admin",
+      action: "create",
+      entity_type: "niche_template",
+      entity_id: template.id,
+      details: { name, slug },
+    });
+
     return NextResponse.json(template, { status: 201 });
   } catch (err) {
     captureException(err, { context: "[api/admin/sites/templates] POST failed:" });
@@ -58,7 +68,7 @@ export async function POST(request: NextRequest) {
 
 /** Delete a niche template */
 export async function DELETE(request: NextRequest) {
-  const { error } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const { id } = await request.json();
@@ -68,6 +78,15 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await deleteNicheTemplate(id);
+
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: session.email ?? session.userId ?? "admin",
+      action: "delete",
+      entity_type: "niche_template",
+      entity_id: id,
+    });
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     captureException(err, { context: "[api/admin/sites/templates] DELETE failed:" });

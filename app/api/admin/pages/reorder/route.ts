@@ -1,35 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import { reorderPages } from "@/lib/dal/pages";
-import { checkRateLimit } from "@/lib/rate-limit";
-
-/** 100 admin API requests per minute per user session */
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
-
-async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
-  const key = `admin:${email ?? userId ?? "unknown"}`;
-  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
-    );
-  }
-  return null;
-}
+import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 /**
  * PUT /api/admin/pages/reorder
  * Body: { pages: [{ id, sort_order }] }
  */
 export async function PUT(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const rlError = await enforceRateLimit(session.email, session.userId);
-  if (rlError) return rlError;
+  const { error, session, dbSiteId } = await requireAdmin();
+  if (error) return error;
 
   try {
     const body = await request.json();
@@ -39,9 +20,19 @@ export async function PUT(request: NextRequest) {
     }
 
     await reorderPages(body.pages);
+
+    recordAuditEvent({
+      site_id: dbSiteId,
+      actor: session.email ?? session.userId ?? "admin",
+      action: "reorder",
+      entity_type: "page",
+      entity_id: "bulk",
+      details: { count: body.pages.length },
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    captureException(err, { context: "[api/admin/pages] reorder failed:" });
+    return NextResponse.json({ error: "Failed to reorder pages" }, { status: 500 });
   }
 }
