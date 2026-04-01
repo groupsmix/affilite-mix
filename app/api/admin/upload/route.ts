@@ -11,7 +11,10 @@ export async function POST(request: Request) {
 
   if (!isR2Configured()) {
     return NextResponse.json(
-      { error: "R2 storage is not configured. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, and R2_PUBLIC_URL environment variables." },
+      {
+        error:
+          "R2 storage is not configured. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, and R2_PUBLIC_URL environment variables.",
+      },
       { status: 503 },
     );
   }
@@ -51,7 +54,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { uploadUrl, publicUrl } = await getUploadUrl(fileName, contentType);
+    const { uploadUrl, publicUrl } = await getUploadUrl(
+      fileName,
+      contentType,
+      typeof fileSize === "number" ? fileSize : undefined,
+    );
     recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",

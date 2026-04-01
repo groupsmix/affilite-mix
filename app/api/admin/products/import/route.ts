@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
-import { createProduct } from "@/lib/dal/products";
+import { createProduct, bulkCreateProducts } from "@/lib/dal/products";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 
@@ -18,7 +18,10 @@ export async function POST(request: NextRequest) {
   const text = await file.text();
   const lines = text.split("\n").filter((l) => l.trim());
   if (lines.length < 2) {
-    return NextResponse.json({ error: "CSV must have a header row and at least one data row" }, { status: 400 });
+    return NextResponse.json(
+      { error: "CSV must have a header row and at least one data row" },
+      { status: 400 },
+    );
   }
 
   const headerLine = lines[0];
@@ -32,101 +35,142 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-  const results: { row: number; name: string; status: "created" | "error"; error?: string }[] = [];
+    const results: { row: number; name: string; status: "created" | "error"; error?: string }[] =
+      [];
+    const validRows: {
+      rowIndex: number;
+      name: string;
+      product: Parameters<typeof bulkCreateProducts>[0][number];
+    }[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCsvLine(lines[i]);
-    const row: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      row[h] = values[idx]?.trim() ?? "";
+    // Phase 1: Validate all rows
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCsvLine(lines[i]);
+      const row: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        row[h] = values[idx]?.trim() ?? "";
+      });
+
+      if (!row.name || !row.slug) {
+        results.push({
+          row: i + 1,
+          name: row.name || "(empty)",
+          status: "error",
+          error: "Missing name or slug",
+        });
+        continue;
+      }
+
+      // Per-field validation
+      const fieldErrors: string[] = [];
+
+      if (row.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.slug)) {
+        fieldErrors.push("slug must be lowercase alphanumeric with hyphens (e.g. my-product)");
+      }
+
+      if (row.affiliate_url && !/^https?:\/\/.+/.test(row.affiliate_url)) {
+        fieldErrors.push("affiliate_url must be a valid HTTP(S) URL");
+      }
+
+      if (row.image_url && !/^https?:\/\/.+/.test(row.image_url)) {
+        fieldErrors.push("image_url must be a valid HTTP(S) URL");
+      }
+
+      const parsedPriceAmount = row.price_amount ? parseFloat(row.price_amount) : null;
+      if (
+        row.price_amount &&
+        (parsedPriceAmount === null || isNaN(parsedPriceAmount) || parsedPriceAmount < 0)
+      ) {
+        fieldErrors.push("price_amount must be a non-negative number");
+      }
+
+      const parsedScore = row.score ? parseFloat(row.score) : null;
+      if (
+        row.score &&
+        (parsedScore === null || isNaN(parsedScore) || parsedScore < 0 || parsedScore > 10)
+      ) {
+        fieldErrors.push("score must be a number between 0 and 10");
+      }
+
+      if (row.status && !["draft", "active", "archived"].includes(row.status)) {
+        fieldErrors.push(`status must be draft, active, or archived (got "${row.status}")`);
+      }
+
+      if (row.deal_expires_at && isNaN(Date.parse(row.deal_expires_at))) {
+        fieldErrors.push("deal_expires_at must be a valid ISO date");
+      }
+
+      if (fieldErrors.length > 0) {
+        results.push({
+          row: i + 1,
+          name: row.name,
+          status: "error",
+          error: fieldErrors.join("; "),
+        });
+        continue;
+      }
+
+      validRows.push({
+        rowIndex: i + 1,
+        name: row.name,
+        product: {
+          site_id: guard.dbSiteId,
+          name: row.name,
+          slug: row.slug,
+          description: row.description ?? "",
+          affiliate_url: row.affiliate_url ?? "",
+          image_url: row.image_url ?? "",
+          image_alt: row.image_alt ?? "",
+          price: row.price ?? "",
+          price_amount: parsedPriceAmount,
+          price_currency: row.price_currency ?? "USD",
+          merchant: row.merchant ?? "",
+          score: parsedScore,
+          featured: row.featured === "true",
+          status: (row.status as "draft" | "active" | "archived") || "active",
+          category_id: null,
+          cta_text: row.cta_text ?? "",
+          deal_text: row.deal_text ?? "",
+          deal_expires_at: row.deal_expires_at || null,
+          pros: row.pros ?? "",
+          cons: row.cons ?? "",
+        },
+      });
+    }
+
+    // Phase 2: Batch-insert all validated rows atomically
+    if (validRows.length > 0) {
+      try {
+        await bulkCreateProducts(validRows.map((v) => v.product));
+        for (const v of validRows) {
+          results.push({ row: v.rowIndex, name: v.name, status: "created" });
+        }
+      } catch (err) {
+        // If the batch insert fails, report the error for all valid rows
+        const msg = err instanceof Error ? err.message : "Database insert failed";
+        captureException(err, { context: "[api/admin/products/import] bulk insert failed:" });
+        for (const v of validRows) {
+          results.push({ row: v.rowIndex, name: v.name, status: "error", error: msg });
+        }
+      }
+    }
+
+    // Sort results by row number for consistent output
+    results.sort((a, b) => a.row - b.row);
+
+    const created = results.filter((r) => r.status === "created").length;
+    const errors = results.filter((r) => r.status === "error").length;
+
+    recordAuditEvent({
+      site_id: guard.dbSiteId,
+      actor: guard.session.email ?? "admin",
+      action: "bulk_import",
+      entity_type: "product",
+      entity_id: "bulk",
+      details: { created, errors, total: results.length },
     });
 
-    if (!row.name || !row.slug) {
-      results.push({ row: i + 1, name: row.name || "(empty)", status: "error", error: "Missing name or slug" });
-      continue;
-    }
-
-    // Per-field validation
-    const fieldErrors: string[] = [];
-
-    if (row.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.slug)) {
-      fieldErrors.push("slug must be lowercase alphanumeric with hyphens (e.g. my-product)");
-    }
-
-    if (row.affiliate_url && !/^https?:\/\/.+/.test(row.affiliate_url)) {
-      fieldErrors.push("affiliate_url must be a valid HTTP(S) URL");
-    }
-
-    if (row.image_url && !/^https?:\/\/.+/.test(row.image_url)) {
-      fieldErrors.push("image_url must be a valid HTTP(S) URL");
-    }
-
-    const parsedPriceAmount = row.price_amount ? parseFloat(row.price_amount) : null;
-    if (row.price_amount && (parsedPriceAmount === null || isNaN(parsedPriceAmount) || parsedPriceAmount < 0)) {
-      fieldErrors.push("price_amount must be a non-negative number");
-    }
-
-    const parsedScore = row.score ? parseFloat(row.score) : null;
-    if (row.score && (parsedScore === null || isNaN(parsedScore) || parsedScore < 0 || parsedScore > 10)) {
-      fieldErrors.push("score must be a number between 0 and 10");
-    }
-
-    if (row.status && !["draft", "active", "archived"].includes(row.status)) {
-      fieldErrors.push(`status must be draft, active, or archived (got "${row.status}")`);
-    }
-
-    if (row.deal_expires_at && isNaN(Date.parse(row.deal_expires_at))) {
-      fieldErrors.push("deal_expires_at must be a valid ISO date");
-    }
-
-    if (fieldErrors.length > 0) {
-      results.push({ row: i + 1, name: row.name, status: "error", error: fieldErrors.join("; ") });
-      continue;
-    }
-
-    try {
-      await createProduct({
-        site_id: guard.dbSiteId,
-        name: row.name,
-        slug: row.slug,
-        description: row.description ?? "",
-        affiliate_url: row.affiliate_url ?? "",
-        image_url: row.image_url ?? "",
-        image_alt: row.image_alt ?? "",
-        price: row.price ?? "",
-        price_amount: parsedPriceAmount,
-        price_currency: row.price_currency ?? "USD",
-        merchant: row.merchant ?? "",
-        score: parsedScore,
-        featured: row.featured === "true",
-        status: (row.status as "draft" | "active" | "archived") || "active",
-        category_id: null,
-        cta_text: row.cta_text ?? "",
-        deal_text: row.deal_text ?? "",
-        deal_expires_at: row.deal_expires_at || null,
-        pros: row.pros ?? "",
-        cons: row.cons ?? "",
-      });
-      results.push({ row: i + 1, name: row.name, status: "created" });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      results.push({ row: i + 1, name: row.name, status: "error", error: msg });
-    }
-  }
-
-  const created = results.filter((r) => r.status === "created").length;
-  const errors = results.filter((r) => r.status === "error").length;
-
-  recordAuditEvent({
-    site_id: guard.dbSiteId,
-    actor: guard.session.email ?? "admin",
-    action: "bulk_import",
-    entity_type: "product",
-    entity_id: "bulk",
-    details: { created, errors, total: results.length },
-  });
-
-  return NextResponse.json({ created, errors, total: results.length, results });
+    return NextResponse.json({ created, errors, total: results.length, results });
   } catch (err) {
     captureException(err, { context: "[api/admin/products/import] POST failed:" });
     return NextResponse.json({ error: "Failed to import products" }, { status: 500 });
