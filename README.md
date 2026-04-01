@@ -195,6 +195,10 @@ Required GitHub Secrets:
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
+## Repository Name
+
+> **Note:** The repository is named `affilite-mix` (missing an "a" in "affiliate"). This is a known typo. Renaming requires GitHub admin access and would break existing CI/CD integrations, deployment URLs, and git remotes. The typo does not affect functionality.
+
 ## License
 
 Private — all rights reserved.
