@@ -92,6 +92,15 @@ export async function middleware(request: NextRequest) {
       "/api/auth/login",
       "/api/auth/logout",
       "/api/auth/refresh",
+      // Cron/webhook endpoints called externally without CSRF cookies
+      "/api/cron/publish",
+      "/api/cron/sitemap-refresh",
+      "/api/revalidate",
+      // Public endpoints using sendBeacon() which cannot send custom headers
+      "/api/track/click",
+      "/api/vitals",
+      "/api/admin/ads/impressions",
+      "/api/newsletter/unsubscribe",
     ]);
     if (!csrfExemptPaths.has(pathname)) {
       const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;

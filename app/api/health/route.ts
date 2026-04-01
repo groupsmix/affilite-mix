@@ -1,6 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
+
+/** 10 health check requests per minute per IP */
+const HEALTH_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000 };
 
 /**
  * GET /api/health
@@ -11,7 +16,29 @@ import { logger } from "@/lib/logger";
  *
  * Returns 200 if healthy, 503 if degraded.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`health:${ip}`, HEALTH_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
+  // For unauthenticated requests, return only a minimal status.
+  // Detailed checks (DB latency, env vars, email service) are restricted
+  // to authenticated callers (CRON_SECRET or admin JWT) to avoid leaking
+  // infrastructure information (Finding 21).
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = request.headers.get("authorization") ?? "";
+  const isAuthorized =
+    (cronSecret && authHeader === `Bearer ${cronSecret}`) || request.cookies.has("admin_token");
+
+  if (!isAuthorized) {
+    return NextResponse.json({ status: "healthy" });
+  }
+
   const checks: Record<string, { status: "ok" | "error"; latencyMs?: number; error?: string }> = {};
 
   // Check Supabase connectivity
@@ -61,8 +88,15 @@ export async function GET() {
       if (res.ok) {
         checks.email = { status: "ok", latencyMs: resendLatency };
       } else {
-        checks.email = { status: "error", latencyMs: resendLatency, error: `Resend API returned ${res.status}` };
-        logger.error("Health check: Resend API error", { status: res.status, latencyMs: resendLatency });
+        checks.email = {
+          status: "error",
+          latencyMs: resendLatency,
+          error: `Resend API returned ${res.status}`,
+        };
+        logger.error("Health check: Resend API error", {
+          status: res.status,
+          latencyMs: resendLatency,
+        });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Resend unreachable";

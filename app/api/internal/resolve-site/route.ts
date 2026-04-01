@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
+
+/** 60 resolve-site requests per minute per IP */
+const RESOLVE_SITE_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
 
 /**
  * Internal header shared between middleware and this endpoint.
@@ -21,6 +26,15 @@ export async function GET(request: NextRequest) {
   // Reject requests without the internal header
   if (request.headers.get(INTERNAL_HEADER) !== INTERNAL_TOKEN) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`resolve-site:${ip}`, RESOLVE_SITE_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
   }
 
   const domain = request.nextUrl.searchParams.get("domain");

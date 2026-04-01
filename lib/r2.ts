@@ -22,7 +22,9 @@ function getR2Client(): S3Client {
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
-    throw new Error("R2 credentials not configured. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.");
+    throw new Error(
+      "R2 credentials not configured. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.",
+    );
   }
 
   cachedR2Client = new S3Client({
@@ -38,6 +40,7 @@ function getR2Client(): S3Client {
 export async function getUploadUrl(
   fileName: string,
   contentType: string,
+  contentLength?: number,
 ): Promise<{ uploadUrl: string; publicUrl: string }> {
   const bucket = process.env.R2_BUCKET_NAME;
   const publicBase = process.env.R2_PUBLIC_URL;
@@ -53,6 +56,7 @@ export async function getUploadUrl(
     Bucket: bucket,
     Key: key,
     ContentType: contentType,
+    ...(contentLength ? { ContentLength: contentLength } : {}),
   });
 
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: 300 });

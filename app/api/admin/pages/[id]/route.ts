@@ -85,7 +85,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       entity_id: id,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     captureException(err, { context: "[api/admin/pages] DELETE failed:" });
     return NextResponse.json({ error: "Failed to delete page" }, { status: 500 });
