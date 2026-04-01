@@ -849,6 +849,14 @@ export interface Database {
           subscriber_count: number;
         }[];
       };
+      get_dashboard_stats: {
+        Args: {
+          p_site_id: string;
+          p_today_start: string;
+          p_seven_days_ago: string;
+        };
+        Returns: Record<string, number>;
+      };
       reorder_pages: {
         Args: { updates: { id: string; sort_order: number }[] };
         Returns: undefined;

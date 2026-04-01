@@ -47,6 +47,7 @@ export default async function NewsletterUnsubscribedPage({
             alt={site.name}
             width={160}
             height={48}
+            sizes="160px"
             className="mx-auto h-12 w-auto"
             priority
           />

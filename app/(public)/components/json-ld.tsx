@@ -9,10 +9,7 @@ interface JsonLdProps {
 
 export function JsonLd({ data }: JsonLdProps) {
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
   );
 }
 
@@ -45,10 +42,7 @@ export function webSiteJsonLd(site: SiteDefinition) {
 }
 
 /** BreadcrumbList schema */
-export function breadcrumbJsonLd(
-  site: SiteDefinition,
-  items: { name: string; path: string }[],
-) {
+export function breadcrumbJsonLd(site: SiteDefinition, items: { name: string; path: string }[]) {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -87,11 +81,7 @@ export function articleJsonLd(site: SiteDefinition, content: ContentRow) {
 }
 
 /** Review schema for review-type content */
-export function reviewJsonLd(
-  site: SiteDefinition,
-  content: ContentRow,
-  product?: ProductRow,
-) {
+export function reviewJsonLd(site: SiteDefinition, content: ContentRow, product?: ProductRow) {
   const base: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Review",
@@ -125,6 +115,13 @@ export function reviewJsonLd(
         worstRating: 0,
       };
     }
+  } else {
+    // Always include itemReviewed per schema.org spec — fall back to a
+    // generic Thing using the content title when no product is linked.
+    base.itemReviewed = {
+      "@type": "Thing",
+      name: content.title,
+    };
   }
 
   return base;
