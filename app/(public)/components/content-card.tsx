@@ -48,7 +48,7 @@ export function ContentCard({
           ) : (
             <Image
               src={content.featured_image}
-              alt=""
+              alt={content.title}
               width={400}
               height={176}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

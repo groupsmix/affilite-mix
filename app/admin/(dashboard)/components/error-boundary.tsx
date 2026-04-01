@@ -7,6 +7,8 @@ import { reportError } from "@/lib/report-error";
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback: ReactNode;
+  /** Optional callback when the user clicks "Retry" */
+  onReset?: () => void;
 }
 
 interface ErrorBoundaryState {
@@ -27,9 +29,25 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     reportError(error, { componentStack: info.componentStack ?? undefined });
   }
 
+  handleReset = () => {
+    this.setState({ hasError: false });
+    this.props.onReset?.();
+  };
+
   render() {
     if (this.state.hasError) {
-      return this.props.fallback;
+      return (
+        <div>
+          {this.props.fallback}
+          <button
+            type="button"
+            onClick={this.handleReset}
+            className="mt-2 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+          >
+            Retry loading editor
+          </button>
+        </div>
+      );
     }
     return this.props.children;
   }
