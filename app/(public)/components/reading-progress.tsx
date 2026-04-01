@@ -10,7 +10,8 @@ export function ReadingProgress() {
     function handleScroll() {
       if (rafRef.current !== null) return;
       rafRef.current = requestAnimationFrame(() => {
-        const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const docHeight =
+          document.documentElement.scrollHeight - document.documentElement.clientHeight;
         if (docHeight > 0) {
           const scrolled = Math.min(100, (window.scrollY / docHeight) * 100);
           setProgress(scrolled);
@@ -33,7 +34,7 @@ export function ReadingProgress() {
 
   return (
     <div
-      className="fixed left-0 top-0 z-50 h-0.5 w-full bg-gray-200"
+      className="fixed inset-x-0 top-0 z-50 h-0.5 bg-gray-200"
       role="progressbar"
       aria-valuenow={rounded}
       aria-valuemin={0}
