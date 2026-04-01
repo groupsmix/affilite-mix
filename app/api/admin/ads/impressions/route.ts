@@ -3,6 +3,11 @@ import { recordAdImpression } from "@/lib/dal/ad-impressions";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getCurrentSite } from "@/lib/site-context";
 import { captureException } from "@/lib/sentry";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
+
+/** 120 ad impression requests per minute per IP */
+const IMPRESSION_RATE_LIMIT = { maxRequests: 120, windowMs: 60 * 1000 };
 
 /**
  * @deprecated This endpoint is intentionally unauthenticated (called from
@@ -14,6 +19,15 @@ import { captureException } from "@/lib/sentry";
  */
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const rl = await checkRateLimit(`ad-impression:${ip}`, IMPRESSION_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+      );
+    }
+
     const site = await getCurrentSite();
     const siteId = await resolveDbSiteId(site.id);
 
