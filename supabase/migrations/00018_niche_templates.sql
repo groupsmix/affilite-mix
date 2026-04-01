@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS niche_templates (
 ALTER TABLE niche_templates ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "niche_templates_service_all" ON niche_templates
-  FOR ALL USING (true) WITH CHECK (true);
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 -- Seed a few built-in templates
 INSERT INTO niche_templates (name, slug, description, monetization_type, is_builtin, default_theme, default_features) VALUES

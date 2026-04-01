@@ -3,8 +3,16 @@ import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+  const isAr = site.language === "ar";
+  const title = isAr ? "سياسة الخصوصية" : "Privacy Policy";
+  const url = `https://${site.domain}/privacy`;
+
   return {
-    title: `${site.language === "ar" ? "سياسة الخصوصية" : "Privacy Policy"} — ${site.name}`,
+    title: `${title} — ${site.name}`,
+    description: isAr
+      ? `سياسة الخصوصية لموقع ${site.name} — كيف نجمع بياناتك ونستخدمها ونحميها.`
+      : `Privacy policy for ${site.name} — how we collect, use, and protect your information.`,
+    alternates: { canonical: url },
   };
 }
 
@@ -14,9 +22,7 @@ export default async function PrivacyPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="mb-6 text-3xl font-bold">
-        {isAr ? "سياسة الخصوصية" : "Privacy Policy"}
-      </h1>
+      <h1 className="mb-6 text-3xl font-bold">{isAr ? "سياسة الخصوصية" : "Privacy Policy"}</h1>
       <div className="prose prose-gray max-w-none">
         <p>
           {isAr

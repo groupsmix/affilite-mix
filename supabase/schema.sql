@@ -178,11 +178,13 @@ CREATE INDEX idx_content_site           ON content(site_id);
 CREATE INDEX idx_content_site_status    ON content(site_id, status);
 CREATE INDEX idx_content_site_slug      ON content(site_id, slug);
 CREATE INDEX idx_content_site_type      ON content(site_id, type);
+CREATE INDEX idx_content_site_status_type ON content(site_id, status, type);
 CREATE INDEX idx_content_updated        ON content(site_id, updated_at DESC)
   WHERE status = 'published';
 CREATE INDEX idx_clicks_site            ON affiliate_clicks(site_id);
 CREATE INDEX idx_clicks_created         ON affiliate_clicks(created_at DESC);
 CREATE INDEX idx_newsletter_site        ON newsletter_subscribers(site_id);
+CREATE INDEX idx_newsletter_site_email  ON newsletter_subscribers(site_id, email);
 CREATE INDEX idx_scheduled_jobs_site    ON scheduled_jobs(site_id);
 CREATE INDEX idx_scheduled_jobs_pending ON scheduled_jobs(status, scheduled_for)
   WHERE status = 'pending';

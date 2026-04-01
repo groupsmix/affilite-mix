@@ -22,4 +22,4 @@ CREATE POLICY "ad_placements_public_read" ON ad_placements
   FOR SELECT USING (is_active = true);
 
 CREATE POLICY "ad_placements_service_all" ON ad_placements
-  FOR ALL USING (true) WITH CHECK (true);
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

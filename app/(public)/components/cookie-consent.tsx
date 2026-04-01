@@ -30,9 +30,7 @@ function setConsentCookie(value: "accepted" | "rejected") {
 }
 
 function dispatchConsentEvent(accepted: boolean) {
-  window.dispatchEvent(
-    new CustomEvent("cookieConsent", { detail: { accepted } }),
-  );
+  window.dispatchEvent(new CustomEvent("cookieConsent", { detail: { accepted } }));
 }
 
 interface CookieConsentProps {
@@ -48,11 +46,23 @@ const translations = {
     privacy: "Privacy Policy",
     details: "Cookie details",
     cookieList: [
-      { name: "nh-cookie-consent", purpose: "Stores your cookie consent preference", type: "Essential" },
-      { name: "nh_active_site", purpose: "Remembers your active site selection", type: "Essential" },
+      {
+        name: "nh-cookie-consent",
+        purpose: "Stores your cookie consent preference",
+        type: "Essential",
+      },
+      {
+        name: "nh_active_site",
+        purpose: "Remembers your active site selection",
+        type: "Essential",
+      },
       { name: "nh_admin_token", purpose: "Admin session authentication (JWT)", type: "Essential" },
       { name: "nh_csrf", purpose: "CSRF protection token", type: "Essential" },
-      { name: "Affiliate tracking", purpose: "Tracks affiliate link clicks for conversion attribution", type: "Non-essential" },
+      {
+        name: "Affiliate tracking",
+        purpose: "Tracks affiliate link clicks for conversion attribution",
+        type: "Non-essential",
+      },
     ],
   },
   ar: {
@@ -63,11 +73,19 @@ const translations = {
     privacy: "سياسة الخصوصية",
     details: "تفاصيل ملفات تعريف الارتباط",
     cookieList: [
-      { name: "nh-cookie-consent", purpose: "يخزن تفضيل موافقة ملفات تعريف الارتباط", type: "أساسي" },
+      {
+        name: "nh-cookie-consent",
+        purpose: "يخزن تفضيل موافقة ملفات تعريف الارتباط",
+        type: "أساسي",
+      },
       { name: "nh_active_site", purpose: "يتذكر اختيار الموقع النشط", type: "أساسي" },
       { name: "nh_admin_token", purpose: "مصادقة جلسة المشرف (JWT)", type: "أساسي" },
       { name: "nh_csrf", purpose: "رمز حماية CSRF", type: "أساسي" },
-      { name: "تتبع الشركات التابعة", purpose: "يتتبع نقرات روابط الشركات التابعة لإسناد التحويل", type: "غير أساسي" },
+      {
+        name: "تتبع الشركات التابعة",
+        purpose: "يتتبع نقرات روابط الشركات التابعة لإسناد التحويل",
+        type: "غير أساسي",
+      },
     ],
   },
 } as const;
@@ -128,113 +146,130 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
 
   return (
     <>
-    {/* Spacer to prevent banner from covering page content */}
-    {bannerHeight > 0 && <div style={{ height: bannerHeight }} />}
-    <div
-      ref={bannerRef}
-      role="dialog"
-      aria-label="Cookie consent"
-      className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 md:p-6"
-    >
+      {/* Spacer to prevent banner from covering page content */}
+      {bannerHeight > 0 && <div style={{ height: bannerHeight }} />}
       <div
-        className="mx-auto max-w-4xl rounded-xl border border-gray-200 bg-white p-3 shadow-2xl sm:rounded-2xl sm:p-6 md:p-8"
-        style={{ borderColor: "color-mix(in srgb, var(--color-primary, #1E293B) 20%, transparent)" }}
+        ref={bannerRef}
+        role="dialog"
+        aria-label="Cookie consent"
+        className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 md:p-6"
       >
-        {/* Mobile: compact single-row layout */}
-        <div className="flex items-center gap-3 sm:hidden">
-          <p className="flex-1 text-xs leading-snug text-gray-600">
-            {t.title}.{" "}
-            <Link
-              href="/privacy"
-              className="underline"
-              style={{ color: "var(--color-accent, #10B981)" }}
-            >
-              {t.privacy}
-            </Link>
-          </p>
-          <div className="flex shrink-0 gap-2">
-            <button
-              onClick={handleReject}
-              className="min-h-[36px] rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
-            >
-              {t.reject}
-            </button>
-            <button
-              onClick={handleAccept}
-              className="min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all duration-300 hover:opacity-90"
-              style={{ backgroundColor: "var(--color-accent, #10B981)" }}
-            >
-              {t.accept}
-            </button>
-          </div>
-        </div>
-
-        {/* Desktop / tablet: full layout */}
-        <div className="hidden sm:block">
-          <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:gap-6">
-            <div className="flex-1">
-              <h2 className="mb-2 text-lg font-semibold text-gray-900">
-                {t.title}
-              </h2>
-              <p className="text-sm leading-relaxed text-gray-600">
-                {t.body}{" "}
-                <Link
-                  href="/privacy"
-                  className="underline transition-colors hover:text-gray-900"
-                  style={{ color: "var(--color-accent, #10B981)" }}
-                >
-                  {t.privacy}
-                </Link>
-              </p>
-              <button
-                onClick={() => setShowDetails((v) => !v)}
-                className="mt-1 text-xs font-medium text-gray-500 underline hover:text-gray-700"
-                type="button"
+        <div
+          className="mx-auto max-w-4xl rounded-xl border border-gray-200 bg-white p-3 shadow-2xl sm:rounded-2xl sm:p-6 md:p-8"
+          style={{
+            borderColor: "color-mix(in srgb, var(--color-primary, #1E293B) 20%, transparent)",
+          }}
+        >
+          {/* Mobile: compact single-row layout */}
+          <div className="flex items-center gap-3 sm:hidden">
+            <p className="flex-1 text-xs leading-snug text-gray-600">
+              {t.title}.{" "}
+              <Link
+                href="/privacy"
+                className="underline"
+                style={{ color: "var(--color-accent, #10B981)" }}
               >
-                {t.details}
-              </button>
-              {showDetails && (
-                <table className="mt-2 w-full text-xs text-gray-600">
-                  <thead>
-                    <tr className="border-b border-gray-200 text-left">
-                      <th className="pb-1 pr-3 font-semibold">Cookie</th>
-                      <th className="pb-1 pr-3 font-semibold">Purpose</th>
-                      <th className="pb-1 font-semibold">Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {t.cookieList.map((c) => (
-                      <tr key={c.name} className="border-b border-gray-100">
-                        <td className="py-1 pr-3 font-mono">{c.name}</td>
-                        <td className="py-1 pr-3">{c.purpose}</td>
-                        <td className="py-1">{c.type}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            <div className="flex w-full shrink-0 flex-col gap-3 sm:flex-row md:w-auto">
+                {t.privacy}
+              </Link>
+            </p>
+            <div className="flex shrink-0 gap-2">
               <button
                 onClick={handleReject}
-                className="min-h-[44px] rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
+                className="min-h-[36px] rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
               >
                 {t.reject}
               </button>
               <button
                 onClick={handleAccept}
-                className="min-h-[44px] rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:opacity-90"
+                className="min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all duration-300 hover:opacity-90"
                 style={{ backgroundColor: "var(--color-accent, #10B981)" }}
               >
                 {t.accept}
               </button>
             </div>
           </div>
+
+          {/* Desktop / tablet: full layout */}
+          <div className="hidden sm:block">
+            <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:gap-6">
+              <div className="flex-1">
+                <h2 className="mb-2 text-lg font-semibold text-gray-900">{t.title}</h2>
+                <p className="text-sm leading-relaxed text-gray-600">
+                  {t.body}{" "}
+                  <Link
+                    href="/privacy"
+                    className="underline transition-colors hover:text-gray-900"
+                    style={{ color: "var(--color-accent, #10B981)" }}
+                  >
+                    {t.privacy}
+                  </Link>
+                </p>
+                <button
+                  onClick={() => setShowDetails((v) => !v)}
+                  className="mt-1 text-xs font-medium text-gray-500 underline hover:text-gray-700"
+                  type="button"
+                >
+                  {t.details}
+                </button>
+                {showDetails && (
+                  <table className="mt-2 w-full text-xs text-gray-600">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-left">
+                        <th className="pb-1 pr-3 font-semibold">Cookie</th>
+                        <th className="pb-1 pr-3 font-semibold">Purpose</th>
+                        <th className="pb-1 font-semibold">Type</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {t.cookieList.map((c) => (
+                        <tr key={c.name} className="border-b border-gray-100">
+                          <td className="py-1 pr-3 font-mono">{c.name}</td>
+                          <td className="py-1 pr-3">{c.purpose}</td>
+                          <td className="py-1">{c.type}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              <div className="flex w-full shrink-0 flex-col gap-3 sm:flex-row md:w-auto">
+                <button
+                  onClick={handleReject}
+                  className="min-h-[44px] rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
+                >
+                  {t.reject}
+                </button>
+                <button
+                  onClick={handleAccept}
+                  className="min-h-[44px] rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:opacity-90"
+                  style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+                >
+                  {t.accept}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
+}
+
+/**
+ * Resets cookie consent so the banner re-appears.
+ * Call this from a "Cookie Settings" link in the footer.
+ */
+export function resetCookieConsent() {
+  // Clear the cookie
+  document.cookie = `${CONSENT_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+  // Clear localStorage mirror
+  try {
+    localStorage.removeItem(CONSENT_STORAGE_KEY);
+  } catch {
+    // localStorage may be unavailable
+  }
+  // Reload the page so the banner re-renders
+  window.location.reload();
 }
 
 /**
