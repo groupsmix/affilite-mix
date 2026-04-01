@@ -1,9 +1,8 @@
 import { requireAdminSession } from "./components/admin-guard";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { countProducts, listProducts } from "@/lib/dal/products";
-import { countContent, listContent } from "@/lib/dal/content";
-import { getClickCount, getTopProducts, getDailyClicks } from "@/lib/dal/affiliate-clicks";
-import { getServiceClient } from "@/lib/supabase-server";
+import { listContent } from "@/lib/dal/content";
+import { getTopProducts, getDailyClicks } from "@/lib/dal/affiliate-clicks";
+import { getDashboardStats } from "@/lib/dal/dashboard-stats";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ClickChart } from "./analytics/click-chart";
@@ -24,63 +23,34 @@ export default async function AdminDashboard() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Batch all dashboard queries in a single Promise.all to eliminate N+1 patterns
-  const sb = getServiceClient();
-  const [
-    totalProducts,
-    activeProducts,
-    draftProducts,
-    totalContent,
-    publishedContent,
-    draftContent,
-    clicksToday,
-    clicks7d,
-    topProducts,
-    scheduledContentItems,
-    activeProductsNoUrl,
-    { data: allLinkedRows },
-    { count: publishedContentCount },
-    dailyClicks,
-    { data: publishedContentIds },
-  ] = await Promise.all([
-    countProducts({ siteId: dbSiteId }),
-    countProducts({ siteId: dbSiteId, status: "active" }),
-    countProducts({ siteId: dbSiteId, status: "draft" }),
-    countContent({ siteId: dbSiteId }),
-    countContent({ siteId: dbSiteId, status: "published" }),
-    countContent({ siteId: dbSiteId, status: "draft" }),
-    getClickCount(dbSiteId, todayStart),
-    getClickCount(dbSiteId, sevenDaysAgo),
+  // Single RPC call for all aggregate counts + parallel row-fetching queries
+  const [stats, topProducts, scheduledContentItems, dailyClicks] = await Promise.all([
+    getDashboardStats(dbSiteId, todayStart, sevenDaysAgo),
     getTopProducts(dbSiteId, sevenDaysAgo, 5),
     listContent({ siteId: dbSiteId, status: "scheduled" }),
-    listProducts({ siteId: dbSiteId, status: "active" }),
-    sb.from("content_products").select("content_id").eq("site_id", dbSiteId),
-    sb
-      .from("content")
-      .select("id", { count: "exact", head: true })
-      .eq("site_id", dbSiteId)
-      .eq("status", "published"),
     getDailyClicks(dbSiteId, 7),
-    sb.from("content").select("id").eq("site_id", dbSiteId).eq("status", "published"),
   ]);
 
-  const scheduledContent = scheduledContentItems.filter(
-    (c) => c.publish_at && new Date(c.publish_at) > now,
-  ).length;
-
-  // Check for published content with no linked products
-  const linkedIds = new Set((allLinkedRows ?? []).map((r: { content_id: string }) => r.content_id));
-  const contentWithNoProducts = (publishedContentIds ?? []).filter(
-    (r: { id: string }) => !linkedIds.has(r.id),
-  ).length;
+  const {
+    total_products: totalProducts,
+    active_products: activeProducts,
+    draft_products: draftProducts,
+    total_content: totalContent,
+    published_content: publishedContent,
+    draft_content: draftContent,
+    clicks_today: clicksToday,
+    clicks_7d: clicks7d,
+    products_no_url: productsNoUrl,
+    content_no_products: contentWithNoProducts,
+    scheduled_content: scheduledContent,
+  } = stats;
 
   // Alerts / warnings
-  const productsWithNoUrl = activeProductsNoUrl.filter((p) => !p.affiliate_url);
   const alerts: { type: "warning" | "info"; message: string; href?: string }[] = [];
-  if (productsWithNoUrl.length > 0) {
+  if (productsNoUrl > 0) {
     alerts.push({
       type: "warning",
-      message: `${productsWithNoUrl.length} active product(s) missing affiliate URL`,
+      message: `${productsNoUrl} active product(s) missing affiliate URL`,
       href: "/admin/products",
     });
   }

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { reportError } from "@/lib/report-error";
 
 export default function AdminError({
   error,
@@ -11,8 +12,7 @@ export default function AdminError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Report to error tracking (e.g. Sentry) so admin errors are observable
-    reportError(error);
+    reportError(error, { boundary: "admin-dashboard", digest: error.digest });
   }, [error]);
 
   return (
