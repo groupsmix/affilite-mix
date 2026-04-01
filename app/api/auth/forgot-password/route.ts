@@ -6,6 +6,7 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { getCurrentSite } from "@/lib/site-context";
 import { isValidEmail } from "@/lib/validation";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 /**
  * POST /api/auth/forgot-password
@@ -31,21 +32,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
-    const email = (body.email ?? "").trim().toLowerCase();
+    const bodyOrError = await parseJsonBody(request);
+    if (bodyOrError instanceof NextResponse) return bodyOrError;
+    const email = ((bodyOrError.email as string) ?? "").trim().toLowerCase();
 
     if (!email || !isValidEmail(email)) {
-      return NextResponse.json(
-        { error: "Valid email is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
 
     // Always return success to prevent user enumeration
     const successResponse = NextResponse.json({
       ok: true,
-      message:
-        "If an account with that email exists, a password reset link has been sent.",
+      message: "If an account with that email exists, a password reset link has been sent.",
     });
 
     const user = await getAdminUserByEmail(email);
@@ -67,7 +65,9 @@ export async function POST(request: Request) {
       .eq("id", user.id);
 
     if (updateError) {
-      captureException(updateError, { context: "[api/auth/forgot-password] Failed to store reset token" });
+      captureException(updateError, {
+        context: "[api/auth/forgot-password] Failed to store reset token",
+      });
       // Don't expose internal errors — still return success
       return successResponse;
     }
@@ -80,8 +80,7 @@ export async function POST(request: Request) {
     if (resendKey) {
       const site = await getCurrentSite();
       const fallbackFromEmail = `noreply@${site.domain}`;
-      const fromEmail =
-        process.env.NEWSLETTER_FROM_EMAIL ?? fallbackFromEmail;
+      const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? fallbackFromEmail;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -98,22 +97,18 @@ export async function POST(request: Request) {
       });
       if (!res.ok) {
         const errBody = await res.text();
-        captureException(new Error(errBody), { context: "[api/auth/forgot-password] Failed to send reset email via Resend" });
+        captureException(new Error(errBody), {
+          context: "[api/auth/forgot-password] Failed to send reset email via Resend",
+        });
       }
     } else {
-      console.warn(
-        "[api/auth/forgot-password] RESEND_API_KEY not set. Reset link:",
-        resetUrl,
-      );
+      console.warn("[api/auth/forgot-password] RESEND_API_KEY not set. Reset link:", resetUrl);
     }
 
     return successResponse;
   } catch (err) {
     captureException(err, { context: "[api/auth/forgot-password] POST failed:" });
-    return NextResponse.json(
-      { error: "Failed to process request" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
   }
 }
 

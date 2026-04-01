@@ -11,6 +11,7 @@ import {
 import { validateCreateCategory, validateUpdateCategory } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 export async function GET() {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -29,8 +30,9 @@ export async function POST(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const raw = await request.json();
-  const parsed = validateCreateCategory(raw);
+  const rawOrError = await parseJsonBody(request);
+  if (rawOrError instanceof NextResponse) return rawOrError;
+  const parsed = validateCreateCategory(rawOrError);
   if (parsed.errors) {
     return NextResponse.json(
       { error: "Validation failed", details: parsed.errors },
@@ -67,8 +69,9 @@ export async function PATCH(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const raw = await request.json();
-  const parsed = validateUpdateCategory(raw);
+  const rawOrError = await parseJsonBody(request);
+  if (rawOrError instanceof NextResponse) return rawOrError;
+  const parsed = validateUpdateCategory(rawOrError);
   if (parsed.errors) {
     return NextResponse.json(
       { error: "Validation failed", details: parsed.errors },

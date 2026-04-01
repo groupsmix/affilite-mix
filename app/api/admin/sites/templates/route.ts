@@ -7,6 +7,7 @@ import {
 } from "@/lib/dal/niche-templates";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 /** List all available niche templates */
 export async function GET() {
@@ -27,27 +28,29 @@ export async function POST(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const body = await request.json();
-  const { name, slug, description, ...rest } = body;
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
 
-  if (!name || !slug) {
+  if (!bodyOrError.name || !bodyOrError.slug) {
     return NextResponse.json({ error: "name and slug are required" }, { status: 400 });
   }
 
   try {
     const template = await createNicheTemplate({
-      name,
-      slug,
-      description: description ?? "",
-      default_theme: rest.default_theme ?? {},
-      default_nav: rest.default_nav ?? [],
-      default_footer: rest.default_footer ?? [],
-      default_features: rest.default_features ?? {},
-      monetization_type: rest.monetization_type ?? "affiliate",
-      language: rest.language ?? "en",
-      direction: rest.direction ?? "ltr",
-      custom_css: rest.custom_css ?? "",
-      social_links: rest.social_links ?? {},
+      name: bodyOrError.name as string,
+      slug: bodyOrError.slug as string,
+      description: (bodyOrError.description as string) ?? "",
+      default_theme: (bodyOrError.default_theme as Record<string, unknown>) ?? {},
+      default_nav:
+        (bodyOrError.default_nav as { label: string; href: string; icon?: string }[]) ?? [],
+      default_footer:
+        (bodyOrError.default_footer as { label: string; href: string; icon?: string }[]) ?? [],
+      default_features: (bodyOrError.default_features as Record<string, boolean>) ?? {},
+      monetization_type: (bodyOrError.monetization_type as string) ?? "affiliate",
+      language: (bodyOrError.language as string) ?? "en",
+      direction: (bodyOrError.direction as string) ?? "ltr",
+      custom_css: (bodyOrError.custom_css as string) ?? "",
+      social_links: (bodyOrError.social_links as Record<string, string>) ?? {},
     });
 
     recordAuditEvent({
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
       action: "create",
       entity_type: "niche_template",
       entity_id: template.id,
-      details: { name, slug },
+      details: { name: bodyOrError.name as string, slug: bodyOrError.slug as string },
     });
 
     return NextResponse.json(template, { status: 201 });
@@ -71,20 +74,22 @@ export async function DELETE(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const { id } = await request.json();
+  const delBodyOrError = await parseJsonBody(request);
+  if (delBodyOrError instanceof NextResponse) return delBodyOrError;
+  const { id } = delBodyOrError;
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
   try {
-    await deleteNicheTemplate(id);
+    await deleteNicheTemplate(id as string);
 
     recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
       action: "delete",
       entity_type: "niche_template",
-      entity_id: id,
+      entity_id: id as string,
     });
 
     return NextResponse.json({ ok: true });

@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
-import {
-  listProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-} from "@/lib/dal/products";
+import { listProducts, createProduct, updateProduct, deleteProduct } from "@/lib/dal/products";
 import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -36,10 +32,14 @@ export async function POST(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const raw = await request.json();
-  const parsed = validateCreateProduct(raw);
+  const rawOrError = await parseJsonBody(request);
+  if (rawOrError instanceof NextResponse) return rawOrError;
+  const parsed = validateCreateProduct(rawOrError);
   if (parsed.errors) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.errors },
+      { status: 400 },
+    );
   }
 
   const data = parsed.data;
@@ -87,10 +87,14 @@ export async function PATCH(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const raw = await request.json();
-  const parsed = validateUpdateProduct(raw);
+  const rawOrError = await parseJsonBody(request);
+  if (rawOrError instanceof NextResponse) return rawOrError;
+  const parsed = validateUpdateProduct(rawOrError);
   if (parsed.errors) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.errors },
+      { status: 400 },
+    );
   }
 
   const { id, ...updates } = parsed.data;

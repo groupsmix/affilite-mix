@@ -4,6 +4,7 @@ import { listPages, createPage } from "@/lib/dal/pages";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 /**
  * GET /api/admin/pages  — list all pages for the current site
@@ -30,19 +31,20 @@ export async function POST(request: NextRequest) {
   if (error) return error;
 
   try {
-    const body = await request.json();
+    const bodyOrError = await parseJsonBody(request);
+    if (bodyOrError instanceof NextResponse) return bodyOrError;
 
-    if (!body.slug || !body.title) {
+    if (!bodyOrError.slug || !bodyOrError.title) {
       return NextResponse.json({ error: "slug and title are required" }, { status: 400 });
     }
 
     const page = await createPage({
       site_id: dbSiteId,
-      slug: body.slug,
-      title: body.title,
-      body: sanitizeHtml(body.body ?? ""),
-      is_published: body.is_published ?? false,
-      sort_order: body.sort_order ?? 0,
+      slug: bodyOrError.slug as string,
+      title: bodyOrError.title as string,
+      body: sanitizeHtml((bodyOrError.body as string) ?? ""),
+      is_published: (bodyOrError.is_published as boolean) ?? false,
+      sort_order: (bodyOrError.sort_order as number) ?? 0,
     });
 
     recordAuditEvent({
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
       action: "create",
       entity_type: "page",
       entity_id: page.id,
-      details: { title: body.title, slug: body.slug },
+      details: { title: bodyOrError.title as string, slug: bodyOrError.slug as string },
     });
 
     return NextResponse.json(page, { status: 201 });
