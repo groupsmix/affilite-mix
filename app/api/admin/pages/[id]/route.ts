@@ -37,11 +37,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   try {
     const { id } = await params;
-    const body = await request.json();
-    if (body.body !== undefined) {
-      body.body = sanitizeHtml(body.body);
+    const raw = await request.json();
+
+    // Filter to allowed fields only — prevents mass assignment of id, site_id, created_at, etc.
+    const ALLOWED_FIELDS = ["slug", "title", "body", "is_published", "sort_order"] as const;
+    const filtered: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (raw[key] !== undefined) {
+        filtered[key] = key === "body" ? sanitizeHtml(raw[key]) : raw[key];
+      }
     }
-    const page = await updatePage(id, body);
+
+    const page = await updatePage(id, filtered);
 
     recordAuditEvent({
       site_id: dbSiteId,
@@ -49,7 +56,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       action: "update",
       entity_type: "page",
       entity_id: id,
-      details: { fields: Object.keys(body) },
+      details: { fields: Object.keys(filtered) },
     });
 
     return NextResponse.json(page);

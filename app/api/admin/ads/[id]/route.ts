@@ -1,32 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
-import {
-  updateAdPlacement,
-  deleteAdPlacement,
-} from "@/lib/dal/ad-placements";
+import { updateAdPlacement, deleteAdPlacement } from "@/lib/dal/ad-placements";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { parseJsonBody } from "@/lib/api-error";
 import type { AdPlacementType, AdProvider } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 
-const VALID_PLACEMENT_TYPES: AdPlacementType[] = ["sidebar", "in_content", "header", "footer", "between_posts"];
+const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
+  "sidebar",
+  "in_content",
+  "header",
+  "footer",
+  "between_posts",
+];
 const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom"];
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const { id } = await params;
-  const raw = await request.json();
-  const { name, placement_type, provider, ad_code, config, is_active, priority } = raw;
+  const rawOrError = await parseJsonBody(request);
+  if (rawOrError instanceof NextResponse) return rawOrError;
+
+  const name = rawOrError.name as string | undefined;
+  const placement_type = rawOrError.placement_type as AdPlacementType | undefined;
+  const provider = rawOrError.provider as AdProvider | undefined;
+  const ad_code = rawOrError.ad_code as string | undefined;
+  const config = rawOrError.config as Record<string, unknown> | undefined;
+  const is_active = rawOrError.is_active as boolean | undefined;
+  const priority = rawOrError.priority as number | undefined;
 
   if (placement_type && !VALID_PLACEMENT_TYPES.includes(placement_type)) {
-    return NextResponse.json({ error: `placement_type must be one of: ${VALID_PLACEMENT_TYPES.join(", ")}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `placement_type must be one of: ${VALID_PLACEMENT_TYPES.join(", ")}` },
+      { status: 400 },
+    );
   }
   if (provider && !VALID_PROVIDERS.includes(provider)) {
-    return NextResponse.json({ error: `provider must be one of: ${VALID_PROVIDERS.join(", ")}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `provider must be one of: ${VALID_PROVIDERS.join(", ")}` },
+      { status: 400 },
+    );
   }
 
   try {

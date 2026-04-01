@@ -3,6 +3,7 @@ import { getAdminSession } from "@/lib/auth";
 import { getSiteById } from "@/config/sites";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { parseJsonBody } from "@/lib/api-error";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 
 /** 100 admin API requests per minute per user session (3.30) */
@@ -24,8 +25,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
-  const { siteId } = body as { siteId?: string };
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const { siteId } = bodyOrError as { siteId?: string };
 
   if (!siteId || typeof siteId !== "string") {
     return NextResponse.json({ error: "siteId is required" }, { status: 400 });

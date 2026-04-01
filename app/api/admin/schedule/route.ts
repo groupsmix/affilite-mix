@@ -4,8 +4,10 @@ import {
   listScheduledJobs,
   createScheduledJob,
   cancelScheduledJob,
+  type ScheduledJobRow,
 } from "@/lib/dal/scheduled-jobs";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 
 const JOB_TYPES = new Set([
@@ -54,10 +56,12 @@ export async function POST(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const body = await request.json();
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const body = bodyOrError;
   const errors: Record<string, string> = {};
 
-  if (typeof body.job_type !== "string" || !JOB_TYPES.has(body.job_type)) {
+  if (typeof body.job_type !== "string" || !JOB_TYPES.has(body.job_type as string)) {
     errors.job_type = `job_type must be one of: ${[...JOB_TYPES].join(", ")}`;
   }
   if (typeof body.target_id !== "string" || body.target_id.length === 0) {
@@ -74,10 +78,13 @@ export async function POST(request: NextRequest) {
   try {
     const job = await createScheduledJob({
       site_id: dbSiteId,
-      job_type: body.job_type,
-      target_id: body.target_id,
-      scheduled_for: body.scheduled_for,
-      payload: typeof body.payload === "object" && body.payload !== null ? body.payload : {},
+      job_type: body.job_type as ScheduledJobRow["job_type"],
+      target_id: body.target_id as string,
+      scheduled_for: body.scheduled_for as string,
+      payload:
+        typeof body.payload === "object" && body.payload !== null
+          ? (body.payload as Record<string, unknown>)
+          : {},
     });
 
     recordAuditEvent({
@@ -86,7 +93,11 @@ export async function POST(request: NextRequest) {
       action: "create",
       entity_type: "scheduled_job",
       entity_id: job.id,
-      details: { job_type: body.job_type, target_id: body.target_id, scheduled_for: body.scheduled_for },
+      details: {
+        job_type: body.job_type as string,
+        target_id: body.target_id as string,
+        scheduled_for: body.scheduled_for as string,
+      },
     });
     return NextResponse.json({ job }, { status: 201 });
   } catch (err) {
@@ -103,22 +114,20 @@ export async function DELETE(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const body = await request.json();
-  if (typeof body.id !== "string" || body.id.length === 0) {
-    return NextResponse.json(
-      { error: "id is required" },
-      { status: 400 },
-    );
+  const delBodyOrError = await parseJsonBody(request);
+  if (delBodyOrError instanceof NextResponse) return delBodyOrError;
+  if (typeof delBodyOrError.id !== "string" || (delBodyOrError.id as string).length === 0) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
   try {
-    await cancelScheduledJob(dbSiteId, body.id);
+    await cancelScheduledJob(dbSiteId, delBodyOrError.id as string);
     recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
       action: "cancel",
       entity_type: "scheduled_job",
-      entity_id: body.id,
+      entity_id: delBodyOrError.id as string,
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
