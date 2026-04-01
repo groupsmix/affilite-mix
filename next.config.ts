@@ -4,6 +4,7 @@ import { allSites } from "./config/sites";
 const nextConfig: NextConfig = {
   // Restrict external images to known sources (R2 bucket, Supabase storage, site domains)
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       // Cloudflare R2 public bucket (custom domain or default)
       { protocol: "https", hostname: "*.r2.dev" },

@@ -3,13 +3,14 @@ import type { CategoryRow, TaxonomyType } from "@/types/database";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 
 const TABLE = "categories";
+const LIST_COLUMNS = "id, site_id, name, slug, description, taxonomy_type, created_at" as const;
 
 /** List all categories for a site, ordered by name */
 export async function listCategories(siteId: string): Promise<CategoryRow[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("name", { ascending: true });
 
@@ -25,7 +26,7 @@ export async function listCategoriesByTaxonomy(
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("taxonomy_type", taxonomyType)
     .order("name", { ascending: true });
@@ -71,7 +72,7 @@ export async function listCategoriesWithProductCount(
   // Get all categories
   const { data: cats, error: catError } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("name", { ascending: true });
 

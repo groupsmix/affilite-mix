@@ -139,7 +139,7 @@ export async function NicheHealthPanel() {
                   <span className="font-medium text-gray-900">{niche.clicks7d}</span>
                   {trend !== 0 && (
                     <span
-                      className={`ml-1 text-xs ${trend > 0 ? "text-green-600" : "text-red-600"}`}
+                      className={`ms-1 text-xs ${trend > 0 ? "text-green-600" : "text-red-600"}`}
                     >
                       {trend > 0 ? "\u2191" : "\u2193"}
                       {Math.abs(trend).toFixed(0)}%

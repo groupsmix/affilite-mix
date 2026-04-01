@@ -6,6 +6,10 @@ function pagesTable() {
   return getServiceClient().from("pages");
 }
 
+// Columns needed for list views (excludes heavy body text)
+const LIST_COLUMNS =
+  "id, site_id, slug, title, is_published, sort_order, created_at, updated_at" as const;
+
 /* ------------------------------------------------------------------ */
 /*  Read operations                                                     */
 /* ------------------------------------------------------------------ */
@@ -13,7 +17,7 @@ function pagesTable() {
 /** List all pages for a site (ordered by sort_order) */
 export async function listPages(siteId: string): Promise<PageRow[]> {
   const { data, error } = await pagesTable()
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("sort_order", { ascending: true });
 
@@ -24,7 +28,7 @@ export async function listPages(siteId: string): Promise<PageRow[]> {
 /** List only published pages for a site */
 export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
   const { data, error } = await pagesTable()
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("is_published", true)
     .order("sort_order", { ascending: true });

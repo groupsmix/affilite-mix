@@ -17,6 +17,8 @@ interface ProductCardProps {
   relatedContentLabel?: string;
   /** Optional search query to highlight matching terms */
   searchQuery?: string;
+  /** Mark as above-the-fold for LCP optimisation */
+  priority?: boolean;
 }
 
 function isDealActive(expiresAt: string | null): boolean {
@@ -60,6 +62,7 @@ export function ProductCard({
   relatedContentHref,
   relatedContentLabel,
   searchQuery,
+  priority = false,
 }: ProductCardProps) {
   const { accepted: consentAccepted } = useCookieConsent();
   const [imgError, setImgError] = useState(false);
@@ -100,6 +103,7 @@ export function ProductCard({
             placeholder="blur"
             blurDataURL={shimmerPlaceholder(320, 160)}
             className="h-40 w-full object-contain"
+            priority={priority}
             onError={() => setImgError(true)}
           />
         </div>
