@@ -3,7 +3,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "affilite-mix",
-	"main": ".open-next/worker.js",
+	"main": "custom-worker.ts",
 	"compatibility_date": "2026-03-17",
 	"compatibility_flags": [
 		"nodejs_compat",
