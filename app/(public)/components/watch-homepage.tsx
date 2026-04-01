@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { SiteDefinition } from "@/config/site-definition";
-import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
+import type { ContentListItem, ProductRow, CategoryRow } from "@/types/database";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
 import { ContentCard } from "./content-card";
@@ -14,7 +14,7 @@ const DEFAULT_OCCASION_ICON =
 
 interface WatchHomepageProps {
   site: SiteDefinition;
-  recentContent: ContentRow[];
+  recentContent: ContentListItem[];
   featuredProducts: ProductRow[];
   categories: CategoryWithCount[];
   /** Total number of active products (for trust bar) */

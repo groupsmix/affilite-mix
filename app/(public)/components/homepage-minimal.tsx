@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { SiteDefinition } from "@/config/site-definition";
-import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
+import type { ContentListItem, ProductRow, CategoryRow } from "@/types/database";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
 import { ContentCard } from "./content-card";
@@ -9,7 +9,7 @@ import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 
 interface MinimalHomepageProps {
   site: SiteDefinition;
-  recentContent: ContentRow[];
+  recentContent: ContentListItem[];
   featuredProducts: ProductRow[];
   categories: CategoryWithCount[];
 }
