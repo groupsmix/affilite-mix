@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/password";
 import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 /**
  * POST /api/auth/reset-password
@@ -30,9 +31,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
-    const token = (body.token ?? "").trim();
-    const password = body.password ?? "";
+    const bodyOrError = await parseJsonBody(request);
+    if (bodyOrError instanceof NextResponse) return bodyOrError;
+    const token = ((bodyOrError.token as string) ?? "").trim();
+    const password = (bodyOrError.password as string) ?? "";
 
     if (!token) {
       return NextResponse.json({ error: "Reset token is required" }, { status: 400 });

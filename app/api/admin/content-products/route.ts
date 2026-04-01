@@ -5,15 +5,20 @@ import { setLinkedProducts } from "@/lib/dal/content-products";
 import { validateSetLinkedProducts } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 export async function PUT(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const raw = await request.json();
-  const parsed = validateSetLinkedProducts(raw);
+  const rawOrError = await parseJsonBody(request);
+  if (rawOrError instanceof NextResponse) return rawOrError;
+  const parsed = validateSetLinkedProducts(rawOrError);
   if (parsed.errors) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.errors },
+      { status: 400 },
+    );
   }
 
   try {

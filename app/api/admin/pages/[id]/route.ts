@@ -4,6 +4,7 @@ import { getPageById, updatePage, deletePage } from "@/lib/dal/pages";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,14 +38,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   try {
     const { id } = await params;
-    const raw = await request.json();
+    const rawOrError = await parseJsonBody(request);
+    if (rawOrError instanceof NextResponse) return rawOrError;
 
     // Filter to allowed fields only — prevents mass assignment of id, site_id, created_at, etc.
     const ALLOWED_FIELDS = ["slug", "title", "body", "is_published", "sort_order"] as const;
     const filtered: Record<string, unknown> = {};
     for (const key of ALLOWED_FIELDS) {
-      if (raw[key] !== undefined) {
-        filtered[key] = key === "body" ? sanitizeHtml(raw[key]) : raw[key];
+      if (rawOrError[key] !== undefined) {
+        filtered[key] = key === "body" ? sanitizeHtml(rawOrError[key] as string) : rawOrError[key];
       }
     }
 

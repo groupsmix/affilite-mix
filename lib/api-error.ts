@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import type { RateLimitResult, RateLimitConfig } from "@/lib/rate-limit";
 
 /**
@@ -34,7 +34,7 @@ export function apiError(
  * Returns the parsed body on success, or a 400 NextResponse on failure.
  */
 export async function parseJsonBody(
-  request: NextRequest,
+  request: Request,
 ): Promise<Record<string, unknown> | NextResponse> {
   try {
     return (await request.json()) as Record<string, unknown>;

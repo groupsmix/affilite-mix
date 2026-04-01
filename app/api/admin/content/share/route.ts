@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
-import {
-  shareContent,
-  unshareContent,
-  listSharedTargets,
-} from "@/lib/dal/shared-content";
+import { shareContent, unshareContent, listSharedTargets } from "@/lib/dal/shared-content";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 /** List sites a piece of content is shared to */
 export async function GET(request: NextRequest) {
@@ -32,7 +29,9 @@ export async function POST(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const { content_id, target_site_id } = await request.json();
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const { content_id, target_site_id } = bodyOrError;
   if (!content_id || !target_site_id) {
     return NextResponse.json(
       { error: "content_id and target_site_id are required" },
@@ -41,15 +40,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const shared = await shareContent(content_id, dbSiteId, target_site_id);
+    const shared = await shareContent(content_id as string, dbSiteId, target_site_id as string);
 
     recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
       action: "share",
       entity_type: "content",
-      entity_id: content_id,
-      details: { target_site_id },
+      entity_id: content_id as string,
+      details: { target_site_id: target_site_id as string },
     });
 
     return NextResponse.json(shared, { status: 201 });
@@ -64,7 +63,9 @@ export async function DELETE(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const { content_id, target_site_id } = await request.json();
+  const delBodyOrError = await parseJsonBody(request);
+  if (delBodyOrError instanceof NextResponse) return delBodyOrError;
+  const { content_id, target_site_id } = delBodyOrError;
   if (!content_id || !target_site_id) {
     return NextResponse.json(
       { error: "content_id and target_site_id are required" },
@@ -73,15 +74,15 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await unshareContent(content_id, target_site_id);
+    await unshareContent(content_id as string, target_site_id as string);
 
     recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
       action: "unshare",
       entity_type: "content",
-      entity_id: content_id,
-      details: { target_site_id },
+      entity_id: content_id as string,
+      details: { target_site_id: target_site_id as string },
     });
 
     return NextResponse.json({ ok: true });

@@ -99,7 +99,7 @@ export async function middleware(request: NextRequest) {
       // Public endpoints using sendBeacon() which cannot send custom headers
       "/api/track/click",
       "/api/vitals",
-      "/api/admin/ads/impressions",
+      "/api/track/impression",
       "/api/newsletter/unsubscribe",
     ]);
     if (!csrfExemptPaths.has(pathname)) {

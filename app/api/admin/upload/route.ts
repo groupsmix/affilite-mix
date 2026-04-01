@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getUploadUrl, isR2Configured } from "@/lib/r2";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 /** POST /api/admin/upload — get a presigned R2 upload URL */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
@@ -21,8 +22,11 @@ export async function POST(request: Request) {
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-  const body = await request.json();
-  const { fileName, contentType, fileSize } = body;
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const fileName = bodyOrError.fileName as string | undefined;
+  const contentType = bodyOrError.contentType as string | undefined;
+  const fileSize = bodyOrError.fileSize as number | undefined;
 
   if (!fileName || !contentType) {
     return NextResponse.json({ error: "fileName and contentType are required" }, { status: 400 });

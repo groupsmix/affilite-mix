@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { reorderPages } from "@/lib/dal/pages";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 /**
  * PUT /api/admin/pages/reorder
@@ -13,7 +14,9 @@ export async function PUT(request: NextRequest) {
   if (error) return error;
 
   try {
-    const body = await request.json();
+    const bodyOrError = await parseJsonBody(request);
+    if (bodyOrError instanceof NextResponse) return bodyOrError;
+    const body = bodyOrError;
 
     if (!Array.isArray(body.pages)) {
       return NextResponse.json({ error: "pages array is required" }, { status: 400 });

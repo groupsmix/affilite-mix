@@ -4,7 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail } from "@/lib/validation";
-import { apiError, rateLimitHeaders } from "@/lib/api-error";
+import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 
@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const body = await request.json();
-    const { email, password, turnstileToken } = body as {
+    const bodyOrError = await parseJsonBody(request);
+    if (bodyOrError instanceof NextResponse) return bodyOrError;
+    const { email, password, turnstileToken } = bodyOrError as {
       email?: string;
       password?: string;
       turnstileToken?: string;
