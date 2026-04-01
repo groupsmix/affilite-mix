@@ -12,11 +12,15 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-let cachedR2Client: S3Client | null = null;
-
+/**
+ * Create a fresh S3Client for R2 on each call.
+ *
+ * On Cloudflare Workers, module-level singletons can persist across requests
+ * within the same isolate but are lost between isolates. Caching the client
+ * risks stale credentials or memory leaks in edge runtimes, and the S3Client
+ * is lightweight enough that creating a new instance per request is fine.
+ */
 function getR2Client(): S3Client {
-  if (cachedR2Client) return cachedR2Client;
-
   const accountId = process.env.R2_ACCOUNT_ID;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
@@ -27,13 +31,11 @@ function getR2Client(): S3Client {
     );
   }
 
-  cachedR2Client = new S3Client({
+  return new S3Client({
     region: "auto",
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId, secretAccessKey },
   });
-
-  return cachedR2Client;
 }
 
 /** Generate a presigned upload URL for R2. Returns { uploadUrl, publicUrl }. */

@@ -142,9 +142,15 @@ export async function listActiveProducts(
   categorySlug?: string,
 ): Promise<ProductRow[]> {
   const sb = getAnonClient();
+
+  // When filtering by category, use !inner join to require a matching category.
+  // Otherwise use a left join (default) so products with null category_id are included.
+  const joinType = categorySlug ? "categories!inner(slug)" : "*, categories(slug)";
+  const selectColumns = categorySlug ? `*, ${joinType}` : joinType;
+
   let query = sb
     .from(TABLE)
-    .select("*, categories!inner(slug)")
+    .select(selectColumns)
     .eq("site_id", siteId)
     .eq("status", "active")
     .order("score", { ascending: false, nullsFirst: false });

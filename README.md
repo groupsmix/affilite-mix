@@ -11,7 +11,7 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 - **Affiliate click tracking** — logs outbound clicks with source attribution
 - **Newsletter signups** — per-site subscriber management with Turnstile captcha
 - **Scheduled jobs** — publish/archive content and products on a schedule
-- **SEO** — JSON-LD structured data, Open Graph, canonical URLs, sitemap, RSS feed
+- **SEO** — JSON-LD structured data, Open Graph, canonical URLs, sitemap
 - **Security** — CSRF protection, rate limiting, HTML sanitization, PBKDF2 password hashing, CSP headers
 
 ## Tech Stack
@@ -194,6 +194,10 @@ Required GitHub Secrets:
 - `JWT_SECRET`
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
+
+## Repository Name
+
+> **Note:** The repository is named `affilite-mix` (missing an "a" in "affiliate"). This is a known typo. Renaming requires GitHub admin access and would break existing CI/CD integrations, deployment URLs, and git remotes. The typo does not affect functionality.
 
 ## License
 
