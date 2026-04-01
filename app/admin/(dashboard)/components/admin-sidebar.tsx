@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SiteSwitcher } from "./site-switcher";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { adminNavItems } from "@/config/admin-nav";
 
 function DashboardIcon({ className }: { className?: string }) {
   return (
@@ -188,18 +190,19 @@ function AdsIcon({ className }: { className?: string }) {
   );
 }
 
-const navItems = [
-  { href: "/admin", label: "Dashboard", icon: <DashboardIcon className={iconSize} /> },
-  { href: "/admin/analytics", label: "Analytics", icon: <AnalyticsIcon className={iconSize} /> },
-  { href: "/admin/categories", label: "Categories", icon: <CategoriesIcon className={iconSize} /> },
-  { href: "/admin/products", label: "Products", icon: <ProductsIcon className={iconSize} /> },
-  { href: "/admin/content", label: "Content", icon: <ContentIcon className={iconSize} /> },
-  { href: "/admin/pages", label: "Pages", icon: <PagesIcon className={iconSize} /> },
-  { href: "/admin/ads", label: "Ad Placements", icon: <AdsIcon className={iconSize} /> },
-  { href: "/admin/users", label: "Users", icon: <UsersIcon className={iconSize} /> },
-  { href: "/admin/sites", label: "Sites", icon: <SitesIcon className={iconSize} /> },
-  { href: "/admin/audit-log", label: "Audit Log", icon: <AuditLogIcon className={iconSize} /> },
-];
+/** Map icon keys from the nav config to their React components */
+const iconMap: Record<string, ReactNode> = {
+  dashboard: <DashboardIcon className={iconSize} />,
+  analytics: <AnalyticsIcon className={iconSize} />,
+  categories: <CategoriesIcon className={iconSize} />,
+  products: <ProductsIcon className={iconSize} />,
+  content: <ContentIcon className={iconSize} />,
+  pages: <PagesIcon className={iconSize} />,
+  ads: <AdsIcon className={iconSize} />,
+  users: <UsersIcon className={iconSize} />,
+  sites: <SitesIcon className={iconSize} />,
+  "audit-log": <AuditLogIcon className={iconSize} />,
+};
 
 function SidebarContent({
   onNavigate,
@@ -221,7 +224,7 @@ function SidebarContent({
         <SiteSwitcher />
       </div>
       <nav aria-label="Admin navigation" className="mt-4 flex flex-col gap-1 px-2">
-        {navItems.map((item) => {
+        {adminNavItems.map((item) => {
           const isActive =
             item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
           return (
@@ -237,7 +240,7 @@ function SidebarContent({
               }`}
             >
               <span className="shrink-0" aria-hidden="true">
-                {item.icon}
+                {iconMap[item.iconKey]}
               </span>
               {item.label}
             </Link>
