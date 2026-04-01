@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 
@@ -23,7 +23,7 @@ export async function listCategoriesByTaxonomy(
   siteId: string,
   taxonomyType: TaxonomyType,
 ): Promise<CategoryRow[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -51,7 +51,7 @@ export async function getCategoryById(siteId: string, id: string): Promise<Categ
 
 /** Get a single category by slug */
 export async function getCategoryBySlug(siteId: string, slug: string): Promise<CategoryRow | null> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -67,7 +67,7 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
 export async function listCategoriesWithProductCount(
   siteId: string,
 ): Promise<(CategoryRow & { product_count: number })[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
 
   // Get all categories
   const { data: cats, error: catError } = await sb

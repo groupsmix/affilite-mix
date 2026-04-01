@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { AdPlacementRow, AdPlacementType } from "@/types/database";
 
@@ -24,7 +24,7 @@ export async function listActiveAdPlacements(
   siteId: string,
   placementType?: AdPlacementType,
 ): Promise<AdPlacementRow[]> {
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
