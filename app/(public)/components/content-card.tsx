@@ -46,7 +46,7 @@ export function ContentCard({ content, locale = "en-US", searchQuery }: ContentC
             {searchQuery ? highlightText(content.excerpt, searchQuery) : content.excerpt}
           </p>
         )}
-        <div className="flex items-center justify-between text-xs text-gray-400">
+        <div className="flex items-center justify-between text-xs text-gray-500">
           <span>{content.type}</span>
           {(content.publish_at ?? content.created_at) && (
             <time dateTime={content.publish_at ?? content.created_at}>

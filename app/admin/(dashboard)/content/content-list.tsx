@@ -158,7 +158,7 @@ export function ContentList({ items }: ContentListProps) {
                     <ContentStatusBadge status={item.status} />
                     {item.publish_at && (
                       <span
-                        className={`ms-1 text-xs ${item.status === "scheduled" ? "text-indigo-500" : "text-gray-400"}`}
+                        className={`ms-1 text-xs ${item.status === "scheduled" ? "text-indigo-500" : "text-gray-500"}`}
                         title={new Date(item.publish_at).toLocaleString()}
                       >
                         {item.status !== "scheduled" && "📅 "}

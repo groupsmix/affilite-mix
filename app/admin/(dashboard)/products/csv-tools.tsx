@@ -96,7 +96,9 @@ export function CsvTools() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = res.headers.get("Content-Disposition")?.split("filename=")[1]?.replace(/"/g, "") ?? "products.csv";
+    a.download =
+      res.headers.get("Content-Disposition")?.split("filename=")[1]?.replace(/"/g, "") ??
+      "products.csv";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -111,13 +113,32 @@ export function CsvTools() {
     const text = await file.text();
     const lines = text.split("\n").filter((l) => l.trim());
     if (lines.length < 2) {
-      setResult({ created: 0, errors: 1, total: 0, results: [{ row: 0, name: "", status: "error", error: "CSV must have a header row and at least one data row" }] });
+      setResult({
+        created: 0,
+        errors: 1,
+        total: 0,
+        results: [
+          {
+            row: 0,
+            name: "",
+            status: "error",
+            error: "CSV must have a header row and at least one data row",
+          },
+        ],
+      });
       return;
     }
 
     const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
     if (!headers.includes("name") || !headers.includes("slug")) {
-      setResult({ created: 0, errors: 1, total: 0, results: [{ row: 0, name: "", status: "error", error: "CSV missing required columns: name, slug" }] });
+      setResult({
+        created: 0,
+        errors: 1,
+        total: 0,
+        results: [
+          { row: 0, name: "", status: "error", error: "CSV missing required columns: name, slug" },
+        ],
+      });
       return;
     }
 
@@ -174,7 +195,12 @@ export function CsvTools() {
     if (res.ok) {
       setResult(data);
     } else {
-      setResult({ created: 0, errors: 1, total: 0, results: [{ row: 0, name: "", status: "error", error: data.error }] });
+      setResult({
+        created: 0,
+        errors: 1,
+        total: 0,
+        results: [{ row: 0, name: "", status: "error", error: data.error }],
+      });
     }
 
     setImporting(false);
@@ -198,14 +224,24 @@ export function CsvTools() {
           className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+            />
           </svg>
           Export CSV
         </button>
 
         <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+            />
           </svg>
           {importing ? "Importing..." : "Import CSV"}
           <input
@@ -256,10 +292,14 @@ export function CsvTools() {
           {/* Validation warnings */}
           {preview.warnings.length > 0 && (
             <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              <p className="font-medium">{preview.warnings.length} row(s) have validation issues:</p>
+              <p className="font-medium">
+                {preview.warnings.length} row(s) have validation issues:
+              </p>
               <ul className="mt-1 max-h-32 space-y-0.5 overflow-y-auto text-xs">
                 {preview.warnings.map((w, i) => (
-                  <li key={i}>Row {w.row}: {w.messages.join("; ")}</li>
+                  <li key={i}>
+                    Row {w.row}: {w.messages.join("; ")}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -272,25 +312,34 @@ export function CsvTools() {
                 <tr>
                   <th className="px-2 py-1 text-left font-medium text-gray-500">#</th>
                   {preview.headers.slice(0, 6).map((h) => (
-                    <th key={h} className="px-2 py-1 text-left font-medium text-gray-500">{h}</th>
+                    <th key={h} className="px-2 py-1 text-left font-medium text-gray-500">
+                      {h}
+                    </th>
                   ))}
                   {preview.headers.length > 6 && (
-                    <th className="px-2 py-1 text-left font-medium text-gray-400">+{preview.headers.length - 6} more</th>
+                    <th className="px-2 py-1 text-left font-medium text-gray-500">
+                      +{preview.headers.length - 6} more
+                    </th>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {preview.rows.slice(0, 5).map((row, i) => (
                   <tr key={i} className="border-t border-gray-100">
-                    <td className="px-2 py-1 text-gray-400">{i + 2}</td>
+                    <td className="px-2 py-1 text-gray-500">{i + 2}</td>
                     {preview.headers.slice(0, 6).map((h) => (
-                      <td key={h} className="max-w-[120px] truncate px-2 py-1 text-gray-700">{row[h] || "—"}</td>
+                      <td key={h} className="max-w-[120px] truncate px-2 py-1 text-gray-700">
+                        {row[h] || "—"}
+                      </td>
                     ))}
                   </tr>
                 ))}
                 {preview.rows.length > 5 && (
                   <tr className="border-t border-gray-100">
-                    <td colSpan={Math.min(preview.headers.length, 6) + 1} className="px-2 py-1 text-center text-gray-400">
+                    <td
+                      colSpan={Math.min(preview.headers.length, 6) + 1}
+                      className="px-2 py-1 text-center text-gray-500"
+                    >
                       ...and {preview.rows.length - 5} more rows
                     </td>
                   </tr>
@@ -320,7 +369,9 @@ export function CsvTools() {
 
       {result && (
         <div className="mt-3">
-          <div className={`rounded p-3 text-sm ${result.errors > 0 ? "bg-yellow-50 text-yellow-800" : "bg-green-50 text-green-800"}`}>
+          <div
+            className={`rounded p-3 text-sm ${result.errors > 0 ? "bg-yellow-50 text-yellow-800" : "bg-green-50 text-green-800"}`}
+          >
             Imported {result.created} of {result.total} products.
             {result.errors > 0 && ` ${result.errors} error(s).`}
           </div>

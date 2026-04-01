@@ -40,11 +40,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
   }
 
   function updateLink(productId: string, field: keyof ProductLink, value: string | number | null) {
-    onChange(
-      links.map((l) =>
-        l.product_id === productId ? { ...l, [field]: value } : l
-      )
-    );
+    onChange(links.map((l) => (l.product_id === productId ? { ...l, [field]: value } : l)));
   }
 
   function moveUp(index: number) {
@@ -83,7 +79,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
                   type="button"
                   onClick={() => moveUp(idx)}
                   disabled={idx === 0}
-                  className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                  className="text-xs text-gray-500 hover:text-gray-600 disabled:opacity-30"
                   aria-label={`Move ${getProductName(link.product_id)} up`}
                 >
                   ▲
@@ -92,7 +88,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
                   type="button"
                   onClick={() => moveDown(idx)}
                   disabled={idx === links.length - 1}
-                  className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                  className="text-xs text-gray-500 hover:text-gray-600 disabled:opacity-30"
                   aria-label={`Move ${getProductName(link.product_id)} down`}
                 >
                   ▼
@@ -109,7 +105,9 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
                 className="rounded border border-gray-200 px-2 py-1 text-xs"
               >
                 {ROLES.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
               </select>
 
@@ -133,7 +131,7 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Search ${availableProducts.length} products…`}
-            className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
           <div className="flex items-center gap-2">
             <select
@@ -147,7 +145,9 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
                   : `Select from ${filteredProducts.length} product${filteredProducts.length !== 1 ? "s" : ""}…`}
               </option>
               {filteredProducts.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
             <button

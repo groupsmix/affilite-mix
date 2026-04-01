@@ -142,42 +142,57 @@ export function UsersClient() {
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+              <label htmlFor="user-email" className="mb-1 block text-sm font-medium text-gray-700">
+                Email
+              </label>
               <input
+                id="user-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
+              <label htmlFor="user-name" className="mb-1 block text-sm font-medium text-gray-700">
+                Name
+              </label>
               <input
+                id="user-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Password</label>
+              <label
+                htmlFor="user-password"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                Password
+              </label>
               <input
+                id="user-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
-              <p className="mt-1 text-xs text-gray-400">Minimum 8 characters</p>
+              <p className="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Role</label>
+              <label htmlFor="user-role" className="mb-1 block text-sm font-medium text-gray-700">
+                Role
+              </label>
               <select
+                id="user-role"
                 value={role}
                 onChange={(e) => setRole(e.target.value as "admin" | "super_admin")}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="admin">Admin</option>
                 <option value="super_admin">Super Admin</option>

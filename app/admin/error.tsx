@@ -34,9 +34,7 @@ export default function AdminError({
         </svg>
       </div>
 
-      <h2 className="mb-2 text-xl font-bold text-gray-900">
-        Something went wrong
-      </h2>
+      <h2 className="mb-2 text-xl font-bold text-gray-900">Something went wrong</h2>
       <p className="mb-6 text-sm text-gray-500">
         {process.env.NODE_ENV === "development"
           ? error.message || "An unexpected error occurred in the admin panel."
@@ -58,7 +56,7 @@ export default function AdminError({
         </Link>
         <Link
           href="/api/auth/logout"
-          className="text-sm text-gray-400 transition-colors hover:text-gray-600"
+          className="text-sm text-gray-500 transition-colors hover:text-gray-600"
         >
           Logout
         </Link>

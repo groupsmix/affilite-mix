@@ -179,24 +179,31 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
+                <label htmlFor="ad-name" className="mb-1 block text-sm font-medium text-gray-700">
+                  Name
+                </label>
                 <input
+                  id="ad-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. sidebar-top, in-content-1"
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="ad-placement-type"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Placement Type
                 </label>
                 <select
+                  id="ad-placement-type"
                   value={placementType}
                   onChange={(e) => setPlacementType(e.target.value as AdPlacementType)}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   {PLACEMENT_TYPES.map((pt) => (
                     <option key={pt.value} value={pt.value}>
@@ -209,11 +216,17 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Provider</label>
+                <label
+                  htmlFor="ad-provider"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
+                  Provider
+                </label>
                 <select
+                  id="ad-provider"
                   value={provider}
                   onChange={(e) => setProvider(e.target.value as AdProvider)}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   {PROVIDERS.map((p) => (
                     <option key={p.value} value={p.value}>
@@ -223,27 +236,34 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Priority</label>
+                <label
+                  htmlFor="ad-priority"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
+                  Priority
+                </label>
                 <input
+                  id="ad-priority"
                   type="number"
                   value={priority}
                   onChange={(e) => setPriority(Number(e.target.value))}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-                <p className="mt-1 text-xs text-gray-400">Lower numbers appear first</p>
+                <p className="mt-1 text-xs text-gray-500">Lower numbers appear first</p>
               </div>
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="ad-code" className="mb-1 block text-sm font-medium text-gray-700">
                 Ad Code / Snippet
               </label>
               <textarea
+                id="ad-code"
                 value={adCode}
                 onChange={(e) => setAdCode(e.target.value)}
                 rows={5}
                 placeholder="Paste your ad code (HTML/JS snippet) here..."
-                className="w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
 
@@ -284,7 +304,7 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
       {placements.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
           <p className="text-gray-500">No ad placements configured yet.</p>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="mt-1 text-sm text-gray-500">
             Create ad placements for sites with &quot;ads&quot; or &quot;both&quot; monetization
             type.
           </p>
@@ -311,7 +331,7 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                     {ad.placement_type}
                   </span>
                   <span>{ad.provider}</span>
-                  <span className="text-xs text-gray-400">Priority: {ad.priority}</span>
+                  <span className="text-xs text-gray-500">Priority: {ad.priority}</span>
                 </div>
                 <div className="flex gap-3">
                   <button

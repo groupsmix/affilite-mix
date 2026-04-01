@@ -37,9 +37,7 @@ function ResultSkeleton() {
           </div>
         ))}
       </div>
-      <p className="mt-8 text-center text-sm text-gray-400">
-        Finding your perfect matches...
-      </p>
+      <p className="mt-8 text-center text-sm text-gray-500">Finding your perfect matches...</p>
     </div>
   );
 }
@@ -223,26 +221,48 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
       <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8" aria-live="polite">
         {/* Results header */}
         <div className="mb-12 animate-[fadeIn_0.5s_ease-out] text-center">
-          <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
+          <p
+            className="mb-2 text-xs font-bold uppercase tracking-widest"
+            style={{ color: "var(--color-accent)" }}
+          >
             Your Results
           </p>
-          <h1 className="mb-4 text-3xl font-bold md:text-4xl" style={{ fontFamily: "var(--font-heading)" }}>
+          <h1
+            className="mb-4 text-3xl font-bold md:text-4xl"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             Your Perfect {productLabel} Matches
           </h1>
           <p className="text-gray-500">
-            Based on your answers, here are the {productLabelPlural.toLowerCase()} we recommend &mdash;
-            sorted by Gift-Worthiness Score.
+            Based on your answers, here are the {productLabelPlural.toLowerCase()} we recommend
+            &mdash; sorted by Gift-Worthiness Score.
           </p>
         </div>
 
         {error && (
-          <div className="mb-8 rounded-xl border border-red-200 bg-red-50 p-6 text-center" role="alert" aria-live="assertive">
+          <div
+            className="mb-8 rounded-xl border border-red-200 bg-red-50 p-6 text-center"
+            role="alert"
+            aria-live="assertive"
+          >
             <div className="mb-3">
-              <svg className="mx-auto h-10 w-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              <svg
+                className="mx-auto h-10 w-10 text-red-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+                />
               </svg>
             </div>
-            <p className="mb-1 text-lg font-semibold text-red-800">Unable to Load Recommendations</p>
+            <p className="mb-1 text-lg font-semibold text-red-800">
+              Unable to Load Recommendations
+            </p>
             <p className="mb-5 text-sm text-red-600">{error}</p>
             <div className="flex flex-wrap justify-center gap-3">
               <button
@@ -251,7 +271,12 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
                 style={{ backgroundColor: "var(--color-accent)" }}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
                 </svg>
                 Retry
               </button>
@@ -277,11 +302,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
             >
               <span
                 className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide text-white ${
-                  i === 0
-                    ? "bg-amber-500"
-                    : i === 1
-                      ? "bg-gray-700"
-                      : "bg-gray-400"
+                  i === 0 ? "bg-amber-500" : i === 1 ? "bg-gray-700" : "bg-gray-400"
                 }`}
               >
                 {rankLabels[i]}
@@ -300,9 +321,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
                     Gift Score: {product.score}/10
                   </span>
                 )}
-                {product.price && (
-                  <span className="text-sm text-gray-500">{product.price}</span>
-                )}
+                {product.price && <span className="text-sm text-gray-500">{product.price}</span>}
                 {product.merchant && (
                   <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs capitalize text-gray-500">
                     {product.merchant}
@@ -326,7 +345,12 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
                   >
                     {product.deal_text || "View Deal"}
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 8l4 4m0 0l-4 4m4-4H3"
+                      />
                     </svg>
                   </a>
                 )}
@@ -347,8 +371,8 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
           <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
             <p className="mb-2 text-lg font-semibold text-gray-800">No Matches Found</p>
             <p className="mb-6 text-gray-500">
-              We couldn&apos;t find {productLabelPlural.toLowerCase()} matching all your criteria. Try
-              adjusting your budget or style preference.
+              We couldn&apos;t find {productLabelPlural.toLowerCase()} matching all your criteria.
+              Try adjusting your budget or style preference.
             </p>
             <button
               onClick={resetQuiz}
@@ -367,7 +391,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
           >
             &larr; Retake the Quiz
           </button>
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
             <Link href="/review" className="transition-colors hover:text-gray-700">
               See All Reviews
             </Link>
@@ -398,7 +422,10 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="mb-12 text-center">
-        <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
+        <p
+          className="mb-2 text-xs font-bold uppercase tracking-widest"
+          style={{ color: "var(--color-accent)" }}
+        >
           60-Second Quiz
         </p>
         <h1
@@ -408,8 +435,8 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
           {productLabel} Gift Finder Quiz
         </h1>
         <p className="text-gray-500">
-          Answer 4 quick questions and get personalized {productLabel.toLowerCase()} recommendations in
-          60 seconds.
+          Answer 4 quick questions and get personalized {productLabel.toLowerCase()} recommendations
+          in 60 seconds.
         </p>
       </div>
 
@@ -428,7 +455,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
       <div
         className={`transition-all duration-200 ${animatingStep ? "translate-y-2 opacity-0" : "translate-y-0 opacity-100"}`}
       >
-        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">
+        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-500">
           Step {currentStep + 1} of {steps.length}
         </p>
         <h2
@@ -445,9 +472,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
               onClick={() => handleSelect(option.value)}
               className="rounded-xl border border-gray-200 bg-white p-6 text-left shadow-sm transition-all hover:border-amber-300 hover:shadow-md"
             >
-              <span className="text-base font-medium text-gray-800">
-                {option.label}
-              </span>
+              <span className="text-base font-medium text-gray-800">{option.label}</span>
             </button>
           ))}
         </div>
@@ -462,10 +487,15 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
               setAnimatingStep(false);
             }, 200);
           }}
-          className="mt-8 flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-gray-700"
+          className="mt-8 flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-700"
         >
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           Go Back
         </button>

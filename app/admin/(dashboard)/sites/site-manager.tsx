@@ -250,7 +250,7 @@ function NavItemsEditor({
           + Add
         </button>
       </div>
-      {items.length === 0 && <p className="text-xs text-gray-400">No items added yet.</p>}
+      {items.length === 0 && <p className="text-xs text-gray-500">No items added yet.</p>}
       <div className="space-y-2">
         {items.map((item, i) => (
           <div key={i} className="flex gap-2">
@@ -259,21 +259,21 @@ function NavItemsEditor({
               value={item.label}
               onChange={(e) => updateItem(i, "label", e.target.value)}
               placeholder="Label"
-              className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none"
+              className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <input
               type="text"
               value={item.href}
               onChange={(e) => updateItem(i, "href", e.target.value)}
               placeholder="/path"
-              className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none"
+              className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <input
               type="text"
               value={item.icon ?? ""}
               onChange={(e) => updateItem(i, "icon", e.target.value)}
               placeholder="Icon"
-              className="w-20 rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none"
+              className="w-20 rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <button
               type="button"
@@ -399,13 +399,13 @@ export function SiteManager() {
 
   /* --- Input helpers ------------------------------------------------ */
   const inputCls =
-    "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none";
+    "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
   const labelCls = "mb-1 block text-sm font-medium text-gray-700";
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-gray-400">Loading sites...</div>
+        <div className="text-sm text-gray-500">Loading sites...</div>
       </div>
     );
   }
@@ -472,7 +472,7 @@ export function SiteManager() {
                       className={`${inputCls} disabled:bg-gray-100 disabled:text-gray-500`}
                       required
                     />
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-gray-500">
                       Lowercase, hyphens only. Cannot change after creation.
                     </p>
                   </div>
@@ -669,7 +669,7 @@ export function SiteManager() {
                       <option value="minimal">Minimal</option>
                       <option value="directory">Directory</option>
                     </select>
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-gray-500">
                       Controls the overall page layout style.
                     </p>
                   </div>
@@ -758,7 +758,7 @@ export function SiteManager() {
                     </div>
                     {/* Preview footer */}
                     <div className="border-t border-gray-200 bg-gray-50 px-4 py-2">
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-500">
                         Layout: {form.theme_layout_variant} &middot; Font: {form.theme_font}
                       </span>
                     </div>
@@ -885,7 +885,7 @@ export function SiteManager() {
                   rows={10}
                   className={`${inputCls} font-mono text-xs`}
                 />
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-gray-500">
                   CSS applied after the default theme styles.
                 </p>
               </div>

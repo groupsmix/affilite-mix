@@ -35,9 +35,7 @@ export default async function NotFound() {
             ? "عذرًا، الصفحة التي تبحث عنها غير موجودة أو تم نقلها."
             : "Sorry, the page you\u2019re looking for doesn\u2019t exist or has been moved."}
         </p>
-        {siteName && (
-          <p className="mt-1 text-sm text-gray-400">{siteName}</p>
-        )}
+        {siteName && <p className="mt-1 text-sm text-gray-500">{siteName}</p>}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/"

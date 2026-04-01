@@ -15,7 +15,7 @@ export function CookieSettingsButton({ label }: CookieSettingsButtonProps) {
     <button
       type="button"
       onClick={resetCookieConsent}
-      className="text-xs text-gray-400 underline hover:text-gray-600"
+      className="text-xs text-gray-500 underline hover:text-gray-600"
     >
       {label}
     </button>

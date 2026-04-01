@@ -9,7 +9,8 @@ import { GiftWorthinessScore } from "./gift-worthiness-score";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 
 /** Default SVG path for occasion icons when no category-specific icon is available. */
-const DEFAULT_OCCASION_ICON = "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z";
+const DEFAULT_OCCASION_ICON =
+  "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z";
 
 interface WatchHomepageProps {
   site: SiteDefinition;
@@ -30,8 +31,9 @@ export function WatchHomepage({
   productCount = 0,
   reviewCount = 0,
 }: WatchHomepageProps) {
-  const locale = "en-US";
-  const ctaLabel = "View Deal";
+  const isAr = site.language === "ar";
+  const locale = isAr ? "ar-SA" : "en-US";
+  const ctaLabel = isAr ? "عرض الصفقة" : "View Deal";
 
   // Derive occasions and budgets from categories (data-driven)
   const occasions = categories
@@ -98,13 +100,15 @@ export function WatchHomepage({
             <div className="mb-8 flex items-center gap-3">
               <div
                 className="h-px w-12"
-                style={{ background: `linear-gradient(to right, var(--color-accent), transparent)` }}
+                style={{
+                  background: `linear-gradient(to right, var(--color-accent), transparent)`,
+                }}
               />
               <span
                 className="text-xs font-bold uppercase tracking-widest"
                 style={{ color: "var(--color-accent)" }}
               >
-                Expert Watch Gift Guides
+                {isAr ? "أدلة هدايا الساعات" : "Expert Watch Gift Guides"}
               </span>
             </div>
 
@@ -113,23 +117,22 @@ export function WatchHomepage({
               className="mb-8 text-5xl font-bold leading-[1.05] text-white md:text-6xl lg:text-7xl"
               style={{ fontFamily: "var(--font-heading)" }}
             >
-              Find the Perfect{" "}
-              <br className="hidden sm:block" />
+              {isAr ? "اعثر على" : "Find the Perfect"} <br className="hidden sm:block" />
               <span
                 className="bg-clip-text text-transparent"
                 style={{
                   backgroundImage: `linear-gradient(135deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 70%, white))`,
                 }}
               >
-                Watch Gift
+                {isAr ? "هدية الساعة المثالية" : "Watch Gift"}
               </span>
             </h1>
 
             {/* Subtitle */}
-            <p className="mb-12 max-w-2xl text-lg font-light leading-relaxed text-gray-400 md:text-xl">
-              Expert reviews, honest ratings, and a proprietary Gift-Worthiness
-              Score to help you pick a watch they&apos;ll actually love. No fluff, no
-              sponsored rankings.
+            <p className="mb-12 max-w-2xl text-lg font-light leading-relaxed text-gray-500 md:text-xl">
+              {isAr
+                ? "مراجعات متخصصة وتقييمات صادقة ومقياس جدارة الهدية الخاص بنا لمساعدتك في اختيار ساعة سيحبونها حقًا. بدون مبالغات أو تصنيفات مدفوعة."
+                : "Expert reviews, honest ratings, and a proprietary Gift-Worthiness Score to help you pick a watch they'll actually love. No fluff, no sponsored rankings."}
             </p>
 
             {/* CTAs */}
@@ -139,16 +142,21 @@ export function WatchHomepage({
                 className="inline-flex min-h-[56px] items-center justify-center gap-2.5 rounded-full px-8 py-4 text-base font-semibold tracking-wide text-white transition-all duration-500 hover:shadow-lg"
                 style={{ backgroundColor: "var(--color-accent)" }}
               >
-                Take the Gift Finder Quiz
+                {isAr ? "ابدأ اختبار اختيار الهدية" : "Take the Gift Finder Quiz"}
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
                 </svg>
               </Link>
               <Link
                 href="/review"
                 className="inline-flex min-h-[56px] items-center justify-center rounded-full border border-white/20 bg-transparent px-8 py-4 text-base font-semibold text-white backdrop-blur-sm transition-all duration-500 hover:border-white/30 hover:bg-white/5"
               >
-                Browse Reviews
+                {isAr ? "تصفح المراجعات" : "Browse Reviews"}
               </Link>
             </div>
           </div>
@@ -163,10 +171,16 @@ export function WatchHomepage({
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-center gap-10 md:gap-16">
             {[
-              { value: productCount > 0 ? `${productCount}+` : "—", label: "Watches Reviewed" },
-              { value: reviewCount > 0 ? String(reviewCount) : "—", label: "In-Depth Reviews" },
-              { value: "5", label: "Gift Score Factors" },
-              { value: "0", label: "Sponsored Rankings" },
+              {
+                value: productCount > 0 ? `${productCount}+` : "—",
+                label: isAr ? "ساعات تمت مراجعتها" : "Watches Reviewed",
+              },
+              {
+                value: reviewCount > 0 ? String(reviewCount) : "—",
+                label: isAr ? "مراجعات معمقة" : "In-Depth Reviews",
+              },
+              { value: "5", label: isAr ? "عوامل تقييم الهدية" : "Gift Score Factors" },
+              { value: "0", label: isAr ? "تصنيفات مدفوعة" : "Sponsored Rankings" },
             ].map((stat, i) => (
               <div key={i} className="flex items-center gap-3">
                 <span
@@ -178,7 +192,7 @@ export function WatchHomepage({
                 >
                   {stat.value}
                 </span>
-                <span className="text-sm font-light text-gray-400">{stat.label}</span>
+                <span className="text-sm font-light text-gray-500">{stat.label}</span>
               </div>
             ))}
           </div>
@@ -190,21 +204,35 @@ export function WatchHomepage({
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
           <div className="mb-16 text-center">
             <div className="mb-5 flex items-center justify-center gap-3">
-              <div className="h-px w-10" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))` }} />
-              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
-                Curated Guides
+              <div
+                className="h-px w-10"
+                style={{
+                  background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))`,
+                }}
+              />
+              <span
+                className="text-xs font-bold uppercase tracking-widest"
+                style={{ color: "var(--color-accent)" }}
+              >
+                {isAr ? "أدلة مختارة" : "Curated Guides"}
               </span>
-              <div className="h-px w-10" style={{ background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))` }} />
+              <div
+                className="h-px w-10"
+                style={{
+                  background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))`,
+                }}
+              />
             </div>
             <h2
               className="mb-4 text-3xl font-bold leading-tight md:text-4xl"
               style={{ fontFamily: "var(--font-heading)", color: "var(--color-primary)" }}
             >
-              Shop by Occasion
+              {isAr ? "تسوق حسب المناسبة" : "Shop by Occasion"}
             </h2>
             <p className="mx-auto max-w-xl font-light leading-relaxed text-gray-500">
-              Every occasion calls for a different watch. We&apos;ve curated the best
-              picks for each one.
+              {isAr
+                ? "كل مناسبة تتطلب ساعة مختلفة. اخترنا لك أفضل الخيارات لكل واحدة."
+                : "Every occasion calls for a different watch. We've curated the best picks for each one."}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6 lg:gap-5">
@@ -217,10 +245,23 @@ export function WatchHomepage({
               >
                 <span
                   className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl transition-all duration-500"
-                  style={{ background: `linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 10%, transparent), color-mix(in srgb, var(--color-accent) 5%, transparent))` }}
+                  style={{
+                    background: `linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 10%, transparent), color-mix(in srgb, var(--color-accent) 5%, transparent))`,
+                  }}
                 >
-                  <svg className="h-6 w-6" style={{ color: "var(--color-accent)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={occ.icon} />
+                  <svg
+                    className="h-6 w-6"
+                    style={{ color: "var(--color-accent)" }}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d={occ.icon}
+                    />
                   </svg>
                 </span>
                 <span
@@ -240,21 +281,35 @@ export function WatchHomepage({
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-16 text-center">
             <div className="mb-5 flex items-center justify-center gap-3">
-              <div className="h-px w-10" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))` }} />
-              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
-                Every Price Point
+              <div
+                className="h-px w-10"
+                style={{
+                  background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))`,
+                }}
+              />
+              <span
+                className="text-xs font-bold uppercase tracking-widest"
+                style={{ color: "var(--color-accent)" }}
+              >
+                {isAr ? "لكل ميزانية" : "Every Price Point"}
               </span>
-              <div className="h-px w-10" style={{ background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))` }} />
+              <div
+                className="h-px w-10"
+                style={{
+                  background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))`,
+                }}
+              />
             </div>
             <h2
               className="mb-4 text-3xl font-bold leading-tight md:text-4xl"
               style={{ fontFamily: "var(--font-heading)", color: "var(--color-primary)" }}
             >
-              Shop by Budget
+              {isAr ? "تسوق حسب الميزانية" : "Shop by Budget"}
             </h2>
             <p className="mx-auto max-w-xl font-light leading-relaxed text-gray-500">
-              Great watches exist at every price point. Here are our favorites by
-              budget range.
+              {isAr
+                ? "توجد ساعات رائعة في كل نطاق سعري. إليك مفضلاتنا حسب الميزانية."
+                : "Great watches exist at every price point. Here are our favorites by budget range."}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5 lg:gap-5">
@@ -267,10 +322,23 @@ export function WatchHomepage({
               >
                 <span
                   className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-500"
-                  style={{ background: `linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 10%, transparent), color-mix(in srgb, var(--color-accent) 5%, transparent))` }}
+                  style={{
+                    background: `linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 10%, transparent), color-mix(in srgb, var(--color-accent) 5%, transparent))`,
+                  }}
                 >
-                  <svg className="h-5 w-5" style={{ color: "var(--color-accent)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="h-5 w-5"
+                    style={{ color: "var(--color-accent)" }}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </span>
                 <span
@@ -291,21 +359,35 @@ export function WatchHomepage({
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-16 text-center">
             <div className="mb-5 flex items-center justify-center gap-3">
-              <div className="h-px w-10" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))` }} />
-              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
-                Hand-Picked
+              <div
+                className="h-px w-10"
+                style={{
+                  background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))`,
+                }}
+              />
+              <span
+                className="text-xs font-bold uppercase tracking-widest"
+                style={{ color: "var(--color-accent)" }}
+              >
+                {isAr ? "مختارات يدوية" : "Hand-Picked"}
               </span>
-              <div className="h-px w-10" style={{ background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))` }} />
+              <div
+                className="h-px w-10"
+                style={{
+                  background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))`,
+                }}
+              />
             </div>
             <h2
               className="mb-4 text-3xl font-bold leading-tight md:text-4xl"
               style={{ fontFamily: "var(--font-heading)", color: "var(--color-primary)" }}
             >
-              Editor&apos;s Picks
+              {isAr ? "اختيارات المحرر" : "Editor's Picks"}
             </h2>
             <p className="mx-auto max-w-xl font-light leading-relaxed text-gray-500">
-              Our top-rated watches for gifting &mdash; chosen by our editorial team based
-              on hands-on research and our Gift-Worthiness Score.
+              {isAr
+                ? "أعلى الساعات تقييمًا للإهداء — اختارها فريق التحرير لدينا بناءً على البحث العملي ومقياس جدارة الهدية."
+                : "Our top-rated watches for gifting \u2014 chosen by our editorial team based on hands-on research and our Gift-Worthiness Score."}
             </p>
           </div>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 lg:gap-7">
@@ -370,7 +452,7 @@ export function WatchHomepage({
                 className="mb-4 text-3xl font-bold leading-tight md:text-4xl"
                 style={{ fontFamily: "var(--font-heading)", color: "var(--color-primary)" }}
               >
-                Browse Categories
+                {isAr ? "تصفح الفئات" : "Browse Categories"}
               </h2>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -386,7 +468,7 @@ export function WatchHomepage({
                   {cat.description && (
                     <p className="mt-1 line-clamp-2 text-sm text-gray-500">{cat.description}</p>
                   )}
-                  <span className="mt-2 inline-block text-xs text-gray-400">
+                  <span className="mt-2 inline-block text-xs text-gray-500">
                     {cat.product_count} {cat.product_count === 1 ? "product" : "products"}
                   </span>
                 </Link>
@@ -439,31 +521,49 @@ export function WatchHomepage({
         </div>
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
           <div className="mb-6 flex items-center justify-center gap-3">
-            <div className="h-px w-10" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 40%, transparent))` }} />
-            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
-              Personalized
+            <div
+              className="h-px w-10"
+              style={{
+                background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 40%, transparent))`,
+              }}
+            />
+            <span
+              className="text-xs font-bold uppercase tracking-widest"
+              style={{ color: "var(--color-accent)" }}
+            >
+              {isAr ? "مخصص" : "Personalized"}
             </span>
-            <div className="h-px w-10" style={{ background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 40%, transparent))` }} />
+            <div
+              className="h-px w-10"
+              style={{
+                background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 40%, transparent))`,
+              }}
+            />
           </div>
           <h2
             className="mb-6 text-3xl font-bold leading-tight text-white md:text-4xl"
             style={{ fontFamily: "var(--font-heading)" }}
           >
-            Not Sure Which Watch?
+            {isAr ? "غير متأكد أي ساعة تختار؟" : "Not Sure Which Watch?"}
           </h2>
-          <p className="mx-auto mb-12 max-w-xl text-lg font-light leading-relaxed text-gray-400">
-            Take our 60-second Gift Finder Quiz and get 3 personalized watch
-            recommendations based on who you&apos;re buying for, the occasion,
-            budget, and style.
+          <p className="mx-auto mb-12 max-w-xl text-lg font-light leading-relaxed text-gray-500">
+            {isAr
+              ? "أجب على اختبار اختيار الهدية في 60 ثانية واحصل على 3 توصيات مخصصة للساعات بناءً على الشخص والمناسبة والميزانية والأسلوب."
+              : "Take our 60-second Gift Finder Quiz and get 3 personalized watch recommendations based on who you're buying for, the occasion, budget, and style."}
           </p>
           <Link
             href="/gift-finder"
             className="inline-flex min-h-[56px] items-center gap-2.5 rounded-full px-10 py-4 text-lg font-semibold text-white transition-all duration-500 hover:shadow-lg"
             style={{ backgroundColor: "var(--color-accent)" }}
           >
-            Start the Quiz
+            {isAr ? "ابدأ الاختبار" : "Start the Quiz"}
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 8l4 4m0 0l-4 4m4-4H3"
+              />
             </svg>
           </Link>
         </div>
@@ -478,14 +578,14 @@ export function WatchHomepage({
                 className="text-2xl font-bold"
                 style={{ fontFamily: "var(--font-heading)", color: "var(--color-primary)" }}
               >
-                Latest Content
+                {isAr ? "أحدث المحتوى" : "Latest Content"}
               </h2>
               <Link
                 href={`/${site.contentTypes[0]?.value ?? "article"}`}
                 className="text-sm font-medium transition-colors"
                 style={{ color: "var(--color-accent-text, var(--color-accent))" }}
               >
-                View all &rarr;
+                {isAr ? "عرض الكل ←" : "View all →"}
               </Link>
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -496,7 +596,6 @@ export function WatchHomepage({
           </div>
         </section>
       )}
-
     </div>
   );
 }

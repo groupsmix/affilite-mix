@@ -61,7 +61,7 @@ export function CategoryDeleteButton({ id, name }: { id: string; name: string })
               cannot be undone.
             </p>
             {loading && (
-              <p className="mb-4 text-xs text-gray-400">Checking for associated records…</p>
+              <p className="mb-4 text-xs text-gray-500">Checking for associated records…</p>
             )}
             {!loading && totalAffected > 0 && (
               <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">

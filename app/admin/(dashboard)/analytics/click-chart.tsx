@@ -2,34 +2,17 @@
 
 import dynamic from "next/dynamic";
 
-const ResponsiveContainer = dynamic(
-  () => import("recharts").then((m) => m.ResponsiveContainer),
-  { ssr: false },
-);
-const BarChart = dynamic(
-  () => import("recharts").then((m) => m.BarChart),
-  { ssr: false },
-);
-const Bar = dynamic(
-  () => import("recharts").then((m) => m.Bar),
-  { ssr: false },
-);
-const XAxis = dynamic(
-  () => import("recharts").then((m) => m.XAxis),
-  { ssr: false },
-);
-const YAxis = dynamic(
-  () => import("recharts").then((m) => m.YAxis),
-  { ssr: false },
-);
-const CartesianGrid = dynamic(
-  () => import("recharts").then((m) => m.CartesianGrid),
-  { ssr: false },
-);
-const Tooltip = dynamic(
-  () => import("recharts").then((m) => m.Tooltip),
-  { ssr: false },
-);
+const ResponsiveContainer = dynamic(() => import("recharts").then((m) => m.ResponsiveContainer), {
+  ssr: false,
+});
+const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
+const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then((m) => m.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then((m) => m.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import("recharts").then((m) => m.CartesianGrid), {
+  ssr: false,
+});
+const Tooltip = dynamic(() => import("recharts").then((m) => m.Tooltip), { ssr: false });
 
 interface ClickChartProps {
   data: { date: string; count: number }[];
@@ -42,7 +25,7 @@ function formatDate(dateStr: string) {
 
 export function ClickChart({ data }: ClickChartProps) {
   if (data.length === 0) {
-    return <p className="text-sm text-gray-400">No data available</p>;
+    return <p className="text-sm text-gray-500">No data available</p>;
   }
 
   const chartData = data.map((d) => ({

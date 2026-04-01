@@ -103,17 +103,17 @@ export default async function AnalyticsPage() {
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Est. Revenue (30d)</p>
           <p className="mt-1 text-3xl font-bold text-green-700">${estRevenue30d.toFixed(2)}</p>
-          <p className="mt-1 text-xs text-gray-400">@ ${EST_REVENUE_PER_CLICK}/click</p>
+          <p className="mt-1 text-xs text-gray-500">@ ${EST_REVENUE_PER_CLICK}/click</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Est. Revenue (7d)</p>
           <p className="mt-1 text-3xl font-bold text-green-700">${estRevenue7d.toFixed(2)}</p>
-          <p className="mt-1 text-xs text-gray-400">@ ${EST_REVENUE_PER_CLICK}/click</p>
+          <p className="mt-1 text-xs text-gray-500">@ ${EST_REVENUE_PER_CLICK}/click</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Est. CTR (30d)</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{ctr30d.toFixed(2)}%</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-gray-500">
             {clicks30d} clicks / ~{estimatedImpressions30d.toLocaleString()} impressions
           </p>
         </div>
@@ -159,7 +159,7 @@ export default async function AnalyticsPage() {
         <section className="rounded-lg border border-gray-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Top Clicked Products</h2>
           {topProducts.length === 0 ? (
-            <p className="text-sm text-gray-400">No click data yet</p>
+            <p className="text-sm text-gray-500">No click data yet</p>
           ) : (
             <ExpandableTable rows={topProducts.length} initialLimit={10}>
               {(limit) => (
@@ -211,7 +211,7 @@ export default async function AnalyticsPage() {
         <section className="rounded-lg border border-gray-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Top Referring Pages</h2>
           {topReferrers.length === 0 ? (
-            <p className="text-sm text-gray-400">No referrer data yet</p>
+            <p className="text-sm text-gray-500">No referrer data yet</p>
           ) : (
             <ExpandableTable rows={topReferrers.length} initialLimit={10}>
               {(limit) => (
@@ -226,7 +226,7 @@ export default async function AnalyticsPage() {
                           <p className="truncate font-medium text-gray-900">{r.referrer}</p>
                           <div className="mt-1 flex items-center gap-3 text-sm">
                             <span className="text-gray-500">{r.click_count} clicks</span>
-                            <span className="text-gray-400">{pct.toFixed(1)}%</span>
+                            <span className="text-gray-500">{pct.toFixed(1)}%</span>
                           </div>
                         </div>
                       );
@@ -272,7 +272,7 @@ export default async function AnalyticsPage() {
           Top Content Driving Clicks (30d)
         </h2>
         {topContent.length === 0 ? (
-          <p className="text-sm text-gray-400">No content click data yet</p>
+          <p className="text-sm text-gray-500">No content click data yet</p>
         ) : (
           <ExpandableTable rows={topContent.length} initialLimit={10}>
             {(limit) => (
@@ -286,7 +286,7 @@ export default async function AnalyticsPage() {
                         <p className="truncate font-medium text-gray-900">{c.content_slug}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-3 text-sm">
                           <span className="text-gray-500">{c.click_count} clicks</span>
-                          <span className="text-gray-400">{pct.toFixed(1)}%</span>
+                          <span className="text-gray-500">{pct.toFixed(1)}%</span>
                           <span className="text-green-700">
                             ${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}
                           </span>
@@ -372,7 +372,7 @@ export default async function AnalyticsPage() {
       <section className="rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Recent Clicks</h2>
         {recentClicks.length === 0 ? (
-          <p className="text-sm text-gray-400">No clicks recorded yet</p>
+          <p className="text-sm text-gray-500">No clicks recorded yet</p>
         ) : (
           <>
             {/* Mobile cards */}
@@ -387,7 +387,7 @@ export default async function AnalyticsPage() {
                     {click.referrer && (
                       <p className="truncate text-gray-500">Ref: {click.referrer}</p>
                     )}
-                    <p className="text-gray-400">
+                    <p className="text-gray-500">
                       <LocalTime dateTime={click.created_at} />
                     </p>
                   </div>
@@ -413,7 +413,7 @@ export default async function AnalyticsPage() {
                       <td className="max-w-[200px] truncate py-2 text-gray-600">
                         {click.referrer || "\u2014"}
                       </td>
-                      <td className="py-2 text-end text-gray-400">
+                      <td className="py-2 text-end text-gray-500">
                         <LocalTime dateTime={click.created_at} />
                       </td>
                     </tr>

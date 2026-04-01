@@ -44,22 +44,13 @@ export default function AdminLoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-lg bg-white p-8 shadow-md"
-      >
+      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-lg bg-white p-8 shadow-md">
         <h1 className="mb-6 text-2xl font-bold text-gray-900">Admin Login</h1>
         <p className="mb-6 text-sm text-gray-500">
           Sign in to manage all your sites from one dashboard.
         </p>
-        {error && (
-          <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">
-            {error}
-          </div>
-        )}
-        <label className="mb-2 block text-sm font-medium text-gray-700">
-          Email
-        </label>
+        {error && <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+        <label className="mb-2 block text-sm font-medium text-gray-700">Email</label>
         <input
           type="email"
           value={email}
@@ -67,9 +58,7 @@ export default function AdminLoginPage() {
           placeholder="admin@example.com"
           className="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
-        <label className="mb-2 block text-sm font-medium text-gray-700">
-          Password
-        </label>
+        <label className="mb-2 block text-sm font-medium text-gray-700">Password</label>
         <input
           type="password"
           value={password}
@@ -77,10 +66,7 @@ export default function AdminLoginPage() {
           className="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           required
         />
-        <TurnstileWidget
-          onVerify={handleTurnstileToken}
-          onExpire={handleTurnstileExpire}
-        />
+        <TurnstileWidget onVerify={handleTurnstileToken} onExpire={handleTurnstileExpire} />
         <button
           type="submit"
           disabled={loading}
@@ -88,7 +74,7 @@ export default function AdminLoginPage() {
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>
-        <p className="mt-4 text-center text-xs text-gray-400">
+        <p className="mt-4 text-center text-xs text-gray-500">
           <button
             type="button"
             onClick={() => setShowForgot(true)}
@@ -97,9 +83,7 @@ export default function AdminLoginPage() {
             Forgot your password?
           </button>
         </p>
-        {showForgot && (
-          <ForgotPasswordModal onClose={() => setShowForgot(false)} />
-        )}
+        {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
       </form>
     </div>
   );
@@ -118,7 +102,7 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
 
     // Focus the first focusable element inside the modal
     const firstInput = overlayRef.current?.querySelector<HTMLElement>(
-      'input, button, [tabindex]:not([tabindex="-1"])'
+      'input, button, [tabindex]:not([tabindex="-1"])',
     );
     firstInput?.focus();
 
@@ -129,7 +113,7 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
       }
       if (e.key === "Tab" && overlayRef.current) {
         const focusable = overlayRef.current.querySelectorAll<HTMLElement>(
-          'input, button, [tabindex]:not([tabindex="-1"])'
+          'input, button, [tabindex]:not([tabindex="-1"])',
         );
         if (focusable.length === 0) return;
         const first = focusable[0];
@@ -186,14 +170,19 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="forgot-password-title"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-        <h3 id="forgot-password-title" className="mb-2 text-lg font-semibold text-gray-900">Reset Password</h3>
+        <h3 id="forgot-password-title" className="mb-2 text-lg font-semibold text-gray-900">
+          Reset Password
+        </h3>
         {sent ? (
           <>
             <p className="mb-4 text-sm text-gray-600">
-              If an account with that email exists, a password reset link has been sent. Check your inbox.
+              If an account with that email exists, a password reset link has been sent. Check your
+              inbox.
             </p>
             <button
               onClick={onClose}
