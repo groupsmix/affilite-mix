@@ -12,16 +12,18 @@ import { logger } from "@/lib/logger";
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
 
-  // Pull per-niche SEO metadata from the DB site record
+  // Pull per-niche SEO metadata + favicon from the DB site record
   let metaTitle: string | undefined;
   let metaDescription: string | undefined;
   let ogImageUrl: string | undefined;
+  let dbFaviconUrl: string | undefined;
   try {
     const dbSite = await resolveDbSiteBySlug(site.id);
     if (dbSite) {
       metaTitle = dbSite.meta_title ?? undefined;
       metaDescription = dbSite.meta_description ?? undefined;
       ogImageUrl = (dbSite.og_image_url as string) ?? undefined;
+      dbFaviconUrl = dbSite.favicon_url ?? undefined;
     }
   } catch (err) {
     logger.warn("Failed to load DB metadata for public layout, falling back to config", {
@@ -29,10 +31,13 @@ export async function generateMetadata(): Promise<Metadata> {
     });
   }
 
+  // Dynamic favicon: prefer DB favicon_url, then config, then default
+  const finalFavicon = dbFaviconUrl || site.brand.faviconUrl || "/favicon.svg";
+
   return {
     title: metaTitle || site.name,
     description: metaDescription || `${site.name} — curated content and product recommendations`,
-    icons: { icon: site.brand.faviconUrl || "/favicon.svg" },
+    icons: { icon: finalFavicon },
     ...(ogImageUrl && {
       openGraph: { images: [{ url: ogImageUrl, width: 1200, height: 630 }] },
     }),

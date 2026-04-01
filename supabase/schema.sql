@@ -164,6 +164,70 @@ CREATE TABLE scheduled_jobs (
   created_at  timestamptz DEFAULT now()
 );
 
+-- ADMIN USERS — per-user admin accounts
+CREATE TABLE admin_users (
+  id              uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  email           text NOT NULL UNIQUE,
+  password_hash   text NOT NULL,
+  name            text NOT NULL DEFAULT '',
+  role            text NOT NULL DEFAULT 'admin'
+                  CHECK (role IN ('admin', 'super_admin')),
+  is_active       boolean NOT NULL DEFAULT true,
+  reset_token     text,
+  reset_token_expires_at timestamptz,
+  created_at      timestamptz DEFAULT now(),
+  updated_at      timestamptz DEFAULT now()
+);
+
+-- PAGES — custom static pages per niche (About, FAQ, etc.)
+CREATE TABLE pages (
+  id            uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  site_id       uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  slug          text NOT NULL,
+  title         text NOT NULL,
+  body          text DEFAULT '',
+  is_published  boolean DEFAULT false,
+  sort_order    integer DEFAULT 0,
+  created_at    timestamptz DEFAULT now(),
+  updated_at    timestamptz DEFAULT now(),
+  UNIQUE(site_id, slug)
+);
+
+-- AD PLACEMENTS — monetization for niches with ad support
+CREATE TABLE ad_placements (
+  id              uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  site_id         uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  name            text NOT NULL,
+  placement_type  text NOT NULL CHECK (placement_type IN ('sidebar', 'in_content', 'header', 'footer', 'between_posts')),
+  provider        text NOT NULL CHECK (provider IN ('adsense', 'carbon', 'ethicalads', 'custom')),
+  ad_code         text,
+  config          jsonb DEFAULT '{}',
+  is_active       boolean DEFAULT true,
+  priority        integer DEFAULT 0,
+  created_at      timestamptz DEFAULT now()
+);
+
+-- AD IMPRESSIONS — basic tracking for ad performance
+CREATE TABLE ad_impressions (
+  id                uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  site_id           uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  ad_placement_id   uuid NOT NULL REFERENCES ad_placements(id) ON DELETE CASCADE,
+  page_path         text,
+  impression_date   date DEFAULT CURRENT_DATE,
+  count             integer DEFAULT 1,
+  created_at        timestamptz DEFAULT now()
+);
+
+-- SHARED CONTENT — cross-niche content sharing
+CREATE TABLE shared_content (
+  id              uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  content_id      uuid NOT NULL REFERENCES content(id) ON DELETE CASCADE,
+  source_site_id  uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  target_site_id  uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  created_at      timestamptz DEFAULT now(),
+  UNIQUE(content_id, target_site_id)
+);
+
 -- ═══════════════════════════════════════════════════════
 -- INDEXES
 -- ═══════════════════════════════════════════════════════
@@ -188,6 +252,14 @@ CREATE INDEX idx_newsletter_site_email  ON newsletter_subscribers(site_id, email
 CREATE INDEX idx_scheduled_jobs_site    ON scheduled_jobs(site_id);
 CREATE INDEX idx_scheduled_jobs_pending ON scheduled_jobs(status, scheduled_for)
   WHERE status = 'pending';
+CREATE INDEX idx_admin_users_email     ON admin_users(email);
+CREATE INDEX idx_pages_site            ON pages(site_id);
+CREATE INDEX idx_pages_site_slug       ON pages(site_id, slug);
+CREATE INDEX idx_ad_placements_site    ON ad_placements(site_id);
+CREATE INDEX idx_ad_impressions_site   ON ad_impressions(site_id);
+CREATE INDEX idx_ad_impressions_date   ON ad_impressions(ad_placement_id, impression_date);
+CREATE INDEX idx_shared_content_target ON shared_content(target_site_id);
+CREATE INDEX idx_shared_content_source ON shared_content(source_site_id);
 
 -- Full-text search indexes (GIN)
 CREATE INDEX idx_content_fts_title   ON content USING gin (to_tsvector('simple', title));
@@ -207,6 +279,11 @@ ALTER TABLE content_products  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE affiliate_clicks  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scheduled_jobs        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_users           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pages                 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ad_placements         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ad_impressions        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shared_content        ENABLE ROW LEVEL SECURITY;
 
 -- Public read policies (anon key)
 CREATE POLICY "public_read_sites"
@@ -255,6 +332,25 @@ CREATE POLICY "service_full_access_newsletter"
   ON newsletter_subscribers FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 CREATE POLICY "service_full_access_scheduled_jobs"
   ON scheduled_jobs FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_admin_users"
+  ON admin_users FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_pages"
+  ON pages FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_ad_placements"
+  ON ad_placements FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_ad_impressions"
+  ON ad_impressions FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_full_access_shared_content"
+  ON shared_content FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- Public read: published pages are visible to the public
+CREATE POLICY "public_read_published_pages"
+  ON pages FOR SELECT USING (is_published = true);
+
+-- Public insert: ad impressions can be recorded by the public
+CREATE POLICY "public_insert_ad_impressions"
+  ON ad_impressions FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM sites WHERE sites.id = ad_impressions.site_id));
 
 -- Note: All admin operations use the Supabase service key (bypasses RLS).
 
