@@ -2,6 +2,7 @@
 
 import { Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
+import { reportError } from "@/lib/report-error";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -23,7 +24,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("ErrorBoundary caught:", error, info);
+    reportError(error, { componentStack: info.componentStack ?? undefined });
   }
 
   render() {
