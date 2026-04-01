@@ -41,7 +41,7 @@ export function SearchInput({ placeholder, buttonLabel }: SearchInputProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} role="search" aria-label="Site search">
       <div className="flex gap-2">
         <div className="relative flex-1">
           <input
@@ -50,23 +50,37 @@ export function SearchInput({ placeholder, buttonLabel }: SearchInputProps) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={placeholder}
+            aria-label={placeholder}
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-1"
             style={{ "--tw-ring-color": "var(--color-accent, #10B981)" } as React.CSSProperties}
           />
           {isPending && (
-            <div className="absolute inset-y-0 end-3 flex items-center">
+            <div className="absolute inset-y-0 end-3 flex items-center" aria-hidden="true">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
             </div>
           )}
         </div>
         <button
           type="submit"
-          className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
+          disabled={isPending}
+          className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-60"
           style={{ backgroundColor: "var(--color-accent, #10B981)" }}
         >
-          {buttonLabel}
+          {isPending ? (
+            <span className="flex items-center gap-2">
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              {buttonLabel}
+            </span>
+          ) : (
+            buttonLabel
+          )}
         </button>
       </div>
+      {isPending && (
+        <div className="sr-only" role="status" aria-live="polite">
+          Searching...
+        </div>
+      )}
     </form>
   );
 }
