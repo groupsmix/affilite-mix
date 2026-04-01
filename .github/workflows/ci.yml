@@ -29,10 +29,12 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-      - name: Run E2E tests
-        run: npx playwright test
-        env:
-          CI: "true"
-          E2E_BASE_URL: http://localhost:3000
+      # E2E tests (Playwright) — uncomment once a test environment is available.
+      # Requires a running server (or E2E_BASE_URL pointing to a preview deploy).
+      # - name: Install Playwright browsers
+      #   run: npx playwright install --with-deps chromium
+      # - name: Run E2E tests
+      #   run: npx playwright test
+      #   env:
+      #     CI: "true"
+      #     E2E_BASE_URL: http://localhost:3000
