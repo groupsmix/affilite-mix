@@ -1,7 +1,7 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { listPublishedContent, countPublishedContent } from "@/lib/dal/content";
 import { ContentCard } from "../components/content-card";
-import { Pagination } from "../components/pagination";
+import { Pagination, PaginationHead } from "../components/pagination";
 import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { notFound } from "next/navigation";
@@ -122,6 +122,12 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
               <ContentCard key={item.id} content={item} locale={locale} />
             ))}
           </div>
+          <PaginationHead
+            currentPage={currentPage}
+            totalItems={totalItems}
+            pageSize={PAGE_SIZE}
+            baseUrl={`https://${site.domain}/${contentType}`}
+          />
           <Pagination
             currentPage={currentPage}
             totalItems={totalItems}

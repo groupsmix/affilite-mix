@@ -4,7 +4,7 @@ import { listContent, countContent } from "@/lib/dal/content";
 import { listActiveProducts } from "@/lib/dal/products";
 import { ContentCard } from "./content-card";
 import { ProductCard } from "./product-card";
-import { Pagination } from "./pagination";
+import { Pagination, PaginationHead } from "./pagination";
 import { Breadcrumbs } from "./breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "./json-ld";
 import { NewsletterSignup } from "./newsletter-signup";
@@ -158,6 +158,12 @@ export async function TaxonomyPage({
         </div>
       ) : null}
 
+      <PaginationHead
+        currentPage={currentPage}
+        totalItems={totalContent}
+        pageSize={PAGE_SIZE}
+        baseUrl={`https://${site.domain}/${config.prefix}/${category.slug}`}
+      />
       <Pagination
         currentPage={currentPage}
         totalItems={totalContent}
