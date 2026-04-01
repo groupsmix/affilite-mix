@@ -4,6 +4,9 @@
  * the request should be rejected with 400.
  */
 
+// Re-export shared email validation from the canonical utility module (task 18.6)
+export { isValidEmail } from "./validate-email";
+
 type ValidationResult<T> =
   | { data: T; errors: null }
   | { data: null; errors: Record<string, string> };
@@ -20,11 +23,19 @@ function isBoolean(v: unknown): v is boolean {
   return typeof v === "boolean";
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Safely coerce an already-validated value to string (avoids `as string`). */
+function toString(v: unknown): string {
+  return isString(v) ? v : "";
+}
 
-/** Validate an email address format. */
-export function isValidEmail(email: string): boolean {
-  return EMAIL_RE.test(email);
+/** Safely coerce an already-validated value to number | null. */
+function toNumberOrNull(v: unknown): number | null {
+  return isNumber(v) ? v : null;
+}
+
+/** Safely coerce an already-validated value to string | null. */
+function toStringOrNull(v: unknown): string | null {
+  return isString(v) && v !== "" ? v : null;
 }
 
 const SLUG_RE = /^[a-z0-9-]+$/;
@@ -305,8 +316,8 @@ export function validateCreateProduct(
       price: isString(body.price) ? body.price : "",
       price_amount: isNumber(body.price_amount) ? body.price_amount : null,
       price_currency: isString(body.price_currency) ? body.price_currency : "USD",
-      merchant: isString(body.merchant) ? body.merchant : "",
-      score: isNumber(body.score) ? body.score : null,
+      merchant: toString(body.merchant),
+      score: toNumberOrNull(body.score),
       featured: isBoolean(body.featured) ? body.featured : false,
       status: isProductStatus(body.status) ? body.status : "active",
       category_id: isUuid(body.category_id) ? body.category_id : null,
@@ -569,12 +580,8 @@ export function validateUpdateContent(
   if (body.meta_title !== undefined)
     data.meta_title = isString(body.meta_title) && body.meta_title !== "" ? body.meta_title : null;
   if (body.meta_description !== undefined)
-    data.meta_description =
-      isString(body.meta_description) && body.meta_description !== ""
-        ? body.meta_description
-        : null;
-  if (body.og_image !== undefined)
-    data.og_image = isString(body.og_image) && body.og_image !== "" ? body.og_image : null;
+    data.meta_description = toStringOrNull(body.meta_description);
+  if (body.og_image !== undefined) data.og_image = toStringOrNull(body.og_image);
   return { data, errors: null };
 }
 
