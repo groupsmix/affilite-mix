@@ -2,11 +2,18 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 const TABLE = "scheduled_jobs";
+const LIST_COLUMNS =
+  "id, site_id, job_type, target_id, scheduled_for, status, executed_at, error, created_at" as const;
 
 export interface ScheduledJobRow {
   id: string;
   site_id: string;
-  job_type: "publish_content" | "activate_product" | "archive_content" | "archive_product" | "custom";
+  job_type:
+    | "publish_content"
+    | "activate_product"
+    | "archive_content"
+    | "archive_product"
+    | "custom";
   target_id: string;
   scheduled_for: string;
   status: "pending" | "executed" | "failed" | "cancelled";
@@ -33,7 +40,7 @@ export async function listScheduledJobs(
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("scheduled_for", { ascending: true })
     .limit(limit);
@@ -46,9 +53,7 @@ export async function listScheduledJobs(
 }
 
 /** Create a scheduled job */
-export async function createScheduledJob(
-  input: CreateScheduledJobInput,
-): Promise<ScheduledJobRow> {
+export async function createScheduledJob(input: CreateScheduledJobInput): Promise<ScheduledJobRow> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -67,10 +72,7 @@ export async function createScheduledJob(
 }
 
 /** Cancel a scheduled job */
-export async function cancelScheduledJob(
-  siteId: string,
-  jobId: string,
-): Promise<void> {
+export async function cancelScheduledJob(siteId: string, jobId: string): Promise<void> {
   const sb = getServiceClient();
   const { error } = await sb
     .from(TABLE)

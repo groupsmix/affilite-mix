@@ -3,13 +3,15 @@ import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { AdPlacementRow, AdPlacementType } from "@/types/database";
 
 const TABLE = "ad_placements";
+const LIST_COLUMNS =
+  "id, site_id, name, placement_type, provider, is_active, priority, created_at" as const;
 
 /** List all ad placements for a site */
 export async function listAdPlacements(siteId: string): Promise<AdPlacementRow[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("priority", { ascending: true });
 
@@ -25,7 +27,7 @@ export async function listActiveAdPlacements(
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("is_active", true)
     .order("priority", { ascending: true });

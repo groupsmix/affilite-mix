@@ -15,9 +15,7 @@ export interface AdminUserRow {
 const TABLE = "admin_users";
 
 /** Find an active admin user by email (for login) */
-export async function getAdminUserByEmail(
-  email: string,
-): Promise<AdminUserRow | null> {
+export async function getAdminUserByEmail(email: string): Promise<AdminUserRow | null> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -30,12 +28,12 @@ export async function getAdminUserByEmail(
   return rowOrNull<AdminUserRow>(data);
 }
 
-/** List all admin users */
+/** List all admin users (excludes password_hash for safety) */
 export async function listAdminUsers(): Promise<AdminUserRow[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select("id, email, name, role, is_active, created_at, updated_at")
     .order("created_at", { ascending: true });
 
   if (error) throw error;
@@ -71,12 +69,7 @@ export async function updateAdminUser(
   input: Partial<Pick<AdminUserRow, "name" | "role" | "is_active" | "password_hash">>,
 ): Promise<AdminUserRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .update(input)
-    .eq("id", id)
-    .select()
-    .single();
+  const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
 
   if (error) throw error;
   return assertRow<AdminUserRow>(data, "AdminUser");
@@ -92,9 +85,7 @@ export async function deleteAdminUser(id: string): Promise<void> {
 /** Count admin users (to check if any exist) */
 export async function countAdminUsers(): Promise<number> {
   const sb = getServiceClient();
-  const { count, error } = await sb
-    .from(TABLE)
-    .select("*", { count: "exact", head: true });
+  const { count, error } = await sb.from(TABLE).select("*", { count: "exact", head: true });
 
   if (error) {
     // Table might not exist yet — fall back to 0

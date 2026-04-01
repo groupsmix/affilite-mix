@@ -470,7 +470,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
             <button
               key={option.value}
               onClick={() => handleSelect(option.value)}
-              className="rounded-xl border border-gray-200 bg-white p-6 text-left shadow-sm transition-all hover:border-amber-300 hover:shadow-md"
+              className="rounded-xl border border-gray-200 bg-white p-6 text-start shadow-sm transition-all hover:border-amber-300 hover:shadow-md"
             >
               <span className="text-base font-medium text-gray-800">{option.label}</span>
             </button>

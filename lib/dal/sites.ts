@@ -7,6 +7,9 @@ type SiteInsert = Database["public"]["Tables"]["sites"]["Insert"];
 type SiteUpdate = Database["public"]["Tables"]["sites"]["Update"];
 
 const TABLE = "sites";
+// Columns needed for list views (excludes heavy JSON blobs like ad_config, custom_css)
+const LIST_COLUMNS =
+  "id, slug, name, domain, language, direction, is_active, monetization_type, logo_url, favicon_url, meta_title, meta_description, og_image_url, created_at, updated_at" as const;
 
 /* ------------------------------------------------------------------ */
 /*  In-memory cache with TTL                                           */
@@ -51,7 +54,7 @@ export async function listSites(): Promise<SiteRow[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .order("created_at", { ascending: true });
 
   if (error) throw error;
@@ -68,33 +71,21 @@ export async function getAllActiveSites(): Promise<SiteRow[]> {
 }
 
 /** Get a single site by its database UUID */
-export async function getSiteRowById(
-  id: string,
-): Promise<SiteRow | null> {
+export async function getSiteRowById(id: string): Promise<SiteRow | null> {
   const sb = getServiceClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data, error } = await sb.from(TABLE).select("*").eq("id", id).single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<SiteRow>(data);
 }
 
 /** Get a single site by slug (cached) */
-export async function getSiteRowBySlug(
-  slug: string,
-): Promise<SiteRow | null> {
+export async function getSiteRowBySlug(slug: string): Promise<SiteRow | null> {
   const cached = siteBySlugCache.get(slug);
   if (cached && Date.now() < cached.expiresAt) return cached.value;
 
   const sb = getServiceClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select("*")
-    .eq("slug", slug)
-    .single();
+  const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
 
   if (error && error.code !== "PGRST116") throw error;
   const row = rowOrNull<SiteRow>(data);
@@ -107,18 +98,12 @@ export async function getSiteRowBySlug(
 }
 
 /** Get a single site by domain (cached) */
-export async function getSiteRowByDomain(
-  domain: string,
-): Promise<SiteRow | null> {
+export async function getSiteRowByDomain(domain: string): Promise<SiteRow | null> {
   const cached = siteByDomainCache.get(domain);
   if (cached && Date.now() < cached.expiresAt) return cached.value;
 
   const sb = getServiceClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select("*")
-    .eq("domain", domain)
-    .single();
+  const { data, error } = await sb.from(TABLE).select("*").eq("domain", domain).single();
 
   if (error && error.code !== "PGRST116") throw error;
   const row = rowOrNull<SiteRow>(data);
@@ -169,7 +154,8 @@ export async function createSite(input: {
 
   if (input.is_active !== undefined) row.is_active = input.is_active;
   if (input.monetization_type !== undefined) row.monetization_type = input.monetization_type;
-  if (input.est_revenue_per_click !== undefined) row.est_revenue_per_click = input.est_revenue_per_click;
+  if (input.est_revenue_per_click !== undefined)
+    row.est_revenue_per_click = input.est_revenue_per_click;
   if (input.ad_config !== undefined) row.ad_config = input.ad_config;
   if (input.theme !== undefined) row.theme = input.theme;
   if (input.logo_url !== undefined) row.logo_url = input.logo_url;
@@ -183,11 +169,7 @@ export async function createSite(input: {
   if (input.social_links !== undefined) row.social_links = input.social_links;
   if (input.custom_css !== undefined) row.custom_css = input.custom_css;
 
-  const { data, error } = await sb
-    .from(TABLE)
-    .insert(row)
-    .select()
-    .single();
+  const { data, error } = await sb.from(TABLE).insert(row).select().single();
 
   if (error) throw error;
   invalidateSiteCache();
@@ -201,12 +183,7 @@ export async function updateSite(
 ): Promise<SiteRow> {
   const sb = getServiceClient();
   const updates: SiteUpdate = { ...input };
-  const { data, error } = await sb
-    .from(TABLE)
-    .update(updates)
-    .eq("id", id)
-    .select()
-    .single();
+  const { data, error } = await sb.from(TABLE).update(updates).eq("id", id).select().single();
 
   if (error) throw error;
   invalidateSiteCache();
