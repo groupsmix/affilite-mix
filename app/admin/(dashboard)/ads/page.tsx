@@ -5,6 +5,14 @@ import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
 import { redirect } from "next/navigation";
 import { AdPlacementList } from "./ad-placement-list";
 
+// Default CPM rates by provider (USD per 1,000 impressions)
+const DEFAULT_CPM: Record<string, number> = {
+  adsense: 2.5,
+  carbon: 3.0,
+  ethicalads: 2.0,
+  custom: 1.5,
+};
+
 export default async function AdsPage() {
   const session = await requireAdminSession();
 
@@ -13,9 +21,7 @@ export default async function AdsPage() {
   }
 
   const siteId = await resolveDbSiteId(session.activeSiteSlug);
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
   const [placements, impressionStats] = await Promise.all([
     listAdPlacements(siteId),
@@ -26,6 +32,21 @@ export default async function AdsPage() {
   const impressionMap = new Map<string, number>();
   for (const stat of impressionStats) {
     impressionMap.set(stat.ad_placement_id, stat.total_impressions);
+  }
+
+  // Compute totals for the analytics summary
+  const totalImpressions = Array.from(impressionMap.values()).reduce((a, b) => a + b, 0);
+
+  // Estimate revenue per placement based on provider CPM rates
+  const placementRevenue = new Map<string, number>();
+  let totalEstRevenue = 0;
+  for (const p of placements) {
+    const impressions = impressionMap.get(p.id) ?? 0;
+    const cpm =
+      (p.config as Record<string, number> | null)?.est_cpm ?? DEFAULT_CPM[p.provider] ?? 1.5;
+    const revenue = (impressions / 1000) * cpm;
+    placementRevenue.set(p.id, revenue);
+    totalEstRevenue += revenue;
   }
 
   return (
@@ -39,24 +60,76 @@ export default async function AdsPage() {
         </div>
       </div>
 
-      {/* Ad Impression Analytics Summary */}
-      {impressionStats.length > 0 && (
-        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
-          <h3 className="mb-3 text-sm font-semibold text-gray-700">
-            Impressions (Last 30 Days)
-          </h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {placements.map((p) => (
-              <div key={p.id} className="rounded-md border border-gray-100 bg-gray-50 p-3">
-                <p className="text-xs font-medium text-gray-500">{p.name}</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">
-                  {(impressionMap.get(p.id) ?? 0).toLocaleString()}
-                </p>
-              </div>
-            ))}
+      {/* Ad Analytics Summary — impressions + revenue estimation */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
+        <h3 className="mb-3 text-sm font-semibold text-gray-700">Analytics (Last 30 Days)</h3>
+
+        {/* Top-level KPIs */}
+        <div className="mb-4 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-md border border-gray-100 bg-gray-50 p-4">
+            <p className="text-xs font-medium text-gray-500">Total Impressions</p>
+            <p className="mt-1 text-2xl font-bold text-gray-900">
+              {totalImpressions.toLocaleString()}
+            </p>
+          </div>
+          <div className="rounded-md border border-gray-100 bg-gray-50 p-4">
+            <p className="text-xs font-medium text-gray-500">Est. Revenue</p>
+            <p className="mt-1 text-2xl font-bold text-green-700">${totalEstRevenue.toFixed(2)}</p>
+          </div>
+          <div className="rounded-md border border-gray-100 bg-gray-50 p-4">
+            <p className="text-xs font-medium text-gray-500">Active Placements</p>
+            <p className="mt-1 text-2xl font-bold text-gray-900">
+              {placements.filter((p) => p.is_active).length} / {placements.length}
+            </p>
           </div>
         </div>
-      )}
+
+        {/* Per-placement breakdown */}
+        {placements.length > 0 && (
+          <div className="overflow-hidden rounded-md border border-gray-100">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs text-gray-500">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Placement</th>
+                  <th className="px-3 py-2 font-medium">Provider</th>
+                  <th className="px-3 py-2 text-right font-medium">Impressions</th>
+                  <th className="px-3 py-2 text-right font-medium">CPM</th>
+                  <th className="px-3 py-2 text-right font-medium">Est. Revenue</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {placements.map((p) => {
+                  const impressions = impressionMap.get(p.id) ?? 0;
+                  const cpm =
+                    (p.config as Record<string, number> | null)?.est_cpm ??
+                    DEFAULT_CPM[p.provider] ??
+                    1.5;
+                  const revenue = placementRevenue.get(p.id) ?? 0;
+                  return (
+                    <tr key={p.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-medium text-gray-900">{p.name}</td>
+                      <td className="px-3 py-2 text-gray-500">{p.provider}</td>
+                      <td className="px-3 py-2 text-right text-gray-900">
+                        {impressions.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-500">${cpm.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right font-medium text-green-700">
+                        ${revenue.toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <p className="mt-3 text-xs text-gray-400">
+          Revenue estimates are based on default CPM rates by provider. Set a custom{" "}
+          <code className="rounded bg-gray-100 px-1">est_cpm</code> in the placement config for more
+          accurate estimates.
+        </p>
+      </div>
 
       <AdPlacementList placements={placements} />
     </div>
