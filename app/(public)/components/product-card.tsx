@@ -53,7 +53,14 @@ function fireTrackingBeacon(slug: string, sourceType: string) {
   }
 }
 
-export function ProductCard({ product, sourceType = "content", ctaLabel = "View Deal", relatedContentHref, relatedContentLabel, searchQuery }: ProductCardProps) {
+export function ProductCard({
+  product,
+  sourceType = "content",
+  ctaLabel = "View Deal",
+  relatedContentHref,
+  relatedContentLabel,
+  searchQuery,
+}: ProductCardProps) {
   const { accepted: consentAccepted } = useCookieConsent();
   const [imgError, setImgError] = useState(false);
   const buttonLabel = product.cta_text || ctaLabel;
@@ -77,11 +84,9 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
     <div className="relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
       {/* Deal badge */}
       {showDeal && (
-        <div className="absolute -top-2 left-3 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
+        <div className="absolute -top-2 start-3 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
           {product.deal_text}
-          {dealTimeLeft && (
-            <span className="ml-1 text-red-100">· {dealTimeLeft}</span>
-          )}
+          {dealTimeLeft && <span className="ms-1 text-red-100">· {dealTimeLeft}</span>}
         </div>
       )}
       {product.image_url && !imgError && (
@@ -99,13 +104,15 @@ export function ProductCard({ product, sourceType = "content", ctaLabel = "View 
           />
         </div>
       )}
-      <h3 className="mb-1 text-lg font-semibold leading-tight">{searchQuery ? highlightText(product.name, searchQuery) : product.name}</h3>
-      {product.merchant && (
-        <p className="mb-1 text-sm text-gray-500">{product.merchant}</p>
-      )}
+      <h3 className="mb-1 text-lg font-semibold leading-tight">
+        {searchQuery ? highlightText(product.name, searchQuery) : product.name}
+      </h3>
+      {product.merchant && <p className="mb-1 text-sm text-gray-500">{product.merchant}</p>}
       <div className="mb-3 flex items-center gap-3">
         {product.price && (
-          <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
+          <span className="text-lg font-bold" style={{ color: "var(--color-accent, #10B981)" }}>
+            {product.price}
+          </span>
         )}
         {product.score !== null && (
           <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />

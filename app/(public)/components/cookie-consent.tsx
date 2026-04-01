@@ -152,7 +152,7 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
         ref={bannerRef}
         role="dialog"
         aria-label="Cookie consent"
-        className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 md:p-6"
+        className="fixed inset-x-0 bottom-0 z-50 p-2 sm:p-4 md:p-6"
       >
         <div
           className="mx-auto max-w-4xl rounded-xl border border-gray-200 bg-white p-3 shadow-2xl sm:rounded-2xl sm:p-6 md:p-8"

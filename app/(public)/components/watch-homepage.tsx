@@ -60,7 +60,7 @@ export function WatchHomepage({
     .map((p) => ({
       name: p.name,
       tagline: p.description?.slice(0, 40) || "",
-      badge: "Top Rated",
+      badge: isAr ? "الأعلى تقييمًا" : "Top Rated",
       score: p.score ?? 0,
       price: p.price || "",
       href: `/review/${p.slug}`,
@@ -163,7 +163,7 @@ export function WatchHomepage({
         </div>
 
         {/* Bottom gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-gray-50 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-gray-50 to-transparent" />
       </section>
 
       {/* Trust Bar */}
@@ -240,7 +240,7 @@ export function WatchHomepage({
               <Link
                 key={occ.href}
                 href={occ.href}
-                aria-label={`Shop watches for ${occ.label}`}
+                aria-label={isAr ? `تسوق ساعات لـ ${occ.label}` : `Shop watches for ${occ.label}`}
                 className="group flex flex-col items-center rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 lg:p-8"
               >
                 <span
@@ -317,7 +317,11 @@ export function WatchHomepage({
               <Link
                 key={b.href}
                 href={b.href}
-                aria-label={`Shop watches in ${b.label} budget range`}
+                aria-label={
+                  isAr
+                    ? `تسوق ساعات بميزانية ${b.label}`
+                    : `Shop watches in ${b.label} budget range`
+                }
                 className="group flex flex-col items-center rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-7 shadow-sm transition-all duration-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 lg:p-8"
               >
                 <span
@@ -413,7 +417,7 @@ export function WatchHomepage({
                     <path d="M20 12h1" />
                   </svg>
                   <span
-                    className="absolute left-4 top-4 z-20 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide text-white"
+                    className="absolute start-4 top-4 z-20 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide text-white"
                     style={{ backgroundColor: "var(--color-accent)" }}
                   >
                     {watch.badge}
@@ -460,7 +464,7 @@ export function WatchHomepage({
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
-                  aria-label={`Browse ${cat.name} category`}
+                  aria-label={isAr ? `تصفح فئة ${cat.name}` : `Browse ${cat.name} category`}
                   className={`rounded-lg border bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${i === 0 ? "border-current/20 ring-1 ring-current/10" : "border-gray-200"}`}
                   style={i === 0 ? { borderColor: "var(--color-accent)" } : undefined}
                 >
@@ -469,7 +473,14 @@ export function WatchHomepage({
                     <p className="mt-1 line-clamp-2 text-sm text-gray-500">{cat.description}</p>
                   )}
                   <span className="mt-2 inline-block text-xs text-gray-500">
-                    {cat.product_count} {cat.product_count === 1 ? "product" : "products"}
+                    {cat.product_count}{" "}
+                    {isAr
+                      ? cat.product_count === 1
+                        ? "منتج"
+                        : "منتجات"
+                      : cat.product_count === 1
+                        ? "product"
+                        : "products"}
                   </span>
                 </Link>
               ))}
