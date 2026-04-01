@@ -22,18 +22,21 @@ export async function generateMetadata(): Promise<Metadata> {
       dbSite?.meta_description || site.brand.description || "Multi-site affiliate platform";
     const ogImage = dbSite?.og_image_url || undefined;
 
+    const themeColor = site.theme?.primaryColor || "#1e293b";
+
     return {
       title: {
         default: title,
         template: `%s | ${title}`,
       },
       description,
+      themeColor,
       openGraph: {
         title,
         description,
         siteName: site.name,
         type: "website",
-        ...(ogImage ? { images: [{ url: ogImage }] } : {}),
+        ...(ogImage ? { images: [{ url: ogImage, width: 1200, height: 630 }] } : {}),
       },
       twitter: {
         card: "summary_large_image",
@@ -71,16 +74,12 @@ const playfairDisplay = Playfair_Display({
 });
 
 const fontVarMap: Record<string, string> = {
-  "Inter": inter.variable,
+  Inter: inter.variable,
   "IBM Plex Sans Arabic": ibmPlexArabic.variable,
   "Playfair Display": playfairDisplay.variable,
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
 
   // Collect only the font CSS variables that this site actually uses

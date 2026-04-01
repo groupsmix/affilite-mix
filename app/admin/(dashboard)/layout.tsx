@@ -11,11 +11,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getAdminSession();
   if (!session) {
     redirect("/admin/login");
@@ -40,17 +36,14 @@ export default async function AdminLayout({
         href="#admin-main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"
       >
-        Skip to main content
+        {lang === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
       </a>
       <AdminSidebar siteName={activeSite?.name ?? null} />
       <TokenRefresh />
-      <Toaster
-        position="top-right"
-        richColors
-        closeButton
-        containerAriaLabel="Notifications"
-      />
-      <main id="admin-main" className="flex-1 p-6 lg:p-8">{children}</main>
+      <Toaster position="top-right" richColors closeButton containerAriaLabel="Notifications" />
+      <main id="admin-main" className="flex-1 p-6 lg:p-8">
+        {children}
+      </main>
     </div>
   );
 }

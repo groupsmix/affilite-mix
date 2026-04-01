@@ -35,6 +35,7 @@ export function HeroProductCta({ product, language }: HeroProductCtaProps) {
               width={112}
               height={112}
               sizes="112px"
+              priority
               placeholder="blur"
               blurDataURL={shimmerPlaceholder(112, 112)}
               className="h-28 w-28 rounded-lg object-contain"
@@ -43,12 +44,12 @@ export function HeroProductCta({ product, language }: HeroProductCtaProps) {
         )}
         <div className="flex-1">
           <h2 className="text-xl font-bold">{product.name}</h2>
-          {product.merchant && (
-            <p className="text-sm text-gray-500">{product.merchant}</p>
-          )}
+          {product.merchant && <p className="text-sm text-gray-500">{product.merchant}</p>}
           <div className="mt-2 flex items-center gap-3">
             {product.price && (
-              <span className="text-xl font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
+              <span className="text-xl font-bold" style={{ color: "var(--color-accent, #10B981)" }}>
+                {product.price}
+              </span>
             )}
             {product.score !== null && (
               <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />

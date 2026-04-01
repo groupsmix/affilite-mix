@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: metaDescription || `${site.name} — curated content and product recommendations`,
     icons: { icon: site.brand.faviconUrl || "/favicon.svg" },
     ...(ogImageUrl && {
-      openGraph: { images: [{ url: ogImageUrl }] },
+      openGraph: { images: [{ url: ogImageUrl, width: 1200, height: 630 }] },
     }),
   };
 }
