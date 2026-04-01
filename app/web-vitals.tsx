@@ -16,15 +16,30 @@ export function WebVitals() {
     }
 
     // In production, send to analytics endpoint (fire-and-forget)
-    if (process.env.NODE_ENV === "production" && typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+    if (process.env.NODE_ENV === "production") {
       const body = JSON.stringify({
         name: metric.name,
         value: metric.value,
         rating: metric.rating,
         id: metric.id,
         navigationType: metric.navigationType,
+        url: location.href,
+        path: location.pathname,
       });
-      navigator.sendBeacon("/api/vitals", body);
+
+      // Prefer sendBeacon (works during page unload), fall back to fetch
+      if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+        navigator.sendBeacon("/api/vitals", body);
+      } else {
+        fetch("/api/vitals", {
+          method: "POST",
+          body,
+          headers: { "Content-Type": "application/json" },
+          keepalive: true,
+        }).catch(() => {
+          // Fire-and-forget: silently ignore failures
+        });
+      }
     }
   });
 
