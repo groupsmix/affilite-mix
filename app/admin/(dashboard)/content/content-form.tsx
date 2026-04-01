@@ -9,6 +9,7 @@ import { ProductLinker } from "./product-linker";
 import { ImageUploader } from "../components/image-uploader";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { autoSlug } from "@/lib/auto-slug";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { toast } from "sonner";
 import { useCallback } from "react";
 import { ErrorBoundary } from "../components/error-boundary";
@@ -465,7 +466,7 @@ export function ContentForm({
               </p>
               <div
                 className="mb-3 max-h-48 overflow-auto rounded border border-amber-200 bg-white p-3 text-sm text-gray-700"
-                dangerouslySetInnerHTML={{ __html: content.body_previous }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(content.body_previous) }}
               />
               <button
                 type="button"

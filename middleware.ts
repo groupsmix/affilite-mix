@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSiteByDomain, allSites, isWildcardSubdomain } from "@/config/sites";
 import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
+import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 
 /**
  * Returns a styled "Niche not found" HTML page.
@@ -115,7 +116,7 @@ export async function middleware(request: NextRequest) {
     const newToken = generateCsrfToken();
     response.cookies.set(CSRF_COOKIE, newToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: IS_SECURE_COOKIE,
       sameSite: "strict",
       path: "/",
       maxAge: 60 * 60 * 4,
