@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { captureException } from "@/lib/sentry";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
+
+/** 10 confirm requests per minute per IP */
+const CONFIRM_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000 };
 
 /**
  * GET /api/newsletter/confirm?token=<uuid>
@@ -8,6 +13,15 @@ import { captureException } from "@/lib/sentry";
  */
 export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const rl = await checkRateLimit(`newsletter-confirm:${ip}`, CONFIRM_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+      );
+    }
+
     const token = request.nextUrl.searchParams.get("token");
     if (!token) {
       return NextResponse.redirect(
@@ -46,7 +60,9 @@ export async function GET(request: NextRequest) {
       .eq("id", subscriber.id);
 
     if (updateError) {
-      captureException(updateError, { context: "[api/newsletter/confirm] Failed to activate subscriber:" });
+      captureException(updateError, {
+        context: "[api/newsletter/confirm] Failed to activate subscriber:",
+      });
       return NextResponse.redirect(
         new URL("/newsletter/confirmed?error=update_failed", request.url),
       );

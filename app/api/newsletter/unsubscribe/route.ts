@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /** 10 unsubscribe requests per 15 minutes per IP */
 const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
@@ -16,6 +17,16 @@ const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
  */
 export async function GET(request: NextRequest) {
   try {
+    // Rate-limit GET unsubscribe by IP
+    const ip = getClientIp(request);
+    const rl = await checkRateLimit(`unsub:${ip}`, UNSUBSCRIBE_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+      );
+    }
+
     const token = request.nextUrl.searchParams.get("token");
     if (!token) {
       return NextResponse.redirect(
@@ -47,10 +58,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Rate-limit by IP to prevent mass-unsubscribe attacks
-    const ip =
-      request.headers.get("cf-connecting-ip") ??
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      "unknown";
+    const ip = getClientIp(request);
     const rl = await checkRateLimit(`unsub:${ip}`, UNSUBSCRIBE_RATE_LIMIT);
     if (!rl.allowed) {
       return NextResponse.json(

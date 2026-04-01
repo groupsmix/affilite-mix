@@ -4,6 +4,11 @@ import { getAnonClient } from "@/lib/supabase-server";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import type { ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
+
+/** 30 gift-finder requests per minute per IP */
+const GIFT_FINDER_RATE_LIMIT = { maxRequests: 30, windowMs: 60 * 1000 };
 
 /**
  * GET /api/gift-finder?budget=500&occasion=birthday&recipient=husband&style=classic
@@ -13,9 +18,21 @@ import { captureException } from "@/lib/sentry";
  * hardcoded inline product list.
  */
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`gift-finder:${ip}`, GIFT_FINDER_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   const site = await getCurrentSite();
   if (!site.features.giftFinder) {
-    return NextResponse.json({ error: "Gift finder is not enabled for this site" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Gift finder is not enabled for this site" },
+      { status: 404 },
+    );
   }
 
   const { searchParams } = request.nextUrl;
@@ -30,7 +47,9 @@ export async function GET(request: NextRequest) {
   // Fetch active products within budget
   let query = sb
     .from("products")
-    .select("id, name, slug, price, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id")
+    .select(
+      "id, name, slug, price, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id",
+    )
     .eq("site_id", dbSiteId)
     .eq("status", "active")
     .not("score", "is", null);
@@ -68,7 +87,7 @@ export async function GET(request: NextRequest) {
   );
 
   // Score and rank products
-  type ScoredProduct = typeof products[number] & { relevance: number };
+  type ScoredProduct = (typeof products)[number] & { relevance: number };
   const scored: ScoredProduct[] = products.map((p) => {
     let relevance = (p.score ?? 5) * 10;
 
@@ -81,7 +100,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Text-based style matching from name/description
-    if (style && (p.name?.toLowerCase().includes(style) || p.description?.toLowerCase().includes(style))) {
+    if (
+      style &&
+      (p.name?.toLowerCase().includes(style) || p.description?.toLowerCase().includes(style))
+    ) {
       relevance += 10;
     }
 

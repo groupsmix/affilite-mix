@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { captureException } from "@/lib/sentry";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
 
 const VALID_METRIC_NAMES = new Set(["CLS", "FCP", "FID", "INP", "LCP", "TTFB"]);
 
@@ -12,8 +14,20 @@ const VALID_METRIC_NAMES = new Set(["CLS", "FCP", "FID", "INP", "LCP", "TTFB"]);
  * `web_vitals` table (if available), and logs structured output for
  * ingestion by any log-based observability pipeline (e.g. Datadog, Vercel).
  */
+/** 120 vitals beacons per minute per IP */
+const VITALS_RATE_LIMIT = { maxRequests: 120, windowMs: 60 * 1000 };
+
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const rl = await checkRateLimit(`vitals:${ip}`, VITALS_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+      );
+    }
+
     const body = await request.json();
 
     // Basic shape validation

@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest) {
       details: { count: body.pages.length },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     captureException(err, { context: "[api/admin/pages] reorder failed:" });
     return NextResponse.json({ error: "Failed to reorder pages" }, { status: 500 });

@@ -99,10 +99,11 @@ export async function deletePage(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Bulk update sort order */
+/** Bulk update sort order atomically via a single database transaction */
 export async function reorderPages(pages: { id: string; sort_order: number }[]): Promise<void> {
-  for (const p of pages) {
-    const { error } = await pagesTable().update({ sort_order: p.sort_order }).eq("id", p.id);
-    if (error) throw error;
-  }
+  const sb = getServiceClient();
+  const { error } = await sb.rpc("reorder_pages", {
+    updates: pages as unknown as { id: string; sort_order: number }[],
+  });
+  if (error) throw error;
 }

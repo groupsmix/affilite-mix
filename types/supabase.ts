@@ -849,6 +849,10 @@ export interface Database {
           subscriber_count: number;
         }[];
       };
+      reorder_pages: {
+        Args: { updates: { id: string; sort_order: number }[] };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
