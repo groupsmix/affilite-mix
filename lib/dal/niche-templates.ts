@@ -2,6 +2,8 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 const TABLE = "niche_templates";
+const LIST_COLUMNS =
+  "id, name, slug, description, monetization_type, language, direction, is_builtin, created_at, updated_at" as const;
 
 export interface NicheTemplateRow {
   id: string;
@@ -27,7 +29,7 @@ export async function listNicheTemplates(): Promise<NicheTemplateRow[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .order("is_builtin", { ascending: false })
     .order("name", { ascending: true });
 

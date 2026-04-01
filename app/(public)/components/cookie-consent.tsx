@@ -214,17 +214,17 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
                 {showDetails && (
                   <table className="mt-2 w-full text-xs text-gray-600">
                     <thead>
-                      <tr className="border-b border-gray-200 text-left">
-                        <th className="pb-1 pr-3 font-semibold">Cookie</th>
-                        <th className="pb-1 pr-3 font-semibold">Purpose</th>
+                      <tr className="border-b border-gray-200 text-start">
+                        <th className="pb-1 pe-3 font-semibold">Cookie</th>
+                        <th className="pb-1 pe-3 font-semibold">Purpose</th>
                         <th className="pb-1 font-semibold">Type</th>
                       </tr>
                     </thead>
                     <tbody>
                       {t.cookieList.map((c) => (
                         <tr key={c.name} className="border-b border-gray-100">
-                          <td className="py-1 pr-3 font-mono">{c.name}</td>
-                          <td className="py-1 pr-3">{c.purpose}</td>
+                          <td className="py-1 pe-3 font-mono">{c.name}</td>
+                          <td className="py-1 pe-3">{c.purpose}</td>
                           <td className="py-1">{c.type}</td>
                         </tr>
                       ))}

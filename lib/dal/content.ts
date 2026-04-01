@@ -14,14 +14,16 @@ export interface ListContentOptions {
   offset?: number;
 }
 
+// Columns needed for list views (excludes heavy body/body_previous)
+const LIST_COLUMNS =
+  "id, site_id, title, slug, excerpt, featured_image, type, status, category_id, tags, author, publish_at, meta_title, meta_description, og_image, created_at, updated_at" as const;
+
 /** List content for a site with optional filters */
-export async function listContent(
-  opts: ListContentOptions,
-): Promise<ContentRow[]> {
+export async function listContent(opts: ListContentOptions): Promise<ContentRow[]> {
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", opts.siteId)
     .order("created_at", { ascending: false });
 
@@ -40,10 +42,7 @@ export async function listContent(
 }
 
 /** Get a single content item by id */
-export async function getContentById(
-  siteId: string,
-  id: string,
-): Promise<ContentRow | null> {
+export async function getContentById(siteId: string, id: string): Promise<ContentRow | null> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -63,11 +62,7 @@ export async function getContentBySlug(
   includePreview = false,
 ): Promise<ContentRow | null> {
   const sb = getServiceClient();
-  let query = sb
-    .from(TABLE)
-    .select("*")
-    .eq("site_id", siteId)
-    .eq("slug", slug);
+  let query = sb.from(TABLE).select("*").eq("site_id", siteId).eq("slug", slug);
 
   if (!includePreview) {
     query = query.eq("status", "published");
@@ -93,9 +88,7 @@ export async function createContent(
 export async function updateContent(
   siteId: string,
   id: string,
-  input: Partial<
-    Omit<ContentRow, "id" | "site_id" | "created_at" | "updated_at">
-  >,
+  input: Partial<Omit<ContentRow, "id" | "site_id" | "created_at" | "updated_at">>,
 ): Promise<ContentRow> {
   const sb = getServiceClient();
 
@@ -126,16 +119,9 @@ export async function updateContent(
 }
 
 /** Delete content */
-export async function deleteContent(
-  siteId: string,
-  id: string,
-): Promise<void> {
+export async function deleteContent(siteId: string, id: string): Promise<void> {
   const sb = getServiceClient();
-  const { error } = await sb
-    .from(TABLE)
-    .delete()
-    .eq("site_id", siteId)
-    .eq("id", id);
+  const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;
 }
@@ -145,10 +131,7 @@ export async function countContent(
   opts: Omit<ListContentOptions, "limit" | "offset">,
 ): Promise<number> {
   const sb = getServiceClient();
-  let query = sb
-    .from(TABLE)
-    .select("*", { count: "exact", head: true })
-    .eq("site_id", opts.siteId);
+  let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", opts.siteId);
 
   if (opts.contentType) query = query.eq("type", opts.contentType);
   if (opts.status) query = query.eq("status", opts.status);
@@ -169,7 +152,7 @@ export async function listPublishedContent(
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "published")
     .order("updated_at", { ascending: false });
@@ -184,18 +167,12 @@ export async function listPublishedContent(
 }
 
 /** Get recent published content (for homepage) */
-export async function getRecentContent(
-  siteId: string,
-  limit = 6,
-): Promise<ContentRow[]> {
+export async function getRecentContent(siteId: string, limit = 6): Promise<ContentRow[]> {
   return listPublishedContent(siteId, undefined, limit);
 }
 
 /** Count published content for pagination */
-export async function countPublishedContent(
-  siteId: string,
-  contentType?: string,
-): Promise<number> {
+export async function countPublishedContent(siteId: string, contentType?: string): Promise<number> {
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
@@ -226,7 +203,7 @@ export async function searchContent(
   if (tsq) {
     const { data, error } = await sb
       .from(TABLE)
-      .select("*")
+      .select(LIST_COLUMNS)
       .eq("site_id", siteId)
       .eq("status", "published")
       .or(`title.fts.${tsq},excerpt.fts.${tsq}`)
@@ -239,7 +216,7 @@ export async function searchContent(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "published")
     .ilike("title", `%${escapeLike(query)}%`)
@@ -260,7 +237,7 @@ export async function getRelatedContent(
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "published")
     .neq("id", excludeId)

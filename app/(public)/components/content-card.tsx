@@ -12,9 +12,16 @@ interface ContentCardProps {
   locale?: string;
   /** Optional search query to highlight matching terms */
   searchQuery?: string;
+  /** Mark as above-the-fold for LCP optimisation */
+  priority?: boolean;
 }
 
-export function ContentCard({ content, locale = "en-US", searchQuery }: ContentCardProps) {
+export function ContentCard({
+  content,
+  locale = "en-US",
+  searchQuery,
+  priority = false,
+}: ContentCardProps) {
   const href = `/${content.type}/${content.slug}`;
   const [imgError, setImgError] = useState(false);
 
@@ -31,6 +38,7 @@ export function ContentCard({ content, locale = "en-US", searchQuery }: ContentC
             placeholder="blur"
             blurDataURL={shimmerPlaceholder(400, 176)}
             className="h-44 w-full object-cover"
+            priority={priority}
             onError={() => setImgError(true)}
           />
         </Link>

@@ -5,6 +5,10 @@ import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 const TABLE = "products";
 
+// Columns needed for list views (excludes heavy pros/cons/description text)
+const LIST_COLUMNS =
+  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, created_at, updated_at" as const;
+
 export interface ListProductsOptions {
   siteId: string;
   categoryId?: string;
@@ -19,7 +23,7 @@ export async function listProducts(opts: ListProductsOptions): Promise<ProductRo
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", opts.siteId)
     .order("created_at", { ascending: false });
 
@@ -169,7 +173,7 @@ export async function searchProducts(
   if (tsq) {
     const { data, error } = await sb
       .from(TABLE)
-      .select("*")
+      .select(LIST_COLUMNS)
       .eq("site_id", siteId)
       .eq("status", "active")
       .or(`name.fts.${tsq},description.fts.${tsq}`)
@@ -182,7 +186,7 @@ export async function searchProducts(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "active")
     .ilike("name", `%${escapeLike(query)}%`)
@@ -198,7 +202,7 @@ export async function listFeaturedProducts(siteId: string, limit = 6): Promise<P
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("featured", true)
     .eq("status", "active")
