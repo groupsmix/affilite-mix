@@ -4,6 +4,7 @@ import { getActiveSiteSlug } from "@/lib/active-site";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { listPages, createPage } from "@/lib/dal/pages";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 /** 100 admin API requests per minute per user session */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
       site_id: siteId,
       slug: body.slug,
       title: body.title,
-      body: body.body ?? "",
+      body: sanitizeHtml(body.body ?? ""),
       is_published: body.is_published ?? false,
       sort_order: body.sort_order ?? 0,
     });

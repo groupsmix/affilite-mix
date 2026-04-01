@@ -35,10 +35,7 @@ export async function listCategoriesByTaxonomy(
 }
 
 /** Get a single category by id */
-export async function getCategoryById(
-  siteId: string,
-  id: string,
-): Promise<CategoryRow | null> {
+export async function getCategoryById(siteId: string, id: string): Promise<CategoryRow | null> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -52,10 +49,7 @@ export async function getCategoryById(
 }
 
 /** Get a single category by slug */
-export async function getCategoryBySlug(
-  siteId: string,
-  slug: string,
-): Promise<CategoryRow | null> {
+export async function getCategoryBySlug(siteId: string, slug: string): Promise<CategoryRow | null> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -134,17 +128,36 @@ export async function updateCategory(
   return assertRow<CategoryRow>(data, "Category");
 }
 
-/** Delete a category */
-export async function deleteCategory(
+/** Count content and products associated with a category */
+export async function getCategoryUsageCounts(
   siteId: string,
-  id: string,
-): Promise<void> {
+  categoryId: string,
+): Promise<{ contentCount: number; productCount: number }> {
   const sb = getServiceClient();
-  const { error } = await sb
-    .from(TABLE)
-    .delete()
-    .eq("site_id", siteId)
-    .eq("id", id);
+
+  const [contentResult, productResult] = await Promise.all([
+    sb
+      .from("content")
+      .select("id", { count: "exact", head: true })
+      .eq("site_id", siteId)
+      .eq("category_id", categoryId),
+    sb
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("site_id", siteId)
+      .eq("category_id", categoryId),
+  ]);
+
+  return {
+    contentCount: contentResult.count ?? 0,
+    productCount: productResult.count ?? 0,
+  };
+}
+
+/** Delete a category */
+export async function deleteCategory(siteId: string, id: string): Promise<void> {
+  const sb = getServiceClient();
+  const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;
 }

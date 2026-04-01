@@ -6,6 +6,7 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  getCategoryUsageCounts,
 } from "@/lib/dal/categories";
 import { validateCreateCategory, validateUpdateCategory } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -31,7 +32,10 @@ export async function POST(request: NextRequest) {
   const raw = await request.json();
   const parsed = validateCreateCategory(raw);
   if (parsed.errors) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.errors },
+      { status: 400 },
+    );
   }
 
   try {
@@ -66,7 +70,10 @@ export async function PATCH(request: NextRequest) {
   const raw = await request.json();
   const parsed = validateUpdateCategory(raw);
   if (parsed.errors) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.errors },
+      { status: 400 },
+    );
   }
 
   const { id, ...updates } = parsed.data;

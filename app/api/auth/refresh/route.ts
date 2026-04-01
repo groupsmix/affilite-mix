@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminSession, createToken, COOKIE_NAME } from "@/lib/auth";
+import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 
 /**
  * POST /api/auth/refresh
@@ -17,7 +18,7 @@ export async function POST() {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: IS_SECURE_COOKIE,
     sameSite: "strict",
     path: "/",
     maxAge: 60 * 60 * 24, // 24 hours

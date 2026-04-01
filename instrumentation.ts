@@ -74,13 +74,17 @@ export function register() {
     );
   }
 
-  // Verify KV rate-limit binding availability (only warn in production)
+  // Verify KV rate-limit binding availability — fail loudly in production
+  // because the rate limiter fails closed (rejects all rate-limited requests)
+  // when KV is unavailable, which will break login and other protected routes.
   if (process.env.NODE_ENV === "production") {
     try {
       const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
       if (!kv || typeof kv !== "object" || !("get" in kv)) {
-        logger.warn(
-          "RATE_LIMIT_KV binding not available — rate limiting will use in-memory fallback (not safe for production).",
+        logger.error(
+          "RATE_LIMIT_KV binding not available — rate-limited routes (login, newsletter, etc.) " +
+            "will reject ALL requests. Configure the KV binding in wrangler.jsonc. " +
+            "See lib/rate-limit.ts for setup instructions.",
         );
       }
     } catch {

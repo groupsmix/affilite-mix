@@ -5,11 +5,14 @@ import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import { logger } from "@/lib/logger";
 import { requireEnvInProduction } from "@/lib/env";
+import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 
 const devFallback = randomUUID() + randomUUID();
 const JWT_SECRET = requireEnvInProduction("JWT_SECRET", devFallback);
 if (JWT_SECRET === devFallback) {
-  console.warn("JWT_SECRET not set — using random dev fallback (sessions will not persist across restarts)");
+  console.warn(
+    "JWT_SECRET not set — using random dev fallback (sessions will not persist across restarts)",
+  );
 }
 const COOKIE_NAME = "nh_admin_token";
 /** Cookie tracking last admin activity for idle-timeout enforcement */
@@ -75,9 +78,7 @@ export async function createToken(payload: AdminPayload): Promise<string> {
 }
 
 /** Verify and decode the admin JWT */
-export async function verifyToken(
-  token: string,
-): Promise<AdminPayload | null> {
+export async function verifyToken(token: string): Promise<AdminPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), {
       audience: "affiliate-platform",
@@ -110,13 +111,17 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
  * Touch the admin activity timestamp.
  * Call this in admin API routes so the idle-timeout cookie stays fresh.
  */
-export function touchAdminActivity(): { name: string; value: string; options: Record<string, unknown> } {
+export function touchAdminActivity(): {
+  name: string;
+  value: string;
+  options: Record<string, unknown>;
+} {
   return {
     name: ACTIVITY_COOKIE,
     value: String(Date.now()),
     options: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: IS_SECURE_COOKIE,
       sameSite: "strict" as const,
       path: "/",
       maxAge: 60 * 60 * 24,
