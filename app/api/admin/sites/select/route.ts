@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.json({ ok: true, site: { id: site.id, name: site.name } });
   response.cookies.set(ACTIVE_SITE_COOKIE, site.id, {
-    httpOnly: false, // client-side needs to read this for the site switcher
+    httpOnly: true,
     secure: IS_SECURE_COOKIE,
     sameSite: "strict",
     path: "/",

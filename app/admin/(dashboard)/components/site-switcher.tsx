@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
-import { getCookieValue } from "@/lib/cookie-utils";
 
 interface SiteInfo {
   id: string;
@@ -29,11 +28,21 @@ export function SiteSwitcher() {
     }
     loadSites();
 
-    // Read active site from cookie
-    const savedSiteId = getCookieValue("nh_active_site");
-    if (savedSiteId) {
-      setActiveSiteId(savedSiteId);
+    // Read active site from httpOnly cookie via API
+    async function loadActiveSite() {
+      try {
+        const activeRes = await fetch("/api/admin/sites/active");
+        if (activeRes.ok) {
+          const activeData = await activeRes.json();
+          if (activeData.activeSiteId) {
+            setActiveSiteId(activeData.activeSiteId);
+          }
+        }
+      } catch {
+        // Ignore — will show "Select a site" fallback
+      }
     }
+    loadActiveSite();
   }, []);
 
   useEffect(() => {

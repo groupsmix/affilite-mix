@@ -13,7 +13,7 @@ export async function POST() {
     maxAge: 0,
   });
   response.cookies.set(ACTIVE_SITE_COOKIE, "", {
-    httpOnly: false,
+    httpOnly: true,
     secure: IS_SECURE_COOKIE,
     sameSite: "strict",
     path: "/",

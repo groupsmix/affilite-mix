@@ -4,23 +4,38 @@ import { listPublishedContent } from "@/lib/dal/content";
 import { listCategories } from "@/lib/dal/categories";
 import { listActiveProducts } from "@/lib/dal/products";
 
+/**
+ * Maximum number of content URLs to include in the sitemap.
+ * Google's limit is 50,000 URLs per sitemap; we cap at 5,000 to keep
+ * the response reasonably sized. For sites that grow beyond this,
+ * consider splitting into multiple sitemap files via a sitemap index
+ * (requires a build-time-compatible site resolution strategy).
+ */
+const MAX_CONTENT_URLS = 5_000;
+
+/**
+ * Generate sitemap entries for the current site.
+ *
+ * NOTE: This is a fully dynamic sitemap (no generateSitemaps/generateStaticParams)
+ * because the multi-tenant architecture resolves the active site from request
+ * headers at runtime — `getCurrentSite()` calls `headers()` which is unavailable
+ * at build time.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const site = await getCurrentSite();
   const baseUrl = `https://${site.domain}`;
 
   // Static pages from site config
-  const staticEntries: MetadataRoute.Sitemap = site.seo.sitemapStaticPages.map(
-    (page) => ({
-      url: `${baseUrl}${page.path}`,
-      lastModified: new Date(),
-      changeFrequency: page.changeFrequency as MetadataRoute.Sitemap[number]["changeFrequency"],
-      priority: page.priority,
-    }),
-  );
+  const staticEntries: MetadataRoute.Sitemap = site.seo.sitemapStaticPages.map((page) => ({
+    url: `${baseUrl}${page.path}`,
+    lastModified: new Date(),
+    changeFrequency: page.changeFrequency as MetadataRoute.Sitemap[number]["changeFrequency"],
+    priority: page.priority,
+  }));
 
   // Dynamic content, category, and product pages
   const [content, categories, products] = await Promise.all([
-    listPublishedContent(site.id, undefined, 1000),
+    listPublishedContent(site.id, undefined, MAX_CONTENT_URLS),
     listCategories(site.id),
     listActiveProducts(site.id),
   ]);
