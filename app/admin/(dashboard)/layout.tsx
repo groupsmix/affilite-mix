@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/auth";
 import { getActiveSiteSlug } from "@/lib/active-site";
 import { getSiteById } from "@/config/sites";
+import { getSiteRowBySlug } from "@/lib/dal/sites";
 import { AdminSidebar } from "@/app/admin/(dashboard)/components/admin-sidebar";
 import { TokenRefresh } from "@/app/admin/(dashboard)/components/token-refresh";
 import { Toaster } from "sonner";
@@ -17,18 +18,39 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/admin/login");
   }
 
-  // Set CSS variables from active site so admin components can use theme colors
+  // Set CSS variables from active site so admin components can use theme colors.
+  // Supports both static-config sites and DB-only sites created via admin panel.
   const activeSiteSlug = await getActiveSiteSlug();
-  const activeSite = activeSiteSlug ? getSiteById(activeSiteSlug) : null;
-  const cssVars = activeSite
-    ? ({
-        "--color-primary": activeSite.theme.primaryColor,
-        "--color-accent": activeSite.theme.accentColor,
-      } as React.CSSProperties)
-    : undefined;
+  let siteName: string | null = null;
+  let direction: "ltr" | "rtl" = "ltr";
+  let lang = "en";
+  let cssVars: React.CSSProperties | undefined;
 
-  const direction = activeSite?.direction ?? "ltr";
-  const lang = activeSite?.language ?? "en";
+  if (activeSiteSlug) {
+    const staticSite = getSiteById(activeSiteSlug);
+    if (staticSite) {
+      siteName = staticSite.name;
+      direction = staticSite.direction;
+      lang = staticSite.language;
+      cssVars = {
+        "--color-primary": staticSite.theme.primaryColor,
+        "--color-accent": staticSite.theme.accentColor,
+      } as React.CSSProperties;
+    } else {
+      // DB-only site — fetch from database
+      const dbSite = await getSiteRowBySlug(activeSiteSlug);
+      if (dbSite) {
+        siteName = dbSite.name;
+        direction = dbSite.direction;
+        lang = dbSite.language;
+        const theme = dbSite.theme as Record<string, string> | null;
+        cssVars = {
+          "--color-primary": theme?.primary_color ?? theme?.primaryColor ?? "#1f2937",
+          "--color-accent": theme?.accent_color ?? theme?.accentColor ?? "#3b82f6",
+        } as React.CSSProperties;
+      }
+    }
+  }
 
   return (
     <div dir={direction} lang={lang} className="flex min-h-screen bg-gray-50" style={cssVars}>
@@ -38,7 +60,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       >
         {lang === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
       </a>
-      <AdminSidebar siteName={activeSite?.name ?? null} />
+      <AdminSidebar siteName={siteName} />
       <TokenRefresh />
       <Toaster position="top-right" richColors closeButton containerAriaLabel="Notifications" />
       <main id="admin-main" className="flex-1 p-6 lg:p-8">
