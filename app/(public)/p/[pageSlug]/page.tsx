@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getPageBySlug } from "@/lib/dal/pages";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 interface PageProps {
   params: Promise<{ pageSlug: string }>;
@@ -51,7 +52,7 @@ export default async function CustomPage({ params }: PageProps) {
       </h1>
       <div
         className="prose prose-gray max-w-none"
-        dangerouslySetInnerHTML={{ __html: page.body }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.body) }}
       />
     </article>
   );
