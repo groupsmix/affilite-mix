@@ -210,26 +210,31 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           </div>
         </div>
 
-        <ImageUploader value={imageUrl} onChange={setImageUrl} label="Product Image" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ImageUploader value={imageUrl} onChange={setImageUrl} label="Product Image" />
 
-        <div>
-          <label htmlFor="prod-image-alt" className="mb-1 block text-sm font-medium text-gray-700">
-            Image Alt Text
-          </label>
-          <input
-            id="prod-image-alt"
-            type="text"
-            value={imageAlt}
-            onChange={(e) => {
-              setImageAlt(e.target.value);
-              markDirty();
-            }}
-            placeholder="Describe the product image for screen readers"
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Describe the product image for screen readers and SEO.
-          </p>
+          <div>
+            <label
+              htmlFor="prod-image-alt"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Image Alt Text
+            </label>
+            <input
+              id="prod-image-alt"
+              type="text"
+              value={imageAlt}
+              onChange={(e) => {
+                setImageAlt(e.target.value);
+                markDirty();
+              }}
+              placeholder="Describe the product image for screen readers"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Describe the product image for screen readers and SEO.
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
