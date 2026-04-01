@@ -39,7 +39,7 @@ Health check. Verifies the application is running and Supabase connectivity.
 Subscribe to the site newsletter.
 
 **Auth:** None  
-**Rate limit:** 3 requests / 15 min per IP  
+**Rate limit:** 5 requests / 15 min per IP  
 **Headers:** `x-csrf-token` (CSRF token)  
 **Body:**
 
