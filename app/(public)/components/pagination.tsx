@@ -1,5 +1,38 @@
 import Link from "next/link";
 
+interface PaginationHeadProps {
+  currentPage: number;
+  totalItems: number;
+  pageSize: number;
+  /** Absolute URL base, e.g. "https://example.com/category/watches" */
+  baseUrl: string;
+}
+
+/**
+ * Renders <link rel="prev"> and <link rel="next"> tags in <head>
+ * for SEO crawlers to discover paginated pages.
+ */
+export function PaginationHead({
+  currentPage,
+  totalItems,
+  pageSize,
+  baseUrl,
+}: PaginationHeadProps) {
+  const totalPages = Math.ceil(totalItems / pageSize);
+  if (totalPages <= 1) return null;
+
+  const prevUrl =
+    currentPage > 1 ? (currentPage === 2 ? baseUrl : `${baseUrl}?page=${currentPage - 1}`) : null;
+  const nextUrl = currentPage < totalPages ? `${baseUrl}?page=${currentPage + 1}` : null;
+
+  return (
+    <>
+      {prevUrl && <link rel="prev" href={prevUrl} />}
+      {nextUrl && <link rel="next" href={nextUrl} />}
+    </>
+  );
+}
+
 interface PaginationProps {
   currentPage: number;
   totalItems: number;
@@ -78,6 +111,8 @@ export function Pagination({
   searchParams,
   language = "en",
 }: PaginationProps) {
+  // Note: For <link rel="prev/next">, use the PaginationHead component
+  // in the page's server component with the full absolute URL.
   const isAr = language === "ar";
   const prevLabel = isAr ? "السابق" : "Previous";
   const nextLabel = isAr ? "التالي" : "Next";
