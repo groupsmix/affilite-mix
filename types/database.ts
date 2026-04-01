@@ -101,6 +101,9 @@ export interface ContentRow {
   updated_at: string;
 }
 
+/** Lightweight content projection for list views (excludes body/body_previous). */
+export type ContentListItem = Omit<ContentRow, "body" | "body_previous">;
+
 export interface ContentProductRow {
   content_id: string;
   product_id: string;

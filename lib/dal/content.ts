@@ -1,9 +1,13 @@
 import { getServiceClient } from "@/lib/supabase-server";
-import type { ContentRow } from "@/types/database";
+import type { ContentRow, ContentListItem } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 
 const TABLE = "content";
+
+/** Columns selected for list views — excludes large body/body_previous fields. */
+const LIST_COLUMNS =
+  "id, site_id, title, slug, excerpt, featured_image, type, status, category_id, tags, author, publish_at, meta_title, meta_description, og_image, created_at, updated_at" as const;
 
 export interface ListContentOptions {
   siteId: string;
@@ -15,9 +19,7 @@ export interface ListContentOptions {
 }
 
 /** List content for a site with optional filters */
-export async function listContent(
-  opts: ListContentOptions,
-): Promise<ContentRow[]> {
+export async function listContent(opts: ListContentOptions): Promise<ContentRow[]> {
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
@@ -40,10 +42,7 @@ export async function listContent(
 }
 
 /** Get a single content item by id */
-export async function getContentById(
-  siteId: string,
-  id: string,
-): Promise<ContentRow | null> {
+export async function getContentById(siteId: string, id: string): Promise<ContentRow | null> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -63,11 +62,7 @@ export async function getContentBySlug(
   includePreview = false,
 ): Promise<ContentRow | null> {
   const sb = getServiceClient();
-  let query = sb
-    .from(TABLE)
-    .select("*")
-    .eq("site_id", siteId)
-    .eq("slug", slug);
+  let query = sb.from(TABLE).select("*").eq("site_id", siteId).eq("slug", slug);
 
   if (!includePreview) {
     query = query.eq("status", "published");
@@ -93,9 +88,7 @@ export async function createContent(
 export async function updateContent(
   siteId: string,
   id: string,
-  input: Partial<
-    Omit<ContentRow, "id" | "site_id" | "created_at" | "updated_at">
-  >,
+  input: Partial<Omit<ContentRow, "id" | "site_id" | "created_at" | "updated_at">>,
 ): Promise<ContentRow> {
   const sb = getServiceClient();
 
@@ -126,16 +119,9 @@ export async function updateContent(
 }
 
 /** Delete content */
-export async function deleteContent(
-  siteId: string,
-  id: string,
-): Promise<void> {
+export async function deleteContent(siteId: string, id: string): Promise<void> {
   const sb = getServiceClient();
-  const { error } = await sb
-    .from(TABLE)
-    .delete()
-    .eq("site_id", siteId)
-    .eq("id", id);
+  const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;
 }
@@ -145,10 +131,7 @@ export async function countContent(
   opts: Omit<ListContentOptions, "limit" | "offset">,
 ): Promise<number> {
   const sb = getServiceClient();
-  let query = sb
-    .from(TABLE)
-    .select("*", { count: "exact", head: true })
-    .eq("site_id", opts.siteId);
+  let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", opts.siteId);
 
   if (opts.contentType) query = query.eq("type", opts.contentType);
   if (opts.status) query = query.eq("status", opts.status);
@@ -159,17 +142,17 @@ export async function countContent(
   return count ?? 0;
 }
 
-/** List published content for public pages */
+/** List published content for public pages (lightweight — excludes body fields) */
 export async function listPublishedContent(
   siteId: string,
   contentType?: string,
   limit = 20,
   offset = 0,
-): Promise<ContentRow[]> {
+): Promise<ContentListItem[]> {
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "published")
     .order("updated_at", { ascending: false });
@@ -180,22 +163,16 @@ export async function listPublishedContent(
 
   const { data, error } = await query;
   if (error) throw error;
-  return assertRows<ContentRow>(data);
+  return assertRows<ContentListItem>(data);
 }
 
 /** Get recent published content (for homepage) */
-export async function getRecentContent(
-  siteId: string,
-  limit = 6,
-): Promise<ContentRow[]> {
+export async function getRecentContent(siteId: string, limit = 6): Promise<ContentListItem[]> {
   return listPublishedContent(siteId, undefined, limit);
 }
 
 /** Count published content for pagination */
-export async function countPublishedContent(
-  siteId: string,
-  contentType?: string,
-): Promise<number> {
+export async function countPublishedContent(siteId: string, contentType?: string): Promise<number> {
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
@@ -219,27 +196,27 @@ export async function searchContent(
   siteId: string,
   query: string,
   limit = 20,
-): Promise<ContentRow[]> {
+): Promise<ContentListItem[]> {
   const sb = getServiceClient();
   const tsq = toTsquery(query);
 
   if (tsq) {
     const { data, error } = await sb
       .from(TABLE)
-      .select("*")
+      .select(LIST_COLUMNS)
       .eq("site_id", siteId)
       .eq("status", "published")
       .or(`title.fts.${tsq},excerpt.fts.${tsq}`)
       .order("updated_at", { ascending: false })
       .limit(limit);
 
-    if (!error) return assertRows<ContentRow>(data);
+    if (!error) return assertRows<ContentListItem>(data);
     // If FTS fails (e.g. column/index not ready), fall through to ILIKE.
   }
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "published")
     .ilike("title", `%${escapeLike(query)}%`)
@@ -247,7 +224,7 @@ export async function searchContent(
     .limit(limit);
 
   if (error) throw error;
-  return assertRows<ContentRow>(data);
+  return assertRows<ContentListItem>(data);
 }
 
 /** Get related content by category (excluding a specific content id) */
@@ -256,11 +233,11 @@ export async function getRelatedContent(
   categoryId: string | null,
   excludeId: string,
   limit = 4,
-): Promise<ContentRow[]> {
+): Promise<ContentListItem[]> {
   const sb = getServiceClient();
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "published")
     .neq("id", excludeId)
@@ -271,5 +248,5 @@ export async function getRelatedContent(
 
   const { data, error } = await query;
   if (error) throw error;
-  return assertRows<ContentRow>(data);
+  return assertRows<ContentListItem>(data);
 }

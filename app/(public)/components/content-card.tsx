@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { ContentRow } from "@/types/database";
+import type { ContentListItem } from "@/types/database";
 import Link from "next/link";
 import Image from "next/image";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
 import { highlightText } from "./highlight-text";
 
 interface ContentCardProps {
-  content: ContentRow;
+  content: ContentListItem;
   locale?: string;
   /** Optional search query to highlight matching terms */
   searchQuery?: string;
