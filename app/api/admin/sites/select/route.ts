@@ -8,7 +8,17 @@ import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
-/** POST /api/admin/sites/select — set the active site cookie */
+/**
+ * POST /api/admin/sites/select — set the active site cookie.
+ *
+ * Security note (Finding 18): The cookie is NOT signed because the client-side
+ * site-switcher needs to read it. Tampering is mitigated by:
+ * 1. This route validates the siteId via getSiteById() before setting the cookie.
+ * 2. requireAdmin() re-validates the cookie value on every admin API request
+ *    via resolveDbSiteId(), which only resolves sites that exist in the DB.
+ * 3. All DAL functions filter by siteId, so even if the cookie were tampered
+ *    with, the admin can only access data for sites that actually exist.
+ */
 export async function POST(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) {
