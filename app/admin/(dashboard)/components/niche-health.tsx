@@ -83,7 +83,7 @@ export async function NicheHealthPanel() {
 
   return (
     <section className="mb-8">
-      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
         Niche Health
       </h2>
 

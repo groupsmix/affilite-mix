@@ -56,7 +56,9 @@ export function CinematicHomepage({
             <div className="mb-8 flex items-center gap-3">
               <div
                 className="h-px w-12"
-                style={{ background: `linear-gradient(to right, var(--color-accent), transparent)` }}
+                style={{
+                  background: `linear-gradient(to right, var(--color-accent), transparent)`,
+                }}
               />
               <span
                 className="text-xs font-bold uppercase tracking-widest"
@@ -73,7 +75,7 @@ export function CinematicHomepage({
               {site.name}
             </h1>
 
-            <p className="mb-12 max-w-2xl text-lg font-light leading-relaxed text-gray-400 md:text-xl">
+            <p className="mb-12 max-w-2xl text-lg font-light leading-relaxed text-gray-500 md:text-xl">
               {site.brand.description}
             </p>
 
@@ -85,7 +87,12 @@ export function CinematicHomepage({
               >
                 {site.language === "ar" ? "تصفح المحتوى" : "Browse Content"}
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
                 </svg>
               </Link>
               {site.features.giftFinder && (
@@ -109,11 +116,24 @@ export function CinematicHomepage({
           <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
             <div className="mb-16 text-center">
               <div className="mb-5 flex items-center justify-center gap-3">
-                <div className="h-px w-10" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))` }} />
-                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
+                <div
+                  className="h-px w-10"
+                  style={{
+                    background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))`,
+                  }}
+                />
+                <span
+                  className="text-xs font-bold uppercase tracking-widest"
+                  style={{ color: "var(--color-accent)" }}
+                >
                   {site.language === "ar" ? "التصنيفات" : "Categories"}
                 </span>
-                <div className="h-px w-10" style={{ background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))` }} />
+                <div
+                  className="h-px w-10"
+                  style={{
+                    background: `linear-gradient(to left, transparent, color-mix(in srgb, var(--color-accent) 50%, transparent))`,
+                  }}
+                />
               </div>
               <h2
                 className="mb-4 text-3xl font-bold leading-tight md:text-4xl"
@@ -138,9 +158,11 @@ export function CinematicHomepage({
                     {cat.name}
                   </span>
                   {cat.description && (
-                    <p className="mt-1 text-center text-xs text-gray-400 line-clamp-2">{cat.description}</p>
+                    <p className="mt-1 text-center text-xs text-gray-500 line-clamp-2">
+                      {cat.description}
+                    </p>
                   )}
-                  <span className="mt-2 text-xs text-gray-400">
+                  <span className="mt-2 text-xs text-gray-500">
                     {cat.product_count} {cat.product_count === 1 ? "product" : "products"}
                   </span>
                 </Link>
@@ -206,7 +228,7 @@ export function CinematicHomepage({
 
       {/* Empty state */}
       {recentContent.length === 0 && featuredProducts.length === 0 && categories.length === 0 && (
-        <div className="py-24 text-center text-gray-400">
+        <div className="py-24 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar" ? "لا يوجد محتوى بعد" : "No content yet"}
           </p>

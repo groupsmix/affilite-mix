@@ -89,7 +89,7 @@ export function SiteSwitcher() {
           {activeSite?.name ?? "Select a site"}
         </span>
         <svg
-          className={`h-4 w-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -100,7 +100,7 @@ export function SiteSwitcher() {
 
       {open && (
         <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
-          <div className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+          <div className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">
             Your Sites
           </div>
           {sites.map((site) => (
@@ -120,11 +120,21 @@ export function SiteSwitcher() {
               </span>
               <div className="flex-1 truncate">
                 <div className="truncate">{site.name}</div>
-                <div className="truncate text-xs text-gray-400">{site.domain}</div>
+                <div className="truncate text-xs text-gray-500">{site.domain}</div>
               </div>
               {site.id === activeSiteId && (
-                <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="h-4 w-4 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               )}
             </button>

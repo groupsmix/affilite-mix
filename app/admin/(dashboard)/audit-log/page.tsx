@@ -92,7 +92,7 @@ export default async function AuditLogPage({
       </div>
 
       {logs.length === 0 ? (
-        <p className="text-sm text-gray-400">No audit log entries found.</p>
+        <p className="text-sm text-gray-500">No audit log entries found.</p>
       ) : (
         <>
           {/* Mobile cards */}
@@ -103,7 +103,7 @@ export default async function AuditLogPage({
                   <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
                     {log.action}
                   </span>
-                  <span className="shrink-0 text-xs text-gray-400">
+                  <span className="shrink-0 text-xs text-gray-500">
                     <LocalTime dateTime={log.created_at} />
                   </span>
                 </div>
@@ -111,11 +111,11 @@ export default async function AuditLogPage({
                 <p className="text-sm text-gray-600">
                   {log.entity_type}
                   {log.entity_id && (
-                    <span className="ms-1 text-gray-400">#{log.entity_id.slice(0, 8)}</span>
+                    <span className="ms-1 text-gray-500">#{log.entity_id.slice(0, 8)}</span>
                   )}
                 </p>
                 {Object.keys(log.details).length > 0 && (
-                  <p className="mt-1 truncate text-xs text-gray-400">
+                  <p className="mt-1 truncate text-xs text-gray-500">
                     {JSON.stringify(log.details)}
                   </p>
                 )}
@@ -138,7 +138,7 @@ export default async function AuditLogPage({
               <tbody>
                 {logs.map((log) => (
                   <tr key={log.id} className="border-b border-gray-50">
-                    <td className="whitespace-nowrap px-4 py-2 text-gray-400">
+                    <td className="whitespace-nowrap px-4 py-2 text-gray-500">
                       <LocalTime dateTime={log.created_at} />
                     </td>
                     <td className="px-4 py-2 text-gray-700">{log.actor}</td>
@@ -150,10 +150,10 @@ export default async function AuditLogPage({
                     <td className="px-4 py-2 text-gray-600">
                       {log.entity_type}
                       {log.entity_id && (
-                        <span className="ms-1 text-gray-400">#{log.entity_id.slice(0, 8)}</span>
+                        <span className="ms-1 text-gray-500">#{log.entity_id.slice(0, 8)}</span>
                       )}
                     </td>
-                    <td className="max-w-[200px] truncate px-4 py-2 text-xs text-gray-400">
+                    <td className="max-w-[200px] truncate px-4 py-2 text-xs text-gray-500">
                       {Object.keys(log.details).length > 0 ? JSON.stringify(log.details) : "—"}
                     </td>
                   </tr>
@@ -177,7 +177,7 @@ export default async function AuditLogPage({
           ) : (
             <span />
           )}
-          <span className="text-xs text-gray-400">Page {page}</span>
+          <span className="text-xs text-gray-500">Page {page}</span>
           {logs.length === pageSize ? (
             <a
               href={filterUrl("page", String(page + 1))}

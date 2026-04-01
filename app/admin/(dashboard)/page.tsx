@@ -160,14 +160,14 @@ export default async function AdminDashboard() {
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Products</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{totalProducts}</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-gray-500">
             {activeProducts} active, {draftProducts} draft
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Content</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{totalContent}</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-gray-500">
             {publishedContent} published, {draftContent} draft
           </p>
         </div>
@@ -183,7 +183,7 @@ export default async function AdminDashboard() {
 
       {/* Quick actions */}
       <div className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
           Quick Actions
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -251,7 +251,7 @@ export default async function AdminDashboard() {
 
       {/* Daily click trend chart (#19) */}
       <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
           Click Trend (7d)
         </h2>
         <ClickChart data={dailyClicks} />
@@ -263,11 +263,11 @@ export default async function AdminDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top products */}
         <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
             Top Products (7d)
           </h2>
           {topProducts.length === 0 ? (
-            <p className="text-sm text-gray-400">No click data yet</p>
+            <p className="text-sm text-gray-500">No click data yet</p>
           ) : (
             <ul className="space-y-2">
               {topProducts.map((p, i) => (
@@ -282,7 +282,7 @@ export default async function AdminDashboard() {
 
         {/* Management sections */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Manage</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Manage</h2>
           {[
             {
               title: "Categories",

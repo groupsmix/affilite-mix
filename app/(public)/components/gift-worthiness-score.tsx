@@ -13,10 +13,18 @@ interface GiftWorthinessScoreProps {
 }
 
 function getTier(score: number): { label: string; color: string; bg: string } {
-  if (score >= 9) return { label: "Exceptional", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" };
-  if (score >= 8) return { label: "Excellent", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" };
-  if (score >= 7) return { label: "Great", color: "text-indigo-700", bg: "bg-indigo-50 border-indigo-200" };
-  if (score >= 6) return { label: "Good", color: "text-amber-700", bg: "bg-amber-50 border-amber-200" };
+  if (score >= 9)
+    return {
+      label: "Exceptional",
+      color: "text-emerald-700",
+      bg: "bg-emerald-50 border-emerald-200",
+    };
+  if (score >= 8)
+    return { label: "Excellent", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" };
+  if (score >= 7)
+    return { label: "Great", color: "text-indigo-700", bg: "bg-indigo-50 border-indigo-200" };
+  if (score >= 6)
+    return { label: "Good", color: "text-amber-700", bg: "bg-amber-50 border-amber-200" };
   return { label: "Average", color: "text-gray-700", bg: "bg-gray-50 border-gray-200" };
 }
 
@@ -67,16 +75,16 @@ export function GiftWorthinessScore({
           />
         </svg>
         {/* Score number */}
-        <span className={`relative font-bold ${s.text} ${tier.color}`}>
-          {clamped.toFixed(1)}
-        </span>
+        <span className={`relative font-bold ${s.text} ${tier.color}`}>{clamped.toFixed(1)}</span>
       </div>
       {showLabel && (
         <div className="flex flex-col items-center">
-          <span className={`rounded-full border px-2 py-0.5 font-medium ${s.label} ${tier.bg} ${tier.color}`}>
+          <span
+            className={`rounded-full border px-2 py-0.5 font-medium ${s.label} ${tier.bg} ${tier.color}`}
+          >
             {tier.label}
           </span>
-          <span className={`mt-0.5 text-gray-400 ${s.label}`}>Gift-Worthiness</span>
+          <span className={`mt-0.5 text-gray-500 ${s.label}`}>Gift-Worthiness</span>
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { CategoryRow } from "@/types/database";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
@@ -13,6 +13,21 @@ interface CategoryFormProps {
 export function CategoryForm({ category }: CategoryFormProps) {
   const router = useRouter();
   const isEdit = !!category;
+  const isDirtyRef = useRef(false);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirtyRef.current) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
+  function markDirty() {
+    isDirtyRef.current = true;
+  }
 
   const [name, setName] = useState(category?.name ?? "");
   const [slug, setSlug] = useState(category?.slug ?? "");
@@ -51,6 +66,7 @@ export function CategoryForm({ category }: CategoryFormProps) {
 
     if (res.ok) {
       toast.success(isEdit ? "Category updated" : "Category created");
+      isDirtyRef.current = false;
       router.push("/admin/categories");
       router.refresh();
     } else {
@@ -64,39 +80,59 @@ export function CategoryForm({ category }: CategoryFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-lg space-y-4">
-      {error && <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+      {error && (
+        <div role="alert" aria-live="polite" className="rounded bg-red-50 p-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
+        <label htmlFor="cat-name" className="mb-1 block text-sm font-medium text-gray-700">
+          Name
+        </label>
         <input
+          id="cat-name"
           type="text"
           value={name}
           onChange={(e) => {
             setName(e.target.value);
             if (!isEdit) setSlug(autoSlug(e.target.value));
+            markDirty();
           }}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           required
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Slug</label>
+        <label htmlFor="cat-slug" className="mb-1 block text-sm font-medium text-gray-700">
+          Slug
+        </label>
         <input
+          id="cat-slug"
           type="text"
           value={slug}
-          onChange={(e) => setSlug(e.target.value)}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          onChange={(e) => {
+            setSlug(e.target.value);
+            markDirty();
+          }}
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           required
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Taxonomy Type</label>
+        <label htmlFor="cat-taxonomy" className="mb-1 block text-sm font-medium text-gray-700">
+          Taxonomy Type
+        </label>
         <select
+          id="cat-taxonomy"
           value={taxonomyType}
-          onChange={(e) => setTaxonomyType(e.target.value as typeof taxonomyType)}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          onChange={(e) => {
+            setTaxonomyType(e.target.value as typeof taxonomyType);
+            markDirty();
+          }}
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           required
         >
           <option value="general">General</option>
@@ -108,13 +144,19 @@ export function CategoryForm({ category }: CategoryFormProps) {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+        <label htmlFor="cat-description" className="mb-1 block text-sm font-medium text-gray-700">
+          Description
+        </label>
         <textarea
+          id="cat-description"
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            markDirty();
+          }}
           rows={3}
           placeholder="Category description shown on the public category page"
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 

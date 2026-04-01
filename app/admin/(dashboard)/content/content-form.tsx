@@ -201,8 +201,11 @@ export function ContentForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Title</label>
+            <label htmlFor="content-title" className="mb-1 block text-sm font-medium text-gray-700">
+              Title
+            </label>
             <input
+              id="content-title"
               type="text"
               value={title}
               onChange={(e) => {
@@ -210,42 +213,50 @@ export function ContentForm({
                 if (!isEdit) setSlug(autoSlug(e.target.value));
                 markDirty();
               }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               required
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Slug</label>
+            <label htmlFor="content-slug" className="mb-1 block text-sm font-medium text-gray-700">
+              Slug
+            </label>
             <input
+              id="content-slug"
               type="text"
               value={slug}
               onChange={(e) => {
                 setSlug(e.target.value);
                 markDirty();
               }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               required
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Excerpt</label>
+          <label htmlFor="content-excerpt" className="mb-1 block text-sm font-medium text-gray-700">
+            Excerpt
+          </label>
           <textarea
+            id="content-excerpt"
             value={excerpt}
             onChange={(e) => {
               setExcerpt(e.target.value);
               markDirty();
             }}
             rows={2}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
         <ImageUploader value={featuredImage} onChange={setFeaturedImage} label="Featured Image" />
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Body</label>
+          <label htmlFor="content-body" className="mb-1 block text-sm font-medium text-gray-700">
+            Body
+          </label>
           <ErrorBoundary
             fallback={
               <textarea
@@ -255,7 +266,7 @@ export function ContentForm({
                   markDirty();
                 }}
                 rows={12}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Rich editor failed to load. You can use HTML here instead."
               />
             }
@@ -272,11 +283,14 @@ export function ContentForm({
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Type</label>
+            <label htmlFor="content-type" className="mb-1 block text-sm font-medium text-gray-700">
+              Type
+            </label>
             <select
+              id="content-type"
               value={contentType}
               onChange={(e) => setContentType(e.target.value as ContentRow["type"])}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {siteContentTypes.map((ct) => (
                 <option key={ct.value} value={ct.value}>
@@ -287,11 +301,17 @@ export function ContentForm({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+            <label
+              htmlFor="content-status"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Status
+            </label>
             <select
+              id="content-status"
               value={status}
               onChange={(e) => setStatus(e.target.value as ContentRow["status"])}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="draft">Draft</option>
               <option value="review">Review</option>
@@ -302,11 +322,17 @@ export function ContentForm({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
+            <label
+              htmlFor="content-category"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Category
+            </label>
             <select
+              id="content-category"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">No category</option>
               {categories.map((cat) => (
@@ -357,7 +383,7 @@ export function ContentForm({
                     setStatus("scheduled");
                   }
                 }}
-                className="w-full rounded border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
               <p className="mt-1 text-xs text-indigo-600">
                 {publishAt
@@ -381,23 +407,30 @@ export function ContentForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Author</label>
+            <label
+              htmlFor="content-author"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Author
+            </label>
             <input
+              id="content-author"
               type="text"
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="content-tags" className="mb-1 block text-sm font-medium text-gray-700">
               Tags (comma-separated)
             </label>
             <input
+              id="content-tags"
               type="text"
               value={tagsStr}
               onChange={(e) => setTagsStr(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -409,41 +442,57 @@ export function ContentForm({
           </summary>
           <div className="space-y-4 border-t border-gray-200 px-4 py-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Meta Title</label>
+              <label
+                htmlFor="content-meta-title"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                Meta Title
+              </label>
               <input
+                id="content-meta-title"
                 type="text"
                 value={metaTitle}
                 onChange={(e) => setMetaTitle(e.target.value)}
                 placeholder={title || "Defaults to content title"}
                 maxLength={70}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
-              <p className="mt-1 text-xs text-gray-400">{metaTitle.length}/70 characters</p>
+              <p className="mt-1 text-xs text-gray-500">{metaTitle.length}/70 characters</p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="content-meta-desc"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
                 Meta Description
               </label>
               <textarea
+                id="content-meta-desc"
                 value={metaDescription}
                 onChange={(e) => setMetaDescription(e.target.value)}
                 placeholder={excerpt || "Defaults to content excerpt"}
                 maxLength={160}
                 rows={2}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
-              <p className="mt-1 text-xs text-gray-400">{metaDescription.length}/160 characters</p>
+              <p className="mt-1 text-xs text-gray-500">{metaDescription.length}/160 characters</p>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">OG Image URL</label>
+              <label
+                htmlFor="content-og-image"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                OG Image URL
+              </label>
               <input
+                id="content-og-image"
                 type="text"
                 value={ogImage}
                 onChange={(e) => setOgImage(e.target.value)}
                 placeholder={featuredImage || "Defaults to featured image"}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-500">
                 Override the Open Graph image for social sharing
               </p>
             </div>

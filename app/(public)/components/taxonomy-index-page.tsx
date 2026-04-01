@@ -44,11 +44,7 @@ export async function generateTaxonomyIndexMetadata(
   };
 }
 
-export async function TaxonomyIndexPage({
-  config,
-}: {
-  config: TaxonomyIndexConfig;
-}) {
+export async function TaxonomyIndexPage({ config }: { config: TaxonomyIndexConfig }) {
   const site = await getCurrentSite();
   const categories = await listCategoriesByTaxonomy(site.id, config.taxonomyType);
 
@@ -61,12 +57,7 @@ export async function TaxonomyIndexPage({
     <div className="mx-auto max-w-6xl px-4 py-8">
       <JsonLd data={breadcrumbs} />
 
-      <Breadcrumbs
-        items={[
-          { label: site.name, href: "/" },
-          { label: config.label },
-        ]}
-      />
+      <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: config.label }]} />
 
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-bold">{config.label}</h1>
@@ -84,18 +75,14 @@ export async function TaxonomyIndexPage({
               <h2 className="mb-2 text-lg font-semibold text-gray-900 group-hover:text-blue-600">
                 {cat.name}
               </h2>
-              {cat.description && (
-                <p className="text-sm text-gray-500">{cat.description}</p>
-              )}
+              {cat.description && <p className="text-sm text-gray-500">{cat.description}</p>}
             </Link>
           ))}
         </div>
       ) : (
-        <div className="py-16 text-center text-gray-400">
+        <div className="py-16 text-center text-gray-500">
           <p className="text-lg">
-            {site.language === "ar"
-              ? "لا توجد تصنيفات بعد"
-              : "No categories yet"}
+            {site.language === "ar" ? "لا توجد تصنيفات بعد" : "No categories yet"}
           </p>
         </div>
       )}
