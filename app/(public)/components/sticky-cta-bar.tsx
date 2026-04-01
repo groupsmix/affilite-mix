@@ -60,13 +60,15 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-all">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-all">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-gray-900">{product.name}</p>
           <div className="flex items-center gap-2 text-sm">
             {product.price && (
-              <span className="font-bold" style={{ color: "var(--color-accent, #10B981)" }}>{product.price}</span>
+              <span className="font-bold" style={{ color: "var(--color-accent, #10B981)" }}>
+                {product.price}
+              </span>
             )}
             {product.score !== null && (
               <GiftWorthinessScore score={product.score} size="sm" showLabel={false} />

@@ -73,12 +73,14 @@ export function MinimalHomepage({
                 <Link
                   key={cat.id}
                   href={`/category/${cat.slug}`}
-                  aria-label={`Browse ${cat.name} category`}
+                  aria-label={
+                    site.language === "ar" ? `تصفح فئة ${cat.name}` : `Browse ${cat.name} category`
+                  }
                   className={`rounded-full border px-5 py-2.5 text-sm font-medium transition-all duration-200 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 ${i === 0 ? "border-gray-400 bg-gray-50 text-gray-900" : "border-gray-200 text-gray-700 hover:border-gray-300"}`}
                 >
                   {cat.name}
                   {cat.product_count > 0 && (
-                    <span className="ml-1.5 text-xs text-gray-500">({cat.product_count})</span>
+                    <span className="ms-1.5 text-xs text-gray-500">({cat.product_count})</span>
                   )}
                 </Link>
               ))}

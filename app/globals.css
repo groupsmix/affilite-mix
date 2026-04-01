@@ -28,3 +28,39 @@ h5,
 h6 {
   font-family: var(--font-heading);
 }
+
+/* Print styles — hide non-essential UI, show content at full width */
+@media print {
+  header,
+  footer,
+  nav,
+  [role="dialog"],
+  [role="progressbar"],
+  .fixed {
+    display: none !important;
+  }
+
+  body {
+    font-size: 12pt;
+    color: #000;
+    background: #fff;
+  }
+
+  main {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+
+  a[href^="#"]::after,
+  a[href^="javascript:"]::after {
+    content: "";
+  }
+}

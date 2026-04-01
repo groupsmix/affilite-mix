@@ -6,6 +6,8 @@ interface PaginationProps {
   pageSize: number;
   basePath: string;
   searchParams?: Record<string, string | string[] | undefined>;
+  /** Language code for i18n (defaults to "en") */
+  language?: string;
 }
 
 /**
@@ -74,7 +76,11 @@ export function Pagination({
   pageSize,
   basePath,
   searchParams,
+  language = "en",
 }: PaginationProps) {
+  const isAr = language === "ar";
+  const prevLabel = isAr ? "السابق" : "Previous";
+  const nextLabel = isAr ? "التالي" : "Next";
   const totalPages = Math.ceil(totalItems / pageSize);
   if (totalPages <= 1) return null;
 
@@ -87,7 +93,7 @@ export function Pagination({
           href={buildPageUrl(basePath, currentPage - 1, searchParams)}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
         >
-          Previous
+          {prevLabel}
         </Link>
       )}
       {pageNumbers.map((item) => {
@@ -118,7 +124,7 @@ export function Pagination({
           href={buildPageUrl(basePath, currentPage + 1, searchParams)}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
         >
-          Next
+          {nextLabel}
         </Link>
       )}
     </nav>

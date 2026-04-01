@@ -74,7 +74,7 @@ export async function generateMetadata({
   const metaTitle = content.meta_title || content.title;
   const metaDesc = content.meta_description || content.excerpt || "";
   const ogImageUrl = content.og_image || content.featured_image || undefined;
-  const ogImages = ogImageUrl ? [{ url: ogImageUrl }] : undefined;
+  const ogImages = ogImageUrl ? [{ url: ogImageUrl, width: 1200, height: 630 }] : undefined;
 
   return {
     title: `${metaTitle} — ${site.name}`,
