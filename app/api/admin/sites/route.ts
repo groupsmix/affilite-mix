@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { allSites } from "@/config/sites";
-import {
-  listSites,
-  createSite,
-  updateSite,
-  deleteSite,
-} from "@/lib/dal/sites";
+import { listSites, createSite, updateSite, deleteSite } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -38,12 +34,22 @@ export async function GET() {
 
   // Try DB first — returns full SiteRow data with all fields
   let dbSites: {
-    id: string; slug: string; name: string; domain: string;
-    language: string; direction: string; is_active: boolean;
-    monetization_type: string; est_revenue_per_click: number;
-    theme: Record<string, unknown>; features: Record<string, boolean>;
-    meta_title: string | null; meta_description: string | null;
-    source: "database"; db_id: string; created_at: string;
+    id: string;
+    slug: string;
+    name: string;
+    domain: string;
+    language: string;
+    direction: string;
+    is_active: boolean;
+    monetization_type: string;
+    est_revenue_per_click: number;
+    theme: Record<string, unknown>;
+    features: Record<string, boolean>;
+    meta_title: string | null;
+    meta_description: string | null;
+    source: "database";
+    db_id: string;
+    created_at: string;
   }[] = [];
   try {
     const rows = await listSites();
@@ -80,10 +86,7 @@ export async function GET() {
   }));
 
   const dbSlugs = new Set(dbSites.map((s) => s.id));
-  const mergedSites = [
-    ...dbSites,
-    ...configSites.filter((s) => !dbSlugs.has(s.id)),
-  ];
+  const mergedSites = [...dbSites, ...configSites.filter((s) => !dbSlugs.has(s.id))];
 
   return NextResponse.json({ sites: mergedSites });
 }
@@ -102,7 +105,9 @@ export async function POST(request: NextRequest) {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
-  const body = await request.json();
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const body = bodyOrError;
   const { slug, name, domain } = body as {
     slug?: string;
     name?: string;
@@ -110,10 +115,7 @@ export async function POST(request: NextRequest) {
   };
 
   if (!slug || !name || !domain) {
-    return NextResponse.json(
-      { error: "slug, name, and domain are required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "slug, name, and domain are required" }, { status: 400 });
   }
 
   if (!/^[a-z0-9-]+$/.test(slug)) {
@@ -128,23 +130,23 @@ export async function POST(request: NextRequest) {
       slug,
       name,
       domain,
-      language: body.language,
-      direction: body.direction,
-      is_active: body.is_active,
-      monetization_type: body.monetization_type,
-      est_revenue_per_click: body.est_revenue_per_click,
-      ad_config: body.ad_config,
-      theme: body.theme,
-      logo_url: body.logo_url,
-      favicon_url: body.favicon_url,
-      nav_items: body.nav_items,
-      footer_nav: body.footer_nav,
-      features: body.features,
-      meta_title: body.meta_title,
-      meta_description: body.meta_description,
-      og_image_url: body.og_image_url,
-      social_links: body.social_links,
-      custom_css: body.custom_css,
+      language: body.language as string | undefined,
+      direction: body.direction as "ltr" | "rtl" | undefined,
+      is_active: body.is_active as boolean | undefined,
+      monetization_type: body.monetization_type as "affiliate" | "ads" | "both" | undefined,
+      est_revenue_per_click: body.est_revenue_per_click as number | undefined,
+      ad_config: body.ad_config as Record<string, unknown> | undefined,
+      theme: body.theme as Record<string, unknown> | undefined,
+      logo_url: body.logo_url as string | null | undefined,
+      favicon_url: body.favicon_url as string | null | undefined,
+      nav_items: body.nav_items as { label: string; href: string; icon?: string }[] | undefined,
+      footer_nav: body.footer_nav as { label: string; href: string; icon?: string }[] | undefined,
+      features: body.features as Record<string, boolean> | undefined,
+      meta_title: body.meta_title as string | null | undefined,
+      meta_description: body.meta_description as string | null | undefined,
+      og_image_url: body.og_image_url as string | null | undefined,
+      social_links: body.social_links as Record<string, string> | undefined,
+      custom_css: body.custom_css as string | null | undefined,
     });
     recordAuditEvent({
       site_id: site.id,
@@ -159,7 +161,10 @@ export async function POST(request: NextRequest) {
     captureException(err, { context: "[api/admin/sites] POST create failed:" });
     const message = err instanceof Error ? err.message : "Failed to create site";
     if (message.includes("duplicate") || message.includes("unique")) {
-      return NextResponse.json({ error: "A site with this slug or domain already exists" }, { status: 409 });
+      return NextResponse.json(
+        { error: "A site with this slug or domain already exists" },
+        { status: 409 },
+      );
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -179,7 +184,9 @@ export async function PATCH(request: NextRequest) {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
-  const body = await request.json();
+  const patchBodyOrError = await parseJsonBody(request);
+  if (patchBodyOrError instanceof NextResponse) return patchBodyOrError;
+  const body = patchBodyOrError;
   const { id } = body as { id?: string };
 
   if (!id) {
@@ -188,13 +195,25 @@ export async function PATCH(request: NextRequest) {
 
   // Build updates from all allowed fields
   const allowedFields = [
-    "name", "domain", "language", "direction", "is_active",
-    "monetization_type", "est_revenue_per_click", "ad_config",
-    "theme", "logo_url", "favicon_url",
-    "nav_items", "footer_nav",
+    "name",
+    "domain",
+    "language",
+    "direction",
+    "is_active",
+    "monetization_type",
+    "est_revenue_per_click",
+    "ad_config",
+    "theme",
+    "logo_url",
+    "favicon_url",
+    "nav_items",
+    "footer_nav",
     "features",
-    "meta_title", "meta_description", "og_image_url",
-    "social_links", "custom_css",
+    "meta_title",
+    "meta_description",
+    "og_image_url",
+    "social_links",
+    "custom_css",
   ] as const;
 
   const updates: Record<string, unknown> = {};

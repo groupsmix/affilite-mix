@@ -5,11 +5,16 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
-import { apiError, rateLimitHeaders } from "@/lib/api-error";
+import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 
 /** Build a branded HTML email for newsletter confirmation */
-function buildConfirmationEmail(siteName: string, confirmUrl: string, domain: string, accentColor: string): string {
+function buildConfirmationEmail(
+  siteName: string,
+  confirmUrl: string,
+  domain: string,
+  accentColor: string,
+): string {
   const year = new Date().getFullYear();
   return `<!DOCTYPE html>
 <html lang="en">
@@ -58,15 +63,19 @@ export async function POST(request: Request) {
       });
     }
 
-    const body = await request.json();
+    const bodyOrError = await parseJsonBody(request);
+    if (bodyOrError instanceof NextResponse) return bodyOrError;
 
     // Verify Turnstile token (skipped in dev if not configured)
-    const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
+    const turnstileResult = await verifyTurnstile(
+      bodyOrError.turnstileToken as string | undefined,
+      ip,
+    );
     if (!turnstileResult.success) {
       return apiError(403, turnstileResult.error ?? "Captcha verification failed");
     }
 
-    const email = normalizeEmail(body.email ?? "");
+    const email = normalizeEmail((bodyOrError.email as string) ?? "");
 
     if (!email || !isValidEmail(email)) {
       return apiError(400, "Valid email is required");
@@ -101,19 +110,19 @@ export async function POST(request: Request) {
         .eq("id", existing.id);
 
       if (updateError) {
-        captureException(updateError, { context: "[api/newsletter] Failed to update subscriber for re-confirmation:" });
+        captureException(updateError, {
+          context: "[api/newsletter] Failed to update subscriber for re-confirmation:",
+        });
         return apiError(500, "Failed to subscribe");
       }
     } else {
       // Insert new subscriber with pending status
-      const { error: insertError } = await sb
-        .from("newsletter_subscribers")
-        .insert({
-          site_id: site.id,
-          email,
-          status: "pending",
-          confirmation_token: confirmationToken,
-        });
+      const { error: insertError } = await sb.from("newsletter_subscribers").insert({
+        site_id: site.id,
+        email,
+        status: "pending",
+        confirmation_token: confirmationToken,
+      });
 
       if (insertError) {
         captureException(insertError, { context: "[api/newsletter] Failed to insert subscriber:" });
@@ -138,13 +147,20 @@ export async function POST(request: Request) {
           from: fromEmail,
           to: [email],
           subject: `Confirm your subscription to ${site.name}`,
-          html: buildConfirmationEmail(site.name, confirmUrl, site.domain, site.theme?.accentColor ?? "#10B981"),
+          html: buildConfirmationEmail(
+            site.name,
+            confirmUrl,
+            site.domain,
+            site.theme?.accentColor ?? "#10B981",
+          ),
           text: `Thanks for subscribing to ${site.name}!\n\nPlease confirm your email by visiting the link below:\n${confirmUrl}\n\nIf you did not sign up, you can safely ignore this email.\n\n© ${new Date().getFullYear()} ${site.name} — ${site.domain}`,
         }),
       });
       if (!res.ok) {
         const errBody = await res.text();
-        captureException(new Error(errBody), { context: "[api/newsletter] Failed to send confirmation email via Resend" });
+        captureException(new Error(errBody), {
+          context: "[api/newsletter] Failed to send confirmation email via Resend",
+        });
         // Don't fail the request — subscriber is saved, they can retry
       }
     } else {

@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
-import {
-  listContent,
-  createContent,
-  updateContent,
-  deleteContent,
-} from "@/lib/dal/content";
+import { listContent, createContent, updateContent, deleteContent } from "@/lib/dal/content";
 import { validateCreateContent, validateUpdateContent } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import { getSiteById } from "@/config/sites";
 import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -24,7 +20,12 @@ export async function GET(request: NextRequest) {
       siteId: dbSiteId,
       contentType: searchParams.get("content_type") ?? undefined,
       status:
-        (searchParams.get("status") as "draft" | "review" | "published" | "scheduled" | "archived") ?? undefined,
+        (searchParams.get("status") as
+          | "draft"
+          | "review"
+          | "published"
+          | "scheduled"
+          | "archived") ?? undefined,
       categoryId: searchParams.get("category_id") ?? undefined,
       limit: searchParams.get("limit") ? Number(searchParams.get("limit")) : undefined,
       offset: searchParams.get("offset") ? Number(searchParams.get("offset")) : undefined,
@@ -41,10 +42,14 @@ export async function POST(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const raw = await request.json();
-  const parsed = validateCreateContent(raw);
+  const rawOrError = await parseJsonBody(request);
+  if (rawOrError instanceof NextResponse) return rawOrError;
+  const parsed = validateCreateContent(rawOrError);
   if (parsed.errors) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.errors },
+      { status: 400 },
+    );
   }
 
   const data = parsed.data;
@@ -98,10 +103,14 @@ export async function PATCH(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
-  const raw = await request.json();
-  const parsed = validateUpdateContent(raw);
+  const rawOrError = await parseJsonBody(request);
+  if (rawOrError instanceof NextResponse) return rawOrError;
+  const parsed = validateUpdateContent(rawOrError);
   if (parsed.errors) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.errors }, { status: 400 });
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.errors },
+      { status: 400 },
+    );
   }
 
   const { id, ...updates } = parsed.data;
@@ -110,7 +119,11 @@ export async function PATCH(request: NextRequest) {
     updates.body = sanitizeHtml(updates.body);
   }
   try {
-    const content = await updateContent(dbSiteId, id, updates as Parameters<typeof updateContent>[2]);
+    const content = await updateContent(
+      dbSiteId,
+      id,
+      updates as Parameters<typeof updateContent>[2],
+    );
     revalidateTag("content");
     recordAuditEvent({
       site_id: dbSiteId,

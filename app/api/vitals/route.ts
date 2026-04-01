@@ -3,6 +3,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { parseJsonBody } from "@/lib/api-error";
 
 const VALID_METRIC_NAMES = new Set(["CLS", "FCP", "FID", "INP", "LCP", "TTFB"]);
 
@@ -28,7 +29,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const bodyOrError = await parseJsonBody(request);
+    if (bodyOrError instanceof NextResponse) return bodyOrError;
+    const body = bodyOrError;
 
     // Basic shape validation
     if (!body || typeof body.name !== "string" || typeof body.value !== "number") {

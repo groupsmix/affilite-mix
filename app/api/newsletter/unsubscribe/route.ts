@@ -3,6 +3,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
+import { parseJsonBody } from "@/lib/api-error";
 
 /** 10 unsubscribe requests per 15 minutes per IP */
 const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
@@ -67,9 +68,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const email = (body.email ?? "").trim().toLowerCase();
-    const siteId = body.site_id;
+    const bodyOrError = await parseJsonBody(request);
+    if (bodyOrError instanceof NextResponse) return bodyOrError;
+    const email = ((bodyOrError.email as string) ?? "").trim().toLowerCase();
+    const siteId = bodyOrError.site_id as string | undefined;
 
     if (!email || !siteId) {
       return NextResponse.json({ error: "email and site_id are required" }, { status: 400 });
