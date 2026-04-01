@@ -2,6 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { listPublishedContent, countPublishedContent } from "@/lib/dal/content";
 import { ContentCard } from "../components/content-card";
 import { Pagination } from "../components/pagination";
+import { PaginationHead } from "../components/pagination-head";
 import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { notFound } from "next/navigation";
@@ -83,6 +84,11 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <PaginationHead
+        currentPage={currentPage}
+        totalPages={Math.ceil(totalItems / PAGE_SIZE)}
+        basePath={`/${contentType}`}
+      />
       <JsonLd data={breadcrumbs} />
 
       <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: ct.label }]} />

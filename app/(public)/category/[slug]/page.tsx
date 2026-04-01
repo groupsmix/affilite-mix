@@ -5,6 +5,7 @@ import { listActiveProducts } from "@/lib/dal/products";
 import { ContentCard } from "../../components/content-card";
 import { ProductCard } from "../../components/product-card";
 import { Pagination } from "../../components/pagination";
+import { PaginationHead } from "../../components/pagination-head";
 import { Breadcrumbs } from "../../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../../components/json-ld";
 import { notFound } from "next/navigation";
@@ -91,6 +92,11 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <PaginationHead
+        currentPage={currentPage}
+        totalPages={Math.ceil(totalContent / PAGE_SIZE)}
+        basePath={`/category/${category.slug}`}
+      />
       <JsonLd data={breadcrumbs} />
 
       <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: category.name }]} />
