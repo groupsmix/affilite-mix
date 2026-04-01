@@ -11,16 +11,16 @@ import { Breadcrumbs } from "../../components/breadcrumbs";
 import dynamic from "next/dynamic";
 
 const ComparisonTable = dynamic(() =>
-  import("../../components/comparison-table").then((m) => m.ComparisonTable)
+  import("../../components/comparison-table").then((m) => m.ComparisonTable),
 );
 const StickyCtaBar = dynamic(() =>
-  import("../../components/sticky-cta-bar").then((m) => m.StickyCtaBar)
+  import("../../components/sticky-cta-bar").then((m) => m.StickyCtaBar),
 );
 const ReadingProgress = dynamic(() =>
-  import("../../components/reading-progress").then((m) => m.ReadingProgress)
+  import("../../components/reading-progress").then((m) => m.ReadingProgress),
 );
 const HeroProductCta = dynamic(() =>
-  import("../../components/hero-product-cta").then((m) => m.HeroProductCta)
+  import("../../components/hero-product-cta").then((m) => m.HeroProductCta),
 );
 import { ProsCons } from "../../components/pros-cons";
 import { GiftWorthinessScore } from "../../components/gift-worthiness-score";
@@ -152,7 +152,8 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   ]);
 
   // Build JSON-LD based on content type
-  const contentTypeLabel = site.contentTypes.find((ct) => ct.value === content.type)?.label ?? content.type;
+  const contentTypeLabel =
+    site.contentTypes.find((ct) => ct.value === content.type)?.label ?? content.type;
   const breadcrumbs = breadcrumbJsonLd(site, [
     { name: site.name, path: "/" },
     { name: contentTypeLabel, path: `/${content.type}` },
@@ -160,8 +161,8 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   ]);
 
   const isReview = content.type === "review";
-  const heroProduct = linkedProducts.find((lp) => lp.role === "hero")?.product
-    ?? linkedProducts[0]?.product;
+  const heroProduct =
+    linkedProducts.find((lp) => lp.role === "hero")?.product ?? linkedProducts[0]?.product;
 
   // Separate comparison products (vs-left / vs-right)
   const vsLeft = linkedProducts.filter((lp) => lp.role === "vs-left").map((lp) => lp.product);
@@ -207,20 +208,11 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
 
       {/* Header */}
       <header className="mb-8">
-        <div className="mb-2 text-sm text-gray-400">
-          {contentTypeLabel}
-        </div>
-        <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">
-          {content.title}
-        </h1>
-        {content.excerpt && (
-          <p className="text-lg text-gray-600">{content.excerpt}</p>
-        )}
+        <div className="mb-2 text-sm text-gray-500">{contentTypeLabel}</div>
+        <h1 className="mb-3 text-3xl font-bold leading-tight lg:text-4xl">{content.title}</h1>
+        {content.excerpt && <p className="text-lg text-gray-600">{content.excerpt}</p>}
         {content.updated_at && (
-          <time
-            dateTime={content.updated_at}
-            className="mt-2 block text-sm text-gray-400"
-          >
+          <time dateTime={content.updated_at} className="mt-2 block text-sm text-gray-500">
             {new Date(content.updated_at).toLocaleDateString(locale, {
               year: "numeric",
               month: "long",
@@ -238,9 +230,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
       )}
 
       {/* Hero product (for reviews) — uses consent-aware tracking */}
-      {isReview && heroProduct && (
-        <HeroProductCta product={heroProduct} language={site.language} />
-      )}
+      {isReview && heroProduct && <HeroProductCta product={heroProduct} language={site.language} />}
 
       {/* Comparison table */}
       {isComparison && comparisonProducts.length >= 2 && (
@@ -248,15 +238,24 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
       )}
 
       {/* Pros/Cons for review pages — uses structured data from product fields */}
-      {isReview && heroProduct && (heroProduct.pros || heroProduct.cons) && (() => {
-        const pros = heroProduct.pros
-          ? heroProduct.pros.split("\n").map((s) => s.trim()).filter(Boolean)
-          : [];
-        const cons = heroProduct.cons
-          ? heroProduct.cons.split("\n").map((s) => s.trim()).filter(Boolean)
-          : [];
-        return <ProsCons pros={pros} cons={cons} language={site.language} />;
-      })()}
+      {isReview &&
+        heroProduct &&
+        (heroProduct.pros || heroProduct.cons) &&
+        (() => {
+          const pros = heroProduct.pros
+            ? heroProduct.pros
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [];
+          const cons = heroProduct.cons
+            ? heroProduct.cons
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [];
+          return <ProsCons pros={pros} cons={cons} language={site.language} />;
+        })()}
 
       {/* Content body with auto-linked product mentions */}
       <div className="mb-10">
@@ -273,7 +272,9 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
       {linkedProducts.length > 0 && (
         <section className="mt-10 border-t border-gray-200 pt-8">
           <h2 className="mb-6 text-2xl font-bold">
-            {site.language === "ar" ? `${site.productLabelPlural} المرتبطة` : `Related ${site.productLabelPlural}`}
+            {site.language === "ar"
+              ? `${site.productLabelPlural} المرتبطة`
+              : `Related ${site.productLabelPlural}`}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {linkedProducts.map((link) => (
@@ -303,9 +304,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
       )}
 
       {/* Sticky CTA bar */}
-      {heroProduct && heroProduct.affiliate_url && (
-        <StickyCtaBar product={heroProduct} />
-      )}
+      {heroProduct && heroProduct.affiliate_url && <StickyCtaBar product={heroProduct} />}
     </article>
   );
 }

@@ -61,14 +61,14 @@ export async function MultiNicheOverview() {
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Total Sites</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{sites.length}</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-gray-500">
             {sites.filter((s) => s.is_active).length} active
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Total Clicks (7d)</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{totalClicks7d.toLocaleString()}</p>
-          <p className="mt-1 text-xs text-gray-400">{totalClicksToday.toLocaleString()} today</p>
+          <p className="mt-1 text-xs text-gray-500">{totalClicksToday.toLocaleString()} today</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <p className="text-sm text-gray-500">Total Products</p>
@@ -92,7 +92,7 @@ export async function MultiNicheOverview() {
                 >
                   {niche.name}
                 </Link>
-                <p className="text-xs text-gray-400">{niche.slug}</p>
+                <p className="text-xs text-gray-500">{niche.slug}</p>
               </div>
               <span
                 className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -147,7 +147,7 @@ export async function MultiNicheOverview() {
                   >
                     {niche.name}
                   </Link>
-                  <p className="text-xs text-gray-400">{niche.slug}</p>
+                  <p className="text-xs text-gray-500">{niche.slug}</p>
                 </td>
                 <td className="px-4 py-3 text-end font-medium text-gray-900">
                   {niche.clicks7d.toLocaleString()}

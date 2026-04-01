@@ -111,270 +111,384 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
       <fieldset disabled={saving} className={`space-y-4 ${saving ? "opacity-60" : ""}`}>
-      {error && (
-        <div role="alert" aria-live="polite" className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (!isEdit) setSlug(autoSlug(e.target.value));
-              markDirty();
-            }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Slug</label>
-          <input
-            type="text"
-            value={slug}
-            onChange={(e) => { setSlug(e.target.value); markDirty(); }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-            required
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
-        <textarea
-          value={description}
-          onChange={(e) => { setDescription(e.target.value); markDirty(); }}
-          rows={3}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Affiliate URL</label>
-          <input
-            type="url"
-            value={affiliateUrl}
-            onChange={(e) => { setAffiliateUrl(e.target.value); markDirty(); }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Merchant</label>
-          <input
-            type="text"
-            value={merchant}
-            onChange={(e) => { setMerchant(e.target.value); markDirty(); }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <ImageUploader
-        value={imageUrl}
-        onChange={setImageUrl}
-        label="Product Image"
-      />
-
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Image Alt Text</label>
-        <input
-          type="text"
-          value={imageAlt}
-          onChange={(e) => { setImageAlt(e.target.value); markDirty(); }}
-          placeholder="Describe the product image for screen readers"
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-        <p className="mt-1 text-xs text-gray-400">Describe the product image for screen readers and SEO.</p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Price (display)</label>
-          <input
-            type="text"
-            value={price}
-            onChange={(e) => { setPrice(e.target.value); markDirty(); }}
-            placeholder="e.g. $29.99"
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Price Amount</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={priceAmount}
-            onChange={(e) => { setPriceAmount(e.target.value); markDirty(); }}
-            placeholder="29.99"
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Currency</label>
-          <select
-            value={priceCurrency}
-            onChange={(e) => { setPriceCurrency(e.target.value); markDirty(); }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        {error && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="rounded bg-red-50 p-3 text-sm text-red-600"
           >
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-            <option value="GBP">GBP</option>
-            <option value="SAR">SAR</option>
-            <option value="AED">AED</option>
-            <option value="EGP">EGP</option>
-          </select>
-        </div>
-      </div>
+            {error}
+          </div>
+        )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Score (0–10)</label>
-          <input
-            type="number"
-            min="0"
-            max="10"
-            step="0.1"
-            value={score}
-            onChange={(e) => { setScore(e.target.value); markDirty(); }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-        <div className="flex items-end pb-1">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="prod-name" className="mb-1 block text-sm font-medium text-gray-700">
+              Name
+            </label>
             <input
-              type="checkbox"
-              checked={isFeatured}
-              onChange={(e) => { setIsFeatured(e.target.checked); markDirty(); }}
-              className="rounded border-gray-300"
+              id="prod-name"
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (!isEdit) setSlug(autoSlug(e.target.value));
+                markDirty();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              required
             />
-            Featured product
+          </div>
+
+          <div>
+            <label htmlFor="prod-slug" className="mb-1 block text-sm font-medium text-gray-700">
+              Slug
+            </label>
+            <input
+              id="prod-slug"
+              type="text"
+              value={slug}
+              onChange={(e) => {
+                setSlug(e.target.value);
+                markDirty();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="prod-desc" className="mb-1 block text-sm font-medium text-gray-700">
+            Description
           </label>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
-          <select
-            value={categoryId}
-            onChange={(e) => { setCategoryId(e.target.value); markDirty(); }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          >
-            <option value="">No category</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
-          <select
-            value={status}
-            onChange={(e) => { setStatus(e.target.value as ProductRow["status"]); markDirty(); }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          >
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
-            <option value="archived">Archived</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">CTA Text</label>
-          <input
-            type="text"
-            value={ctaText}
-            onChange={(e) => { setCtaText(e.target.value); markDirty(); }}
-            placeholder="e.g. Get 50% Off"
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Deal Badge</label>
-          <input
-            type="text"
-            value={dealText}
-            onChange={(e) => { setDealText(e.target.value); markDirty(); }}
-            placeholder="e.g. 20% Off"
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Deal Expires (UTC)</label>
-          <input
-            type="datetime-local"
-            value={dealExpiresAt ? dealExpiresAt.slice(0, 16) : ""}
+          <textarea
+            id="prod-desc"
+            value={description}
             onChange={(e) => {
-              if (!e.target.value) {
-                setDealExpiresAt("");
-              } else {
-                // Treat the input value as UTC directly (not local timezone)
-                setDealExpiresAt(e.target.value + ":00.000Z");
-              }
+              setDescription(e.target.value);
               markDirty();
             }}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-          {dealExpiresAt && (
-            <p className="mt-1 text-xs text-gray-500">
-              Expires at: {new Date(dealExpiresAt).toUTCString()}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Pros (one per line)</label>
-          <textarea
-            value={pros}
-            onChange={(e) => { setPros(e.target.value); markDirty(); }}
             rows={3}
-            placeholder={"Great battery life\nExcellent display\nAffordable price"}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Cons (one per line)</label>
-          <textarea
-            value={cons}
-            onChange={(e) => { setCons(e.target.value); markDirty(); }}
-            rows={3}
-            placeholder={"No wireless charging\nBulky design"}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-      </div>
 
-      <div className="flex gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-        >
-          {saving ? "Saving..." : isEdit ? "Update" : "Create"}
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push("/admin/products")}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Cancel
-        </button>
-      </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label
+              htmlFor="prod-affiliate-url"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Affiliate URL
+            </label>
+            <input
+              id="prod-affiliate-url"
+              type="url"
+              value={affiliateUrl}
+              onChange={(e) => {
+                setAffiliateUrl(e.target.value);
+                markDirty();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="prod-merchant" className="mb-1 block text-sm font-medium text-gray-700">
+              Merchant
+            </label>
+            <input
+              id="prod-merchant"
+              type="text"
+              value={merchant}
+              onChange={(e) => {
+                setMerchant(e.target.value);
+                markDirty();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <ImageUploader value={imageUrl} onChange={setImageUrl} label="Product Image" />
+
+        <div>
+          <label htmlFor="prod-image-alt" className="mb-1 block text-sm font-medium text-gray-700">
+            Image Alt Text
+          </label>
+          <input
+            id="prod-image-alt"
+            type="text"
+            value={imageAlt}
+            onChange={(e) => {
+              setImageAlt(e.target.value);
+              markDirty();
+            }}
+            placeholder="Describe the product image for screen readers"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Describe the product image for screen readers and SEO.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label htmlFor="prod-price" className="mb-1 block text-sm font-medium text-gray-700">
+              Price (display)
+            </label>
+            <input
+              id="prod-price"
+              type="text"
+              value={price}
+              onChange={(e) => {
+                setPrice(e.target.value);
+                markDirty();
+              }}
+              placeholder="e.g. $29.99"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="prod-price-amount"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Price Amount
+            </label>
+            <input
+              id="prod-price-amount"
+              type="number"
+              step="0.01"
+              min="0"
+              value={priceAmount}
+              onChange={(e) => {
+                setPriceAmount(e.target.value);
+                markDirty();
+              }}
+              placeholder="29.99"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="prod-currency" className="mb-1 block text-sm font-medium text-gray-700">
+              Currency
+            </label>
+            <select
+              id="prod-currency"
+              value={priceCurrency}
+              onChange={(e) => {
+                setPriceCurrency(e.target.value);
+                markDirty();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="SAR">SAR</option>
+              <option value="AED">AED</option>
+              <option value="EGP">EGP</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="prod-score" className="mb-1 block text-sm font-medium text-gray-700">
+              Score (0–10)
+            </label>
+            <input
+              id="prod-score"
+              type="number"
+              min="0"
+              max="10"
+              step="0.1"
+              value={score}
+              onChange={(e) => {
+                setScore(e.target.value);
+                markDirty();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex items-end pb-1">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={isFeatured}
+                onChange={(e) => {
+                  setIsFeatured(e.target.checked);
+                  markDirty();
+                }}
+                className="rounded border-gray-300"
+              />
+              Featured product
+            </label>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="prod-category" className="mb-1 block text-sm font-medium text-gray-700">
+              Category
+            </label>
+            <select
+              id="prod-category"
+              value={categoryId}
+              onChange={(e) => {
+                setCategoryId(e.target.value);
+                markDirty();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">No category</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="prod-status" className="mb-1 block text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <select
+              id="prod-status"
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value as ProductRow["status"]);
+                markDirty();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label htmlFor="prod-cta" className="mb-1 block text-sm font-medium text-gray-700">
+              CTA Text
+            </label>
+            <input
+              id="prod-cta"
+              type="text"
+              value={ctaText}
+              onChange={(e) => {
+                setCtaText(e.target.value);
+                markDirty();
+              }}
+              placeholder="e.g. Get 50% Off"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="prod-deal" className="mb-1 block text-sm font-medium text-gray-700">
+              Deal Badge
+            </label>
+            <input
+              id="prod-deal"
+              type="text"
+              value={dealText}
+              onChange={(e) => {
+                setDealText(e.target.value);
+                markDirty();
+              }}
+              placeholder="e.g. 20% Off"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="prod-deal-expires"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Deal Expires (UTC)
+            </label>
+            <input
+              id="prod-deal-expires"
+              type="datetime-local"
+              value={dealExpiresAt ? dealExpiresAt.slice(0, 16) : ""}
+              onChange={(e) => {
+                if (!e.target.value) {
+                  setDealExpiresAt("");
+                } else {
+                  // Treat the input value as UTC directly (not local timezone)
+                  setDealExpiresAt(e.target.value + ":00.000Z");
+                }
+                markDirty();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            {dealExpiresAt && (
+              <p className="mt-1 text-xs text-gray-500">
+                Expires at: {new Date(dealExpiresAt).toUTCString()}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="prod-pros" className="mb-1 block text-sm font-medium text-gray-700">
+              Pros (one per line)
+            </label>
+            <textarea
+              id="prod-pros"
+              value={pros}
+              onChange={(e) => {
+                setPros(e.target.value);
+                markDirty();
+              }}
+              rows={3}
+              placeholder={"Great battery life\nExcellent display\nAffordable price"}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="prod-cons" className="mb-1 block text-sm font-medium text-gray-700">
+              Cons (one per line)
+            </label>
+            <textarea
+              id="prod-cons"
+              value={cons}
+              onChange={(e) => {
+                setCons(e.target.value);
+                markDirty();
+              }}
+              rows={3}
+              placeholder={"No wireless charging\nBulky design"}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : isEdit ? "Update" : "Create"}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/admin/products")}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        </div>
       </fieldset>
     </form>
   );

@@ -121,9 +121,7 @@ export async function TaxonomyPage({
 
       <header className="mb-8">
         <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
-        {category.description && (
-          <p className="text-gray-600">{category.description}</p>
-        )}
+        {category.description && <p className="text-gray-600">{category.description}</p>}
       </header>
 
       {/* Products */}
@@ -151,7 +149,7 @@ export async function TaxonomyPage({
           ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="py-16 text-center text-gray-400">
+        <div className="py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar"
               ? "لا يوجد محتوى في هذا التصنيف بعد"

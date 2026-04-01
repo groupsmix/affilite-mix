@@ -45,12 +45,10 @@ export function SiteCard({ site }: SiteCardProps) {
         <div className="flex-1">
           <h2 className="text-lg font-semibold text-gray-900">{site.name}</h2>
           <p className="mt-1 text-sm text-gray-500">{site.domain}</p>
-          <p className="mt-1 text-xs text-gray-400">{site.niche}</p>
+          <p className="mt-1 text-xs text-gray-500">{site.niche}</p>
         </div>
       </div>
-      {loading && (
-        <p className="mt-3 text-xs text-gray-400">Loading...</p>
-      )}
+      {loading && <p className="mt-3 text-xs text-gray-500">Loading...</p>}
     </button>
   );
 }

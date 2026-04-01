@@ -16,9 +16,7 @@ interface RichEditorProps {
 /** Convert a YouTube or Vimeo URL to an embeddable URL. */
 function toEmbedUrl(url: string): string | null {
   // YouTube: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
-  const ytMatch = url.match(
-    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/,
-  );
+  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
 
   // Vimeo: vimeo.com/ID
@@ -56,15 +54,20 @@ function UrlPopover({
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && url) { e.preventDefault(); onSubmit(url); }
+          if (e.key === "Enter" && url) {
+            e.preventDefault();
+            onSubmit(url);
+          }
           if (e.key === "Escape") onCancel();
         }}
         placeholder={placeholder}
-        className="w-56 rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+        className="w-56 rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
       />
       <button
         type="button"
-        onClick={() => { if (url) onSubmit(url); }}
+        onClick={() => {
+          if (url) onSubmit(url);
+        }}
         className="rounded bg-gray-800 px-2 py-1 text-xs font-medium text-white hover:bg-gray-700"
       >
         Add
@@ -89,9 +92,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 
   const btnClass = (active: boolean) =>
     `rounded px-2 py-1 text-xs font-medium transition-colors ${
-      active
-        ? "bg-gray-800 text-white"
-        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      active ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
     }`;
 
   return (
@@ -207,7 +208,10 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
       <div className="relative">
         <button
           type="button"
-          onClick={() => { setShowLinkPopover(!showLinkPopover); setShowImagePopover(false); }}
+          onClick={() => {
+            setShowLinkPopover(!showLinkPopover);
+            setShowImagePopover(false);
+          }}
           className={btnClass(editor.isActive("link"))}
           title="Add Link"
         >
@@ -238,7 +242,11 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
       <div className="relative">
         <button
           type="button"
-          onClick={() => { setShowImagePopover(!showImagePopover); setShowLinkPopover(false); setShowVideoPopover(false); }}
+          onClick={() => {
+            setShowImagePopover(!showImagePopover);
+            setShowLinkPopover(false);
+            setShowVideoPopover(false);
+          }}
           className={btnClass(false)}
           title="Insert Image"
         >
@@ -259,7 +267,11 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
       <div className="relative">
         <button
           type="button"
-          onClick={() => { setShowVideoPopover(!showVideoPopover); setShowLinkPopover(false); setShowImagePopover(false); }}
+          onClick={() => {
+            setShowVideoPopover(!showVideoPopover);
+            setShowLinkPopover(false);
+            setShowImagePopover(false);
+          }}
           className={btnClass(editor.isActive("youtube"))}
           title="Embed YouTube/Vimeo Video"
         >

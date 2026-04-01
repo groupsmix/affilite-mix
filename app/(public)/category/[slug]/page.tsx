@@ -20,9 +20,7 @@ interface CategoryPageProps {
   searchParams: Promise<{ page?: string }>;
 }
 
-export async function generateMetadata({
-  params,
-}: CategoryPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
   const category = await getCategoryBySlug(site.id, slug);
@@ -95,18 +93,11 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     <div className="mx-auto max-w-6xl px-4 py-8">
       <JsonLd data={breadcrumbs} />
 
-      <Breadcrumbs
-        items={[
-          { label: site.name, href: "/" },
-          { label: category.name },
-        ]}
-      />
+      <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: category.name }]} />
 
       <header className="mb-8">
         <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
-        {category.description && (
-          <p className="text-gray-600">{category.description}</p>
-        )}
+        {category.description && <p className="text-gray-600">{category.description}</p>}
       </header>
 
       {/* Products */}
@@ -134,7 +125,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="py-16 text-center text-gray-400">
+        <div className="py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar"
               ? "لا يوجد محتوى في هذا التصنيف بعد"

@@ -12,15 +12,12 @@ interface BreadcrumbsProps {
 export function Breadcrumbs({ items }: BreadcrumbsProps) {
   return (
     <nav aria-label="Breadcrumb" className="mb-6">
-      <ol className="flex flex-wrap items-center gap-1 text-sm text-gray-400">
+      <ol className="flex flex-wrap items-center gap-1 text-sm text-gray-500">
         {items.map((item, i) => (
           <li key={i} className="flex items-center gap-1">
             {i > 0 && <span className="mx-1">/</span>}
             {item.href && i < items.length - 1 ? (
-              <Link
-                href={item.href}
-                className="transition-colors hover:text-gray-700"
-              >
+              <Link href={item.href} className="transition-colors hover:text-gray-700">
                 {item.label}
               </Link>
             ) : (

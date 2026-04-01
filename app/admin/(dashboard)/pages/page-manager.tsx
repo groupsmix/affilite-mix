@@ -201,8 +201,11 @@ export function PageManager() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelCls}>Title</label>
+                <label htmlFor="page-title" className={labelCls}>
+                  Title
+                </label>
                 <input
+                  id="page-title"
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -212,8 +215,11 @@ export function PageManager() {
                 />
               </div>
               <div>
-                <label className={labelCls}>Slug</label>
+                <label htmlFor="page-slug" className={labelCls}>
+                  Slug
+                </label>
                 <input
+                  id="page-slug"
                   type="text"
                   value={form.slug}
                   onChange={(e) =>
@@ -229,20 +235,23 @@ export function PageManager() {
                   className={inputCls}
                   required
                 />
-                <p className="mt-1 text-xs text-gray-400">URL: /p/{form.slug || "slug"}</p>
+                <p className="mt-1 text-xs text-gray-500">URL: /p/{form.slug || "slug"}</p>
               </div>
             </div>
 
             <div>
-              <label className={labelCls}>Body (HTML)</label>
+              <label htmlFor="page-body" className={labelCls}>
+                Body (HTML)
+              </label>
               <textarea
+                id="page-body"
                 value={form.body}
                 onChange={(e) => setForm({ ...form, body: e.target.value })}
                 placeholder="<p>Page content goes here...</p>"
                 rows={12}
                 className={`${inputCls} font-mono text-xs`}
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-500">
                 Supports HTML. A rich text editor (TipTap) can be integrated for a better editing
                 experience.
               </p>
@@ -320,7 +329,7 @@ export function PageManager() {
                     type="button"
                     onClick={() => handleMoveUp(index)}
                     disabled={index === 0}
-                    className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    className="text-gray-500 hover:text-gray-600 disabled:opacity-30"
                     title="Move up"
                   >
                     <svg
@@ -340,7 +349,7 @@ export function PageManager() {
                     type="button"
                     onClick={() => handleMoveDown(index)}
                     disabled={index >= pages.length - 1}
-                    className="text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    className="text-gray-500 hover:text-gray-600 disabled:opacity-30"
                     title="Move down"
                   >
                     <svg

@@ -236,7 +236,9 @@ function SidebarContent({
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
-              <span className="shrink-0">{item.icon}</span>
+              <span className="shrink-0" aria-hidden="true">
+                {item.icon}
+              </span>
               {item.label}
             </Link>
           );

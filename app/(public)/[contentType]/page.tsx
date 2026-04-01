@@ -17,9 +17,7 @@ interface ContentTypePageProps {
   searchParams: Promise<{ page?: string }>;
 }
 
-export async function generateMetadata({
-  params,
-}: ContentTypePageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: ContentTypePageProps): Promise<Metadata> {
   const { contentType } = await params;
   const site = await getCurrentSite();
   const ct = site.contentTypes.find((c) => c.value === contentType);
@@ -56,7 +54,12 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
   const site = await getCurrentSite();
 
   // Prevent accessing admin or api routes through this catch-all
-  if (contentType === "admin" || contentType === "api" || contentType === "category" || contentType === "search") {
+  if (
+    contentType === "admin" ||
+    contentType === "api" ||
+    contentType === "category" ||
+    contentType === "search"
+  ) {
     notFound();
   }
 
@@ -82,12 +85,7 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
     <div className="mx-auto max-w-6xl px-4 py-8">
       <JsonLd data={breadcrumbs} />
 
-      <Breadcrumbs
-        items={[
-          { label: site.name, href: "/" },
-          { label: ct.label },
-        ]}
-      />
+      <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: ct.label }]} />
 
       <header className="mb-8">
         <h1 className="mb-2 text-3xl font-bold">
@@ -132,7 +130,7 @@ export default async function ContentTypePage({ params, searchParams }: ContentT
           />
         </>
       ) : (
-        <div className="py-16 text-center text-gray-400">
+        <div className="py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar"
               ? `لا يوجد ${ct.label} بعد`

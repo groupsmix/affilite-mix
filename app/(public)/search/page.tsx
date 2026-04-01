@@ -67,12 +67,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       />
 
       <header className="mb-8">
-        <h1 className="mb-4 text-3xl font-bold">
-          {site.language === "ar" ? "بحث" : "Search"}
-        </h1>
+        <h1 className="mb-4 text-3xl font-bold">{site.language === "ar" ? "بحث" : "Search"}</h1>
         <Suspense>
           <SearchInput
-            placeholder={site.language === "ar" ? "ابحث عن منتجات أو مقالات..." : "Search products or articles..."}
+            placeholder={
+              site.language === "ar"
+                ? "ابحث عن منتجات أو مقالات..."
+                : "Search products or articles..."
+            }
             buttonLabel={site.language === "ar" ? "بحث" : "Search"}
           />
         </Suspense>
@@ -80,7 +82,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
       {/* Rate limit message */}
       {rateLimited && (
-        <div className="py-16 text-center text-gray-400">
+        <div className="py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar"
               ? "أنت تبحث بسرعة كبيرة. يرجى الانتظار قليلاً والمحاولة مرة أخرى."
@@ -93,17 +95,17 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       {query.length >= 2 && !rateLimited && (
         <div className="sr-only" role="status" aria-live="polite">
           {hasResults
-            ? (site.language === "ar"
-                ? `تم العثور على ${productResults.length} منتجات و ${contentResults.length} محتوى`
-                : `Found ${productResults.length} products and ${contentResults.length} articles`)
-            : (site.language === "ar"
-                ? `لا توجد نتائج لـ "${query}"`
-                : `No results found for "${query}"`)}
+            ? site.language === "ar"
+              ? `تم العثور على ${productResults.length} منتجات و ${contentResults.length} محتوى`
+              : `Found ${productResults.length} products and ${contentResults.length} articles`
+            : site.language === "ar"
+              ? `لا توجد نتائج لـ "${query}"`
+              : `No results found for "${query}"`}
         </div>
       )}
 
       {query.length >= 2 && !hasResults && (
-        <div className="py-16 text-center text-gray-400">
+        <div className="py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar"
               ? `لا توجد نتائج لـ "${query}"`
@@ -113,7 +115,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       )}
 
       {query.length > 0 && query.length < 2 && (
-        <div className="py-16 text-center text-gray-400">
+        <div className="py-16 text-center text-gray-500">
           <p className="text-lg">
             {site.language === "ar"
               ? "يرجى إدخال حرفين على الأقل"
@@ -126,7 +128,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <section className="mb-12">
           <h2 className="mb-4 text-xl font-bold">
             {site.language === "ar" ? site.productLabelPlural : "Products"}
-            <span className="ms-2 text-sm font-normal text-gray-400">({productResults.length})</span>
+            <span className="ms-2 text-sm font-normal text-gray-500">
+              ({productResults.length})
+            </span>
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {productResults.map((product) => (
@@ -146,7 +150,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <section className="mb-12">
           <h2 className="mb-4 text-xl font-bold">
             {site.language === "ar" ? "محتوى" : "Content"}
-            <span className="ms-2 text-sm font-normal text-gray-400">({contentResults.length})</span>
+            <span className="ms-2 text-sm font-normal text-gray-500">
+              ({contentResults.length})
+            </span>
           </h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {contentResults.map((item) => (

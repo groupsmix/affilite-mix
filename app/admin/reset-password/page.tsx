@@ -131,7 +131,7 @@ export default function ResetPasswordPage() {
           {loading ? "Resetting..." : "Reset Password"}
         </button>
         <p className="mt-4 text-center">
-          <Link href="/admin/login" className="text-xs text-gray-400 hover:text-gray-600">
+          <Link href="/admin/login" className="text-xs text-gray-500 hover:text-gray-600">
             Back to Login
           </Link>
         </p>
