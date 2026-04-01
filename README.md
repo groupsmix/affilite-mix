@@ -11,7 +11,7 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 - **Affiliate click tracking** — logs outbound clicks with source attribution
 - **Newsletter signups** — per-site subscriber management with Turnstile captcha
 - **Scheduled jobs** — publish/archive content and products on a schedule
-- **SEO** — JSON-LD structured data, Open Graph, canonical URLs, sitemap, RSS feed
+- **SEO** — JSON-LD structured data, Open Graph, canonical URLs, sitemap
 - **Security** — CSRF protection, rate limiting, HTML sanitization, PBKDF2 password hashing, CSP headers
 
 ## Tech Stack
