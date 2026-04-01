@@ -52,6 +52,7 @@ export async function middleware(request: NextRequest) {
     try {
       const dbRes = await fetch(
         new URL(`/api/internal/resolve-site?domain=${encodeURIComponent(hostname)}`, request.url),
+        { headers: { "x-internal-token": "__affilite_internal__" } },
       );
       if (dbRes.ok) {
         const data = await dbRes.json();

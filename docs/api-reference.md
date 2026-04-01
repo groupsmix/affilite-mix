@@ -585,11 +585,14 @@ Delete an ad placement.
 
 **Response (200):** `{ "ok": true }`
 
-#### `GET /api/admin/ads/impressions`
+#### `POST /api/track/impression`
 
-Get ad impression analytics.
+Record an ad impression from the public site. This endpoint is intentionally unauthenticated (called from the sandboxed ad iframe).
 
-**Response (200):** Impression data
+> **Note:** The legacy endpoint `POST /api/admin/ads/impressions` is deprecated. Use this endpoint instead.
+
+**Body:** `{ "ad_placement_id": "uuid", "page_path": "/" }`  
+**Response (200):** `{ "ok": true }`
 
 ---
 
@@ -782,8 +785,8 @@ If no tags are provided, all cacheable tags are revalidated.
 
 Resolve a hostname to a site ID via database lookup. Used internally by the middleware for wildcard subdomain routing.
 
-**Auth:** None (internal only, excluded from middleware matching)  
-**Response (200):** `{ "siteId": "uuid", "isActive": true }`
+**Auth:** Internal header (`x-internal-token`) — prevents external domain enumeration  
+**Response (200):** `{ "siteId": "slug", "isActive": true }`
 
 ---
 

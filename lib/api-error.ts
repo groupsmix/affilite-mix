@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import type { RateLimitResult, RateLimitConfig } from "@/lib/rate-limit";
 
 /**
@@ -29,6 +29,20 @@ export function apiError(
  *   X-RateLimit-Remaining — requests remaining in the current window
  *   X-RateLimit-Reset     — Unix epoch (seconds) when the window resets
  */
+/**
+ * Safely parse the JSON body of a request.
+ * Returns the parsed body on success, or a 400 NextResponse on failure.
+ */
+export async function parseJsonBody(
+  request: NextRequest,
+): Promise<Record<string, unknown> | NextResponse> {
+  try {
+    return (await request.json()) as Record<string, unknown>;
+  } catch {
+    return apiError(400, "Invalid JSON body");
+  }
+}
+
 export function rateLimitHeaders(
   config: RateLimitConfig,
   result: RateLimitResult,
