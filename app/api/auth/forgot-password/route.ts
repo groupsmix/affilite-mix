@@ -4,7 +4,7 @@ import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getCurrentSite } from "@/lib/site-context";
-import { isValidEmail } from "@/lib/validation";
+import { isValidEmail } from "@/lib/validate-email";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 
