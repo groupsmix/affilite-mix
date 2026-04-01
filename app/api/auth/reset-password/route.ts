@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { hashPassword } from "@/lib/password";
+import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 
@@ -37,9 +38,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Reset token is required" }, { status: 400 });
     }
 
-    if (!password || password.length < 8) {
+    const policyResult = validatePasswordPolicy(password);
+    if (!policyResult.valid) {
+      return NextResponse.json({ error: policyResult.error }, { status: 400 });
+    }
+
+    const breachCount = await checkBreachedPassword(password);
+    if (breachCount > 0) {
       return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
+        {
+          error:
+            "This password has appeared in a known data breach. Please choose a different password.",
+        },
         { status: 400 },
       );
     }
@@ -55,17 +65,11 @@ export async function POST(request: Request) {
       .single();
 
     if (findError || !user) {
-      return NextResponse.json(
-        { error: "Invalid or expired reset token" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid or expired reset token" }, { status: 400 });
     }
 
     // Check token expiry
-    if (
-      user.reset_token_expires_at &&
-      new Date(user.reset_token_expires_at) < new Date()
-    ) {
+    if (user.reset_token_expires_at && new Date(user.reset_token_expires_at) < new Date()) {
       return NextResponse.json(
         { error: "Reset token has expired. Please request a new one." },
         { status: 400 },
@@ -84,7 +88,9 @@ export async function POST(request: Request) {
       .eq("id", user.id);
 
     if (updateError) {
-      captureException(updateError, { context: "[api/auth/reset-password] Failed to update password:" });
+      captureException(updateError, {
+        context: "[api/auth/reset-password] Failed to update password:",
+      });
       return NextResponse.json({ error: "Failed to reset password" }, { status: 500 });
     }
 

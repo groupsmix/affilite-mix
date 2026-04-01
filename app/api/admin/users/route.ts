@@ -7,6 +7,7 @@ import {
   deleteAdminUser,
 } from "@/lib/dal/admin-users";
 import { hashPassword } from "@/lib/password";
+import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 
@@ -42,10 +43,7 @@ export async function GET() {
     return NextResponse.json(safe);
   } catch (err) {
     captureException(err, { context: "Failed to list admin users:" });
-    return NextResponse.json(
-      { error: "Failed to list users" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to list users" }, { status: 500 });
   }
 }
 
@@ -73,15 +71,21 @@ export async function POST(request: NextRequest) {
   };
 
   if (!email || !password) {
-    return NextResponse.json(
-      { error: "email and password are required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "email and password are required" }, { status: 400 });
   }
 
-  if (password.length < 8) {
+  const policyResult = validatePasswordPolicy(password);
+  if (!policyResult.valid) {
+    return NextResponse.json({ error: policyResult.error }, { status: 400 });
+  }
+
+  const breachCount = await checkBreachedPassword(password);
+  if (breachCount > 0) {
     return NextResponse.json(
-      { error: "Password must be at least 8 characters" },
+      {
+        error:
+          "This password has appeared in a known data breach. Please choose a different password.",
+      },
       { status: 400 },
     );
   }
@@ -146,9 +150,17 @@ export async function PATCH(request: NextRequest) {
     if (role !== undefined) updates.role = role;
     if (is_active !== undefined) updates.is_active = is_active;
     if (password) {
-      if (password.length < 8) {
+      const policyCheck = validatePasswordPolicy(password);
+      if (!policyCheck.valid) {
+        return NextResponse.json({ error: policyCheck.error }, { status: 400 });
+      }
+      const breaches = await checkBreachedPassword(password);
+      if (breaches > 0) {
         return NextResponse.json(
-          { error: "Password must be at least 8 characters" },
+          {
+            error:
+              "This password has appeared in a known data breach. Please choose a different password.",
+          },
           { status: 400 },
         );
       }
@@ -160,10 +172,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(safe);
   } catch (err) {
     captureException(err, { context: "Failed to update admin user:" });
-    return NextResponse.json(
-      { error: "Failed to update user" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
 }
 
@@ -199,9 +208,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     captureException(err, { context: "Failed to delete admin user:" });
-    return NextResponse.json(
-      { error: "Failed to delete user" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
   }
 }
