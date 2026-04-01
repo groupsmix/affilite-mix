@@ -28,10 +28,7 @@ describe("recordAuditEvent", () => {
       entity_id: "content-456",
     };
 
-    recordAuditEvent(event);
-
-    // Give the fire-and-forget promise time to resolve
-    await new Promise((r) => setTimeout(r, 10));
+    await recordAuditEvent(event);
 
     expect(mockInsert).toHaveBeenCalledWith({
       site_id: "site-123",
@@ -57,8 +54,7 @@ describe("recordAuditEvent", () => {
       ip: "192.168.1.1",
     };
 
-    recordAuditEvent(event);
-    await new Promise((r) => setTimeout(r, 10));
+    await recordAuditEvent(event);
 
     expect(mockInsert).toHaveBeenCalledWith({
       site_id: "site-123",
@@ -71,7 +67,7 @@ describe("recordAuditEvent", () => {
     });
   });
 
-  it("logs error to console but does not throw on insert failure", async () => {
+  it("retries once on insert failure and logs errors", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockInsert.mockReturnValue(Promise.resolve({ error: { message: "DB connection failed" } }));
 
@@ -84,12 +80,47 @@ describe("recordAuditEvent", () => {
     };
 
     // Should not throw
-    expect(() => recordAuditEvent(event)).not.toThrow();
-    await new Promise((r) => setTimeout(r, 10));
+    await expect(recordAuditEvent(event)).resolves.toBeUndefined();
 
+    // Should have been called twice (initial + retry)
+    expect(mockInsert).toHaveBeenCalledTimes(2);
     expect(consoleSpy).toHaveBeenCalledWith(
-      "[audit-log] Failed to record event:",
+      "[audit-log] Insert failed, retrying once:",
       "DB connection failed",
+    );
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[audit-log] Retry also failed:",
+      "DB connection failed",
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it("succeeds on retry if first insert fails", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockInsert
+      .mockReturnValueOnce(Promise.resolve({ error: { message: "Transient error" } }))
+      .mockReturnValueOnce(Promise.resolve({ error: null }));
+
+    const event: AuditEvent = {
+      site_id: "site-123",
+      actor: "admin@example.com",
+      action: "update",
+      entity_type: "content",
+      entity_id: "c-1",
+    };
+
+    await recordAuditEvent(event);
+
+    expect(mockInsert).toHaveBeenCalledTimes(2);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[audit-log] Insert failed, retrying once:",
+      "Transient error",
+    );
+    // Should NOT have the retry-failed message
+    expect(consoleSpy).not.toHaveBeenCalledWith(
+      "[audit-log] Retry also failed:",
+      expect.any(String),
     );
 
     consoleSpy.mockRestore();
@@ -106,7 +137,7 @@ describe("recordAuditEvent", () => {
       entity_id: "c-1",
     };
 
-    expect(() => recordAuditEvent(event)).not.toThrow();
-    await new Promise((r) => setTimeout(r, 10));
+    await expect(recordAuditEvent(event)).resolves.toBeUndefined();
+    expect(mockInsert).toHaveBeenCalledTimes(1);
   });
 });
