@@ -4,14 +4,7 @@ import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getCurrentSite } from "@/lib/site-context";
 import { captureException } from "@/lib/sentry";
 
-/**
- * @deprecated This endpoint is intentionally unauthenticated (called from
- * the public sandboxed ad iframe) but its placement under /api/admin/ is
- * misleading. Use POST /api/track/impression instead.
- *
- * This handler is kept temporarily for backward compatibility and proxies
- * to the same logic. Remove once all clients have migrated.
- */
+/** POST /api/track/impression — record an ad impression from the public site */
 export async function POST(request: NextRequest) {
   try {
     const site = await getCurrentSite();
@@ -27,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    captureException(err, { context: "[api/admin/ads/impressions] POST failed:" });
+    captureException(err, { context: "[api/track/impression] POST failed:" });
     return NextResponse.json({ error: "Failed to record impression" }, { status: 500 });
   }
 }
