@@ -23,5 +23,9 @@ export const adminNavItems: AdminNavItem[] = [
   { href: "/admin/ads", label: "Ad Placements", iconKey: "ads" },
   { href: "/admin/users", label: "Users", iconKey: "users" },
   { href: "/admin/sites", label: "Sites", iconKey: "sites" },
+  { href: "/admin/platform/modules", label: "Modules", iconKey: "products" },
+  { href: "/admin/platform/integrations", label: "Integrations", iconKey: "sites" },
+  { href: "/admin/platform/permissions", label: "Permissions", iconKey: "users" },
+  { href: "/admin/platform/feature-flags", label: "Feature Flags", iconKey: "dashboard" },
   { href: "/admin/audit-log", label: "Audit Log", iconKey: "audit-log" },
 ];
