@@ -154,3 +154,126 @@ export interface AdImpressionRow {
   count: number;
   created_at: string;
 }
+
+// ── Module Registry ────────────────────────────────────────────────────
+
+export interface SiteModuleRow {
+  id: string;
+  site_id: string;
+  module_key: string;
+  is_enabled: boolean;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Site Feature Flags ─────────────────────────────────────────────────
+
+export interface SiteFeatureFlagRow {
+  id: string;
+  site_id: string;
+  flag_key: string;
+  is_enabled: boolean;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Roles & Permissions ────────────────────────────────────────────────
+
+export type RoleName =
+  | "owner"
+  | "super_admin"
+  | "admin"
+  | "editor"
+  | "author"
+  | "moderator"
+  | "seo_manager"
+  | "translator"
+  | "analyst";
+
+export interface RoleRow {
+  id: string;
+  name: RoleName;
+  label: string;
+  description: string;
+  is_system: boolean;
+  created_at: string;
+}
+
+export type PermissionFeature =
+  | "content"
+  | "products"
+  | "categories"
+  | "seo"
+  | "analytics"
+  | "integrations"
+  | "users"
+  | "settings"
+  | "themes"
+  | "modules"
+  | "scheduling"
+  | "publishing";
+
+export type PermissionAction =
+  | "view"
+  | "create"
+  | "edit"
+  | "publish"
+  | "delete"
+  | "manage"
+  | "approve"
+  | "configure";
+
+export interface PermissionRow {
+  id: string;
+  feature: PermissionFeature;
+  action: PermissionAction;
+  description: string;
+}
+
+export interface RolePermissionRow {
+  role_id: string;
+  permission_id: string;
+}
+
+export interface UserSiteRoleRow {
+  id: string;
+  user_id: string;
+  site_id: string;
+  role_id: string;
+  created_at: string;
+}
+
+// ── Integrations ───────────────────────────────────────────────────────
+
+export type IntegrationCategory =
+  | "affiliate_network"
+  | "analytics"
+  | "email"
+  | "storage"
+  | "bot_protection"
+  | "search"
+  | "cdn"
+  | "other";
+
+export interface IntegrationProviderRow {
+  id: string;
+  key: string;
+  name: string;
+  category: IntegrationCategory;
+  description: string;
+  config_schema: Record<string, unknown>;
+  is_builtin: boolean;
+  created_at: string;
+}
+
+export interface SiteIntegrationRow {
+  id: string;
+  site_id: string;
+  provider_key: string;
+  is_enabled: boolean;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}

@@ -760,6 +760,292 @@ export interface Database {
         Relationships: [];
       };
 
+      site_modules: {
+        Row: {
+          id: string;
+          site_id: string;
+          module_key: string;
+          is_enabled: boolean;
+          config: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          module_key: string;
+          is_enabled?: boolean;
+          config?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          module_key?: string;
+          is_enabled?: boolean;
+          config?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "site_modules_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      site_feature_flags: {
+        Row: {
+          id: string;
+          site_id: string;
+          flag_key: string;
+          is_enabled: boolean;
+          description: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          flag_key: string;
+          is_enabled?: boolean;
+          description?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          flag_key?: string;
+          is_enabled?: boolean;
+          description?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "site_feature_flags_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      roles: {
+        Row: {
+          id: string;
+          name: string;
+          label: string;
+          description: string;
+          is_system: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          label: string;
+          description?: string;
+          is_system?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          label?: string;
+          description?: string;
+          is_system?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+
+      permissions: {
+        Row: {
+          id: string;
+          feature: string;
+          action: string;
+          description: string;
+        };
+        Insert: {
+          id?: string;
+          feature: string;
+          action: string;
+          description?: string;
+        };
+        Update: {
+          id?: string;
+          feature?: string;
+          action?: string;
+          description?: string;
+        };
+        Relationships: [];
+      };
+
+      role_permissions: {
+        Row: {
+          role_id: string;
+          permission_id: string;
+        };
+        Insert: {
+          role_id: string;
+          permission_id: string;
+        };
+        Update: {
+          role_id?: string;
+          permission_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey";
+            columns: ["permission_id"];
+            isOneToOne: false;
+            referencedRelation: "permissions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      user_site_roles: {
+        Row: {
+          id: string;
+          user_id: string;
+          site_id: string;
+          role_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          site_id: string;
+          role_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          site_id?: string;
+          role_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_site_roles_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_site_roles_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_site_roles_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      integration_providers: {
+        Row: {
+          id: string;
+          key: string;
+          name: string;
+          category: string;
+          description: string;
+          config_schema: Record<string, unknown>;
+          is_builtin: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          name: string;
+          category: string;
+          description?: string;
+          config_schema?: Record<string, unknown>;
+          is_builtin?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          name?: string;
+          category?: string;
+          description?: string;
+          config_schema?: Record<string, unknown>;
+          is_builtin?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+
+      site_integrations: {
+        Row: {
+          id: string;
+          site_id: string;
+          provider_key: string;
+          is_enabled: boolean;
+          config: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          provider_key: string;
+          is_enabled?: boolean;
+          config?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          provider_key?: string;
+          is_enabled?: boolean;
+          config?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "site_integrations_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "site_integrations_provider_key_fkey";
+            columns: ["provider_key"];
+            isOneToOne: false;
+            referencedRelation: "integration_providers";
+            referencedColumns: ["key"];
+          },
+        ];
+      };
+
       niche_templates: {
         Row: {
           id: string;
