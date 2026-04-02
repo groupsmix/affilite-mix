@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface ResubscribeFormProps {
   siteId: string;
@@ -21,7 +22,7 @@ export function ResubscribeForm({ siteId, siteName, isAr }: ResubscribeFormProps
     setMessage("");
 
     try {
-      const res = await fetch("/api/newsletter", {
+      const res = await fetchWithCsrf("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), site_id: siteId }),
