@@ -22,9 +22,9 @@ import { generateCsrfToken, validateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "
 
 describe("middleware site resolution", () => {
   it("resolves a known production domain to its site", () => {
-    const site = allSites.find((s) => s.domain === "wristnerd.xyz");
+    const site = allSites.find((s) => s.domain === "wristnerd.site");
     expect(site).toBeDefined();
-    expect(getSiteByDomain("wristnerd.xyz")).toBe(site);
+    expect(getSiteByDomain("wristnerd.site")).toBe(site);
   });
 
   it("resolves all registered site domains", () => {
