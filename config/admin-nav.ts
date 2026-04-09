@@ -16,11 +16,13 @@ export interface AdminNavItem {
 export const adminNavItems: AdminNavItem[] = [
   { href: "/admin", label: "Dashboard", iconKey: "dashboard" },
   { href: "/admin/analytics", label: "Analytics", iconKey: "analytics" },
+  { href: "/admin/ai-content", label: "AI Content", iconKey: "content" },
   { href: "/admin/categories", label: "Categories", iconKey: "categories" },
   { href: "/admin/products", label: "Products", iconKey: "products" },
   { href: "/admin/content", label: "Content", iconKey: "content" },
   { href: "/admin/pages", label: "Pages", iconKey: "pages" },
   { href: "/admin/ads", label: "Ad Placements", iconKey: "ads" },
+  { href: "/admin/affiliate-networks", label: "Affiliate Networks", iconKey: "sites" },
   { href: "/admin/users", label: "Users", iconKey: "users" },
   { href: "/admin/sites", label: "Sites", iconKey: "sites" },
   { href: "/admin/platform/modules", label: "Modules", iconKey: "products" },
