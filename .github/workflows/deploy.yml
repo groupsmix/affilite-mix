@@ -28,8 +28,8 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Skip if no Cloudflare credentials are set
-    if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' || secrets.CLOUDFLARE_API_KEY != '' }}
+    # Always run on workflow_dispatch; on push, skip if no Cloudflare credentials are set
+    if: ${{ github.event_name == 'workflow_dispatch' || secrets.CLOUDFLARE_API_TOKEN != '' || secrets.CLOUDFLARE_API_KEY != '' }}
     permissions:
       contents: read
       deployments: write
