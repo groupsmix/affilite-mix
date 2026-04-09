@@ -2,7 +2,6 @@ import { ImageResponse } from "next/og";
 import { getCurrentSite } from "@/lib/site-context";
 import { getContentBySlug } from "@/lib/dal/content";
 
-export const runtime = "edge";
 export const alt = "Content preview";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -23,23 +22,21 @@ export default async function OgImage({
 
   if (!content) {
     return new ImageResponse(
-      (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "100%",
-            height: "100%",
-            backgroundColor: "#f9fafb",
-            color: "#1e293b",
-            fontSize: 48,
-            fontWeight: 700,
-          }}
-        >
-          Not Found
-        </div>
-      ),
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: "100%",
+          backgroundColor: "#f9fafb",
+          color: "#1e293b",
+          fontSize: 48,
+          fontWeight: 700,
+        }}
+      >
+        Not Found
+      </div>,
       { ...size },
     );
   }
@@ -50,107 +47,104 @@ export default async function OgImage({
   const primaryColor = site.theme.primaryColor || "#1E293B";
 
   const contentTypeLabel =
-    site.contentTypes.find((ct) => ct.value === content.type)?.label ??
-    content.type;
+    site.contentTypes.find((ct) => ct.value === content.type)?.label ?? content.type;
 
   return new ImageResponse(
-    (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        height: "100%",
+        backgroundColor: primaryColor,
+        padding: "60px",
+        fontFamily: "sans-serif",
+      }}
+    >
+      {/* Accent bar at top */}
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-          backgroundColor: primaryColor,
-          padding: "60px",
-          fontFamily: "sans-serif",
+          width: "120px",
+          height: "6px",
+          backgroundColor: accentColor,
+          borderRadius: "3px",
+          marginBottom: "32px",
+        }}
+      />
+
+      {/* Content type badge */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          marginBottom: "24px",
         }}
       >
-        {/* Accent bar at top */}
-        <div
+        <span
           style={{
-            display: "flex",
-            width: "120px",
-            height: "6px",
-            backgroundColor: accentColor,
-            borderRadius: "3px",
-            marginBottom: "32px",
-          }}
-        />
-
-        {/* Content type badge */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            marginBottom: "24px",
+            fontSize: "18px",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "2px",
+            color: accentColor,
           }}
         >
+          {contentTypeLabel}
+        </span>
+      </div>
+
+      {/* Title */}
+      <div
+        style={{
+          display: "flex",
+          flex: 1,
+          alignItems: "flex-start",
+        }}
+      >
+        <h1
+          style={{
+            fontSize: content.title.length > 60 ? "42px" : "56px",
+            fontWeight: 700,
+            color: "#ffffff",
+            lineHeight: 1.2,
+            margin: 0,
+            maxWidth: "900px",
+          }}
+        >
+          {content.title}
+        </h1>
+      </div>
+
+      {/* Footer with site name */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "24px",
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.6)",
+          }}
+        >
+          {site.name}
+        </span>
+        {content.author && (
           <span
             style={{
               fontSize: "18px",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "2px",
-              color: accentColor,
+              color: "rgba(255,255,255,0.4)",
             }}
           >
-            {contentTypeLabel}
+            by {content.author}
           </span>
-        </div>
-
-        {/* Title */}
-        <div
-          style={{
-            display: "flex",
-            flex: 1,
-            alignItems: "flex-start",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: content.title.length > 60 ? "42px" : "56px",
-              fontWeight: 700,
-              color: "#ffffff",
-              lineHeight: 1.2,
-              margin: 0,
-              maxWidth: "900px",
-            }}
-          >
-            {content.title}
-          </h1>
-        </div>
-
-        {/* Footer with site name */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "24px",
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.6)",
-            }}
-          >
-            {site.name}
-          </span>
-          {content.author && (
-            <span
-              style={{
-                fontSize: "18px",
-                color: "rgba(255,255,255,0.4)",
-              }}
-            >
-              by {content.author}
-            </span>
-          )}
-        </div>
+        )}
       </div>
-    ),
+    </div>,
     { ...size },
   );
 }
