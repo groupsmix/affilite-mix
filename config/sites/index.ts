@@ -1,12 +1,18 @@
 import type { SiteDefinition, FeatureFlags } from "../site-definition";
+import { aiComparedSite } from "./ai-compared";
 import { arabicToolsSite } from "./arabic-tools";
 import { cryptoToolsSite } from "./crypto-tools";
 import { watchToolsSite } from "./watch-tools";
 
-export { arabicToolsSite, cryptoToolsSite, watchToolsSite };
+export { aiComparedSite, arabicToolsSite, cryptoToolsSite, watchToolsSite };
 
 /** All registered sites. Add new sites here. */
-export const allSites: SiteDefinition[] = [arabicToolsSite, cryptoToolsSite, watchToolsSite];
+export const allSites: SiteDefinition[] = [
+  aiComparedSite,
+  arabicToolsSite,
+  cryptoToolsSite,
+  watchToolsSite,
+];
 
 /* ------------------------------------------------------------------ */
 /*  TS → DB row derivation (single source of truth)                    */

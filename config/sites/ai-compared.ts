@@ -1,18 +1,28 @@
 import { defineSite } from "../define-site";
 
-export const cryptoToolsSite = defineSite({
-  id: "crypto-tools",
-  name: "CryptoRanked",
-  domain: "cryptoranked.xyz",
-  aliases: ["crypto.localhost"],
-  niche: "Crypto Exchanges & Wallet Reviews",
+export const aiComparedSite = defineSite({
+  id: "ai-compared",
+  name: "AI Compared",
+  domain: "aicompared.site",
+  aliases: ["ai.localhost"],
+  niche: "AI Tools & Software Reviews",
   description:
-    "Compare crypto exchanges, wallets, and DeFi tools — honest reviews and affiliate deals.",
+    "In-depth reviews and comparisons of AI tools, platforms, and software — find the best AI for your workflow.",
 
-  colors: { primary: "#0F172A", accent: "#F59E0B", accentText: "#B45309" },
+  colors: { primary: "#2E1065", accent: "#8B5CF6", accentText: "#6D28D9" },
   fonts: "modern",
+  homepage: "minimal",
 
-  features: ["blog", "newsletter", "rssFeed", "search", "scheduling", "comparisons", "deals"],
+  features: [
+    "blog",
+    "newsletter",
+    "rssFeed",
+    "search",
+    "scheduling",
+    "comparisons",
+    "deals",
+    "cookieConsent",
+  ],
 
   contentDisclosure:
     "This page contains affiliate links. We may earn a commission if you sign up through our links.",
@@ -29,6 +39,7 @@ export const cryptoToolsSite = defineSite({
       { title: "Home", href: "/" },
       { title: "Reviews", href: "/review" },
       { title: "Comparisons", href: "/comparison" },
+      { title: "Guides", href: "/guide" },
     ],
     legal: [
       { title: "About", href: "/about" },
@@ -41,8 +52,8 @@ export const cryptoToolsSite = defineSite({
 
   pages: {
     about: {
-      title: "About CryptoRanked",
-      description: "Honest crypto exchange and wallet reviews you can trust",
+      title: "About AI Compared",
+      description: "Honest AI tool reviews and comparisons you can trust",
     },
     privacy: {
       title: "Privacy Policy",
@@ -54,8 +65,8 @@ export const cryptoToolsSite = defineSite({
     },
     contact: {
       title: "Contact Us",
-      description: "Get in touch with the CryptoRanked team",
-      email: "contact@cryptoranked.xyz",
+      description: "Get in touch with the AI Compared team",
+      email: "contact@aicompared.site",
     },
     affiliateDisclosurePage: {
       title: "Affiliate Disclosure",

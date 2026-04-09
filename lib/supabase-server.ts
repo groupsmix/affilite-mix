@@ -2,23 +2,33 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 
-const supabaseUrl = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL", "");
-const serviceRoleKey = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY", "");
-const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
+// Environment variables are resolved lazily (inside functions) so that
+// module evaluation during `next build` does not throw when the vars
+// are not yet available (e.g. Vercel preview builds).
 
-// Warn in production if the Supabase URL is not using the pooler endpoint.
-// Direct connections will exhaust PostgreSQL's connection limit on edge runtimes
-// (Cloudflare Workers) where each request opens a new connection.
-if (
-  process.env.NODE_ENV === "production" &&
-  supabaseUrl &&
-  !supabaseUrl.includes("pooler.supabase")
-) {
-  console.warn(
-    "NEXT_PUBLIC_SUPABASE_URL does not appear to use the Supabase connection pooler. " +
-      "In production on edge runtimes, use the pooler URL (e.g. https://xxx.pooler.supabase.com) " +
-      "to avoid exhausting PostgreSQL connection limits.",
-  );
+let poolerWarningEmitted = false;
+
+function getSupabaseUrl(): string {
+  const url = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL", "");
+
+  // Warn in production if the Supabase URL is not using the pooler endpoint.
+  // Direct connections will exhaust PostgreSQL's connection limit on edge runtimes
+  // (Cloudflare Workers) where each request opens a new connection.
+  if (
+    !poolerWarningEmitted &&
+    process.env.NODE_ENV === "production" &&
+    url &&
+    !url.includes("pooler.supabase")
+  ) {
+    poolerWarningEmitted = true;
+    console.warn(
+      "NEXT_PUBLIC_SUPABASE_URL does not appear to use the Supabase connection pooler. " +
+        "In production on edge runtimes, use the pooler URL (e.g. https://xxx.pooler.supabase.com) " +
+        "to avoid exhausting PostgreSQL connection limits.",
+    );
+  }
+
+  return url;
 }
 
 /**
@@ -32,7 +42,10 @@ if (
  * to avoid stale connections or memory leaks in edge runtimes.
  */
 export function getServiceClient(): SupabaseClient<Database> {
-  return createClient<Database>(supabaseUrl, serviceRoleKey);
+  return createClient<Database>(
+    getSupabaseUrl(),
+    requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY", ""),
+  );
 }
 
 /**
@@ -41,5 +54,8 @@ export function getServiceClient(): SupabaseClient<Database> {
  * to provide defense-in-depth security.
  */
 export function getAnonClient(): SupabaseClient<Database> {
-  return createClient<Database>(supabaseUrl, anonKey);
+  return createClient<Database>(
+    getSupabaseUrl(),
+    requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", ""),
+  );
 }
