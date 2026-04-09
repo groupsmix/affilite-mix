@@ -16,7 +16,7 @@ jobs:
   preview:
     runs-on: ubuntu-latest
     # Only run if Cloudflare credentials are configured
-    if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' || secrets.CLOUDFLARE_API_KEY != '' }}
     permissions:
       contents: read
       deployments: write
@@ -46,6 +46,8 @@ jobs:
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Comment preview URL on PR
