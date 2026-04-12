@@ -34,6 +34,7 @@ Total after:  $5/month (your existing Workers plan)
 Your Next.js app deploys to Cloudflare Pages. This replaces Vercel entirely.
 
 **What you get for free:**
+
 - Unlimited bandwidth (Vercel caps at 100GB on free, 1TB on Pro)
 - Unlimited sites (all your domains point to one deployment)
 - Automatic SSL for every domain
@@ -41,7 +42,8 @@ Your Next.js app deploys to Cloudflare Pages. This replaces Vercel entirely.
 - Global CDN with 300+ edge locations
 
 **How it helps Affilite-Mix:**
-- Each domain (cryptocompare.ai, wristnerd.xyz, etc.) is a Custom Domain on the same Pages project
+
+- Each domain (cryptocompare.ai, wristnerd.site, etc.) is a Custom Domain on the same Pages project
 - Zero per-request charges — you never worry about traffic spikes
 - Static pages are cached globally — visitors get sub-50ms load times
 
@@ -55,15 +57,16 @@ KV is a key-value store that lives at the edge (every Cloudflare data center wor
 
 **Use it for:**
 
-| Use Case | Key Pattern | TTL | Example |
-|---|---|---|---|
-| Crypto price cache | `prices:ticker` | 60 seconds | Cache CoinGecko API responses globally |
-| Crypto trending | `prices:trending` | 5 minutes | Trending coins cache |
-| Rate limiting | `rate:{ip}:{endpoint}` | 15 minutes | Login attempt counters |
-| Site config cache | `site:{domain}` | 1 hour | Avoid DB lookup per request |
-| Scheduled publish queue | `scheduled:{siteId}` | none | List of content to auto-publish |
+| Use Case                | Key Pattern            | TTL        | Example                                |
+| ----------------------- | ---------------------- | ---------- | -------------------------------------- |
+| Crypto price cache      | `prices:ticker`        | 60 seconds | Cache CoinGecko API responses globally |
+| Crypto trending         | `prices:trending`      | 5 minutes  | Trending coins cache                   |
+| Rate limiting           | `rate:{ip}:{endpoint}` | 15 minutes | Login attempt counters                 |
+| Site config cache       | `site:{domain}`        | 1 hour     | Avoid DB lookup per request            |
+| Scheduled publish queue | `scheduled:{siteId}`   | none       | List of content to auto-publish        |
 
 **Why it's better than Upstash for you:**
+
 - Already included in your $5 plan (100k reads/day free, then pennies)
 - Reads are faster (edge, not a single Redis region)
 - No separate service to manage
@@ -77,17 +80,20 @@ S3-compatible object storage with **zero egress fees**. You only pay for storage
 **Replaces:** AWS S3 + CloudFront (expensive egress), Vercel Blob
 
 **Use it for:**
+
 - Product images (exchange logos, watch photos, Arabic product images)
 - Blog featured images
 - Admin-uploaded media
 - Future: PDF guides, downloadable content
 
 **Cost example:**
+
 - 10GB of images = $0.15/month
 - Unlimited downloads = $0.00 (zero egress!)
 - With S3 + CloudFront, same traffic would cost $5-50/month
 
 **Smart pattern:**
+
 ```
 Upload: Admin → /api/upload → presigned R2 URL → upload directly to R2
 Serve:  Visitor → media.affilite-mix.io (R2 custom domain) → image
@@ -104,11 +110,13 @@ Invisible CAPTCHA that protects forms without annoying users. No "click all the 
 **Replaces:** Google reCAPTCHA (privacy concerns, ugly UX)
 
 **Use it on:**
+
 - Newsletter signup form (prevent spam subscriptions)
 - Contact form
 - Admin login page (prevent brute force)
 
 **Why it matters for affiliate sites:**
+
 - Bots won't spam your newsletter list with fake emails
 - Protects your affiliate click tracking from click fraud
 - Invisible to real users — no friction before they click your affiliate links
@@ -122,12 +130,14 @@ Privacy-friendly analytics. No cookies needed, no GDPR banner required for analy
 **Replaces:** Google Analytics 4 (or runs alongside it)
 
 **What you get:**
+
 - Page views, unique visitors, top pages — per domain
 - Core Web Vitals (LCP, CLS, INP) — per domain
 - Country, device, browser breakdown
 - Referrer tracking (see which Google searches bring traffic)
 
 **Why it's smart for affiliate sites:**
+
 - No cookie consent popup needed = higher conversion rate
 - Visitors don't bounce because of annoying GDPR banners
 - You still see all the traffic data you need
@@ -142,11 +152,13 @@ Privacy-friendly analytics. No cookies needed, no GDPR banner required for analy
 Forward emails from any of your domains to your real inbox. No email hosting needed.
 
 **Use it for:**
+
 - `contact@cryptocompare.ai` → your Gmail
-- `hello@wristnerd.xyz` → your Gmail
+- `hello@wristnerd.site` → your Gmail
 - `info@arabic-tools.com` → your Gmail
 
 **Why it matters:**
+
 - Every niche site needs a contact email for trust/SEO
 - No need to pay for Google Workspace ($6/user/month per domain)
 - Set up per domain in 1 minute via Cloudflare DNS dashboard
@@ -158,6 +170,7 @@ Forward emails from any of your domains to your real inbox. No email hosting nee
 You probably already use this. But here's what to maximize:
 
 **Smart DNS tricks for Affilite-Mix:**
+
 - **Proxy mode (orange cloud)** on all domains = DDoS protection + CDN + SSL automatic
 - **Page Rules** — redirect `www.cryptocompare.ai` → `cryptocompare.ai` (free, no code)
 - **CNAME flattening** — point apex domains to Cloudflare Pages without issues
@@ -171,18 +184,19 @@ Cache your HTML pages at Cloudflare's edge. Visitors get pages from the nearest 
 
 **Smart cache rules for Affilite-Mix:**
 
-| URL Pattern | Cache TTL | Purge On |
-|---|---|---|
-| `/` (homepage) | 1 hour | Content publish |
-| `/blog/*`, `/review/*` | 24 hours | Content update |
-| `/category/*` | 4 hours | Product/content change |
-| `/prices/*` | No cache (dynamic) | — |
-| `/admin/*` | No cache | — |
-| `/api/*` | No cache | — |
-| Static assets (`/_next/static/*`) | 1 year | New deployment |
+| URL Pattern                       | Cache TTL          | Purge On               |
+| --------------------------------- | ------------------ | ---------------------- |
+| `/` (homepage)                    | 1 hour             | Content publish        |
+| `/blog/*`, `/review/*`            | 24 hours           | Content update         |
+| `/category/*`                     | 4 hours            | Product/content change |
+| `/prices/*`                       | No cache (dynamic) | —                      |
+| `/admin/*`                        | No cache           | —                      |
+| `/api/*`                          | No cache           | —                      |
+| Static assets (`/_next/static/*`) | 1 year             | New deployment         |
 
 **How to purge on content publish:**
 When an admin publishes content, your Server Action calls the Cloudflare API to purge that specific URL:
+
 ```
 POST https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache
 { "files": ["https://cryptocompare.ai/blog/best-exchanges"] }
@@ -197,6 +211,7 @@ This means 99% of page loads are served from Cloudflare's cache — your Supabas
 Load tracking scripts (GA4, affiliate network pixels, Facebook Pixel) **server-side** instead of client-side.
 
 **Why this is huge for affiliate sites:**
+
 - Ad blockers block GA4, Facebook Pixel, etc. when loaded client-side. You lose 30-40% of tracking data.
 - Zaraz loads them server-side through Cloudflare's proxy — ad blockers can't detect them
 - Your pages load faster because no third-party JavaScript is blocking rendering
@@ -209,12 +224,14 @@ Load tracking scripts (GA4, affiliate network pixels, Facebook Pixel) **server-s
 ### 10. Cloudflare WAF + Bot Management (Basic = FREE)
 
 **What you get on the free/Workers plan:**
+
 - Basic WAF rules (block known attack patterns)
 - Bot score per request (identify crawlers vs real users)
 - Rate limiting rules (block IPs that hammer your API)
 - Challenge suspicious requests before they hit your server
 
 **Smart rules for Affilite-Mix:**
+
 - Rate limit `/api/track/click` to 60/min per IP (prevent click fraud)
 - Rate limit `/api/newsletter` to 3/hour per IP (prevent spam)
 - Block known bad bots from accessing `/admin/*`
@@ -224,21 +241,21 @@ Load tracking scripts (GA4, affiliate network pixels, Facebook Pixel) **server-s
 
 ## Monthly Cost Summary
 
-| Service | What It Does | Cost |
-|---|---|---|
-| Cloudflare Workers ($5 plan) | Workers runtime + KV reads | $5/month |
-| Cloudflare Pages | Host Next.js app | FREE |
-| Cloudflare R2 (10GB) | Product/blog images | ~$0.15/month |
-| Cloudflare KV | Price cache + rate limiting | Included in Workers |
-| Cloudflare Turnstile | Form protection | FREE |
-| Cloudflare Web Analytics | Traffic analytics | FREE |
-| Cloudflare Email Routing | Contact emails per domain | FREE |
-| Cloudflare DNS | DNS + CDN + SSL | FREE |
-| Cloudflare Cache Rules | Edge HTML caching | FREE |
-| Cloudflare Zaraz | Server-side tracking | FREE |
-| Cloudflare WAF | Security rules | FREE (basic) |
-| **Supabase** | Database (PostgreSQL) | FREE tier (500MB) or $25/month Pro |
-| **Total** | | **$5-30/month for unlimited sites** |
+| Service                      | What It Does                | Cost                                |
+| ---------------------------- | --------------------------- | ----------------------------------- |
+| Cloudflare Workers ($5 plan) | Workers runtime + KV reads  | $5/month                            |
+| Cloudflare Pages             | Host Next.js app            | FREE                                |
+| Cloudflare R2 (10GB)         | Product/blog images         | ~$0.15/month                        |
+| Cloudflare KV                | Price cache + rate limiting | Included in Workers                 |
+| Cloudflare Turnstile         | Form protection             | FREE                                |
+| Cloudflare Web Analytics     | Traffic analytics           | FREE                                |
+| Cloudflare Email Routing     | Contact emails per domain   | FREE                                |
+| Cloudflare DNS               | DNS + CDN + SSL             | FREE                                |
+| Cloudflare Cache Rules       | Edge HTML caching           | FREE                                |
+| Cloudflare Zaraz             | Server-side tracking        | FREE                                |
+| Cloudflare WAF               | Security rules              | FREE (basic)                        |
+| **Supabase**                 | Database (PostgreSQL)       | FREE tier (500MB) or $25/month Pro  |
+| **Total**                    |                             | **$5-30/month for unlimited sites** |
 
 Compare to the Vercel + Upstash + S3 + misc approach: **$50-100+/month**
 
@@ -266,4 +283,4 @@ Email → contact@yourdomain.com → Cloudflare Email Routing → Gmail
 
 ---
 
-*This is how you run 10+ affiliate sites for $5-30/month instead of $100+/month. Cloudflare gives you enterprise-grade infrastructure at indie-hacker prices.*
+_This is how you run 10+ affiliate sites for $5-30/month instead of $100+/month. Cloudflare gives you enterprise-grade infrastructure at indie-hacker prices._

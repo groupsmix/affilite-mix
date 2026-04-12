@@ -35,7 +35,7 @@ INSERT INTO sites (slug, name, domain, language, direction, is_active, monetizat
 VALUES (
   'watch-tools',
   'WristNerd',
-  'wristnerd.xyz',
+  'wristnerd.site',
   'en',
   'ltr',
   true,

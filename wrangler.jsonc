@@ -43,7 +43,7 @@
 	// Cloudflare dashboard).
 	// See: https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
 	"routes": [
-		{ "pattern": "wristnerd.xyz", "custom_domain": true },
+		{ "pattern": "wristnerd.site", "custom_domain": true },
 		{ "pattern": "arabictools.wristnerd.site", "custom_domain": true },
 		{ "pattern": "crypto.wristnerd.site", "custom_domain": true }
 	],

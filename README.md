@@ -95,7 +95,7 @@ Navigate to [http://localhost:3000/admin/login](http://localhost:3000/admin/logi
 
 ## Local Development
 
-This project uses **domain-based multi-tenant routing**. In production, each site is served from its own domain (e.g. `wristnerd.xyz`). In development, the middleware automatically resolves `localhost` to the first registered site so you can get started immediately.
+This project uses **domain-based multi-tenant routing**. In production, each site is served from its own domain (e.g. `wristnerd.site`). In development, the middleware automatically resolves `localhost` to the first registered site so you can get started immediately.
 
 ### Quick start (single site)
 

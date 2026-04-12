@@ -33,29 +33,29 @@ Affilite-Mix is a **single-codebase, multi-site affiliate platform** that powers
 
 ### Before vs After
 
-| Before (4 repos) | After (Affilite-Mix) |
-|---|---|
-| 4 separate codebases to maintain | 1 codebase |
-| 4 separate databases | 1 Supabase project |
-| 4 separate admin panels | 1 admin dashboard with site switcher |
-| Fix a bug 4 times | Fix it once, every site gets it |
-| Launch a new niche = fork repo, set up DB, hosting | Add 1 config file + 1 DB row + 1 DNS entry |
-| Pay $50-100+/month for scattered services | $5-30/month with Cloudflare |
-| No scheduling | Full scheduling system for content + products |
+| Before (4 repos)                                   | After (Affilite-Mix)                          |
+| -------------------------------------------------- | --------------------------------------------- |
+| 4 separate codebases to maintain                   | 1 codebase                                    |
+| 4 separate databases                               | 1 Supabase project                            |
+| 4 separate admin panels                            | 1 admin dashboard with site switcher          |
+| Fix a bug 4 times                                  | Fix it once, every site gets it               |
+| Launch a new niche = fork repo, set up DB, hosting | Add 1 config file + 1 DB row + 1 DNS entry    |
+| Pay $50-100+/month for scattered services          | $5-30/month with Cloudflare                   |
+| No scheduling                                      | Full scheduling system for content + products |
 
 ### Core Goals
 
-| Goal | Description |
-|---|---|
-| **Site isolation** | A visitor on `cryptocompare.ai` never sees watch content. Zero data leakage between sites at every layer. |
-| **Single-repo maintainability** | Bug fixes, feature upgrades, and security patches ship once and propagate to all sites. |
-| **Config-driven site launches** | Adding a new niche requires one config file, one database row, and one DNS entry — no code changes. |
-| **Feature modularity** | Each site declares which feature modules it activates (live prices, quiz, deals, RSS, etc.). Unused modules add zero bundle weight and return 404. |
-| **Scheduling** | Schedule content and product publishing to specific dates/times. Auto-publish when the time arrives. |
-| **Cloudflare-native** | Maximize Cloudflare's $5/month Workers plan: Pages, KV, R2, Turnstile, Web Analytics, Email Routing, Cache Rules, Zaraz. |
-| **Production scalability** | Support 10+ active sites with combined peak traffic of ~500k monthly visits without per-site infrastructure duplication. |
-| **Content operations velocity** | An admin can launch a new site and publish its first article within one working day. |
-| **Flexible for any niche** | The system doesn't care what the niche is — crypto, watches, kitchen gadgets, pet supplies, SaaS tools. Same architecture, different config. |
+| Goal                            | Description                                                                                                                                        |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Site isolation**              | A visitor on `cryptocompare.ai` never sees watch content. Zero data leakage between sites at every layer.                                          |
+| **Single-repo maintainability** | Bug fixes, feature upgrades, and security patches ship once and propagate to all sites.                                                            |
+| **Config-driven site launches** | Adding a new niche requires one config file, one database row, and one DNS entry — no code changes.                                                |
+| **Feature modularity**          | Each site declares which feature modules it activates (live prices, quiz, deals, RSS, etc.). Unused modules add zero bundle weight and return 404. |
+| **Scheduling**                  | Schedule content and product publishing to specific dates/times. Auto-publish when the time arrives.                                               |
+| **Cloudflare-native**           | Maximize Cloudflare's $5/month Workers plan: Pages, KV, R2, Turnstile, Web Analytics, Email Routing, Cache Rules, Zaraz.                           |
+| **Production scalability**      | Support 10+ active sites with combined peak traffic of ~500k monthly visits without per-site infrastructure duplication.                           |
+| **Content operations velocity** | An admin can launch a new site and publish its first article within one working day.                                                               |
+| **Flexible for any niche**      | The system doesn't care what the niche is — crypto, watches, kitchen gadgets, pet supplies, SaaS tools. Same architecture, different config.       |
 
 ### Non-Goals (v1)
 
@@ -82,7 +82,7 @@ Affilite-Mix is a **single-codebase, multi-site affiliate platform** that powers
 graph TB
     subgraph Visitors["Visitors (Public)"]
         B1["cryptocompare.ai"]
-        B2["wristnerd.xyz"]
+        B2["wristnerd.site"]
         B3["arabic-tools.example.com"]
         B4["future-niche.com"]
     end
@@ -278,23 +278,23 @@ Feature modules (conditionally loaded):
 
 All API routes live under `app/api/` and are Next.js Route Handlers.
 
-| Route | Method | Auth | Description |
-|---|---|---|---|
-| `/api/track/click` | POST | None (public) | Record affiliate click, return 302 redirect to affiliate URL |
-| `/api/newsletter` | POST | None (public) | Subscribe email to site-specific newsletter list |
-| `/api/auth/login` | POST | None | Admin login, issues httpOnly JWT cookie |
-| `/api/auth/logout` | POST | JWT | Clear admin session |
-| `/api/prices/ticker` | GET | None (public) | Proxy to CoinGecko with 60s KV cache |
-| `/api/prices/trending` | GET | None (public) | Proxy to CoinGecko trending, 5 min KV cache |
-| `/api/admin/content` | GET / POST / PATCH / DELETE | JWT | Content CRUD (filtered by site_id from session) |
-| `/api/admin/products` | GET / POST / PATCH / DELETE | JWT | Product CRUD |
-| `/api/admin/categories` | GET / POST / PATCH / DELETE | JWT | Category CRUD |
-| `/api/admin/sites` | GET / POST / PATCH | JWT (super admin) | Site registry management |
-| `/api/admin/analytics` | GET | JWT | Affiliate click aggregates per site |
-| `/api/admin/schedule` | GET / POST / PATCH / DELETE | JWT | Schedule management (view/create/update/cancel) |
-| `/api/cron/publish-scheduled` | POST | Cron secret | Auto-publish scheduled content + products |
-| `/api/cron/sitemap-refresh` | POST | Cron secret | Regenerate sitemaps for all sites |
-| `/api/upload` | POST | JWT | Generate presigned R2 upload URL |
+| Route                         | Method                      | Auth              | Description                                                  |
+| ----------------------------- | --------------------------- | ----------------- | ------------------------------------------------------------ |
+| `/api/track/click`            | POST                        | None (public)     | Record affiliate click, return 302 redirect to affiliate URL |
+| `/api/newsletter`             | POST                        | None (public)     | Subscribe email to site-specific newsletter list             |
+| `/api/auth/login`             | POST                        | None              | Admin login, issues httpOnly JWT cookie                      |
+| `/api/auth/logout`            | POST                        | JWT               | Clear admin session                                          |
+| `/api/prices/ticker`          | GET                         | None (public)     | Proxy to CoinGecko with 60s KV cache                         |
+| `/api/prices/trending`        | GET                         | None (public)     | Proxy to CoinGecko trending, 5 min KV cache                  |
+| `/api/admin/content`          | GET / POST / PATCH / DELETE | JWT               | Content CRUD (filtered by site_id from session)              |
+| `/api/admin/products`         | GET / POST / PATCH / DELETE | JWT               | Product CRUD                                                 |
+| `/api/admin/categories`       | GET / POST / PATCH / DELETE | JWT               | Category CRUD                                                |
+| `/api/admin/sites`            | GET / POST / PATCH          | JWT (super admin) | Site registry management                                     |
+| `/api/admin/analytics`        | GET                         | JWT               | Affiliate click aggregates per site                          |
+| `/api/admin/schedule`         | GET / POST / PATCH / DELETE | JWT               | Schedule management (view/create/update/cancel)              |
+| `/api/cron/publish-scheduled` | POST                        | Cron secret       | Auto-publish scheduled content + products                    |
+| `/api/cron/sitemap-refresh`   | POST                        | Cron secret       | Regenerate sitemaps for all sites                            |
+| `/api/upload`                 | POST                        | JWT               | Generate presigned R2 upload URL                             |
 
 ### 3.3 Database Schema (Complete)
 
@@ -691,10 +691,10 @@ export interface SiteDefinition {
   id: string;
   name: string;
   domain: string;
-  aliases?: string[];           // e.g. ["www.cryptocompare.ai"]
-  language: string;             // BCP-47: "en", "ar"
+  aliases?: string[]; // e.g. ["www.cryptocompare.ai"]
+  language: string; // BCP-47: "en", "ar"
   direction: "ltr" | "rtl";
-  locale: string;               // "en_US", "ar_SA"
+  locale: string; // "en_US", "ar_SA"
 
   brand: {
     description: string;
@@ -715,8 +715,8 @@ export interface SiteDefinition {
   footerNav: Record<string, NavItem[]>;
 
   contentTypes: ContentTypeConfig[];
-  productLabel: string;          // "Exchange" / "Watch" / "Product"
-  productLabelPlural: string;    // "Exchanges" / "Watches" / "Products"
+  productLabel: string; // "Exchange" / "Watch" / "Product"
+  productLabelPlural: string; // "Exchanges" / "Watches" / "Products"
 
   affiliateDisclosure: string;
   contentDisclosure: string;
@@ -725,15 +725,15 @@ export interface SiteDefinition {
 
   scheduling: {
     enabled: boolean;
-    contentScheduling: boolean;   // schedule blog/review publish dates
-    productScheduling: boolean;   // schedule product launch/expiry dates
-    autoArchive: boolean;         // auto-archive expired items
+    contentScheduling: boolean; // schedule blog/review publish dates
+    productScheduling: boolean; // schedule product launch/expiry dates
+    autoArchive: boolean; // auto-archive expired items
   };
 
   pages: {
-    about:   { title: string; description: string };
+    about: { title: string; description: string };
     privacy: { title: string; description: string };
-    terms:   { title: string; description: string };
+    terms: { title: string; description: string };
   };
 
   seo: {
@@ -742,28 +742,28 @@ export interface SiteDefinition {
   };
 
   cloudflare?: {
-    zoneId?: string;             // for cache purging
-    turnstileSiteKey?: string;   // per-site Turnstile key
-    webAnalyticsToken?: string;  // per-site analytics token
+    zoneId?: string; // for cache purging
+    turnstileSiteKey?: string; // per-site Turnstile key
+    webAnalyticsToken?: string; // per-site analytics token
   };
 
-  adminLabels?: Partial<AdminLabels>;  // i18n for Arabic admin
+  adminLabels?: Partial<AdminLabels>; // i18n for Arabic admin
 }
 
 export interface FeatureFlags {
-  livePrices?:      { provider: "coingecko" };
-  tools?:           string[];
-  quiz?:            { type: string };
-  deals?:           boolean;
+  livePrices?: { provider: "coingecko" };
+  tools?: string[];
+  quiz?: { type: string };
+  deals?: boolean;
   brandSpotlights?: boolean;
-  newsletter?:      boolean;
-  rssFeed?:         boolean;
-  comparisons?:     { type: string };
-  blog?:            { source: "database" | "markdown-files"; dir?: string };
-  occasionPages?:   boolean;
-  budgetPages?:     boolean;
-  recipientPages?:  boolean;
-  searchModal?:     boolean;
+  newsletter?: boolean;
+  rssFeed?: boolean;
+  comparisons?: { type: string };
+  blog?: { source: "database" | "markdown-files"; dir?: string };
+  occasionPages?: boolean;
+  budgetPages?: boolean;
+  recipientPages?: boolean;
+  searchModal?: boolean;
 }
 
 export interface ContentTypeConfig {
@@ -796,7 +796,8 @@ export const cryptoSite: SiteDefinition = {
   locale: "en_US",
 
   brand: {
-    description: "Compare crypto exchanges side-by-side. Find the best fees, features, and security.",
+    description:
+      "Compare crypto exchanges side-by-side. Find the best fees, features, and security.",
     contactEmail: "contact@cryptocompare.ai",
     niche: "Cryptocurrency",
   },
@@ -830,7 +831,13 @@ export const cryptoSite: SiteDefinition = {
   contentTypes: [
     { value: "blog", label: "Blog Post", commercial: false, layout: "standard" },
     { value: "review", label: "Exchange Review", commercial: true, layout: "sidebar" },
-    { value: "comparison", label: "Exchange Comparison", commercial: true, layout: "sidebar", minProducts: 2 },
+    {
+      value: "comparison",
+      label: "Exchange Comparison",
+      commercial: true,
+      layout: "sidebar",
+      minProducts: 2,
+    },
   ],
 
   productLabel: "Exchange",
@@ -841,7 +848,13 @@ export const cryptoSite: SiteDefinition = {
 
   features: {
     livePrices: { provider: "coingecko" },
-    tools: ["fee-calculator", "profit-calculator", "dca-calculator", "converter", "portfolio-tracker"],
+    tools: [
+      "fee-calculator",
+      "profit-calculator",
+      "dca-calculator",
+      "converter",
+      "portfolio-tracker",
+    ],
     newsletter: true,
     rssFeed: true,
     comparisons: { type: "exchange-vs-exchange" },
@@ -857,7 +870,10 @@ export const cryptoSite: SiteDefinition = {
   },
 
   pages: {
-    about: { title: "About CryptoCompare AI", description: "Learn about our exchange comparison platform" },
+    about: {
+      title: "About CryptoCompare AI",
+      description: "Learn about our exchange comparison platform",
+    },
     privacy: { title: "Privacy Policy", description: "How we handle your data" },
     terms: { title: "Terms of Service", description: "Terms and conditions of use" },
   },
@@ -879,6 +895,7 @@ export const cryptoSite: SiteDefinition = {
 Instead of creating niche-specific tables, we use a typed `metadata` JSONB column on `products` and `content`. This keeps the schema universal while allowing each niche to store whatever extra fields it needs.
 
 **Crypto product metadata:**
+
 ```json
 {
   "founded_year": 2017,
@@ -891,13 +908,12 @@ Instead of creating niche-specific tables, we use a typed `metadata` JSONB colum
     "futures_maker": 0.02,
     "futures_taker": 0.04
   },
-  "offers": [
-    { "text": "Get 20% off trading fees", "bonus_amount": 100, "expires_at": null }
-  ]
+  "offers": [{ "text": "Get 20% off trading fees", "bonus_amount": 100, "expires_at": null }]
 }
 ```
 
 **Watch product metadata:**
+
 ```json
 {
   "brand": "Seiko",
@@ -912,6 +928,7 @@ Instead of creating niche-specific tables, we use a typed `metadata` JSONB colum
 ```
 
 **Arabic product metadata:**
+
 ```json
 {
   "commission_rate": "15%",
@@ -922,6 +939,7 @@ Instead of creating niche-specific tables, we use a typed `metadata` JSONB colum
 ```
 
 **Future niche (e.g. Kitchen) product metadata:**
+
 ```json
 {
   "brand": "KitchenAid",
@@ -984,15 +1002,15 @@ export type ProductMeta =
 
 ### 4.1 Rendering Strategy
 
-| Route | Strategy | Revalidation | Rationale |
-|---|---|---|---|
-| Homepage | ISR | 1 hour | Infrequent changes, high traffic |
-| Content pages (blog, review) | ISR | On publish (tag-based) | Stale content loses SEO value |
-| Category listings | ISR | On content change | High-value landing pages |
-| Comparison pages | ISR | On product change | Product scores update irregularly |
-| Live prices (crypto) | SSR | None (always fresh) | Must reflect real-time data |
-| Admin pages | SSR (no cache) | — | Dynamic, auth-gated |
-| Static pages (about, terms) | SSG | On build | Never changes at runtime |
+| Route                        | Strategy       | Revalidation           | Rationale                         |
+| ---------------------------- | -------------- | ---------------------- | --------------------------------- |
+| Homepage                     | ISR            | 1 hour                 | Infrequent changes, high traffic  |
+| Content pages (blog, review) | ISR            | On publish (tag-based) | Stale content loses SEO value     |
+| Category listings            | ISR            | On content change      | High-value landing pages          |
+| Comparison pages             | ISR            | On product change      | Product scores update irregularly |
+| Live prices (crypto)         | SSR            | None (always fresh)    | Must reflect real-time data       |
+| Admin pages                  | SSR (no cache) | —                      | Dynamic, auth-gated               |
+| Static pages (about, terms)  | SSG            | On build               | Never changes at runtime          |
 
 Tag-based revalidation: When content is published via admin, a Server Action calls `revalidateTag("content-${site_id}-${slug}")`, immediately invalidating the cache for that specific page. When deploying to Cloudflare, cache purge is done via the Cloudflare API for CDN-cached pages.
 
@@ -1015,11 +1033,11 @@ Each site's theme is injected as CSS custom properties at the root layout level,
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
   const cssVars = {
-    "--color-primary":    site.theme.primaryColor,
-    "--color-accent":     site.theme.accentColor,
-    "--font-heading":     `"${site.theme.fontHeading}", serif`,
-    "--font-body":        `"${site.theme.fontBody}", sans-serif`,
-    "--direction":        site.direction,
+    "--color-primary": site.theme.primaryColor,
+    "--color-accent": site.theme.accentColor,
+    "--font-heading": `"${site.theme.fontHeading}", serif`,
+    "--font-body": `"${site.theme.fontBody}", sans-serif`,
+    "--direction": site.direction,
   } as React.CSSProperties;
 
   return (
@@ -1045,6 +1063,7 @@ admin/       → Admin-only (SiteSwitcher, ContentForm, MetadataEditor, Schedule
 ```
 
 **Import rules:**
+
 - `ui/` components import nothing from other layers
 - `layout/` may import from `ui/`
 - `content/` and `features/` may import from `ui/` and `layout/`
@@ -1054,10 +1073,10 @@ admin/       → Admin-only (SiteSwitcher, ContentForm, MetadataEditor, Schedule
 Feature components are dynamically imported to prevent cross-site bundle pollution:
 
 ```tsx
-const PriceChart = dynamic(
-  () => import("@/components/features/crypto/PriceChart"),
-  { loading: () => <Skeleton height={320} />, ssr: false }
-);
+const PriceChart = dynamic(() => import("@/components/features/crypto/PriceChart"), {
+  loading: () => <Skeleton height={320} />,
+  ssr: false,
+});
 ```
 
 ### 4.5 Admin Dashboard
@@ -1065,6 +1084,7 @@ const PriceChart = dynamic(
 The admin is a standard SSR application with full-page navigation.
 
 Key admin patterns:
+
 - **Site switcher:** Stored in a server-side session cookie. Every admin route reads the active site from this cookie and filters all DB queries accordingly.
 - **Dynamic product form:** The `MetadataEditor` component reads `site.features` to decide which extra fields to render.
 - **Content type filtering:** The content list only shows `contentTypes` enabled for the active site.
@@ -1078,14 +1098,14 @@ Key admin patterns:
 
 The scheduling system lets admins plan content and product publishing in advance. It supports:
 
-| Action | Entity | Description |
-|---|---|---|
-| **Schedule publish** | Content | Write a blog post now, auto-publish at a specific date/time |
-| **Schedule activate** | Product | Add a product now, make it live on launch day |
-| **Schedule archive** | Content | Publish a seasonal article, auto-archive after the season |
-| **Schedule expire** | Product | A limited-time deal that auto-deactivates on expiry |
-| **Schedule feature** | Product | Feature a product on the homepage for a specific period |
-| **Schedule unfeature** | Product | Remove from featured after the promotion ends |
+| Action                 | Entity  | Description                                                 |
+| ---------------------- | ------- | ----------------------------------------------------------- |
+| **Schedule publish**   | Content | Write a blog post now, auto-publish at a specific date/time |
+| **Schedule activate**  | Product | Add a product now, make it live on launch day               |
+| **Schedule archive**   | Content | Publish a seasonal article, auto-archive after the season   |
+| **Schedule expire**    | Product | A limited-time deal that auto-deactivates on expiry         |
+| **Schedule feature**   | Product | Feature a product on the homepage for a specific period     |
+| **Schedule unfeature** | Product | Remove from featured after the promotion ends               |
 
 ### 5.2 How It Works
 
@@ -1181,20 +1201,20 @@ The admin dashboard has a **Schedule** view showing upcoming and past scheduled 
 
 ### 6.1 Service Map
 
-| Layer | Service | Cost | Why |
-|---|---|---|---|
-| **Application hosting** | Cloudflare Pages | FREE | Next.js via @opennextjs/cloudflare, unlimited bandwidth, global CDN, preview deployments |
-| **Database** | Supabase (PostgreSQL + RLS) | FREE tier or $25/mo Pro | Managed Postgres, RLS for multi-tenant isolation, connection pooling |
-| **Edge cache** | Cloudflare KV | Included in $5 Workers | Sub-ms reads, crypto price cache, rate limiting counters, site config cache |
-| **Media storage** | Cloudflare R2 | ~$0.15/mo for 10GB | Zero egress fees, S3-compatible, presigned uploads |
-| **Form protection** | Cloudflare Turnstile | FREE | Invisible CAPTCHA, protects newsletter + login + contact |
-| **Analytics** | Cloudflare Web Analytics | FREE | Privacy-friendly, no cookies needed, no GDPR banner for analytics |
-| **Email** | Cloudflare Email Routing | FREE | contact@yourdomain.com → Gmail, per domain |
-| **DNS + CDN + SSL** | Cloudflare | FREE | Auto SSL per domain, DDoS protection, 300+ edge locations |
-| **Server-side tags** | Cloudflare Zaraz | FREE | GA4 + affiliate pixels loaded server-side, ad-blocker resistant |
-| **Security** | Cloudflare WAF | FREE (basic) | Bot management, rate limiting rules, attack pattern blocking |
-| **Cron** | Cloudflare Cron Triggers | Included in $5 Workers | Scheduled publish every 5 min, sitemap refresh nightly |
-| **CI/CD** | GitHub Actions | FREE | Lint, typecheck, test on PR, deploy to Cloudflare Pages |
+| Layer                   | Service                     | Cost                    | Why                                                                                      |
+| ----------------------- | --------------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| **Application hosting** | Cloudflare Pages            | FREE                    | Next.js via @opennextjs/cloudflare, unlimited bandwidth, global CDN, preview deployments |
+| **Database**            | Supabase (PostgreSQL + RLS) | FREE tier or $25/mo Pro | Managed Postgres, RLS for multi-tenant isolation, connection pooling                     |
+| **Edge cache**          | Cloudflare KV               | Included in $5 Workers  | Sub-ms reads, crypto price cache, rate limiting counters, site config cache              |
+| **Media storage**       | Cloudflare R2               | ~$0.15/mo for 10GB      | Zero egress fees, S3-compatible, presigned uploads                                       |
+| **Form protection**     | Cloudflare Turnstile        | FREE                    | Invisible CAPTCHA, protects newsletter + login + contact                                 |
+| **Analytics**           | Cloudflare Web Analytics    | FREE                    | Privacy-friendly, no cookies needed, no GDPR banner for analytics                        |
+| **Email**               | Cloudflare Email Routing    | FREE                    | contact@yourdomain.com → Gmail, per domain                                               |
+| **DNS + CDN + SSL**     | Cloudflare                  | FREE                    | Auto SSL per domain, DDoS protection, 300+ edge locations                                |
+| **Server-side tags**    | Cloudflare Zaraz            | FREE                    | GA4 + affiliate pixels loaded server-side, ad-blocker resistant                          |
+| **Security**            | Cloudflare WAF              | FREE (basic)            | Bot management, rate limiting rules, attack pattern blocking                             |
+| **Cron**                | Cloudflare Cron Triggers    | Included in $5 Workers  | Scheduled publish every 5 min, sitemap refresh nightly                                   |
+| **CI/CD**               | GitHub Actions              | FREE                    | Lint, typecheck, test on PR, deploy to Cloudflare Pages                                  |
 
 **Total: $5-30/month for unlimited sites.**
 
@@ -1211,7 +1231,7 @@ Staging:
   Uses separate Supabase project (staging schema mirrors production)
 ```
 
-Each domain (cryptocompare.ai, wristnerd.xyz, etc.) is added as a Custom Domain in Cloudflare Pages. All domains point to the same deployment. The middleware resolves domain → site_id.
+Each domain (cryptocompare.ai, wristnerd.site, etc.) is added as a Custom Domain in Cloudflare Pages. All domains point to the same deployment. The middleware resolves domain → site_id.
 
 ### 6.3 Environment Variables (Cloudflare Pages)
 
@@ -1259,7 +1279,7 @@ async function setCachedPrices(prices: CoinPrice[]): Promise<void> {
 
 // Rate limiting
 async function checkRateLimit(key: string, limit: number, windowSec: number): Promise<boolean> {
-  const current = parseInt(await KV.get(`rate:${key}`) || "0");
+  const current = parseInt((await KV.get(`rate:${key}`)) || "0");
   if (current >= limit) return false;
   await KV.put(`rate:${key}`, String(current + 1), { expirationTtl: windowSec });
   return true;
@@ -1303,19 +1323,16 @@ export async function purgeCacheForUrl(siteId: string, paths: string[]): Promise
   const site = getSiteById(siteId);
   if (!site?.cloudflare?.zoneId) return;
 
-  const urls = paths.map(path => `https://${site.domain}${path}`);
+  const urls = paths.map((path) => `https://${site.domain}${path}`);
 
-  await fetch(
-    `https://api.cloudflare.com/client/v4/zones/${site.cloudflare.zoneId}/purge_cache`,
-    {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${CF_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ files: urls }),
-    }
-  );
+  await fetch(`https://api.cloudflare.com/client/v4/zones/${site.cloudflare.zoneId}/purge_cache`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${CF_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ files: urls }),
+  });
 }
 
 // Called after content publish:
@@ -1466,14 +1483,14 @@ Every day at 2:00 AM UTC:
 
 ### 8.1 Site Data Isolation
 
-| Layer | Mechanism | Failure Mode |
-|---|---|---|
-| Cloudflare DNS | Each domain routes to same app | N/A |
-| Middleware | Resolves domain → site_id, injects header | Wrong site data if hostname spoofed (mitigated by Cloudflare proxy) |
-| Application | Every query filters `WHERE site_id = activeSiteId` | Developer error exposes cross-site data |
-| Database (RLS) | Row Level Security policies on every table | Safety net for anon key |
-| Service key | Used only server-side in `supabase-server.ts` | If leaked, full DB access — rotate immediately |
-| Admin session | `activeSiteId` stored in JWT, verified per request | Admin can only access their assigned site |
+| Layer          | Mechanism                                          | Failure Mode                                                        |
+| -------------- | -------------------------------------------------- | ------------------------------------------------------------------- |
+| Cloudflare DNS | Each domain routes to same app                     | N/A                                                                 |
+| Middleware     | Resolves domain → site_id, injects header          | Wrong site data if hostname spoofed (mitigated by Cloudflare proxy) |
+| Application    | Every query filters `WHERE site_id = activeSiteId` | Developer error exposes cross-site data                             |
+| Database (RLS) | Row Level Security policies on every table         | Safety net for anon key                                             |
+| Service key    | Used only server-side in `supabase-server.ts`      | If leaked, full DB access — rotate immediately                      |
+| Admin session  | `activeSiteId` stored in JWT, verified per request | Admin can only access their assigned site                           |
 
 ### 8.2 Authentication
 
@@ -1508,11 +1525,11 @@ if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
 
 ### 8.5 Rate Limiting (via Cloudflare KV)
 
-| Endpoint | Limit | Window |
-|---|---|---|
-| `/api/newsletter` | 3 requests | 1 hour / IP |
-| `/api/track/click` | 60 requests | 1 minute / IP |
-| `/api/auth/login` | 5 attempts | 15 minutes / IP |
+| Endpoint           | Limit       | Window          |
+| ------------------ | ----------- | --------------- |
+| `/api/newsletter`  | 3 requests  | 1 hour / IP     |
+| `/api/track/click` | 60 requests | 1 minute / IP   |
+| `/api/auth/login`  | 5 attempts  | 15 minutes / IP |
 
 ### 8.6 Secrets Management
 
@@ -1552,28 +1569,28 @@ In steady state, the vast majority of public page requests are served from Cloud
 
 ### 9.4 Scaling Plan
 
-| Traffic | Action |
-|---|---|
-| < 500k pv/month | Default Cloudflare Pages + Supabase free tier |
-| 500k–5M pv/month | Supabase Pro ($25/mo) for more DB connections |
-| > 5M pv/month | Add Supabase read replicas, increase KV limits |
+| Traffic          | Action                                         |
+| ---------------- | ---------------------------------------------- |
+| < 500k pv/month  | Default Cloudflare Pages + Supabase free tier  |
+| 500k–5M pv/month | Supabase Pro ($25/mo) for more DB connections  |
+| > 5M pv/month    | Add Supabase read replicas, increase KV limits |
 
 ---
 
 ## 10. Tech Stack Justification
 
-| Technology | Why This | Alternatives Considered |
-|---|---|---|
-| **Next.js 15** (App Router) | Built-in ISR, middleware, RSC, Server Actions, multi-domain support | Remix, Astro, SvelteKit |
-| **TypeScript (strict)** | Site configs, DB queries, component props form a type graph; catches cross-site leaks at compile time | JavaScript |
-| **Supabase** | Hosted Postgres + RLS is the right primitive for multi-tenant isolation | PlanetScale, Neon |
-| **Tailwind CSS 4** | Per-site theming via CSS custom properties; zero runtime overhead | CSS Modules, Styled Components |
-| **Cloudflare Pages** | $0 hosting, unlimited bandwidth, global CDN, already paying for Workers | Vercel ($20+/mo) |
-| **Cloudflare KV** | Edge cache included in $5 plan, replaces Redis | Upstash ($10/mo) |
-| **Cloudflare R2** | Zero egress fees, S3-compatible | AWS S3 (expensive egress) |
-| **Cloudflare Turnstile** | Free invisible CAPTCHA, better UX than reCAPTCHA | Google reCAPTCHA |
-| **Cloudflare Web Analytics** | Free, no cookies, no GDPR banner needed | GA4 (privacy issues) |
-| **GitHub Actions** | Free CI, already using GitHub | CircleCI, Buildkite |
+| Technology                   | Why This                                                                                              | Alternatives Considered        |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------ |
+| **Next.js 15** (App Router)  | Built-in ISR, middleware, RSC, Server Actions, multi-domain support                                   | Remix, Astro, SvelteKit        |
+| **TypeScript (strict)**      | Site configs, DB queries, component props form a type graph; catches cross-site leaks at compile time | JavaScript                     |
+| **Supabase**                 | Hosted Postgres + RLS is the right primitive for multi-tenant isolation                               | PlanetScale, Neon              |
+| **Tailwind CSS 4**           | Per-site theming via CSS custom properties; zero runtime overhead                                     | CSS Modules, Styled Components |
+| **Cloudflare Pages**         | $0 hosting, unlimited bandwidth, global CDN, already paying for Workers                               | Vercel ($20+/mo)               |
+| **Cloudflare KV**            | Edge cache included in $5 plan, replaces Redis                                                        | Upstash ($10/mo)               |
+| **Cloudflare R2**            | Zero egress fees, S3-compatible                                                                       | AWS S3 (expensive egress)      |
+| **Cloudflare Turnstile**     | Free invisible CAPTCHA, better UX than reCAPTCHA                                                      | Google reCAPTCHA               |
+| **Cloudflare Web Analytics** | Free, no cookies, no GDPR banner needed                                                               | GA4 (privacy issues)           |
+| **GitHub Actions**           | Free CI, already using GitHub                                                                         | CircleCI, Buildkite            |
 
 ---
 
@@ -1780,43 +1797,52 @@ affilite-mix/
 ### Full procedure to launch "FitnessPicks":
 
 **Step 1 — Config file (5 min)**
+
 ```bash
 cp config/sites/crypto.ts config/sites/fitness.ts
 # Edit: id, name, domain, theme, contentTypes, features, brand copy
 ```
 
 **Step 2 — Database row (1 min)**
+
 ```sql
 INSERT INTO sites (id, name, domain, language, direction)
 VALUES ('fitness', 'FitnessPicks', 'fitnesspicks.com', 'en', 'ltr');
 ```
 
 **Step 3 — Register in site index (1 line)**
+
 ```typescript
 // config/sites/index.ts
 export { fitnessSite } from "./fitness";
 export const allSites: SiteDefinition[] = [
-  cryptoSite, watchesSite, arabicToolsSite,
-  fitnessSite,  // ← add here
+  cryptoSite,
+  watchesSite,
+  arabicToolsSite,
+  fitnessSite, // ← add here
 ];
 ```
 
 **Step 4 — Add domain to Cloudflare Pages (1 min)**
+
 ```
 Cloudflare Dashboard → Pages → affilite-mix → Custom Domains → Add → fitnesspicks.com
 ```
 
 **Step 5 — Set up email routing (1 min)**
+
 ```
 Cloudflare Dashboard → fitnesspicks.com → Email Routing → Add: contact@fitnesspicks.com → your Gmail
 ```
 
 **Step 6 — Populate content via admin**
+
 - Switch to "FitnessPicks" in the site switcher
 - Create categories, add products, write content
 - Schedule launches in advance
 
 **Step 7 (optional) — Add niche-specific metadata type**
+
 ```typescript
 // types/metadata.ts
 export interface FitnessProductMeta {
@@ -1845,11 +1871,13 @@ Existing sites are completely unaffected.
 ## 13. Migration Strategy from Current Repos
 
 ### Phase 1: Build the Platform (Week 1-4)
+
 - Set up affilite-mix repo with schema, config system, middleware, shared components
 - Build admin dashboard (port from arabic-affiliate-site — most complete)
 - Build public pages
 
 ### Phase 2: Migrate Data (Week 5)
+
 - Export content/products from each existing site's database
 - Import into unified Supabase with correct `site_id`:
   - crypto-v2000 → `site_id = "crypto"`
@@ -1858,11 +1886,13 @@ Existing sites are completely unaffected.
 - Verify data integrity (counts, slugs, affiliate links)
 
 ### Phase 3: Migrate Features (Week 6)
+
 - Port CoinGecko adapter + price pages from crypto-v2000
 - Port gift-finder quiz + markdown loader from watch-3000V
 - Port RTL support + Arabic admin labels from arabic-affiliate-site
 
 ### Phase 4: DNS Cutover
+
 - Point each domain to Cloudflare Pages deployment
 - Verify each site renders correctly with correct data + theme
 - Monitor for 48 hours
@@ -1870,4 +1900,4 @@ Existing sites are completely unaffected.
 
 ---
 
-*End of architecture document v2.0. This document should be updated whenever a significant architectural decision is made or a new site type is added.*
+_End of architecture document v2.0. This document should be updated whenever a significant architectural decision is made or a new site type is added._
