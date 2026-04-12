@@ -479,7 +479,7 @@ INSERT INTO content (site_id, title, slug, body, excerpt, type, status, category
 -- ═══════════════════════════════════════════════════════
 
 INSERT INTO sites (slug, name, domain, language, direction)
-VALUES ('watch-tools', 'WristNerd', 'wristnerd.xyz', 'en', 'ltr');
+VALUES ('watch-tools', 'WristNerd', 'wristnerd.site', 'en', 'ltr');
 
 -- Watch-tools taxonomy categories (budget)
 WITH watch AS (SELECT id FROM sites WHERE slug = 'watch-tools')

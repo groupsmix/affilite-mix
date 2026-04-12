@@ -34,7 +34,7 @@ After every deployment, verify:
 1. **Health check:**
 
    ```bash
-   curl -s https://wristnerd.xyz/api/health | jq .
+   curl -s https://wristnerd.site/api/health | jq .
    ```
 
    Expected: `{ "status": "healthy", "checks": { "database": { "status": "ok" } } }`
@@ -42,7 +42,7 @@ After every deployment, verify:
 2. **Homepage loads:**
 
    ```bash
-   curl -s -o /dev/null -w "%{http_code}" https://wristnerd.xyz/
+   curl -s -o /dev/null -w "%{http_code}" https://wristnerd.site/
    ```
 
    Expected: `200`
@@ -50,14 +50,14 @@ After every deployment, verify:
 3. **Admin login page:**
 
    ```bash
-   curl -s -o /dev/null -w "%{http_code}" https://wristnerd.xyz/admin/login
+   curl -s -o /dev/null -w "%{http_code}" https://wristnerd.site/admin/login
    ```
 
    Expected: `200`
 
 4. **All site domains respond:**
    ```bash
-   for domain in wristnerd.xyz arabictools.wristnerd.site crypto.wristnerd.site; do
+   for domain in wristnerd.site arabictools.wristnerd.site crypto.wristnerd.site; do
      echo "$domain: $(curl -s -o /dev/null -w '%{http_code}' https://$domain/)"
    done
    ```
@@ -133,7 +133,7 @@ After rolling back, the ISR cache in R2 may contain stale data from the bad depl
 
 ```bash
 # Trigger full cache revalidation
-curl -X POST https://wristnerd.xyz/api/revalidate \
+curl -X POST https://wristnerd.site/api/revalidate \
   -H "Authorization: Bearer ${CRON_SECRET}" \
   -H "Content-Type: application/json" \
   -d '{"tags": ["content", "products", "categories"]}'

@@ -50,7 +50,7 @@ export default {
     // In Workers, there's no `self` URL, so we use the first configured domain
     // or fall back to the worker's default *.workers.dev URL.
     const baseUrl =
-      typeof env.CF_PAGES_URL === "string" ? env.CF_PAGES_URL : "https://wristnerd.xyz";
+      typeof env.CF_PAGES_URL === "string" ? env.CF_PAGES_URL : "https://wristnerd.site";
 
     const url = `${baseUrl}/api/cron/publish`;
 

@@ -1,6 +1,6 @@
 # API Reference
 
-All endpoints are served under the application root (e.g. `https://wristnerd.xyz/api/...`).
+All endpoints are served under the application root (e.g. `https://wristnerd.site/api/...`).
 
 ## Authentication
 

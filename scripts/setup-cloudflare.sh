@@ -253,7 +253,7 @@ if [ -n "$CF_ZONE_ID" ]; then
   info "Worker target: $worker_target"
 
   # Domains from wrangler.jsonc
-  domains=("wristnerd.xyz" "arabictools.wristnerd.site" "crypto.wristnerd.site")
+  domains=("wristnerd.site" "arabictools.wristnerd.site" "crypto.wristnerd.site")
 
   for domain in "${domains[@]}"; do
     # Check if record exists
@@ -281,7 +281,7 @@ else
   warn "No Zone ID provided — skipping DNS setup."
   warn "Make sure your domains point to the Cloudflare Worker."
   warn "Custom domains configured in wrangler.jsonc:"
-  warn "  - wristnerd.xyz"
+  warn "  - wristnerd.site"
   warn "  - arabictools.wristnerd.site"
   warn "  - crypto.wristnerd.site"
 fi
