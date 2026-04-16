@@ -16,8 +16,14 @@
 #   - NEXT_PUBLIC_SUPABASE_URL (from Supabase dashboard)
 #   - NEXT_PUBLIC_SUPABASE_ANON_KEY (from Supabase dashboard)
 #   - SUPABASE_SERVICE_ROLE_KEY (from Supabase dashboard)
+#   - SUPABASE_DB_URL (postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres?sslmode=require)
 #   - JWT_SECRET (generate: openssl rand -hex 64)
 #   - CRON_SECRET (generate: openssl rand -hex 32)
+# Optional admin bootstrap secrets:
+#   - ADMIN_BOOTSTRAP_EMAIL (your admin email)
+#   - ADMIN_BOOTSTRAP_PASSWORD (your admin password)
+#   - ADMIN_BOOTSTRAP_NAME (your name, optional)
+#   - ADMIN_BOOTSTRAP_ROLE (super_admin or admin, default: super_admin)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 name: 🚀 Deploy to Cloudflare
@@ -68,15 +74,26 @@ jobs:
           echo "🔄 Installing psql..."
           apt-get update && apt-get install -y postgresql-client 2>&1 | tail -5
 
-          echo "🔄 Applying database schema..."
-          # Get the connection string from Supabase
-          PROJECT_REF=$(echo "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" | sed 's|https://||' | cut -d'.' -f1)
-          DB_URL="postgresql://postgres:${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}@$PROJECT_REF.db.supabase.co:5432/postgres"
+          echo "🔄 Applying database migrations..."
+          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
 
-          # Apply schema changes (add missing columns)
+          if [ -z "$DB_URL" ]; then
+            echo "⚠️ SUPABASE_DB_URL not set, skipping DB migrations"
+            exit 0
+          fi
+
+          # Apply all migration files in order
+          if [ -d "supabase/migrations" ]; then
+            for file in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
+              echo "Applying migration: $file"
+              psql "$DB_URL" -f "$file" 2>&1 || echo "Migration may have already been applied: $file"
+            done
+          fi
+
+          # Apply schema changes (add missing columns - backward compatible)
           psql "$DB_URL" -c "ALTER TABLE categories ADD COLUMN IF NOT EXISTS description text DEFAULT '';" 2>&1 || echo "description column may exist"
           psql "$DB_URL" -c "ALTER TABLE categories ADD COLUMN IF NOT EXISTS taxonomy_type text DEFAULT 'general';" 2>&1 || echo "taxonomy_type column may exist"
-          psql "$DB_URL" -c "ALTER TABLE categories ADD CONSTRAINT categories_taxonomy_type_check CHECK (taxonomy_type IN ('general', 'budget', 'occasion', 'recipient', 'brand'));" 2>&1 || echo "constraint may exist"
+          psql "$DB_URL" -c "ALTER TABLE categories ADD CONSTRAINT IF NOT EXISTS categories_taxonomy_type_check CHECK (taxonomy_type IN ('general', 'budget', 'occasion', 'recipient', 'brand'));" 2>&1 || echo "constraint may exist"
 
           echo "✅ Database schema updated"
 
@@ -93,8 +110,11 @@ jobs:
           KV_ID=$(npx wrangler kv:namespace create RATE_LIMIT_KV 2>&1 | grep -o '"id":"[^"]*"' | cut -d'"' -f4 || echo "")
           if [ -n "$KV_ID" ]; then
             echo "Created KV namespace: $KV_ID"
+            # Update wrangler.jsonc with the new KV ID
+            sed -i "s/\"id\": \"[^\"]*\"/\"id\": \"$KV_ID\"/" wrangler.jsonc
+            echo "Updated wrangler.jsonc with KV namespace ID"
           else
-            echo "KV namespace may already exist, continuing..."
+            echo "KV namespace may already exist, checking wrangler.jsonc..."
           fi
 
       # ── Build OpenNext bundle ─────────────────────────────────────────
@@ -133,6 +153,38 @@ jobs:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # ── Bootstrap admin user (if secrets provided) ───────────────────
+      - name: Bootstrap admin user
+        run: |
+          if [ -z "${{ secrets.ADMIN_BOOTSTRAP_EMAIL }}" ] || [ -z "${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}" ]; then
+            echo "ℹ️ Admin bootstrap secrets not set, skipping admin creation"
+            exit 0
+          fi
+
+          echo "🔄 Bootstrapping admin user..."
+          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
+
+          if [ -z "$DB_URL" ]; then
+            echo "⚠️ Cannot bootstrap admin: SUPABASE_DB_URL not set"
+            exit 0
+          fi
+
+          ADMIN_EMAIL="${{ secrets.ADMIN_BOOTSTRAP_EMAIL }}"
+          ADMIN_PASSWORD="${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}"
+          ADMIN_NAME="${{ secrets.ADMIN_BOOTSTRAP_NAME || 'Admin' }}"
+          ADMIN_ROLE="${{ secrets.ADMIN_BOOTSTRAP_ROLE || 'super_admin' }}"
+
+          # Create admin user using psql
+          psql "$DB_URL" -c "
+            INSERT INTO admin_users (email, password_hash, name, role, is_active)
+            VALUES ('$ADMIN_EMAIL', crypt('$ADMIN_PASSWORD', gen_salt('bf')), '$ADMIN_NAME', '$ADMIN_ROLE', true)
+            ON CONFLICT (email) DO UPDATE SET
+              password_hash = EXCLUDED.password_hash,
+              name = EXCLUDED.name,
+              role = EXCLUDED.role,
+              updated_at = NOW();
+          " 2>&1 && echo "✅ Admin user ready: $ADMIN_EMAIL" || echo "⚠️ Admin user creation skipped (may already exist or schema not ready)"
 
       # ── Verify deployment ─────────────────────────────────────────────
       - name: Verify deployment
