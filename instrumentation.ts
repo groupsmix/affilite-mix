@@ -18,7 +18,7 @@ export function register() {
     { name: "JWT_SECRET", description: "Random secret for admin JWT signing" },
   ];
 
-  const conditionalInProd: { name: string; description: string }[] = [
+  const recommended: { name: string; description: string }[] = [
     { name: "CRON_SECRET", description: "Secret for authenticating cron job requests" },
     {
       name: "RESEND_API_KEY",
@@ -27,11 +27,12 @@ export function register() {
     },
     {
       name: "SENTRY_DSN",
-      description: "Sentry DSN for error monitoring — required in production for observability",
+      description: "Sentry DSN for error monitoring — recommended in production for observability",
     },
   ];
 
   const missing: string[] = [];
+  const warnings: string[] = [];
 
   for (const { name, description } of required) {
     if (!process.env[name]) {
@@ -40,18 +41,34 @@ export function register() {
   }
 
   if (process.env.NODE_ENV === "production") {
-    for (const { name, description } of conditionalInProd) {
+    for (const { name, description } of recommended) {
       if (!process.env[name]) {
-        missing.push(`  - ${name}: ${description} (required in production)`);
+        warnings.push(`  - ${name}: ${description} (recommended in production)`);
       }
     }
+  }
+
+  // Warn about recommended-but-missing vars (don't crash the worker)
+  if (warnings.length > 0) {
+    const warnMessage = [
+      "",
+      "=".repeat(60),
+      "MISSING RECOMMENDED ENVIRONMENT VARIABLES",
+      "=".repeat(60),
+      ...warnings,
+      "",
+      "These are optional but recommended for full functionality.",
+      "=".repeat(60),
+      "",
+    ].join("\n");
+    console.warn(warnMessage);
   }
 
   if (missing.length > 0) {
     const message = [
       "",
       "=".repeat(60),
-      "MISSING ENVIRONMENT VARIABLES",
+      "MISSING REQUIRED ENVIRONMENT VARIABLES",
       "=".repeat(60),
       ...missing,
       "",

@@ -118,6 +118,16 @@ jobs:
           echo "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix 2>&1 || true
           echo "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" | npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix 2>&1 || true
           echo "${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" | npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix 2>&1 || true
+          # Optional secrets — only set if configured in GitHub secrets
+          if [ -n "${{ secrets.RESEND_API_KEY }}" ]; then
+            echo "${{ secrets.RESEND_API_KEY }}" | npx wrangler secret put RESEND_API_KEY --name affilite-mix 2>&1 || true
+          fi
+          if [ -n "${{ secrets.SENTRY_DSN }}" ]; then
+            echo "${{ secrets.SENTRY_DSN }}" | npx wrangler secret put SENTRY_DSN --name affilite-mix 2>&1 || true
+          fi
+          if [ -n "${{ secrets.INTERNAL_API_TOKEN }}" ]; then
+            echo "${{ secrets.INTERNAL_API_TOKEN }}" | npx wrangler secret put INTERNAL_API_TOKEN --name affilite-mix 2>&1 || true
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
