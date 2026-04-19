@@ -12,7 +12,14 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  { ignores: [".open-next/**", ".next/**"] },
+  {
+    // `custom-worker.ts` at the repo root is a Cloudflare Workers entrypoint
+    // that lives outside the main `tsconfig.json` include (see
+    // `tsconfig.worker.json`). ESLint's projectService can't parse it under
+    // the main tsconfig, so we skip it here — it is still type-checked via
+    // `npm run typecheck:worker`.
+    ignores: [".open-next/**", ".next/**", "custom-worker.ts"],
+  },
   ...compat.extends("next/core-web-vitals"),
   {
     files: ["**/*.ts", "**/*.tsx"],
