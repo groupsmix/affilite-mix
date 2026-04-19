@@ -6,6 +6,7 @@ import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
+import { runAfterResponse } from "@/lib/wait-until";
 
 /** 120 ad impression requests per minute per IP */
 const IMPRESSION_RATE_LIMIT = { maxRequests: 120, windowMs: 60 * 1000 };
@@ -36,7 +37,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "ad_placement_id is required" }, { status: 400 });
     }
 
-    await recordAdImpression(siteId, ad_placement_id, page_path ?? "/");
+    // Fire-and-forget via ctx.waitUntil so the isolate is not killed before
+    // the insert completes under load.  We still respond immediately with
+    // { ok: true } — the client does not need to block on persistence.
+    runAfterResponse(recordAdImpression(siteId, ad_placement_id, page_path ?? "/"), {
+      context: "[api/track/impression] recordAdImpression",
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

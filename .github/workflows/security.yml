@@ -1,0 +1,91 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# SECURITY & COMPLIANCE CHECKS
+#
+# Runs on every push and PR, and weekly on a schedule so we catch newly
+# disclosed advisories on dependencies we have not otherwise touched.
+#
+# Checks:
+#   1. npm audit — fail on new high / critical vulnerabilities.
+#   2. License compliance — fail if a new dependency adopts a restrictive
+#      license (GPL/AGPL/SSPL).  The allowlist below is kept intentionally
+#      narrow so any unexpected license shows up as a review item.
+#   3. Dependency review (PRs only) — GitHub native check that flags
+#      known-vulnerable or license-incompatible dep changes in the diff.
+# ═══════════════════════════════════════════════════════════════════════════
+
+name: 🔐 Security & Compliance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Every Monday 06:00 UTC — catches advisories published over the weekend.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  audit:
+    name: npm audit (high / critical)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Fail only on high or critical — moderate issues still surface in logs
+      # but do not block PRs, keeping signal-to-noise high.
+      - name: Run npm audit
+        run: npm audit --omit=dev --audit-level=high
+
+  licenses:
+    name: License compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install license-checker
+        run: npm install --no-save --no-audit --no-fund license-checker@25
+
+      # Fail if a dep reports a license outside the allowlist.  The list
+      # deliberately excludes copyleft licenses (GPL, AGPL, SSPL) so a
+      # new copyleft dep trips the check instead of shipping silently.
+      - name: Verify license allowlist
+        run: |
+          npx license-checker --production --onlyAllow \
+            "MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Python-2.0;Unlicense;0BSD;BlueOak-1.0.0"
+
+  dependency-review:
+    name: Dependency review
+    # Only runs on pull_request — the action is a no-op on push/schedule.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: "GPL-2.0, GPL-3.0, AGPL-3.0, SSPL-1.0"

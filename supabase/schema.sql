@@ -248,9 +248,13 @@ CREATE INDEX idx_content_updated        ON content(site_id, updated_at DESC)
   WHERE status = 'published';
 CREATE INDEX idx_clicks_site            ON affiliate_clicks(site_id);
 CREATE INDEX idx_clicks_created         ON affiliate_clicks(created_at DESC);
-CREATE INDEX idx_newsletter_site        ON newsletter_subscribers(site_id);
-CREATE INDEX idx_newsletter_site_email  ON newsletter_subscribers(site_id, email);
+CREATE INDEX idx_newsletter_site          ON newsletter_subscribers(site_id);
+CREATE INDEX idx_newsletter_site_email    ON newsletter_subscribers(site_id, email);
+-- Migration 00033: speed up status-filtered queries (unsubscribe, analytics)
+CREATE INDEX idx_newsletter_subscribers_status ON newsletter_subscribers(status);
 CREATE INDEX idx_scheduled_jobs_site    ON scheduled_jobs(site_id);
+-- Migration 00033: supports RLS EXISTS (SELECT 1 FROM sites WHERE id=? AND is_active)
+CREATE INDEX idx_sites_id_is_active     ON sites (id, is_active);
 CREATE INDEX idx_scheduled_jobs_pending ON scheduled_jobs(status, scheduled_for)
   WHERE status = 'pending';
 CREATE INDEX idx_admin_users_email     ON admin_users(email);
@@ -698,6 +702,12 @@ CREATE TABLE IF NOT EXISTS web_vitals (
 CREATE INDEX IF NOT EXISTS idx_web_vitals_name_created
   ON web_vitals (name, created_at DESC);
 
+-- CHECK constraints added in migration 00033 to reject obviously malformed
+-- anon inserts (empty metric name, negative or non-finite values).
+ALTER TABLE web_vitals
+  ADD CONSTRAINT web_vitals_name_not_empty       CHECK (char_length(trim(name)) > 0),
+  ADD CONSTRAINT web_vitals_value_finite_nonneg  CHECK (value >= 0 AND value = value AND value <> 'infinity'::double precision);
+
 ALTER TABLE web_vitals ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "web_vitals_anon_insert" ON web_vitals
   FOR INSERT TO anon WITH CHECK (true);
@@ -719,7 +729,8 @@ CREATE TABLE IF NOT EXISTS site_modules (
 CREATE INDEX IF NOT EXISTS idx_site_modules_site ON site_modules(site_id);
 
 ALTER TABLE site_modules ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "site_modules_public_read" ON site_modules FOR SELECT USING (true);
+-- No public SELECT policy: site_modules is consumed server-side only via
+-- getServiceClient() (see lib/dal/modules.ts).  Removed in migration 00033.
 CREATE POLICY "site_modules_service_all" ON site_modules
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
@@ -738,7 +749,8 @@ CREATE TABLE IF NOT EXISTS site_feature_flags (
 CREATE INDEX IF NOT EXISTS idx_site_feature_flags_site ON site_feature_flags(site_id);
 
 ALTER TABLE site_feature_flags ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "site_feature_flags_public_read" ON site_feature_flags FOR SELECT USING (true);
+-- No public SELECT policy: feature flags are consumed server-side only via
+-- getServiceClient() (see lib/dal/feature-flags.ts).  Removed in migration 00033.
 CREATE POLICY "site_feature_flags_service_all" ON site_feature_flags
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
@@ -753,7 +765,8 @@ CREATE TABLE IF NOT EXISTS roles (
 );
 
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "roles_public_read" ON roles FOR SELECT USING (true);
+-- No public SELECT policy: role definitions are admin-only configuration.
+-- Removed in migration 00033.
 CREATE POLICY "roles_service_all" ON roles
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
@@ -767,7 +780,8 @@ CREATE TABLE IF NOT EXISTS permissions (
 );
 
 ALTER TABLE permissions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "permissions_public_read" ON permissions FOR SELECT USING (true);
+-- No public SELECT policy: permission definitions are admin-only configuration.
+-- Removed in migration 00033.
 CREATE POLICY "permissions_service_all" ON permissions
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
@@ -779,7 +793,8 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 );
 
 ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "role_permissions_public_read" ON role_permissions FOR SELECT USING (true);
+-- No public SELECT policy: role/permission mappings are admin-only configuration.
+-- Removed in migration 00033.
 CREATE POLICY "role_permissions_service_all" ON role_permissions
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
@@ -810,7 +825,9 @@ CREATE TABLE IF NOT EXISTS integration_providers (
 );
 
 ALTER TABLE integration_providers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "integration_providers_public_read" ON integration_providers FOR SELECT USING (true);
+-- No public SELECT policy: the provider registry is admin-only configuration
+-- and is read server-side only (see lib/dal/integrations.ts).  Removed in
+-- migration 00033.
 CREATE POLICY "integration_providers_service_all" ON integration_providers
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
@@ -857,8 +874,10 @@ CREATE INDEX IF NOT EXISTS idx_ai_drafts_site_status ON ai_drafts(site_id, statu
 CREATE INDEX IF NOT EXISTS idx_ai_drafts_site_created ON ai_drafts(site_id, created_at DESC);
 
 ALTER TABLE ai_drafts ENABLE ROW LEVEL SECURITY;
+-- Restricted to service_role in migration 00033.  The original policy used
+-- USING (true) WITH CHECK (true) which granted anon full read/write access.
 CREATE POLICY "ai_drafts_service_all" ON ai_drafts
-  FOR ALL USING (true) WITH CHECK (true);
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 -- ── affiliate_networks (migration 00029) ────────────────────────────
 CREATE TABLE IF NOT EXISTS affiliate_networks (
@@ -877,8 +896,10 @@ CREATE TABLE IF NOT EXISTS affiliate_networks (
 CREATE INDEX IF NOT EXISTS idx_affiliate_networks_site ON affiliate_networks(site_id);
 
 ALTER TABLE affiliate_networks ENABLE ROW LEVEL SECURITY;
+-- Restricted to service_role in migration 00033.  The original policy used
+-- USING (true) WITH CHECK (true) which granted anon full read/write access.
 CREATE POLICY "affiliate_networks_service_all" ON affiliate_networks
-  FOR ALL USING (true) WITH CHECK (true);
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 
 

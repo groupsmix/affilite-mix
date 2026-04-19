@@ -1,60 +1,96 @@
 /**
- * Structured logging utility compatible with Cloudflare Workers.
+ * Structured logger.
  *
- * Outputs JSON-formatted log lines with level, timestamp, and optional
- * context fields. In production on Cloudflare Workers, structured logs
- * are captured by Sentry and Cloudflare's built-in log stream.
+ * Every log line is emitted as a single JSON object so Cloudflare's log
+ * stream (and downstream consumers like Sentry, Logflare, or Better Stack)
+ * can parse it without a grammar.  The shape is deliberately flat:
  *
- * Usage:
- *   import { logger } from "@/lib/logger";
- *   logger.info("User logged in", { userId: "abc", ip: "1.2.3.4" });
- *   logger.error("Failed to send email", { error: err.message });
+ *     { "ts": "…", "level": "info", "msg": "…", "ctx": "…", <...extras> }
+ *
+ * A request-scoped correlation ID is generated per API request by the
+ * withApiHandler() wrapper in lib/api-handler.ts.  Passing it into
+ * `logger.child({ requestId })` adds it to every subsequent log line
+ * emitted through that child so log lines from a single request can be
+ * correlated end-to-end.
  */
 
-type LogLevel = "debug" | "info" | "warn" | "error";
+export type LogLevel = "debug" | "info" | "warn" | "error";
 
-interface LogEntry {
-  level: LogLevel;
-  message: string;
-  timestamp: string;
-  [key: string]: unknown;
+const LEVEL_ORDER: Record<LogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+};
+
+function currentThreshold(): number {
+  const raw = (process.env.LOG_LEVEL ?? "").toLowerCase();
+  if (raw === "debug" || raw === "info" || raw === "warn" || raw === "error") {
+    return LEVEL_ORDER[raw];
+  }
+  // Default: info in production, debug in dev.
+  return process.env.NODE_ENV === "production" ? LEVEL_ORDER.info : LEVEL_ORDER.debug;
 }
 
-function formatEntry(level: LogLevel, message: string, context?: Record<string, unknown>): LogEntry {
-  return {
+export interface Logger {
+  debug: (msg: string, extras?: Record<string, unknown>) => void;
+  info: (msg: string, extras?: Record<string, unknown>) => void;
+  warn: (msg: string, extras?: Record<string, unknown>) => void;
+  error: (msg: string, extras?: Record<string, unknown>) => void;
+  /** Return a new logger whose emitted lines include the given bindings. */
+  child: (bindings: Record<string, unknown>) => Logger;
+}
+
+function emit(
+  level: LogLevel,
+  bindings: Record<string, unknown>,
+  msg: string,
+  extras?: Record<string, unknown>,
+) {
+  if (LEVEL_ORDER[level] < currentThreshold()) return;
+
+  const line = {
+    ts: new Date().toISOString(),
     level,
-    message,
-    timestamp: new Date().toISOString(),
-    ...context,
+    msg,
+    ...bindings,
+    ...(extras ?? {}),
+  };
+
+  // Serialise once so we can survive non-cloneable values (Error, etc.)
+  const serialised = JSON.stringify(line, jsonReplacer);
+
+  // Route through the matching console method so Cloudflare colourises
+  // correctly and log-tailing tools can still filter by level.
+  switch (level) {
+    case "debug":
+    case "info":
+      console.log(serialised);
+      return;
+    case "warn":
+      console.warn(serialised);
+      return;
+    case "error":
+      console.error(serialised);
+  }
+}
+
+function jsonReplacer(_key: string, value: unknown): unknown {
+  if (value instanceof Error) {
+    return { name: value.name, message: value.message, stack: value.stack };
+  }
+  return value;
+}
+
+function build(bindings: Record<string, unknown>): Logger {
+  return {
+    debug: (msg, extras) => emit("debug", bindings, msg, extras),
+    info: (msg, extras) => emit("info", bindings, msg, extras),
+    warn: (msg, extras) => emit("warn", bindings, msg, extras),
+    error: (msg, extras) => emit("error", bindings, msg, extras),
+    child: (extra) => build({ ...bindings, ...extra }),
   };
 }
 
-function shouldLog(level: LogLevel): boolean {
-  if (process.env.NODE_ENV === "production") {
-    // In production, skip debug logs
-    return level !== "debug";
-  }
-  return true;
-}
-
-export const logger = {
-  debug(message: string, context?: Record<string, unknown>) {
-    if (!shouldLog("debug")) return;
-    console.debug(JSON.stringify(formatEntry("debug", message, context)));
-  },
-
-  info(message: string, context?: Record<string, unknown>) {
-    if (!shouldLog("info")) return;
-    console.info(JSON.stringify(formatEntry("info", message, context)));
-  },
-
-  warn(message: string, context?: Record<string, unknown>) {
-    if (!shouldLog("warn")) return;
-    console.warn(JSON.stringify(formatEntry("warn", message, context)));
-  },
-
-  error(message: string, context?: Record<string, unknown>) {
-    if (!shouldLog("error")) return;
-    console.error(JSON.stringify(formatEntry("error", message, context)));
-  },
-};
+/** The root logger.  Use `logger.child({ requestId })` inside API routes. */
+export const logger: Logger = build({});
