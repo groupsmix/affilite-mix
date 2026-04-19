@@ -44,6 +44,11 @@ jobs:
           version: latest
 
       - name: Start Supabase (local)
+        # `supabase start` boots the local stack AND applies every migration
+        # in `supabase/migrations/*.sql` followed by `supabase/seed.sql`, so
+        # explicit "apply migrations" / "seed" steps would be redundant
+        # (and would fail: `supabase db execute --file` and `db seed --file`
+        # aren't valid commands in the current CLI).
         run: |
           set -euo pipefail
           supabase start
@@ -51,19 +56,8 @@ jobs:
           echo "SUPABASE_ANON_KEY=$(supabase status | grep 'anon key' | awk '{print $4}')" >> $GITHUB_ENV
           echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status | grep 'service_role key' | awk '{print $5}')" >> $GITHUB_ENV
 
-      - name: Apply database migrations
-        run: |
-          set -euo pipefail
-          for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "Applying migration: $file"
-            supabase db execute --file "$file"
-          done
-
-      - name: Seed test data
-        run: supabase db seed --file supabase/seed.sql
-
       - name: Generate types
-        run: npx supabase gen types typescript --project-id test > types/database.ts
+        run: supabase gen types typescript --local > types/database.ts
 
       - name: Setup environment
         run: |
