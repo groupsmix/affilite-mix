@@ -55,10 +55,14 @@ export interface RunAfterResponseOptions {
  * are observable.
  */
 export function runAfterResponse<T>(
-  promise: Promise<T>,
+  promise: Promise<T> | T,
   options: RunAfterResponseOptions = {},
 ): Promise<T> {
-  const wrapped = promise.catch((err) => {
+  // Tolerate non-Promise inputs (e.g. a DAL mock that returns undefined
+  // synchronously in tests, or a function that returned a plain value).
+  // Promise.resolve() is a no-op for real promises and wraps anything
+  // else, giving us a uniform `.catch()` surface below.
+  const wrapped = Promise.resolve(promise).catch((err) => {
     captureException(err, { context: options.context ?? "runAfterResponse" });
     throw err;
   });

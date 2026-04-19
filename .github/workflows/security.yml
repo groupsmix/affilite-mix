@@ -69,12 +69,18 @@ jobs:
         run: npm install --no-save --no-audit --no-fund license-checker@25
 
       # Fail if a dep reports a license outside the allowlist.  The list
-      # deliberately excludes copyleft licenses (GPL, AGPL, SSPL) so a
-      # new copyleft dep trips the check instead of shipping silently.
+      # deliberately excludes strong copyleft licenses (GPL, AGPL, SSPL)
+      # so a new copyleft dep trips the check instead of shipping silently.
+      #
+      # LGPL-3.0 is allowed because our only LGPL dependency is the
+      # pre-compiled libvips binary shipped as an optional dep of `sharp`
+      # (@img/sharp-libvips-*).  It is consumed as an external shared
+      # library via sharp's Node bindings, not statically linked into
+      # our code, which is the case LGPL is designed to permit.
       - name: Verify license allowlist
         run: |
-          npx license-checker --production --onlyAllow \
-            "MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Python-2.0;Unlicense;0BSD;BlueOak-1.0.0"
+          npx license-checker --production --excludePrivatePackages --onlyAllow \
+            "MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Python-2.0;Unlicense;0BSD;BlueOak-1.0.0;LGPL-3.0-or-later;LGPL-3.0"
 
   dependency-review:
     name: Dependency review
