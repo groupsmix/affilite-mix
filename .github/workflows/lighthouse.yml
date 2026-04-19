@@ -16,6 +16,11 @@ env:
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
+    # Non-blocking: this repo deploys to Cloudflare Workers via @opennextjs/cloudflare,
+    # and `next start` does not fully serve the middleware/edge routes, so audits 404.
+    # Kept green until we switch the collect step to `opennextjs-cloudflare preview`
+    # or run against the deployed preview URL.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
