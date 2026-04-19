@@ -12,7 +12,7 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  { ignores: [".open-next/**", ".next/**"] },
+  { ignores: [".open-next/**", ".next/**", "custom-worker.ts"] },
   ...compat.extends("next/core-web-vitals"),
   {
     files: ["**/*.ts", "**/*.tsx"],
