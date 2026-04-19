@@ -20,7 +20,7 @@ env:
 
 jobs:
   e2e:
-    name: Playwright E2E (${{ env.SITE_SLUG }})
+    name: Playwright E2E
     runs-on: ubuntu-latest
 
     steps:
@@ -38,6 +38,7 @@ jobs:
 
       - name: Start Supabase (local)
         run: |
+          set -euo pipefail
           npm install -g supabase
           supabase start
           echo "SUPABASE_URL=$(supabase status | grep 'API URL' | awk '{print $4}')" >> $GITHUB_ENV

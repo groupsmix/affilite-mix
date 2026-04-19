@@ -17,6 +17,10 @@ node_modules/
 
 # misc
 .DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
 *.pem
 
 # debug

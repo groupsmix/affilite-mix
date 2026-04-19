@@ -8,6 +8,6 @@
     "noEmit": true,
     "isolatedModules": true
   },
-  "include": ["custom-worker.ts"],
+  "include": ["workers/custom-worker.ts", "custom-worker.ts"],
   "exclude": ["node_modules"]
 }

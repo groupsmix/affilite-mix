@@ -15,6 +15,10 @@ import type {
 } from "@/types/database";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
+interface AdminRoleLookup {
+  role: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Roles                                                              */
 /* ------------------------------------------------------------------ */
@@ -190,7 +194,7 @@ export async function hasPermission(
     .single();
 
   if (adminError) throw adminError;
-  const globalRole = (adminUser as { role: string } | null)?.role;
+  const globalRole = (adminUser as AdminRoleLookup | null)?.role;
 
   // Super admin and owner bypass all permission checks
   if (globalRole === "super_admin" || globalRole === "owner") return true;
@@ -227,5 +231,5 @@ export async function hasPermission(
   if (rpError && rpError.code === "PGRST116") return false;
   if (rpError) throw rpError;
 
-  return rolePermCheck !== null;
+  return Boolean(rolePermCheck);
 }

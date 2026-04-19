@@ -4,6 +4,13 @@ A multi-tenant affiliate content platform built with **Next.js 15** (App Router)
 
 Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has its own domain, language, theme, and content.
 
+## Quick Links
+
+- [Contributing](#contributing)
+- [Project Structure](#project-structure)
+- [Deployment](#deployment)
+- [License](#license)
+
 ## Features
 
 - **Multi-site architecture** — domain-based routing via middleware; site configs in `config/sites/`
@@ -199,10 +206,24 @@ Required GitHub Secrets:
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
+Detailed deployment runbooks:
+
+- `docs/deployment.md`
+- `docs/dashboard-managed-domains.md`
+- `docs/ONE-CLICK-DEPLOY.md`
+
+## Contributing
+
+Contributions are welcome for internal collaborators.
+
+1. Create a feature branch from `main`
+2. Run `npm run lint`, `npm run typecheck:all`, and `npm test`
+3. Open a pull request with a clear scope and test notes
+
 ## Repository Name
 
 > **Note:** The repository is named `affilite-mix` (missing an "a" in "affiliate"). This is a known typo. Renaming requires GitHub admin access and would break existing CI/CD integrations, deployment URLs, and git remotes. The typo does not affect functionality.
 
 ## License
 
-Private — all rights reserved.
+Private -- all rights reserved. See `LICENSE`.
