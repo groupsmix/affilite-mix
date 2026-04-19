@@ -267,8 +267,9 @@ jobs:
           CRON_SECRET="${{ secrets.CRON_SECRET }}"
 
           if [ -z "$CRON_HOST" ] || [ -z "$CRON_SECRET" ]; then
-            echo "⚠️ CRON_HOST or CRON_SECRET not set — skipping health gate"
-            exit 0
+            echo "❌ CRON_HOST or CRON_SECRET not set — cannot run post-deploy health gate"
+            echo "   Both are required secrets. Add them in GitHub → Settings → Secrets and variables → Actions"
+            exit 1
           fi
 
           echo "🔍 Waiting 15 s for deploy to propagate..."

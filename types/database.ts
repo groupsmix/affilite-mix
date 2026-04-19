@@ -1,5 +1,34 @@
 /** Database row types matching the actual Supabase schema */
 
+// ── Newsletter Subscribers ─────────────────────────────────────────────
+
+export type NewsletterStatus = "pending" | "active" | "unsubscribed";
+
+export interface NewsletterSubscriberRow {
+  id: string;
+  site_id: string;
+  email: string;
+  status: NewsletterStatus;
+  /** Double opt-in token — cleared after confirmation */
+  confirmation_token: string | null;
+  confirmed_at: string | null;
+  /** Opaque capability token for one-click unsubscribe links */
+  unsubscribe_token: string | null;
+  created_at: string;
+}
+
+// ── Affiliate Clicks ───────────────────────────────────────────────────
+
+export interface AffiliateClickRow {
+  id: string;
+  site_id: string;
+  product_name: string;
+  affiliate_url: string;
+  content_slug: string;
+  referrer: string;
+  created_at: string;
+}
+
 export interface SiteRow {
   id: string;
   slug: string;
