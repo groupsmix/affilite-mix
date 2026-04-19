@@ -49,12 +49,32 @@ jobs:
         # explicit "apply migrations" / "seed" steps would be redundant
         # (and would fail: `supabase db execute --file` and `db seed --file`
         # aren't valid commands in the current CLI).
+        #
+        # Use `supabase status -o env` (stable, machine-readable) instead of
+        # scraping the pretty output — the pretty table now uses box-drawing
+        # characters and labels keys as "Publishable"/"Secret", so the old
+        # `grep 'anon key' | awk '{print $4}'` produced empty strings on
+        # recent CLI versions. Sourcing the dotenv output strips godotenv's
+        # quoting before we hand plain values to $GITHUB_ENV.
         run: |
           set -euo pipefail
           supabase start
-          echo "SUPABASE_URL=$(supabase status | grep 'API URL' | awk '{print $4}')" >> $GITHUB_ENV
-          echo "SUPABASE_ANON_KEY=$(supabase status | grep 'anon key' | awk '{print $4}')" >> $GITHUB_ENV
-          echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status | grep 'service_role key' | awk '{print $5}')" >> $GITHUB_ENV
+          supabase status -o env \
+            --override-name api.url=SUPABASE_URL \
+            --override-name auth.anon_key=SUPABASE_ANON_KEY \
+            --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY \
+            > supabase_status.env
+          set -a
+          # shellcheck disable=SC1091
+          . ./supabase_status.env
+          set +a
+          rm -f supabase_status.env
+          {
+            echo "SUPABASE_URL=${SUPABASE_URL}"
+            echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}"
+          } >> "$GITHUB_ENV"
+          test -n "$SUPABASE_URL" && test -n "$SUPABASE_ANON_KEY" && test -n "$SUPABASE_SERVICE_ROLE_KEY"
 
       # Types are maintained by hand in `types/database.ts` (row-level helpers)
       # and `types/supabase.ts` (Supabase-generated schema). The previous
