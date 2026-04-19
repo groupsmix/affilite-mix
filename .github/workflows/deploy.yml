@@ -250,7 +250,7 @@ jobs:
             -v ON_ERROR_STOP=1 \
             -f /tmp/bootstrap_admin.sql \
             && echo "✅ Admin user ready: $ADMIN_EMAIL" \
-            || echo "⚠️ Admin bootstrap skipped (schema may not be ready yet)"
+            || { echo "❌ Admin bootstrap failed — check schema, DB connectivity, and credentials"; exit 1; }
 
       # ── Post-deploy health gate ───────────────────────────────────────
       # Calls /api/health with the CRON_SECRET bearer token and verifies:
@@ -303,4 +303,9 @@ jobs:
           echo "✅ Deployment complete!"
           echo "🌐 Testing site..."
           sleep 5
-          curl -s -o /dev/null -w "HTTP %{http_code}" --max-time 10 https://wristnerd.xyz/ || echo "Site may need DNS propagation"
+          CRON_HOST="${{ secrets.CRON_HOST }}"
+          if [ -n "$CRON_HOST" ]; then
+            curl -s -o /dev/null -w "HTTP %{http_code}" --max-time 10 "$CRON_HOST/" || echo "Site may need DNS propagation"
+          else
+            echo "⚠️ CRON_HOST not set — skipping site reachability check"
+          fi

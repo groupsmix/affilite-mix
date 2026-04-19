@@ -182,7 +182,7 @@ npm run test:e2e      # End-to-end tests (Playwright)
 1. Create a new site config in `config/sites/` (copy an existing one as a template)
 2. Add it to the `allSites` array in `config/sites/index.ts`
 3. Insert a matching row into the `sites` database table
-4. Point the domain's DNS to your Cloudflare Pages deployment
+4. Point the domain's DNS to your Cloudflare Workers deployment
 
 > **Note:** `next.config.ts` automatically derives `images.remotePatterns` from all registered sites — no manual update needed.
 

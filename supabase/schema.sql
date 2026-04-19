@@ -634,3 +634,290 @@ INSERT INTO content_products (content_id, product_id, role) VALUES
   ((SELECT id FROM dg), (SELECT id FROM aave),     'hero'),
   ((SELECT id FROM wg), (SELECT id FROM ledger),   'hero'),
   ((SELECT id FROM wg), (SELECT id FROM trezor),   'hero');
+
+-- ═══════════════════════════════════════════════════════
+-- TABLES ADDED IN LATER MIGRATIONS
+-- (appended here to keep this snapshot current)
+-- ═══════════════════════════════════════════════════════
+
+-- ── audit_log (migration 00001) ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS audit_log (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id    uuid REFERENCES sites(id) ON DELETE SET NULL,
+  user_id    uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+  action     text NOT NULL,
+  entity     text NOT NULL DEFAULT '',
+  entity_id  text NOT NULL DEFAULT '',
+  details    jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_site ON audit_log(site_id, created_at DESC);
+
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service_full_access_audit_log" ON audit_log
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── niche_templates (migration 00019) ───────────────────────────────
+CREATE TABLE IF NOT EXISTS niche_templates (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name             text NOT NULL,
+  slug             text NOT NULL UNIQUE,
+  description      text DEFAULT '',
+  default_theme    jsonb DEFAULT '{}'::jsonb,
+  default_nav      jsonb DEFAULT '[]'::jsonb,
+  default_footer   jsonb DEFAULT '[]'::jsonb,
+  default_features jsonb DEFAULT '{}'::jsonb,
+  monetization_type text DEFAULT 'affiliate',
+  language         text DEFAULT 'en',
+  direction        text DEFAULT 'ltr',
+  custom_css       text DEFAULT '',
+  social_links     jsonb DEFAULT '{}'::jsonb,
+  is_builtin       boolean DEFAULT false,
+  created_at       timestamptz DEFAULT now(),
+  updated_at       timestamptz DEFAULT now()
+);
+
+ALTER TABLE niche_templates ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "niche_templates_service_all" ON niche_templates
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── web_vitals (migration 00023) ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS web_vitals (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       text NOT NULL,
+  value      double precision NOT NULL,
+  metric_id  text,
+  page       text,
+  href       text,
+  rating     text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_web_vitals_name_created
+  ON web_vitals (name, created_at DESC);
+
+ALTER TABLE web_vitals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "web_vitals_anon_insert" ON web_vitals
+  FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "web_vitals_service_all" ON web_vitals
+  FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── site_modules (migration 00028) ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS site_modules (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id    uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  module_key text NOT NULL,
+  is_enabled boolean NOT NULL DEFAULT true,
+  config     jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (site_id, module_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_modules_site ON site_modules(site_id);
+
+ALTER TABLE site_modules ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "site_modules_public_read" ON site_modules FOR SELECT USING (true);
+CREATE POLICY "site_modules_service_all" ON site_modules
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── site_feature_flags (migration 00028) ────────────────────────────
+CREATE TABLE IF NOT EXISTS site_feature_flags (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id     uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  flag_key    text NOT NULL,
+  is_enabled  boolean NOT NULL DEFAULT false,
+  description text NOT NULL DEFAULT '',
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (site_id, flag_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_feature_flags_site ON site_feature_flags(site_id);
+
+ALTER TABLE site_feature_flags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "site_feature_flags_public_read" ON site_feature_flags FOR SELECT USING (true);
+CREATE POLICY "site_feature_flags_service_all" ON site_feature_flags
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── roles (migration 00028) ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS roles (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        text NOT NULL UNIQUE,
+  label       text NOT NULL,
+  description text NOT NULL DEFAULT '',
+  is_system   boolean NOT NULL DEFAULT false,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "roles_public_read" ON roles FOR SELECT USING (true);
+CREATE POLICY "roles_service_all" ON roles
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── permissions (migration 00028) ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS permissions (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  feature     text NOT NULL,
+  action      text NOT NULL,
+  description text NOT NULL DEFAULT '',
+  UNIQUE (feature, action)
+);
+
+ALTER TABLE permissions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "permissions_public_read" ON permissions FOR SELECT USING (true);
+CREATE POLICY "permissions_service_all" ON permissions
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── role_permissions (migration 00028) ──────────────────────────────
+CREATE TABLE IF NOT EXISTS role_permissions (
+  role_id       uuid NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  permission_id uuid NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+  PRIMARY KEY (role_id, permission_id)
+);
+
+ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "role_permissions_public_read" ON role_permissions FOR SELECT USING (true);
+CREATE POLICY "role_permissions_service_all" ON role_permissions
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── user_site_roles (migration 00028) ───────────────────────────────
+CREATE TABLE IF NOT EXISTS user_site_roles (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  site_id    uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  role_id    uuid NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, site_id)
+);
+
+ALTER TABLE user_site_roles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "user_site_roles_service_all" ON user_site_roles
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── integration_providers (migration 00028) ─────────────────────────
+CREATE TABLE IF NOT EXISTS integration_providers (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  key           text NOT NULL UNIQUE,
+  name          text NOT NULL,
+  category      text NOT NULL,
+  description   text NOT NULL DEFAULT '',
+  config_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
+  is_builtin    boolean NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE integration_providers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "integration_providers_public_read" ON integration_providers FOR SELECT USING (true);
+CREATE POLICY "integration_providers_service_all" ON integration_providers
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── site_integrations (migration 00028) ─────────────────────────────
+CREATE TABLE IF NOT EXISTS site_integrations (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id      uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  provider_key text NOT NULL REFERENCES integration_providers(key) ON DELETE CASCADE,
+  is_enabled   boolean NOT NULL DEFAULT false,
+  config       jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (site_id, provider_key)
+);
+
+ALTER TABLE site_integrations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "site_integrations_service_all" ON site_integrations
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+
+-- ── ai_drafts (migration 00029) ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ai_drafts (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id          uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  title            text NOT NULL,
+  slug             text NOT NULL,
+  body             text NOT NULL DEFAULT '',
+  excerpt          text NOT NULL DEFAULT '',
+  content_type     text NOT NULL DEFAULT 'article',
+  topic            text NOT NULL DEFAULT '',
+  keywords         text[] NOT NULL DEFAULT '{}',
+  ai_provider      text NOT NULL DEFAULT '',
+  status           text NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending', 'approved', 'rejected', 'published')),
+  generated_at     timestamptz NOT NULL DEFAULT now(),
+  reviewed_at      timestamptz,
+  reviewed_by      text,
+  meta_title       text,
+  meta_description text,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_drafts_site_status ON ai_drafts(site_id, status);
+CREATE INDEX IF NOT EXISTS idx_ai_drafts_site_created ON ai_drafts(site_id, created_at DESC);
+
+ALTER TABLE ai_drafts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ai_drafts_service_all" ON ai_drafts
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- ── affiliate_networks (migration 00029) ────────────────────────────
+CREATE TABLE IF NOT EXISTS affiliate_networks (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id      uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  network      text NOT NULL CHECK (network IN ('cj', 'partnerstack', 'admitad', 'direct')),
+  publisher_id text NOT NULL DEFAULT '',
+  api_key_ref  text NOT NULL DEFAULT '',
+  is_active    boolean NOT NULL DEFAULT true,
+  config       jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (site_id, network)
+);
+
+CREATE INDEX IF NOT EXISTS idx_affiliate_networks_site ON affiliate_networks(site_id);
+
+ALTER TABLE affiliate_networks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "affiliate_networks_service_all" ON affiliate_networks
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- ── newsletter_subscribers: unsubscribe_token column (migration 00030) ──
+-- Column added via migration; documented here for schema completeness.
+-- ALTER TABLE newsletter_subscribers
+--   ADD COLUMN IF NOT EXISTS unsubscribe_token uuid UNIQUE DEFAULT gen_random_uuid();
+
+-- ── public RLS hardening: products / content / pages require active site ──
+-- (migration 00031 — replaces the simpler policies defined above)
+-- Products
+DROP POLICY IF EXISTS "public_read_active_products" ON products;
+CREATE POLICY "public_read_active_products" ON products
+  FOR SELECT USING (
+    status = 'active'
+    AND EXISTS (SELECT 1 FROM sites WHERE sites.id = products.site_id AND sites.is_active = true)
+  );
+
+-- Content
+DROP POLICY IF EXISTS "public_read_published_content" ON content;
+CREATE POLICY "public_read_published_content" ON content
+  FOR SELECT USING (
+    status = 'published'
+    AND EXISTS (SELECT 1 FROM sites WHERE sites.id = content.site_id AND sites.is_active = true)
+  );
+
+-- Pages
+DROP POLICY IF EXISTS "public_read_published_pages" ON pages;
+CREATE POLICY "public_read_published_pages" ON pages
+  FOR SELECT USING (
+    is_published = true
+    AND EXISTS (SELECT 1 FROM sites WHERE sites.id = pages.site_id AND sites.is_active = true)
+  );
+
+-- Content-products join
+DROP POLICY IF EXISTS "public_read_content_products" ON content_products;
+CREATE POLICY "public_read_content_products" ON content_products
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM content c WHERE c.id = content_products.content_id AND c.status = 'published')
+    AND EXISTS (SELECT 1 FROM products p WHERE p.id = content_products.product_id AND p.status = 'active')
+    AND EXISTS (
+      SELECT 1 FROM sites s JOIN content c ON c.site_id = s.id
+      WHERE c.id = content_products.content_id AND s.is_active = true
+    )
+  );
