@@ -46,17 +46,17 @@ jobs:
 
       - name: Apply database migrations
         run: |
+          set -euo pipefail
           for file in $(ls supabase/migrations/*.sql | sort); do
             echo "Applying migration: $file"
-            supabase db execute --file "$file" || true
+            supabase db execute --file "$file"
           done
 
       - name: Seed test data
-        run: |
-          supabase db seed --file supabase/seed.sql || true
+        run: supabase db seed --file supabase/seed.sql
 
       - name: Generate types
-        run: npx supabase gen types typescript --project-id test > types/database.ts 2>/dev/null || true
+        run: npx supabase gen types typescript --project-id test > types/database.ts
 
       - name: Setup environment
         run: |

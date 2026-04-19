@@ -130,8 +130,19 @@ ON CONFLICT (slug) DO UPDATE SET
 /**
  * Known wildcard parent domains.
  * Any subdomain of these is eligible for automatic DB-based resolution.
+ *
+ * Driven by the WILDCARD_PARENT_DOMAINS environment variable (comma-separated).
+ * Defaults to "wristnerd.xyz" if the variable is not set.
+ *
+ * Example .env / wrangler secret:
+ *   WILDCARD_PARENT_DOMAINS=wristnerd.xyz,groupsmix.com
  */
-export const WILDCARD_PARENT_DOMAINS = ["wristnerd.xyz"];
+export const WILDCARD_PARENT_DOMAINS = (
+  process.env.WILDCARD_PARENT_DOMAINS ?? "wristnerd.xyz"
+)
+  .split(",")
+  .map((d) => d.trim())
+  .filter(Boolean);
 
 /** Lookup site by id */
 export function getSiteById(id: string): SiteDefinition | undefined {

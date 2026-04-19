@@ -37,6 +37,7 @@ All SQL migrations are numbered sequentially. Apply them in order against your S
 | `00029_ai_drafts_and_affiliate_networks.sql` | `ai_drafts` and `affiliate_networks` tables; seed ai-compared site |
 | `00030_newsletter_unsubscribe_tokens.sql` | `unsubscribe_token` column on newsletter_subscribers (opaque capability token) |
 | `00031_harden_public_rls_active_site_check.sql` | Public read policies for products/content/pages/content_products require sites.is_active = true |
+| `00032_fix_dashboard_stats_rpc.sql` | Corrects `get_dashboard_stats` — removes invalid `cp.site_id` predicate from `content_no_products` subquery (content_products has no site_id column) |
 
 ## How to Apply
 
@@ -65,3 +66,27 @@ All migrations use `IF NOT EXISTS` / `CREATE OR REPLACE` guards where possible, 
 2. Use `IF NOT EXISTS` guards where possible for idempotency
 3. Add the migration to the table above
 4. Test against a development database before applying to production
+
+## Keeping schema.sql and types/database.ts in sync
+
+`supabase/schema.sql` and `types/database.ts` are **generated artifacts** — they must
+always match the live database. After applying new migrations:
+
+```bash
+# Regenerate both files from the live linked project
+bash scripts/check-schema-drift.sh
+```
+
+Or manually:
+
+```bash
+supabase db dump --linked > supabase/schema.sql
+supabase gen types typescript --linked > types/database.ts
+git diff supabase/schema.sql types/database.ts   # review changes
+git add supabase/schema.sql types/database.ts
+git commit -m "chore: regenerate schema snapshot and types after migration XX"
+```
+
+> **Rule**: Never hand-edit `supabase/schema.sql` or `types/database.ts`.
+> Always regenerate them from the live DB and commit the result.
+> The `scripts/check-schema-drift.sh` script can be added to CI to enforce this.

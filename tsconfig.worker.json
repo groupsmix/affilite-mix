@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Worker uses Cloudflare globals, not DOM/Next.js types.
+    // These stubs live inline in custom-worker.ts; no @cloudflare/workers-types required.
+    "lib": ["esnext"],
+    "noEmit": true,
+    "isolatedModules": true
+  },
+  "include": ["custom-worker.ts"],
+  "exclude": ["node_modules"]
+}

@@ -109,17 +109,18 @@ async function fallbackDashboardStats(
   ]);
 
   // Products with no affiliate URL
-  const { data: noUrlProducts } = await sb
+  // NOTE: head:true returns no row data — destructure count, not data.length
+  const { count: productsNoUrl } = await sb
     .from("products")
     .select("id", { count: "exact", head: true })
     .eq("site_id", siteId)
     .eq("status", "active")
     .or("affiliate_url.is.null,affiliate_url.eq.");
-  const productsNoUrl = noUrlProducts?.length ?? 0;
 
   // Content with no linked products
+  // NOTE: content_products has no site_id column — filter through published content ids
   const [{ data: allLinkedRows }, { data: publishedIds }] = await Promise.all([
-    sb.from("content_products").select("content_id").eq("site_id", siteId),
+    sb.from("content_products").select("content_id"),
     sb.from("content").select("id").eq("site_id", siteId).eq("status", "published"),
   ]);
   const linkedIds = new Set((allLinkedRows ?? []).map((r: { content_id: string }) => r.content_id));
@@ -144,7 +145,7 @@ async function fallbackDashboardStats(
     draft_content: draftContent ?? 0,
     clicks_today: clicksToday ?? 0,
     clicks_7d: clicks7d ?? 0,
-    products_no_url: productsNoUrl,
+    products_no_url: productsNoUrl ?? 0,
     content_no_products: contentNoProducts,
     scheduled_content: scheduledContent ?? 0,
   };

@@ -166,9 +166,13 @@ export async function removeUserSiteRole(userId: string, siteId: string): Promis
  * Checks the user's role on that site, then looks up whether that role
  * has the requested feature+action permission.
  *
- * Falls back to the user's global admin_users.role for backward compatibility:
- * - super_admin/owner bypass → always returns true
- * - admin → checks site-scoped role if assigned, otherwise allows
+ * Role precedence:
+ * - super_admin / owner → always returns true (global bypass)
+ * - Any other user with no user_site_roles row for this site → returns false
+ * - Otherwise: checks whether the assigned site role has the requested permission
+ *
+ * Global `admin` role no longer silently grants cross-site access.
+ * To grant an admin access to a site, insert a user_site_roles row for them.
  */
 export async function hasPermission(
   userId: string,
@@ -194,8 +198,10 @@ export async function hasPermission(
   // 2. Check site-scoped role
   const userSiteRole = await getUserSiteRole(userId, siteId);
   if (!userSiteRole) {
-    // No site-scoped role: global admin gets full access, others denied
-    return globalRole === "admin";
+    // No site-scoped role assigned: deny access.
+    // Only super_admin / owner (handled above) bypass this check.
+    // Assign a user_site_roles row to grant a global admin access to a specific site.
+    return false;
   }
 
   // 3. Check if the assigned role has the requested permission

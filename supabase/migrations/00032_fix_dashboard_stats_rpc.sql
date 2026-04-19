@@ -1,5 +1,10 @@
--- RPC function to aggregate all admin dashboard statistics in a single DB call.
--- Replaces 15+ individual queries with one round-trip.
+-- Migration 00028: fix get_dashboard_stats RPC
+--
+-- The previous version (00027) incorrectly referenced cp.site_id in the
+-- content_no_products subquery.  The content_products table only has
+-- content_id, product_id, and role — no site_id column.
+-- This migration replaces the function with the corrected version so that
+-- environments which already ran 00027 against a live DB pick up the fix.
 CREATE OR REPLACE FUNCTION get_dashboard_stats(
   p_site_id UUID,
   p_today_start TIMESTAMPTZ,
