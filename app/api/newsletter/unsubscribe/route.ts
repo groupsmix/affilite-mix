@@ -70,24 +70,31 @@ export async function POST(request: NextRequest) {
 
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
-    const email = ((bodyOrError.email as string) ?? "").trim().toLowerCase();
-    const siteId = bodyOrError.site_id as string | undefined;
+    const token = ((bodyOrError.token as string) ?? "").trim();
 
-    if (!email || !siteId) {
-      return NextResponse.json({ error: "email and site_id are required" }, { status: 400 });
+    if (!token) {
+      return NextResponse.json(
+        { error: "token is required (use the unsubscribe link from your email)" },
+        { status: 400 },
+      );
     }
 
     const sb = getServiceClient();
 
-    const { error } = await sb
+    const { data, error } = await sb
       .from("newsletter_subscribers")
       .update({ status: "unsubscribed" })
-      .eq("site_id", siteId)
-      .eq("email", email);
+      .eq("unsubscribe_token", token)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       captureException(error, { context: "[api/newsletter/unsubscribe] POST failed to update:" });
       return NextResponse.json({ error: "Failed to unsubscribe" }, { status: 500 });
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: "Invalid unsubscribe token" }, { status: 400 });
     }
 
     return NextResponse.json({ ok: true, message: "You have been unsubscribed." });

@@ -295,17 +295,26 @@ CREATE POLICY "public_read_categories"
   USING (EXISTS (SELECT 1 FROM sites WHERE sites.id = categories.site_id AND sites.is_active = true));
 
 CREATE POLICY "public_read_active_products"
-  ON products FOR SELECT USING (status = 'active');
+  ON products FOR SELECT
+  USING (status = 'active' AND EXISTS (
+    SELECT 1 FROM sites WHERE sites.id = products.site_id AND sites.is_active = true
+  ));
 
 CREATE POLICY "public_read_published_content"
-  ON content FOR SELECT USING (status = 'published');
+  ON content FOR SELECT
+  USING (status = 'published' AND EXISTS (
+    SELECT 1 FROM sites WHERE sites.id = content.site_id AND sites.is_active = true
+  ));
 
 CREATE POLICY "public_read_content_products"
   ON content_products FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM content c
-      WHERE c.id = content_products.content_id AND c.status = 'published'
+      JOIN sites s ON s.id = c.site_id
+      WHERE c.id = content_products.content_id
+        AND c.status = 'published'
+        AND s.is_active = true
     )
   );
 
@@ -346,7 +355,10 @@ CREATE POLICY "service_full_access_shared_content"
 
 -- Public read: published pages are visible to the public
 CREATE POLICY "public_read_published_pages"
-  ON pages FOR SELECT USING (is_published = true);
+  ON pages FOR SELECT
+  USING (is_published = true AND EXISTS (
+    SELECT 1 FROM sites WHERE sites.id = pages.site_id AND sites.is_active = true
+  ));
 
 -- Public insert: ad impressions can be recorded by the public
 CREATE POLICY "public_insert_ad_impressions"

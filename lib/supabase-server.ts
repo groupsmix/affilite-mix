@@ -45,6 +45,13 @@ export function getServiceClient(): SupabaseClient<Database> {
   const url = getSupabaseUrl();
   const key = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY", "");
   if (!url || !key) {
+    const isBuild = !!process.env.NEXT_PHASE;
+    if (process.env.NODE_ENV === "production" && !isBuild) {
+      throw new Error(
+        "Supabase service-role credentials are missing in production. " +
+          "Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+      );
+    }
     return createClient<Database>("https://placeholder.supabase.co", "placeholder-key");
   }
   return createClient<Database>(url, key);
@@ -59,6 +66,13 @@ export function getAnonClient(): SupabaseClient<Database> {
   const url = getSupabaseUrl();
   const key = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
   if (!url || !key) {
+    const isBuild = !!process.env.NEXT_PHASE;
+    if (process.env.NODE_ENV === "production" && !isBuild) {
+      throw new Error(
+        "Supabase anon credentials are missing in production. " +
+          "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+      );
+    }
     return createClient<Database>("https://placeholder.supabase.co", "placeholder-key");
   }
   return createClient<Database>(url, key);

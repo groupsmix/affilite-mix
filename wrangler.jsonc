@@ -21,9 +21,11 @@
 			"service": "affilite-mix"
 		}
 	],
-	// KV namespace for distributed rate limiting
-	// Create with: wrangler kv:namespace create RATE_LIMIT_KV
-	// Then replace the id below with the real namespace ID
+	// KV namespace for distributed rate limiting.
+	// The ID below is a placeholder — the deploy workflow (deploy.yml) creates the
+	// namespace automatically and patches this file via `sed` before the build step.
+	// To create manually: wrangler kv:namespace create RATE_LIMIT_KV
+	// Then replace the id below with the real namespace ID from the output.
 	"kv_namespaces": [
 		{
 			"binding": "RATE_LIMIT_KV",

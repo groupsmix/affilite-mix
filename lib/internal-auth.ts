@@ -20,8 +20,15 @@ const DEV_FALLBACK = "__dev_only_change_me__";
 
 /**
  * Returns the configured internal API token.
- * Logs an error in production if INTERNAL_API_TOKEN is not set.
+ * Throws in production if INTERNAL_API_TOKEN is not set.
  */
 export function getInternalToken(): string {
-  return requireEnvInProduction("INTERNAL_API_TOKEN", DEV_FALLBACK);
+  const token = requireEnvInProduction("INTERNAL_API_TOKEN", DEV_FALLBACK);
+  if (token === DEV_FALLBACK && process.env.NODE_ENV === "production" && !process.env.NEXT_PHASE) {
+    throw new Error(
+      "INTERNAL_API_TOKEN is using the dev fallback in production. " +
+        "Set INTERNAL_API_TOKEN via `wrangler secret put INTERNAL_API_TOKEN`.",
+    );
+  }
+  return token;
 }

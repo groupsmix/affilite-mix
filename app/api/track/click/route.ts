@@ -45,13 +45,16 @@ async function handleClick(request: NextRequest) {
     // Always use the DB-stored affiliate URL, preventing open redirects.
     const destinationUrl = product.affiliate_url;
 
-    // Record click (fire-and-forget)
+    // Record click asynchronously — catch errors to avoid unhandled rejections
+    // while not blocking the redirect response.
     recordClick({
       site_id: siteId,
       product_name: product.name,
       affiliate_url: destinationUrl,
       content_slug: searchParams.get("t") ?? "",
       referrer: request.headers.get("referer") ?? undefined,
+    }).catch((err) => {
+      captureException(err, { context: "[api/track/click] recordClick failed" });
     });
 
     // 302 redirect to the product's affiliate URL

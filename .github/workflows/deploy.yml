@@ -210,23 +210,21 @@ jobs:
       # ── Bootstrap admin user (if secrets provided) ───────────────────
       - name: Bootstrap admin user
         run: |
-          if [ -z "${{ secrets.ADMIN_BOOTSTRAP_EMAIL }}" ] || [ -z "${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}" ]; then
+          if [ -z "$ADMIN_EMAIL" ] || [ -z "$ADMIN_PASSWORD" ]; then
             echo "ℹ️ Admin bootstrap secrets not set, skipping admin creation"
             exit 0
           fi
 
           echo "🔄 Bootstrapping admin user..."
-          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
+          DB_URL="$SUPABASE_DB_URL"
 
           if [ -z "$DB_URL" ]; then
             echo "⚠️ Cannot bootstrap admin: SUPABASE_DB_URL not set"
             exit 0
           fi
 
-          ADMIN_EMAIL="${{ secrets.ADMIN_BOOTSTRAP_EMAIL }}"
-          ADMIN_PASSWORD="${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}"
-          ADMIN_NAME="${{ secrets.ADMIN_BOOTSTRAP_NAME || 'Admin' }}"
-          ADMIN_ROLE="${{ secrets.ADMIN_BOOTSTRAP_ROLE || 'super_admin' }}"
+          ADMIN_NAME="${ADMIN_NAME:-Admin}"
+          ADMIN_ROLE="${ADMIN_ROLE:-super_admin}"
 
           # Write parameterized SQL to a temp file.
           # :'varname' is psql's safe quoted string literal binding.
@@ -249,8 +247,15 @@ jobs:
             -v admin_role="$ADMIN_ROLE" \
             -v ON_ERROR_STOP=1 \
             -f /tmp/bootstrap_admin.sql \
-            && echo "✅ Admin user ready: $ADMIN_EMAIL" \
+            && echo "✅ Admin user ready" \
             || { echo "❌ Admin bootstrap failed — check schema, DB connectivity, and credentials"; exit 1; }
+
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_BOOTSTRAP_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}
+          ADMIN_NAME: ${{ secrets.ADMIN_BOOTSTRAP_NAME }}
+          ADMIN_ROLE: ${{ secrets.ADMIN_BOOTSTRAP_ROLE }}
 
       # ── Post-deploy health gate ───────────────────────────────────────
       # Calls /api/health with the CRON_SECRET bearer token and verifies:
