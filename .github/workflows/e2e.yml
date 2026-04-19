@@ -36,10 +36,16 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Setup Supabase CLI
+        # `npm install -g supabase` is explicitly unsupported by Supabase CLI;
+        # use the official setup action instead.
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
       - name: Start Supabase (local)
         run: |
           set -euo pipefail
-          npm install -g supabase
           supabase start
           echo "SUPABASE_URL=$(supabase status | grep 'API URL' | awk '{print $4}')" >> $GITHUB_ENV
           echo "SUPABASE_ANON_KEY=$(supabase status | grep 'anon key' | awk '{print $4}')" >> $GITHUB_ENV
