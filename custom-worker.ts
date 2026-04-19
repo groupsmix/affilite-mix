@@ -46,13 +46,28 @@ export default {
       return;
     }
 
-    // Determine the base URL from one of the custom domain routes.
-    // In Workers, there's no `self` URL, so we use the first configured domain
-    // or fall back to the worker's default *.workers.dev URL.
-    const baseUrl =
-      typeof env.CF_PAGES_URL === "string" ? env.CF_PAGES_URL : "https://wristnerd.xyz";
+    // Determine the canonical base URL for cron dispatch.
+    // Priority: CRON_HOST (explicit, required in production) → CF_PAGES_URL (legacy).
+    // A hardcoded domain fallback is intentionally absent: silently posting to
+    // the wrong host on a non-wristnerd.xyz deployment would cause missed jobs
+    // or cross-environment interference with no visible error.
+    const cronHost =
+      typeof env.CRON_HOST === "string" && env.CRON_HOST.trim()
+        ? env.CRON_HOST.trim()
+        : typeof env.CF_PAGES_URL === "string" && env.CF_PAGES_URL.trim()
+          ? env.CF_PAGES_URL.trim()
+          : null;
 
-    const url = `${baseUrl}/api/cron/publish`;
+    if (!cronHost) {
+      console.error(
+        "[scheduled] CRON_HOST is not configured — skipping cron dispatch. " +
+          "Set it with: wrangler secret put CRON_HOST (e.g., https://wristnerd.xyz). " +
+          "Without this, scheduled jobs will be silently skipped.",
+      );
+      return;
+    }
+
+    const url = `${cronHost}/api/cron/publish`;
 
     ctx.waitUntil(
       fetch(url, {

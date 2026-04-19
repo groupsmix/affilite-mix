@@ -78,6 +78,24 @@ export async function GET(request: NextRequest) {
     checks.environment = { status: "ok" };
   }
 
+  // Check RATE_LIMIT_KV Cloudflare binding.
+  // In production, a missing KV binding causes every rate-limited route to
+  // reject all requests (fail-closed). Surfacing this here lets the deploy
+  // pipeline catch a misconfigured binding before traffic hits the worker.
+  const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
+  const kvPresent = !!kv && typeof kv === "object" && "get" in kv && "put" in kv;
+  if (process.env.NODE_ENV === "production" && !kvPresent) {
+    checks.kv_binding = {
+      status: "error",
+      error:
+        "RATE_LIMIT_KV binding not available — all rate-limited routes will reject requests. " +
+        "Add the KV namespace binding in wrangler.jsonc and redeploy.",
+    };
+    logger.error("Health check: RATE_LIMIT_KV binding missing in production");
+  } else {
+    checks.kv_binding = { status: "ok" };
+  }
+
   // Check Resend email service (production-required for newsletter)
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey) {

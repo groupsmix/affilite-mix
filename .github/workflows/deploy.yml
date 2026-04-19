@@ -171,6 +171,7 @@ jobs:
           [ -z "$_SB_SERVICE_KEY" ]   && MISSING="$MISSING SUPABASE_SERVICE_ROLE_KEY"
           [ -z "$_SB_URL" ]           && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_URL"
           [ -z "$_SB_ANON_KEY" ]      && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          [ -z "$_CRON_HOST" ]        && MISSING="$MISSING CRON_HOST"
 
           if [ -n "$MISSING" ]; then
             echo "❌ Required secrets are missing:$MISSING"
@@ -183,6 +184,7 @@ jobs:
           echo "$_SB_SERVICE_KEY" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix
           echo "$_SB_URL"         | npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix
           echo "$_SB_ANON_KEY"    | npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix
+          echo "$_CRON_HOST"      | npx wrangler secret put CRON_HOST --name affilite-mix
 
           echo "🔐 Setting optional Worker secrets (skipped if not configured)..."
           [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx wrangler secret put RESEND_API_KEY --name affilite-mix       || true
@@ -203,6 +205,7 @@ jobs:
           _RESEND_KEY: ${{ secrets.RESEND_API_KEY }}
           _SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+          _CRON_HOST: ${{ secrets.CRON_HOST }}
 
       # ── Bootstrap admin user (if secrets provided) ───────────────────
       - name: Bootstrap admin user
@@ -248,6 +251,51 @@ jobs:
             -f /tmp/bootstrap_admin.sql \
             && echo "✅ Admin user ready: $ADMIN_EMAIL" \
             || echo "⚠️ Admin bootstrap skipped (schema may not be ready yet)"
+
+      # ── Post-deploy health gate ───────────────────────────────────────
+      # Calls /api/health with the CRON_SECRET bearer token and verifies:
+      #   - The worker is reachable
+      #   - The RATE_LIMIT_KV binding is present (missing = all rate-limited
+      #     routes reject every request)
+      #   - Required env vars are wired
+      # The step fails the workflow if the worker reports degraded status,
+      # preventing a broken deploy from silently receiving traffic.
+      - name: Post-deploy health gate
+        run: |
+          set -euo pipefail
+          CRON_HOST="${{ secrets.CRON_HOST }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+
+          if [ -z "$CRON_HOST" ] || [ -z "$CRON_SECRET" ]; then
+            echo "⚠️ CRON_HOST or CRON_SECRET not set — skipping health gate"
+            exit 0
+          fi
+
+          echo "🔍 Waiting 15 s for deploy to propagate..."
+          sleep 15
+
+          HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" \
+            --max-time 20 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$CRON_HOST/api/health")
+
+          echo "Health response (HTTP $HTTP_STATUS):"
+          cat /tmp/health.json || true
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Health check returned HTTP $HTTP_STATUS — deployment may be broken"
+            exit 1
+          fi
+
+          # Fail if any check is in error state (catches missing KV binding,
+          # missing env vars, unreachable Supabase, etc.)
+          DEGRADED=$(cat /tmp/health.json | grep -o '"status":"degraded"' | head -1 || true)
+          if [ -n "$DEGRADED" ]; then
+            echo "❌ Worker reports degraded health — check KV binding, env vars, and DB connectivity"
+            exit 1
+          fi
+
+          echo "✅ Deployment healthy"
 
       # ── Verify deployment ─────────────────────────────────────────────
       - name: Verify deployment
