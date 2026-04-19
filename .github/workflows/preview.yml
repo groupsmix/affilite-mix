@@ -5,11 +5,12 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  # Use staging/preview Supabase credentials to avoid polluting production data.
-  # Falls back to production secrets if staging secrets are not configured.
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  # Preview deployments MUST use isolated staging Supabase credentials.
+  # Never fall back to production secrets — PR code can execute against
+  # whatever database is wired here.
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
   JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
 jobs:
@@ -33,6 +34,20 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
 
+      - name: Verify staging Supabase secrets
+        run: |
+          set -euo pipefail
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::STAGING_SUPABASE_URL, STAGING_SUPABASE_ANON_KEY, and STAGING_SUPABASE_SERVICE_ROLE_KEY must all be set."
+            echo "::error::Preview deployments must use an isolated staging environment, not production Supabase."
+            echo "::error::Add STAGING_SUPABASE_URL, STAGING_SUPABASE_ANON_KEY, and STAGING_SUPABASE_SERVICE_ROLE_KEY to your GitHub repo secrets."
+            exit 1
+          fi
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -46,12 +61,15 @@ jobs:
       - name: Deploy preview to Cloudflare Workers
         id: deploy
         run: |
+          set -euo pipefail
           OUTPUT=$(npx wrangler deploy \
             --name "affilite-mix-preview-pr-${{ github.event.pull_request.number }}" \
-            --no-bundle 2>&1) || true
+            --no-bundle 2>&1)
           echo "$OUTPUT"
-          # Extract the preview URL from wrangler output
           PREVIEW_URL=$(echo "$OUTPUT" | grep -oP 'https://[^\s]+\.workers\.dev' | head -1)
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "::warning::Could not extract preview URL from wrangler output"
+          fi
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -93,3 +111,30 @@ jobs:
                 body,
               });
             }
+
+      - name: Setup Node.js for E2E
+        if: steps.deploy.outputs.preview_url != ''
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install Playwright browsers
+        if: steps.deploy.outputs.preview_url != ''
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests against preview
+        if: steps.deploy.outputs.preview_url != ''
+        run: npx playwright test
+        env:
+          CI: "true"
+          E2E_BASE_URL: ${{ steps.deploy.outputs.preview_url }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+
+      - name: Upload Playwright report
+        if: failure() && steps.deploy.outputs.preview_url != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: preview-playwright-report-pr-${{ github.event.pull_request.number }}
+          path: playwright-report/
+          retention-days: 7

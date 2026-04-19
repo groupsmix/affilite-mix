@@ -32,8 +32,11 @@ export async function GET(request: NextRequest) {
   // infrastructure information (Finding 21).
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization") ?? "";
-  const isAuthorized =
-    (cronSecret && authHeader === `Bearer ${cronSecret}`) || request.cookies.has("admin_token");
+  // Only CRON_SECRET bearer auth unlocks the detailed health view.
+  // Cookie-presence is NOT a valid auth check — the admin session cookie is
+  // "nh_admin_token", not "admin_token", so a fake cookie would have passed
+  // the old check. Bearer auth avoids that class of bug entirely.
+  const isAuthorized = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
 
   if (!isAuthorized) {
     return NextResponse.json({ status: "healthy" });

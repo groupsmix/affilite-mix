@@ -277,3 +277,57 @@ export interface SiteIntegrationRow {
   created_at: string;
   updated_at: string;
 }
+
+// ── Web Vitals ─────────────────────────────────────────────────────────
+
+export interface WebVitalRow {
+  id: string;
+  name: string;
+  value: number;
+  metric_id: string | null;
+  page: string | null;
+  href: string | null;
+  rating: string | null;
+  created_at: string;
+}
+
+// ── AI Drafts ──────────────────────────────────────────────────────────
+
+export type AiDraftStatus = "pending" | "approved" | "rejected" | "published";
+
+export interface AiDraftRow {
+  id: string;
+  site_id: string;
+  title: string;
+  slug: string;
+  body: string;
+  excerpt: string;
+  content_type: string;
+  topic: string;
+  keywords: string[];
+  ai_provider: string;
+  status: AiDraftStatus;
+  generated_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Affiliate Networks ─────────────────────────────────────────────────
+
+export type AffiliateNetwork = "cj" | "partnerstack" | "admitad" | "direct";
+
+export interface AffiliateNetworkRow {
+  id: string;
+  site_id: string;
+  network: AffiliateNetwork;
+  publisher_id: string;
+  api_key_ref: string;
+  is_active: boolean;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}

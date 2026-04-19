@@ -2,18 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { INTERNAL_HEADER, getInternalToken } from "@/lib/internal-auth";
 
 /** 60 resolve-site requests per minute per IP */
 const RESOLVE_SITE_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
-
-/**
- * Internal header shared between middleware and this endpoint.
- * Not a cryptographic secret — just prevents casual external access.
- * The endpoint is already excluded from the middleware matcher, so this
- * header acts as a lightweight guard against direct public enumeration.
- */
-const INTERNAL_HEADER = "x-internal-token";
-const INTERNAL_TOKEN = process.env.INTERNAL_API_TOKEN ?? "__affilite_internal__";
 
 /**
  * GET /api/internal/resolve-site?domain=foo.wristnerd.xyz
@@ -24,7 +16,7 @@ const INTERNAL_TOKEN = process.env.INTERNAL_API_TOKEN ?? "__affilite_internal__"
  */
 export async function GET(request: NextRequest) {
   // Reject requests without the internal header
-  if (request.headers.get(INTERNAL_HEADER) !== INTERNAL_TOKEN) {
+  if (request.headers.get(INTERNAL_HEADER) !== getInternalToken()) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

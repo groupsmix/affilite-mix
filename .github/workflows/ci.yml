@@ -29,6 +29,11 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      # E2E tests run against the preview deployment in preview.yml.
+      # To run locally: npm run test:e2e (requires a running dev server).
+      # They are intentionally not run in this CI job because they require
+      # a live Supabase instance and a deployed Cloudflare Worker.
+      #
       # E2E tests (Playwright) — uncomment once a test environment is available.
       # Requires a running server (or E2E_BASE_URL pointing to a preview deploy).
       # - name: Install Playwright browsers

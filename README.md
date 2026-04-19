@@ -1,6 +1,6 @@
 # Affilite-Mix — Multi-Site Affiliate Platform
 
-A multi-tenant affiliate content platform built with **Next.js 15** (App Router), **Supabase**, **Tailwind CSS v4**, and deployed to **Cloudflare Pages** via `@opennextjs/cloudflare`.
+A multi-tenant affiliate content platform built with **Next.js 15** (App Router), **Supabase**, **Tailwind CSS v4**, and deployed to **Cloudflare Workers** via `@opennextjs/cloudflare`.
 
 Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has its own domain, language, theme, and content.
 
@@ -12,7 +12,7 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 - **Newsletter signups** — per-site subscriber management with Turnstile captcha
 - **Scheduled jobs** — publish/archive content and products on a schedule
 - **SEO** — JSON-LD structured data, Open Graph, canonical URLs, sitemap
-- **Security** — CSRF protection, rate limiting, HTML sanitization, PBKDF2 password hashing, CSP headers
+- **Security** — CSRF protection, rate limiting, HTML sanitization, bcrypt password hashing (with transparent PBKDF2 legacy upgrade), CSP headers
 
 ## Tech Stack
 
@@ -24,7 +24,7 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 | Rich text editor | TipTap                                        |
 | Image storage    | Cloudflare R2 (S3-compatible)                 |
 | Bot protection   | Cloudflare Turnstile                          |
-| Deployment       | Cloudflare Pages via `@opennextjs/cloudflare` |
+| Deployment       | Cloudflare Workers via `@opennextjs/cloudflare` |
 
 ## Getting Started
 
@@ -70,14 +70,18 @@ Edit `.env` and fill in your values:
 
 ### 3. Set up the database
 
-Apply the schema to your Supabase project:
+Apply all migrations to your Supabase project in order:
 
 ```bash
-# Via Supabase SQL Editor — paste the contents of:
-# supabase/schema.sql          (tables, indexes, RLS, triggers, seed data)
-# supabase/admin-users.sql     (admin users table)
-# supabase/rls-defense-in-depth.sql  (additional RLS policies)
+# Option 1 — Supabase CLI (recommended)
+supabase db push
+
+# Option 2 — Direct psql (apply each file in numbered order)
+for f in supabase/migrations/*.sql; do psql "$SUPABASE_DB_URL" -f "$f"; done
 ```
+
+> Migrations live in `supabase/migrations/` and are numbered sequentially.
+> Do **not** apply `supabase/schema.sql` directly — it is a snapshot for reference only.
 
 ### 4. Run the dev server
 
@@ -145,8 +149,8 @@ npm run test:e2e      # End-to-end tests (Playwright)
 | `npm run start`     | Start production server                    |
 | `npm run lint`      | Run ESLint                                 |
 | `npm run typecheck` | Run TypeScript type checking               |
-| `npm run preview`   | Build and preview Cloudflare Pages locally |
-| `npm run deploy`    | Build and deploy to Cloudflare Pages       |
+| `npm run preview`   | Build and preview Cloudflare Worker locally |
+| `npm run deploy`    | Build and deploy to Cloudflare Workers      |
 
 ## Project Structure
 
@@ -184,7 +188,7 @@ npm run test:e2e      # End-to-end tests (Playwright)
 
 ## Deployment
 
-The project deploys to Cloudflare Pages via GitHub Actions (`.github/workflows/deploy.yml`).
+The project deploys to Cloudflare Workers via GitHub Actions (`.github/workflows/deploy.yml`).
 
 Required GitHub Secrets:
 

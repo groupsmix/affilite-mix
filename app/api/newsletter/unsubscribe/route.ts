@@ -10,7 +10,7 @@ const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
 
 /**
  * GET /api/newsletter/unsubscribe?token=<uuid>
- * Unsubscribes a user using their subscriber ID as token.
+ * Unsubscribes a user using their dedicated unsubscribe_token (not the row id).
  *
  * POST /api/newsletter/unsubscribe
  * Body: { email, site_id }
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const { error } = await sb
       .from("newsletter_subscribers")
       .update({ status: "unsubscribed" })
-      .eq("id", token);
+      .eq("unsubscribe_token", token);
 
     if (error) {
       captureException(error, { context: "[api/newsletter/unsubscribe] GET failed to update:" });

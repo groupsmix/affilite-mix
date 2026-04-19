@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSiteByDomain, allSites } from "@/config/sites";
 import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { INTERNAL_HEADER, getInternalToken } from "@/lib/internal-auth";
 
 /**
  * Returns a styled "Niche not found" HTML page.
@@ -62,7 +63,7 @@ export async function middleware(request: NextRequest) {
     try {
       const dbRes = await fetch(
         new URL(`/api/internal/resolve-site?domain=${encodeURIComponent(hostname)}`, request.url),
-        { headers: { "x-internal-token": "__affilite_internal__" } },
+        { headers: { [INTERNAL_HEADER]: getInternalToken() } },
       );
       if (dbRes.ok) {
         const data = await dbRes.json();

@@ -100,11 +100,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true, message: "You are already subscribed." });
       }
       // Re-send confirmation: update token and reset status to pending
+      const unsubscribeToken = crypto.randomUUID();
       const { error: updateError } = await sb
         .from("newsletter_subscribers")
         .update({
           status: "pending",
           confirmation_token: confirmationToken,
+          unsubscribe_token: unsubscribeToken,
           confirmed_at: null,
         })
         .eq("id", existing.id);
@@ -117,11 +119,13 @@ export async function POST(request: Request) {
       }
     } else {
       // Insert new subscriber with pending status
+      const unsubscribeToken = crypto.randomUUID();
       const { error: insertError } = await sb.from("newsletter_subscribers").insert({
         site_id: site.id,
         email,
         status: "pending",
         confirmation_token: confirmationToken,
+        unsubscribe_token: unsubscribeToken,
       });
 
       if (insertError) {
@@ -132,7 +136,8 @@ export async function POST(request: Request) {
 
     // Send confirmation email
     // Uses RESEND_API_KEY if available; otherwise logs the confirmation link
-    const confirmUrl = `${request.headers.get("origin") ?? ""}/newsletter/confirm?token=${confirmationToken}`;
+    const baseUrl = `https://${site.domain}`;
+    const confirmUrl = `${baseUrl}/newsletter/confirm?token=${confirmationToken}`;
     const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {
