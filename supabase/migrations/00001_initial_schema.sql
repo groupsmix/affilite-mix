@@ -122,6 +122,42 @@ CREATE TABLE IF NOT EXISTS affiliate_clicks (
 CREATE INDEX idx_clicks_site ON affiliate_clicks(site_id);
 CREATE INDEX idx_clicks_created ON affiliate_clicks(site_id, created_at DESC);
 
+-- ── Scheduled Jobs ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS scheduled_jobs (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  job_type      TEXT NOT NULL
+                CHECK (job_type IN ('publish_content', 'activate_product', 'archive_content', 'archive_product', 'custom')),
+  target_id     UUID NOT NULL,
+  scheduled_for TIMESTAMPTZ NOT NULL,
+  status        TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'executed', 'failed', 'cancelled')),
+  payload       JSONB DEFAULT '{}',
+  executed_at   TIMESTAMPTZ,
+  error         TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_site ON scheduled_jobs(site_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_pending ON scheduled_jobs(status, scheduled_for)
+  WHERE status = 'pending';
+
+-- ── Pages ────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS pages (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  slug          TEXT NOT NULL,
+  title         TEXT NOT NULL,
+  body          TEXT DEFAULT '',
+  is_published  BOOLEAN DEFAULT false,
+  sort_order    INTEGER DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(site_id, slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pages_site ON pages(site_id);
+
 -- ── Admin Users ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS admin_users (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -173,6 +209,8 @@ ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE affiliate_clicks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scheduled_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
@@ -183,6 +221,7 @@ CREATE POLICY "Public can read categories" ON categories FOR SELECT USING (true)
 CREATE POLICY "Public can read active products" ON products FOR SELECT USING (status = 'active');
 CREATE POLICY "Public can read published content" ON content FOR SELECT USING (status = 'published');
 CREATE POLICY "Public can read content_products" ON content_products FOR SELECT USING (true);
+CREATE POLICY "public_read_published_pages" ON pages FOR SELECT USING (is_published = true);
 
 -- Service role bypass (for admin operations via service_role key)
 -- The service_role key bypasses RLS by default in Supabase.
