@@ -133,6 +133,7 @@ CREATE TABLE newsletter_subscribers (
                       CHECK (status IN ('pending', 'active', 'unsubscribed')),
   confirmation_token  text,
   confirmed_at        timestamptz,
+  unsubscribe_token   uuid UNIQUE DEFAULT gen_random_uuid(),
   created_at          timestamptz DEFAULT now(),
   UNIQUE(site_id, email)
 );
@@ -879,10 +880,7 @@ ALTER TABLE affiliate_networks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "affiliate_networks_service_all" ON affiliate_networks
   FOR ALL USING (true) WITH CHECK (true);
 
--- ── newsletter_subscribers: unsubscribe_token column (migration 00030) ──
--- Column added via migration; documented here for schema completeness.
--- ALTER TABLE newsletter_subscribers
---   ADD COLUMN IF NOT EXISTS unsubscribe_token uuid UNIQUE DEFAULT gen_random_uuid();
+
 
 -- ── public RLS hardening: products / content / pages require active site ──
 -- (migration 00031 — replaces the simpler policies defined above)
