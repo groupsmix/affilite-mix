@@ -132,15 +132,21 @@ ON CONFLICT (slug) DO UPDATE SET
  * Any subdomain of these is eligible for automatic DB-based resolution.
  *
  * Driven by the WILDCARD_PARENT_DOMAINS environment variable (comma-separated).
- * Defaults to empty (no wildcard parent domains) if the variable is not set.
+ * Defaults to ["wristnerd.xyz"] if the variable is not set, matching
+ * the documented default in .env.example and the README.
  *
  * Example .env / wrangler secret:
  *   WILDCARD_PARENT_DOMAINS=wristnerd.xyz,groupsmix.com
  */
-export const WILDCARD_PARENT_DOMAINS = (process.env.WILDCARD_PARENT_DOMAINS ?? "")
+const WILDCARD_PARENT_DOMAINS_DEFAULT = ["wristnerd.xyz"];
+const parsedWildcardParentDomains = (process.env.WILDCARD_PARENT_DOMAINS ?? "")
   .split(",")
   .map((d) => d.trim())
   .filter(Boolean);
+export const WILDCARD_PARENT_DOMAINS =
+  parsedWildcardParentDomains.length > 0
+    ? parsedWildcardParentDomains
+    : WILDCARD_PARENT_DOMAINS_DEFAULT;
 
 /** Lookup site by id */
 export function getSiteById(id: string): SiteDefinition | undefined {
