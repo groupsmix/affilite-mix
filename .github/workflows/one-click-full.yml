@@ -1,46 +1,112 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# 🚀 ONE-CLICK FULL SETUP
+# ONE-CLICK COMPLETE SETUP (End-to-End)
 #
-# Does EVERYTHING automatically:
-# 1. Fetches Supabase credentials via API
-# 2. Sets up Cloudflare R2 and KV
-# 3. Deploys to Cloudflare Workers
-# 4. Creates admin user
+# Does EVERYTHING automatically in a single run:
 #
-# USAGE:
-# 1. First run "🔑 Setup Secrets" workflow
-# 2. Then run this workflow
-# 3. Wait 5-10 minutes
-# 4. Done! 🎉
+#   1. Auto-detects your Supabase project & fetches all credentials
+#   2. Applies every database migration (idempotent — safe to re-run)
+#   3. Creates Cloudflare R2 bucket & KV namespace
+#   4. Builds the Next.js app with OpenNext
+#   5. Deploys to Cloudflare Workers
+#   6. Sets all Worker secrets (auto-generates JWT, CRON, etc.)
+#   7. Configures custom domains on the Worker
+#   8. Creates your admin user
+#   9. Saves ALL secrets to GitHub (so future pushes auto-deploy)
+#  10. Runs a health check to verify everything works
+#
+# HOW TO USE:
+#   1. Go to GitHub → Actions → "One-Click Complete Setup"
+#   2. Click "Run workflow"
+#   3. Fill in the form (4 required fields)
+#   4. Click the green "Run workflow" button
+#   5. Wait ~10 minutes → Done!
+#
+# WHAT YOU NEED:
+#   - Supabase Access Token  → supabase.com/dashboard/account/tokens
+#   - Supabase DB Password   → the password you set when creating the project
+#   - Cloudflare API Token   → dash.cloudflare.com/profile/api-tokens
+#                               (use "Edit Cloudflare Workers" template, then
+#                                also add Account > R2 > Edit, Account > KV > Edit,
+#                                Zone > DNS > Edit, Zone > Zone > Read)
+#   - Cloudflare Account ID  → dash.cloudflare.com → any domain → Overview sidebar
+#
+# RE-RUNNING:
+#   Safe to re-run at any time. All steps are idempotent.
+#   Re-running will apply any new migrations and redeploy.
 # ═══════════════════════════════════════════════════════════════════════════════
 
-name: 🚀 One-Click Full Setup
+name: "\U0001F680 One-Click Complete Setup"
 
 on:
   workflow_dispatch:
     inputs:
+      supabase_access_token:
+        description: "Supabase Access Token (supabase.com/dashboard/account/tokens)"
+        required: true
+        type: string
+      supabase_db_password:
+        description: "Supabase Database Password"
+        required: true
+        type: string
+      supabase_project_ref:
+        description: "Supabase Project Ref (leave empty to auto-detect first project)"
+        required: false
+        type: string
+        default: ""
+      cloudflare_api_token:
+        description: "Cloudflare API Token (Workers + R2 + KV + DNS permissions)"
+        required: true
+        type: string
+      cloudflare_account_id:
+        description: "Cloudflare Account ID"
+        required: true
+        type: string
       admin_email:
-        description: "Admin email"
+        description: "Admin dashboard email"
         required: false
         type: string
         default: "admin@example.com"
       admin_password:
-        description: "Admin password"
+        description: "Admin dashboard password (leave empty to auto-generate)"
+        required: false
+        type: string
+        default: ""
+      primary_domain:
+        description: "Primary domain (leave empty if you don't have one yet)"
+        required: false
+        type: string
+        default: ""
+      github_pat:
+        description: "GitHub PAT with repo scope (optional — saves secrets for auto-deploy on push)"
         required: false
         type: string
         default: ""
 
 concurrency:
-  group: one-click
-  cancel-in-progress: true
+  group: one-click-setup
+  cancel-in-progress: false
 
 jobs:
-  full-setup:
-    name: 🚀 Full Setup
+  complete-setup:
+    name: "\U0001F680 Complete End-to-End Setup"
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 0 — MASK SECRETS & PREPARE
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Mask sensitive inputs
+        run: |
+          echo "::add-mask::${{ inputs.supabase_access_token }}"
+          echo "::add-mask::${{ inputs.supabase_db_password }}"
+          echo "::add-mask::${{ inputs.cloudflare_api_token }}"
+          echo "::add-mask::${{ inputs.cloudflare_account_id }}"
+          echo "::add-mask::${{ inputs.admin_password }}"
+          echo "::add-mask::${{ inputs.github_pat }}"
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -51,143 +117,533 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Install Wrangler
-        run: npm install -g wrangler
-
-      - name: Install Supabase CLI
+      - name: Install system tools
         run: |
-          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz -o supabase.tar.gz
-          tar -xzf supabase.tar.gz
-          mv supabase /usr/local/bin/supabase
-          chmod +x /usr/local/bin/supabase
-          rm supabase.tar.gz
+          echo "::group::Installing psql, jq, wrangler, supabase CLI"
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client jq 2>&1 | tail -3
+          npm install -g wrangler@latest
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin
+          sudo chmod +x /usr/local/bin/supabase
+          echo "::endgroup::"
+          echo "Node $(node -v) | npm $(npm -v) | wrangler $(wrangler --version) | supabase $(supabase --version)"
 
-      - name: Install psql
-        run: apt-get update && apt-get install -y postgresql-client jq 2>&1 | tail -3
-
-      # ═══════════════════════════════════════════════════════════════════════
-      # SUPABASE SETUP
-      # ═══════════════════════════════════════════════════════════════════════
-      - name: Fetch Supabase Credentials
-        id: supabase
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 1 — SUPABASE: DISCOVER PROJECT & FETCH CREDENTIALS
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Discover Supabase project
+        id: supabase-project
+        env:
+          SB_TOKEN: ${{ inputs.supabase_access_token }}
+          SB_REF_INPUT: ${{ inputs.supabase_project_ref }}
         run: |
-          echo "🔧 Fetching Supabase credentials..."
-          TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
-          PROJECT_REF="${{ secrets.SUPABASE_PROJECT_REF }}"
+          echo "--- Discovering Supabase project ---"
 
-          if [ -z "$PROJECT_REF" ]; then
-            PROJECT_REF=$(curl -s -X GET "https://api.supabase.com/v1/projects" \
-              -H "Authorization: Bearer $TOKEN" | jq -r '.[0].ref')
+          if [ -n "$SB_REF_INPUT" ]; then
+            PROJECT_REF="$SB_REF_INPUT"
+            echo "Using provided project ref: $PROJECT_REF"
+          else
+            echo "Auto-detecting first Supabase project..."
+            PROJECTS=$(curl -sf "https://api.supabase.com/v1/projects" \
+              -H "Authorization: Bearer $SB_TOKEN")
+            PROJECT_REF=$(echo "$PROJECTS" | jq -r '[.[] | select(.status == "ACTIVE_HEALTHY")] | .[0].ref // empty')
+            if [ -z "$PROJECT_REF" ]; then
+              echo "::error::No active Supabase project found. Create one at supabase.com/dashboard first."
+              exit 1
+            fi
+            echo "Auto-detected project ref: $PROJECT_REF"
           fi
+
+          # Fetch project details (region, etc.)
+          PROJECT_INFO=$(curl -sf "https://api.supabase.com/v1/projects/$PROJECT_REF" \
+            -H "Authorization: Bearer $SB_TOKEN")
+          REGION=$(echo "$PROJECT_INFO" | jq -r '.region // "us-east-1"')
+          echo "Region: $REGION"
 
           SUPABASE_URL="https://$PROJECT_REF.supabase.co"
-          echo "SUPABASE_URL=$SUPABASE_URL" >> $GITHUB_ENV
-          echo "PROJECT_REF=$PROJECT_REF" >> $GITHUB_ENV
-          echo "✅ Supabase URL: $SUPABASE_URL"
+          echo "::add-mask::$PROJECT_REF"
+          echo "project_ref=$PROJECT_REF" >> "$GITHUB_OUTPUT"
+          echo "supabase_url=$SUPABASE_URL" >> "$GITHUB_OUTPUT"
+          echo "region=$REGION" >> "$GITHUB_OUTPUT"
 
-      - name: Push Database Schema
+      - name: Fetch Supabase API keys
+        id: supabase-keys
+        env:
+          SB_TOKEN: ${{ inputs.supabase_access_token }}
+          PROJECT_REF: ${{ steps.supabase-project.outputs.project_ref }}
         run: |
-          echo "📊 Applying database schema..."
-          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
+          echo "--- Fetching API keys ---"
+          KEYS=$(curl -sf "https://api.supabase.com/v1/projects/$PROJECT_REF/api-keys" \
+            -H "Authorization: Bearer $SB_TOKEN")
 
-          if [ -n "$DB_URL" ]; then
-            psql "$DB_URL" -f supabase/schema.sql 2>&1 || echo "Schema may exist"
-            psql "$DB_URL" -f supabase/admin-users.sql 2>&1 || echo "Admin schema may exist"
-            echo "✅ Schema applied"
-          else
-            echo "⚠️ SUPABASE_DB_URL not set - skipping schema"
+          ANON_KEY=$(echo "$KEYS" | jq -r '.[] | select(.name == "anon") | .api_key')
+          SERVICE_KEY=$(echo "$KEYS" | jq -r '.[] | select(.name == "service_role") | .api_key')
+
+          if [ -z "$ANON_KEY" ] || [ -z "$SERVICE_KEY" ]; then
+            echo "::error::Could not fetch Supabase API keys. Check your access token."
+            exit 1
           fi
 
-      # ═══════════════════════════════════════════════════════════════════════
-      # CLOUDFLARE SETUP
-      # ═══════════════════════════════════════════════════════════════════════
-      - name: Setup R2 Bucket
-        run: |
-          echo "☁️ Setting up R2 bucket..."
-          npx wrangler r2 bucket create next-inc-cache 2>&1 || echo "Bucket exists"
-          echo "✅ R2 ready"
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_KEY"
+          echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
+          echo "service_key=$SERVICE_KEY" >> "$GITHUB_OUTPUT"
+          echo "Supabase API keys fetched successfully"
 
-      - name: Setup KV Namespace
+      - name: Construct database URL
+        id: db-url
+        env:
+          PROJECT_REF: ${{ steps.supabase-project.outputs.project_ref }}
+          DB_PASS: ${{ inputs.supabase_db_password }}
         run: |
-          echo "🔑 Setting up KV namespace..."
-          KV_OUTPUT=$(npx wrangler kv:namespace create RATE_LIMIT_KV 2>&1)
-          KV_ID=$(echo "$KV_OUTPUT" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+          # Direct connection (for migrations)
+          DB_URL="postgresql://postgres:${DB_PASS}@db.${PROJECT_REF}.supabase.co:5432/postgres"
+          echo "::add-mask::$DB_URL"
+          echo "db_url=$DB_URL" >> "$GITHUB_OUTPUT"
+          echo "Database URL constructed"
+
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 2 — DATABASE: APPLY ALL MIGRATIONS
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Apply database migrations
+        env:
+          DB_URL: ${{ steps.db-url.outputs.db_url }}
+        run: |
+          echo "--- Applying database migrations ---"
+
+          # Test connection first
+          if ! psql "$DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
+            echo "::error::Cannot connect to Supabase database. Check your DB password."
+            exit 1
+          fi
+          echo "Database connection OK"
+
+          # Create migrations ledger (idempotent)
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "
+            CREATE TABLE IF NOT EXISTS _migrations_applied (
+              filename   text PRIMARY KEY,
+              applied_at timestamptz NOT NULL DEFAULT now()
+            );
+          "
+
+          APPLIED=0
+          SKIPPED=0
+
+          if [ -d "supabase/migrations" ]; then
+            for file in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
+              filename=$(basename "$file")
+              [[ "$filename" == *.sql ]] || continue
+
+              already=$(psql "$DB_URL" -t -A -c \
+                "SELECT COUNT(*) FROM _migrations_applied WHERE filename = '$filename';")
+
+              if [ "$already" = "1" ]; then
+                echo "  skip: $filename"
+                SKIPPED=$((SKIPPED + 1))
+                continue
+              fi
+
+              echo "  apply: $filename"
+              if psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$file"; then
+                psql "$DB_URL" -c \
+                  "INSERT INTO _migrations_applied (filename) VALUES ('$filename') ON CONFLICT DO NOTHING;"
+                APPLIED=$((APPLIED + 1))
+              else
+                echo "::error::Migration failed: $filename"
+                exit 1
+              fi
+            done
+          fi
+
+          echo "Migrations complete: $APPLIED applied, $SKIPPED already up-to-date"
+
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 3 — CLOUDFLARE: CREATE R2 BUCKET & KV NAMESPACE
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Create R2 bucket
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+        run: |
+          echo "--- Creating R2 bucket ---"
+          OUTPUT=$(npx wrangler r2 bucket create next-inc-cache 2>&1) || true
+          if echo "$OUTPUT" | grep -qi "already exists\|Created bucket"; then
+            echo "R2 bucket ready"
+          else
+            echo "$OUTPUT"
+            echo "R2 bucket may already exist — continuing"
+          fi
+
+      - name: Create KV namespace
+        id: kv
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+        run: |
+          echo "--- Creating KV namespace ---"
+          KV_OUTPUT=$(npx wrangler kv namespace create RATE_LIMIT_KV 2>&1) || true
+          echo "$KV_OUTPUT"
+
+          # Try to extract the KV namespace ID
+          KV_ID=$(echo "$KV_OUTPUT" | grep -oP '"id"\s*:\s*"\K[^"]+' | head -1 || true)
+
+          if [ -z "$KV_ID" ]; then
+            # Namespace may already exist — list all and find it
+            LIST_OUTPUT=$(npx wrangler kv namespace list 2>&1) || true
+            KV_ID=$(echo "$LIST_OUTPUT" | jq -r '.[] | select(.title | contains("RATE_LIMIT_KV")) | .id' 2>/dev/null | head -1 || true)
+          fi
 
           if [ -n "$KV_ID" ]; then
-            sed -i "s/\"id\": \"[^\"]*\"/\"id\": \"$KV_ID\"/" wrangler.jsonc
-            echo "✅ KV created: $KV_ID"
+            echo "KV namespace ID: $KV_ID"
+            echo "kv_id=$KV_ID" >> "$GITHUB_OUTPUT"
+
+            # Update wrangler.jsonc with the correct KV ID
+            sed -i "s/\"id\": \"[a-f0-9]*\"/\"id\": \"$KV_ID\"/" wrangler.jsonc
+            echo "Updated wrangler.jsonc with KV namespace ID"
           else
-            echo "⚠️ KV may exist"
+            echo "::warning::Could not determine KV namespace ID — rate limiting may not work"
           fi
 
-      # ═══════════════════════════════════════════════════════════════════════
-      # BUILD & DEPLOY
-      # ═══════════════════════════════════════════════════════════════════════
-      - name: Build
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 4 — BUILD & DEPLOY
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Generate secrets
+        id: secrets
         run: |
-          echo "🔨 Building..."
-          npx @opennextjs/cloudflare build
-
-      - name: Deploy
-        run: |
-          echo "🚀 Deploying..."
-          npx opennextjs-cloudflare deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # ═══════════════════════════════════════════════════════════════════════
-      # SET SECRETS
-      # ═══════════════════════════════════════════════════════════════════════
-      - name: Set Worker Secrets
-        run: |
-          echo "🔐 Setting secrets..."
-          WORKER="affilite-mix"
-
           JWT_SECRET=$(openssl rand -hex 64)
           CRON_SECRET=$(openssl rand -hex 32)
+          INTERNAL_API_TOKEN=$(openssl rand -hex 64)
 
-          echo "$JWT_SECRET" | npx wrangler secret put JWT_SECRET --name $WORKER
-          echo "$CRON_SECRET" | npx wrangler secret put CRON_SECRET --name $WORKER
-          echo "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name $WORKER
-          echo "${{ env.SUPABASE_URL }}" | npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --name $WORKER
-          echo "${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" | npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name $WORKER
-
-          echo "✅ Secrets set"
-
-      # ═══════════════════════════════════════════════════════════════════════
-      # ADMIN USER
-      # ═══════════════════════════════════════════════════════════════════════
-      - name: Create Admin User
-        run: |
-          echo "👤 Creating admin user..."
-          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
-          EMAIL="${{ github.event.inputs.admin_email }}"
-          PASSWORD="${{ github.event.inputs.admin_password }}"
-
-          if [ -n "$DB_URL" ] && [ -n "$EMAIL" ] && [ -n "$PASSWORD" ]; then
-            psql "$DB_URL" -c "
-              INSERT INTO admin_users (email, password_hash, name, role, is_active)
-              VALUES ('$EMAIL', crypt('$PASSWORD', gen_salt('bf')), 'Admin', 'super_admin', true)
-              ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
-            " 2>&1 && echo "✅ Admin created: $EMAIL"
+          ADMIN_PASSWORD="${{ inputs.admin_password }}"
+          if [ -z "$ADMIN_PASSWORD" ]; then
+            ADMIN_PASSWORD=$(openssl rand -base64 16 | tr -d '/+=' | head -c 16)
+            echo "::notice::Auto-generated admin password (see workflow summary)"
           fi
 
-      # ═══════════════════════════════════════════════════════════════════════
-      # DONE
-      # ═══════════════════════════════════════════════════════════════════════
-      - name: Done
+          echo "::add-mask::$JWT_SECRET"
+          echo "::add-mask::$CRON_SECRET"
+          echo "::add-mask::$INTERNAL_API_TOKEN"
+          echo "::add-mask::$ADMIN_PASSWORD"
+
+          echo "jwt_secret=$JWT_SECRET" >> "$GITHUB_OUTPUT"
+          echo "cron_secret=$CRON_SECRET" >> "$GITHUB_OUTPUT"
+          echo "internal_api_token=$INTERNAL_API_TOKEN" >> "$GITHUB_OUTPUT"
+          echo "admin_password=$ADMIN_PASSWORD" >> "$GITHUB_OUTPUT"
+
+      - name: Determine primary domain
+        id: domain
+        env:
+          CF_TOKEN: ${{ inputs.cloudflare_api_token }}
+          CF_ACCOUNT: ${{ inputs.cloudflare_account_id }}
+          INPUT_DOMAIN: ${{ inputs.primary_domain }}
         run: |
-          echo "═══════════════════════════════════════════════════════════════"
-          echo "✅ ONE-CLICK SETUP COMPLETE!"
-          echo "═══════════════════════════════════════════════════════════════"
+          if [ -n "$INPUT_DOMAIN" ]; then
+            PRIMARY_DOMAIN="$INPUT_DOMAIN"
+          else
+            # Try to detect from wrangler.jsonc routes
+            PRIMARY_DOMAIN=$(grep -oP '"pattern"\s*:\s*"\K[^"]+' wrangler.jsonc | head -1 || echo "")
+          fi
+
+          if [ -n "$PRIMARY_DOMAIN" ]; then
+            CRON_HOST="https://$PRIMARY_DOMAIN"
+          else
+            # Will use the workers.dev subdomain
+            CRON_HOST=""
+          fi
+
+          echo "primary_domain=$PRIMARY_DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "cron_host=$CRON_HOST" >> "$GITHUB_OUTPUT"
+          echo "Primary domain: ${PRIMARY_DOMAIN:-'(workers.dev subdomain)'}"
+
+      - name: Build with OpenNext
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ steps.supabase-project.outputs.supabase_url }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.supabase-keys.outputs.anon_key }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.supabase-keys.outputs.service_key }}
+          JWT_SECRET: ${{ steps.secrets.outputs.jwt_secret }}
+          CRON_SECRET: ${{ steps.secrets.outputs.cron_secret }}
+          INTERNAL_API_TOKEN: ${{ steps.secrets.outputs.internal_api_token }}
+        run: |
+          echo "--- Building with OpenNext ---"
+          npx @opennextjs/cloudflare build
+
+      - name: Deploy to Cloudflare Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+        run: |
+          echo "--- Deploying to Cloudflare Workers ---"
+          npx opennextjs-cloudflare deploy
+
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 5 — SET WORKER SECRETS
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Set Worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+          _SB_URL: ${{ steps.supabase-project.outputs.supabase_url }}
+          _SB_ANON: ${{ steps.supabase-keys.outputs.anon_key }}
+          _SB_SERVICE: ${{ steps.supabase-keys.outputs.service_key }}
+          _JWT: ${{ steps.secrets.outputs.jwt_secret }}
+          _CRON: ${{ steps.secrets.outputs.cron_secret }}
+          _INTERNAL: ${{ steps.secrets.outputs.internal_api_token }}
+          _CRON_HOST: ${{ steps.domain.outputs.cron_host }}
+        run: |
+          echo "--- Setting Worker secrets ---"
+          WORKER="affilite-mix"
+
+          echo "$_SB_URL"     | npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --name $WORKER
+          echo "$_SB_ANON"    | npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name $WORKER
+          echo "$_SB_SERVICE" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name $WORKER
+          echo "$_JWT"        | npx wrangler secret put JWT_SECRET --name $WORKER
+          echo "$_CRON"       | npx wrangler secret put CRON_SECRET --name $WORKER
+          echo "$_INTERNAL"   | npx wrangler secret put INTERNAL_API_TOKEN --name $WORKER
+
+          if [ -n "$_CRON_HOST" ]; then
+            echo "$_CRON_HOST" | npx wrangler secret put CRON_HOST --name $WORKER
+          fi
+
+          echo "All Worker secrets configured"
+
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 6 — CUSTOM DOMAINS
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Setup custom domains
+        if: inputs.primary_domain != ''
+        env:
+          CF_TOKEN: ${{ inputs.cloudflare_api_token }}
+          CF_ACCOUNT: ${{ inputs.cloudflare_account_id }}
+          PRIMARY_DOMAIN: ${{ steps.domain.outputs.primary_domain }}
+        run: |
+          echo "--- Setting up custom domains ---"
+          WORKER="affilite-mix"
+
+          # Collect domains from wrangler.jsonc routes
+          DOMAINS=$(grep -oP '"pattern"\s*:\s*"\K[^"]+' wrangler.jsonc || true)
+
+          if [ -z "$DOMAINS" ]; then
+            DOMAINS="$PRIMARY_DOMAIN"
+          fi
+
+          for domain in $DOMAINS; do
+            echo "Adding custom domain: $domain"
+            RESPONSE=$(curl -s -X PUT \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/$WORKER/domains" \
+              -H "Authorization: Bearer $CF_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"hostname\":\"$domain\",\"service\":\"$WORKER\",\"environment\":\"production\"}" 2>&1) || true
+
+            if echo "$RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
+              echo "  OK: $domain"
+            else
+              MSG=$(echo "$RESPONSE" | jq -r '.errors[0].message // "unknown"' 2>/dev/null || echo "unknown")
+              echo "  Note: $domain — $MSG (may already be configured)"
+            fi
+          done
+
+          # Try to add wildcard route if we have a zone
+          ROOT_DOMAIN=$(echo "$PRIMARY_DOMAIN" | awk -F. '{print $(NF-1)"."$NF}')
+          ZONE_RESP=$(curl -s "https://api.cloudflare.com/client/v4/zones?name=$ROOT_DOMAIN" \
+            -H "Authorization: Bearer $CF_TOKEN")
+          ZONE_ID=$(echo "$ZONE_RESP" | jq -r '.result[0].id // empty')
+
+          if [ -n "$ZONE_ID" ]; then
+            echo "Found zone $ROOT_DOMAIN ($ZONE_ID) — adding wildcard route"
+            curl -s -X POST \
+              "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/workers/routes" \
+              -H "Authorization: Bearer $CF_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"pattern\":\"*.$ROOT_DOMAIN/*\",\"script\":\"$WORKER\"}" > /dev/null 2>&1 || true
+            echo "Wildcard route configured (or already exists)"
+          fi
+
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 7 — CREATE ADMIN USER
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Create admin user
+        env:
+          DB_URL: ${{ steps.db-url.outputs.db_url }}
+          ADMIN_EMAIL: ${{ inputs.admin_email }}
+          ADMIN_PASSWORD: ${{ steps.secrets.outputs.admin_password }}
+        run: |
+          echo "--- Creating admin user ---"
+
+          if [ -z "$ADMIN_EMAIL" ] || [ "$ADMIN_EMAIL" = "admin@example.com" ]; then
+            echo "::warning::Using default admin email. Change it in the admin panel after login."
+          fi
+
+          # Use psql with parameterized query for safety.
+          # The password is hashed with bcrypt inside PostgreSQL via pgcrypto.
+          {
+            echo "INSERT INTO admin_users (email, password_hash, name, role, is_active)"
+            echo "VALUES (:'admin_email', crypt(:'admin_password', gen_salt('bf')), 'Admin', 'super_admin', true)"
+            echo "ON CONFLICT (email) DO UPDATE SET"
+            echo "  password_hash = EXCLUDED.password_hash,"
+            echo "  name = EXCLUDED.name,"
+            echo "  role = EXCLUDED.role,"
+            echo "  is_active = true,"
+            echo "  updated_at = NOW();"
+          } > /tmp/create_admin.sql
+
+          psql "$DB_URL" \
+            -v admin_email="$ADMIN_EMAIL" \
+            -v admin_password="$ADMIN_PASSWORD" \
+            -v ON_ERROR_STOP=1 \
+            -f /tmp/create_admin.sql \
+            && echo "Admin user created: $ADMIN_EMAIL" \
+            || echo "::warning::Admin user creation failed — you can create one manually in the admin panel"
+
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 8 — SAVE ALL SECRETS TO GITHUB (for auto-deploy on push)
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Save secrets to GitHub
+        if: inputs.github_pat != ''
+        env:
+          GH_TOKEN: ${{ inputs.github_pat }}
+        run: |
+          echo "--- Saving secrets to GitHub for future auto-deploys ---"
+
+          declare -A SECRETS_MAP
+          SECRETS_MAP[CLOUDFLARE_API_TOKEN]="${{ inputs.cloudflare_api_token }}"
+          SECRETS_MAP[CLOUDFLARE_ACCOUNT_ID]="${{ inputs.cloudflare_account_id }}"
+          SECRETS_MAP[NEXT_PUBLIC_SUPABASE_URL]="${{ steps.supabase-project.outputs.supabase_url }}"
+          SECRETS_MAP[NEXT_PUBLIC_SUPABASE_ANON_KEY]="${{ steps.supabase-keys.outputs.anon_key }}"
+          SECRETS_MAP[SUPABASE_SERVICE_ROLE_KEY]="${{ steps.supabase-keys.outputs.service_key }}"
+          SECRETS_MAP[SUPABASE_ACCESS_TOKEN]="${{ inputs.supabase_access_token }}"
+          SECRETS_MAP[SUPABASE_PROJECT_REF]="${{ steps.supabase-project.outputs.project_ref }}"
+          SECRETS_MAP[SUPABASE_DB_URL]="${{ steps.db-url.outputs.db_url }}"
+          SECRETS_MAP[JWT_SECRET]="${{ steps.secrets.outputs.jwt_secret }}"
+          SECRETS_MAP[CRON_SECRET]="${{ steps.secrets.outputs.cron_secret }}"
+          SECRETS_MAP[INTERNAL_API_TOKEN]="${{ steps.secrets.outputs.internal_api_token }}"
+          SECRETS_MAP[ADMIN_BOOTSTRAP_EMAIL]="${{ inputs.admin_email }}"
+          SECRETS_MAP[ADMIN_BOOTSTRAP_PASSWORD]="${{ steps.secrets.outputs.admin_password }}"
+
+          CRON_HOST="${{ steps.domain.outputs.cron_host }}"
+          if [ -n "$CRON_HOST" ]; then
+            SECRETS_MAP[CRON_HOST]="$CRON_HOST"
+          fi
+
+          SAVED=0
+          FAILED=0
+          for name in "${!SECRETS_MAP[@]}"; do
+            value="${SECRETS_MAP[$name]}"
+            if [ -n "$value" ]; then
+              if echo "$value" | gh secret set "$name" --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
+                echo "  saved: $name"
+                SAVED=$((SAVED + 1))
+              else
+                echo "  failed: $name"
+                FAILED=$((FAILED + 1))
+              fi
+            fi
+          done
+
+          echo "Secrets saved: $SAVED, failed: $FAILED"
+          if [ $SAVED -gt 0 ]; then
+            echo "Future pushes to main will auto-deploy via the Deploy workflow!"
+          fi
+
+      - name: Skip saving secrets
+        if: inputs.github_pat == ''
+        run: |
+          echo "::notice::No GitHub PAT provided — secrets were NOT saved to GitHub."
+          echo "Future auto-deploys on push will require manually adding secrets."
+          echo "To enable auto-deploy, re-run this workflow with a GitHub PAT,"
+          echo "or manually add secrets in: Settings → Secrets and variables → Actions"
+
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 9 — HEALTH CHECK
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Health check
+        env:
+          CRON_HOST: ${{ steps.domain.outputs.cron_host }}
+          CRON_SECRET: ${{ steps.secrets.outputs.cron_secret }}
+        run: |
+          echo "--- Running health check ---"
+
+          # Wait for deployment to propagate
+          echo "Waiting 15s for deployment to propagate..."
+          sleep 15
+
+          if [ -n "$CRON_HOST" ]; then
+            CHECK_URL="$CRON_HOST"
+          else
+            # Fall back to workers.dev subdomain
+            CHECK_URL="https://affilite-mix.${{ inputs.cloudflare_account_id }}.workers.dev"
+          fi
+
+          echo "Checking: $CHECK_URL"
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$CHECK_URL/" 2>/dev/null || echo "000")
+
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "301" ] || [ "$HTTP_CODE" = "302" ]; then
+            echo "Site is live! (HTTP $HTTP_CODE)"
+          elif [ "$HTTP_CODE" = "000" ]; then
+            echo "::warning::Could not reach site — DNS may still be propagating (can take up to 24h)"
+          else
+            echo "Site returned HTTP $HTTP_CODE — may need DNS propagation time"
+          fi
+
+          # Also check the health endpoint if we have CRON_HOST
+          if [ -n "$CRON_HOST" ] && [ -n "$CRON_SECRET" ]; then
+            HEALTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$CRON_HOST/api/health" 2>/dev/null || echo "000")
+            echo "Health endpoint: HTTP $HEALTH_CODE"
+          fi
+
+      # ═════════════════════════════════════════════════════════════════════
+      # PHASE 10 — SUMMARY
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Setup complete
+        env:
+          PRIMARY_DOMAIN: ${{ steps.domain.outputs.primary_domain }}
+          ADMIN_EMAIL: ${{ inputs.admin_email }}
+          ADMIN_PASSWORD: ${{ steps.secrets.outputs.admin_password }}
+          SB_URL: ${{ steps.supabase-project.outputs.supabase_url }}
+          HAD_PAT: ${{ inputs.github_pat != '' }}
+        run: |
           echo ""
-          echo "🌐 Sites:"
-          echo "   • https://wristnerd.xyz"
-          echo "   • https://arabictools.wristnerd.xyz"
-          echo "   • https://crypto.wristnerd.xyz"
+          echo "================================================================="
+          echo "  SETUP COMPLETE!"
+          echo "================================================================="
           echo ""
-          echo "🔐 Admin: ${{ github.event.inputs.admin_email }}"
-          echo "═══════════════════════════════════════════════════════════════"
+
+          if [ -n "$PRIMARY_DOMAIN" ]; then
+            echo "  Your sites:"
+            echo "    https://$PRIMARY_DOMAIN"
+            grep -oP '"pattern"\s*:\s*"\K[^"]+' wrangler.jsonc 2>/dev/null | while read d; do
+              [ "$d" != "$PRIMARY_DOMAIN" ] && echo "    https://$d"
+            done
+            echo ""
+            echo "  Admin panel:"
+            echo "    https://$PRIMARY_DOMAIN/admin"
+          else
+            echo "  Site: https://affilite-mix.*.workers.dev"
+            echo "  (Add a custom domain later via the Setup Domains workflow)"
+          fi
+
+          echo ""
+          echo "  Admin login:"
+          echo "    Email:    $ADMIN_EMAIL"
+          echo "    Password: $ADMIN_PASSWORD"
+          echo ""
+          echo "  Supabase: $SB_URL"
+          echo ""
+
+          if [ "$HAD_PAT" = "true" ]; then
+            echo "  Auto-deploy: ENABLED"
+            echo "    Push to main → automatic redeploy"
+          else
+            echo "  Auto-deploy: NOT CONFIGURED"
+            echo "    Re-run with a GitHub PAT to enable auto-deploy on push."
+          fi
+
+          echo ""
+          echo "  To re-run: Actions → One-Click Complete Setup → Run workflow"
+          echo "  Safe to re-run anytime (all steps are idempotent)."
+          echo ""
+          echo "================================================================="

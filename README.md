@@ -23,14 +23,14 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 
 ## Tech Stack
 
-| Layer            | Technology                                    |
-| ---------------- | --------------------------------------------- |
-| Framework        | Next.js 15 (App Router)                       |
-| Database         | Supabase (PostgreSQL + RLS)                   |
-| Styling          | Tailwind CSS v4                               |
-| Rich text editor | TipTap                                        |
-| Image storage    | Cloudflare R2 (S3-compatible)                 |
-| Bot protection   | Cloudflare Turnstile                          |
+| Layer            | Technology                                      |
+| ---------------- | ----------------------------------------------- |
+| Framework        | Next.js 15 (App Router)                         |
+| Database         | Supabase (PostgreSQL + RLS)                     |
+| Styling          | Tailwind CSS v4                                 |
+| Rich text editor | TipTap                                          |
+| Image storage    | Cloudflare R2 (S3-compatible)                   |
+| Bot protection   | Cloudflare Turnstile                            |
 | Deployment       | Cloudflare Workers via `@opennextjs/cloudflare` |
 
 ## Getting Started
@@ -149,13 +149,13 @@ npm run test:e2e      # End-to-end tests (Playwright)
 
 ## Scripts
 
-| Command             | Description                                |
-| ------------------- | ------------------------------------------ |
-| `npm run dev`       | Start development server                   |
-| `npm run build`     | Production build                           |
-| `npm run start`     | Start production server                    |
-| `npm run lint`      | Run ESLint                                 |
-| `npm run typecheck` | Run TypeScript type checking               |
+| Command             | Description                                 |
+| ------------------- | ------------------------------------------- |
+| `npm run dev`       | Start development server                    |
+| `npm run build`     | Production build                            |
+| `npm run start`     | Start production server                     |
+| `npm run lint`      | Run ESLint                                  |
+| `npm run typecheck` | Run TypeScript type checking                |
 | `npm run preview`   | Build and preview Cloudflare Worker locally |
 | `npm run deploy`    | Build and deploy to Cloudflare Workers      |
 
@@ -195,22 +195,29 @@ npm run test:e2e      # End-to-end tests (Playwright)
 
 ## Deployment
 
-The project deploys to Cloudflare Workers via GitHub Actions (`.github/workflows/deploy.yml`).
+### One-Click Setup (Recommended)
 
-Required GitHub Secrets:
+The fastest way to get everything running — database, worker, domains, admin user — in a single workflow run:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `JWT_SECRET`
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
+1. Go to **Actions** → **"🚀 One-Click Complete Setup"** → **Run workflow**
+2. Fill in 4 required fields (Supabase token, DB password, Cloudflare token, Account ID)
+3. Click **Run workflow** and wait ~10 minutes
+
+See [docs/ONE-CLICK-DEPLOY.md](docs/ONE-CLICK-DEPLOY.md) for the full guide.
+
+### Auto-Deploy on Push
+
+After initial setup (with a GitHub PAT), every push to `main` auto-deploys via `.github/workflows/deploy.yml`.
+
+### Manual Deploy
+
+Go to **Actions** → **"🚀 Deploy to Cloudflare"** → **Run workflow**.
 
 Detailed deployment runbooks:
 
-- `docs/deployment.md`
-- `docs/dashboard-managed-domains.md`
-- `docs/ONE-CLICK-DEPLOY.md`
+- [docs/ONE-CLICK-DEPLOY.md](docs/ONE-CLICK-DEPLOY.md) — full setup guide
+- [docs/deployment.md](docs/deployment.md) — manual deployment details
+- [docs/dashboard-managed-domains.md](docs/dashboard-managed-domains.md) — domain management
 
 ## Contributing
 
