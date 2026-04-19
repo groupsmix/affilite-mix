@@ -111,7 +111,7 @@ export async function middleware(request: NextRequest) {
       "/api/track/click",
       "/api/vitals",
       "/api/track/impression",
-      "/api/newsletter/unsubscribe",
+      "/api/newsletter/unsubscribe", // token-authenticated; safe without CSRF
     ]);
     if (!csrfExemptPaths.has(pathname)) {
       const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;

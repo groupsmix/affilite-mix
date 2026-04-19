@@ -8,7 +8,9 @@ Admin endpoints require a valid JWT session cookie (`nh_admin_token`). Obtain on
 
 State-changing requests (POST, PUT, DELETE) to `/api/*` require a valid CSRF token. Obtain one via `GET /api/auth/csrf`, then send it in the `x-csrf-token` header. The CSRF token is rotated after each successful state-changing request; the new token is returned in the `x-csrf-token-refreshed` response header.
 
-**Exempt from CSRF:** `/api/auth/csrf`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/refresh`.
+**Exempt from CSRF:** `/api/auth/csrf`, `/api/auth/login`, `/api/auth/refresh`, `/api/cron/publish`, `/api/cron/sitemap-refresh`, `/api/revalidate`, `/api/track/click`, `/api/vitals`, `/api/track/impression`, `/api/newsletter/unsubscribe`.
+
+> **Note:** `/api/auth/logout` is **not** exempt — CSRF protection prevents forced-logout attacks.
 
 ---
 
@@ -67,13 +69,24 @@ Confirm a newsletter subscription via the emailed confirmation link.
 
 ---
 
-### `GET /api/newsletter/unsubscribe?token=<token>&email=<email>`
+### `GET /api/newsletter/unsubscribe?token=<uuid>`
 
-Unsubscribe from the newsletter.
+Unsubscribe via the one-click link in email footers. Redirects to a confirmation page.
 
-**Auth:** None  
-**Query params:** `token`, `email`  
-**Response (200):** `{ "ok": true }`
+**Auth:** None (self-authenticating via `unsubscribe_token`)  
+**Rate limit:** 10 requests / 15 min per IP  
+**Query params:** `token` (required) — the subscriber's unique `unsubscribe_token` UUID  
+**Response:** 302 redirect to `/newsletter/unsubscribed`
+
+### `POST /api/newsletter/unsubscribe`
+
+Unsubscribe via API call using the subscriber's unsubscribe token.
+
+**Auth:** None (self-authenticating via `unsubscribe_token`)  
+**Rate limit:** 10 requests / 15 min per IP  
+**Body:** `{ "token": "<unsubscribe_token UUID>" }`  
+**Response (200):** `{ "ok": true, "message": "You have been unsubscribed." }`  
+**Response (400):** `{ "error": "Invalid unsubscribe token" }`
 
 ---
 
@@ -85,18 +98,16 @@ Track an affiliate link click. POST is supported for `navigator.sendBeacon()`.
 
 **Auth:** None  
 **Rate limit:** 60 requests / min per IP  
-**Query params (GET) / Body (POST):**
+**Query params:**
 
-- `product` (required) — product slug
-- `url` (optional) — affiliate URL override
-- `source` (optional) — content slug where the click originated
-- `ref` (optional) — referrer
+- `p` (required) — product slug
+- `t` (optional) — content slug where the click originated
 
-**Response (200):**
+The referrer is captured automatically from the `Referer` header. The redirect URL is always the DB-stored affiliate URL (no client-side override) to prevent open redirects.
 
-```json
-{ "ok": true, "redirectUrl": "https://merchant.com/product?ref=..." }
-```
+**Response:** 302 redirect to the product's affiliate URL  
+**Response (400):** `{ "error": "Missing required parameter: p" }`  
+**Response (404):** `{ "error": "Product not found or has no affiliate URL" }`
 
 ---
 

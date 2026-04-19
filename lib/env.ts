@@ -20,7 +20,10 @@ export function requireEnvInProduction(name: string, fallback: string): string {
   const isBuild = !!process.env.NEXT_PHASE;
 
   if (process.env.NODE_ENV === "production" && !isBuild) {
-    console.error(`[env] ${name} is missing or empty in production`);
+    throw new Error(
+      `[env] Required environment variable ${name} is missing or empty in production. ` +
+        `Set it in your Cloudflare Worker secrets or .env file.`,
+    );
   }
   return fallback;
 }
