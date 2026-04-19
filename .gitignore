@@ -48,3 +48,4 @@ next-env.d.ts
 /playwright/.cache/
 fix_deploy.py
 push_fix.py
+wrangler.preview.json
