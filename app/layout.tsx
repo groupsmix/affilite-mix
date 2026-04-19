@@ -3,6 +3,7 @@ import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google"
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { WebVitals } from "./web-vitals";
+import { SentryBrowserInit } from "./sentry-browser-init";
 import { logger } from "@/lib/logger";
 import "./globals.css";
 
@@ -100,6 +101,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={site.language} dir={site.direction} className={Array.from(needed).join(" ")}>
       <body>
+        <SentryBrowserInit />
         <WebVitals />
         {children}
       </body>
