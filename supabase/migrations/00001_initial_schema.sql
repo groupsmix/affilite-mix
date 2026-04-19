@@ -221,3 +221,16 @@ RETURNS TABLE(content_slug TEXT, click_count BIGINT) AS $$
   ORDER BY click_count DESC
   LIMIT p_limit;
 $$ LANGUAGE sql STABLE;
+
+-- ── Shared updated_at trigger function ───────────────────────────────
+-- Used by triggers defined in later migrations (e.g. 00002 admin_users).
+-- Also present in `supabase/schema.sql` for bootstrap from consolidated
+-- schema; defining it here lets a fresh `supabase db execute` run of the
+-- numbered migrations succeed without requiring schema.sql first.
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
