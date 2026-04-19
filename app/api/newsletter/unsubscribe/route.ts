@@ -9,16 +9,24 @@ import { parseJsonBody } from "@/lib/api-error";
 const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
 
 /**
+ * Shared helper: unsubscribe by opaque token.
+ * Returns the Supabase error (if any) or null on success.
+ */
+async function unsubscribeByToken(token: string) {
+  const sb = getServiceClient();
+  const { error } = await sb
+    .from("newsletter_subscribers")
+    .update({ status: "unsubscribed" })
+    .eq("unsubscribe_token", token);
+  return error;
+}
+
+/**
  * GET /api/newsletter/unsubscribe?token=<uuid>
  * Unsubscribes a user using their dedicated unsubscribe_token (not the row id).
- *
- * POST /api/newsletter/unsubscribe
- * Body: { email, site_id }
- * Unsubscribes by email + site_id lookup.
  */
 export async function GET(request: NextRequest) {
   try {
-    // Rate-limit GET unsubscribe by IP
     const ip = getClientIp(request);
     const rl = await checkRateLimit(`unsub:${ip}`, UNSUBSCRIBE_RATE_LIMIT);
     if (!rl.allowed) {
@@ -35,13 +43,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const sb = getServiceClient();
-
-    const { error } = await sb
-      .from("newsletter_subscribers")
-      .update({ status: "unsubscribed" })
-      .eq("unsubscribe_token", token);
-
+    const error = await unsubscribeByToken(token);
     if (error) {
       captureException(error, { context: "[api/newsletter/unsubscribe] GET failed to update:" });
       return NextResponse.redirect(
@@ -56,9 +58,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * POST /api/newsletter/unsubscribe
+ * Body: { token }
+ *
+ * Requires the per-subscriber opaque unsubscribe_token.  The previous
+ * email+site_id interface was removed because it allowed nuisance
+ * unsubscribe abuse — any attacker who knew a victim's email could
+ * unsubscribe them without authentication.
+ */
 export async function POST(request: NextRequest) {
   try {
-    // Rate-limit by IP to prevent mass-unsubscribe attacks
     const ip = getClientIp(request);
     const rl = await checkRateLimit(`unsub:${ip}`, UNSUBSCRIBE_RATE_LIMIT);
     if (!rl.allowed) {
@@ -70,21 +80,16 @@ export async function POST(request: NextRequest) {
 
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
-    const email = ((bodyOrError.email as string) ?? "").trim().toLowerCase();
-    const siteId = bodyOrError.site_id as string | undefined;
+    const token = (bodyOrError.token as string | undefined)?.trim();
 
-    if (!email || !siteId) {
-      return NextResponse.json({ error: "email and site_id are required" }, { status: 400 });
+    if (!token) {
+      return NextResponse.json(
+        { error: "token is required (use the unsubscribe link from your email)" },
+        { status: 400 },
+      );
     }
 
-    const sb = getServiceClient();
-
-    const { error } = await sb
-      .from("newsletter_subscribers")
-      .update({ status: "unsubscribed" })
-      .eq("site_id", siteId)
-      .eq("email", email);
-
+    const error = await unsubscribeByToken(token);
     if (error) {
       captureException(error, { context: "[api/newsletter/unsubscribe] POST failed to update:" });
       return NextResponse.json({ error: "Failed to unsubscribe" }, { status: 500 });

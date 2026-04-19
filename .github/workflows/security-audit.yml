@@ -1,0 +1,45 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Run weekly on Mondays at 06:00 UTC
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependency-audit:
+    name: Dependency & License Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm install
+
+      # ── npm audit ─────────────────────────────────────────
+      - name: npm audit (high + critical)
+        run: npm audit --audit-level=high
+
+      # ── License check ─────────────────────────────────────
+      # Fail on copyleft / problematic licenses in production deps
+      - name: Install license-checker
+        run: npx --yes license-checker-rsync2@1 --production --failOn "GPL-2.0-only;GPL-3.0-only;GPL-3.0-or-later;AGPL-1.0-only;AGPL-3.0-only;AGPL-3.0-or-later;SSPL-1.0;EUPL-1.1;EUPL-1.2" --summary
+
+      # ── SBOM generation ───────────────────────────────────
+      - name: Generate CycloneDX SBOM
+        run: npx --yes @cyclonedx/cyclonedx-npm@1 --output-file sbom.json --output-format JSON
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.json
+          retention-days: 90

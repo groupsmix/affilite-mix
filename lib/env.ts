@@ -3,10 +3,15 @@
  */
 
 /**
- * Read an environment variable, throwing in production **runtime** if it is
+ * Read an environment variable, **throwing** in production **runtime** if it is
  * missing.  During `next build` (detected via NEXT_PHASE) or in development
  * the provided fallback is returned instead so that the build can complete
  * even when the variables are not yet available (e.g. Vercel preview builds).
+ *
+ * SECURITY: In production runtime this function **hard-fails** (throws) rather
+ * than falling back to a dev default.  This prevents the app from starting
+ * with insecure placeholder values for secrets like JWT_SECRET or
+ * INTERNAL_API_TOKEN.
  */
 export function requireEnvInProduction(name: string, fallback: string): string {
   const value = process.env[name];
@@ -20,7 +25,11 @@ export function requireEnvInProduction(name: string, fallback: string): string {
   const isBuild = !!process.env.NEXT_PHASE;
 
   if (process.env.NODE_ENV === "production" && !isBuild) {
-    console.error(`[env] ${name} is missing or empty in production`);
+    throw new Error(
+      `[env] FATAL: Required environment variable ${name} is missing or empty in production. ` +
+        `The application cannot start safely without it. ` +
+        `Set ${name} in your deployment environment (e.g. \`wrangler secret put ${name}\`).`,
+    );
   }
   return fallback;
 }

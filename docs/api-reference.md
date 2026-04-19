@@ -67,13 +67,22 @@ Confirm a newsletter subscription via the emailed confirmation link.
 
 ---
 
-### `GET /api/newsletter/unsubscribe?token=<token>&email=<email>`
+### `GET /api/newsletter/unsubscribe?token=<token>`
 
-Unsubscribe from the newsletter.
+Unsubscribe from the newsletter using the per-subscriber opaque token.
 
 **Auth:** None  
-**Query params:** `token`, `email`  
-**Response (200):** `{ "ok": true }`
+**Query params:** `token` (required) — opaque unsubscribe token from the email  
+**Response:** 302 redirect to `/newsletter/unsubscribed`
+
+### `POST /api/newsletter/unsubscribe`
+
+Unsubscribe from the newsletter (JSON API).
+
+**Auth:** None  
+**Body:** `{ "token": "<unsubscribe_token>" }`  
+**Response (200):** `{ "ok": true, "message": "You have been unsubscribed." }`  
+**Response (400):** `{ "error": "token is required ..." }`
 
 ---
 
