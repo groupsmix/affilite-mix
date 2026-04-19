@@ -188,18 +188,25 @@ CREATE INDEX idx_newsletter_site ON newsletter_subscribers(site_id);
 CREATE INDEX idx_newsletter_token ON newsletter_subscribers(confirmation_token) WHERE confirmation_token IS NOT NULL;
 
 -- ── Audit Log ────────────────────────────────────────────────────────
+-- Schema kept in sync with 00003_rls_defense_in_depth.sql and lib/audit-log.ts.
+-- Columns: actor / entity_type / ip (NOT user_id / entity) — the application
+-- never references user_id or entity. A mismatched historical definition of
+-- this table was the root cause of migration failures in CI (the later
+-- `CREATE INDEX ... ON audit_log(actor)` would fail with "column does not exist").
 CREATE TABLE IF NOT EXISTS audit_log (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  site_id    UUID REFERENCES sites(id) ON DELETE SET NULL,
-  user_id    UUID REFERENCES admin_users(id) ON DELETE SET NULL,
-  action     TEXT NOT NULL,
-  entity     TEXT NOT NULL DEFAULT '',
-  entity_id  TEXT NOT NULL DEFAULT '',
-  details    JSONB,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id     UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  actor       TEXT NOT NULL DEFAULT 'admin',
+  action      TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id   TEXT,
+  details     JSONB DEFAULT '{}'::jsonb,
+  ip          TEXT DEFAULT '',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_audit_site ON audit_log(site_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_site ON audit_log(site_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor);
 
 -- ── RLS Policies ─────────────────────────────────────────────────────
 -- Enable RLS on all tables
