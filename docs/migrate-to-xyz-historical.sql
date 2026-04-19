@@ -1,6 +1,12 @@
 -- ═══════════════════════════════════════════════════════
--- MIGRATION: Change domains from .site to .xyz
--- Run this in your Supabase SQL Editor
+-- HISTORICAL ONE-OFF: Change domains from .site to .xyz
+--
+-- Kept for reference only. This is NOT a migration and is NOT
+-- applied by `supabase db push` — forward migrations live under
+-- `supabase/migrations/` and are numbered sequentially.
+--
+-- Was run once in the Supabase SQL Editor when domains were
+-- renamed. Do not re-run on existing deployments.
 -- ═══════════════════════════════════════════════════════
 
 -- ═══════════════════════════════════════════════════════
