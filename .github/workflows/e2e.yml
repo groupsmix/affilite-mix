@@ -56,8 +56,11 @@ jobs:
           echo "SUPABASE_ANON_KEY=$(supabase status | grep 'anon key' | awk '{print $4}')" >> $GITHUB_ENV
           echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status | grep 'service_role key' | awk '{print $5}')" >> $GITHUB_ENV
 
-      - name: Generate types
-        run: supabase gen types typescript --local > types/database.ts
+      # Types are maintained by hand in `types/database.ts` (row-level helpers)
+      # and `types/supabase.ts` (Supabase-generated schema). The previous
+      # `supabase gen types ... > types/database.ts` step clobbered the
+      # handwritten file with auto-generated content and broke the build, so
+      # regenerate them locally via a dedicated script instead of in CI.
 
       - name: Setup environment
         run: |
