@@ -16,11 +16,6 @@ env:
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-    # Non-blocking: this repo deploys to Cloudflare Workers via @opennextjs/cloudflare,
-    # and `next start` does not fully serve the middleware/edge routes, so audits 404.
-    # Kept green until we switch the collect step to `opennextjs-cloudflare preview`
-    # or run against the deployed preview URL.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -34,7 +29,10 @@ jobs:
       - name: Build Next.js
         run: npm run build
 
-      - name: Run Lighthouse CI
-        run: npx @lhci/cli autorun
+      - name: Run Lighthouse CI (non-blocking bootstrap)
+        # `next start` does not fully serve edge/middleware routes for this Cloudflare
+        # Workers app, so initial audits 404. Bootstrap non-blocking; switch to
+        # `opennextjs-cloudflare preview` or the live preview URL to enforce budgets.
+        run: npx @lhci/cli autorun || echo "LHCI failures allowed during bootstrap"
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
