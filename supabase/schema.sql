@@ -641,19 +641,21 @@ INSERT INTO content_products (content_id, product_id, role) VALUES
 -- (appended here to keep this snapshot current)
 -- ═══════════════════════════════════════════════════════
 
--- ── audit_log (migration 00001) ──────────────────────────────────────
+-- ── audit_log (migrations 00001 + 00003) ─────────────────────────────
 CREATE TABLE IF NOT EXISTS audit_log (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  site_id    uuid REFERENCES sites(id) ON DELETE SET NULL,
-  user_id    uuid REFERENCES admin_users(id) ON DELETE SET NULL,
-  action     text NOT NULL,
-  entity     text NOT NULL DEFAULT '',
-  entity_id  text NOT NULL DEFAULT '',
-  details    jsonb,
-  created_at timestamptz NOT NULL DEFAULT now()
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id     uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  actor       text NOT NULL DEFAULT 'admin',
+  action      text NOT NULL,
+  entity_type text NOT NULL,
+  entity_id   text,
+  details     jsonb DEFAULT '{}'::jsonb,
+  ip          text DEFAULT '',
+  created_at  timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_audit_site ON audit_log(site_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_site ON audit_log(site_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor);
 
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "service_full_access_audit_log" ON audit_log
