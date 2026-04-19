@@ -3,6 +3,7 @@ import { getSiteByDomain, allSites } from "@/config/sites";
 import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { INTERNAL_HEADER, getInternalToken } from "@/lib/internal-auth";
+import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
 
 /**
  * Returns a styled "Niche not found" HTML page.
@@ -122,13 +123,24 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ── Inject x-site-id header into request ──────────────
+  // ── Inject x-site-id and trace-id headers into request ──
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-site-id", siteId);
+
+  // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
+  // Reuse an existing x-trace-id (from an upstream proxy) or cf-ray; otherwise mint a new one.
+  const traceId =
+    request.headers.get(TRACE_ID_HEADER) ??
+    request.headers.get("cf-ray") ??
+    generateTraceId();
+  requestHeaders.set(TRACE_ID_HEADER, traceId);
 
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
+
+  // Echo the trace ID on the response so clients/devtools can correlate.
+  response.headers.set(TRACE_ID_HEADER, traceId);
 
   // ── CSRF token rotation on state-changing requests ──────
   // Rotate the CSRF token after every successful state-changing request
