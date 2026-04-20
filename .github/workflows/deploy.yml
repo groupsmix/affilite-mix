@@ -13,7 +13,9 @@
 # Add these secrets (see docs/CLOUDFLARE.md for full inventory):
 #
 # ── Build-time (used by Next.js bundler + wrangler CLI) ──
-#   - CLOUDFLARE_API_TOKEN (or CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL)
+#   - CLOUDFLARE_API_TOKEN (scoped token — see docs/cloudflare-production.md)
+#     ⚠️  CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL (Global Key) is deprecated.
+#        Create a scoped API token instead for least-privilege access.
 #   - CLOUDFLARE_ACCOUNT_ID
 #   - NEXT_PUBLIC_SUPABASE_URL
 #   - NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -51,6 +53,8 @@ env:
   # readable at runtime and rotatable without a rebuild.
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+  NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
   SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -150,9 +154,17 @@ jobs:
       - name: Build OpenNext bundle
         run: npx @opennextjs/cloudflare build
 
+      # ── Warn if using Global API Key instead of scoped token ────────
+      - name: Check for scoped API token
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] && [ -n "${{ secrets.CLOUDFLARE_API_KEY }}" ]; then
+            echo "::warning::You are deploying with the Global API Key (CLOUDFLARE_API_KEY). This grants full account access."
+            echo "::warning::Create a scoped API token at https://dash.cloudflare.com/profile/api-tokens and set CLOUDFLARE_API_TOKEN instead."
+          fi
+
       # ── Deploy to Cloudflare ──────────────────────────────────────────
-      # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are inherited from
-      # workflow-level env. API_KEY + EMAIL are fallback auth (Global Key).
+      # Prefer CLOUDFLARE_API_TOKEN (scoped). API_KEY + EMAIL is a
+      # deprecated fallback — see warning step above.
       - name: Deploy to Cloudflare
         run: npx opennextjs-cloudflare deploy
         env:
@@ -173,6 +185,7 @@ jobs:
           [ -z "$_SB_URL" ]           && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_URL"
           [ -z "$_SB_ANON_KEY" ]      && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_ANON_KEY"
           [ -z "$_CRON_HOST" ]        && MISSING="$MISSING CRON_HOST"
+          [ -z "$_INTERNAL_TOKEN" ]   && MISSING="$MISSING INTERNAL_API_TOKEN"
 
           if [ -n "$MISSING" ]; then
             echo "❌ Required secrets are missing:$MISSING"
@@ -186,11 +199,11 @@ jobs:
           echo "$_SB_URL"         | npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix
           echo "$_SB_ANON_KEY"    | npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix
           echo "$_CRON_HOST"      | npx wrangler secret put CRON_HOST --name affilite-mix
+          echo "$_INTERNAL_TOKEN" | npx wrangler secret put INTERNAL_API_TOKEN --name affilite-mix
 
           echo "🔐 Setting optional Worker secrets (skipped if not configured)..."
           [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx wrangler secret put RESEND_API_KEY --name affilite-mix       || true
           [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx wrangler secret put SENTRY_DSN --name affilite-mix           || true
-          [ -n "$_INTERNAL_TOKEN" ]   && echo "$_INTERNAL_TOKEN"   | npx wrangler secret put INTERNAL_API_TOKEN --name affilite-mix   || true
           [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx wrangler secret put TURNSTILE_SECRET_KEY --name affilite-mix || true
           [ -n "$_NL_FROM" ]          && echo "$_NL_FROM"          | npx wrangler secret put NEWSLETTER_FROM_EMAIL --name affilite-mix || true
 
