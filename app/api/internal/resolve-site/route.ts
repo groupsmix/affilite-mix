@@ -15,8 +15,19 @@ const RESOLVE_SITE_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
  * to prevent external domain enumeration. Not intended for public use.
  */
 export async function GET(request: NextRequest) {
+  // Resolve the expected token. `getInternalToken()` throws in production if
+  // INTERNAL_API_TOKEN is missing or set to the documented public dev
+  // fallback — treat that as a misconfiguration and return 500 rather than
+  // leaking route behaviour based on an attacker-guessable constant.
+  let expected: string;
+  try {
+    expected = getInternalToken();
+  } catch {
+    return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
+  }
+
   // Reject requests without the internal header
-  if (request.headers.get(INTERNAL_HEADER) !== getInternalToken()) {
+  if (request.headers.get(INTERNAL_HEADER) !== expected) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
