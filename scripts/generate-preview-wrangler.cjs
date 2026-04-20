@@ -64,5 +64,13 @@ delete cfg.routes;
 delete cfg.triggers;
 delete cfg.services;
 
+// Override the worker name if a preview name is supplied. `opennextjs-cloudflare
+// deploy` (which wraps `wrangler deploy`) reads the name from the config file
+// and does not accept a `--name` override, so it must be set here.
+const previewName = process.env.PREVIEW_WORKER_NAME || process.argv[2];
+if (previewName) {
+  cfg.name = previewName;
+}
+
 fs.writeFileSync(dst, JSON.stringify(cfg, null, 2));
-console.log(`Wrote ${dst}`);
+console.log(`Wrote ${dst}${previewName ? ` (name=${previewName})` : ''}`);
