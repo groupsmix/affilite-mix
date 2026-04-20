@@ -25,6 +25,7 @@
     "pause-site": "tsx scripts/pause-site.ts",
     "redesign-site": "tsx scripts/redesign-site.ts",
     "seed": "tsx scripts/seed.ts",
+    "setup-supabase-auth": "tsx scripts/setup-supabase-auth.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"
