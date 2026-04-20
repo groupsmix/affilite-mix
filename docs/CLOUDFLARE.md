@@ -2,6 +2,14 @@
 
 This document describes every Cloudflare resource, binding, secret, and zone setting used by Affilite-Mix. It is the canonical reference for the deployment.
 
+**See also:**
+
+- [cloudflare-production.md](./cloudflare-production.md) — step-by-step zone security & performance toggles (SSL, HSTS, WAF, rate limiting, cache rules) with dashboard links and verification scripts
+- [cloudflare-recovery.md](./cloudflare-recovery.md) — account recovery playbook (lost access, compromised account, full rebuild from scratch)
+- [cloudflare-r2-images.md](./cloudflare-r2-images.md) — image upload architecture (S3-API presigned URLs)
+- [secrets-rotation-runbook.md](./secrets-rotation-runbook.md) — per-secret rotation procedures and impact
+- [rollback-strategy.md](./rollback-strategy.md) — rollback via Dashboard, API, or Git revert
+
 ---
 
 ## Account & Zone
@@ -131,7 +139,7 @@ Server-side secrets (JWT, cron, AI keys, affiliate APIs, etc.) are **not** in th
 
 ## Zone Security Settings (wristnerd.xyz)
 
-Applied via Cloudflare API. Verify in Dashboard → SSL/TLS and Security tabs.
+Applied via Cloudflare Dashboard or API. For detailed step-by-step instructions, dashboard links, and verification scripts, see **[cloudflare-production.md](./cloudflare-production.md)**.
 
 | Setting                | Value              | Notes                                          |
 | ---------------------- | ------------------ | ---------------------------------------------- |
