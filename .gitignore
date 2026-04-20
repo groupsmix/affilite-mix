@@ -61,3 +61,6 @@ infra/**/*.tfplan
 sbom.cdx.json
 sbom.spdx.json
 sbom.*.bundle
+
+# security audit (keep out of public repos — see W5)
+SECURITY-AUDIT.md
