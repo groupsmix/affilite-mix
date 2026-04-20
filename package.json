@@ -19,6 +19,8 @@
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:a11y": "playwright test e2e/a11y.spec.ts",
+    "lighthouse": "lhci autorun",
     "add-site": "tsx scripts/add-site.ts",
     "pause-site": "tsx scripts/pause-site.ts",
     "redesign-site": "tsx scripts/redesign-site.ts",
@@ -57,7 +59,9 @@
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
     "@eslint/eslintrc": "^3.3.5",
+    "@lhci/cli": "^0.14.0",
     "@opennextjs/cloudflare": "^1.17.3",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.2.2",
