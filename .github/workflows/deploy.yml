@@ -45,6 +45,13 @@ on:
   workflow_dispatch:
 
 env:
+  # ── Wrangler pin ───────────────────────────────────────────────────
+  # Pin wrangler to a known version so CI is reproducible. `npx wrangler`
+  # without a version will resolve whatever `@opennextjs/cloudflare`'s
+  # floating dep range picks up that day, which has caused OpenNext
+  # breakage before. Bump deliberately when upgrading @opennextjs/cloudflare.
+  WRANGLER_VERSION: "4.77.0"
+
   # ── Build-time only ────────────────────────────────────────────────
   # NEXT_PUBLIC_* vars are inlined by Next.js at bundle time.
   # Everything else here is consumed by wrangler CLI or DB migrations.
@@ -134,13 +141,13 @@ jobs:
       - name: Create R2 bucket (if not exists)
         run: |
           echo "🔧 Checking R2 bucket..."
-          npx wrangler r2 bucket create next-inc-cache 2>&1 || echo "Bucket may already exist, continuing..."
+          npx --yes wrangler@${WRANGLER_VERSION} r2 bucket create next-inc-cache 2>&1 || echo "Bucket may already exist, continuing..."
 
       # ── Create KV namespace if not exists ────────────────────────────
       - name: Create KV namespace (if not exists)
         run: |
           echo "🔧 Checking KV namespace..."
-          KV_ID=$(npx wrangler kv:namespace create RATE_LIMIT_KV 2>&1 | grep -o '"id":"[^"]*"' | cut -d'"' -f4 || echo "")
+          KV_ID=$(npx --yes wrangler@${WRANGLER_VERSION} kv:namespace create RATE_LIMIT_KV 2>&1 | grep -o '"id":"[^"]*"' | cut -d'"' -f4 || echo "")
           if [ -n "$KV_ID" ]; then
             echo "Created KV namespace: $KV_ID"
             # Update wrangler.jsonc with the new KV ID
@@ -193,39 +200,39 @@ jobs:
           fi
 
           echo "🔐 Setting required Worker secrets..."
-          echo "$_CRON_SECRET"    | npx wrangler secret put CRON_SECRET --name affilite-mix
-          echo "$_JWT_SECRET"     | npx wrangler secret put JWT_SECRET --name affilite-mix
-          echo "$_SB_SERVICE_KEY" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix
-          echo "$_SB_URL"         | npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix
-          echo "$_SB_ANON_KEY"    | npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix
-          echo "$_CRON_HOST"      | npx wrangler secret put CRON_HOST --name affilite-mix
-          echo "$_INTERNAL_TOKEN" | npx wrangler secret put INTERNAL_API_TOKEN --name affilite-mix
+          echo "$_CRON_SECRET"    | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SECRET --name affilite-mix
+          echo "$_JWT_SECRET"     | npx --yes wrangler@${WRANGLER_VERSION} secret put JWT_SECRET --name affilite-mix
+          echo "$_SB_SERVICE_KEY" | npx --yes wrangler@${WRANGLER_VERSION} secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix
+          echo "$_SB_URL"         | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix
+          echo "$_SB_ANON_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix
+          echo "$_CRON_HOST"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST --name affilite-mix
+          echo "$_INTERNAL_TOKEN" | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN --name affilite-mix
 
           echo "🔐 Setting optional Worker secrets (skipped if not configured)..."
-          [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx wrangler secret put RESEND_API_KEY --name affilite-mix       || true
-          [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx wrangler secret put SENTRY_DSN --name affilite-mix           || true
-          [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx wrangler secret put TURNSTILE_SECRET_KEY --name affilite-mix || true
-          [ -n "$_NL_FROM" ]          && echo "$_NL_FROM"          | npx wrangler secret put NEWSLETTER_FROM_EMAIL --name affilite-mix || true
+          [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix       || true
+          [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx --yes wrangler@${WRANGLER_VERSION} secret put SENTRY_DSN --name affilite-mix           || true
+          [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put TURNSTILE_SECRET_KEY --name affilite-mix || true
+          [ -n "$_NL_FROM" ]          && echo "$_NL_FROM"          | npx --yes wrangler@${WRANGLER_VERSION} secret put NEWSLETTER_FROM_EMAIL --name affilite-mix || true
 
           echo "🔐 Setting optional AI provider secrets..."
-          [ -n "$_CF_AI_TOKEN" ]      && echo "$_CF_AI_TOKEN"      | npx wrangler secret put CLOUDFLARE_AI_API_TOKEN --name affilite-mix || true
-          [ -n "$_GEMINI_KEY" ]       && echo "$_GEMINI_KEY"       | npx wrangler secret put GEMINI_API_KEY --name affilite-mix         || true
-          [ -n "$_GROQ_KEY" ]         && echo "$_GROQ_KEY"         | npx wrangler secret put GROQ_API_KEY --name affilite-mix           || true
-          [ -n "$_COHERE_KEY" ]       && echo "$_COHERE_KEY"       | npx wrangler secret put COHERE_API_KEY --name affilite-mix         || true
+          [ -n "$_CF_AI_TOKEN" ]      && echo "$_CF_AI_TOKEN"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CLOUDFLARE_AI_API_TOKEN --name affilite-mix || true
+          [ -n "$_GEMINI_KEY" ]       && echo "$_GEMINI_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put GEMINI_API_KEY --name affilite-mix         || true
+          [ -n "$_GROQ_KEY" ]         && echo "$_GROQ_KEY"         | npx --yes wrangler@${WRANGLER_VERSION} secret put GROQ_API_KEY --name affilite-mix           || true
+          [ -n "$_COHERE_KEY" ]       && echo "$_COHERE_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put COHERE_API_KEY --name affilite-mix         || true
 
           echo "🔐 Setting optional affiliate network secrets..."
-          [ -n "$_CJ_KEY" ]           && echo "$_CJ_KEY"           | npx wrangler secret put CJ_API_KEY --name affilite-mix             || true
-          [ -n "$_CJ_PUB" ]           && echo "$_CJ_PUB"           | npx wrangler secret put CJ_PUBLISHER_ID --name affilite-mix       || true
-          [ -n "$_PSTACK_KEY" ]       && echo "$_PSTACK_KEY"       | npx wrangler secret put PARTNERSTACK_API_KEY --name affilite-mix   || true
-          [ -n "$_ADMITAD_KEY" ]      && echo "$_ADMITAD_KEY"      | npx wrangler secret put ADMITAD_API_KEY --name affilite-mix        || true
-          [ -n "$_ADMITAD_PUB" ]      && echo "$_ADMITAD_PUB"      | npx wrangler secret put ADMITAD_PUBLISHER_ID --name affilite-mix   || true
+          [ -n "$_CJ_KEY" ]           && echo "$_CJ_KEY"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CJ_API_KEY --name affilite-mix             || true
+          [ -n "$_CJ_PUB" ]           && echo "$_CJ_PUB"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CJ_PUBLISHER_ID --name affilite-mix       || true
+          [ -n "$_PSTACK_KEY" ]       && echo "$_PSTACK_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put PARTNERSTACK_API_KEY --name affilite-mix   || true
+          [ -n "$_ADMITAD_KEY" ]      && echo "$_ADMITAD_KEY"      | npx --yes wrangler@${WRANGLER_VERSION} secret put ADMITAD_API_KEY --name affilite-mix        || true
+          [ -n "$_ADMITAD_PUB" ]      && echo "$_ADMITAD_PUB"      | npx --yes wrangler@${WRANGLER_VERSION} secret put ADMITAD_PUBLISHER_ID --name affilite-mix   || true
 
           echo "🔐 Setting optional R2 image storage secrets..."
-          [ -n "$_R2_ACCOUNT" ]       && echo "$_R2_ACCOUNT"       | npx wrangler secret put R2_ACCOUNT_ID --name affilite-mix          || true
-          [ -n "$_R2_KEY_ID" ]        && echo "$_R2_KEY_ID"        | npx wrangler secret put R2_ACCESS_KEY_ID --name affilite-mix       || true
-          [ -n "$_R2_SECRET" ]        && echo "$_R2_SECRET"        | npx wrangler secret put R2_SECRET_ACCESS_KEY --name affilite-mix   || true
-          [ -n "$_R2_BUCKET" ]        && echo "$_R2_BUCKET"        | npx wrangler secret put R2_BUCKET_NAME --name affilite-mix         || true
-          [ -n "$_R2_URL" ]           && echo "$_R2_URL"           | npx wrangler secret put R2_PUBLIC_URL --name affilite-mix           || true
+          [ -n "$_R2_ACCOUNT" ]       && echo "$_R2_ACCOUNT"       | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_ACCOUNT_ID --name affilite-mix          || true
+          [ -n "$_R2_KEY_ID" ]        && echo "$_R2_KEY_ID"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_ACCESS_KEY_ID --name affilite-mix       || true
+          [ -n "$_R2_SECRET" ]        && echo "$_R2_SECRET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_SECRET_ACCESS_KEY --name affilite-mix   || true
+          [ -n "$_R2_BUCKET" ]        && echo "$_R2_BUCKET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_BUCKET_NAME --name affilite-mix         || true
+          [ -n "$_R2_URL" ]           && echo "$_R2_URL"           | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_PUBLIC_URL --name affilite-mix           || true
 
           echo "✅ Worker secrets configured"
         env:
