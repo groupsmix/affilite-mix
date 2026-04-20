@@ -1,0 +1,25 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Terraform Variables — Example
+#
+# Copy this file to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars — it is in .gitignore.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+cloudflare_api_token  = "your-cloudflare-api-token"
+cloudflare_account_id = "your-cloudflare-account-id"
+zone_id               = "your-zone-id"
+domain                = "wristnerd.xyz"
+worker_name           = "affilite-mix"
+environment           = "production"
+
+custom_domains = [
+  "wristnerd.xyz",
+  "arabictools.wristnerd.xyz",
+  "crypto.wristnerd.xyz",
+]
+
+# WAF tuning (defaults are usually fine)
+# waf_admin_rate_limit_rps          = 30
+# waf_api_rate_limit_rps            = 100
+# waf_newsletter_rate_limit_per_hour = 3
+# waf_click_track_rate_limit_per_min = 60

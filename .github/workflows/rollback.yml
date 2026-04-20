@@ -1,0 +1,228 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROLLBACK & PROMOTION WORKFLOW
+#
+# Codifies the rollback strategy from docs/rollback-strategy.md as a
+# dispatchable GitHub Actions workflow. Supports:
+#   - instant: Roll back to previous Cloudflare Worker deployment
+#   - git-revert: Revert a commit on main and redeploy
+#   - promote: Promote staging → production with health-gate validation
+#
+# Addresses audit finding: "Codify rollback and promotion states."
+# ═══════════════════════════════════════════════════════════════════════════════
+name: Rollback / Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        type: choice
+        options:
+          - rollback-instant
+          - rollback-git-revert
+          - promote-staging
+      deployment_id:
+        description: "Cloudflare deployment ID to roll back to (for rollback-instant). Leave blank for latest-minus-one."
+        required: false
+        type: string
+      commit_sha:
+        description: "Commit SHA to revert (for rollback-git-revert)."
+        required: false
+        type: string
+      skip_health_check:
+        description: "Skip post-action health check (emergency only)."
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  WORKER_NAME: affilite-mix
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # INSTANT ROLLBACK — revert to a previous Cloudflare Worker version
+  # ═══════════════════════════════════════════════════════════════════════
+  rollback-instant:
+    if: github.event.inputs.action == 'rollback-instant'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: List recent deployments
+        id: list
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -sf \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_NAME}/deployments" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}")
+
+          echo "$RESPONSE" | jq '.result[:5]'
+
+          if [ -n "${{ github.event.inputs.deployment_id }}" ]; then
+            TARGET_ID="${{ github.event.inputs.deployment_id }}"
+          else
+            # Default: roll back to the deployment before the latest
+            TARGET_ID=$(echo "$RESPONSE" | jq -r '.result[1].id')
+          fi
+
+          if [ -z "$TARGET_ID" ] || [ "$TARGET_ID" = "null" ]; then
+            echo "::error::Could not determine target deployment ID."
+            exit 1
+          fi
+
+          echo "target_id=$TARGET_ID" >> "$GITHUB_OUTPUT"
+          echo "Rolling back to deployment: $TARGET_ID"
+
+      - name: Execute rollback
+        run: |
+          set -euo pipefail
+          curl -sf -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_NAME}/deployments/${{ steps.list.outputs.target_id }}/rollback" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" | jq .
+          echo "Rollback executed successfully."
+
+      - name: Post-rollback health check
+        if: github.event.inputs.skip_health_check != 'true'
+        run: |
+          set -euo pipefail
+          echo "Waiting 15s for rollback to propagate..."
+          sleep 15
+          CRON_HOST="${{ secrets.CRON_HOST }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+          if [ -z "$CRON_HOST" ]; then
+            echo "::warning::CRON_HOST not set — skipping health check"
+            exit 0
+          fi
+          HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" \
+            --max-time 20 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$CRON_HOST/api/health")
+          echo "Health check: HTTP $HTTP_STATUS"
+          cat /tmp/health.json || true
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Health check failed after rollback (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
+          echo "Rollback health check passed."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # GIT REVERT — revert a commit and trigger a fresh deploy
+  # ═══════════════════════════════════════════════════════════════════════
+  rollback-git-revert:
+    if: github.event.inputs.action == 'rollback-git-revert'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate commit SHA
+        run: |
+          SHA="${{ github.event.inputs.commit_sha }}"
+          if [ -z "$SHA" ]; then
+            echo "::error::commit_sha is required for rollback-git-revert"
+            exit 1
+          fi
+          if ! git cat-file -t "$SHA" > /dev/null 2>&1; then
+            echo "::error::Commit $SHA not found in repository"
+            exit 1
+          fi
+
+      - name: Revert commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git revert --no-edit "${{ github.event.inputs.commit_sha }}"
+          git push origin main
+          echo "Reverted ${{ github.event.inputs.commit_sha }} — deploy workflow will trigger automatically."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # PROMOTE STAGING → PRODUCTION
+  #
+  # State machine:
+  #   staging (preview Worker) → health check → production (affilite-mix Worker)
+  #
+  # Pulls the staging Worker bundle and deploys it as the production Worker
+  # with full health-gate validation.
+  # ═══════════════════════════════════════════════════════════════════════
+  promote-staging:
+    if: github.event.inputs.action == 'promote-staging'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm install
+
+      - name: Pre-promotion health check (staging)
+        run: |
+          set -euo pipefail
+          STAGING_HOST="${{ secrets.STAGING_HOST }}"
+          if [ -z "$STAGING_HOST" ]; then
+            echo "::warning::STAGING_HOST not set — skipping staging health check"
+            exit 0
+          fi
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$STAGING_HOST/")
+          echo "Staging site: HTTP $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Staging is not healthy (HTTP $HTTP_STATUS). Aborting promotion."
+            exit 1
+          fi
+          echo "Staging health check passed."
+
+      - name: Build production bundle
+        run: npx @opennextjs/cloudflare build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+      - name: Deploy to production
+        run: npx opennextjs-cloudflare deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Post-promotion health gate
+        if: github.event.inputs.skip_health_check != 'true'
+        run: |
+          set -euo pipefail
+          echo "Waiting 15s for production deploy to propagate..."
+          sleep 15
+          CRON_HOST="${{ secrets.CRON_HOST }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+          if [ -z "$CRON_HOST" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::warning::CRON_HOST/CRON_SECRET not set — skipping health gate"
+            exit 0
+          fi
+          HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" \
+            --max-time 20 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$CRON_HOST/api/health")
+          echo "Production health: HTTP $HTTP_STATUS"
+          cat /tmp/health.json || true
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Production health check FAILED after promotion. Consider immediate rollback."
+            exit 1
+          fi
+          DEGRADED=$(cat /tmp/health.json | grep -o '"status":"degraded"' | head -1 || true)
+          if [ -n "$DEGRADED" ]; then
+            echo "::error::Production reports degraded health. Consider immediate rollback."
+            exit 1
+          fi
+          echo "Production health gate passed. Promotion complete."

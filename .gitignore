@@ -47,3 +47,16 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 wrangler.preview.json
+
+# terraform
+infra/**/*.tfstate
+infra/**/*.tfstate.backup
+infra/**/.terraform/
+infra/**/.terraform.lock.hcl
+infra/**/terraform.tfvars
+infra/**/*.tfplan
+
+# sbom (generated at build time)
+sbom.cdx.json
+sbom.spdx.json
+sbom.*.bundle
