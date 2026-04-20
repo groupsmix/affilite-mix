@@ -1,4 +1,4 @@
-import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
+import { getServiceClient } from "@/lib/supabase-server";
 import type { ContentProductRow, ContentRow, ProductRow } from "@/types/database";
 import { assertRow, assertRows } from "./type-guards";
 
@@ -28,7 +28,7 @@ export async function unlinkProduct(contentId: string, productId: string): Promi
 export async function getLinkedProducts(
   contentId: string,
 ): Promise<(ContentProductRow & { product: ProductRow })[]> {
-  const sb = getAnonClient();
+  const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*, product:products(*)")
@@ -60,7 +60,7 @@ export async function updateProductLink(
 
 /** Get content items that link to a given product */
 export async function getRelatedContentForProduct(productId: string): Promise<ContentRow[]> {
-  const sb = getAnonClient();
+  const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("content:content(*)")

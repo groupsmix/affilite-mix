@@ -1,4 +1,4 @@
-import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
+import { getServiceClient } from "@/lib/supabase-server";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { PageRow } from "@/types/database";
 
@@ -27,7 +27,7 @@ export async function listPages(siteId: string): Promise<PageRow[]> {
 
 /** List only published pages for a site */
 export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
-  const { data, error } = await getAnonClient()
+  const { data, error } = await getServiceClient()
     .from("pages")
     .select(LIST_COLUMNS)
     .eq("site_id", siteId)
@@ -40,7 +40,7 @@ export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
 
 /** Get a single page by slug within a site */
 export async function getPageBySlug(siteId: string, slug: string): Promise<PageRow | null> {
-  const { data, error } = await getAnonClient()
+  const { data, error } = await getServiceClient()
     .from("pages")
     .select("*")
     .eq("site_id", siteId)

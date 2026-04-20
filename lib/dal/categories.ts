@@ -1,4 +1,4 @@
-import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
+import { getServiceClient } from "@/lib/supabase-server";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 
@@ -72,7 +72,7 @@ export async function listCategoriesByTaxonomy(
   siteId: string,
   taxonomyType: TaxonomyType,
 ): Promise<CategoryRow[]> {
-  const sb = getAnonClient();
+  const sb = getServiceClient();
   // Return empty if Supabase is not configured (placeholder URL)
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -127,7 +127,7 @@ export async function getCategoryById(siteId: string, id: string): Promise<Categ
 
 /** Get a single category by slug */
 export async function getCategoryBySlug(siteId: string, slug: string): Promise<CategoryRow | null> {
-  const sb = getAnonClient();
+  const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -143,7 +143,7 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
 export async function listCategoriesWithProductCount(
   siteId: string,
 ): Promise<(CategoryRow & { product_count: number })[]> {
-  const sb = getAnonClient();
+  const sb = getServiceClient();
   // Return empty if Supabase is not configured (placeholder URL)
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
