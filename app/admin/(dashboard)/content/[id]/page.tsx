@@ -8,11 +8,7 @@ import { getSiteById } from "@/config/sites";
 import { notFound } from "next/navigation";
 import { ContentForm } from "../content-form";
 
-export default async function EditContentPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EditContentPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) notFound();
   const { id } = await params;
@@ -21,7 +17,7 @@ export default async function EditContentPage({
     getContentById(dbSiteId, id),
     listCategories(dbSiteId),
     listProducts({ siteId: dbSiteId }),
-    getLinkedProducts(id),
+    getLinkedProducts(dbSiteId, id),
   ]);
 
   if (!content) notFound();

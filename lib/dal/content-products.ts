@@ -12,9 +12,24 @@ export async function linkProduct(input: ContentProductRow): Promise<ContentProd
   return assertRow<ContentProductRow>(data, "ContentProduct");
 }
 
-/** Unlink a product from a content item */
-export async function unlinkProduct(contentId: string, productId: string): Promise<void> {
+/** Unlink a product from a content item (verifies content belongs to site) */
+export async function unlinkProduct(
+  siteId: string,
+  contentId: string,
+  productId: string,
+): Promise<void> {
   const sb = getServiceClient();
+
+  // Verify the content belongs to this site
+  const { data: contentRow, error: contentErr } = await sb
+    .from("content")
+    .select("id")
+    .eq("id", contentId)
+    .eq("site_id", siteId)
+    .maybeSingle();
+  if (contentErr) throw contentErr;
+  if (!contentRow) throw new Error("Content not found for this site");
+
   const { error } = await sb
     .from(TABLE)
     .delete()
@@ -24,28 +39,43 @@ export async function unlinkProduct(contentId: string, productId: string): Promi
   if (error) throw error;
 }
 
-/** Get all linked products for a content item (with full product data) */
+/** Get all linked products for a content item (with full product data, scoped to site) */
 export async function getLinkedProducts(
+  siteId: string,
   contentId: string,
 ): Promise<(ContentProductRow & { product: ProductRow })[]> {
   const sb = getServiceClient();
+  // Join through products to ensure only products belonging to this site are returned
   const { data, error } = await sb
     .from(TABLE)
-    .select("*, product:products(*)")
+    .select("*, product:products!inner(*)")
     .eq("content_id", contentId)
+    .eq("product.site_id", siteId)
     .order("content_id", { ascending: true });
 
   if (error) throw error;
   return assertRows<ContentProductRow & { product: ProductRow }>(data);
 }
 
-/** Update link metadata (role) */
+/** Update link metadata (role) — verifies content belongs to site */
 export async function updateProductLink(
+  siteId: string,
   contentId: string,
   productId: string,
   input: Partial<Pick<ContentProductRow, "role">>,
 ): Promise<ContentProductRow> {
   const sb = getServiceClient();
+
+  // Verify the content belongs to this site
+  const { data: contentRow, error: contentErr } = await sb
+    .from("content")
+    .select("id")
+    .eq("id", contentId)
+    .eq("site_id", siteId)
+    .maybeSingle();
+  if (contentErr) throw contentErr;
+  if (!contentRow) throw new Error("Content not found for this site");
+
   const { data, error } = await sb
     .from(TABLE)
     .update(input)
@@ -58,13 +88,17 @@ export async function updateProductLink(
   return assertRow<ContentProductRow>(data, "ContentProduct");
 }
 
-/** Get content items that link to a given product */
-export async function getRelatedContentForProduct(productId: string): Promise<ContentRow[]> {
+/** Get content items that link to a given product (scoped to site) */
+export async function getRelatedContentForProduct(
+  siteId: string,
+  productId: string,
+): Promise<ContentRow[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("content:content(*)")
-    .eq("product_id", productId);
+    .select("content:content!inner(*)")
+    .eq("product_id", productId)
+    .eq("content.site_id", siteId);
 
   if (error) throw error;
   return assertRows<{ content: ContentRow }>(data ?? [])
