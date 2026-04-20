@@ -71,7 +71,7 @@
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.58.0",
     "@typescript-eslint/parser": "^8.58.0",
-    "eslint": "^9.39.4",
+    "eslint": "^10.2.1",
     "eslint-config-next": "^15.5.14",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
