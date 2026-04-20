@@ -140,6 +140,9 @@ export interface Database {
           description: string;
           affiliate_url: string;
           image_url: string;
+          image_alt: string;
+          pros: string;
+          cons: string;
           price: string;
           price_amount: number | null;
           price_currency: string;
@@ -162,6 +165,9 @@ export interface Database {
           description?: string;
           affiliate_url?: string;
           image_url?: string;
+          image_alt?: string;
+          pros?: string;
+          cons?: string;
           price?: string;
           price_amount?: number | null;
           price_currency?: string;
@@ -184,6 +190,9 @@ export interface Database {
           description?: string;
           affiliate_url?: string;
           image_url?: string;
+          image_alt?: string;
+          pros?: string;
+          cons?: string;
           price?: string;
           price_amount?: number | null;
           price_currency?: string;
@@ -223,6 +232,7 @@ export interface Database {
           title: string;
           slug: string;
           body: string;
+          body_previous: string | null;
           excerpt: string;
           featured_image: string;
           type: string;
@@ -243,6 +253,7 @@ export interface Database {
           title: string;
           slug: string;
           body?: string;
+          body_previous?: string | null;
           excerpt?: string;
           featured_image?: string;
           type?: string;
@@ -263,6 +274,7 @@ export interface Database {
           title?: string;
           slug?: string;
           body?: string;
+          body_previous?: string | null;
           excerpt?: string;
           featured_image?: string;
           type?: string;
@@ -337,6 +349,7 @@ export interface Database {
           status: string;
           confirmation_token: string | null;
           confirmed_at: string | null;
+          unsubscribe_token: string | null;
           created_at: string;
         };
         Insert: {
@@ -346,6 +359,7 @@ export interface Database {
           status?: string;
           confirmation_token?: string | null;
           confirmed_at?: string | null;
+          unsubscribe_token?: string | null;
           created_at?: string;
         };
         Update: {
@@ -355,6 +369,7 @@ export interface Database {
           status?: string;
           confirmation_token?: string | null;
           confirmed_at?: string | null;
+          unsubscribe_token?: string | null;
           created_at?: string;
         };
         Relationships: [
