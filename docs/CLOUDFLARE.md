@@ -210,6 +210,36 @@ Use the Rollback workflow: GitHub Actions → Rollback / Promote → `rollback-i
 
 ---
 
+## Post-Merge Manual Steps
+
+After merging code changes that touch `wrangler.jsonc` or zone-level settings, complete these steps to ensure the live worker matches the repo.
+
+### 1. Trigger a Re-deploy (observability + smart placement)
+
+`wrangler.jsonc` includes `observability.enabled = true` and `placement.mode = "smart"`, but these only take effect after a fresh deploy. If the last deploy pre-dates your merge:
+
+1. Go to **GitHub → Actions → "🚀 Deploy to Cloudflare"**
+2. Click **Run workflow** (on `main`)
+3. Wait for the run to go green
+
+Verify via API:
+
+```bash
+curl -s "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/workers/scripts/affilite-mix" \
+  -H "Authorization: Bearer ${API_TOKEN}" | jq '{observability: .result.observability, placement: .result.placement}'
+# Expected: { "observability": { "enabled": true }, "placement": { "mode": "smart" } }
+```
+
+### 2. Add a Second Super Administrator
+
+A single-owner account is one forgotten password away from total lockout. See [cloudflare-recovery.md](./cloudflare-recovery.md#1-add-a-second-super-administrator) for step-by-step instructions.
+
+### 3. Replace the Global API Key
+
+The Global API Key grants full account access. Replace it with a scoped API Token for CI. See [cloudflare-recovery.md](./cloudflare-recovery.md#5-replace-the-global-api-key-with-a-scoped-token) for the exact permissions needed.
+
+---
+
 ## Local Development
 
 ```bash
