@@ -10,20 +10,29 @@
 #
 # SETUP REQUIRED (one-time):
 # Go to GitHub repo → Settings → Secrets and variables → Actions
-# Add these secrets:
-#   - CLOUDFLARE_API_TOKEN (from Cloudflare dashboard)
-#   - CLOUDFLARE_ACCOUNT_ID (from Cloudflare dashboard)
-#   - NEXT_PUBLIC_SUPABASE_URL (from Supabase dashboard)
-#   - NEXT_PUBLIC_SUPABASE_ANON_KEY (from Supabase dashboard)
-#   - SUPABASE_SERVICE_ROLE_KEY (from Supabase dashboard)
-#   - SUPABASE_DB_URL (postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres?sslmode=require)
+# Add these secrets (see docs/CLOUDFLARE.md for full inventory):
+#
+# ── Build-time (used by Next.js bundler + wrangler CLI) ──
+#   - CLOUDFLARE_API_TOKEN (or CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL)
+#   - CLOUDFLARE_ACCOUNT_ID
+#   - NEXT_PUBLIC_SUPABASE_URL
+#   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+#   - SUPABASE_DB_URL (for DB migrations only)
+#
+# ── Runtime Worker secrets (set via `wrangler secret put`) ──
+#   - SUPABASE_SERVICE_ROLE_KEY
 #   - JWT_SECRET (generate: openssl rand -hex 64)
 #   - CRON_SECRET (generate: openssl rand -hex 32)
-# Optional admin bootstrap secrets:
-#   - ADMIN_BOOTSTRAP_EMAIL (your admin email)
-#   - ADMIN_BOOTSTRAP_PASSWORD (your admin password)
-#   - ADMIN_BOOTSTRAP_NAME (your name, optional)
-#   - ADMIN_BOOTSTRAP_ROLE (super_admin or admin, default: super_admin)
+#   - CRON_HOST (e.g. https://wristnerd.xyz)
+#   - INTERNAL_API_TOKEN (generate: openssl rand -hex 64)
+#   - RESEND_API_KEY, SENTRY_DSN, TURNSTILE_SECRET_KEY (optional)
+#   - AI keys: CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COHERE_API_KEY (optional)
+#   - Affiliate: CJ_API_KEY, CJ_PUBLISHER_ID, PARTNERSTACK_API_KEY, ADMITAD_API_KEY, ADMITAD_PUBLISHER_ID (optional)
+#   - R2: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL (optional)
+#
+# ── Admin bootstrap (optional, one-time) ──
+#   - ADMIN_BOOTSTRAP_EMAIL, ADMIN_BOOTSTRAP_PASSWORD
+#   - ADMIN_BOOTSTRAP_NAME (optional), ADMIN_BOOTSTRAP_ROLE (default: super_admin)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 name: 🚀 Deploy to Cloudflare
@@ -34,25 +43,17 @@ on:
   workflow_dispatch:
 
 env:
+  # ── Build-time only ────────────────────────────────────────────────
+  # NEXT_PUBLIC_* vars are inlined by Next.js at bundle time.
+  # Everything else here is consumed by wrangler CLI or DB migrations.
+  # Server-side secrets (JWT, cron, AI, affiliate, etc.) are set as
+  # Worker secrets in the "Set Worker secrets" step below so they are
+  # readable at runtime and rotatable without a rebuild.
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-  JWT_SECRET: ${{ secrets.JWT_SECRET }}
-  CRON_SECRET: ${{ secrets.CRON_SECRET }}
-  RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-  CLOUDFLARE_AI_API_TOKEN: ${{ secrets.CLOUDFLARE_AI_API_TOKEN }}
-  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-  COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
-  CJ_API_KEY: ${{ secrets.CJ_API_KEY }}
-  CJ_PUBLISHER_ID: ${{ secrets.CJ_PUBLISHER_ID }}
-  PARTNERSTACK_API_KEY: ${{ secrets.PARTNERSTACK_API_KEY }}
-  ADMITAD_API_KEY: ${{ secrets.ADMITAD_API_KEY }}
-  ADMITAD_PUBLISHER_ID: ${{ secrets.ADMITAD_PUBLISHER_ID }}
 
 jobs:
   deploy:
@@ -190,6 +191,28 @@ jobs:
           [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx wrangler secret put RESEND_API_KEY --name affilite-mix       || true
           [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx wrangler secret put SENTRY_DSN --name affilite-mix           || true
           [ -n "$_INTERNAL_TOKEN" ]   && echo "$_INTERNAL_TOKEN"   | npx wrangler secret put INTERNAL_API_TOKEN --name affilite-mix   || true
+          [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx wrangler secret put TURNSTILE_SECRET_KEY --name affilite-mix || true
+          [ -n "$_NL_FROM" ]          && echo "$_NL_FROM"          | npx wrangler secret put NEWSLETTER_FROM_EMAIL --name affilite-mix || true
+
+          echo "🔐 Setting optional AI provider secrets..."
+          [ -n "$_CF_AI_TOKEN" ]      && echo "$_CF_AI_TOKEN"      | npx wrangler secret put CLOUDFLARE_AI_API_TOKEN --name affilite-mix || true
+          [ -n "$_GEMINI_KEY" ]       && echo "$_GEMINI_KEY"       | npx wrangler secret put GEMINI_API_KEY --name affilite-mix         || true
+          [ -n "$_GROQ_KEY" ]         && echo "$_GROQ_KEY"         | npx wrangler secret put GROQ_API_KEY --name affilite-mix           || true
+          [ -n "$_COHERE_KEY" ]       && echo "$_COHERE_KEY"       | npx wrangler secret put COHERE_API_KEY --name affilite-mix         || true
+
+          echo "🔐 Setting optional affiliate network secrets..."
+          [ -n "$_CJ_KEY" ]           && echo "$_CJ_KEY"           | npx wrangler secret put CJ_API_KEY --name affilite-mix             || true
+          [ -n "$_CJ_PUB" ]           && echo "$_CJ_PUB"           | npx wrangler secret put CJ_PUBLISHER_ID --name affilite-mix       || true
+          [ -n "$_PSTACK_KEY" ]       && echo "$_PSTACK_KEY"       | npx wrangler secret put PARTNERSTACK_API_KEY --name affilite-mix   || true
+          [ -n "$_ADMITAD_KEY" ]      && echo "$_ADMITAD_KEY"      | npx wrangler secret put ADMITAD_API_KEY --name affilite-mix        || true
+          [ -n "$_ADMITAD_PUB" ]      && echo "$_ADMITAD_PUB"      | npx wrangler secret put ADMITAD_PUBLISHER_ID --name affilite-mix   || true
+
+          echo "🔐 Setting optional R2 image storage secrets..."
+          [ -n "$_R2_ACCOUNT" ]       && echo "$_R2_ACCOUNT"       | npx wrangler secret put R2_ACCOUNT_ID --name affilite-mix          || true
+          [ -n "$_R2_KEY_ID" ]        && echo "$_R2_KEY_ID"        | npx wrangler secret put R2_ACCESS_KEY_ID --name affilite-mix       || true
+          [ -n "$_R2_SECRET" ]        && echo "$_R2_SECRET"        | npx wrangler secret put R2_SECRET_ACCESS_KEY --name affilite-mix   || true
+          [ -n "$_R2_BUCKET" ]        && echo "$_R2_BUCKET"        | npx wrangler secret put R2_BUCKET_NAME --name affilite-mix         || true
+          [ -n "$_R2_URL" ]           && echo "$_R2_URL"           | npx wrangler secret put R2_PUBLIC_URL --name affilite-mix           || true
 
           echo "✅ Worker secrets configured"
         env:
@@ -206,6 +229,22 @@ jobs:
           _SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
           _CRON_HOST: ${{ secrets.CRON_HOST }}
+          _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          _NL_FROM: ${{ secrets.NEWSLETTER_FROM_EMAIL }}
+          _CF_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_API_TOKEN }}
+          _GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+          _GROQ_KEY: ${{ secrets.GROQ_API_KEY }}
+          _COHERE_KEY: ${{ secrets.COHERE_API_KEY }}
+          _CJ_KEY: ${{ secrets.CJ_API_KEY }}
+          _CJ_PUB: ${{ secrets.CJ_PUBLISHER_ID }}
+          _PSTACK_KEY: ${{ secrets.PARTNERSTACK_API_KEY }}
+          _ADMITAD_KEY: ${{ secrets.ADMITAD_API_KEY }}
+          _ADMITAD_PUB: ${{ secrets.ADMITAD_PUBLISHER_ID }}
+          _R2_ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
+          _R2_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          _R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
+          _R2_URL: ${{ secrets.R2_PUBLIC_URL }}
 
       # ── Bootstrap admin user (if secrets provided) ───────────────────
       - name: Bootstrap admin user
