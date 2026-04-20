@@ -1,15 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
-import { requireEnvInProduction } from "@/lib/env";
-import { randomUUID } from "crypto";
-
-const devFallback = randomUUID() + randomUUID();
-const JWT_SECRET = requireEnvInProduction("JWT_SECRET", devFallback);
+import { getJwtSecret } from "@/lib/jwt-secret";
 
 /** Preview tokens expire after 1 hour */
 const PREVIEW_TOKEN_EXPIRY = "1h";
 
 function getSecretKey() {
-  return new TextEncoder().encode(JWT_SECRET);
+  return new TextEncoder().encode(getJwtSecret());
 }
 
 export interface PreviewTokenPayload {
@@ -22,9 +18,7 @@ export interface PreviewTokenPayload {
  * Generate a short-lived preview token for a specific content slug.
  * Can be shared with non-admin reviewers.
  */
-export async function generatePreviewToken(
-  payload: PreviewTokenPayload,
-): Promise<string> {
+export async function generatePreviewToken(payload: PreviewTokenPayload): Promise<string> {
   return new SignJWT({ ...payload, purpose: "content-preview" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -38,9 +32,7 @@ export async function generatePreviewToken(
  * Validate a preview token and return its payload.
  * Returns null if the token is invalid or expired.
  */
-export async function validatePreviewToken(
-  token: string,
-): Promise<PreviewTokenPayload | null> {
+export async function validatePreviewToken(token: string): Promise<PreviewTokenPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), {
       audience: "affiliate-platform-preview",

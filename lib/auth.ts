@@ -1,19 +1,11 @@
-import { randomUUID } from "crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import { logger } from "@/lib/logger";
-import { requireEnvInProduction } from "@/lib/env";
+import { getJwtSecret } from "@/lib/jwt-secret";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 
-const devFallback = randomUUID() + randomUUID();
-const JWT_SECRET = requireEnvInProduction("JWT_SECRET", devFallback);
-if (JWT_SECRET === devFallback) {
-  console.warn(
-    "JWT_SECRET not set — using random dev fallback (sessions will not persist across restarts)",
-  );
-}
 const COOKIE_NAME = "nh_admin_token";
 /** Cookie tracking last admin activity for idle-timeout enforcement */
 const ACTIVITY_COOKIE = "nh_admin_activity";
@@ -22,7 +14,7 @@ const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const EXPIRY = "24h";
 
 function getSecretKey() {
-  return new TextEncoder().encode(JWT_SECRET);
+  return new TextEncoder().encode(getJwtSecret());
 }
 
 export interface AdminPayload {
