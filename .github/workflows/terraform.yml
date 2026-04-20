@@ -49,7 +49,7 @@ jobs:
         run: terraform plan -no-color -input=false -out=tfplan 2>&1 | tee plan.txt
         continue-on-error: true
       - name: Comment plan on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
