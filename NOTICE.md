@@ -29,3 +29,14 @@ pointing at the upstream source and commit.
   `components/admin/*` on top of the existing shadcn/ui primitives.
 - **Status:** patterns only — no source files copied. Each adapted file carries
   a one-line `// Layout patterns adapted from ...` comment pointing here.
+
+---
+
+## arhamkhnz/next-shadcn-admin-dashboard
+
+- **Upstream:** https://github.com/arhamkhnz/next-shadcn-admin-dashboard
+- **License:** MIT
+- **What we use:** auth screen layout adapted — centered card composition on
+  `app/admin/login/page.tsx` and `app/admin/reset-password/page.tsx`. Only
+  visual structure (Card composition, spacing, typography) was adapted; form
+  logic, CSRF wiring, and Turnstile integration remain this project's own.

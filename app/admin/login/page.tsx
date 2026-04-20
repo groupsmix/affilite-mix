@@ -1,9 +1,23 @@
+// Visual layout adapted from https://github.com/arhamkhnz/next-shadcn-admin-dashboard (MIT).
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -43,48 +57,67 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-lg bg-white p-8 shadow-md">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">Admin Login</h1>
-        <p className="mb-6 text-sm text-gray-500">
-          Sign in to manage all your sites from one dashboard.
-        </p>
-        {error && <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
-        <label className="mb-2 block text-sm font-medium text-gray-700">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="admin@example.com"
-          className="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-        <label className="mb-2 block text-sm font-medium text-gray-700">Password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          required
-        />
-        <TurnstileWidget onVerify={handleTurnstileToken} onExpire={handleTurnstileExpire} />
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-4 w-full rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-        >
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
-        <p className="mt-4 text-center text-xs text-gray-500">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle>
+            <h1 className="text-2xl font-bold">Admin Login</h1>
+          </CardTitle>
+          <CardDescription>Sign in to manage all your sites from one dashboard.</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-600">
+                <AlertDescription className="text-red-600">{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
+                autoComplete="email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </div>
+            <TurnstileWidget onVerify={handleTurnstileToken} onExpire={handleTurnstileExpire} />
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign in"
+              )}
+            </Button>
+          </CardContent>
+        </form>
+        <CardFooter className="justify-center">
           <button
             type="button"
             onClick={() => setShowForgot(true)}
-            className="text-blue-500 hover:underline"
+            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
           >
             Forgot your password?
           </button>
-        </p>
-        {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
-      </form>
+        </CardFooter>
+      </Card>
+      {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
     </div>
   );
 }
@@ -166,7 +199,7 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="forgot-password-title"
@@ -174,59 +207,72 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-        <h3 id="forgot-password-title" className="mb-2 text-lg font-semibold text-gray-900">
-          Reset Password
-        </h3>
+      <Card className="mx-auto w-full max-w-sm">
+        <CardHeader className="space-y-1">
+          <CardTitle>
+            <h3 id="forgot-password-title" className="text-lg font-semibold">
+              Reset Password
+            </h3>
+          </CardTitle>
+          {!sent && (
+            <CardDescription>
+              Enter your email address and we&apos;ll send you a link to reset your password.
+            </CardDescription>
+          )}
+        </CardHeader>
         {sent ? (
           <>
-            <p className="mb-4 text-sm text-gray-600">
-              If an account with that email exists, a password reset link has been sent. Check your
-              inbox.
-            </p>
-            <button
-              onClick={onClose}
-              className="w-full rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-            >
-              Back to Login
-            </button>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                If an account with that email exists, a password reset link has been sent. Check
+                your inbox.
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={onClose} className="w-full">
+                Back to Login
+              </Button>
+            </CardFooter>
           </>
         ) : (
           <form onSubmit={handleForgot}>
-            <p className="mb-4 text-sm text-gray-600">
-              Enter your email address and we&apos;ll send you a link to reset your password.
-            </p>
-            {resetError && (
-              <div className="mb-3 rounded bg-red-50 p-2 text-sm text-red-600">{resetError}</div>
-            )}
-            <input
-              type="email"
-              value={resetEmail}
-              onChange={(e) => setResetEmail(e.target.value)}
-              placeholder="admin@example.com"
-              className="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-              required
-            />
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={sending}
-                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-              >
+            <CardContent className="space-y-4">
+              {resetError && (
+                <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-600">
+                  <AlertDescription className="text-red-600">{resetError}</AlertDescription>
+                </Alert>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">Email</Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="justify-end gap-3">
+              <Button type="button" variant="ghost" onClick={onClose} disabled={sending}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={sending}
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-              >
-                {sending ? "Sending..." : "Send Reset Link"}
-              </button>
-            </div>
+              </Button>
+              <Button type="submit" disabled={sending}>
+                {sending ? (
+                  <>
+                    <Loader2 className="animate-spin" aria-hidden="true" />
+                    Sending...
+                  </>
+                ) : (
+                  "Send Reset Link"
+                )}
+              </Button>
+            </CardFooter>
           </form>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
