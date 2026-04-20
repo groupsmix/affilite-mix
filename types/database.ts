@@ -148,16 +148,6 @@ export interface PageRow {
   updated_at: string;
 }
 
-export interface AffiliateClickRow {
-  id: string;
-  site_id: string;
-  product_name: string;
-  affiliate_url: string;
-  content_slug: string;
-  referrer: string;
-  created_at: string;
-}
-
 export type AdPlacementType = "sidebar" | "in_content" | "header" | "footer" | "between_posts";
 export type AdProvider = "adsense" | "carbon" | "ethicalads" | "custom";
 

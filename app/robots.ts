@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { allSites } from "@/config/sites";
 
-const DEFAULT_DOMAIN = allSites[0]?.domain ?? "wristnerd.xyz";
+const DEFAULT_DOMAIN = allSites[0]?.domain ?? "example.com";
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
   let domain = DEFAULT_DOMAIN;

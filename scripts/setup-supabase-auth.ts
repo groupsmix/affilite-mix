@@ -15,8 +15,21 @@ const rl = readline.createInterface({ input: process.stdin, output: process.stdo
 const ask = (q: string): Promise<string> =>
   new Promise((res) => rl.question(q, (a) => res(a.trim())));
 
-const SITE_URL = "https://wristnerd.xyz";
-const REDIRECT_URLS = [`${SITE_URL}/**`, "https://*.wristnerd.xyz/**"];
+/**
+ * Derive site URL and redirect URLs from registered site configs.
+ * Falls back to a placeholder if no sites are registered.
+ */
+function getSiteUrls(): { siteUrl: string; redirectUrls: string[] } {
+  // Dynamic import not feasible in a script — read allSites from config/sites/index.ts
+  // at call-time so the values stay in sync with the config.
+  const { allSites } = require("../config/sites") as { allSites: { domain: string }[] };
+  const primaryDomain = allSites[0]?.domain ?? "example.com";
+  const siteUrl = `https://${primaryDomain}`;
+  const redirectUrls = allSites.map((s) => `https://${s.domain}/**`);
+  return { siteUrl, redirectUrls };
+}
+
+const { siteUrl: SITE_URL, redirectUrls: REDIRECT_URLS } = getSiteUrls();
 
 function printManualSteps(): void {
   console.log("");

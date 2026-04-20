@@ -9,9 +9,6 @@ import { ProductCard } from "./components/product-card";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./components/json-ld";
 import Link from "next/link";
 
-const WatchHomepage = dynamic(() =>
-  import("./components/watch-homepage").then((m) => m.WatchHomepage),
-);
 const CinematicHomepage = dynamic(() =>
   import("./components/homepage-cinematic").then((m) => m.CinematicHomepage),
 );
@@ -70,11 +67,6 @@ export default async function HomePage() {
     site.homepageTemplate ?? (site.features.customHomepage ? "cinematic" : "standard");
 
   if (template === "cinematic") {
-    // WatchHomepage is the existing cinematic implementation (watch-specific)
-    // For other cinematic sites, use the generic CinematicHomepage
-    if (site.id === "watch-tools") {
-      return <WatchHomepage {...homepageProps} />;
-    }
     return <CinematicHomepage {...homepageProps} />;
   }
 

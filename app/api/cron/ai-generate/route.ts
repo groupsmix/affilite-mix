@@ -42,33 +42,11 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < ARTICLES_PER_SITE; i++) {
       const contentType = contentTypes[i % contentTypes.length];
-      const topicPrompts: Record<string, string[]> = {
-        "watch-tools": [
-          "Best Luxury Watches Under $500",
-          "Top Dive Watches for Beginners",
-          "Affordable Dress Watches That Look Expensive",
-        ],
-        "crypto-tools": [
-          "Best Crypto Exchanges for Low Fees",
-          "Top Hardware Wallets for Security",
-          "DeFi Platforms With Highest Yields",
-        ],
-        "ai-compared": [
-          "Best AI Writing Tools Compared",
-          "Top AI Image Generators Ranked",
-          "AI Coding Assistants: Which One Should You Use",
-        ],
-        "arabic-tools": [
-          "أفضل المنتجات التقنية للعام",
-          "مقارنة بين أفضل الأدوات الرقمية",
-          "دليل شامل للتسوق الإلكتروني",
-        ],
-      };
-
-      const topics = topicPrompts[site.id] ?? [
-        `Top ${site.brand.niche} picks this month`,
-        `Best ${site.brand.niche} for beginners`,
-        `${site.brand.niche} buying guide`,
+      const niche = site.brand.niche;
+      const topics = [
+        `Top ${niche} picks this month`,
+        `Best ${niche} for beginners`,
+        `${niche} buying guide`,
       ];
 
       const topic = topics[i % topics.length];
