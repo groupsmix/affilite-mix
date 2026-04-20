@@ -80,5 +80,23 @@
 	// Smart placement — run the worker close to the origin (Supabase)
 	"placement": {
 		"mode": "smart"
-	}
+	},
+	// ═════════════════════════════════════════════════════════════════
+	// TAIL CONSUMERS — Log Shipping / Long-Term Retention (W8)
+	// ═════════════════════════════════════════════════════════════════
+	// Currently empty — Workers Observability (above) provides dashboard
+	// logs but NO long-term retention or external alerting pipeline.
+	//
+	// To add a tail consumer:
+	// 1. Create a tail worker:  wrangler generate my-tail-worker
+	// 2. Deploy it:             wrangler deploy --name my-tail-worker
+	// 3. Uncomment and update the entry below:
+	//
+	// "tail_consumers": [
+	//   { "service": "my-log-shipper" }
+	// ]
+	//
+	// Common destinations: Datadog, Grafana Loki, Axiom, Logflare, S3.
+	// See: https://developers.cloudflare.com/workers/observability/tail-workers/
+	"tail_consumers": []
 }

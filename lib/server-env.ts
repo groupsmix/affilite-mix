@@ -75,6 +75,11 @@ export const RECOMMENDED_SERVER_ENV: readonly RequiredEnvVar[] = [
     description: "Sentry DSN for server-side error monitoring",
     ownerFile: "lib/sentry.ts",
   },
+  {
+    name: "TURNSTILE_SECRET_KEY",
+    description: "Cloudflare Turnstile secret key for server-side captcha verification",
+    ownerFile: "lib/turnstile.ts",
+  },
 ] as const;
 
 /** Return the subset of `envs` whose values are unset or blank. */
