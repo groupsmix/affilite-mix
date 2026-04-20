@@ -31,13 +31,9 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
-      # E2E tests run in two places:
-      #   - .github/workflows/e2e.yml       : Playwright against a local
-      #                                       Supabase + built app on PRs/main.
-      #   - .github/workflows/preview.yml   : Playwright against the staging
-      #                                       Cloudflare Worker preview deploy.
-      # Both are listed in `required-checks` below so branch protection
-      # can require a single check name.
+      # NOTE: E2E (Playwright) tests exist in e2e/ but are not yet wired
+      # into CI.  When a workflow is added, list its job in `required-checks`
+      # below so branch protection can gate on a single check name.
 
   required-checks:
     name: Required checks
