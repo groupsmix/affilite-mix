@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:worker": "tsc --noEmit --project tsconfig.worker.json",
     "typecheck:all": "npm run typecheck && npm run typecheck:worker",
-    "lint:worker": "eslint workers/custom-worker.ts custom-worker.ts",
+    "lint:worker": "eslint workers/custom-worker.ts",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
