@@ -31,9 +31,20 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
-      # NOTE: E2E (Playwright) tests exist in e2e/ but are not yet wired
-      # into CI.  When a workflow is added, list its job in `required-checks`
-      # below so branch protection can gate on a single check name.
+
+  # ── Cross-workflow required gates ──────────────────────────────────
+  # Branch protection should require ALL of the following check names:
+  #
+  #   1. "Required checks"    (this workflow — lint/test/typecheck/build)
+  #   2. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
+  #   3. "npm audit (high / critical)"  (security.yml)
+  #   4. "License compliance"           (security.yml)
+  #   5. "Dependency review"            (security.yml, PRs only)
+  #
+  # GitHub Actions `needs` cannot cross workflow boundaries, so each
+  # workflow exposes its own gate job with a stable name.  Configure
+  # all five names as required status checks in repo Settings →
+  # Branches → Branch protection rules → Require status checks.
 
   required-checks:
     name: Required checks
