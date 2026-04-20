@@ -5,13 +5,17 @@ on:
     types: [opened, synchronize, reopened, closed]
 
 env:
+  # ── Build-time only ────────────────────────────────────────────────
+  # NEXT_PUBLIC_* vars are inlined by Next.js at bundle time.
+  # Server-side secrets (SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET, etc.)
+  # are set as Worker secrets AFTER deploy so they are available at
+  # runtime and never embedded in the bundle.
+  #
   # Preview deployments MUST use isolated staging Supabase credentials.
   # Never fall back to production secrets — PR code can execute against
   # whatever database is wired here.
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
-  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
-  JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
 jobs:
   preview:
@@ -121,6 +125,45 @@ jobs:
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # ── Set Worker secrets (runtime-only, never bundled) ────────────
+      - name: Set preview Worker secrets
+        run: |
+          set -euo pipefail
+          WORKER="affilite-mix-preview-pr-${{ github.event.pull_request.number }}"
+          echo "🔐 Setting runtime secrets on preview worker: $WORKER"
+
+          # Required secrets — fail if missing
+          MISSING=""
+          [ -z "$_SB_SERVICE_KEY" ] && MISSING="$MISSING STAGING_SUPABASE_SERVICE_ROLE_KEY"
+          [ -z "$_JWT_SECRET" ]     && MISSING="$MISSING JWT_SECRET"
+          [ -z "$_SB_URL" ]         && MISSING="$MISSING STAGING_SUPABASE_URL"
+          [ -z "$_SB_ANON_KEY" ]    && MISSING="$MISSING STAGING_SUPABASE_ANON_KEY"
+          if [ -n "$MISSING" ]; then
+            echo "❌ Required secrets are missing:$MISSING"
+            exit 1
+          fi
+
+          echo "$_SB_SERVICE_KEY" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name "$WORKER"
+          echo "$_JWT_SECRET"     | npx wrangler secret put JWT_SECRET --name "$WORKER"
+          echo "$_SB_URL"         | npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --name "$WORKER"
+          echo "$_SB_ANON_KEY"    | npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name "$WORKER"
+
+          # Optional secrets — skip if not configured
+          [ -n "$_INTERNAL_TOKEN" ] && echo "$_INTERNAL_TOKEN" | npx wrangler secret put INTERNAL_API_TOKEN --name "$WORKER" || true
+          [ -n "$_TURNSTILE_KEY" ]  && echo "$_TURNSTILE_KEY"  | npx wrangler secret put TURNSTILE_SECRET_KEY --name "$WORKER" || true
+          echo "✅ Preview Worker secrets configured"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          _SB_SERVICE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          _JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          _SB_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          _SB_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+          _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+
       - name: Comment preview URL on PR
         if: steps.deploy.outputs.preview_url
         uses: actions/github-script@v9
@@ -161,10 +204,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     steps:
       - name: Delete preview worker
+        id: delete
         run: |
           WORKER_NAME="affilite-mix-preview-pr-${{ github.event.pull_request.number }}"
+          echo "worker_name=$WORKER_NAME" >> "$GITHUB_OUTPUT"
           echo "Deleting preview worker: $WORKER_NAME"
           RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/scripts/$WORKER_NAME" \
@@ -173,8 +219,31 @@ jobs:
           BODY=$(echo "$RESPONSE" | sed '$d')
           if [ "$HTTP_CODE" = "200" ]; then
             echo "Deleted $WORKER_NAME"
+            echo "result=deleted" >> "$GITHUB_OUTPUT"
           elif [ "$HTTP_CODE" = "404" ]; then
             echo "Worker $WORKER_NAME not found (already deleted)"
+            echo "result=not_found" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::Failed to delete $WORKER_NAME (HTTP $HTTP_CODE): $BODY"
+            echo "result=failed" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Comment cleanup status on PR
+        if: always()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const worker = '${{ steps.delete.outputs.worker_name }}';
+            const result = '${{ steps.delete.outputs.result }}';
+            const icon = result === 'deleted' ? '🧹' : result === 'not_found' ? 'ℹ️' : '⚠️';
+            const msg = result === 'deleted'
+              ? `${icon} Preview worker \`${worker}\` has been cleaned up.`
+              : result === 'not_found'
+              ? `${icon} Preview worker \`${worker}\` was already deleted.`
+              : `${icon} Failed to delete preview worker \`${worker}\`. Manual cleanup may be needed.`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: msg,
+            });
