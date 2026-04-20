@@ -114,6 +114,14 @@ refactor(dal): extract common query builder
    - How to test (if applicable)
    - Screenshots for UI changes
 7. **CI must pass** — the pipeline runs lint, typecheck, tests, security audit, and build.
+
+   The following GitHub Actions **must be marked required** in branch protection for `main`:
+   - `CI / Required checks` (from `.github/workflows/ci.yml` — aggregates lint + typecheck + tests + build + audit)
+   - `E2E Tests / Playwright E2E` (from `.github/workflows/e2e.yml` — runs Playwright + RLS isolation tests against a local Supabase)
+   - `Preview Deployment / preview` (from `.github/workflows/preview.yml` — deploys to Cloudflare Workers staging and re-runs Playwright against the preview URL)
+
+   When adding new required workflows, update this list.
+
 8. **Request a review** from a maintainer.
 9. **Squash and merge** is the default merge strategy.
 
@@ -155,6 +163,22 @@ npx playwright test --ui  # interactive UI mode
 ```
 
 E2E tests are in `e2e/` and test critical user flows (admin login, content management, newsletter signup, etc.).
+
+### Accessibility smoke tests
+
+`e2e/accessibility.spec.ts` runs `@axe-core/playwright` against the public pages and fails on any `critical` or `serious` WCAG 2.1 A/AA violation. Run it alongside the rest of the Playwright suite:
+
+```bash
+npm run test:e2e -- accessibility.spec.ts
+```
+
+### RLS isolation tests
+
+`__tests__/rls-isolation.test.ts` verifies that the Supabase anon key cannot insert/update/delete rows in tenant tables and cannot read draft/non-active rows. The suite auto-skips when `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are unset or use placeholder values, so local `npm test` stays green. It runs as a required step inside `.github/workflows/e2e.yml`, which spins up a local Supabase with migrations applied before invoking it.
+
+### DAL site-scoping tests
+
+`__tests__/dal-site-scoping.test.ts` mocks Supabase with a recording proxy and asserts that **every** read/update/delete function in `lib/dal/` applies an `.eq("site_id", …)` filter (and every insert includes a `site_id`). When you add a new DAL function, add a corresponding test here — a missing filter is a cross-tenant data leak.
 
 ### Writing Tests
 
