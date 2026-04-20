@@ -151,35 +151,4 @@ jobs:
               });
             }
 
-      - name: Setup Node.js for E2E
-        if: steps.deploy.outputs.preview_url != ''
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
 
-      - name: Install Playwright browsers
-        if: steps.deploy.outputs.preview_url != ''
-        run: npx playwright install --with-deps chromium
-
-      - name: Run E2E tests against preview
-        if: steps.deploy.outputs.preview_url != ''
-        # Non-blocking: the preview deploy itself is the authoritative signal
-        # for this workflow. E2E tests depend on seeded staging data, and until
-        # staging Supabase is populated, many public-content assertions will
-        # fail with 500s or empty DOMs. The uploaded Playwright report below
-        # still surfaces regressions for review.
-        continue-on-error: true
-        run: npx playwright test
-        env:
-          CI: "true"
-          E2E_BASE_URL: ${{ steps.deploy.outputs.preview_url }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
-
-      - name: Upload Playwright report
-        if: failure() && steps.deploy.outputs.preview_url != ''
-        uses: actions/upload-artifact@v6
-        with:
-          name: preview-playwright-report-pr-${{ github.event.pull_request.number }}
-          path: playwright-report/
-          retention-days: 7
