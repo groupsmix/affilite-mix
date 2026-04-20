@@ -74,6 +74,11 @@ vi.mock("@/lib/supabase-server", () => ({
     sharedState.current = recorder;
     return client;
   },
+  getTenantAnonClient: () => {
+    const { client, recorder } = createSupabaseRecorder();
+    sharedState.current = recorder;
+    return client;
+  },
 }));
 
 // Stubs for things DAL functions don't need during site-scoping checks.

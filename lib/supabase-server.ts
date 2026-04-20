@@ -63,3 +63,27 @@ export function getAnonClient(): SupabaseClient<Database> {
   const key = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   return createClient<Database>(url, key);
 }
+
+/**
+ * Tenant-scoped anon client.  Sends the `x-tenant-id` HTTP header with
+ * every request so PostgREST exposes it as
+ * `current_setting('request.header.x-tenant-id', true)`.
+ *
+ * RLS policies (migration 00035) call `tenant_site_id()` which reads
+ * this header.  Without it the policies return zero rows (fail-closed).
+ *
+ * Use this instead of bare `getAnonClient()` in every public-facing DAL
+ * function that reads tenant data (products, content, pages, categories,
+ * content_products, sites).
+ */
+export function getTenantAnonClient(siteId: string): SupabaseClient<Database> {
+  const url = getSupabaseUrl();
+  const key = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+
+  return createClient<Database>(url, key, {
+    global: {
+      headers: { "x-tenant-id": siteId },
+    },
+    auth: { persistSession: false },
+  });
+}
