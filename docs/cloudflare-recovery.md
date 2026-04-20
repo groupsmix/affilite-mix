@@ -54,6 +54,16 @@ curl -s "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
 
 Store the snapshot in your password manager or a secure Git repo (not this one — it may contain internal IPs).
 
+For a fuller snapshot covering DNS + zone security/performance settings + WAF
+rate-limit rulesets (used for Phase E2 audit verification and for pre/post-change
+diffing), run:
+
+```bash
+CLOUDFLARE_API_TOKEN=<scoped-token> ZONE_ID=<zone-id> \
+  ./scripts/cf-security-snapshot.sh
+# → writes cf-snapshot-<zone-id>-<YYYYMMDD-HHMMSS>/
+```
+
 ### 5. Replace the Global API Key with a Scoped Token
 
 The Global API Key grants **full account access**. Replace it with a scoped API Token for CI/CD:
