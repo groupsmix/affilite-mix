@@ -14,8 +14,9 @@
 #
 # ── Build-time (used by Next.js bundler + wrangler CLI) ──
 #   - CLOUDFLARE_API_TOKEN (scoped token — see docs/cloudflare-production.md)
-#     ⚠️  CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL (Global Key) is deprecated.
-#        Create a scoped API token instead for least-privilege access.
+#     REQUIRED. CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL (Global Key) is NOT
+#     supported by this workflow — the Global Key grants full account access
+#     and must not be used. Create a scoped API token instead.
 #   - CLOUDFLARE_ACCOUNT_ID
 #   - NEXT_PUBLIC_SUPABASE_URL
 #   - NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -154,22 +155,22 @@ jobs:
       - name: Build OpenNext bundle
         run: npx @opennextjs/cloudflare build
 
-      # ── Warn if using Global API Key instead of scoped token ────────
-      - name: Check for scoped API token
+      # ── Require a scoped API token (no Global API Key fallback) ──────
+      - name: Require scoped CLOUDFLARE_API_TOKEN
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] && [ -n "${{ secrets.CLOUDFLARE_API_KEY }}" ]; then
-            echo "::warning::You are deploying with the Global API Key (CLOUDFLARE_API_KEY). This grants full account access."
-            echo "::warning::Create a scoped API token at https://dash.cloudflare.com/profile/api-tokens and set CLOUDFLARE_API_TOKEN instead."
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set. This workflow requires a scoped API token."
+            echo "::error::The Global API Key (CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL) is not supported — it grants full account access."
+            echo "::error::Create a scoped token at https://dash.cloudflare.com/profile/api-tokens and add it as the CLOUDFLARE_API_TOKEN repo secret."
+            exit 1
           fi
 
       # ── Deploy to Cloudflare ──────────────────────────────────────────
-      # Prefer CLOUDFLARE_API_TOKEN (scoped). API_KEY + EMAIL is a
-      # deprecated fallback — see warning step above.
+      # Only CLOUDFLARE_API_TOKEN (scoped) is accepted. CLOUDFLARE_API_KEY +
+      # CLOUDFLARE_EMAIL (Global Key) is intentionally NOT passed through —
+      # it bypasses scoped-permission isolation.
       - name: Deploy to Cloudflare
         run: npx opennextjs-cloudflare deploy
-        env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
 
       # ── Set Worker secrets ────────────────────────────────────────────
       - name: Set Worker secrets
@@ -230,8 +231,7 @@ jobs:
           echo "✅ Worker secrets configured"
         env:
           # CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID inherited from workflow env.
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          # Global API Key fallback intentionally omitted — scoped token only.
           _CRON_SECRET: ${{ secrets.CRON_SECRET }}
           _JWT_SECRET: ${{ secrets.JWT_SECRET }}
           _SB_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

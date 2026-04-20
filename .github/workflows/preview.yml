@@ -34,16 +34,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Fail fast if no Cloudflare credentials are configured
+      # Fail fast if a scoped Cloudflare API token is not configured.
+      # Global API Key (CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL) is NOT accepted —
+      # it grants full account access and bypasses scoped-permission isolation.
       - name: Verify Cloudflare credentials
         run: |
-          if [ -z "$CF_API_TOKEN" ] && [ -z "$CF_API_KEY" ]; then
-            echo "::error::No Cloudflare credentials found. Set CLOUDFLARE_API_TOKEN or CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL in GitHub repo Settings → Secrets and variables → Actions"
+          if [ -z "$CF_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set. This workflow requires a scoped API token."
+            echo "::error::The Global API Key (CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL) is not supported."
+            echo "::error::Create a scoped token at https://dash.cloudflare.com/profile/api-tokens and add it as the CLOUDFLARE_API_TOKEN repo secret."
             exit 1
           fi
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
 
       - name: Verify staging Supabase secrets
         run: |
@@ -91,13 +94,11 @@ jobs:
           CODE=$?
           echo "$WHOAMI"
           if [ $CODE -ne 0 ]; then
-            echo "::error::wrangler whoami failed. Check CLOUDFLARE_API_TOKEN (scoped token preferred) or CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL."
+            echo "::error::wrangler whoami failed. Check that the scoped CLOUDFLARE_API_TOKEN repo secret is set and valid."
             exit 1
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy preview to Cloudflare Workers
@@ -123,8 +124,6 @@ jobs:
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       # ── Set Worker secrets (runtime-only, never bundled) ────────────
@@ -156,8 +155,6 @@ jobs:
           echo "✅ Preview Worker secrets configured"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           _SB_SERVICE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
           _JWT_SECRET: ${{ secrets.JWT_SECRET }}
