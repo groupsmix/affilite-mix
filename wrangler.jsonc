@@ -37,6 +37,29 @@
 			"bucket_name": "next-inc-cache"
 		}
 	],
+	// Durable Objects for OpenNext's caching layer.
+	// These classes are re-exported from workers/custom-worker.ts so wrangler
+	// must declare the bindings and the initial SQLite-backed migration, even
+	// if tag-based revalidation is not yet enabled in open-next.config.ts.
+	// See: https://opennext.js.org/cloudflare/caching
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "NEXT_CACHE_DO_QUEUE",
+				"class_name": "DOQueueHandler"
+			},
+			{
+				"name": "NEXT_TAG_CACHE_DO_SHARDED",
+				"class_name": "DOShardedTagCache"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"]
+		}
+	],
 	// ═════════════════════════════════════════════════════════════════
 	// DOMAIN ROUTING - Dashboard Managed
 	// ═════════════════════════════════════════════════════════════════
