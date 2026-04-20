@@ -39,6 +39,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
+  }
+
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 

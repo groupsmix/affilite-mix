@@ -147,7 +147,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
 
   // Load linked products and related content
   const [linkedProducts, relatedContent] = await Promise.all([
-    getLinkedProducts(content.id),
+    getLinkedProducts(site.id, content.id),
     getRelatedContent(site.id, content.category_id, content.id, 4),
   ]);
 
