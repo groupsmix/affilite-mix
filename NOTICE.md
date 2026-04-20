@@ -40,3 +40,12 @@ pointing at the upstream source and commit.
   `app/admin/login/page.tsx` and `app/admin/reset-password/page.tsx`. Only
   visual structure (Card composition, spacing, typography) was adapted; form
   logic, CSRF wiring, and Turnstile integration remain this project's own.
+
+---
+
+## openstatusHQ/data-table-filters
+
+- **Upstream:** https://github.com/openstatusHQ/data-table-filters
+- **License:** MIT
+- **What we use:** DataTable, faceted filters, toolbar, pagination, view options,
+  URL-sync patterns adapted into `components/data-table/*`.
