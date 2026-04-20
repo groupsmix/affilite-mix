@@ -37,6 +37,13 @@ on:
         default: false
 
 env:
+  # ── Wrangler pin ───────────────────────────────────────────────────
+  # Pin wrangler to a known version so CI is reproducible. `npx wrangler`
+  # without a version will resolve whatever `@opennextjs/cloudflare`'s
+  # floating dep range picks up that day, which has caused OpenNext
+  # breakage before. Bump deliberately when upgrading @opennextjs/cloudflare.
+  WRANGLER_VERSION: "4.77.0"
+
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
   WORKER_NAME: affilite-mix
@@ -220,18 +227,18 @@ jobs:
           fi
 
           echo "🔐 Setting required Worker secrets..."
-          echo "$_CRON_SECRET"    | npx wrangler secret put CRON_SECRET --name affilite-mix
-          echo "$_JWT_SECRET"     | npx wrangler secret put JWT_SECRET --name affilite-mix
-          echo "$_SB_SERVICE_KEY" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix
-          echo "$_SB_URL"         | npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix
-          echo "$_SB_ANON_KEY"    | npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix
-          echo "$_CRON_HOST"      | npx wrangler secret put CRON_HOST --name affilite-mix
+          echo "$_CRON_SECRET"    | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SECRET --name affilite-mix
+          echo "$_JWT_SECRET"     | npx --yes wrangler@${WRANGLER_VERSION} secret put JWT_SECRET --name affilite-mix
+          echo "$_SB_SERVICE_KEY" | npx --yes wrangler@${WRANGLER_VERSION} secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix
+          echo "$_SB_URL"         | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix
+          echo "$_SB_ANON_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix
+          echo "$_CRON_HOST"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST --name affilite-mix
 
           echo "🔐 Setting optional Worker secrets (skipped if not configured)..."
-          [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx wrangler secret put RESEND_API_KEY --name affilite-mix       || true
-          [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx wrangler secret put SENTRY_DSN --name affilite-mix           || true
-          [ -n "$_INTERNAL_TOKEN" ]   && echo "$_INTERNAL_TOKEN"   | npx wrangler secret put INTERNAL_API_TOKEN --name affilite-mix   || true
-          [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx wrangler secret put TURNSTILE_SECRET_KEY --name affilite-mix || true
+          [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix       || true
+          [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx --yes wrangler@${WRANGLER_VERSION} secret put SENTRY_DSN --name affilite-mix           || true
+          [ -n "$_INTERNAL_TOKEN" ]   && echo "$_INTERNAL_TOKEN"   | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN --name affilite-mix   || true
+          [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put TURNSTILE_SECRET_KEY --name affilite-mix || true
           echo "✅ Worker secrets configured"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
