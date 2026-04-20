@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
+import { productsTag } from "@/lib/cache-tags";
 import { listProducts, createProduct, updateProduct, deleteProduct } from "@/lib/dal/products";
 import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       cons: data.cons ?? "",
     });
 
-    void revalidateTag("products");
+    void revalidateTag(productsTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -100,7 +101,7 @@ export async function PATCH(request: NextRequest) {
   const { id, ...updates } = parsed.data;
   try {
     const product = await updateProduct(dbSiteId, id, updates);
-    void revalidateTag("products");
+    void revalidateTag(productsTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -137,7 +138,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await deleteProduct(dbSiteId, id);
-    void revalidateTag("products");
+    void revalidateTag(productsTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",

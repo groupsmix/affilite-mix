@@ -1,52 +1,86 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { verifyCronAuth } from "@/lib/cron-auth";
-
-const VALID_TAGS = ["content", "products", "categories"] as const;
-type ValidTag = (typeof VALID_TAGS)[number];
+import { getServiceClient } from "@/lib/supabase-server";
+import { CONTENT_TAGS, siteTag, type ContentTag } from "@/lib/cache-tags";
+import { captureException } from "@/lib/sentry";
 
 /**
- * POST /api/revalidate â€” On-demand cache revalidation webhook.
+ * POST /api/revalidate — On-demand cache revalidation webhook.
  *
  * Call this after admin content changes to propagate updates immediately
  * instead of waiting for the ISR revalidation interval (1 hour).
  *
- * Secured via CRON_SECRET env var â€” pass it in the Authorization header:
+ * Secured via CRON_SECRET env var — pass it in the Authorization header:
  *   Authorization: Bearer <CRON_SECRET>
  *
- * Body (optional):
- *   { "tags": ["content", "products"] }
+ * Body (all optional):
+ *   {
+ *     "tags":    ["content", "products"],          // defaults to all three kinds
+ *     "site_id": "<uuid>"                          // scope to one site; omit = all active sites
+ *   }
  *
- * If no tags are provided, all cacheable tags are revalidated.
+ * Tags are always emitted in their site-scoped form (`content:<site_id>`).
+ * A request with no `site_id` fans out across every active site, replacing
+ * the previous behavior of a single global tag that invalidated every site's
+ * cache at once.
  */
 export async function POST(request: NextRequest) {
   if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let tagsToRevalidate: ValidTag[] = [...VALID_TAGS];
+  let kinds: ContentTag[] = [...CONTENT_TAGS];
+  let siteId: string | null = null;
 
   try {
     const body = await request.json();
     if (Array.isArray(body.tags) && body.tags.length > 0) {
       const requested = body.tags.filter(
-        (t: unknown): t is ValidTag => typeof t === "string" && VALID_TAGS.includes(t as ValidTag),
+        (t: unknown): t is ContentTag =>
+          typeof t === "string" && (CONTENT_TAGS as readonly string[]).includes(t),
       );
       if (requested.length > 0) {
-        tagsToRevalidate = requested;
+        kinds = requested;
       }
     }
+    if (typeof body.site_id === "string" && body.site_id.length > 0) {
+      siteId = body.site_id;
+    }
   } catch {
-    // No body or invalid JSON â€” revalidate all tags
+    // No body or invalid JSON — use defaults.
   }
 
-  for (const tag of tagsToRevalidate) {
-    void revalidateTag(tag);
+  // Resolve target site IDs. Either a single explicit one or every active site.
+  let siteIds: string[];
+  if (siteId) {
+    siteIds = [siteId];
+  } else {
+    const sb = getServiceClient();
+    const { data: sites, error } = await sb
+      .from("sites")
+      .select("id")
+      .eq("is_active", true)
+      .overrideTypes<{ id: string }[]>();
+    if (error) {
+      captureException(error, { context: "[api/revalidate] Failed to list active sites:" });
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    siteIds = (sites ?? []).map((s) => s.id);
+  }
+
+  const revalidated: string[] = [];
+  for (const id of siteIds) {
+    for (const kind of kinds) {
+      const tag = siteTag(kind, id);
+      void revalidateTag(tag);
+      revalidated.push(tag);
+    }
   }
 
   return NextResponse.json({
     ok: true,
-    revalidated: tagsToRevalidate,
+    revalidated,
     timestamp: new Date().toISOString(),
   });
 }

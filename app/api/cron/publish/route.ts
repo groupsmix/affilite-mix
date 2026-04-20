@@ -5,6 +5,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import type { ContentRow, ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
+import { contentTag, productsTag } from "@/lib/cache-tags";
 
 /**
  * POST /api/cron/publish â€” Publish scheduled content & products, archive expired items.
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: contentError.message }, { status: 500 });
   }
 
+  const contentSitesToInvalidate = new Set<string>();
   if (contentItems && contentItems.length > 0) {
     // Use optimistic locking: only update rows still in "scheduled" status
     // to prevent double-publishing if another cron instance runs concurrently.
@@ -64,12 +66,15 @@ export async function POST(request: NextRequest) {
       .update({ status: "published" })
       .in("id", ids)
       .eq("status", "scheduled")
-      .select("id")
-      .overrideTypes<{ id: string }[]>();
+      .select("id, site_id")
+      .overrideTypes<{ id: string; site_id: string }[]>();
 
     if (updateError) {
       captureException(updateError, { context: "[api/cron/publish] Failed to publish content:" });
       return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+    for (const row of updated ?? []) {
+      if (row.site_id) contentSitesToInvalidate.add(row.site_id);
     }
     results.published_content = updated?.length ?? 0;
   } else {
@@ -95,6 +100,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: expiredError.message }, { status: 500 });
   }
 
+  const productSitesToInvalidate = new Set<string>();
   if (expiredProducts && expiredProducts.length > 0) {
     // Optimistic locking: only archive rows still in "active" status
     const ids = expiredProducts.map((p) => p.id);
@@ -103,20 +109,28 @@ export async function POST(request: NextRequest) {
       .update({ status: "archived" })
       .in("id", ids)
       .eq("status", "active")
-      .select("id")
-      .overrideTypes<{ id: string }[]>();
+      .select("id, site_id")
+      .overrideTypes<{ id: string; site_id: string }[]>();
 
     if (archiveError) {
       captureException(archiveError, { context: "[api/cron/publish] Failed to archive products:" });
       return NextResponse.json({ error: archiveError.message }, { status: 500 });
+    }
+    for (const row of archived ?? []) {
+      if (row.site_id) productSitesToInvalidate.add(row.site_id);
     }
     results.archived_products = archived?.length ?? 0;
   } else {
     results.archived_products = 0;
   }
 
-  void revalidateTag("content");
-  void revalidateTag("products");
+  // Per-site revalidation — only the sites whose rows actually changed.
+  for (const siteId of contentSitesToInvalidate) {
+    void revalidateTag(contentTag(siteId));
+  }
+  for (const siteId of productSitesToInvalidate) {
+    void revalidateTag(productsTag(siteId));
+  }
 
   // Ping search engines if any content was published
   if ((results.published_content as number) > 0) {

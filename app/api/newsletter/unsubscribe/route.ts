@@ -4,6 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 
 /** 10 unsubscribe requests per 15 minutes per IP */
 const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
@@ -13,8 +14,10 @@ const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
  * Unsubscribes a user using their dedicated unsubscribe_token (not the row id).
  *
  * POST /api/newsletter/unsubscribe
- * Body: { email, site_id }
- * Unsubscribes by email + site_id lookup.
+ * Body: { email }
+ * The site is resolved from the request hostname via the middleware-injected
+ * x-site-id header — NEVER trusted from the client body. This prevents a
+ * caller on site A from unsubscribing users on site B.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -83,10 +86,24 @@ export async function POST(request: NextRequest) {
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
     const email = ((bodyOrError.email as string) ?? "").trim().toLowerCase();
-    const siteId = bodyOrError.site_id as string | undefined;
 
-    if (!email || !siteId) {
-      return NextResponse.json({ error: "email and site_id are required" }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ error: "email is required" }, { status: 400 });
+    }
+
+    // Site is derived from the hostname by middleware — never from the client body.
+    // Middleware rejects unknown hostnames before they reach this handler.
+    const siteSlug = request.headers.get("x-site-id");
+    if (!siteSlug) {
+      return NextResponse.json({ error: "Site could not be resolved" }, { status: 400 });
+    }
+
+    let siteId: string;
+    try {
+      siteId = await resolveDbSiteId(siteSlug);
+    } catch (err) {
+      captureException(err, { context: "[api/newsletter/unsubscribe] POST site resolve:" });
+      return NextResponse.json({ error: "Site could not be resolved" }, { status: 400 });
     }
 
     const sb = getServiceClient();

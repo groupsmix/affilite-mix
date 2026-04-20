@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
+import { contentTag } from "@/lib/cache-tags";
 import { getContentById, createContent } from "@/lib/dal/content";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       body_previous: null,
     });
 
-    void revalidateTag("content");
+    void revalidateTag(contentTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",

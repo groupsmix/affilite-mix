@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
+import { contentTag } from "@/lib/cache-tags";
 import { listContent, createContent, updateContent, deleteContent } from "@/lib/dal/content";
 import { validateCreateContent, validateUpdateContent } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/sanitize-html";
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
       body_previous: null,
     });
 
-    void revalidateTag("content");
+    void revalidateTag(contentTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -124,7 +125,7 @@ export async function PATCH(request: NextRequest) {
       id,
       updates as Parameters<typeof updateContent>[2],
     );
-    void revalidateTag("content");
+    void revalidateTag(contentTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -171,7 +172,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await deleteContent(dbSiteId, id);
-    void revalidateTag("content");
+    void revalidateTag(contentTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",

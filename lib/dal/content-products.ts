@@ -72,22 +72,59 @@ export async function getRelatedContentForProduct(productId: string): Promise<Co
     .filter(Boolean);
 }
 
-/** Replace all linked products for a content item */
+/**
+ * Replace all linked products for a content item.
+ *
+ * content_products has no `site_id` column — isolation is enforced by
+ * verifying BOTH the target content row and every candidate product row
+ * belong to the caller's active site before any write.
+ *
+ * Without these checks, any authenticated admin could mutate links on
+ * another site's content simply by supplying its UUID.
+ */
 export async function setLinkedProducts(
   contentId: string,
-  _siteId: string,
+  siteId: string,
   links: Omit<ContentProductRow, "content_id">[],
 ): Promise<void> {
   const sb = getServiceClient();
 
-  // Delete existing links
-  const { error: delError } = await sb.from(TABLE).delete().eq("content_id", contentId);
+  // 1. Verify the content belongs to this site.
+  const { data: contentRow, error: contentErr } = await sb
+    .from("content")
+    .select("id")
+    .eq("id", contentId)
+    .eq("site_id", siteId)
+    .maybeSingle();
+  if (contentErr) throw contentErr;
+  if (!contentRow) {
+    throw new Error("Content not found for this site");
+  }
 
+  // 2. Verify every referenced product belongs to this site.
+  if (links.length > 0) {
+    const productIds = Array.from(new Set(links.map((l) => l.product_id)));
+    const { data: ownedProducts, error: productErr } = await sb
+      .from("products")
+      .select("id")
+      .eq("site_id", siteId)
+      .in("id", productIds);
+    if (productErr) throw productErr;
+
+    const ownedIds = new Set((ownedProducts ?? []).map((p: { id: string }) => p.id));
+    const foreign = productIds.filter((id) => !ownedIds.has(id));
+    if (foreign.length > 0) {
+      throw new Error("One or more products do not belong to this site");
+    }
+  }
+
+  // 3. Delete existing links for this content (content ownership already verified).
+  const { error: delError } = await sb.from(TABLE).delete().eq("content_id", contentId);
   if (delError) throw delError;
 
   if (links.length === 0) return;
 
-  // Insert new links
+  // 4. Insert new links.
   const rows = links.map((link) => ({
     ...link,
     content_id: contentId,
