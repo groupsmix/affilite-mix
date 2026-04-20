@@ -313,14 +313,11 @@ CREATE POLICY "public_read_content_products"
     )
   );
 
--- Anonymous write policies (public actions) — validate site_id exists
-CREATE POLICY "public_insert_clicks"
-  ON affiliate_clicks FOR INSERT
-  WITH CHECK (EXISTS (SELECT 1 FROM sites WHERE sites.id = affiliate_clicks.site_id));
-
-CREATE POLICY "public_insert_newsletter"
-  ON newsletter_subscribers FOR INSERT
-  WITH CHECK (EXISTS (SELECT 1 FROM sites WHERE sites.id = newsletter_subscribers.site_id));
+-- affiliate_clicks and newsletter_subscribers have NO anon INSERT policy.
+-- All writes go through the service-role DAL (lib/dal/affiliate-clicks.ts,
+-- app/api/newsletter/route.ts) so the public anon key cannot insert rows
+-- directly via the Supabase REST API.  Migration 00034 removed the
+-- previous `public_insert_clicks` / `public_insert_newsletter` policies.
 
 -- Service-role policies (defense-in-depth, scoped to service_role)
 CREATE POLICY "service_full_access_categories"

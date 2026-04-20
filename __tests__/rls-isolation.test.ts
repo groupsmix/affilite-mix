@@ -189,6 +189,64 @@ describeIfDb("RLS isolation (anon key)", () => {
     // No RLS error → there must be zero rows visible to anon.
     expect(data?.length ?? 0).toBe(0);
   });
+
+  // ── Anon-insert regression for migration 00034 ──────────────────────
+  // The old `public_insert_clicks` / `public_insert_newsletter` policies
+  // used WITH CHECK (site_id exists in sites), so the generic TENANT_WRITE
+  // loop above passed by accident (its all-zeros UUID is not a real site).
+  // These cases use a REAL site id — they only pass once the anon INSERT
+  // policy is actually dropped and the default-deny rule takes over.
+  describe("anon cannot insert with a valid site_id (migration 00034)", () => {
+    let realSiteId: string | null = null;
+
+    beforeAll(async () => {
+      const { data } = await anon
+        .from("sites")
+        .select("id")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      realSiteId = (data as { id?: string } | null)?.id ?? null;
+    });
+
+    it("anon cannot INSERT into affiliate_clicks with a real site_id", async () => {
+      if (!realSiteId) return; // no seeded site — skip silently
+      const { data, error } = await anon
+        .from("affiliate_clicks")
+        .insert({
+          site_id: realSiteId,
+          product_name: "rls-test",
+          affiliate_url: "https://example.com",
+          content_slug: "rls-test",
+          referrer: "rls-test",
+        })
+        .select();
+
+      expect(data).toBeFalsy();
+      expect(
+        isRlsDenial(error),
+        `expected RLS denial on affiliate_clicks insert, got: ${JSON.stringify(error)}`,
+      ).toBe(true);
+    });
+
+    it("anon cannot INSERT into newsletter_subscribers with a real site_id", async () => {
+      if (!realSiteId) return;
+      const { data, error } = await anon
+        .from("newsletter_subscribers")
+        .insert({
+          site_id: realSiteId,
+          email: `rls-test-${Date.now()}@example.com`,
+          status: "pending",
+        })
+        .select();
+
+      expect(data).toBeFalsy();
+      expect(
+        isRlsDenial(error),
+        `expected RLS denial on newsletter_subscribers insert, got: ${JSON.stringify(error)}`,
+      ).toBe(true);
+    });
+  });
 });
 
 // Service-role smoke check — verifies the RLS policies for tenant tables
