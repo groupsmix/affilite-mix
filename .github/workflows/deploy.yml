@@ -20,7 +20,13 @@
 #   - CLOUDFLARE_ACCOUNT_ID
 #   - NEXT_PUBLIC_SUPABASE_URL
 #   - NEXT_PUBLIC_SUPABASE_ANON_KEY
-#   - SUPABASE_DB_URL (for DB migrations only)
+#   - SUPABASE_DB_URL (for DB migrations only — must be IPv4-reachable;
+#     GitHub-hosted runners are IPv4-only and the direct Supabase host
+#     `db.<ref>.supabase.co` is IPv6-only on the free tier. Use the
+#     Session pooler URL instead: aws-0-<region>.pooler.supabase.com:5432).
+#   - SUPABASE_DB_POOLER_URL (optional override; if set, used for migrations
+#     in preference to SUPABASE_DB_URL. Lets teams keep the direct URL for
+#     other tooling while giving CI an IPv4-reachable pooler URL.)
 #
 # ── Runtime Worker secrets (set via `wrangler secret put`) ──
 #   - SUPABASE_SERVICE_ROLE_KEY
@@ -85,18 +91,46 @@ jobs:
       - run: npm install
 
       # ── Install psql for direct DB migration ─────────────────────────────────
+      #
+      # IPv4 reachability note: GitHub-hosted runners are IPv4-only. On the
+      # Supabase free tier the direct DB hostname `db.<ref>.supabase.co` is
+      # IPv6-only, which makes psql fail with `Network is unreachable`. Prefer
+      # the session pooler URL for CI:
+      #   postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:5432/postgres
+      # It is available in Supabase Dashboard → Project Settings → Database →
+      # Connection pooling → "Session" mode, and is always IPv4-reachable.
+      #
+      # This step accepts either secret and prefers SUPABASE_DB_POOLER_URL when
+      # set, so teams can keep the direct URL around for other tooling while
+      # still giving CI an IPv4-reachable URL.
       - name: Install psql and apply database migrations
+        env:
+          _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
         run: |
           set -euo pipefail
           echo "🔄 Installing psql..."
           sudo apt-get update && sudo apt-get install -y postgresql-client 2>&1 | tail -5
 
           echo "🔄 Applying database migrations..."
-          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
+          # Prefer the pooler URL if provided; fall back to the direct URL.
+          DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
 
           if [ -z "$DB_URL" ]; then
-            echo "⚠️ SUPABASE_DB_URL not set, skipping DB migrations"
+            echo "⚠️ Neither SUPABASE_DB_POOLER_URL nor SUPABASE_DB_URL is set, skipping DB migrations"
             exit 0
+          fi
+
+          # IPv4 preflight: GitHub Actions runners cannot reach IPv6-only hosts.
+          # Give an actionable error before psql emits its cryptic "Network is
+          # unreachable" message.
+          DB_HOST=$(printf '%s' "$DB_URL" | sed -E 's|^[a-zA-Z]+://[^@]+@([^:/?]+).*|\1|')
+          if ! getent ahostsv4 "$DB_HOST" >/dev/null 2>&1; then
+            echo "::error::SUPABASE_DB_URL host '$DB_HOST' has no IPv4 address, but GitHub Actions runners are IPv4-only."
+            echo "::error::Switch SUPABASE_DB_URL (or add SUPABASE_DB_POOLER_URL) to the Supabase session pooler URL:"
+            echo "::error::  postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
+            echo "::error::Find it in Supabase Dashboard → Project Settings → Database → Connection pooling → Session mode."
+            exit 1
           fi
 
           # Create a migrations ledger table to track applied migrations.
