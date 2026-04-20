@@ -39,6 +39,7 @@
     ]
   },
   "dependencies": {
+    "@sentry/browser": "^10.49.0",
     "@sentry/cloudflare": "^10.46.0",
     "@supabase/supabase-js": "^2.100.0",
     "@tiptap/extension-image": "^3.21.0",

@@ -10,6 +10,12 @@
  * `captureMessage` functions from @sentry/cloudflare work regardless of
  * whether Sentry has been initialized via the handler wrapper.
  *
+ * Trace-id integration:
+ *   Pass `{ traceId }` in the context to tag Sentry events with the
+ *   request's trace ID (injected by middleware via `x-trace-id`).
+ *   This lets you jump from a Sentry alert straight to the matching
+ *   log lines in Cloudflare / Datadog.
+ *
  * Setup:
  *   1. Create a Sentry project (https://sentry.io)
  *   2. Set SENTRY_DSN in your environment / Cloudflare Workers secrets
@@ -23,6 +29,7 @@ import {
   captureException as sentryCaptureException,
   captureMessage as sentryCaptureMessage,
   isInitialized,
+  setTag,
   type SeverityLevel,
 } from "@sentry/cloudflare";
 
@@ -43,9 +50,15 @@ export function checkSentryConfig() {
 /**
  * Capture an exception in Sentry with optional context.
  * Always also logs to console for Cloudflare's built-in log stream.
+ *
+ * When a `traceId` key is present in the context, it is set as a Sentry
+ * tag so that errors can be filtered/searched by trace ID in the dashboard.
  */
 export function captureException(error: unknown, context?: Record<string, unknown>) {
   if (isInitialized()) {
+    if (context?.traceId && typeof context.traceId === "string") {
+      setTag("traceId", context.traceId);
+    }
     sentryCaptureException(error, { data: context });
   }
   // Always log to console as well for Cloudflare's built-in log stream

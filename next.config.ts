@@ -50,7 +50,7 @@ const nextConfig: NextConfig = {
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https: blob:",
-            "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com",
+            "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com https://*.ingest.sentry.io",
             "frame-src https://challenges.cloudflare.com",
             "worker-src 'self' blob:",
             "manifest-src 'self'",

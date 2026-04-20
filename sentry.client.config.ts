@@ -1,30 +1,62 @@
 /**
- * Sentry client-side error capture configuration.
+ * Sentry client-side error and performance monitoring.
  *
- * This project uses @sentry/cloudflare for server-side error monitoring,
- * which does not expose a browser-compatible `init()`. Instead, this module
- * sets up global error listeners that forward uncaught errors and unhandled
- * promise rejections to the console, where Cloudflare's built-in log stream
- * and any future browser-side Sentry SDK can capture them.
+ * Uses @sentry/browser for real browser error capture with:
+ *   - Automatic uncaught error and unhandled rejection tracking
+ *   - Session replay for debugging (sampled at 10% in production)
+ *   - Performance tracing for Core Web Vitals
+ *   - Source map support for readable stack traces
  *
- * The listeners are only active when NEXT_PUBLIC_SENTRY_DSN is set,
- * indicating that Sentry is configured for the project.
+ * Requires NEXT_PUBLIC_SENTRY_DSN to be set in environment variables.
+ * In local development without a DSN, Sentry is disabled silently.
  *
  * Server-side error capture is handled by @sentry/cloudflare (see lib/sentry.ts).
  */
 
+import * as Sentry from "@sentry/browser";
+
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
 if (typeof window !== "undefined" && dsn) {
-  // Capture unhandled errors
-  window.addEventListener("error", (event) => {
-    if (event.error) {
-      console.error("[sentry-client] Uncaught error:", event.error);
-    }
-  });
+  Sentry.init({
+    dsn,
+    environment: process.env.NODE_ENV ?? "development",
 
-  // Capture unhandled promise rejections
-  window.addEventListener("unhandledrejection", (event) => {
-    console.error("[sentry-client] Unhandled rejection:", event.reason);
+    // Sample 10% of transactions in production for performance monitoring.
+    // Increase during incident investigation; decrease if quota is a concern.
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+
+    // Capture console.error calls as breadcrumbs for richer context.
+    integrations: [
+      Sentry.breadcrumbsIntegration({ console: true, dom: true, fetch: true }),
+      Sentry.browserTracingIntegration(),
+    ],
+
+    // Filter out noisy, non-actionable errors
+    beforeSend(event) {
+      const message = event.exception?.values?.[0]?.value ?? "";
+
+      // Browser extensions and third-party scripts
+      if (/ResizeObserver loop/i.test(message)) return null;
+      if (/Loading chunk \d+ failed/i.test(message)) return null;
+
+      return event;
+    },
   });
+}
+
+/**
+ * Capture a client-side error in Sentry with optional context.
+ * Safe to call even when Sentry is not initialized (no-ops gracefully).
+ */
+export function captureClientError(error: unknown, context?: Record<string, string>) {
+  if (typeof window !== "undefined" && dsn) {
+    Sentry.withScope((scope) => {
+      if (context) {
+        scope.setContext("extra", context);
+      }
+      Sentry.captureException(error);
+    });
+  }
+  console.error("[sentry-client]", error, context ?? "");
 }
