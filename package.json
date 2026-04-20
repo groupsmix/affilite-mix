@@ -74,7 +74,7 @@
     "@typescript-eslint/eslint-plugin": "^8.58.0",
     "@typescript-eslint/parser": "^8.58.0",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^15.5.14",
+    "eslint-config-next": "^16.2.4",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "postcss": "^8.5.8",
