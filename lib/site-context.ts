@@ -118,7 +118,7 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
 
   // Fallback to default site from env or first registered site
   if (!siteSlug) {
-    siteSlug = process.env.NEXT_PUBLIC_DEFAULT_SITE ?? allSites[0]?.id ?? "watch-tools";
+    siteSlug = process.env.NEXT_PUBLIC_DEFAULT_SITE ?? allSites[0]?.id ?? null;
   }
 
   // 1. Try static config first (fast, no DB call for known sites)
@@ -150,7 +150,9 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     return fallback;
   }
 
-  throw new Error(`Site not found: ${siteSlug}`);
+  throw new Error(
+    `No site found for slug "${siteSlug}". Register sites in config/sites/index.ts or the database.`,
+  );
 }
 
 /**

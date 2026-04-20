@@ -123,14 +123,24 @@ export function getConfiguredNetworks(): AffiliateNetworkConfig[] {
 }
 
 /**
- * Get suggested network for a given site niche.
+ * Get suggested network for a given site.
+ *
+ * Checks the site's language and niche keywords to recommend a network.
+ * Falls back to "direct" when no strong signal is found.
  */
-export function getSuggestedNetwork(siteId: string): AffiliateNetwork {
-  const nicheMap: Record<string, AffiliateNetwork> = {
-    "watch-tools": "cj",
-    "crypto-tools": "cj",
-    "ai-compared": "partnerstack",
-    "arabic-tools": "admitad",
-  };
-  return nicheMap[siteId] ?? "direct";
+export function getSuggestedNetwork(
+  siteId: string,
+  opts?: { language?: string; niche?: string },
+): AffiliateNetwork {
+  const lang = opts?.language ?? "en";
+  const niche = (opts?.niche ?? "").toLowerCase();
+
+  if (lang === "ar") return "admitad";
+  if (niche.includes("ai") || niche.includes("saas") || niche.includes("software"))
+    return "partnerstack";
+  if (niche.includes("watch") || niche.includes("crypto") || niche.includes("product")) return "cj";
+
+  // Extensible: new sites get "direct" until a network is configured
+  void siteId;
+  return "direct";
 }
