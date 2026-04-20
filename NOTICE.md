@@ -17,3 +17,14 @@ pointing at the upstream source and commit.
 - **Status:** generated verbatim — no behavioural adaptation. Component files
   retain their upstream structure; only Tailwind token names resolve to the
   host site's tenant theme (see `app/globals.css`).
+
+---
+
+## arhamkhnz/next-shadcn-admin-dashboard
+
+- **Upstream:** https://github.com/arhamkhnz/next-shadcn-admin-dashboard
+- **License:** MIT
+- **What we use:** auth screen layout adapted — centered card composition on
+  `app/admin/login/page.tsx` and `app/admin/reset-password/page.tsx`. Only
+  visual structure (Card composition, spacing, typography) was adapted; form
+  logic, CSRF wiring, and Turnstile integration remain this project's own.
