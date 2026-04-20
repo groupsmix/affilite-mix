@@ -15,6 +15,11 @@ env:
 
 jobs:
   preview:
+    # Dependabot PRs run with an isolated secret scope and cannot access
+    # the repo's staging Supabase / Cloudflare secrets, so preview deploy
+    # would always fail. Dependency bumps don't need a live preview anyway —
+    # the `check` job covers lint/typecheck/test against the new deps.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
