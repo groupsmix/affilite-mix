@@ -12,6 +12,7 @@ import { validateCreateCategory, validateUpdateCategory } from "@/lib/validation
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { categoriesTag } from "@/lib/cache-tags";
 
 export async function GET() {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -27,7 +28,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const rawOrError = await parseJsonBody(request);
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
       taxonomy_type: parsed.data.taxonomy_type,
     });
 
-    void revalidateTag("categories");
+    void revalidateTag(categoriesTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const rawOrError = await parseJsonBody(request);
@@ -82,7 +83,7 @@ export async function PATCH(request: NextRequest) {
   const { id, ...updates } = parsed.data;
   try {
     const category = await updateCategory(dbSiteId, id, updates);
-    void revalidateTag("categories");
+    void revalidateTag(categoriesTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -99,7 +100,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   // Accept id from request body (preferred) or query params (backward compat)
@@ -119,7 +120,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await deleteCategory(dbSiteId, id);
-    void revalidateTag("categories");
+    void revalidateTag(categoriesTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",

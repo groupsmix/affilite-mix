@@ -5,9 +5,10 @@ import { getContentById, createContent } from "@/lib/dal/content";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { contentTag } from "@/lib/cache-tags";
 
 export async function POST(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const bodyOrError = await parseJsonBody(request);
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       body_previous: null,
     });
 
-    void revalidateTag("content");
+    void revalidateTag(contentTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",

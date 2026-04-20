@@ -1,5 +1,4 @@
 import { getCurrentSite } from "@/lib/site-context";
-import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { listActiveAdPlacements } from "@/lib/dal/ad-placements";
 import type { AdPlacementType, AdPlacementRow } from "@/types/database";
 import { SandboxedAd } from "./sandboxed-ad";
@@ -10,24 +9,23 @@ interface AdSlotProps {
 
 /**
  * Server component that renders an ad slot based on placement type.
- * Only renders if the site's monetization_type is "ads" or "both".
+ * Only renders if the site's monetization is "ads" or "both".
  * For affiliate-only niches, this renders nothing.
+ *
+ * `getCurrentSite()` already exposes the resolved monetization and the DB
+ * UUID on `site.id`, so this component no longer performs a per-render DB
+ * round-trip just to read `sites.monetization_type`.
  */
 export async function AdSlot({ placement }: AdSlotProps) {
   const site = await getCurrentSite();
 
-  // Single DB lookup — avoids the duplicate query that previously existed
+  if (site.monetization !== "ads" && site.monetization !== "both") {
+    return null;
+  }
+
   let ads: AdPlacementRow[] = [];
   try {
-    const dbSite = await resolveDbSiteBySlug(site.id);
-    if (!dbSite) return null;
-
-    const monetizationType = dbSite.monetization_type ?? "affiliate";
-    if (monetizationType !== "ads" && monetizationType !== "both") {
-      return null;
-    }
-
-    ads = await listActiveAdPlacements(dbSite.id, placement);
+    ads = await listActiveAdPlacements(site.id, placement);
   } catch {
     return null;
   }
@@ -54,10 +52,7 @@ function AdRenderer({ ad }: { ad: AdPlacementRow }) {
 
   return (
     <div className={`${ad.provider}-ad my-4`}>
-      <SandboxedAd
-        adCode={ad.ad_code}
-        provider={ad.provider}
-      />
+      <SandboxedAd adCode={ad.ad_code} provider={ad.provider} />
     </div>
   );
 }

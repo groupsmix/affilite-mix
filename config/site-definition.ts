@@ -43,6 +43,16 @@ export interface SiteDefinition {
   /** Estimated revenue per affiliate click (USD). Used in admin analytics. */
   estRevenuePerClick?: number;
 
+  /**
+   * Per-site monetization strategy. Controls whether the site renders affiliate
+   * product links, ad placements, or both. Defaults to "affiliate" when absent.
+   *
+   * This field mirrors the `sites.monetization_type` DB column so TS config is
+   * the source of truth during seeding and cannot accidentally clobber DB
+   * overrides with a hard-coded default.
+   */
+  monetization?: "affiliate" | "ads" | "both";
+
   features: FeatureFlags;
 
   pages: {

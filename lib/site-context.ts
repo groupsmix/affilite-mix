@@ -1,11 +1,30 @@
 import { headers, cookies } from "next/headers";
 import { getSiteById, allSites } from "@/config/sites";
 import type { SiteDefinition } from "@/config/site-definition";
-import { resolveDbSiteId, resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
+import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import type { SiteRow } from "@/types/database";
 
 const SITE_HEADER = "x-site-id";
 const SITE_COOKIE = "x-site-id";
+
+/**
+ * Resolved runtime view of a site. Always includes a concrete `monetization`
+ * value (the DB column on `sites`, falling back to TS config, then
+ * "affiliate"). Callers such as `<AdSlot>` can rely on this and avoid an
+ * extra DB round-trip just to read `monetization_type`.
+ */
+export type ResolvedSite = SiteDefinition & {
+  monetization: "affiliate" | "ads" | "both";
+};
+
+function resolveMonetization(
+  ...candidates: (SiteRow["monetization_type"] | undefined | null)[]
+): "affiliate" | "ads" | "both" {
+  for (const c of candidates) {
+    if (c === "affiliate" || c === "ads" || c === "both") return c;
+  }
+  return "affiliate";
+}
 
 /**
  * Construct a SiteDefinition from a database SiteRow.
@@ -96,7 +115,7 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
  * Falls back to the static config site if headers are not available
  * (e.g., during static generation at build time) or if DB lookup fails.
  */
-export async function getCurrentSite(): Promise<SiteDefinition> {
+export async function getCurrentSite(): Promise<ResolvedSite> {
   let siteSlug: string | null = null;
 
   try {
@@ -124,21 +143,32 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
   // 1. Try static config first (fast, no DB call for known sites)
   const site = getSiteById(siteSlug);
   if (site) {
-    // Try to get DB UUID, but don't fail if DB is not available
+    // Try to fetch the DB row once to get both the UUID and the authoritative
+    // monetization_type. DB wins over TS config so admins can override at
+    // runtime without a redeploy.
     try {
-      const dbSiteId = await resolveDbSiteId(siteSlug);
-      return { ...site, id: dbSiteId };
+      const dbSite = await resolveDbSiteBySlug(siteSlug);
+      if (dbSite) {
+        return {
+          ...site,
+          id: dbSite.id,
+          monetization: resolveMonetization(dbSite.monetization_type, site.monetization),
+        };
+      }
     } catch {
-      // DB not available or site not in DB yet - use static config
-      return site;
+      // DB not available - fall through to config-only resolution
     }
+    return { ...site, monetization: resolveMonetization(site.monetization) };
   }
 
   // 2. Fall back to DB lookup for DB-only sites (created via admin panel)
   try {
     const dbSite = await resolveDbSiteBySlug(siteSlug);
     if (dbSite) {
-      return siteDefinitionFromDbRow(dbSite);
+      return {
+        ...siteDefinitionFromDbRow(dbSite),
+        monetization: resolveMonetization(dbSite.monetization_type),
+      };
     }
   } catch {
     // DB lookup failed
@@ -147,7 +177,7 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
   // 3. Last resort: return first registered site without DB override
   const fallback = allSites[0];
   if (fallback) {
-    return fallback;
+    return { ...fallback, monetization: resolveMonetization(fallback.monetization) };
   }
 
   throw new Error(`Site not found: ${siteSlug}`);

@@ -6,6 +6,7 @@ import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { productsTag } from "@/lib/cache-tags";
 
 export async function GET(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const rawOrError = await parseJsonBody(request);
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       cons: data.cons ?? "",
     });
 
-    void revalidateTag("products");
+    void revalidateTag(productsTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const rawOrError = await parseJsonBody(request);
@@ -100,7 +101,7 @@ export async function PATCH(request: NextRequest) {
   const { id, ...updates } = parsed.data;
   try {
     const product = await updateProduct(dbSiteId, id, updates);
-    void revalidateTag("products");
+    void revalidateTag(productsTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -117,7 +118,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   // Accept id from request body (preferred) or query params (backward compat)
@@ -137,7 +138,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await deleteProduct(dbSiteId, id);
-    void revalidateTag("products");
+    void revalidateTag(productsTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
