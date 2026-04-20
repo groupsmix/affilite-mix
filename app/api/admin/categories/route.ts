@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin-guard";
+import { categoriesTag } from "@/lib/cache-tags";
 import {
   listCategories,
   createCategory,
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
       taxonomy_type: parsed.data.taxonomy_type,
     });
 
-    void revalidateTag("categories");
+    void revalidateTag(categoriesTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -82,7 +83,7 @@ export async function PATCH(request: NextRequest) {
   const { id, ...updates } = parsed.data;
   try {
     const category = await updateCategory(dbSiteId, id, updates);
-    void revalidateTag("categories");
+    void revalidateTag(categoriesTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -119,7 +120,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await deleteCategory(dbSiteId, id);
-    void revalidateTag("categories");
+    void revalidateTag(categoriesTag(dbSiteId));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
