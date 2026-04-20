@@ -10,6 +10,8 @@ env:
   NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
   SUPABASE_SERVICE_ROLE_KEY: placeholder
   JWT_SECRET: ci-test-secret
+  INTERNAL_API_TOKEN: ci-test-internal-token
+  CRON_SECRET: ci-test-cron-secret
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
 

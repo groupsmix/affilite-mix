@@ -7,77 +7,31 @@
 
 import { checkSentryConfig } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
+import { validateServerEnv, formatMissingEnvMessage } from "@/lib/server-env";
 
 export function register() {
   // Check Sentry configuration (actual init happens via withSentry wrapper)
   checkSentryConfig();
-  const required: { name: string; description: string }[] = [
-    { name: "NEXT_PUBLIC_SUPABASE_URL", description: "Supabase project URL" },
-    { name: "NEXT_PUBLIC_SUPABASE_ANON_KEY", description: "Supabase anon/public key" },
-    { name: "SUPABASE_SERVICE_ROLE_KEY", description: "Supabase service role key (server-only)" },
-    { name: "JWT_SECRET", description: "Random secret for admin JWT signing" },
-  ];
 
-  const recommended: { name: string; description: string }[] = [
-    { name: "CRON_SECRET", description: "Secret for authenticating cron job requests" },
-    {
-      name: "RESEND_API_KEY",
-      description:
-        "Resend API key for transactional emails (password reset, newsletter confirmation)",
-    },
-    {
-      name: "SENTRY_DSN",
-      description: "Sentry DSN for error monitoring — recommended in production for observability",
-    },
-  ];
-
-  const missing: string[] = [];
-  const warnings: string[] = [];
-
-  for (const { name, description } of required) {
-    if (!process.env[name]) {
-      missing.push(`  - ${name}: ${description}`);
-    }
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    for (const { name, description } of recommended) {
-      if (!process.env[name]) {
-        warnings.push(`  - ${name}: ${description} (recommended in production)`);
-      }
-    }
-  }
+  const { missing, missingRecommended } = validateServerEnv();
 
   // Warn about recommended-but-missing vars (don't crash the worker)
-  if (warnings.length > 0) {
-    const warnMessage = [
-      "",
-      "=".repeat(60),
-      "MISSING RECOMMENDED ENVIRONMENT VARIABLES",
-      "=".repeat(60),
-      ...warnings,
-      "",
-      "These are optional but recommended for full functionality.",
-      "=".repeat(60),
-      "",
-    ].join("\n");
-    console.warn(warnMessage);
+  if (missingRecommended.length > 0 && process.env.NODE_ENV === "production") {
+    console.warn(
+      formatMissingEnvMessage(missingRecommended, "MISSING RECOMMENDED ENVIRONMENT VARIABLES"),
+    );
   }
 
   if (missing.length > 0) {
-    const message = [
-      "",
-      "=".repeat(60),
-      "MISSING REQUIRED ENVIRONMENT VARIABLES",
-      "=".repeat(60),
-      ...missing,
-      "",
-      "Copy .env.example to .env and fill in the values.",
-      "=".repeat(60),
-      "",
-    ].join("\n");
+    const message = formatMissingEnvMessage(missing, "MISSING REQUIRED ENVIRONMENT VARIABLES");
 
-    if (process.env.NODE_ENV === "production") {
+    // Fail fast in production runtime so the operator sees exactly which
+    // variables are missing before any request is served. During
+    // `next build` (NEXT_PHASE set) or in development, just warn so the
+    // build/dev loop is not broken for contributors who do not have the
+    // production secrets locally.
+    const isBuild = !!process.env.NEXT_PHASE;
+    if (process.env.NODE_ENV === "production" && !isBuild) {
       throw new Error(message);
     } else {
       console.warn(message);

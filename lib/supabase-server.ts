@@ -5,11 +5,17 @@ import type { Database } from "@/types/supabase";
 // Environment variables are resolved lazily (inside functions) so that
 // module evaluation during `next build` does not throw when the vars
 // are not yet available (e.g. Vercel preview builds).
+//
+// There is intentionally no `placeholder.supabase.co` fallback here:
+// in production runtime, `requireEnvInProduction` throws if any of
+// NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY /
+// SUPABASE_SERVICE_ROLE_KEY is missing, so broken config fails fast
+// instead of silently succeeding against a non-existent backend.
 
 let poolerWarningEmitted = false;
 
 function getSupabaseUrl(): string {
-  const url = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL", "");
+  const url = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL");
 
   // Warn in production if the Supabase URL is not using the pooler endpoint.
   // Direct connections will exhaust PostgreSQL's connection limit on edge runtimes
@@ -43,10 +49,7 @@ function getSupabaseUrl(): string {
  */
 export function getServiceClient(): SupabaseClient<Database> {
   const url = getSupabaseUrl();
-  const key = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY", "");
-  if (!url || !key) {
-    return createClient<Database>("https://placeholder.supabase.co", "placeholder-key");
-  }
+  const key = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY");
   return createClient<Database>(url, key);
 }
 
@@ -57,9 +60,6 @@ export function getServiceClient(): SupabaseClient<Database> {
  */
 export function getAnonClient(): SupabaseClient<Database> {
   const url = getSupabaseUrl();
-  const key = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
-  if (!url || !key) {
-    return createClient<Database>("https://placeholder.supabase.co", "placeholder-key");
-  }
+  const key = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   return createClient<Database>(url, key);
 }
