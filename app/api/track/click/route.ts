@@ -7,6 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { apiError, rateLimitHeaders } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
+import { runAfterResponse } from "@/lib/wait-until";
 
 /** 60 click-tracking requests per minute per IP */
 const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -45,14 +46,20 @@ async function handleClick(request: NextRequest) {
     // Always use the DB-stored affiliate URL, preventing open redirects.
     const destinationUrl = product.affiliate_url;
 
-    // Record click (fire-and-forget)
-    recordClick({
-      site_id: siteId,
-      product_name: product.name,
-      affiliate_url: destinationUrl,
-      content_slug: searchParams.get("t") ?? "",
-      referrer: request.headers.get("referer") ?? undefined,
-    });
+    // Record click (fire-and-forget).  Wrapped in runAfterResponse so the
+    // Cloudflare isolate keeps the promise alive via ctx.waitUntil() after
+    // the redirect is sent — otherwise the DB write is silently dropped
+    // when the isolate shuts down under load.
+    runAfterResponse(
+      recordClick({
+        site_id: siteId,
+        product_name: product.name,
+        affiliate_url: destinationUrl,
+        content_slug: searchParams.get("t") ?? "",
+        referrer: request.headers.get("referer") ?? undefined,
+      }),
+      { context: "[api/track/click] recordClick" },
+    );
 
     // 302 redirect to the product's affiliate URL
     return NextResponse.redirect(destinationUrl, 302);

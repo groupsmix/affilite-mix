@@ -1,4 +1,4 @@
--- Migration 00028: fix get_dashboard_stats RPC
+-- Migration 00032: fix get_dashboard_stats RPC
 --
 -- The previous version (00027) incorrectly referenced cp.site_id in the
 -- content_no_products subquery.  The content_products table only has

@@ -8,6 +8,8 @@
  * per-process in-memory store — acceptable for dev but NOT for production.
  */
 
+import { captureException } from "@/lib/sentry";
+
 export interface RateLimitConfig {
   /** Maximum number of requests allowed in the window */
   maxRequests: number;
@@ -54,10 +56,8 @@ async function checkRateLimitKV(
   const cutoff = now - config.windowMs;
   const kvKey = `rate:${key}`;
 
-  const existing = await kv.get(kvKey, "json") as KVRateLimitData | null;
-  const timestamps = existing
-    ? existing.timestamps.filter((t) => t > cutoff)
-    : [];
+  const existing = (await kv.get(kvKey, "json")) as KVRateLimitData | null;
+  const timestamps = existing ? existing.timestamps.filter((t) => t > cutoff) : [];
 
   if (timestamps.length >= config.maxRequests) {
     const oldestInWindow = timestamps[0];
@@ -117,10 +117,7 @@ function cleanupMemory(windowMs: number) {
   }
 }
 
-function checkRateLimitMemory(
-  key: string,
-  config: RateLimitConfig,
-): RateLimitResult {
+function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitResult {
   const now = Date.now();
   const cutoff = now - config.windowMs;
 
@@ -177,12 +174,18 @@ export async function checkRateLimit(
   if (process.env.NODE_ENV === "production") {
     if (!kvFallbackWarned) {
       kvFallbackWarned = true;
-      console.error(
+      const msg =
         "[rate-limit] CRITICAL: KV namespace RATE_LIMIT_KV not available in production. " +
         "Rate-limited requests will be rejected. " +
         "Configure the KV binding in wrangler.jsonc to restore service. " +
-        "See lib/rate-limit.ts for KV configuration instructions.",
-      );
+        "See lib/rate-limit.ts for KV configuration instructions.";
+      console.error(msg);
+      // Also fire a Sentry alert so this misconfiguration does not silently
+      // take down every public endpoint (newsletter, tracking, unsubscribe)
+      // behind the fail-closed policy.
+      captureException(new Error(msg), {
+        context: "rate-limit.kv-unavailable",
+      });
     }
     return { allowed: false, remaining: 0, retryAfterMs: 60_000 };
   }
@@ -192,8 +195,8 @@ export async function checkRateLimit(
     kvFallbackWarned = true;
     console.warn(
       "[rate-limit] KV namespace RATE_LIMIT_KV not available — using in-memory fallback. " +
-      "This is expected in local dev but NOT safe for production. " +
-      "See lib/rate-limit.ts for KV configuration instructions.",
+        "This is expected in local dev but NOT safe for production. " +
+        "See lib/rate-limit.ts for KV configuration instructions.",
     );
   }
 

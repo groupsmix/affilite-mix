@@ -37,15 +37,27 @@ export async function GET(request: NextRequest) {
 
     const sb = getServiceClient();
 
-    const { error } = await sb
+    // Validate the token actually matches a row before reporting success.
+    // Previously the UPDATE was fire-and-forget on eq("unsubscribe_token", token),
+    // so a random/stale token would silently redirect to /newsletter/unsubscribed
+    // even though nothing was actually unsubscribed.
+    const { data, error } = await sb
       .from("newsletter_subscribers")
       .update({ status: "unsubscribed" })
-      .eq("unsubscribe_token", token);
+      .eq("unsubscribe_token", token)
+      .select("id");
 
     if (error) {
       captureException(error, { context: "[api/newsletter/unsubscribe] GET failed to update:" });
       return NextResponse.redirect(
         new URL("/newsletter/unsubscribed?error=update_failed", request.url),
+      );
+    }
+
+    if (!data || data.length === 0) {
+      // No row matched — treat as an invalid token rather than silently succeeding.
+      return NextResponse.redirect(
+        new URL("/newsletter/unsubscribed?error=invalid_token", request.url),
       );
     }
 

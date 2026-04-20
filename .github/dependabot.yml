@@ -1,0 +1,50 @@
+# Dependabot keeps runtime, build, and CI dependencies patched without
+# requiring a human to remember to run `npm audit`.
+#
+# See: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+updates:
+  # npm (production + dev dependencies)
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - npm
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+      include: scope
+    groups:
+      # Group minor/patch updates together so we aren't flooded with PRs.
+      npm-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Node itself is pinned via `engines`; dependabot should not bump it
+      # unless we explicitly review infra changes.
+      - dependency-name: "node"
+
+  # GitHub Actions workflow dependencies (action versions)
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: chore(ci)
+      include: scope
