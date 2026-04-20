@@ -53,6 +53,7 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
     productLabel: "Product",
     productLabelPlural: "Products",
 
+    monetizationType: row.monetization_type ?? "affiliate",
     affiliateDisclosure: "This site may earn a commission from qualifying purchases.",
     contentDisclosure: "Content is for informational purposes only.",
 

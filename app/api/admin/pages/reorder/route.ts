@@ -22,7 +22,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "pages array is required" }, { status: 400 });
     }
 
-    await reorderPages(body.pages);
+    await reorderPages(dbSiteId, body.pages);
 
     void recordAuditEvent({
       site_id: dbSiteId,

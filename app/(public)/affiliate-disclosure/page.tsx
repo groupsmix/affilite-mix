@@ -41,7 +41,8 @@ export default async function AffiliateDisclosurePage() {
   const site = await getCurrentSite();
   const disclosurePage = site.pages.affiliateDisclosurePage;
 
-  if (!disclosurePage) {
+  // Ads-only sites don't have affiliate disclosures
+  if (!disclosurePage || site.monetizationType === "ads") {
     redirect("/");
   }
 

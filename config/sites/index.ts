@@ -68,7 +68,7 @@ export function toSiteRow(site: SiteDefinition): DerivedSiteRow {
     language: site.language,
     direction: site.direction,
     is_active: true,
-    monetization_type: "affiliate",
+    monetization_type: site.monetizationType,
     est_revenue_per_click: site.estRevenuePerClick ?? 0.35,
     theme: {
       primaryColor: site.theme.primaryColor,
