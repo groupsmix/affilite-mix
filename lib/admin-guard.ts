@@ -3,6 +3,8 @@ import { getAdminSession, AdminPayload } from "@/lib/auth";
 import { getActiveSiteSlug } from "@/lib/active-site";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getSiteById } from "@/config/sites";
+import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
 
 type AdminResult =
   | { error: NextResponse; session: null; dbSiteId: null; siteSlug: null }
@@ -20,10 +22,7 @@ export function assertRole(
   requiredRole: "admin" | "super_admin",
 ): NextResponse | null {
   if (requiredRole === "super_admin" && session.role !== "super_admin") {
-    return NextResponse.json(
-      { error: "Forbidden: super_admin role required" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
   }
   return null;
 }
@@ -33,7 +32,9 @@ export function assertRole(
  * - Verifies the admin JWT session exists
  * - Enforces per-session rate limiting (100 req/min)
  * - Reads the active site from the nh_active_site cookie
+ * - Validates the cookie value against known site configs
  * - Resolves the database UUID for the site
+ * - Verifies admin_site_memberships for non-super_admin users
  */
 export async function requireAdmin(): Promise<AdminResult> {
   const session = await getAdminSession();
@@ -75,7 +76,33 @@ export async function requireAdmin(): Promise<AdminResult> {
     };
   }
 
+  // Validate the cookie value against known site configs to reject forged values
+  const siteConfig = getSiteById(siteSlug);
+  if (!siteConfig) {
+    return {
+      error: NextResponse.json({ error: "Invalid site" }, { status: 400 }),
+      session: null,
+      dbSiteId: null,
+      siteSlug: null,
+    };
+  }
+
   const dbSiteId = await resolveDbSiteId(siteSlug);
+
+  // Enforce membership: non-super_admin users must have a membership row
+  // for the active site. A forged or manually changed cookie is not enough.
+  if (session.role !== "super_admin" && session.userId) {
+    const membership = await getAdminSiteMembership(session.userId, dbSiteId);
+    if (!membership) {
+      return {
+        error: NextResponse.json({ error: "You do not have access to this site" }, { status: 403 }),
+        session: null,
+        dbSiteId: null,
+        siteSlug: null,
+      };
+    }
+  }
+
   return { error: null, session, dbSiteId, siteSlug };
 }
 

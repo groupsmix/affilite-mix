@@ -495,6 +495,43 @@ export interface Database {
         Relationships: [];
       };
 
+      admin_site_memberships: {
+        Row: {
+          id: string;
+          admin_user_id: string;
+          site_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          admin_user_id: string;
+          site_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          admin_user_id?: string;
+          site_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_site_memberships_admin_user_id_fkey";
+            columns: ["admin_user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "admin_site_memberships_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
       audit_log: {
         Row: {
           id: string;
