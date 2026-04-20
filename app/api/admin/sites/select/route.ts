@@ -5,6 +5,8 @@ import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -36,6 +38,16 @@ export async function POST(request: NextRequest) {
   const site = getSiteById(siteId);
   if (!site) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
+  }
+
+  // Enforce membership: non-super_admin users must have a membership row
+  // for the target site. super_admin can still switch globally.
+  if (session.role !== "super_admin" && session.userId) {
+    const dbSiteId = await resolveDbSiteId(siteId);
+    const membership = await getAdminSiteMembership(session.userId, dbSiteId);
+    if (!membership) {
+      return NextResponse.json({ error: "You do not have access to this site" }, { status: 403 });
+    }
   }
 
   const response = NextResponse.json({ ok: true, site: { id: site.id, name: site.name } });

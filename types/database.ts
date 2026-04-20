@@ -274,6 +274,15 @@ export interface UserSiteRoleRow {
   created_at: string;
 }
 
+// ── Admin Site Memberships ──────────────────────────────────────────────
+
+export interface AdminSiteMembershipRow {
+  id: string;
+  admin_user_id: string;
+  site_id: string;
+  created_at: string;
+}
+
 // ── Integrations ───────────────────────────────────────────────────────
 
 export type IntegrationCategory =

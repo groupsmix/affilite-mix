@@ -892,6 +892,27 @@ CREATE POLICY "affiliate_networks_service_all" ON affiliate_networks
 
 
 
+-- ── admin_site_memberships (migration 00035) ────────────────────────
+CREATE TABLE IF NOT EXISTS admin_site_memberships (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  site_id       uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (admin_user_id, site_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_site_memberships_user
+  ON admin_site_memberships(admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_site_memberships_site
+  ON admin_site_memberships(site_id);
+
+ALTER TABLE admin_site_memberships ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "admin_site_memberships_service_all"
+  ON admin_site_memberships
+  FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+
 -- ── public RLS hardening: products / content / pages require active site ──
 -- (migration 00031 — replaces the simpler policies defined above)
 -- Products
