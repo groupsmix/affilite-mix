@@ -222,8 +222,8 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         )}
       </header>
 
-      {/* Affiliate disclosure */}
-      {linkedProducts.length > 0 && (
+      {/* Affiliate disclosure — only for sites that use affiliate monetization */}
+      {linkedProducts.length > 0 && site.monetizationType !== "ads" && (
         <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           {site.contentDisclosure}
         </div>
@@ -303,8 +303,10 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         </section>
       )}
 
-      {/* Sticky CTA bar */}
-      {heroProduct && heroProduct.affiliate_url && <StickyCtaBar product={heroProduct} />}
+      {/* Sticky CTA bar — only for affiliate/both sites */}
+      {heroProduct && heroProduct.affiliate_url && site.monetizationType !== "ads" && (
+        <StickyCtaBar product={heroProduct} />
+      )}
     </article>
   );
 }

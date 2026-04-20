@@ -88,9 +88,15 @@ export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProp
           </div>
         )}
 
-        {/* Affiliate disclosure */}
+        {/* Monetization disclosure */}
         <div className="mt-8 border-t border-gray-200 pt-6">
-          <p className="text-xs text-gray-500">{site.affiliateDisclosure}</p>
+          <p className="text-xs text-gray-500">
+            {site.monetizationType === "ads"
+              ? site.language === "ar"
+                ? "يتم تمويل هذا الموقع عبر الإعلانات."
+                : "This site is supported by advertising."
+              : site.affiliateDisclosure}
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
             <span>
               &copy; {new Date().getFullYear()} {site.name}

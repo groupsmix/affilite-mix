@@ -40,6 +40,9 @@ export interface SiteDefinition {
   affiliateDisclosure: string;
   contentDisclosure: string;
 
+  /** How this site earns revenue. Controls which UI blocks render. */
+  monetizationType: "affiliate" | "ads" | "both";
+
   /** Estimated revenue per affiliate click (USD). Used in admin analytics. */
   estRevenuePerClick?: number;
 

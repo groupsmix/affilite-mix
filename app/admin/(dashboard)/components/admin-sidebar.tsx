@@ -207,11 +207,21 @@ const iconMap: Record<string, ReactNode> = {
 function SidebarContent({
   onNavigate,
   siteName,
+  monetizationType,
 }: {
   onNavigate?: () => void;
   siteName?: string | null;
+  monetizationType?: "affiliate" | "ads" | "both" | null;
 }) {
   const pathname = usePathname();
+
+  // Filter nav items based on monetization type
+  const filteredNavItems = adminNavItems.filter((item) => {
+    if (!monetizationType) return true;
+    if (item.href === "/admin/ads" && monetizationType === "affiliate") return false;
+    if (item.href === "/admin/affiliate-networks" && monetizationType === "ads") return false;
+    return true;
+  });
 
   return (
     <>
@@ -224,7 +234,7 @@ function SidebarContent({
         <SiteSwitcher />
       </div>
       <nav aria-label="Admin navigation" className="mt-4 flex flex-col gap-1 px-2">
-        {adminNavItems.map((item) => {
+        {filteredNavItems.map((item) => {
           const isActive =
             item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
           return (
@@ -254,7 +264,13 @@ function SidebarContent({
   );
 }
 
-export function AdminSidebar({ siteName }: { siteName?: string | null }) {
+export function AdminSidebar({
+  siteName,
+  monetizationType,
+}: {
+  siteName?: string | null;
+  monetizationType?: "affiliate" | "ads" | "both" | null;
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -321,12 +337,16 @@ export function AdminSidebar({ siteName }: { siteName?: string | null }) {
             </svg>
           </button>
         </div>
-        <SidebarContent onNavigate={() => setMobileOpen(false)} siteName={siteName} />
+        <SidebarContent
+          onNavigate={() => setMobileOpen(false)}
+          siteName={siteName}
+          monetizationType={monetizationType}
+        />
       </aside>
 
       {/* Desktop sidebar */}
       <aside className="hidden w-56 shrink-0 flex-col border-e border-gray-200 bg-white lg:flex">
-        <SidebarContent siteName={siteName} />
+        <SidebarContent siteName={siteName} monetizationType={monetizationType} />
       </aside>
     </>
   );

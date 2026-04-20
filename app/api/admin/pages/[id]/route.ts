@@ -12,12 +12,12 @@ type Params = { params: Promise<{ id: string }> };
  * GET /api/admin/pages/:id  — get a single page
  */
 export async function GET(_request: NextRequest, { params }: Params) {
-  const { error } = await requireAdmin();
+  const { error, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   try {
     const { id } = await params;
-    const page = await getPageById(id);
+    const page = await getPageById(dbSiteId, id);
     if (!page) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
@@ -50,7 +50,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
-    const page = await updatePage(id, filtered);
+    const page = await updatePage(dbSiteId, id, filtered);
 
     recordAuditEvent({
       site_id: dbSiteId,
@@ -77,7 +77,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
   try {
     const { id } = await params;
-    await deletePage(id);
+    await deletePage(dbSiteId, id);
 
     recordAuditEvent({
       site_id: dbSiteId,

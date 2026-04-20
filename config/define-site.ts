@@ -1,9 +1,4 @@
-import type {
-  SiteDefinition,
-  FeatureFlags,
-  ContentTypeConfig,
-  NavItem,
-} from "./site-definition";
+import type { SiteDefinition, FeatureFlags, ContentTypeConfig, NavItem } from "./site-definition";
 
 /* ------------------------------------------------------------------ */
 /*  Font presets                                                       */
@@ -156,6 +151,8 @@ export interface SiteInput {
   nav?: NavItem[];
   /** Custom footer nav. Auto-generated if omitted. */
   footerNav?: Record<string, NavItem[]>;
+  /** How this site earns revenue. Defaults to "affiliate". */
+  monetizationType?: "affiliate" | "ads" | "both";
   /** Custom affiliate disclosure text */
   affiliateDisclosure?: string;
   /** Custom content disclosure text */
@@ -277,6 +274,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
     contentTypes,
     productLabel,
     productLabelPlural,
+    monetizationType: input.monetizationType ?? "affiliate",
     affiliateDisclosure,
     contentDisclosure,
     features,
@@ -294,9 +292,7 @@ function generateNav(
   features: FeatureFlags,
   isArabic: boolean,
 ): NavItem[] {
-  const nav: NavItem[] = [
-    { title: isArabic ? "الرئيسية" : "Home", href: "/" },
-  ];
+  const nav: NavItem[] = [{ title: isArabic ? "الرئيسية" : "Home", href: "/" }];
 
   const labelMap: Record<string, string> = {
     article: isArabic ? "المقالات" : "Articles",
@@ -322,9 +318,7 @@ function generateFooterNav(
   input: SiteInput,
   isArabic: boolean,
 ): Record<string, NavItem[]> {
-  const quickLinks: NavItem[] = [
-    { title: isArabic ? "الرئيسية" : "Home", href: "/" },
-  ];
+  const quickLinks: NavItem[] = [{ title: isArabic ? "الرئيسية" : "Home", href: "/" }];
   for (const ct of contentTypes.slice(0, 3)) {
     const labelMap: Record<string, string> = {
       article: isArabic ? "المقالات" : "Articles",
@@ -409,10 +403,7 @@ function generatePages(
   return pages;
 }
 
-function generateSeo(
-  input: SiteInput,
-  features: FeatureFlags,
-): SiteDefinition["seo"] {
+function generateSeo(input: SiteInput, features: FeatureFlags): SiteDefinition["seo"] {
   const staticPages: SiteDefinition["seo"]["sitemapStaticPages"] = [
     { path: "/", priority: 1, changeFrequency: "daily" },
   ];

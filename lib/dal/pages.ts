@@ -51,9 +51,13 @@ export async function getPageBySlug(siteId: string, slug: string): Promise<PageR
   return rowOrNull<PageRow>(data);
 }
 
-/** Get a single page by id */
-export async function getPageById(id: string): Promise<PageRow | null> {
-  const { data, error } = await pagesTable().select("*").eq("id", id).single();
+/** Get a single page by id (scoped to site) */
+export async function getPageById(siteId: string, id: string): Promise<PageRow | null> {
+  const { data, error } = await pagesTable()
+    .select("*")
+    .eq("site_id", siteId)
+    .eq("id", id)
+    .single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<PageRow>(data);
@@ -88,27 +92,37 @@ export async function createPage(input: {
   return assertRow<PageRow>(data, "Page");
 }
 
-/** Update a page */
+/** Update a page (scoped to site) */
 export async function updatePage(
+  siteId: string,
   id: string,
   input: Partial<Pick<PageRow, "slug" | "title" | "body" | "is_published" | "sort_order">>,
 ): Promise<PageRow> {
-  const { data, error } = await pagesTable().update(input).eq("id", id).select().single();
+  const { data, error } = await pagesTable()
+    .update(input)
+    .eq("site_id", siteId)
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) throw error;
   return assertRow<PageRow>(data, "Page");
 }
 
-/** Delete a page */
-export async function deletePage(id: string): Promise<void> {
-  const { error } = await pagesTable().delete().eq("id", id);
+/** Delete a page (scoped to site) */
+export async function deletePage(siteId: string, id: string): Promise<void> {
+  const { error } = await pagesTable().delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;
 }
 
-/** Bulk update sort order atomically via a single database transaction */
-export async function reorderPages(pages: { id: string; sort_order: number }[]): Promise<void> {
+/** Bulk update sort order atomically via a single database transaction (scoped to site) */
+export async function reorderPages(
+  siteId: string,
+  pages: { id: string; sort_order: number }[],
+): Promise<void> {
   const sb = getServiceClient();
   const { error } = await sb.rpc("reorder_pages", {
+    p_site_id: siteId,
     updates: pages as unknown as { id: string; sort_order: number }[],
   });
   if (error) throw error;
