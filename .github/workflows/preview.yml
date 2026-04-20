@@ -269,6 +269,10 @@ jobs:
           path: playwright-report/
 
   # ── Aggregator: preview + E2E must both pass ──────────────────────
+  # Treats "skipped" as pass-through — when `ENABLE_PREVIEW_DEPLOYS` is not
+  # `true` (or the PR is from Dependabot), the preview + e2e jobs are skipped
+  # by design and the gate should not block the PR. Only a real failure
+  # (preview or e2e ran and did not succeed) should fail the gate.
   preview-e2e-gate:
     name: Preview E2E gate
     needs: [preview, e2e]
@@ -283,11 +287,11 @@ jobs:
           set -euo pipefail
           echo "preview: $PREVIEW_RESULT"
           echo "e2e:     $E2E_RESULT"
-          if [ "$PREVIEW_RESULT" != "success" ]; then
+          if [ "$PREVIEW_RESULT" = "failure" ] || [ "$PREVIEW_RESULT" = "cancelled" ]; then
             echo "::error::Preview deploy did not succeed"
             exit 1
           fi
-          if [ "$E2E_RESULT" != "success" ]; then
+          if [ "$E2E_RESULT" = "failure" ] || [ "$E2E_RESULT" = "cancelled" ]; then
             echo "::error::Playwright E2E did not succeed"
             exit 1
           fi
