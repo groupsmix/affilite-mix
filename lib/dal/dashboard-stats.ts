@@ -118,15 +118,22 @@ async function fallbackDashboardStats(
     .or("affiliate_url.is.null,affiliate_url.eq.");
 
   // Content with no linked products
-  // NOTE: content_products has no site_id column — filter through published content ids
-  const [{ data: allLinkedRows }, { data: publishedIds }] = await Promise.all([
-    sb.from("content_products").select("content_id"),
-    sb.from("content").select("id").eq("site_id", siteId).eq("status", "published"),
-  ]);
-  const linkedIds = new Set((allLinkedRows ?? []).map((r: { content_id: string }) => r.content_id));
-  const contentNoProducts = (publishedIds ?? []).filter(
-    (r: { id: string }) => !linkedIds.has(r.id),
-  ).length;
+  // Fetch only published content IDs for this site, then check which have linked products
+  const { data: publishedIds } = await sb
+    .from("content")
+    .select("id")
+    .eq("site_id", siteId)
+    .eq("status", "published");
+  const pubIds = (publishedIds ?? []).map((r: { id: string }) => r.id);
+  let contentNoProducts = pubIds.length;
+  if (pubIds.length > 0) {
+    const { data: linkedRows } = await sb
+      .from("content_products")
+      .select("content_id")
+      .in("content_id", pubIds);
+    const linkedIds = new Set((linkedRows ?? []).map((r: { content_id: string }) => r.content_id));
+    contentNoProducts = pubIds.filter((id) => !linkedIds.has(id)).length;
+  }
 
   // Scheduled content
   const { count: scheduledContent } = await sb

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
+import { getCurrentSite } from "@/lib/site-context";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -29,12 +31,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const site = await getCurrentSite();
+    const siteId = await resolveDbSiteId(site.id);
     const sb = getServiceClient();
 
-    // Find the subscriber by confirmation token
+    // Find the subscriber by confirmation token, scoped to the current site
     const { data: subscriber, error: fetchError } = await sb
       .from("newsletter_subscribers")
       .select("id, status, confirmed_at")
+      .eq("site_id", siteId)
       .eq("confirmation_token", token)
       .single();
 

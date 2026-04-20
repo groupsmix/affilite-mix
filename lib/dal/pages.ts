@@ -121,6 +121,23 @@ export async function reorderPages(
   pages: { id: string; sort_order: number }[],
 ): Promise<void> {
   const sb = getServiceClient();
+
+  // Verify all page IDs belong to this site before reordering
+  if (pages.length > 0) {
+    const ids = pages.map((p) => p.id);
+    const { data: ownedPages, error: checkError } = await sb
+      .from("pages")
+      .select("id")
+      .eq("site_id", siteId)
+      .in("id", ids);
+    if (checkError) throw checkError;
+    const ownedIds = new Set((ownedPages ?? []).map((p: { id: string }) => p.id));
+    const foreign = ids.filter((id) => !ownedIds.has(id));
+    if (foreign.length > 0) {
+      throw new Error("One or more pages do not belong to this site");
+    }
+  }
+
   const { error } = await sb.rpc("reorder_pages", {
     p_site_id: siteId,
     updates: pages as unknown as { id: string; sort_order: number }[],

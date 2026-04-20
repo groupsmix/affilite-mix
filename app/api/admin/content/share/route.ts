@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const targets = await listSharedTargets(contentId);
+    const targets = await listSharedTargets(dbSiteId, contentId);
     return NextResponse.json(targets);
   } catch (err) {
     captureException(err, { context: "[api/admin/content/share] GET failed:" });
@@ -74,7 +74,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await unshareContent(content_id as string, target_site_id as string);
+    await unshareContent(dbSiteId, content_id as string, target_site_id as string);
 
     void recordAuditEvent({
       site_id: dbSiteId,
