@@ -72,22 +72,55 @@ export async function getRelatedContentForProduct(productId: string): Promise<Co
     .filter(Boolean);
 }
 
-/** Replace all linked products for a content item */
+/**
+ * Replace all linked products for a content item.
+ *
+ * SECURITY: `content_products` has no `site_id` column, so we MUST verify that
+ * both the target content row and every product referenced in `links` belong
+ * to the caller's site. Without these checks, an admin of site A could mutate
+ * links on site B's content just by guessing UUIDs.
+ */
 export async function setLinkedProducts(
   contentId: string,
-  _siteId: string,
+  siteId: string,
   links: Omit<ContentProductRow, "content_id">[],
 ): Promise<void> {
   const sb = getServiceClient();
 
-  // Delete existing links
-  const { error: delError } = await sb.from(TABLE).delete().eq("content_id", contentId);
+  // 1. Verify the content row belongs to this site.
+  const { data: contentRow, error: contentError } = await sb
+    .from("content")
+    .select("id")
+    .eq("id", contentId)
+    .eq("site_id", siteId)
+    .maybeSingle();
 
+  if (contentError) throw contentError;
+  if (!contentRow) {
+    throw new Error("Content not found for this site");
+  }
+
+  // 2. Verify every linked product also belongs to this site.
+  if (links.length > 0) {
+    const productIds = [...new Set(links.map((l) => l.product_id))];
+    const { data: ownedProducts, error: productError } = await sb
+      .from("products")
+      .select("id")
+      .eq("site_id", siteId)
+      .in("id", productIds);
+
+    if (productError) throw productError;
+    if (!ownedProducts || ownedProducts.length !== productIds.length) {
+      throw new Error("One or more products do not belong to this site");
+    }
+  }
+
+  // 3. Replace links atomically enough: delete then insert.
+  const { error: delError } = await sb.from(TABLE).delete().eq("content_id", contentId);
   if (delError) throw delError;
 
   if (links.length === 0) return;
 
-  // Insert new links
   const rows = links.map((link) => ({
     ...link,
     content_id: contentId,

@@ -1,9 +1,4 @@
-import type {
-  SiteDefinition,
-  FeatureFlags,
-  ContentTypeConfig,
-  NavItem,
-} from "./site-definition";
+import type { SiteDefinition, FeatureFlags, ContentTypeConfig, NavItem } from "./site-definition";
 
 /* ------------------------------------------------------------------ */
 /*  Font presets                                                       */
@@ -174,6 +169,11 @@ export interface SiteInput {
   logo?: string;
   /** Favicon URL */
   faviconUrl?: string;
+  /**
+   * Monetization strategy. Defaults to "affiliate". Use "ads" for ad-only
+   * sites and "both" when a site mixes affiliate links and ad placements.
+   */
+  monetization?: "affiliate" | "ads" | "both";
 }
 
 /* ------------------------------------------------------------------ */
@@ -282,6 +282,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
     features,
     pages,
     seo,
+    monetization: input.monetization,
   };
 }
 
@@ -294,9 +295,7 @@ function generateNav(
   features: FeatureFlags,
   isArabic: boolean,
 ): NavItem[] {
-  const nav: NavItem[] = [
-    { title: isArabic ? "الرئيسية" : "Home", href: "/" },
-  ];
+  const nav: NavItem[] = [{ title: isArabic ? "الرئيسية" : "Home", href: "/" }];
 
   const labelMap: Record<string, string> = {
     article: isArabic ? "المقالات" : "Articles",
@@ -322,9 +321,7 @@ function generateFooterNav(
   input: SiteInput,
   isArabic: boolean,
 ): Record<string, NavItem[]> {
-  const quickLinks: NavItem[] = [
-    { title: isArabic ? "الرئيسية" : "Home", href: "/" },
-  ];
+  const quickLinks: NavItem[] = [{ title: isArabic ? "الرئيسية" : "Home", href: "/" }];
   for (const ct of contentTypes.slice(0, 3)) {
     const labelMap: Record<string, string> = {
       article: isArabic ? "المقالات" : "Articles",
@@ -409,10 +406,7 @@ function generatePages(
   return pages;
 }
 
-function generateSeo(
-  input: SiteInput,
-  features: FeatureFlags,
-): SiteDefinition["seo"] {
+function generateSeo(input: SiteInput, features: FeatureFlags): SiteDefinition["seo"] {
   const staticPages: SiteDefinition["seo"]["sitemapStaticPages"] = [
     { path: "/", priority: 1, changeFrequency: "daily" },
   ];

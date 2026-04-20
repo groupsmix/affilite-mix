@@ -9,6 +9,7 @@ import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import { getSiteById } from "@/config/sites";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { contentTag } from "@/lib/cache-tags";
 
 export async function GET(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const rawOrError = await parseJsonBody(request);
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
       body_previous: null,
     });
 
-    void revalidateTag("content");
+    void revalidateTag(contentTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -85,8 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Ping search engines when content is published
     if (data.status === "published") {
-      const siteSlug = request.headers.get("x-site-id");
-      const site = siteSlug ? getSiteById(siteSlug) : null;
+      const site = getSiteById(siteSlug);
       if (site) {
         pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
       }
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const rawOrError = await parseJsonBody(request);
@@ -124,7 +124,7 @@ export async function PATCH(request: NextRequest) {
       id,
       updates as Parameters<typeof updateContent>[2],
     );
-    void revalidateTag("content");
+    void revalidateTag(contentTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
@@ -136,8 +136,7 @@ export async function PATCH(request: NextRequest) {
 
     // Ping search engines when content is published
     if (updates.status === "published") {
-      const siteSlug = request.headers.get("x-site-id");
-      const site = siteSlug ? getSiteById(siteSlug) : null;
+      const site = getSiteById(siteSlug);
       if (site) {
         pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
       }
@@ -151,7 +150,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   // Accept id from request body (preferred) or query params (backward compat)
@@ -171,7 +170,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await deleteContent(dbSiteId, id);
-    void revalidateTag("content");
+    void revalidateTag(contentTag(siteSlug));
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",

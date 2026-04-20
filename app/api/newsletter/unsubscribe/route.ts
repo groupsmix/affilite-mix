@@ -4,6 +4,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
+import { getCurrentSite } from "@/lib/site-context";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 
 /** 10 unsubscribe requests per 15 minutes per IP */
 const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
@@ -13,8 +15,10 @@ const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
  * Unsubscribes a user using their dedicated unsubscribe_token (not the row id).
  *
  * POST /api/newsletter/unsubscribe
- * Body: { email, site_id }
- * Unsubscribes by email + site_id lookup.
+ * Body: { email }
+ * Unsubscribes by email scoped to the current request's site (resolved from
+ * hostname via middleware). The site is NEVER taken from the request body —
+ * doing so would let any caller unsubscribe any email on any site.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -71,11 +75,14 @@ export async function POST(request: NextRequest) {
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
     const email = ((bodyOrError.email as string) ?? "").trim().toLowerCase();
-    const siteId = bodyOrError.site_id as string | undefined;
 
-    if (!email || !siteId) {
-      return NextResponse.json({ error: "email and site_id are required" }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ error: "email is required" }, { status: 400 });
     }
+
+    // Resolve site from the request host, never from the body.
+    const site = await getCurrentSite();
+    const siteId = await resolveDbSiteId(site.id);
 
     const sb = getServiceClient();
 

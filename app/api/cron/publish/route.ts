@@ -5,9 +5,10 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import type { ContentRow, ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
+import { contentTag, productsTag } from "@/lib/cache-tags";
 
 /**
- * POST /api/cron/publish â€” Publish scheduled content & products, archive expired items.
+ * POST /api/cron/publish — Publish scheduled content & products, archive expired items.
  *
  * ## Production Setup (Cloudflare Pages)
  *
@@ -27,7 +28,7 @@ import { captureException } from "@/lib/sentry";
  *   -H "Authorization: Bearer YOUR_CRON_SECRET"
  * ```
  *
- * Secured via CRON_SECRET env var â€” pass it in the Authorization header:
+ * Secured via CRON_SECRET env var — pass it in the Authorization header:
  *   Authorization: Bearer <CRON_SECRET>
  */
 export async function POST(request: NextRequest) {
@@ -39,14 +40,19 @@ export async function POST(request: NextRequest) {
   const now = new Date().toISOString();
   const results: Record<string, unknown> = {};
 
+  // Track which sites had content/product state changes so we can revalidate
+  // per-site instead of thrashing caches globally.
+  const contentSiteIds = new Set<string>();
+  const productSiteIds = new Set<string>();
+
   // 1. Publish scheduled content (only explicitly scheduled items with publish_at <= now)
   const { data: contentItems, error: contentError } = await sb
     .from("content")
-    .select("id, title, slug")
+    .select("id, site_id, title, slug")
     .eq("status", "scheduled")
     .not("publish_at", "is", null)
     .lte("publish_at", now)
-    .overrideTypes<Pick<ContentRow, "id" | "title" | "slug">[]>();
+    .overrideTypes<Pick<ContentRow, "id" | "site_id" | "title" | "slug">[]>();
 
   if (contentError) {
     captureException(contentError, {
@@ -64,29 +70,30 @@ export async function POST(request: NextRequest) {
       .update({ status: "published" })
       .in("id", ids)
       .eq("status", "scheduled")
-      .select("id")
-      .overrideTypes<{ id: string }[]>();
+      .select("id, site_id")
+      .overrideTypes<{ id: string; site_id: string }[]>();
 
     if (updateError) {
       captureException(updateError, { context: "[api/cron/publish] Failed to publish content:" });
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
+    for (const row of updated ?? []) contentSiteIds.add(row.site_id);
     results.published_content = updated?.length ?? 0;
   } else {
     results.published_content = 0;
   }
 
-  // 2. Archive expired content (published with deal_expires_at in the past â€” future field)
+  // 2. Archive expired content (published with deal_expires_at in the past — future field)
   // Currently content doesn't have deal_expires_at, so this is a no-op placeholder
 
   // 3. Archive expired products (active with deal_expires_at <= now)
   const { data: expiredProducts, error: expiredError } = await sb
     .from("products")
-    .select("id, name, slug")
+    .select("id, site_id, name, slug")
     .eq("status", "active")
     .not("deal_expires_at", "is", null)
     .lte("deal_expires_at", now)
-    .overrideTypes<Pick<ProductRow, "id" | "name" | "slug">[]>();
+    .overrideTypes<Pick<ProductRow, "id" | "site_id" | "name" | "slug">[]>();
 
   if (expiredError) {
     captureException(expiredError, {
@@ -103,31 +110,34 @@ export async function POST(request: NextRequest) {
       .update({ status: "archived" })
       .in("id", ids)
       .eq("status", "active")
-      .select("id")
-      .overrideTypes<{ id: string }[]>();
+      .select("id, site_id")
+      .overrideTypes<{ id: string; site_id: string }[]>();
 
     if (archiveError) {
       captureException(archiveError, { context: "[api/cron/publish] Failed to archive products:" });
       return NextResponse.json({ error: archiveError.message }, { status: 500 });
     }
+    for (const row of archived ?? []) productSiteIds.add(row.site_id);
     results.archived_products = archived?.length ?? 0;
   } else {
     results.archived_products = 0;
   }
 
-  void revalidateTag("content");
-  void revalidateTag("products");
-
-  // Ping search engines if any content was published
-  if ((results.published_content as number) > 0) {
-    // Fetch all active site domains to ping their sitemaps
-    const { data: sites } = await sb
+  // Resolve slugs for the affected site UUIDs, then invalidate per site.
+  const affectedSiteIds = [...new Set([...contentSiteIds, ...productSiteIds])];
+  if (affectedSiteIds.length > 0) {
+    const { data: affectedSites } = await sb
       .from("sites")
-      .select("domain")
-      .eq("is_active", true)
-      .overrideTypes<{ domain: string }[]>();
-    if (sites) {
-      for (const site of sites) {
+      .select("id, slug, domain, is_active")
+      .in("id", affectedSiteIds)
+      .overrideTypes<{ id: string; slug: string; domain: string; is_active: boolean }[]>();
+
+    for (const site of affectedSites ?? []) {
+      if (contentSiteIds.has(site.id)) void revalidateTag(contentTag(site.slug));
+      if (productSiteIds.has(site.id)) void revalidateTag(productsTag(site.slug));
+
+      // Only ping sitemap for active sites whose content changed.
+      if (site.is_active && contentSiteIds.has(site.id)) {
         pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
       }
     }

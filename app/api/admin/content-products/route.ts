@@ -6,9 +6,10 @@ import { validateSetLinkedProducts } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { contentTag } from "@/lib/cache-tags";
 
 export async function PUT(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const rawOrError = await parseJsonBody(request);
@@ -23,7 +24,23 @@ export async function PUT(request: NextRequest) {
 
   try {
     await setLinkedProducts(parsed.data.content_id, dbSiteId, parsed.data.links);
-    void revalidateTag("content");
+    void revalidateTag(contentTag(siteSlug));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update linked products";
+    // Surface site-isolation failures as 404 so the caller cannot distinguish
+    // "wrong site" from "does not exist".
+    if (
+      message === "Content not found for this site" ||
+      message === "One or more products do not belong to this site"
+    ) {
+      captureException(err, { context: "[api/admin/content-products] PUT cross-site attempt:" });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    captureException(err, { context: "[api/admin/content-products] PUT failed:" });
+    return NextResponse.json({ error: "Failed to update linked products" }, { status: 500 });
+  }
+
+  try {
     void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
