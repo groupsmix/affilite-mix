@@ -40,6 +40,7 @@ next-env.d.ts
 # cloudflare
 .open-next/
 .wrangler/
+.dev.vars
 
 # playwright
 /test-results/

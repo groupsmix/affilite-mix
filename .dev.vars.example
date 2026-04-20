@@ -1,0 +1,60 @@
+# ══════════════════════════════════════════════════════════════════════
+# Wrangler local development secrets (.dev.vars)
+# ══════════════════════════════════════════════════════════════════════
+#
+# Copy this file to `.dev.vars` and fill in your values.
+# `.dev.vars` is loaded by `wrangler dev` and injects these as
+# environment variables into the Worker runtime (process.env.*).
+#
+# For production, set these via `wrangler secret put <NAME>`.
+# See docs/CLOUDFLARE.md for the full secrets inventory.
+# ══════════════════════════════════════════════════════════════════════
+
+# ── Required ─ Supabase ──────────────────────────────────
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# ── Required ─ Auth ──────────────────────────────────────
+JWT_SECRET=change-me-to-a-random-64-byte-hex-string
+
+# ── Required ─ Cron jobs ─────────────────────────────────
+CRON_SECRET=change-me-to-a-random-string
+CRON_HOST=https://wristnerd.xyz
+
+# ── Required ─ Internal API ──────────────────────────────
+INTERNAL_API_TOKEN=change-me-to-a-random-64-byte-hex-string
+
+# ── Optional ─ Email (Resend) ────────────────────────────
+RESEND_API_KEY=
+NEWSLETTER_FROM_EMAIL=
+
+# ── Optional ─ Error Monitoring (Sentry) ─────────────────
+SENTRY_DSN=
+
+# ── Optional ─ CAPTCHA (Cloudflare Turnstile) ────────────
+TURNSTILE_SECRET_KEY=
+
+# ── Optional ─ Image storage (R2 via S3 API) ─────────────
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+R2_PUBLIC_URL=
+
+# ── Optional ─ AI Content Engine ─────────────────────────
+# Fallback chain: Cloudflare AI → Gemini → Groq → Cohere
+CLOUDFLARE_AI_API_TOKEN=
+GEMINI_API_KEY=
+GROQ_API_KEY=
+COHERE_API_KEY=
+
+# ── Optional ─ Affiliate Networks ────────────────────────
+CJ_API_KEY=
+CJ_PUBLISHER_ID=
+PARTNERSTACK_API_KEY=
+ADMITAD_API_KEY=
+ADMITAD_PUBLISHER_ID=
+
+# ── Optional ─ Multi-site ────────────────────────────────
+WILDCARD_PARENT_DOMAINS=wristnerd.xyz
