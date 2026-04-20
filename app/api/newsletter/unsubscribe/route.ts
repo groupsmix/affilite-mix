@@ -14,10 +14,11 @@ const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
  * Unsubscribes a user using their dedicated unsubscribe_token (not the row id).
  *
  * POST /api/newsletter/unsubscribe
- * Body: { email }
- * The site is resolved from the request hostname via the middleware-injected
- * x-site-id header — NEVER trusted from the client body. This prevents a
- * caller on site A from unsubscribing users on site B.
+ * Body: { email, unsubscribe_token }
+ * Requires the per-subscriber unsubscribe_token — email + site_id alone
+ * cannot unsubscribe a user.  The site is resolved from the request hostname
+ * via the middleware-injected x-site-id header — NEVER trusted from the
+ * client body.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -86,9 +87,14 @@ export async function POST(request: NextRequest) {
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
     const email = ((bodyOrError.email as string) ?? "").trim().toLowerCase();
+    const unsubscribeToken = ((bodyOrError.unsubscribe_token as string) ?? "").trim();
 
     if (!email) {
       return NextResponse.json({ error: "email is required" }, { status: 400 });
+    }
+
+    if (!unsubscribeToken) {
+      return NextResponse.json({ error: "unsubscribe_token is required" }, { status: 400 });
     }
 
     // Site is derived from the hostname by middleware — never from the client body.
@@ -108,15 +114,21 @@ export async function POST(request: NextRequest) {
 
     const sb = getServiceClient();
 
-    const { error } = await sb
+    const { data, error } = await sb
       .from("newsletter_subscribers")
       .update({ status: "unsubscribed" })
       .eq("site_id", siteId)
-      .eq("email", email);
+      .eq("email", email)
+      .eq("unsubscribe_token", unsubscribeToken)
+      .select("id");
 
     if (error) {
       captureException(error, { context: "[api/newsletter/unsubscribe] POST failed to update:" });
       return NextResponse.json({ error: "Failed to unsubscribe" }, { status: 500 });
+    }
+
+    if (!data || data.length === 0) {
+      return NextResponse.json({ error: "Invalid unsubscribe token" }, { status: 403 });
     }
 
     return NextResponse.json({ ok: true, message: "You have been unsubscribed." });
