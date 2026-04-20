@@ -112,6 +112,9 @@ export async function middleware(request: NextRequest) {
       "/api/track/click",
       "/api/vitals",
       "/api/track/impression",
+      // Unsubscribe: the per-subscriber unsubscribe_token is the auth factor
+      // (GET uses query param, POST requires it in the body), so CSRF
+      // double-submit is not needed — the token already proves intent.
       "/api/newsletter/unsubscribe",
     ]);
     if (!csrfExemptPaths.has(pathname)) {
@@ -130,9 +133,7 @@ export async function middleware(request: NextRequest) {
   // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
   // Reuse an existing x-trace-id (from an upstream proxy) or cf-ray; otherwise mint a new one.
   const traceId =
-    request.headers.get(TRACE_ID_HEADER) ??
-    request.headers.get("cf-ray") ??
-    generateTraceId();
+    request.headers.get(TRACE_ID_HEADER) ?? request.headers.get("cf-ray") ?? generateTraceId();
   requestHeaders.set(TRACE_ID_HEADER, traceId);
 
   const response = NextResponse.next({
