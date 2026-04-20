@@ -17,3 +17,15 @@ pointing at the upstream source and commit.
 - **Status:** generated verbatim — no behavioural adaptation. Component files
   retain their upstream structure; only Tailwind token names resolve to the
   host site's tenant theme (see `app/globals.css`).
+
+---
+
+## Qualiora/shadboard
+
+- **Upstream:** https://github.com/Qualiora/shadboard
+- **License:** MIT © Qualiora
+- **What we use:** admin shell layout patterns (collapsible icon-rail sidebar,
+  topbar with breadcrumbs and user menu, page header component) adapted into
+  `components/admin/*` on top of the existing shadcn/ui primitives.
+- **Status:** patterns only — no source files copied. Each adapted file carries
+  a one-line `// Layout patterns adapted from ...` comment pointing here.
