@@ -86,11 +86,11 @@ jobs:
 
       # ── GitHub Artifact Attestation (supply-chain provenance) ──────
       - name: Attest CycloneDX SBOM
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: sbom.cdx.json
 
       - name: Attest SPDX SBOM
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: sbom.spdx.json
