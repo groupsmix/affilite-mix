@@ -23,14 +23,14 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 
 ## Tech Stack
 
-| Layer            | Technology                                    |
-| ---------------- | --------------------------------------------- |
-| Framework        | Next.js 15 (App Router)                       |
-| Database         | Supabase (PostgreSQL + RLS)                   |
-| Styling          | Tailwind CSS v4                               |
-| Rich text editor | TipTap                                        |
-| Image storage    | Cloudflare R2 (S3-compatible)                 |
-| Bot protection   | Cloudflare Turnstile                          |
+| Layer            | Technology                                      |
+| ---------------- | ----------------------------------------------- |
+| Framework        | Next.js 15 (App Router)                         |
+| Database         | Supabase (PostgreSQL + RLS)                     |
+| Styling          | Tailwind CSS v4                                 |
+| Rich text editor | TipTap                                          |
+| Image storage    | Cloudflare R2 (S3-compatible)                   |
+| Bot protection   | Cloudflare Turnstile                            |
 | Deployment       | Cloudflare Workers via `@opennextjs/cloudflare` |
 
 ## Getting Started
@@ -149,13 +149,13 @@ npm run test:e2e      # End-to-end tests (Playwright)
 
 ## Scripts
 
-| Command             | Description                                |
-| ------------------- | ------------------------------------------ |
-| `npm run dev`       | Start development server                   |
-| `npm run build`     | Production build                           |
-| `npm run start`     | Start production server                    |
-| `npm run lint`      | Run ESLint                                 |
-| `npm run typecheck` | Run TypeScript type checking               |
+| Command             | Description                                 |
+| ------------------- | ------------------------------------------- |
+| `npm run dev`       | Start development server                    |
+| `npm run build`     | Production build                            |
+| `npm run start`     | Start production server                     |
+| `npm run lint`      | Run ESLint                                  |
+| `npm run typecheck` | Run TypeScript type checking                |
 | `npm run preview`   | Build and preview Cloudflare Worker locally |
 | `npm run deploy`    | Build and deploy to Cloudflare Workers      |
 
@@ -206,11 +206,20 @@ Required GitHub Secrets:
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
-Detailed deployment runbooks:
+For the full secrets inventory (build-time vs runtime, required vs optional), see [`docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md).
 
-- `docs/deployment.md`
-- `docs/dashboard-managed-domains.md`
-- `docs/ONE-CLICK-DEPLOY.md`
+### Deployment & Operations Docs
+
+| Document                                                               | Description                                                                                           |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [`docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md)                             | **Single source of truth** — account IDs, Worker bindings, secrets inventory, deploy runbook          |
+| [`docs/cloudflare-production.md`](docs/cloudflare-production.md)       | Zone security & performance toggles (SSL, HSTS, WAF, rate limiting, cache rules) with dashboard links |
+| [`docs/cloudflare-recovery.md`](docs/cloudflare-recovery.md)           | Account recovery playbook — lost access, compromised account, full rebuild from scratch               |
+| [`docs/cloudflare-r2-images.md`](docs/cloudflare-r2-images.md)         | Image upload architecture (S3-API presigned URLs vs Worker binding)                                   |
+| [`docs/secrets-rotation-runbook.md`](docs/secrets-rotation-runbook.md) | Per-secret rotation procedures, impact, and frequency                                                 |
+| [`docs/rollback-strategy.md`](docs/rollback-strategy.md)               | Rollback via Dashboard, API, or Git revert                                                            |
+| [`docs/incident-response.md`](docs/incident-response.md)               | Production incident detection, triage, and resolution                                                 |
+| [`docs/backup-strategy.md`](docs/backup-strategy.md)                   | Database and media backup strategy                                                                    |
 
 ## Contributing
 

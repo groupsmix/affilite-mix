@@ -2,6 +2,14 @@
 
 This document describes every Cloudflare resource, binding, secret, and zone setting used by Affilite-Mix. It is the canonical reference for the deployment.
 
+**See also:**
+
+- [cloudflare-production.md](./cloudflare-production.md) — step-by-step zone security & performance toggles (SSL, HSTS, WAF, rate limiting, cache rules) with dashboard links and verification scripts
+- [cloudflare-recovery.md](./cloudflare-recovery.md) — account recovery playbook (lost access, compromised account, full rebuild from scratch)
+- [cloudflare-r2-images.md](./cloudflare-r2-images.md) — image upload architecture (S3-API presigned URLs)
+- [secrets-rotation-runbook.md](./secrets-rotation-runbook.md) — per-secret rotation procedures and impact
+- [rollback-strategy.md](./rollback-strategy.md) — rollback via Dashboard, API, or Git revert
+
 ---
 
 ## Account & Zone
@@ -131,7 +139,7 @@ Server-side secrets (JWT, cron, AI keys, affiliate APIs, etc.) are **not** in th
 
 ## Zone Security Settings (wristnerd.xyz)
 
-Applied via Cloudflare API. Verify in Dashboard → SSL/TLS and Security tabs.
+Applied via Cloudflare Dashboard or API. For detailed step-by-step instructions, dashboard links, and verification scripts, see **[cloudflare-production.md](./cloudflare-production.md)**.
 
 | Setting                | Value              | Notes                                          |
 | ---------------------- | ------------------ | ---------------------------------------------- |
@@ -199,6 +207,36 @@ wrangler secret put CRON_SECRET --name affilite-mix
 ### Rollback
 
 Use the Rollback workflow: GitHub Actions → Rollback / Promote → `rollback-instant`.
+
+---
+
+## Post-Merge Manual Steps
+
+After merging code changes that touch `wrangler.jsonc` or zone-level settings, complete these steps to ensure the live worker matches the repo.
+
+### 1. Trigger a Re-deploy (observability + smart placement)
+
+`wrangler.jsonc` includes `observability.enabled = true` and `placement.mode = "smart"`, but these only take effect after a fresh deploy. If the last deploy pre-dates your merge:
+
+1. Go to **GitHub → Actions → "🚀 Deploy to Cloudflare"**
+2. Click **Run workflow** (on `main`)
+3. Wait for the run to go green
+
+Verify via API:
+
+```bash
+curl -s "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/workers/scripts/affilite-mix" \
+  -H "Authorization: Bearer ${API_TOKEN}" | jq '{observability: .result.observability, placement: .result.placement}'
+# Expected: { "observability": { "enabled": true }, "placement": { "mode": "smart" } }
+```
+
+### 2. Add a Second Super Administrator
+
+A single-owner account is one forgotten password away from total lockout. See [cloudflare-recovery.md](./cloudflare-recovery.md#1-add-a-second-super-administrator) for step-by-step instructions.
+
+### 3. Replace the Global API Key
+
+The Global API Key grants full account access. Replace it with a scoped API Token for CI. See [cloudflare-recovery.md](./cloudflare-recovery.md#5-replace-the-global-api-key-with-a-scoped-token) for the exact permissions needed.
 
 ---
 
