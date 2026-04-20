@@ -187,16 +187,65 @@ jobs:
       - name: Build production bundle
         run: npx @opennextjs/cloudflare build
         env:
+          # Only NEXT_PUBLIC_* vars are needed at build time (inlined by Next.js).
+          # Server-side secrets are set as Worker secrets after deploy.
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Deploy to production
         run: npx opennextjs-cloudflare deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # ── Re-apply Worker secrets after promotion ──────────────────────
+      # Secrets persist across deploys, but re-setting them ensures the
+      # promote path stays consistent with deploy.yml and catches any
+      # secrets that were added since the last full deploy.
+      - name: Set Worker secrets
+        run: |
+          set -euo pipefail
+
+          MISSING=""
+          [ -z "$_CRON_SECRET" ]      && MISSING="$MISSING CRON_SECRET"
+          [ -z "$_JWT_SECRET" ]       && MISSING="$MISSING JWT_SECRET"
+          [ -z "$_SB_SERVICE_KEY" ]   && MISSING="$MISSING SUPABASE_SERVICE_ROLE_KEY"
+          [ -z "$_SB_URL" ]           && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_URL"
+          [ -z "$_SB_ANON_KEY" ]      && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          [ -z "$_CRON_HOST" ]        && MISSING="$MISSING CRON_HOST"
+
+          if [ -n "$MISSING" ]; then
+            echo "❌ Required secrets are missing:$MISSING"
+            exit 1
+          fi
+
+          echo "🔐 Setting required Worker secrets..."
+          echo "$_CRON_SECRET"    | npx wrangler secret put CRON_SECRET --name affilite-mix
+          echo "$_JWT_SECRET"     | npx wrangler secret put JWT_SECRET --name affilite-mix
+          echo "$_SB_SERVICE_KEY" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix
+          echo "$_SB_URL"         | npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix
+          echo "$_SB_ANON_KEY"    | npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix
+          echo "$_CRON_HOST"      | npx wrangler secret put CRON_HOST --name affilite-mix
+
+          echo "🔐 Setting optional Worker secrets (skipped if not configured)..."
+          [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx wrangler secret put RESEND_API_KEY --name affilite-mix       || true
+          [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx wrangler secret put SENTRY_DSN --name affilite-mix           || true
+          [ -n "$_INTERNAL_TOKEN" ]   && echo "$_INTERNAL_TOKEN"   | npx wrangler secret put INTERNAL_API_TOKEN --name affilite-mix   || true
+          [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx wrangler secret put TURNSTILE_SECRET_KEY --name affilite-mix || true
+          echo "✅ Worker secrets configured"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          _CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          _JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          _SB_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          _SB_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          _SB_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          _CRON_HOST: ${{ secrets.CRON_HOST }}
+          _RESEND_KEY: ${{ secrets.RESEND_API_KEY }}
+          _SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+          _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
 
       - name: Post-promotion health gate
         if: github.event.inputs.skip_health_check != 'true'

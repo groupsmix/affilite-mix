@@ -151,13 +151,13 @@ jobs:
         run: npx @opennextjs/cloudflare build
 
       # ── Deploy to Cloudflare ──────────────────────────────────────────
+      # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are inherited from
+      # workflow-level env. API_KEY + EMAIL are fallback auth (Global Key).
       - name: Deploy to Cloudflare
         run: npx opennextjs-cloudflare deploy
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       # ── Set Worker secrets ────────────────────────────────────────────
       - name: Set Worker secrets
@@ -216,10 +216,9 @@ jobs:
 
           echo "✅ Worker secrets configured"
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID inherited from workflow env.
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           _CRON_SECRET: ${{ secrets.CRON_SECRET }}
           _JWT_SECRET: ${{ secrets.JWT_SECRET }}
           _SB_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
