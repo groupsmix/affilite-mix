@@ -290,28 +290,22 @@ ALTER TABLE ad_placements         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ad_impressions        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shared_content        ENABLE ROW LEVEL SECURITY;
 
--- Public read policies (anon key)
-CREATE POLICY "public_read_sites"
-  ON sites FOR SELECT USING (is_active = true);
+-- No public SELECT policies: migration 00035 dropped all anon-facing
+-- SELECT policies and REVOKEd SELECT from the anon role on every
+-- tenant-scoped table.  All reads now go through getServiceClient()
+-- in the server-side DAL.  The anon key grants no read access.
+--
+-- Kept intentionally:
+--   - public_insert_ad_impressions  (ad_impressions) — no server endpoint yet
+--   - web_vitals_anon_insert        (web_vitals)     — hardened by CHECK constraints
 
-CREATE POLICY "public_read_categories"
-  ON categories FOR SELECT
-  USING (EXISTS (SELECT 1 FROM sites WHERE sites.id = categories.site_id AND sites.is_active = true));
-
-CREATE POLICY "public_read_active_products"
-  ON products FOR SELECT USING (status = 'active');
-
-CREATE POLICY "public_read_published_content"
-  ON content FOR SELECT USING (status = 'published');
-
-CREATE POLICY "public_read_content_products"
-  ON content_products FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM content c
-      WHERE c.id = content_products.content_id AND c.status = 'published'
-    )
-  );
+REVOKE SELECT ON sites             FROM anon;
+REVOKE SELECT ON categories        FROM anon;
+REVOKE SELECT ON products          FROM anon;
+REVOKE SELECT ON content           FROM anon;
+REVOKE SELECT ON pages             FROM anon;
+REVOKE SELECT ON content_products  FROM anon;
+REVOKE SELECT ON ad_placements     FROM anon;
 
 -- affiliate_clicks and newsletter_subscribers have NO anon INSERT policy.
 -- All writes go through the service-role DAL (lib/dal/affiliate-clicks.ts,
@@ -345,9 +339,7 @@ CREATE POLICY "service_full_access_ad_impressions"
 CREATE POLICY "service_full_access_shared_content"
   ON shared_content FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
--- Public read: published pages are visible to the public
-CREATE POLICY "public_read_published_pages"
-  ON pages FOR SELECT USING (is_published = true);
+-- (public_read_published_pages dropped in migration 00035)
 
 -- Public insert: ad impressions can be recorded by the public
 CREATE POLICY "public_insert_ad_impressions"

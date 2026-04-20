@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSite } from "@/lib/site-context";
-import { getAnonClient } from "@/lib/supabase-server";
+import { getServiceClient } from "@/lib/supabase-server";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import type { ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   const style = searchParams.get("style") ?? "";
 
   const dbSiteId = await resolveDbSiteId(site.id);
-  const sb = getAnonClient();
+  const sb = getServiceClient();
 
   // Fetch active products within budget
   let query = sb

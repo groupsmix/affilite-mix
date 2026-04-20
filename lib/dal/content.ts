@@ -1,4 +1,4 @@
-import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
+import { getServiceClient } from "@/lib/supabase-server";
 import type { ContentRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
@@ -61,9 +61,7 @@ export async function getContentBySlug(
   slug: string,
   includePreview = false,
 ): Promise<ContentRow | null> {
-  // Use anon client for published-only queries (respects RLS),
-  // service client when previewing draft/unpublished content (admin).
-  const sb = includePreview ? getServiceClient() : getAnonClient();
+  const sb = getServiceClient();
   let query = sb.from(TABLE).select("*").eq("site_id", siteId).eq("slug", slug);
 
   if (!includePreview) {
@@ -151,7 +149,7 @@ export async function listPublishedContent(
   limit = 20,
   offset = 0,
 ): Promise<ContentRow[]> {
-  const sb = getAnonClient();
+  const sb = getServiceClient();
   // Return empty if Supabase is not configured (placeholder URL)
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -189,7 +187,7 @@ export async function countPublishedContent(siteId: string, contentType?: string
   ) {
     return 0;
   }
-  const sb = getAnonClient();
+  const sb = getServiceClient();
   let query = sb
     .from(TABLE)
     .select("id", { count: "exact", head: true })
@@ -213,7 +211,7 @@ export async function searchContent(
   query: string,
   limit = 20,
 ): Promise<ContentRow[]> {
-  const sb = getAnonClient();
+  const sb = getServiceClient();
   const tsq = toTsquery(query);
 
   if (tsq) {
@@ -250,7 +248,7 @@ export async function getRelatedContent(
   excludeId: string,
   limit = 4,
 ): Promise<ContentRow[]> {
-  const sb = getAnonClient();
+  const sb = getServiceClient();
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
