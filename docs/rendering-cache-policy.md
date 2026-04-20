@@ -81,6 +81,29 @@ This document maps every route to its rendering strategy, revalidation interval,
 
 ---
 
+## Cloudflare Cache Rules (Zone-Level)
+
+Two cache rules are configured at the Cloudflare zone level for `wristnerd.xyz`:
+
+| Rule                    | Expression                                                                             | Action                                    |
+| ----------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **Bypass API & admin**  | `starts_with(uri.path, "/api/") or starts_with(uri.path, "/admin/")`                   | Cache OFF                                 |
+| **Cache static assets** | `uri.path.extension in {js css png jpg jpeg gif svg ico woff woff2 ttf eot webp avif}` | Cache ON — 30 d browser TTL, 1 y edge TTL |
+
+These rules are managed via the Cloudflare API (not in the repo). To view or edit:
+
+- **API:** `GET /zones/{zone_id}/rulesets` → find `phase: http_request_cache_settings`
+- **Dashboard:** Cloudflare Dashboard > wristnerd.xyz > Caching > Cache Rules
+
+### Other zone-level performance settings
+
+| Setting       | Status | Notes                                     |
+| ------------- | ------ | ----------------------------------------- |
+| Tiered Cache  | ON     | Reduces origin fetches                    |
+| Early Hints   | ON     | Preloads critical resources               |
+| 0-RTT         | ON     | Faster TLS handshakes for repeat visitors |
+| Cache Reserve | N/A    | Not available on Free plan                |
+
 ## Recommendations
 
 1. **Add explicit `revalidate` to `/privacy`, `/terms`, `/content/[slug]`** — currently SSR on every request despite being mostly static. Suggested: `revalidate = 3600`.
