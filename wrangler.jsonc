@@ -72,5 +72,13 @@
 	// Set CRON_SECRET via: wrangler secret put CRON_SECRET
 	"triggers": {
 		"crons": ["*/5 * * * *"]
+	},
+	// Workers observability (logs, errors, metrics in CF dashboard)
+	"observability": {
+		"enabled": true
+	},
+	// Smart placement — run the worker close to the origin (Supabase)
+	"placement": {
+		"mode": "smart"
 	}
 }

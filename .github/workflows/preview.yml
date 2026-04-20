@@ -2,7 +2,7 @@ name: Preview Deployment
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
 
 env:
   # Preview deployments MUST use isolated staging Supabase credentials.
@@ -19,7 +19,7 @@ jobs:
     # the repo's staging Supabase / Cloudflare secrets, so preview deploy
     # would always fail. Dependency bumps don't need a live preview anyway —
     # the `check` job covers lint/typecheck/test against the new deps.
-    if: github.actor != 'dependabot[bot]'
+    if: github.event.action != 'closed' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -156,4 +156,25 @@ jobs:
               });
             }
 
-
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Delete preview worker
+        run: |
+          WORKER_NAME="affilite-mix-preview-pr-${{ github.event.pull_request.number }}"
+          echo "Deleting preview worker: $WORKER_NAME"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/scripts/$WORKER_NAME" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Deleted $WORKER_NAME"
+          elif [ "$HTTP_CODE" = "404" ]; then
+            echo "Worker $WORKER_NAME not found (already deleted)"
+          else
+            echo "::warning::Failed to delete $WORKER_NAME (HTTP $HTTP_CODE): $BODY"
+          fi
