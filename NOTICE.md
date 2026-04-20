@@ -17,3 +17,12 @@ pointing at the upstream source and commit.
 - **Status:** generated verbatim — no behavioural adaptation. Component files
   retain their upstream structure; only Tailwind token names resolve to the
   host site's tenant theme (see `app/globals.css`).
+
+---
+
+## openstatusHQ/data-table-filters
+
+- **Upstream:** https://github.com/openstatusHQ/data-table-filters
+- **License:** MIT
+- **What we use:** DataTable, faceted filters, toolbar, pagination, view options,
+  URL-sync patterns adapted into `components/data-table/*`.
