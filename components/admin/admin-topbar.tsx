@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SiteSwitcher } from "@/app/admin/(dashboard)/components/site-switcher";
+import { TenantBadgeSwitcher } from "./tenant-badge-switcher";
 
 interface Crumb {
   label: string;
@@ -93,30 +93,6 @@ function Breadcrumbs({ pathname }: { pathname: string }) {
   );
 }
 
-function TenantBadge({ siteName }: { siteName: string | null | undefined }) {
-  if (!siteName) {
-    return (
-      <span className="hidden items-center gap-2 rounded-md border border-yellow-300/80 bg-yellow-50 px-2.5 py-1 text-xs font-medium text-yellow-800 sm:inline-flex">
-        <span aria-hidden="true" className="inline-flex size-1.5 rounded-full bg-yellow-500" />
-        No site selected
-      </span>
-    );
-  }
-  return (
-    <span
-      className="hidden items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-foreground sm:inline-flex"
-      title={`Active site: ${siteName}`}
-    >
-      <span
-        aria-hidden="true"
-        className="inline-flex size-2 rounded-full"
-        style={{ backgroundColor: "var(--color-primary, currentColor)" }}
-      />
-      <span className="max-w-[14ch] truncate">{siteName}</span>
-    </span>
-  );
-}
-
 async function handleLogout() {
   try {
     const res = await fetchWithCsrf("/api/auth/logout", { method: "POST" });
@@ -154,9 +130,11 @@ function UserMenu() {
 export function AdminTopbar({
   onOpenMobileNav,
   siteName,
+  isSuperAdmin,
 }: {
   onOpenMobileNav: () => void;
   siteName: string | null | undefined;
+  isSuperAdmin: boolean;
 }) {
   const pathname = usePathname();
 
@@ -178,10 +156,7 @@ export function AdminTopbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <TenantBadge siteName={siteName} />
-        <div className="hidden w-56 md:block">
-          <SiteSwitcher />
-        </div>
+        <TenantBadgeSwitcher initialSiteName={siteName ?? null} isSuperAdmin={isSuperAdmin} />
         <UserMenu />
       </div>
     </header>

@@ -37,10 +37,14 @@ function writeStoredCollapsed(value: boolean): void {
 export function AdminShell({
   siteName,
   monetizationType,
+  isSuperAdmin,
+  hasActiveSite,
   children,
 }: {
   siteName: string | null | undefined;
   monetizationType: AdminMonetizationType;
+  isSuperAdmin: boolean;
+  hasActiveSite: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -87,7 +91,19 @@ export function AdminShell({
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <AdminTopbar onOpenMobileNav={() => setMobileOpen(true)} siteName={siteName} />
+        <AdminTopbar
+          onOpenMobileNav={() => setMobileOpen(true)}
+          siteName={siteName}
+          isSuperAdmin={isSuperAdmin}
+        />
+        {hasActiveSite && (
+          <div
+            aria-hidden="true"
+            data-testid="admin-tenant-accent-stripe"
+            className="h-0.5 w-full"
+            style={{ backgroundColor: "var(--color-primary, transparent)" }}
+          />
+        )}
         <main id="admin-main" className="flex-1 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
