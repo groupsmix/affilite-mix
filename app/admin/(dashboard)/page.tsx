@@ -51,7 +51,7 @@ export default async function AdminDashboard() {
     alerts.push({
       type: "warning",
       message: `${productsNoUrl} active product(s) missing affiliate URL`,
-      href: "/admin/products",
+      href: "/admin/products?missing_url=1",
     });
   }
   if (contentWithNoProducts > 0) {

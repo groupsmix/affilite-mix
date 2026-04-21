@@ -9,27 +9,84 @@ const TABLE = "products";
 const LIST_COLUMNS =
   "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, created_at, updated_at" as const;
 
+export type ProductSortColumn =
+  | "name"
+  | "price_amount"
+  | "score"
+  | "merchant"
+  | "status"
+  | "created_at"
+  | "updated_at";
+
 export interface ListProductsOptions {
   siteId: string;
+  /** Single category filter. Legacy — prefer `categoryIds` for multi-select. */
   categoryId?: string;
+  /** Multi-select category filter (applied via Supabase `.in(...)`). */
+  categoryIds?: string[];
+  /** Single status filter. Legacy — prefer `statuses` for multi-select. */
   status?: ProductRow["status"];
+  /** Multi-select status filter (applied via Supabase `.in(...)`). */
+  statuses?: ProductRow["status"][];
+  /**
+   * Multi-select affiliate-network (merchant) filter. Products store the
+   * network name in the `merchant` column; this filter is applied via
+   * Supabase `.in(...)` against that column.
+   */
+  networks?: string[];
   featured?: boolean;
+  /** Free-text search against `name` (ILIKE, case-insensitive). */
+  q?: string;
+  /**
+   * When true, return only products whose `affiliate_url` is null or empty.
+   * Drives the dashboard "missing affiliate URL" quick filter.
+   */
+  missingUrl?: boolean;
+  /** Sort column; defaults to `created_at` descending for backward-compat. */
+  sortBy?: ProductSortColumn;
+  sortDirection?: "asc" | "desc";
   limit?: number;
   offset?: number;
 }
 
+export type CountProductsOptions = Omit<
+  ListProductsOptions,
+  "limit" | "offset" | "sortBy" | "sortDirection"
+>;
+
 /** List products for a site with optional filters */
 export async function listProducts(opts: ListProductsOptions): Promise<ProductRow[]> {
   const sb = getServiceClient();
+  const sortColumn: ProductSortColumn = opts.sortBy ?? "created_at";
+  const ascending = opts.sortDirection === "asc";
+
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
     .eq("site_id", opts.siteId)
-    .order("created_at", { ascending: false });
+    .order(sortColumn, { ascending, nullsFirst: false });
 
-  if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
-  if (opts.status) query = query.eq("status", opts.status);
+  if (opts.categoryIds && opts.categoryIds.length > 0) {
+    query = query.in("category_id", opts.categoryIds);
+  } else if (opts.categoryId) {
+    query = query.eq("category_id", opts.categoryId);
+  }
+  if (opts.statuses && opts.statuses.length > 0) {
+    query = query.in("status", opts.statuses);
+  } else if (opts.status) {
+    query = query.eq("status", opts.status);
+  }
+  if (opts.networks && opts.networks.length > 0) {
+    query = query.in("merchant", opts.networks);
+  }
   if (opts.featured !== undefined) query = query.eq("featured", opts.featured);
+  if (opts.q && opts.q.trim().length > 0) {
+    query = query.ilike("name", `%${escapeLike(opts.q.trim())}%`);
+  }
+  if (opts.missingUrl) {
+    // Match rows where affiliate_url is NULL or empty string.
+    query = query.or("affiliate_url.is.null,affiliate_url.eq.");
+  }
   if (opts.offset) {
     query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
   } else if (opts.limit) {
@@ -42,9 +99,7 @@ export async function listProducts(opts: ListProductsOptions): Promise<ProductRo
 }
 
 /** Count products matching filters */
-export async function countProducts(
-  opts: Omit<ListProductsOptions, "limit" | "offset">,
-): Promise<number> {
+export async function countProducts(opts: CountProductsOptions): Promise<number> {
   // Return 0 if Supabase is not configured (placeholder URL)
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -58,13 +113,61 @@ export async function countProducts(
     .select("id", { count: "exact", head: true })
     .eq("site_id", opts.siteId);
 
-  if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
-  if (opts.status) query = query.eq("status", opts.status);
+  if (opts.categoryIds && opts.categoryIds.length > 0) {
+    query = query.in("category_id", opts.categoryIds);
+  } else if (opts.categoryId) {
+    query = query.eq("category_id", opts.categoryId);
+  }
+  if (opts.statuses && opts.statuses.length > 0) {
+    query = query.in("status", opts.statuses);
+  } else if (opts.status) {
+    query = query.eq("status", opts.status);
+  }
+  if (opts.networks && opts.networks.length > 0) {
+    query = query.in("merchant", opts.networks);
+  }
   if (opts.featured !== undefined) query = query.eq("featured", opts.featured);
+  if (opts.q && opts.q.trim().length > 0) {
+    query = query.ilike("name", `%${escapeLike(opts.q.trim())}%`);
+  }
+  if (opts.missingUrl) {
+    query = query.or("affiliate_url.is.null,affiliate_url.eq.");
+  }
 
   const { count, error } = await query;
   if (error) throw error;
   return count ?? 0;
+}
+
+/**
+ * List distinct non-empty merchant values for a site. Used to populate the
+ * "network" faceted filter in the products admin table.
+ */
+export async function listDistinctMerchants(siteId: string): Promise<string[]> {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
+  ) {
+    return [];
+  }
+  const sb = getServiceClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("merchant")
+    .eq("site_id", siteId)
+    .not("merchant", "is", null)
+    .neq("merchant", "")
+    .order("merchant", { ascending: true });
+  if (error) throw error;
+  const rows = assertRows<{ merchant?: string }>(data);
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (typeof row.merchant === "string") {
+      const m = row.merchant.trim();
+      if (m.length > 0) seen.add(m);
+    }
+  }
+  return Array.from(seen).sort((a, b) => a.localeCompare(b));
 }
 
 /** Get a single product by id */
