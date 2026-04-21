@@ -4,6 +4,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontalIcon } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,10 +53,22 @@ export interface UsersTableRow {
   updated_at: string;
 }
 
+export const USERS_TABLE_PAGE_SIZE = 20;
+
 const ROLE_LABELS: Record<AdminUserRole, string> = {
   super_admin: "Super admin",
   admin: "Admin",
 };
+
+const ROLE_FILTER_OPTIONS: { label: string; value: AdminUserRole }[] = [
+  { label: ROLE_LABELS.super_admin, value: "super_admin" },
+  { label: ROLE_LABELS.admin, value: "admin" },
+];
+
+const STATUS_FILTER_OPTIONS: { label: string; value: "active" | "inactive" }[] = [
+  { label: "Active", value: "active" },
+  { label: "Inactive", value: "inactive" },
+];
 
 /**
  * Role badge colour tokens. `editor` / `viewer` are kept as placeholders so
@@ -164,7 +178,7 @@ function StatusBadgeCell({ isActive }: { isActive: boolean }) {
   );
 }
 
-function LastLoginCell({ value }: { value: string | null }) {
+function RelativeWithTooltipCell({ value }: { value: string | null }) {
   if (!value) return <span className="text-muted-foreground">—</span>;
   return (
     <TooltipProvider>
@@ -200,12 +214,11 @@ function RowActionsPlaceholder() {
 
 export const usersTableColumns: ColumnDef<UsersTableRow>[] = [
   {
-    id: "user",
+    id: "email",
     accessorKey: "email",
-    header: "User",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
     cell: ({ row }) => <AvatarEmailCell row={row.original} />,
     enableHiding: false,
-    enableSorting: false,
   },
   {
     accessorKey: "name",
@@ -219,9 +232,10 @@ export const usersTableColumns: ColumnDef<UsersTableRow>[] = [
   },
   {
     accessorKey: "role",
-    header: "Role",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
     cell: ({ row }) => <RoleBadgeCell role={row.original.role} />,
-    enableSorting: false,
+    filterFn: (row, _id, value: string[]) =>
+      Array.isArray(value) && value.length > 0 ? value.includes(row.original.role) : true,
   },
   {
     id: "sites",
@@ -230,16 +244,26 @@ export const usersTableColumns: ColumnDef<UsersTableRow>[] = [
     enableSorting: false,
   },
   {
+    id: "status",
     accessorKey: "is_active",
     header: "Status",
     cell: ({ row }) => <StatusBadgeCell isActive={row.original.is_active} />,
+    filterFn: (row, _id, value: string[]) => {
+      if (!Array.isArray(value) || value.length === 0) return true;
+      const current = row.original.is_active ? "active" : "inactive";
+      return value.includes(current);
+    },
     enableSorting: false,
   },
   {
     accessorKey: "last_login_at",
-    header: "Last login",
-    cell: ({ row }) => <LastLoginCell value={row.original.last_login_at} />,
-    enableSorting: false,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Last login" />,
+    cell: ({ row }) => <RelativeWithTooltipCell value={row.original.last_login_at} />,
+  },
+  {
+    accessorKey: "created_at",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
+    cell: ({ row }) => <RelativeWithTooltipCell value={row.original.created_at} />,
   },
   {
     id: "actions",
@@ -252,15 +276,34 @@ export const usersTableColumns: ColumnDef<UsersTableRow>[] = [
 
 export interface UsersTableProps {
   data: UsersTableRow[];
+  totalCount: number;
+  /**
+   * When true and data is empty, the table is hidden and an empty-state Card
+   * with a prompt to add the first admin user is shown instead.
+   *
+   * When false and data is empty (e.g. a search returned no matches), the
+   * table renders with its built-in "No results." row so the toolbar and
+   * active filters remain visible.
+   */
+  hasAnyFilter?: boolean;
+  pageSize?: number;
 }
 
 /**
  * Client component rendering the admin users list via the shared
- * `<DataTable>`. Task 13a scope: read-only shell — no filters, search, sort,
- * URL sync, or row actions. Those land in 13b/13c.
+ * `<DataTable>`. Task 13b adds role/status faceted filters, debounced search
+ * over email + name, sortable email/role/last_login/created_at columns, and
+ * URL-synced state (via the shared `useDataTableUrlState` helper inside
+ * `<DataTable>`). Row/bulk actions are explicitly out of scope — they land in
+ * Task 13c.
  */
-export function UsersTable({ data }: UsersTableProps) {
-  if (data.length === 0) {
+export function UsersTable({
+  data,
+  totalCount,
+  hasAnyFilter = false,
+  pageSize = USERS_TABLE_PAGE_SIZE,
+}: UsersTableProps) {
+  if (data.length === 0 && !hasAnyFilter) {
     return <UsersEmptyState />;
   }
 
@@ -268,14 +311,39 @@ export function UsersTable({ data }: UsersTableProps) {
     <DataTable
       columns={usersTableColumns}
       data={data}
-      totalCount={data.length}
-      pageSize={20}
-      hideToolbar
+      totalCount={totalCount}
+      pageSize={pageSize}
+      manualPagination
+      manualSorting
+      manualFiltering
+      searchPlaceholder="Search email or name…"
+      toolbar={(table) => {
+        const roleColumn = table.getColumn("role");
+        const statusColumn = table.getColumn("status");
+        return (
+          <>
+            {roleColumn && (
+              <DataTableFacetedFilter
+                column={roleColumn}
+                title="Role"
+                options={ROLE_FILTER_OPTIONS}
+              />
+            )}
+            {statusColumn && (
+              <DataTableFacetedFilter
+                column={statusColumn}
+                title="Status"
+                options={STATUS_FILTER_OPTIONS}
+              />
+            )}
+          </>
+        );
+      }}
     />
   );
 }
 
-function UsersEmptyState() {
+export function UsersEmptyState() {
   return (
     <Card>
       <CardContent className="py-10 text-center">
