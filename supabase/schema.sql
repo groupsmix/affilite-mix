@@ -913,40 +913,24 @@ CREATE POLICY "admin_site_memberships_service_all"
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
 
--- ── public RLS hardening: products / content / pages require active site ──
--- (migration 00031 — replaces the simpler policies defined above)
--- Products
-DROP POLICY IF EXISTS "public_read_active_products" ON products;
-CREATE POLICY "public_read_active_products" ON products
-  FOR SELECT USING (
-    status = 'active'
-    AND EXISTS (SELECT 1 FROM sites WHERE sites.id = products.site_id AND sites.is_active = true)
-  );
-
--- Content
-DROP POLICY IF EXISTS "public_read_published_content" ON content;
-CREATE POLICY "public_read_published_content" ON content
-  FOR SELECT USING (
-    status = 'published'
-    AND EXISTS (SELECT 1 FROM sites WHERE sites.id = content.site_id AND sites.is_active = true)
-  );
-
--- Pages
-DROP POLICY IF EXISTS "public_read_published_pages" ON pages;
-CREATE POLICY "public_read_published_pages" ON pages
-  FOR SELECT USING (
-    is_published = true
-    AND EXISTS (SELECT 1 FROM sites WHERE sites.id = pages.site_id AND sites.is_active = true)
-  );
-
--- Content-products join
-DROP POLICY IF EXISTS "public_read_content_products" ON content_products;
-CREATE POLICY "public_read_content_products" ON content_products
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM content c WHERE c.id = content_products.content_id AND c.status = 'published')
-    AND EXISTS (SELECT 1 FROM products p WHERE p.id = content_products.product_id AND p.status = 'active')
-    AND EXISTS (
-      SELECT 1 FROM sites s JOIN content c ON c.site_id = s.id
-      WHERE c.id = content_products.content_id AND s.is_active = true
-    )
-  );
+-- ── public RLS: intentionally none ─────────────────────────────────
+-- Migration 00035 dropped every public/anon SELECT policy on
+-- tenant-scoped tables (products, content, pages, content_products,
+-- sites, categories, ad_placements) and REVOKEd SELECT on those
+-- tables from the anon role.  All public-facing reads now go through
+-- server-side DAL functions using getServiceClient() /
+-- getAnonClient() in lib/supabase-server.ts.
+--
+-- Historical note: earlier revisions of this schema snapshot defined
+--   public_read_active_products   (products)
+--   public_read_published_content (content)
+--   public_read_published_pages   (pages)
+--   public_read_content_products  (content_products)
+-- which gated anon SELECTs on status + sites.is_active.  Those
+-- policies were removed in migration 00035 and must NOT be
+-- re-introduced here — the anon key grants zero rows on tenant-scoped
+-- tables by design.
+--
+-- Anon write policies intentionally kept (defined above):
+--   - public_insert_ad_impressions (ad_impressions)
+--   - web_vitals_anon_insert       (web_vitals)
