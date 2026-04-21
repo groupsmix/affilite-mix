@@ -913,40 +913,17 @@ CREATE POLICY "admin_site_memberships_service_all"
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
 
--- ── public RLS hardening: products / content / pages require active site ──
--- (migration 00031 — replaces the simpler policies defined above)
--- Products
-DROP POLICY IF EXISTS "public_read_active_products" ON products;
-CREATE POLICY "public_read_active_products" ON products
-  FOR SELECT USING (
-    status = 'active'
-    AND EXISTS (SELECT 1 FROM sites WHERE sites.id = products.site_id AND sites.is_active = true)
-  );
-
--- Content
-DROP POLICY IF EXISTS "public_read_published_content" ON content;
-CREATE POLICY "public_read_published_content" ON content
-  FOR SELECT USING (
-    status = 'published'
-    AND EXISTS (SELECT 1 FROM sites WHERE sites.id = content.site_id AND sites.is_active = true)
-  );
-
--- Pages
-DROP POLICY IF EXISTS "public_read_published_pages" ON pages;
-CREATE POLICY "public_read_published_pages" ON pages
-  FOR SELECT USING (
-    is_published = true
-    AND EXISTS (SELECT 1 FROM sites WHERE sites.id = pages.site_id AND sites.is_active = true)
-  );
-
--- Content-products join
-DROP POLICY IF EXISTS "public_read_content_products" ON content_products;
-CREATE POLICY "public_read_content_products" ON content_products
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM content c WHERE c.id = content_products.content_id AND c.status = 'published')
-    AND EXISTS (SELECT 1 FROM products p WHERE p.id = content_products.product_id AND p.status = 'active')
-    AND EXISTS (
-      SELECT 1 FROM sites s JOIN content c ON c.site_id = s.id
-      WHERE c.id = content_products.content_id AND s.is_active = true
-    )
-  );
+-- ── public SELECT policies intentionally absent ───────────────────────────
+-- Migration 00035 dropped every anon-facing SELECT policy and REVOKEd
+-- SELECT from the anon role on each tenant-scoped table (see the REVOKE
+-- block above, and the service-role CREATE POLICY statements).  All
+-- public reads now flow through server-side DAL functions that use
+-- getServiceClient(); the anon key returns zero rows from sites,
+-- categories, products, content, pages, content_products, and
+-- ad_placements.
+--
+-- Older revisions of this schema file re-created `public_read_active_products`,
+-- `public_read_published_content`, `public_read_published_pages`, and
+-- `public_read_content_products` here (migration 00031).  Those policies
+-- were dropped again in migration 00035 and are deliberately not recreated
+-- in this snapshot so the schema matches the deployed hardened state.
