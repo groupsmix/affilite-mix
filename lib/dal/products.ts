@@ -320,6 +320,27 @@ export async function searchProducts(
   return assertRows<ProductRow>(data);
 }
 
+/**
+ * Look up products by name for a single site. Used to hydrate `getTopProducts`
+ * results (which return only `product_name`) with product ids + thumbnails
+ * for admin dashboard cards. Returns only the fields required by the UI and
+ * silently returns `[]` if no names are provided.
+ */
+export async function listProductsByNames(
+  siteId: string,
+  names: string[],
+): Promise<Pick<ProductRow, "id" | "name" | "image_url" | "image_alt">[]> {
+  if (names.length === 0) return [];
+  const sb = getServiceClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("id, name, image_url, image_alt")
+    .eq("site_id", siteId)
+    .in("name", names);
+  if (error) throw error;
+  return assertRows<Pick<ProductRow, "id" | "name" | "image_url" | "image_alt">>(data);
+}
+
 /** List featured products for a site */
 export async function listFeaturedProducts(siteId: string, limit = 6): Promise<ProductRow[]> {
   // Return empty if Supabase is not configured (placeholder URL)
