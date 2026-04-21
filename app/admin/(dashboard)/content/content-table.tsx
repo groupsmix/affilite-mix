@@ -12,6 +12,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { StatusBadge } from "@/components/admin/status-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,6 +58,8 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
   scheduled: "bg-indigo-100 text-indigo-700 hover:bg-indigo-100",
   archived: "bg-gray-100 text-gray-600 hover:bg-gray-100",
 };
+
+const STATUS_FALLBACK_CLASS = "";
 
 function formatPublishAt(value: string | null): string {
   if (!value) return "—";
@@ -185,12 +188,11 @@ const columns: ColumnDef<ContentTableRow>[] = [
     accessorKey: "status",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
     cell: ({ row }) => (
-      <Badge
-        variant="secondary"
-        className={`capitalize ${STATUS_BADGE_CLASSES[row.original.status] ?? ""}`}
-      >
-        {row.original.status}
-      </Badge>
+      <StatusBadge
+        status={row.original.status}
+        colorMap={STATUS_BADGE_CLASSES}
+        fallbackClassName={STATUS_FALLBACK_CLASS}
+      />
     ),
     filterFn: (row, _id, value: string[]) =>
       Array.isArray(value) && value.length > 0 ? value.includes(row.original.status) : true,

@@ -10,6 +10,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/admin/status-badge";
 import {
   Dialog,
   DialogClose,
@@ -47,6 +48,8 @@ interface AuditLogTableProps {
  * Color palette for action badges. Common action names are color-coded;
  * everything else falls back to a neutral slate tone. Colors are paired
  * with the plain-text action name so colorblind users are not excluded.
+ * Substring matching lets variants like `content.created` / `product.deleted`
+ * still light up in the palette.
  */
 const ACTION_BADGE_CLASSES: Record<string, string> = {
   create: "bg-green-100 text-green-700 hover:bg-green-100",
@@ -61,16 +64,7 @@ const ACTION_BADGE_CLASSES: Record<string, string> = {
   failed: "bg-orange-100 text-orange-700 hover:bg-orange-100",
 };
 
-function actionBadgeClass(action: string): string {
-  const key = action.toLowerCase();
-  // Try whole-name match first, then fall back to prefix matches so
-  // variants like `content.created` / `product.deleted` still light up.
-  if (ACTION_BADGE_CLASSES[key]) return ACTION_BADGE_CLASSES[key];
-  for (const [name, cls] of Object.entries(ACTION_BADGE_CLASSES)) {
-    if (key.includes(name)) return cls;
-  }
-  return "bg-slate-100 text-slate-700 hover:bg-slate-100";
-}
+const ACTION_FALLBACK_CLASS = "bg-slate-100 text-slate-700 hover:bg-slate-100";
 
 function formatRelative(iso: string): string {
   const then = new Date(iso).getTime();
@@ -121,9 +115,12 @@ function WhenCell({ iso }: { iso: string }) {
 
 function ActionBadge({ action }: { action: string }) {
   return (
-    <Badge variant="secondary" className={`capitalize ${actionBadgeClass(action)}`}>
-      {action}
-    </Badge>
+    <StatusBadge
+      status={action}
+      colorMap={ACTION_BADGE_CLASSES}
+      fallbackClassName={ACTION_FALLBACK_CLASS}
+      matchSubstring
+    />
   );
 }
 

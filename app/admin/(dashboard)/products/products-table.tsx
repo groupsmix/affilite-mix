@@ -20,6 +20,7 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { StatusBadge } from "@/components/admin/status-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -264,14 +265,7 @@ const columns: ColumnDef<ProductsTableRow>[] = [
   {
     accessorKey: "status",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-    cell: ({ row }) => (
-      <Badge
-        variant="secondary"
-        className={`capitalize ${STATUS_BADGE_CLASSES[row.original.status] ?? ""}`}
-      >
-        {row.original.status}
-      </Badge>
-    ),
+    cell: ({ row }) => <StatusBadge status={row.original.status} colorMap={STATUS_BADGE_CLASSES} />,
     filterFn: (row, _id, value: string[]) =>
       Array.isArray(value) && value.length > 0 ? value.includes(row.original.status) : true,
   },
