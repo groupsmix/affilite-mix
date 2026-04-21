@@ -13,6 +13,19 @@ const ACTIVITY_COOKIE = "nh_admin_activity";
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const EXPIRY = "24h";
 
+/**
+ * Dummy bcrypt hash used to equalize timing between known and unknown users.
+ *
+ * When an admin email is missing or not found in the database we still run
+ * `verifyPassword` against this fixed hash so an attacker cannot distinguish
+ * "user does not exist" from "user exists, wrong password" via response time.
+ *
+ * This is a bcrypt hash of a random string that is never used as a real
+ * password; it exists purely to produce a bcrypt-verification workload of
+ * the same order of magnitude as a normal login.
+ */
+const DUMMY_PASSWORD_HASH = "$2b$12$TeQV2VccuCYpmsfgIaWx1eQsGCyowOfMyZClxCXbjNAjhUaQMwcBm";
+
 function getSecretKey() {
   return new TextEncoder().encode(getJwtSecret());
 }
@@ -31,13 +44,15 @@ export async function authenticateUser(
   email: string | undefined,
   password: string,
 ): Promise<AdminPayload | null> {
-  if (!email) return null;
+  // Timing-equalization: run password verification against a dummy hash when
+  // the email is missing or the user is not found, so the total time spent
+  // hashing does not leak whether an account exists for the given email.
+  const user = email ? await getAdminUserByEmail(email) : null;
+  const hashToCheck = user?.password_hash ?? DUMMY_PASSWORD_HASH;
 
-  const user = await getAdminUserByEmail(email);
-  if (!user) return null;
+  const { valid, needsRehash } = await verifyPassword(password, hashToCheck);
 
-  const { valid, needsRehash } = await verifyPassword(password, user.password_hash);
-  if (!valid) return null;
+  if (!user || !valid) return null;
 
   // Transparent rehash: upgrade legacy PBKDF2 hashes to bcrypt on successful login
   if (needsRehash) {
