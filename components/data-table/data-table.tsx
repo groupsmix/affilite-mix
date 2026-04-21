@@ -50,6 +50,11 @@ interface DataTableProps<TData, TValue> {
   enableRowSelection?: boolean;
   /** Placeholder for the toolbar search input. */
   searchPlaceholder?: string;
+  /**
+   * When true, suppress the toolbar entirely (search input + view options).
+   * Useful for read-only shells that don't yet wire filters/search/sort.
+   */
+  hideToolbar?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -64,6 +69,7 @@ export function DataTable<TData, TValue>({
   manualFiltering = false,
   enableRowSelection = false,
   searchPlaceholder,
+  hideToolbar = false,
 }: DataTableProps<TData, TValue>) {
   const {
     search,
@@ -118,14 +124,16 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar
-        table={table}
-        search={search}
-        onSearchChange={onSearchChange}
-        searchPlaceholder={searchPlaceholder}
-      >
-        {toolbar?.(table)}
-      </DataTableToolbar>
+      {!hideToolbar && (
+        <DataTableToolbar
+          table={table}
+          search={search}
+          onSearchChange={onSearchChange}
+          searchPlaceholder={searchPlaceholder}
+        >
+          {toolbar?.(table)}
+        </DataTableToolbar>
+      )}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
