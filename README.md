@@ -183,26 +183,38 @@ npm run test:e2e      # End-to-end tests (Playwright)
 
 ```
 ├── app/
-│   ├── (public)/          # Public-facing pages (home, content, categories, search)
-│   │   └── components/    # Public UI components
-│   ├── admin/             # Admin panel (content, products, categories, analytics)
-│   │   └── components/    # Admin UI components
-│   └── api/               # API routes (auth, admin CRUD, cron, newsletter, tracking)
+│   ├── (public)/                 # Public-facing pages (home, content, categories, search)
+│   │   └── components/           # Public UI components (incl. legacy Pagination)
+│   ├── admin/                    # Admin panel (content, products, categories, analytics)
+│   │   └── (dashboard)/
+│   │       ├── <section>/        # Per-section DataTable + server page (e.g. content/, products/, audit-log/)
+│   │       ├── components/       # Remaining admin-scoped pieces (SiteSwitcher, NicheHealth, guards…)
+│   │       └── _dev-datatable/   # NODE_ENV-gated showcase for data-table patterns (not shipped to prod)
+│   └── api/                      # API routes (auth, admin CRUD, cron, newsletter, tracking)
+├── components/
+│   ├── ui/                       # shadcn/ui primitives (button, badge, dialog, table, …)
+│   ├── admin/                    # Admin shell + shared admin widgets (AdminShell, AdminSidebar, StatusBadge)
+│   └── data-table/               # Reusable DataTable + filters/pagination/column-header
 ├── config/
-│   ├── site-definition.ts # SiteDefinition type
-│   └── sites/             # Per-site configuration (domain, theme, nav, features)
+│   ├── site-definition.ts        # SiteDefinition type
+│   └── sites/                    # Per-site configuration (domain, theme, nav, features)
 ├── lib/
-│   ├── dal/               # Data Access Layer (Supabase queries)
-│   ├── auth.ts            # JWT-based admin authentication
-│   ├── csrf.ts            # CSRF double-submit cookie protection
-│   ├── rate-limit.ts      # KV-backed rate limiter with in-memory fallback
-│   ├── sanitize-html.ts   # HTML allowlist sanitizer
-│   ├── validation.ts      # Input validation helpers
-│   └── ...                # Other utilities
-├── supabase/              # SQL schema, RLS policies, seed data
-├── types/                 # TypeScript type definitions
-└── .github/workflows/     # CI and deploy pipelines
+│   ├── dal/                      # Data Access Layer (Supabase queries)
+│   ├── auth.ts                   # JWT-based admin authentication
+│   ├── csrf.ts                   # CSRF double-submit cookie protection
+│   ├── rate-limit.ts             # KV-backed rate limiter with in-memory fallback
+│   ├── sanitize-html.ts          # HTML allowlist sanitizer
+│   ├── validation.ts             # Input validation helpers
+│   └── ...                       # Other utilities
+├── supabase/                     # SQL schema, RLS policies, seed data
+├── types/                        # TypeScript type definitions
+└── .github/workflows/            # CI and deploy pipelines
 ```
+
+> Admin UI uses shadcn/ui primitives under `components/ui/`, lucide-react icons
+> imported one-by-one (no `import * as`), and a shared `components/data-table/`
+> layer. The route-group folder under `app/admin/(dashboard)/_dev-datatable/`
+> is a design-system sandbox and is `notFound()`-guarded in production.
 
 ## Adding a New Site
 
