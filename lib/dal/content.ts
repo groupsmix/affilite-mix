@@ -5,14 +5,38 @@ import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 
 const TABLE = "content";
 
+export type ContentSortColumn =
+  | "title"
+  | "publish_at"
+  | "status"
+  | "author"
+  | "created_at"
+  | "updated_at";
+
 export interface ListContentOptions {
   siteId: string;
+  /** Single content type filter. Legacy — prefer `types` for multi-select. */
   contentType?: string;
+  /** Multi-select content type filter (applied via Supabase `.in(...)`). */
+  types?: string[];
+  /** Single status filter. Legacy — prefer `statuses` for multi-select. */
   status?: ContentRow["status"];
+  /** Multi-select status filter (applied via Supabase `.in(...)`). */
+  statuses?: ContentRow["status"][];
   categoryId?: string;
+  /** Free-text search against `title` (ILIKE). */
+  q?: string;
+  /** Sort column; defaults to `created_at` descending for backward-compat. */
+  sortBy?: ContentSortColumn;
+  sortDirection?: "asc" | "desc";
   limit?: number;
   offset?: number;
 }
+
+export type CountContentOptions = Omit<
+  ListContentOptions,
+  "limit" | "offset" | "sortBy" | "sortDirection"
+>;
 
 // Columns needed for list views (excludes heavy body/body_previous)
 const LIST_COLUMNS =
@@ -21,15 +45,29 @@ const LIST_COLUMNS =
 /** List content for a site with optional filters */
 export async function listContent(opts: ListContentOptions): Promise<ContentRow[]> {
   const sb = getServiceClient();
+  const sortColumn: ContentSortColumn = opts.sortBy ?? "created_at";
+  const ascending = opts.sortDirection === "asc";
+
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
     .eq("site_id", opts.siteId)
-    .order("created_at", { ascending: false });
+    .order(sortColumn, { ascending, nullsFirst: false });
 
-  if (opts.contentType) query = query.eq("type", opts.contentType);
-  if (opts.status) query = query.eq("status", opts.status);
+  if (opts.types && opts.types.length > 0) {
+    query = query.in("type", opts.types);
+  } else if (opts.contentType) {
+    query = query.eq("type", opts.contentType);
+  }
+  if (opts.statuses && opts.statuses.length > 0) {
+    query = query.in("status", opts.statuses);
+  } else if (opts.status) {
+    query = query.eq("status", opts.status);
+  }
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
+  if (opts.q && opts.q.trim().length > 0) {
+    query = query.ilike("title", `%${escapeLike(opts.q.trim())}%`);
+  }
   if (opts.offset) {
     query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
   } else if (opts.limit) {
@@ -127,15 +165,24 @@ export async function deleteContent(siteId: string, id: string): Promise<void> {
 }
 
 /** Count content items matching filters */
-export async function countContent(
-  opts: Omit<ListContentOptions, "limit" | "offset">,
-): Promise<number> {
+export async function countContent(opts: CountContentOptions): Promise<number> {
   const sb = getServiceClient();
   let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", opts.siteId);
 
-  if (opts.contentType) query = query.eq("type", opts.contentType);
-  if (opts.status) query = query.eq("status", opts.status);
+  if (opts.types && opts.types.length > 0) {
+    query = query.in("type", opts.types);
+  } else if (opts.contentType) {
+    query = query.eq("type", opts.contentType);
+  }
+  if (opts.statuses && opts.statuses.length > 0) {
+    query = query.in("status", opts.statuses);
+  } else if (opts.status) {
+    query = query.eq("status", opts.status);
+  }
   if (opts.categoryId) query = query.eq("category_id", opts.categoryId);
+  if (opts.q && opts.q.trim().length > 0) {
+    query = query.ilike("title", `%${escapeLike(opts.q.trim())}%`);
+  }
 
   const { count, error } = await query;
   if (error) throw error;

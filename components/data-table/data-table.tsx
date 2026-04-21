@@ -37,6 +37,19 @@ interface DataTableProps<TData, TValue> {
   pageSize?: number;
   searchParamPrefix?: string;
   toolbar?: (table: import("@tanstack/react-table").Table<TData>) => React.ReactNode;
+  /**
+   * When true, pagination/sorting/filtering are driven by the server. The
+   * `data` prop is expected to already be the current page's rows, and URL
+   * state changes should trigger a re-fetch upstream (via searchParams).
+   * Defaults to false (fully client-side).
+   */
+  manualPagination?: boolean;
+  manualSorting?: boolean;
+  manualFiltering?: boolean;
+  /** Enable row selection (checkbox column). */
+  enableRowSelection?: boolean;
+  /** Placeholder for the toolbar search input. */
+  searchPlaceholder?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -46,6 +59,11 @@ export function DataTable<TData, TValue>({
   pageSize: defaultPageSize = 20,
   searchParamPrefix = "",
   toolbar,
+  manualPagination = false,
+  manualSorting = false,
+  manualFiltering = false,
+  enableRowSelection = false,
+  searchPlaceholder,
 }: DataTableProps<TData, TValue>) {
   const {
     search,
@@ -62,6 +80,7 @@ export function DataTable<TData, TValue>({
   });
 
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
 
   const table = useReactTable({
     data,
@@ -72,26 +91,29 @@ export function DataTable<TData, TValue>({
       columnFilters,
       columnVisibility,
       pagination,
+      rowSelection,
     },
     onSortingChange: onSortingChange as (
       updater: SortingState | ((old: SortingState) => SortingState),
     ) => void,
     onColumnFiltersChange: onColumnFiltersChange as (
-      updater:
-        | ColumnFiltersState
-        | ((old: ColumnFiltersState) => ColumnFiltersState),
+      updater: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState),
     ) => void,
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: onPaginationChange as (
       updater: PaginationState | ((old: PaginationState) => PaginationState),
     ) => void,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: manualFiltering ? undefined : getFilteredRowModel(),
+    getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
+    getSortedRowModel: manualSorting ? undefined : getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
-    manualPagination: false,
+    manualPagination,
+    manualSorting,
+    manualFiltering,
   });
 
   return (
@@ -100,6 +122,7 @@ export function DataTable<TData, TValue>({
         table={table}
         search={search}
         onSearchChange={onSearchChange}
+        searchPlaceholder={searchPlaceholder}
       >
         {toolbar?.(table)}
       </DataTableToolbar>
@@ -112,10 +135,7 @@ export function DataTable<TData, TValue>({
                   <TableHead key={header.id} colSpan={header.colSpan}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -124,26 +144,17 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No results.
                 </TableCell>
               </TableRow>
