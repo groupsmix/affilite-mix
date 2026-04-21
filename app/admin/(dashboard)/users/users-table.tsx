@@ -1,7 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontalIcon } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
@@ -10,16 +10,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { formatRelativeTime } from "../categories/categories-table";
+import { UserRowActions } from "./user-row-actions";
 
 /**
  * Role enum values actually used in the `admin_users` table.
@@ -192,91 +188,89 @@ function RelativeWithTooltipCell({ value }: { value: string | null }) {
   );
 }
 
-/**
- * Placeholder dropdown trigger — real row actions land in Task 13c.
- * Rendered as a disabled-looking trigger with no menu items so the column
- * width matches the post-13c layout.
- */
-function RowActionsPlaceholder() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <div className="px-2 py-1.5 text-xs text-muted-foreground">No actions yet</div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+interface RowActionsContext {
+  currentUserId: string | null;
+  lastActiveSuperAdminId: string | null;
 }
 
-export const usersTableColumns: ColumnDef<UsersTableRow>[] = [
-  {
-    id: "email",
-    accessorKey: "email",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
-    cell: ({ row }) => <AvatarEmailCell row={row.original} />,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => {
-      const name = row.original.name.trim();
-      if (!name) return <span className="text-muted-foreground">—</span>;
-      return <span className="text-foreground">{name}</span>;
+export function buildUsersTableColumns(context: RowActionsContext): ColumnDef<UsersTableRow>[] {
+  return [
+    {
+      id: "email",
+      accessorKey: "email",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
+      cell: ({ row }) => <AvatarEmailCell row={row.original} />,
+      enableHiding: false,
     },
-    enableSorting: false,
-  },
-  {
-    accessorKey: "role",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
-    cell: ({ row }) => <RoleBadgeCell role={row.original.role} />,
-    filterFn: (row, _id, value: string[]) =>
-      Array.isArray(value) && value.length > 0 ? value.includes(row.original.role) : true,
-  },
-  {
-    id: "sites",
-    header: "Sites access",
-    cell: ({ row }) => <SitesAccessCell row={row.original} />,
-    enableSorting: false,
-  },
-  {
-    id: "status",
-    accessorKey: "is_active",
-    header: "Status",
-    cell: ({ row }) => <StatusBadgeCell isActive={row.original.is_active} />,
-    filterFn: (row, _id, value: string[]) => {
-      if (!Array.isArray(value) || value.length === 0) return true;
-      const current = row.original.is_active ? "active" : "inactive";
-      return value.includes(current);
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => {
+        const name = row.original.name.trim();
+        if (!name) return <span className="text-muted-foreground">—</span>;
+        return <span className="text-foreground">{name}</span>;
+      },
+      enableSorting: false,
     },
-    enableSorting: false,
-  },
-  {
-    accessorKey: "last_login_at",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Last login" />,
-    cell: ({ row }) => <RelativeWithTooltipCell value={row.original.last_login_at} />,
-  },
-  {
-    accessorKey: "created_at",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
-    cell: ({ row }) => <RelativeWithTooltipCell value={row.original.created_at} />,
-  },
-  {
-    id: "actions",
-    header: () => <span className="sr-only">Actions</span>,
-    cell: () => <RowActionsPlaceholder />,
-    enableSorting: false,
-    enableHiding: false,
-  },
-];
+    {
+      accessorKey: "role",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
+      cell: ({ row }) => <RoleBadgeCell role={row.original.role} />,
+      filterFn: (row, _id, value: string[]) =>
+        Array.isArray(value) && value.length > 0 ? value.includes(row.original.role) : true,
+    },
+    {
+      id: "sites",
+      header: "Sites access",
+      cell: ({ row }) => <SitesAccessCell row={row.original} />,
+      enableSorting: false,
+    },
+    {
+      id: "status",
+      accessorKey: "is_active",
+      header: "Status",
+      cell: ({ row }) => <StatusBadgeCell isActive={row.original.is_active} />,
+      filterFn: (row, _id, value: string[]) => {
+        if (!Array.isArray(value) || value.length === 0) return true;
+        const current = row.original.is_active ? "active" : "inactive";
+        return value.includes(current);
+      },
+      enableSorting: false,
+    },
+    {
+      accessorKey: "last_login_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Last login" />,
+      cell: ({ row }) => <RelativeWithTooltipCell value={row.original.last_login_at} />,
+    },
+    {
+      accessorKey: "created_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
+      cell: ({ row }) => <RelativeWithTooltipCell value={row.original.created_at} />,
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      cell: ({ row }) => (
+        <UserRowActions
+          user={row.original}
+          currentUserId={context.currentUserId}
+          isLastActiveSuperAdmin={
+            context.lastActiveSuperAdminId !== null &&
+            context.lastActiveSuperAdminId === row.original.id
+          }
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+  ];
+}
 
 export interface UsersTableProps {
   data: UsersTableRow[];
   totalCount: number;
+  /** Id of the currently signed-in admin; used for self-action gating. */
+  currentUserId: string | null;
   /**
    * When true and data is empty, the table is hidden and an empty-state Card
    * with a prompt to add the first admin user is shown instead.
@@ -294,22 +288,31 @@ export interface UsersTableProps {
  * `<DataTable>`. Task 13b adds role/status faceted filters, debounced search
  * over email + name, sortable email/role/last_login/created_at columns, and
  * URL-synced state (via the shared `useDataTableUrlState` helper inside
- * `<DataTable>`). Row/bulk actions are explicitly out of scope — they land in
- * Task 13c.
+ * `<DataTable>`). Task 13c wires the per-row actions dropdown (edit,
+ * (de)activate, reset password, delete).
  */
 export function UsersTable({
   data,
   totalCount,
+  currentUserId,
   hasAnyFilter = false,
   pageSize = USERS_TABLE_PAGE_SIZE,
 }: UsersTableProps) {
+  const columns = useMemo(() => {
+    const activeSuperAdmins = data.filter((u) => u.role === "super_admin" && u.is_active);
+    const lastActiveSuperAdminId =
+      activeSuperAdmins.length === 1 ? (activeSuperAdmins[0]?.id ?? null) : null;
+
+    return buildUsersTableColumns({ currentUserId, lastActiveSuperAdminId });
+  }, [data, currentUserId]);
+
   if (data.length === 0 && !hasAnyFilter) {
     return <UsersEmptyState />;
   }
 
   return (
     <DataTable
-      columns={usersTableColumns}
+      columns={columns}
       data={data}
       totalCount={totalCount}
       pageSize={pageSize}

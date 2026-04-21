@@ -15,7 +15,7 @@ interface AdminUsersPageProps {
 }
 
 export default async function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
 
   const sp = await searchParams;
   const query = parseUsersSearchParams(sp, {
@@ -76,6 +76,7 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
         totalCount={totalCount}
         hasAnyFilter={hasAnyFilter}
         pageSize={query.pageSize}
+        currentUserId={session.userId ?? null}
       />
     </div>
   );
