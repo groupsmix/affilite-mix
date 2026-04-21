@@ -177,21 +177,35 @@ export function isWildcardSubdomain(hostname: string): boolean {
 
 /** Lookup site by domain or alias (config-only, synchronous) */
 export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
+  // Strip port if present (e.g. "arabic-tools.localhost:3000" → "arabic-tools.localhost")
+  const host = hostname.includes(":") ? hostname.split(":")[0] : hostname;
+
   // Direct match on domain or alias
-  const direct = allSites.find((s) => s.domain === hostname || s.aliases?.includes(hostname));
+  const direct = allSites.find((s) => s.domain === host || s.aliases?.includes(host));
   if (direct) return direct;
 
-  // Development fallback: resolve localhost / *.localhost to a site
-  if (process.env.NODE_ENV === "development") {
-    // Check for <site>.localhost subdomains (e.g. watch.localhost)
-    if (hostname.endsWith(".localhost")) {
-      const prefix = hostname.replace(/\.localhost$/, "");
+  // Development fallback: resolve localhost / *.localhost to a site.
+  // Gated on NODE_ENV !== "production" defensively so a misconfigured prod
+  // env can never accidentally expose this path.
+  if (process.env.NODE_ENV !== "production") {
+    // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
+    if (host.endsWith(".localhost")) {
+      const prefix = host.slice(0, -".localhost".length);
+
+      // Match by site.id (slug): arabic-tools.localhost → arabicToolsSite
+      const bySlug = allSites.find((s) => s.id === prefix);
+      if (bySlug) return bySlug;
+
+      // Back-compat: match by alias prefix (e.g. watch.localhost via "watch.localhost" alias)
       const byAlias = allSites.find((s) => s.aliases?.some((a) => a.startsWith(prefix + ".")));
       if (byAlias) return byAlias;
+
+      // No slug/alias match for *.localhost → let middleware return 404.
+      return undefined;
     }
 
-    // Fallback: use NEXT_PUBLIC_DEFAULT_SITE env var or the first registered site
-    if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+    // Bare localhost: fall back to NEXT_PUBLIC_DEFAULT_SITE or the first registered site.
+    if (host === "localhost") {
       const defaultSiteId = process.env.NEXT_PUBLIC_DEFAULT_SITE;
       if (defaultSiteId) {
         const byId = allSites.find((s) => s.id === defaultSiteId);

@@ -54,3 +54,15 @@ pointing at the upstream source and commit.
 - **License:** MIT
 - **What we use:** DataTable, faceted filters, toolbar, pagination, view options,
   URL-sync patterns adapted into `components/data-table/*`.
+
+---
+
+## vercel/platforms
+
+- **Upstream:** https://github.com/vercel/platforms
+- **License:** MIT
+- **What we use:** `.localhost` dev subdomain pattern idea only — recognizing
+  `<slug>.localhost[:port]` in local development to route to the matching site.
+  No source files, dependencies, or other patterns were copied.
+
+- vercel/platforms (MIT) — .localhost dev subdomain pattern idea only.
