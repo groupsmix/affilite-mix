@@ -26,6 +26,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -33,6 +43,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -398,7 +410,15 @@ export function SiteManager() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [editStubSite, setEditStubSite] = useState<SiteInfo | null>(null);
-  const [deleteStubSite, setDeleteStubSite] = useState<SiteInfo | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SiteInfo | null>(null);
+  const [confirmInput, setConfirmInput] = useState("");
+
+  // Reset the confirmation input whenever the delete dialog opens or closes
+  // so a previously-typed slug never leaks between sites.
+  const deleteOpen = deleteTarget != null;
+  useEffect(() => {
+    setConfirmInput("");
+  }, [deleteOpen]);
 
   const loadSites = useCallback(async () => {
     const res = await fetch("/api/admin/sites");
@@ -503,7 +523,7 @@ export function SiteManager() {
         onToggleActive={handleToggleActive}
         onSetActive={handleSetActive}
         onEdit={setEditStubSite}
-        onDelete={setDeleteStubSite}
+        onDelete={setDeleteTarget}
         onViewAnalytics={handleViewAnalytics}
       />
     ));
@@ -592,25 +612,66 @@ export function SiteManager() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={deleteStubSite != null}
-        onOpenChange={(open) => !open && setDeleteStubSite(null)}
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete {deleteStubSite?.name ?? "site"}?</DialogTitle>
-            <DialogDescription>
-              Destructive actions are intentionally stubbed in this PR — the confirmation flow ships
-              in Task 15b.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteStubSite(null)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.name ?? "site"}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  This action cannot be undone. It will permanently remove the site and detach any
+                  content, products, and analytics attributed to it.
+                </p>
+                {deleteTarget ? (
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-md border bg-muted/40 p-3 text-xs">
+                    <dt className="font-medium text-foreground">Name</dt>
+                    <dd className="truncate">{deleteTarget.name}</dd>
+                    <dt className="font-medium text-foreground">Slug</dt>
+                    <dd className="truncate font-mono">{deleteTarget.slug ?? "—"}</dd>
+                    <dt className="font-medium text-foreground">Domain</dt>
+                    <dd className="truncate font-mono">{deleteTarget.domain}</dd>
+                  </dl>
+                ) : null}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="site-delete-confirm" className="text-sm">
+              Type the site slug to confirm
+            </Label>
+            <Input
+              id="site-delete-confirm"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder={deleteTarget?.slug ?? ""}
+              value={confirmInput}
+              onChange={(event) => setConfirmInput(event.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                !deleteTarget ||
+                (confirmInput !== deleteTarget.slug && confirmInput !== deleteTarget.id)
+              }
+              // Network wiring lands in a follow-up task; this button is a
+              // disabled-gated no-op for now so the dialog stays testable.
+              onClick={(event) => {
+                event.preventDefault();
+              }}
+            >
+              Delete site
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 }
