@@ -6,11 +6,13 @@ import {
   BarChart3Icon,
   CheckIcon,
   ExternalLinkIcon,
+  Loader2,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { cn } from "@/lib/utils";
@@ -270,7 +272,7 @@ function SiteCardView({
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="left">
-                        Static-config sites cannot be deleted from the admin UI.
+                        Static-config sites are managed in config/sites/.
                       </TooltipContent>
                     </Tooltip>
                   ) : (
@@ -412,6 +414,7 @@ export function SiteManager() {
   const [editStubSite, setEditStubSite] = useState<SiteInfo | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SiteInfo | null>(null);
   const [confirmInput, setConfirmInput] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   // Reset the confirmation input whenever the delete dialog opens or closes
   // so a previously-typed slug never leaks between sites.
@@ -496,6 +499,37 @@ export function SiteManager() {
     },
     [router],
   );
+
+  const handleDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    const targetId = deleteTarget.db_id ?? deleteTarget.id;
+    setDeleting(true);
+    try {
+      const res = await fetchWithCsrf(`/api/admin/sites/${targetId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success(`Deleted “${deleteTarget.name}”`);
+        setDeleteTarget(null);
+        await Promise.all([loadSites(), loadStats()]);
+      } else {
+        let message = "Failed to delete site";
+        try {
+          const data = (await res.json()) as { error?: string };
+          if (typeof data.error === "string" && data.error.length > 0) {
+            message = data.error;
+          }
+        } catch {
+          // Non-JSON error body — keep default message.
+        }
+        toast.error(message);
+      }
+    } catch {
+      toast.error("Failed to delete site");
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteTarget, loadSites, loadStats]);
 
   const handleViewAnalytics = useCallback(
     (site: SiteInfo) => {
@@ -615,7 +649,7 @@ export function SiteManager() {
       <AlertDialog
         open={deleteOpen}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open && !deleting) setDeleteTarget(null);
         }}
       >
         <AlertDialogContent>
@@ -652,22 +686,30 @@ export function SiteManager() {
               placeholder={deleteTarget?.slug ?? ""}
               value={confirmInput}
               onChange={(event) => setConfirmInput(event.target.value)}
+              disabled={deleting}
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               disabled={
+                deleting ||
                 !deleteTarget ||
                 (confirmInput !== deleteTarget.slug && confirmInput !== deleteTarget.id)
               }
-              // Network wiring lands in a follow-up task; this button is a
-              // disabled-gated no-op for now so the dialog stays testable.
               onClick={(event) => {
                 event.preventDefault();
+                void handleDelete();
               }}
             >
-              Delete site
+              {deleting ? (
+                <>
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete site"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
