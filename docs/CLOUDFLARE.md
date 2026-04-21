@@ -26,12 +26,29 @@ This document describes every Cloudflare resource, binding, secret, and zone set
 
 ## Worker Bindings (wrangler.jsonc)
 
-| Binding                    | Type    | Resource                           | Purpose                   |
-| -------------------------- | ------- | ---------------------------------- | ------------------------- |
-| `ASSETS`                   | Assets  | `.open-next/assets`                | Static assets for Next.js |
-| `WORKER_SELF_REFERENCE`    | Service | `affilite-mix` (self)              | OpenNext caching layer    |
-| `RATE_LIMIT_KV`            | KV      | `7ac37dff0a794542b0c766f38e73f105` | Distributed rate limiting |
-| `NEXT_INC_CACHE_R2_BUCKET` | R2      | `next-inc-cache`                   | Incremental cache storage |
+| Binding                    | Type    | Resource                                                  | Purpose                   |
+| -------------------------- | ------- | --------------------------------------------------------- | ------------------------- |
+| `ASSETS`                   | Assets  | `.open-next/assets`                                       | Static assets for Next.js |
+| `WORKER_SELF_REFERENCE`    | Service | `affilite-mix` (self)                                     | OpenNext caching layer    |
+| `RATE_LIMIT_KV`            | KV      | `${RATE_LIMIT_KV_NAMESPACE_ID}` (env-provided, see below) | Distributed rate limiting |
+| `NEXT_INC_CACHE_R2_BUCKET` | R2      | `next-inc-cache`                                          | Incremental cache storage |
+
+### Wrangler deploy-time variables
+
+`wrangler.jsonc` intentionally does not hardcode environment-specific infrastructure IDs. The following variables must be present in the shell environment when running `wrangler deploy` / `opennextjs-cloudflare deploy`; Wrangler interpolates `${VAR}` from the shell into matching string fields at deploy time.
+
+| Variable                     | Used in `wrangler.jsonc` field | How to obtain                                                                |
+| ---------------------------- | ------------------------------ | ---------------------------------------------------------------------------- |
+| `RATE_LIMIT_KV_NAMESPACE_ID` | `kv_namespaces[0].id`          | `npx wrangler kv:namespace create RATE_LIMIT_KV` — copy `id` from the output |
+
+Example:
+
+```bash
+export RATE_LIMIT_KV_NAMESPACE_ID="<namespace-id-from-wrangler-output>"
+npx opennextjs-cloudflare deploy
+```
+
+In CI, set this variable as a deployment secret on the workflow job.
 
 ---
 
