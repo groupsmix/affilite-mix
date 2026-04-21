@@ -4,6 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { ProductRow, CategoryRow } from "@/types/database";
 import { ImageUploader } from "../components/image-uploader";
+import {
+  ConfirmDialog,
+  FormCard,
+  StickySaveBar,
+  useDirtyTracking,
+  useSaveShortcut,
+} from "@/components/admin/forms";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { autoSlug } from "@/lib/auto-slug";
 import { toast } from "sonner";

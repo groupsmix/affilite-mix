@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/admin/forms";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { toast } from "sonner";
 
@@ -25,10 +26,7 @@ export function ProductDeleteButton({ id, name }: { id: string; name: string }) 
 
   return (
     <>
-      <button
-        onClick={() => setShowConfirm(true)}
-        className="text-sm text-red-600 hover:underline"
-      >
+      <button onClick={() => setShowConfirm(true)} className="text-sm text-red-600 hover:underline">
         Delete
       </button>
       {showConfirm && (
@@ -36,7 +34,8 @@ export function ProductDeleteButton({ id, name }: { id: string; name: string }) 
           <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
             <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete Product</h3>
             <p className="mb-4 text-sm text-gray-600">
-              Are you sure you want to delete <strong>&ldquo;{name}&rdquo;</strong>? This action cannot be undone.
+              Are you sure you want to delete <strong>&ldquo;{name}&rdquo;</strong>? This action
+              cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
