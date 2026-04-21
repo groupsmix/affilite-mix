@@ -58,9 +58,16 @@ export async function middleware(request: NextRequest) {
   let site = getSiteByDomain(hostname);
   let siteId = site?.id;
 
+  // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
+  // Skip the DB lookup for *.localhost in non-production — dev only, no DB calls.
+  const hostWithoutPort = hostname.includes(":") ? hostname.split(":")[0] : hostname;
+  const isLocalhostDev =
+    process.env.NODE_ENV !== "production" &&
+    (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost"));
+
   // 2. For unknown domains (dashboard-managed custom domains), do async DB lookup
   //    This enables adding domains via Cloudflare Dashboard without code changes
-  if (!siteId) {
+  if (!siteId && !isLocalhostDev) {
     try {
       const dbRes = await fetch(
         new URL(`/api/internal/resolve-site?domain=${encodeURIComponent(hostname)}`, request.url),

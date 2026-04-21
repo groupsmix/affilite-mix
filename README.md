@@ -100,6 +100,26 @@ The app will be available at [http://localhost:3000](http://localhost:3000).
 
 > **Note:** In development, the middleware resolves `localhost` to the first registered site. To test multi-site routing, add entries to `/etc/hosts` or use the site aliases defined in `config/sites/`.
 
+### Local multi-site testing
+
+To test multiple sites simultaneously in local development, use `<slug>.localhost` subdomains — modern browsers resolve any `*.localhost` hostname to `127.0.0.1` per [RFC 6761](https://www.rfc-editor.org/rfc/rfc6761), so no `/etc/hosts` edits are required on macOS, Linux, Windows, or WSL.
+
+1. Start the dev server:
+
+   ```bash
+   npm run dev
+   ```
+
+2. Visit any registered site by its `id` (slug) from `config/sites/`:
+   - [http://arabic-tools.localhost:3000](http://arabic-tools.localhost:3000) — Arabic Tools
+   - [http://crypto-tools.localhost:3000](http://crypto-tools.localhost:3000) — CryptoRanked
+   - [http://watch-tools.localhost:3000](http://watch-tools.localhost:3000) — WristNerd
+   - [http://ai-compared.localhost:3000](http://ai-compared.localhost:3000) — AI Compared
+
+Unknown slugs (e.g. `http://unknown.localhost:3000`) return the standard "Niche not found" 404.
+
+This pattern is **development-only** — middleware gates it on `NODE_ENV !== "production"` and never makes DB calls for `.localhost` hostnames.
+
 ### 5. Access the admin panel
 
 Navigate to [http://localhost:3000/admin/login](http://localhost:3000/admin/login) and log in with a database-managed admin account.

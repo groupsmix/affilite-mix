@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { getSiteByDomain, allSites } from "@/config/sites";
+import { getSiteByDomain, allSites, arabicToolsSite, cryptoToolsSite } from "@/config/sites";
 
 describe("getSiteByDomain", () => {
   afterEach(() => {
@@ -50,5 +50,39 @@ describe("getSiteByDomain", () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("NEXT_PUBLIC_DEFAULT_SITE", "nonexistent-site");
     expect(getSiteByDomain("localhost")).toBe(allSites[0]);
+  });
+
+  // ── .localhost dev subdomains (site.id / slug match) ─────────
+  // Pattern inspired by vercel/platforms (MIT).
+
+  it("resolves <slug>.localhost to the matching site in development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    expect(getSiteByDomain("arabic-tools.localhost")).toBe(arabicToolsSite);
+    expect(getSiteByDomain("crypto-tools.localhost")).toBe(cryptoToolsSite);
+  });
+
+  it("resolves <slug>.localhost:<port> to the matching site in development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    expect(getSiteByDomain("arabic-tools.localhost:3000")).toBe(arabicToolsSite);
+    expect(getSiteByDomain("crypto-tools.localhost:3000")).toBe(cryptoToolsSite);
+  });
+
+  it("returns undefined for an unknown <slug>.localhost in development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    expect(getSiteByDomain("unknown.localhost")).toBeUndefined();
+    expect(getSiteByDomain("unknown.localhost:3000")).toBeUndefined();
+  });
+
+  it("does not resolve <slug>.localhost in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(getSiteByDomain("arabic-tools.localhost")).toBeUndefined();
+    expect(getSiteByDomain("arabic-tools.localhost:3000")).toBeUndefined();
+  });
+
+  it("still matches real production domains exactly", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    for (const site of allSites) {
+      expect(getSiteByDomain(site.domain)).toBe(site);
+    }
   });
 });
