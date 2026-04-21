@@ -1,13 +1,33 @@
-import { requireAdminSession } from "./components/admin-guard";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { listContent } from "@/lib/dal/content";
-import { getTopProducts, getDailyClicks } from "@/lib/dal/affiliate-clicks";
-import { getDashboardStats } from "@/lib/dal/dashboard-stats";
-import Link from "next/link";
+// Card composition patterns adapted from https://github.com/Qualiora/shadboard (MIT).
 import { redirect } from "next/navigation";
-import { ClickChart } from "./analytics/click-chart";
+
+import { getDailyClicks } from "@/lib/dal/affiliate-clicks";
+import { getDashboardStats } from "@/lib/dal/dashboard-stats";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+
+import { PageHeader } from "@/components/admin/page-header";
+
+import { requireAdminSession } from "./components/admin-guard";
 import { AutoRefresh } from "./components/auto-refresh";
-import { NicheHealthPanel } from "./components/niche-health";
+import { AlertsCard, type DashboardAlert } from "./components/dashboard/alerts-card";
+import { KpiCard } from "./components/dashboard/kpi-card";
+import { NicheHealthCard } from "./components/dashboard/niche-health-card";
+import { RevenuePerSiteCard } from "./components/dashboard/revenue-per-site-card";
+import { ScheduledContentCard } from "./components/dashboard/scheduled-content-card";
+import { TopProductsCard } from "./components/dashboard/top-products-card";
+import { TrendCard } from "./components/dashboard/trend-card";
+
+/**
+ * Percent change between two counts, capped at ±999 % so we never render
+ * `Infinity%` when the comparison window had zero clicks.
+ */
+function pctDelta(current: number, previous: number): number {
+  if (previous <= 0) return current > 0 ? 100 : 0;
+  const pct = ((current - previous) / previous) * 100;
+  if (pct > 999) return 999;
+  if (pct < -999) return -999;
+  return pct;
+}
 
 export default async function AdminDashboard() {
   const session = await requireAdminSession();
@@ -23,18 +43,16 @@ export default async function AdminDashboard() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Single RPC call for all aggregate counts + parallel row-fetching queries
-  const [stats, topProducts, scheduledContentItems, dailyClicks] = await Promise.all([
+  // Single RPC call for all aggregate counts + the daily series for the chart.
+  // Top-products / scheduled-content are fetched inside their own Cards so
+  // they can Suspense-boundary independently if we add streaming later.
+  const [stats, dailyClicks] = await Promise.all([
     getDashboardStats(dbSiteId, todayStart, sevenDaysAgo),
-    getTopProducts(dbSiteId, sevenDaysAgo, 5),
-    listContent({ siteId: dbSiteId, status: "scheduled" }),
     getDailyClicks(dbSiteId, 7),
   ]);
 
   const {
-    total_products: totalProducts,
     active_products: activeProducts,
-    draft_products: draftProducts,
     total_content: totalContent,
     published_content: publishedContent,
     draft_content: draftContent,
@@ -43,10 +61,18 @@ export default async function AdminDashboard() {
     products_no_url: productsNoUrl,
     content_no_products: contentWithNoProducts,
     scheduled_content: scheduledContent,
+    draft_products: draftProducts,
   } = stats;
 
-  // Alerts / warnings
-  const alerts: { type: "warning" | "info"; message: string; href?: string }[] = [];
+  // Average daily clicks across the last 7 days — used as the comparison
+  // baseline for the "Clicks (today)" KPI delta badge. Keeps the signal
+  // simple: "is today tracking above or below a typical day?"
+  const avgDailyClicks = clicks7d / 7;
+  const todayDelta = pctDelta(clicksToday, avgDailyClicks);
+
+  // Alerts / warnings — copy preserved verbatim from the previous dashboard
+  // so existing QA checklists still match.
+  const alerts: DashboardAlert[] = [];
   if (productsNoUrl > 0) {
     alerts.push({
       type: "warning",
@@ -83,209 +109,94 @@ export default async function AdminDashboard() {
     });
   }
 
-  const quickActions = [
-    { title: "New Product", href: "/admin/products/new", icon: "+" },
-    { title: "New Article", href: "/admin/content/new", icon: "+" },
-    { title: "View Analytics", href: "/admin/analytics", icon: "\u2192" },
-    { title: "View Site", href: "/", icon: "\u2197" },
-  ];
-
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto w-full max-w-7xl">
       <AutoRefresh intervalMs={60_000} />
-      <h1 className="mb-2 text-2xl font-bold text-gray-900">Dashboard</h1>
-      <p className="mb-6 text-sm text-gray-500">
-        Managing:{" "}
-        <span className="font-medium">{session.activeSiteName ?? session.activeSiteSlug}</span>
-      </p>
 
-      {/* Alerts */}
-      {alerts.length > 0 && (
-        <div className="mb-6 space-y-2">
-          {alerts.map((alert, i) => (
-            <div
-              key={i}
-              className={`flex items-center justify-between rounded-lg border px-4 py-3 text-sm ${
-                alert.type === "warning"
-                  ? "border-yellow-200 bg-yellow-50 text-yellow-800"
-                  : "border-blue-200 bg-blue-50 text-blue-800"
-              }`}
-            >
-              <span>
-                {alert.type === "warning" ? "⚠ " : "ℹ "}
-                {alert.message}
-              </span>
-              {alert.href && (
-                <Link href={alert.href} className="font-medium underline hover:no-underline">
-                  View
-                </Link>
-              )}
-            </div>
-          ))}
+      <PageHeader
+        title="Dashboard"
+        description={
+          <>
+            Managing:{" "}
+            <span className="font-medium text-foreground">
+              {session.activeSiteName ?? session.activeSiteSlug}
+            </span>
+          </>
+        }
+      />
+
+      {/* Section 1 — KPI grid. 1 col on sm, 2 on md, 4 on xl. */}
+      <div aria-live="polite" className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          title="Clicks (today)"
+          value={clicksToday.toLocaleString()}
+          description={`Baseline: ${avgDailyClicks.toFixed(1)}/day average over last 7 days.`}
+          delta={
+            avgDailyClicks > 0 || clicksToday > 0
+              ? { valuePct: todayDelta, label: "Change vs. 7d average" }
+              : null
+          }
+        />
+        <KpiCard
+          title="Clicks (7d)"
+          value={clicks7d.toLocaleString()}
+          description="Total affiliate-link clicks across the last 7 days."
+        />
+        <KpiCard
+          title="Active products"
+          value={activeProducts.toLocaleString()}
+          description={
+            draftProducts > 0
+              ? `${draftProducts} draft product${draftProducts === 1 ? "" : "s"} not yet active.`
+              : "All products are active."
+          }
+          subLink={
+            productsNoUrl > 0
+              ? {
+                  href: "/admin/products?missing_url=1",
+                  label: `${productsNoUrl} missing URL`,
+                  tone: "warning",
+                }
+              : null
+          }
+        />
+        <KpiCard
+          title="Published content"
+          value={publishedContent.toLocaleString()}
+          description={`${totalContent.toLocaleString()} total article${totalContent === 1 ? "" : "s"}.`}
+          subLink={
+            scheduledContent > 0
+              ? {
+                  href: "/admin/content?status=scheduled",
+                  label: `${scheduledContent} scheduled`,
+                }
+              : null
+          }
+        />
+      </div>
+
+      {/* Section 2–4 — Trend, top products, scheduled content. Trend
+          spans 2 columns on xl so the chart gets room to breathe. */}
+      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="xl:col-span-2">
+          <TrendCard data={dailyClicks} totalClicks7d={clicks7d} />
+        </div>
+        <TopProductsCard siteId={dbSiteId} sevenDaysAgo={sevenDaysAgo} />
+        <ScheduledContentCard siteId={dbSiteId} />
+      </div>
+
+      {/* Section 5 (super_admin only) — cross-site niche health + revenue.
+          Both rely on `listSites()` so we gate both behind super_admin. */}
+      {isSuperAdmin && (
+        <div className="mb-6 grid gap-4 xl:grid-cols-2">
+          <NicheHealthCard />
+          <RevenuePerSiteCard sevenDaysAgo={sevenDaysAgo} />
         </div>
       )}
 
-      {/* Stats cards */}
-      <div aria-live="polite" className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Products</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{totalProducts}</p>
-          <p className="mt-1 text-xs text-gray-500">
-            {activeProducts} active, {draftProducts} draft
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Content</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{totalContent}</p>
-          <p className="mt-1 text-xs text-gray-500">
-            {publishedContent} published, {draftContent} draft
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Clicks Today</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{clicksToday.toLocaleString()}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Clicks (7 days)</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{clicks7d.toLocaleString()}</p>
-        </div>
-      </div>
-
-      {/* Quick actions */}
-      <div className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
-          Quick Actions
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {quickActions.map((action) => (
-            <Link
-              key={action.href}
-              href={action.href}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-            >
-              <span>{action.icon}</span>
-              {action.title}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Upcoming Scheduled Content */}
-      {scheduledContent > 0 && (
-        <section className="mb-8 rounded-lg border border-indigo-200 bg-indigo-50 p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-indigo-700">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              Upcoming Scheduled
-            </h2>
-            <Link
-              href="/admin/content?status=scheduled"
-              className="text-xs font-medium text-indigo-600 hover:underline"
-            >
-              View all
-            </Link>
-          </div>
-          <ul className="space-y-2">
-            {scheduledContentItems
-              .filter((c) => c.publish_at && new Date(c.publish_at) > now)
-              .sort((a, b) => new Date(a.publish_at!).getTime() - new Date(b.publish_at!).getTime())
-              .slice(0, 5)
-              .map((c) => (
-                <li key={c.id} className="flex items-center justify-between text-sm">
-                  <Link
-                    href={`/admin/content/${c.id}`}
-                    className="font-medium text-indigo-900 hover:underline"
-                  >
-                    {c.title}
-                  </Link>
-                  <span className="text-xs text-indigo-600">
-                    {new Date(c.publish_at!).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </li>
-              ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Daily click trend chart (#19) */}
-      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
-          Click Trend (7d)
-        </h2>
-        <ClickChart data={dailyClicks} />
-      </section>
-
-      {/* Niche Health for super_admin */}
-      {isSuperAdmin && <NicheHealthPanel />}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Top products */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
-            Top Products (7d)
-          </h2>
-          {topProducts.length === 0 ? (
-            <p className="text-sm text-gray-500">No click data yet</p>
-          ) : (
-            <ul className="space-y-2">
-              {topProducts.map((p, i) => (
-                <li key={i} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700">{p.product_name}</span>
-                  <span className="font-medium text-gray-900">{p.click_count} clicks</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Management sections */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Manage</h2>
-          {[
-            {
-              title: "Categories",
-              href: "/admin/categories",
-              description: "Organize your products and content",
-            },
-            {
-              title: "Products",
-              href: "/admin/products",
-              description: `${totalProducts} products total`,
-            },
-            {
-              title: "Content",
-              href: "/admin/content",
-              description: `${totalContent} articles total`,
-            },
-            {
-              title: "Analytics",
-              href: "/admin/analytics",
-              description: "Click tracking & performance",
-            },
-          ].map((card) => (
-            <Link
-              key={card.href}
-              href={card.href}
-              className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <h3 className="font-semibold text-gray-900">{card.title}</h3>
-              <p className="text-sm text-gray-500">{card.description}</p>
-            </Link>
-          ))}
-        </div>
-      </div>
+      {/* Section 6 — Alerts. Kept near the bottom so KPIs load above the
+          fold; the existing list + copy is preserved inside `AlertsCard`. */}
+      <AlertsCard alerts={alerts} />
     </div>
   );
 }

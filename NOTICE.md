@@ -24,11 +24,16 @@ pointing at the upstream source and commit.
 
 - **Upstream:** https://github.com/Qualiora/shadboard
 - **License:** MIT © Qualiora
-- **What we use:** admin shell layout patterns (collapsible icon-rail sidebar,
-  topbar with breadcrumbs and user menu, page header component) adapted into
-  `components/admin/*` on top of the existing shadcn/ui primitives.
+- **What we use:**
+  - admin shell layout patterns (collapsible icon-rail sidebar, topbar with
+    breadcrumbs and user menu, page header component) adapted into
+    `components/admin/*` on top of the existing shadcn/ui primitives.
+  - dashboard card composition patterns (KPI cards, trend card, top-list
+    cards, alerts card) adapted into
+    `app/admin/(dashboard)/components/dashboard/*`.
 - **Status:** patterns only — no source files copied. Each adapted file carries
-  a one-line `// Layout patterns adapted from ...` comment pointing here.
+  a one-line `// Layout patterns adapted from ...` or
+  `// Card composition patterns adapted from ...` comment pointing here.
 
 ---
 
