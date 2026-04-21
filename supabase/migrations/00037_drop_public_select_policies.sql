@@ -1,5 +1,14 @@
 -- ═══════════════════════════════════════════════════════
--- Migration 00035: Drop all public/anon SELECT policies
+-- Migration 00037: Drop all public/anon SELECT policies
+-- ═══════════════════════════════════════════════════════
+--
+-- History: This file was originally authored as migration 00035 alongside
+-- 00035_admin_site_memberships.sql.  The duplicate prefix was a hygiene
+-- bug; the file was renumbered to 00037 (following tip migration 00036)
+-- with no change to the policy body.  Because `DROP POLICY IF EXISTS`
+-- and `REVOKE` are idempotent, re-application (or first application) is
+-- safe regardless of whether the original 00035_ file was recorded in
+-- the `_migrations_applied` ledger.
 -- ═══════════════════════════════════════════════════════
 --
 -- Strategy: Option B — move public reads fully behind server-side API.

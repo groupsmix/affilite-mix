@@ -53,17 +53,35 @@ SELECT wt.id, 'For Her', 'for-her', 'recipient' FROM wt
 ON CONFLICT (site_id, slug) DO NOTHING;
 
 -- ── Products for watch-tools ─────────────────────────────────
+-- Note: both the legacy varchar `price` column and the numeric
+-- `price_amount` / `price_currency` columns (added in migration
+-- 00010_add_price_columns.sql) are populated so test fixtures work on
+-- code paths that read either representation.
 WITH wt AS (SELECT id FROM sites WHERE slug = 'watch-tools'),
      cat AS (SELECT id FROM categories WHERE slug = 'dress-watches')
-INSERT INTO products (site_id, category_id, name, slug, description, price, merchant, score, featured, status)
-SELECT wt.id, cat.id, 'Seiko Presage', 'seiko-presage', 'Classic dress watch with automatic movement', '$350', 'Amazon', 8.5, true, 'active'
+INSERT INTO products (
+  site_id, category_id, name, slug, description,
+  price, price_amount, price_currency,
+  merchant, score, featured, status
+)
+SELECT wt.id, cat.id, 'Seiko Presage', 'seiko-presage',
+       'Classic dress watch with automatic movement',
+       '$350', 350, 'USD',
+       'Amazon', 8.5, true, 'active'
 FROM wt, cat
 ON CONFLICT (site_id, slug) DO NOTHING;
 
 WITH wt AS (SELECT id FROM sites WHERE slug = 'watch-tools'),
      cat AS (SELECT id FROM categories WHERE slug = 'sports-watches')
-INSERT INTO products (site_id, category_id, name, slug, description, price, merchant, score, featured, status)
-SELECT wt.id, cat.id, 'Casio G-Shock', 'casio-g-shock', 'Rugged sports watch with atomic sync', '$120', 'Amazon', 9.0, true, 'active'
+INSERT INTO products (
+  site_id, category_id, name, slug, description,
+  price, price_amount, price_currency,
+  merchant, score, featured, status
+)
+SELECT wt.id, cat.id, 'Casio G-Shock', 'casio-g-shock',
+       'Rugged sports watch with atomic sync',
+       '$120', 120, 'USD',
+       'Amazon', 9.0, true, 'active'
 FROM wt, cat
 ON CONFLICT (site_id, slug) DO NOTHING;
 

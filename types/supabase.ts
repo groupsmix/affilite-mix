@@ -1,13 +1,30 @@
 /**
- * Supabase Database type definitions.
+ * Supabase Database type definitions — GENERATED ARTIFACT.
  *
  * These types mirror the live schema so that `createClient<Database>()`
  * gives us compile-time safety on every `.insert()` / `.update()` call,
  * eliminating the need for `as never` casts.
  *
- * To regenerate after a schema change:
- *   npx supabase gen types typescript --project-id <id> > types/supabase.ts
- * Then re-apply any manual additions (e.g. audit_log).
+ * Consumed by:
+ *   - `lib/supabase.ts`        — browser anon client (`createClient<Database>`)
+ *   - `lib/supabase-server.ts` — server service-role client
+ *   - `lib/dal/sites.ts`       — typed DAL helpers
+ *
+ * Do NOT hand-edit. Regenerate after any schema change via the drift
+ * script (recommended):
+ *
+ *   bash scripts/check-schema-drift.sh
+ *
+ * Or manually against the linked project:
+ *
+ *   supabase gen types typescript --linked > types/supabase.ts
+ *
+ * After regenerating, re-apply any manual additions (e.g. the
+ * `audit_log` table typing that the generator omits) and commit the
+ * result alongside the matching `supabase/schema.sql` snapshot.
+ *
+ * See `types/database.ts` for the hand-curated app-level row types
+ * (`ProductRow`, `ContentRow`, etc.) — that file is NOT regenerated.
  */
 
 export interface Database {
