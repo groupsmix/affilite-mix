@@ -109,3 +109,21 @@ export async function hasAdminUsers(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Returns true iff there is at least one OTHER active super_admin besides
+ * the one identified by `excludingId`. Used to prevent deleting, deactivating,
+ * or demoting the final active super_admin.
+ */
+export async function hasAnotherActiveSuperAdmin(excludingId: string): Promise<boolean> {
+  const sb = getServiceClient();
+  const { count, error } = await sb
+    .from(TABLE)
+    .select("id", { count: "exact", head: true })
+    .eq("role", "super_admin")
+    .eq("is_active", true)
+    .neq("id", excludingId);
+
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
