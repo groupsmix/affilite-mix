@@ -78,10 +78,16 @@ export async function GET() {
   // Config fallback for sites not in DB
   const configSites = allSites.map((s) => ({
     id: s.id,
+    slug: s.id,
     name: s.name,
     domain: s.domain,
     language: s.language,
     direction: s.direction,
+    monetization_type: s.monetizationType,
+    theme: {
+      primaryColor: s.theme.primaryColor,
+      accentColor: s.theme.accentColor,
+    } as Record<string, unknown>,
     source: "config" as const,
   }));
 
