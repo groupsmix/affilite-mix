@@ -12,6 +12,10 @@ describe("generateWithFallback returns model metadata", () => {
       "GEMINI_API_KEY",
       "GROQ_API_KEY",
       "COHERE_API_KEY",
+      "AI_ENABLE_CLOUDFLARE",
+      "AI_ENABLE_GEMINI",
+      "AI_ENABLE_GROQ",
+      "AI_ENABLE_COHERE",
     ]) {
       originals[k] = process.env[k];
       delete process.env[k];
@@ -28,6 +32,7 @@ describe("generateWithFallback returns model metadata", () => {
 
   it("includes a non-empty model string when Gemini succeeds", async () => {
     process.env.GEMINI_API_KEY = "test-key";
+    process.env.AI_ENABLE_GEMINI = "true";
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -49,6 +54,7 @@ describe("generateWithFallback returns model metadata", () => {
 
   it("records the Groq model when Gemini is unavailable but Groq succeeds", async () => {
     process.env.GROQ_API_KEY = "test-key";
+    process.env.AI_ENABLE_GROQ = "true";
 
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ choices: [{ message: { content: "hi from groq" } }] }), {
