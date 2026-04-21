@@ -8,6 +8,8 @@
 
 export interface AIProvider {
   name: string;
+  /** Model identifier used by this provider (recorded alongside generations) */
+  model: string;
   generate(prompt: string, systemPrompt?: string): Promise<string>;
   isAvailable(): boolean;
 }
@@ -36,6 +38,7 @@ function getProviderConfig(): ProviderConfig {
 
 class CloudflareAIProvider implements AIProvider {
   name = "Cloudflare AI";
+  model = "@cf/meta/llama-3.1-8b-instruct";
 
   isAvailable(): boolean {
     const cfg = getProviderConfig();
@@ -44,7 +47,7 @@ class CloudflareAIProvider implements AIProvider {
 
   async generate(prompt: string, systemPrompt?: string): Promise<string> {
     const cfg = getProviderConfig();
-    const url = `https://api.cloudflare.com/client/v4/accounts/${cfg.cloudflareAccountId}/ai/run/@cf/meta/llama-3.1-8b-instruct`;
+    const url = `https://api.cloudflare.com/client/v4/accounts/${cfg.cloudflareAccountId}/ai/run/${this.model}`;
 
     const messages: { role: string; content: string }[] = [];
     if (systemPrompt) {
@@ -79,6 +82,7 @@ class CloudflareAIProvider implements AIProvider {
 
 class GeminiProvider implements AIProvider {
   name = "Google Gemini";
+  model = "gemini-1.5-flash";
 
   isAvailable(): boolean {
     return Boolean(getProviderConfig().geminiApiKey);
@@ -86,7 +90,7 @@ class GeminiProvider implements AIProvider {
 
   async generate(prompt: string, systemPrompt?: string): Promise<string> {
     const cfg = getProviderConfig();
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cfg.geminiApiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${cfg.geminiApiKey}`;
 
     const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
@@ -119,6 +123,7 @@ class GeminiProvider implements AIProvider {
 
 class GroqProvider implements AIProvider {
   name = "Groq";
+  model = "llama-3.1-8b-instant";
 
   isAvailable(): boolean {
     return Boolean(getProviderConfig().groqApiKey);
@@ -141,7 +146,7 @@ class GroqProvider implements AIProvider {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: this.model,
         messages,
         max_tokens: 4096,
       }),
@@ -167,6 +172,7 @@ class GroqProvider implements AIProvider {
 
 class CohereProvider implements AIProvider {
   name = "Cohere";
+  model = "command-r";
 
   isAvailable(): boolean {
     return Boolean(getProviderConfig().cohereApiKey);
@@ -189,7 +195,7 @@ class CohereProvider implements AIProvider {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "command-r",
+        model: this.model,
         messages,
         max_tokens: 4096,
       }),
@@ -228,7 +234,7 @@ const ALL_PROVIDERS: AIProvider[] = [
 export async function generateWithFallback(
   prompt: string,
   systemPrompt?: string,
-): Promise<{ text: string; provider: string }> {
+): Promise<{ text: string; provider: string; model: string }> {
   const errors: string[] = [];
 
   for (const provider of ALL_PROVIDERS) {
@@ -239,7 +245,7 @@ export async function generateWithFallback(
 
     try {
       const text = await provider.generate(prompt, systemPrompt);
-      return { text, provider: provider.name };
+      return { text, provider: provider.name, model: provider.model };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${provider.name}: ${msg}`);

@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
       topic,
       keywords,
       ai_provider: result.provider,
+      ai_model: result.model,
       status: "pending",
       generated_at: new Date().toISOString(),
       meta_title: result.metaTitle,

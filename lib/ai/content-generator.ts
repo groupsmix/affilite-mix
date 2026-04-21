@@ -27,6 +27,8 @@ export interface GeneratedContent {
   metaDescription: string;
   contentType: AIContentType;
   provider: string;
+  /** Model identifier used by the provider (e.g. "gemini-1.5-flash") */
+  model: string;
 }
 
 const SYSTEM_PROMPTS: Record<AIContentType, string> = {
@@ -80,7 +82,7 @@ Make the content at least 1000 words, well-structured, and genuinely useful.`;
 function parseResponse(
   raw: string,
   contentType: AIContentType,
-): Omit<GeneratedContent, "provider"> {
+): Omit<GeneratedContent, "provider" | "model"> {
   const lines = raw.split("\n");
   let title = "";
   let excerpt = "";
@@ -138,10 +140,10 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
   const systemPrompt = SYSTEM_PROMPTS[input.contentType];
   const prompt = buildPrompt(input);
 
-  const { text, provider } = await generateWithFallback(prompt, systemPrompt);
+  const { text, provider, model } = await generateWithFallback(prompt, systemPrompt);
   const parsed = parseResponse(text, input.contentType);
 
-  return { ...parsed, provider };
+  return { ...parsed, provider, model };
 }
 
 /**

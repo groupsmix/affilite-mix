@@ -12,6 +12,8 @@ export interface AIDraftRow {
   topic: string;
   keywords: string[];
   ai_provider: string;
+  /** Model identifier used for generation (e.g. "gemini-1.5-flash") */
+  ai_model: string;
   status: "pending" | "approved" | "rejected" | "published";
   generated_at: string;
   reviewed_at: string | null;
