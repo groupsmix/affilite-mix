@@ -848,6 +848,7 @@ CREATE TABLE IF NOT EXISTS ai_drafts (
   topic            text NOT NULL DEFAULT '',
   keywords         text[] NOT NULL DEFAULT '{}',
   ai_provider      text NOT NULL DEFAULT '',
+  ai_model         text NOT NULL DEFAULT '',   -- migration 00037
   status           text NOT NULL DEFAULT 'pending'
                      CHECK (status IN ('pending', 'approved', 'rejected', 'published')),
   generated_at     timestamptz NOT NULL DEFAULT now(),
@@ -892,7 +893,7 @@ CREATE POLICY "affiliate_networks_service_all" ON affiliate_networks
 
 
 
--- ── admin_site_memberships (migration 00035) ────────────────────────
+-- ── admin_site_memberships (migration 00036) ────────────────────────
 CREATE TABLE IF NOT EXISTS admin_site_memberships (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_user_id uuid NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
