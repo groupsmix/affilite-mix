@@ -69,6 +69,34 @@ export async function grantAdminSiteMembership(
 }
 
 /**
+ * List all admin site memberships across all admin users, joined with the
+ * corresponding site slug. Used by the admin users table to render the
+ * "Sites access" column without issuing one query per user.
+ */
+export async function listAllAdminSiteMembershipsWithSlugs(): Promise<
+  Array<{ admin_user_id: string; site_id: string; site_slug: string }>
+> {
+  const sb = getServiceClient();
+  const { data, error } = await sb.from(TABLE).select("admin_user_id, site_id, sites!inner(slug)");
+
+  if (error) throw error;
+  const rows = (data ?? []) as Array<{
+    admin_user_id: string;
+    site_id: string;
+    sites: { slug: string } | { slug: string }[] | null;
+  }>;
+
+  return rows.map((r) => {
+    const site = Array.isArray(r.sites) ? r.sites[0] : r.sites;
+    return {
+      admin_user_id: r.admin_user_id,
+      site_id: r.site_id,
+      site_slug: site?.slug ?? "",
+    };
+  });
+}
+
+/**
  * Revoke an admin user's membership for a site.
  */
 export async function revokeAdminSiteMembership(
