@@ -1,31 +1,49 @@
 # Public RLS Policy Inventory
 
-> Generated as part of the tenant-binding audit (task 5.1).
-> Last updated: 2026-04-20
+> Originally generated as part of the tenant-binding audit (task 5.1).
+> Last updated: 2026-04-21 (post-00037 + 00038)
 
 ## Summary
 
-Every table with Row-Level Security enabled is listed below. Tables are grouped
-by whether they expose **public-read** policies (accessible via the Supabase
-anon key) or are **service-role only** (no anon access).
+Every table with Row-Level Security enabled is listed below. Since
+migration **00037** (drops all public SELECT policies + REVOKEs SELECT
+from `anon` on every tenant-scoped table) and **00038** (drops any
+residual anon INSERT policies on telemetry tables + REVOKEs INSERT from
+`anon`), **the `anon` role has no direct read or write access to any
+public-schema table**. All public-facing data is served via server-side
+DAL functions that use the service-role client from
+`lib/supabase-server.ts` (`getServiceClient()`).
 
 ### Tables with public-read SELECT policies
 
-| #   | Table              | Policy Name                     | Condition                                                                                       | Tenant-bound?                                             |
-| --- | ------------------ | ------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| 1   | `sites`            | `public_read_sites`             | `is_active = true`                                                                              | N/A (root table)                                          |
-| 2   | `categories`       | `public_read_categories`        | `EXISTS (sites WHERE id = site_id AND is_active)`                                               | Yes — via active site check                               |
-| 3   | `products`         | `public_read_active_products`   | `status = 'active' AND EXISTS (sites WHERE id = site_id AND is_active)`                         | Yes — via active site check (hardened in migration 00031) |
-| 4   | `content`          | `public_read_published_content` | `status = 'published' AND EXISTS (sites WHERE id = site_id AND is_active)`                      | Yes — via active site check (hardened in migration 00031) |
-| 5   | `content_products` | `public_read_content_products`  | `EXISTS (content published) AND EXISTS (products active) AND EXISTS (sites active via content)` | Yes — transitive via content + products + site            |
-| 6   | `pages`            | `public_read_published_pages`   | `is_published = true AND EXISTS (sites WHERE id = site_id AND is_active)`                       | Yes — via active site check (hardened in migration 00031) |
+**None.** Migration 00037 dropped all 7 previously-public read policies
+(`public_read_sites`, `public_read_categories`,
+`public_read_active_products`, `public_read_published_content`,
+`public_read_content_products`, `public_read_published_pages`,
+`ad_placements_public_read`) and REVOKEd `SELECT` on each of those
+tables from the `anon` role.
+
+Historical detail: the pre-00037 policies all included an active-site
+guard (`EXISTS (sites WHERE id = site_id AND is_active)` — added in
+migrations 00024 + 00031), so the removal did not tighten access for
+deactivated sites — it tightened access for **every** site, moving
+public reads fully behind the server-side API.
 
 ### Tables with public-write (INSERT) policies
 
-| #   | Table            | Policy Name                    | Condition                                     | Notes                                                                                                              |
-| --- | ---------------- | ------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 1   | `ad_impressions` | `public_insert_ad_impressions` | `EXISTS (sites WHERE id = site_id)`           | Allows anon to record impressions for valid sites                                                                  |
-| 2   | `web_vitals`     | `web_vitals_anon_insert`       | `true` (with CHECK constraints on name/value) | Anon can insert; constrained by `web_vitals_name_not_empty` and `web_vitals_value_finite_nonneg` (migration 00033) |
+**None.** Production audit (2026-04-21) confirmed that neither
+`public_insert_ad_impressions` (`ad_impressions`) nor
+`web_vitals_anon_insert` (`web_vitals`) exists on the live database.
+Migration 00038 codifies this in the repo by explicitly dropping both
+policies (idempotent) and REVOKEing `INSERT` from `anon` on both
+tables.
+
+Both telemetry writers already use the service role:
+
+| Table            | Server endpoint                                      | Client used          |
+| ---------------- | ---------------------------------------------------- | -------------------- |
+| `web_vitals`     | `app/api/vitals/route.ts`                            | `getServiceClient()` |
+| `ad_impressions` | `lib/dal/ad-impressions.ts` → `recordAdImpression()` | `getServiceClient()` |
 
 ### Tables with NO public access (service-role only)
 
@@ -55,34 +73,50 @@ All operations (SELECT, INSERT, UPDATE, DELETE) require `auth.role() = 'service_
 
 ## Tenant-binding analysis
 
-### Already tenant-bound (hardened in migrations 00024 + 00031)
+With no public read or write policies on any tenant-scoped table, the
+`anon` role cannot reach application data directly. Tenant isolation on
+the server side is enforced by DAL helpers (`lib/dal/*.ts`) that
+accept an explicit `siteId` argument and scope every query by it.
 
-- **products**, **content**, **pages**: Public reads require `sites.is_active = true` via an EXISTS sub-select on `site_id`. Deactivating a site immediately hides all its public-facing rows.
-- **categories**: Tenant-bound via `sites.is_active` check since migration 00024.
-- **content_products**: Transitively bound through both `content` (published + active site) and `products` (active + active site).
+### Previously removed public policies
 
-### Not tenant-scoped (by design)
-
-- **sites**: The `public_read_sites` policy returns all active sites. This is intentional — public pages need to enumerate sites for navigation, domain resolution, etc. No per-tenant filter is needed here since the table IS the tenant registry.
-- **web_vitals**: Anonymous insert with no site_id scoping. This is a telemetry table for Core Web Vitals metrics. Migration 00033 added CHECK constraints to reject malformed payloads.
-- **ad_impressions**: Anonymous insert scoped by valid `site_id`. The site must exist in the `sites` table.
-
-### Previously removed public policies (migration 00033 + 00034)
-
-- `public_insert_clicks` on `affiliate_clicks` — **removed** in migration 00034
-- `public_insert_newsletter` on `newsletter_subscribers` — **removed** in migration 00034
-- `site_modules_public_read` — **removed** in migration 00033
-- `site_feature_flags_public_read` — **removed** in migration 00033
-- `roles_public_read` — **removed** in migration 00033
-- `permissions_public_read` — **removed** in migration 00033
-- `role_permissions_public_read` — **removed** in migration 00033
-- `integration_providers_public_read` — **removed** in migration 00033
+| Policy                              | Table                    | Removed in |
+| ----------------------------------- | ------------------------ | ---------- |
+| `public_insert_clicks`              | `affiliate_clicks`       | 00034      |
+| `public_insert_newsletter`          | `newsletter_subscribers` | 00034      |
+| `site_modules_public_read`          | `site_modules`           | 00033      |
+| `site_feature_flags_public_read`    | `site_feature_flags`     | 00033      |
+| `roles_public_read`                 | `roles`                  | 00033      |
+| `permissions_public_read`           | `permissions`            | 00033      |
+| `role_permissions_public_read`      | `role_permissions`       | 00033      |
+| `integration_providers_public_read` | `integration_providers`  | 00033      |
+| `public_read_sites`                 | `sites`                  | 00037      |
+| `public_read_categories`            | `categories`             | 00037      |
+| `public_read_active_products`       | `products`               | 00037      |
+| `public_read_published_content`     | `content`                | 00037      |
+| `public_read_content_products`      | `content_products`       | 00037      |
+| `public_read_published_pages`       | `pages`                  | 00037      |
+| `ad_placements_public_read`         | `ad_placements`          | 00037      |
+| `public_insert_ad_impressions`      | `ad_impressions`         | 00038      |
+| `web_vitals_anon_insert`            | `web_vitals`             | 00038      |
 
 ## Recommendations
 
-1. **`ad_impressions` INSERT**: Consider adding `sites.is_active = true` to the
-   WITH CHECK to prevent impression recording for deactivated sites.
-2. **`web_vitals` INSERT**: Consider adding a `site_id` column and tenant-binding
-   to prevent abuse of this open-insert table.
-3. All public-read policies on tenant tables now include the `sites.is_active`
-   guard, which is the correct pattern for this multi-tenant architecture.
+All recommendations from the original inventory have been addressed:
+
+1. ~~Add `sites.is_active = true` to `public_insert_ad_impressions`~~ —
+   obsolete: the policy was removed entirely (migration 00038) and
+   impression writes go through `recordAdImpression()` under the
+   service role.
+2. ~~Add a `site_id` column to `web_vitals` and tenant-bind INSERTs~~ —
+   obsolete: the policy was removed entirely (migration 00038) and
+   vitals writes go through `app/api/vitals/route.ts` under the
+   service role.
+3. ~~All public-read policies on tenant tables include the
+   `sites.is_active` guard~~ — obsolete: the public-read policies no
+   longer exist (migration 00037); public reads now go through server
+   routes that query under the service role.
+
+Future work: consider adding a CI check that fails if any policy on a
+public-schema table grants `anon` or `authenticated` any privilege
+beyond what is documented here.

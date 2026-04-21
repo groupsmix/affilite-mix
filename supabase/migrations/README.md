@@ -4,40 +4,46 @@ All SQL migrations are numbered sequentially. Apply them in order against your S
 
 ## Migration Order
 
-| File | Description |
-|---|---|
-| `00001_initial_schema.sql` | Tables, indexes, RLS policies, RPC functions, and seed data |
-| `00002_admin_users.sql` | Per-user admin accounts table |
-| `00003_rls_defense_in_depth.sql` | Additional RLS policies and audit log table |
-| `00004_newsletter_double_optin.sql` | Double opt-in columns for newsletter subscribers |
-| `00005_image_alt.sql` | `image_alt` column on products table |
-| `00006_analytics_rpc.sql` | Postgres RPC functions for analytics aggregation |
-| `00007_taxonomy_type.sql` | `taxonomy_type` column on categories + seed taxonomy data |
-| `00008_add_scheduled_status.sql` | Add `scheduled` to content status CHECK constraint |
-| `00009_add_reset_token_columns.sql` | Password reset token columns on admin_users |
-| `00010_add_price_columns.sql` | `price_amount` and `price_currency` columns on products |
-| `00011_add_is_active_to_sites.sql` | `is_active` column on sites table |
-| `00012_content_versioning.sql` | `body_previous` column on content for version history |
-| `00013_comprehensive_sites_schema.sql` | Extended sites columns: theme, nav, features, SEO, social links |
-| `00014_seed_config_sites.sql` | Seed rows for watch-tools, arabic-tools, and crypto-tools |
-| `00015_ad_placements.sql` | `ad_placements` table for sidebar/in-content/header ad slots |
-| `00016_add_missing_category_columns.sql` | `description`, `meta_title`, `meta_description` columns on categories |
-| `00017_ad_impressions.sql` | `ad_impressions` table for daily impression counters per placement |
-| `00018_shared_content.sql` | `shared_content` table for cross-site content syndication |
-| `00019_niche_templates.sql` | `niche_templates` table with built-in launch presets |
-| `00020_harden_rls_and_add_indexes.sql` | Replace USING(true) service policies with role-check; add composite indexes |
-| `00021_on_delete_set_null_category.sql` | Change category FK on products/content to ON DELETE SET NULL |
-| `00022_niche_health_rpc.sql` | `get_niche_health` RPC for per-site content/product health score |
-| `00023_web_vitals_table.sql` | `web_vitals` table for Core Web Vitals beacon data |
-| `00024_harden_public_rls_and_indexes.sql` | Tighten public RLS (require active site); add missing composite indexes |
-| `00025_index_content_status_publish_at.sql` | Composite index on content(site_id, status, publish_at) for cron queries |
-| `00026_reorder_pages_rpc.sql` | `reorder_pages` RPC for drag-and-drop page ordering |
-| `00027_dashboard_stats_rpc.sql` | `get_dashboard_stats` RPC — replaces 15+ individual dashboard queries |
-| `00028_platform_modules_permissions_integrations.sql` | site_modules, site_feature_flags, roles, permissions, role_permissions, user_site_roles, integration_providers, site_integrations tables |
-| `00029_ai_drafts_and_affiliate_networks.sql` | `ai_drafts` and `affiliate_networks` tables; seed ai-compared site |
-| `00030_newsletter_unsubscribe_tokens.sql` | `unsubscribe_token` column on newsletter_subscribers (opaque capability token) |
-| `00031_harden_public_rls_active_site_check.sql` | Public read policies for products/content/pages/content_products require sites.is_active = true |
-| `00032_fix_dashboard_stats_rpc.sql` | Corrects `get_dashboard_stats` — removes invalid `cp.site_id` predicate from `content_no_products` subquery (content_products has no site_id column) |
+| File                                                  | Description                                                                                                                                                                                                                                    |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `00001_initial_schema.sql`                            | Tables, indexes, RLS policies, RPC functions, and seed data                                                                                                                                                                                    |
+| `00002_admin_users.sql`                               | Per-user admin accounts table                                                                                                                                                                                                                  |
+| `00003_rls_defense_in_depth.sql`                      | Additional RLS policies and audit log table                                                                                                                                                                                                    |
+| `00004_newsletter_double_optin.sql`                   | Double opt-in columns for newsletter subscribers                                                                                                                                                                                               |
+| `00005_image_alt.sql`                                 | `image_alt` column on products table                                                                                                                                                                                                           |
+| `00006_analytics_rpc.sql`                             | Postgres RPC functions for analytics aggregation                                                                                                                                                                                               |
+| `00007_taxonomy_type.sql`                             | `taxonomy_type` column on categories + seed taxonomy data                                                                                                                                                                                      |
+| `00008_add_scheduled_status.sql`                      | Add `scheduled` to content status CHECK constraint                                                                                                                                                                                             |
+| `00009_add_reset_token_columns.sql`                   | Password reset token columns on admin_users                                                                                                                                                                                                    |
+| `00010_add_price_columns.sql`                         | `price_amount` and `price_currency` columns on products                                                                                                                                                                                        |
+| `00011_add_is_active_to_sites.sql`                    | `is_active` column on sites table                                                                                                                                                                                                              |
+| `00012_content_versioning.sql`                        | `body_previous` column on content for version history                                                                                                                                                                                          |
+| `00013_comprehensive_sites_schema.sql`                | Extended sites columns: theme, nav, features, SEO, social links                                                                                                                                                                                |
+| `00014_seed_config_sites.sql`                         | Seed rows for watch-tools, arabic-tools, and crypto-tools                                                                                                                                                                                      |
+| `00015_ad_placements.sql`                             | `ad_placements` table for sidebar/in-content/header ad slots                                                                                                                                                                                   |
+| `00016_add_missing_category_columns.sql`              | `description`, `meta_title`, `meta_description` columns on categories                                                                                                                                                                          |
+| `00017_ad_impressions.sql`                            | `ad_impressions` table for daily impression counters per placement                                                                                                                                                                             |
+| `00018_shared_content.sql`                            | `shared_content` table for cross-site content syndication                                                                                                                                                                                      |
+| `00019_niche_templates.sql`                           | `niche_templates` table with built-in launch presets                                                                                                                                                                                           |
+| `00020_harden_rls_and_add_indexes.sql`                | Replace USING(true) service policies with role-check; add composite indexes                                                                                                                                                                    |
+| `00021_on_delete_set_null_category.sql`               | Change category FK on products/content to ON DELETE SET NULL                                                                                                                                                                                   |
+| `00022_niche_health_rpc.sql`                          | `get_niche_health` RPC for per-site content/product health score                                                                                                                                                                               |
+| `00023_web_vitals_table.sql`                          | `web_vitals` table for Core Web Vitals beacon data                                                                                                                                                                                             |
+| `00024_harden_public_rls_and_indexes.sql`             | Tighten public RLS (require active site); add missing composite indexes                                                                                                                                                                        |
+| `00025_index_content_status_publish_at.sql`           | Composite index on content(site_id, status, publish_at) for cron queries                                                                                                                                                                       |
+| `00026_reorder_pages_rpc.sql`                         | `reorder_pages` RPC for drag-and-drop page ordering                                                                                                                                                                                            |
+| `00027_dashboard_stats_rpc.sql`                       | `get_dashboard_stats` RPC — replaces 15+ individual dashboard queries                                                                                                                                                                          |
+| `00028_platform_modules_permissions_integrations.sql` | site_modules, site_feature_flags, roles, permissions, role_permissions, user_site_roles, integration_providers, site_integrations tables                                                                                                       |
+| `00029_ai_drafts_and_affiliate_networks.sql`          | `ai_drafts` and `affiliate_networks` tables; seed ai-compared site                                                                                                                                                                             |
+| `00030_newsletter_unsubscribe_tokens.sql`             | `unsubscribe_token` column on newsletter_subscribers (opaque capability token)                                                                                                                                                                 |
+| `00031_harden_public_rls_active_site_check.sql`       | Public read policies for products/content/pages/content_products require sites.is_active = true                                                                                                                                                |
+| `00032_fix_dashboard_stats_rpc.sql`                   | Corrects `get_dashboard_stats` — removes invalid `cp.site_id` predicate from `content_no_products` subquery (content_products has no site_id column)                                                                                           |
+| `00033_security_hardening_p0_p3.sql`                  | Security hardening batch (P0–P3): CHECK constraints on `web_vitals`, additional index + policy cleanups on public reads                                                                                                                        |
+| `00034_remove_public_anon_insert_policies.sql`        | Drops anon INSERT policies on `affiliate_clicks` and `newsletter_subscribers`; writes now service-role only                                                                                                                                    |
+| `00035_admin_site_memberships.sql`                    | `admin_site_memberships` table + RLS + bootstrap seed granting every existing admin access to every existing site                                                                                                                              |
+| `00036_ai_drafts_add_ai_model.sql`                    | Adds `ai_model` column (NOT NULL default '') to `ai_drafts` so each draft records the specific model, not just the provider                                                                                                                    |
+| `00037_drop_public_select_policies.sql`               | Drops all 7 public SELECT policies; REVOKEs SELECT from `anon` on every tenant-scoped table. (Originally authored as a second `00035_…` alongside `00035_admin_site_memberships.sql`; renumbered to resolve the duplicate-prefix hygiene bug.) |
+| `00038_align_anon_write_policies.sql`                 | Aligns the repo with production reality: drops any residual anon INSERT policies on `ad_impressions` / `web_vitals` and REVOKEs INSERT from `anon` on both. All telemetry writes already use the service role.                                 |
 
 ## How to Apply
 
@@ -67,10 +73,18 @@ All migrations use `IF NOT EXISTS` / `CREATE OR REPLACE` guards where possible, 
 3. Add the migration to the table above
 4. Test against a development database before applying to production
 
-## Keeping schema.sql and types/database.ts in sync
+## Keeping schema.sql and types/supabase.ts in sync
 
-`supabase/schema.sql` and `types/database.ts` are **generated artifacts** — they must
-always match the live database. After applying new migrations:
+The repo has **two** files under `types/` with overlapping-looking names; only
+one of them is regenerated from the live database:
+
+| File                | Role                                                                                        | Regenerated from DB?  |
+| ------------------- | ------------------------------------------------------------------------------------------- | --------------------- |
+| `types/supabase.ts` | `Database` type consumed by `createClient<Database>()` in `lib/supabase*.ts`                | **Yes** (this script) |
+| `types/database.ts` | Hand-curated app-level row types (`ProductRow`, `ContentRow`, `NewsletterSubscriberRow`, …) | No (hand-edited)      |
+
+`supabase/schema.sql` and `types/supabase.ts` must always match the live
+database. After applying new migrations:
 
 ```bash
 # Regenerate both files from the live linked project
@@ -81,12 +95,13 @@ Or manually:
 
 ```bash
 supabase db dump --linked > supabase/schema.sql
-supabase gen types typescript --linked > types/database.ts
-git diff supabase/schema.sql types/database.ts   # review changes
-git add supabase/schema.sql types/database.ts
+supabase gen types typescript --linked > types/supabase.ts
+git diff supabase/schema.sql types/supabase.ts   # review changes
+git add supabase/schema.sql types/supabase.ts
 git commit -m "chore: regenerate schema snapshot and types after migration XX"
 ```
 
-> **Rule**: Never hand-edit `supabase/schema.sql` or `types/database.ts`.
+> **Rule**: Never hand-edit `supabase/schema.sql` or `types/supabase.ts`.
 > Always regenerate them from the live DB and commit the result.
+> `types/database.ts` is hand-curated and NOT regenerated by this script.
 > The `scripts/check-schema-drift.sh` script can be added to CI to enforce this.
