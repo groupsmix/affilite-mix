@@ -137,14 +137,34 @@ responsibility:
 
 ## Known remaining risks
 
-- `types/supabase.ts` is missing type definitions for `ai_drafts` and
-  `affiliate_networks` (introduced by migration 00029). Both tables are
-  service-role-only and not consumed via the typed client today, so the
-  gap is benign — but regeneration should be run the next time Docker
-  access is available to close the gap.
+- `types/supabase.ts` is a hand-curated copy of the `Database` type
+  (the generator is an option of last resort because it overwrites the
+  richly-typed JSON column shapes in `sites`, `niche_templates`, etc.).
+  Table/column additions need to be mirrored here by hand until the
+  custom JSON shapes are pushed into a post-regeneration patch layer.
 - The drift script (`scripts/check-schema-drift.sh`) is not wired into
   CI (it requires CLI auth + DB password). It is a manual pre-release
   check.
 - Multiple Supabase projects exist under the same access token
   (`nichhub`, `staging nichhub`, `odgtwjkzwciohhhqdtti`). Always confirm
   the project ref before running any `db push` / `migration repair`.
+- `scripts/check-schema-drift.sh` depends on public ECR
+  (`public.ecr.aws/supabase/postgres:*`) which is occasionally
+  rate-limited. Fallback: use a locally-installed `pg_dump 17` per the
+  block above.
+
+## Regenerating types without Docker
+
+The Management API can emit the canonical `Database` type without any
+local Docker:
+
+```bash
+export SUPABASE_ACCESS_TOKEN=sbp_...
+supabase gen types typescript --project-id odgtwjkzwciohhhqdtti \
+  > /tmp/types_remote.ts
+```
+
+Diff against `types/supabase.ts` to check for drift. Do NOT overwrite
+`types/supabase.ts` wholesale — the hand-curated file preserves rich
+JSON column shapes (e.g. `sites.nav_items`, `sites.theme`) that the
+generator flattens to `Json`. Merge additions by hand.

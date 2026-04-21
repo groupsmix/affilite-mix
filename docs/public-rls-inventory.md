@@ -1,7 +1,7 @@
 # Public RLS Policy Inventory
 
 > Originally generated as part of the tenant-binding audit (task 5.1).
-> Last updated: 2026-04-21 (post-00035 + 00038 + 00039, aligned with prod numbering)
+> Last updated: 2026-04-21 (post-00040: defense-in-depth service-role policies for admin_users, sites, and 8 platform-config tables)
 
 ## Summary
 
@@ -55,7 +55,7 @@ All operations (SELECT, INSERT, UPDATE, DELETE) require `auth.role() = 'service_
 
 | #   | Table                    | Policy Name                          |
 | --- | ------------------------ | ------------------------------------ |
-| 1   | `admin_users`            | `service_full_access_admin_users`    |
+| 1   | `admin_users`            | `admin_users_service_all`            |
 | 2   | `affiliate_clicks`       | `service_full_access_clicks`         |
 | 3   | `newsletter_subscribers` | `service_full_access_newsletter`     |
 | 4   | `scheduled_jobs`         | `service_full_access_scheduled_jobs` |
@@ -74,6 +74,7 @@ All operations (SELECT, INSERT, UPDATE, DELETE) require `auth.role() = 'service_
 | 17  | `ai_drafts`              | `ai_drafts_service_all`              |
 | 18  | `affiliate_networks`     | `affiliate_networks_service_all`     |
 | 19  | `admin_site_memberships` | `admin_site_memberships_service_all` |
+| 20  | `sites`                  | `sites_service_all`                  |
 
 ## Tenant-binding analysis
 

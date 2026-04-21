@@ -1172,6 +1172,126 @@ export interface Database {
         };
         Relationships: [];
       };
+
+      ai_drafts: {
+        Row: {
+          id: string;
+          site_id: string;
+          title: string;
+          slug: string;
+          body: string;
+          excerpt: string;
+          content_type: string;
+          topic: string;
+          keywords: string[];
+          ai_provider: string;
+          ai_model: string;
+          status: "pending" | "approved" | "rejected" | "published";
+          generated_at: string;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          meta_title: string | null;
+          meta_description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          title: string;
+          slug: string;
+          body?: string;
+          excerpt?: string;
+          content_type?: string;
+          topic?: string;
+          keywords?: string[];
+          ai_provider?: string;
+          ai_model?: string;
+          status?: "pending" | "approved" | "rejected" | "published";
+          generated_at?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          meta_title?: string | null;
+          meta_description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          title?: string;
+          slug?: string;
+          body?: string;
+          excerpt?: string;
+          content_type?: string;
+          topic?: string;
+          keywords?: string[];
+          ai_provider?: string;
+          ai_model?: string;
+          status?: "pending" | "approved" | "rejected" | "published";
+          generated_at?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          meta_title?: string | null;
+          meta_description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_drafts_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      affiliate_networks: {
+        Row: {
+          id: string;
+          site_id: string;
+          network: "cj" | "partnerstack" | "admitad" | "direct";
+          publisher_id: string;
+          api_key_ref: string;
+          is_active: boolean;
+          config: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          network: "cj" | "partnerstack" | "admitad" | "direct";
+          publisher_id?: string;
+          api_key_ref?: string;
+          is_active?: boolean;
+          config?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          network?: "cj" | "partnerstack" | "admitad" | "direct";
+          publisher_id?: string;
+          api_key_ref?: string;
+          is_active?: boolean;
+          config?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_networks_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
 
     Views: Record<string, never>;

@@ -716,6 +716,8 @@ CREATE TABLE IF NOT EXISTS site_modules (
 );
 
 CREATE INDEX IF NOT EXISTS idx_site_modules_site ON site_modules(site_id);
+CREATE INDEX IF NOT EXISTS idx_site_modules_enabled
+  ON site_modules(site_id, is_enabled) WHERE is_enabled = true;
 
 ALTER TABLE site_modules ENABLE ROW LEVEL SECURITY;
 -- No public SELECT policy: site_modules is consumed server-side only via
@@ -797,6 +799,9 @@ CREATE TABLE IF NOT EXISTS user_site_roles (
   UNIQUE (user_id, site_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_user_site_roles_user ON user_site_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_site_roles_site ON user_site_roles(site_id);
+
 ALTER TABLE user_site_roles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "user_site_roles_service_all" ON user_site_roles
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
@@ -831,6 +836,8 @@ CREATE TABLE IF NOT EXISTS site_integrations (
   updated_at   timestamptz NOT NULL DEFAULT now(),
   UNIQUE (site_id, provider_key)
 );
+
+CREATE INDEX IF NOT EXISTS idx_site_integrations_site ON site_integrations(site_id);
 
 ALTER TABLE site_integrations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "site_integrations_service_all" ON site_integrations
@@ -935,3 +942,25 @@ CREATE POLICY "admin_site_memberships_service_all"
 -- Anon write policies intentionally kept (defined above):
 --   - public_insert_ad_impressions (ad_impressions)
 --   - web_vitals_anon_insert       (web_vitals)
+
+-- ── Migration 00040: missing service_role policies (defense-in-depth) ───
+-- These tables had RLS enabled with zero policies in prod.  Default-deny
+-- already blocked anon/authenticated and service_role bypasses RLS, so
+-- adding explicit service_role policies is cosmetic/documentary only.
+CREATE POLICY "admin_users_service_all" ON admin_users
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "sites_service_all" ON sites
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "roles_service_all" ON roles
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "permissions_service_all" ON permissions
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "role_permissions_service_all" ON role_permissions
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "user_site_roles_service_all" ON user_site_roles
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "integration_providers_service_all" ON integration_providers
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "site_integrations_service_all" ON site_integrations
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+-- site_modules_service_all, site_feature_flags_service_all already created above.
