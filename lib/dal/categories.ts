@@ -21,8 +21,47 @@ function normalizeCategoryRows(rows: unknown[] | null): CategoryRow[] {
   }));
 }
 
-/** List all categories for a site, ordered by name */
-export async function listCategories(siteId: string): Promise<CategoryRow[]> {
+export interface ListCategoriesOptions {
+  /**
+   * Optional case-insensitive substring filter applied to `name`.
+   * Empty/whitespace-only values are ignored and treated as no filter.
+   * `%` and `_` are escaped so callers can pass raw user input safely.
+   */
+  q?: string;
+}
+
+/** Escape `%` and `_` so user input doesn't act as wildcards in an ILIKE pattern. */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * Normalize a search term into an ILIKE pattern, or `null` if the term is empty.
+ * Exported for tests.
+ */
+export function buildCategoryNameIlikePattern(q: string | undefined): string | null {
+  if (typeof q !== "string") return null;
+  const trimmed = q.trim();
+  if (!trimmed) return null;
+  return `%${escapeLikePattern(trimmed)}%`;
+}
+
+// Chain-builder shared by `listCategories` so the base query (and optional
+// filters) are applied identically across each column-fallback attempt.
+type CategoriesQueryBuilder = {
+  eq: (col: string, val: string) => CategoriesQueryBuilder;
+  ilike: (col: string, pattern: string) => CategoriesQueryBuilder;
+  order: (
+    col: string,
+    opts: { ascending: boolean },
+  ) => Promise<{ data: unknown[] | null; error: { message?: string } | null }>;
+};
+
+/** List all categories for a site, ordered by name. */
+export async function listCategories(
+  siteId: string,
+  opts: ListCategoriesOptions = {},
+): Promise<CategoryRow[]> {
   // Return empty if Supabase is not configured (placeholder URL)
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -31,35 +70,30 @@ export async function listCategories(siteId: string): Promise<CategoryRow[]> {
     return [];
   }
   const sb = getServiceClient();
-  let result: { data: unknown[] | null; error: { message?: string } | null } = (await sb
-    .from(TABLE)
-    .select(FULL_COLUMNS)
-    .eq("site_id", siteId)
-    .order("name", { ascending: true })) as unknown as {
-    data: unknown[] | null;
-    error: { message?: string } | null;
+  const ilikePattern = buildCategoryNameIlikePattern(opts.q);
+
+  const runQuery = async (
+    columns: string,
+  ): Promise<{ data: unknown[] | null; error: { message?: string } | null }> => {
+    const base = sb.from(TABLE).select(columns).eq("site_id", siteId) as unknown as
+      | CategoriesQueryBuilder
+      | (CategoriesQueryBuilder & {
+          order: CategoriesQueryBuilder["order"];
+        });
+    const filtered = ilikePattern
+      ? (base as CategoriesQueryBuilder).ilike("name", ilikePattern)
+      : (base as CategoriesQueryBuilder);
+    return filtered.order("name", { ascending: true });
   };
+
+  let result = await runQuery(FULL_COLUMNS);
 
   if (result.error) {
     const msg = result.error.message ?? "";
     if (msg.includes("description")) {
-      result = (await sb
-        .from(TABLE)
-        .select(NO_DESCRIPTION_COLUMNS)
-        .eq("site_id", siteId)
-        .order("name", { ascending: true })) as unknown as {
-        data: unknown[] | null;
-        error: { message?: string } | null;
-      };
+      result = await runQuery(NO_DESCRIPTION_COLUMNS);
     } else if (msg.includes("taxonomy_type")) {
-      result = (await sb
-        .from(TABLE)
-        .select(MIN_COLUMNS)
-        .eq("site_id", siteId)
-        .order("name", { ascending: true })) as unknown as {
-        data: unknown[] | null;
-        error: { message?: string } | null;
-      };
+      result = await runQuery(MIN_COLUMNS);
     }
   }
 
@@ -234,6 +268,70 @@ export async function updateCategory(
 
   if (error) throw error;
   return assertRow<CategoryRow>(data, "Category");
+}
+
+/**
+ * Batch-count content and products associated with a set of categories.
+ *
+ * Performs two `select category_id` queries (one per referencing table)
+ * with `.in("category_id", ids)` and groups the results in-memory, so
+ * rendering a table of N categories costs O(1) round-trips — not O(N).
+ *
+ * Every id in `categoryIds` is guaranteed to have an entry in each
+ * returned map; categories with no references map to 0.
+ *
+ * Duplicate / empty / falsy ids are de-duplicated and ignored.
+ */
+export async function getCategoryUsageCountsBatch(
+  siteId: string,
+  categoryIds: readonly string[],
+): Promise<{
+  contentCounts: Map<string, number>;
+  productCounts: Map<string, number>;
+}> {
+  const uniqueIds = Array.from(
+    new Set(categoryIds.filter((id): id is string => typeof id === "string" && id.length > 0)),
+  );
+
+  const contentCounts = new Map<string, number>(uniqueIds.map((id) => [id, 0]));
+  const productCounts = new Map<string, number>(uniqueIds.map((id) => [id, 0]));
+
+  if (uniqueIds.length === 0) {
+    return { contentCounts, productCounts };
+  }
+
+  // Return zero-filled maps if Supabase is not configured (placeholder URL)
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
+  ) {
+    return { contentCounts, productCounts };
+  }
+
+  const sb = getServiceClient();
+
+  const [contentResult, productResult] = await Promise.all([
+    sb.from("content").select("category_id").eq("site_id", siteId).in("category_id", uniqueIds),
+    sb.from("products").select("category_id").eq("site_id", siteId).in("category_id", uniqueIds),
+  ]);
+
+  if (!contentResult.error) {
+    for (const row of contentResult.data ?? []) {
+      if (hasStringProp(row, "category_id") && contentCounts.has(row.category_id)) {
+        contentCounts.set(row.category_id, (contentCounts.get(row.category_id) ?? 0) + 1);
+      }
+    }
+  }
+
+  if (!productResult.error) {
+    for (const row of productResult.data ?? []) {
+      if (hasStringProp(row, "category_id") && productCounts.has(row.category_id)) {
+        productCounts.set(row.category_id, (productCounts.get(row.category_id) ?? 0) + 1);
+      }
+    }
+  }
+
+  return { contentCounts, productCounts };
 }
 
 /** Count content and products associated with a category */
