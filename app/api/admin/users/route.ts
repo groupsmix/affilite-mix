@@ -5,6 +5,7 @@ import {
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
+  hasAnotherActiveSuperAdmin,
 } from "@/lib/dal/admin-users";
 import { hashPassword } from "@/lib/password";
 import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
@@ -147,6 +148,23 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
+  // Prevent demoting or deactivating the last active super_admin.
+  const wouldDemote = role !== undefined && role !== "super_admin";
+  const wouldDeactivate = is_active === false;
+  if (wouldDemote || wouldDeactivate) {
+    const users = await listAdminUsers();
+    const target = users.find((u) => u.id === id);
+    if (target && target.role === "super_admin" && target.is_active) {
+      const hasOther = await hasAnotherActiveSuperAdmin(id);
+      if (!hasOther) {
+        return NextResponse.json(
+          { error: "Cannot demote or deactivate the last active super_admin" },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
   try {
     const updates: Record<string, unknown> = {};
     if (name !== undefined) updates.name = name;
@@ -204,6 +222,19 @@ export async function DELETE(request: NextRequest) {
   // Prevent self-deletion
   if (id === session.userId) {
     return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
+  }
+
+  // Prevent deleting the last active super_admin.
+  const users = await listAdminUsers();
+  const target = users.find((u) => u.id === id);
+  if (target && target.role === "super_admin" && target.is_active) {
+    const hasOther = await hasAnotherActiveSuperAdmin(id);
+    if (!hasOther) {
+      return NextResponse.json(
+        { error: "Cannot delete the last active super_admin" },
+        { status: 409 },
+      );
+    }
   }
 
   try {
