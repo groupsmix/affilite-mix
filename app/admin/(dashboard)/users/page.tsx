@@ -3,10 +3,26 @@ import { listAdminUsers } from "@/lib/dal/admin-users";
 import { listAllAdminSiteMembershipsWithSlugs } from "@/lib/dal/admin-site-memberships";
 
 import { NewUserDialog } from "./new-user-dialog";
-import { UsersTable, type UsersTableRow } from "./users-table";
+import { USERS_TABLE_PAGE_SIZE, UsersTable, type UsersTableRow } from "./users-table";
+import {
+  applyUsersQuery,
+  parseUsersSearchParams,
+  type UsersSearchParamsInput,
+} from "./users-query";
 
-export default async function AdminUsersPage() {
+interface AdminUsersPageProps {
+  searchParams: Promise<UsersSearchParamsInput>;
+}
+
+export default async function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
   const session = await requireAdminSession();
+
+  const sp = await searchParams;
+  const query = parseUsersSearchParams(sp, {
+    pageSize: USERS_TABLE_PAGE_SIZE,
+    sortBy: "created_at",
+    sortDesc: true,
+  });
 
   const [users, memberships] = await Promise.all([
     listAdminUsers(),
@@ -26,7 +42,7 @@ export default async function AdminUsersPage() {
   // Project the DAL row to the shape the client table expects. Sensitive
   // fields (password_hash, reset_token, reset_token_expires_at) are stripped
   // here (listAdminUsers already excludes password_hash from its SELECT).
-  const rows: UsersTableRow[] = users.map((u) => ({
+  const all: UsersTableRow[] = users.map((u) => ({
     id: u.id,
     email: u.email,
     name: u.name,
@@ -37,6 +53,11 @@ export default async function AdminUsersPage() {
     created_at: u.created_at,
     updated_at: u.updated_at,
   }));
+
+  const { rows, totalCount } = applyUsersQuery(all, query);
+
+  const hasAnyFilter =
+    query.q.length > 0 || query.roles.length > 0 || query.statuses.length > 0 || query.page > 1;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -50,7 +71,13 @@ export default async function AdminUsersPage() {
         <NewUserDialog />
       </div>
 
-      <UsersTable data={rows} currentUserId={session.userId ?? null} />
+      <UsersTable
+        data={rows}
+        totalCount={totalCount}
+        hasAnyFilter={hasAnyFilter}
+        pageSize={query.pageSize}
+        currentUserId={session.userId ?? null}
+      />
     </div>
   );
 }
