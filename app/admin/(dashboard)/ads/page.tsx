@@ -7,14 +7,26 @@ import { KpiCard } from "../components/dashboard/kpi-card";
 import { DEFAULT_CPM, resolveCpm } from "@/lib/ads/cpm-defaults";
 
 import { ADS_TABLE_PAGE_SIZE, AdsTable, type AdsTableRow } from "./ads-table";
+import { applyAdsQuery, parseAdsSearchParams, type AdsSearchParamsInput } from "./ads-query";
 import { NewAdPlacementDialog } from "./new-ad-placement-dialog";
 
-export default async function AdsPage() {
+interface AdsPageProps {
+  searchParams: Promise<AdsSearchParamsInput>;
+}
+
+export default async function AdsPage({ searchParams }: AdsPageProps) {
   const session = await requireAdminSession();
 
   if (!session.activeSiteSlug) {
     redirect("/admin/sites");
   }
+
+  const sp = await searchParams;
+  const query = parseAdsSearchParams(sp, {
+    pageSize: ADS_TABLE_PAGE_SIZE,
+    sortBy: "est_revenue_30d",
+    sortDesc: true,
+  });
 
   const siteId = await resolveDbSiteId(session.activeSiteSlug);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -36,7 +48,7 @@ export default async function AdsPage() {
   // Estimate revenue per placement using the shared CPM resolver
   // (per-placement `config.est_cpm` override → provider default → fallback).
   let totalEstRevenue = 0;
-  const rows: AdsTableRow[] = placements.map((p) => {
+  const allRows: AdsTableRow[] = placements.map((p) => {
     const impressions = impressionMap.get(p.id) ?? 0;
     const cpm = resolveCpm(p);
     const revenue = (impressions / 1000) * cpm;
@@ -56,6 +68,15 @@ export default async function AdsPage() {
       created_at: p.created_at,
     };
   });
+
+  const { rows, totalCount } = applyAdsQuery(allRows, query);
+
+  const hasAnyFilter =
+    query.q.length > 0 ||
+    query.providers.length > 0 ||
+    query.slots.length > 0 ||
+    query.statuses.length > 0 ||
+    query.page > 1;
 
   // KPI inputs derived from the same data used in the per-placement table
   // below, so the headline cards always agree with the detailed breakdown.
@@ -105,9 +126,9 @@ export default async function AdsPage() {
 
       <AdsTable
         data={rows}
-        totalCount={rows.length}
-        showEmptyState
-        pageSize={ADS_TABLE_PAGE_SIZE}
+        totalCount={totalCount}
+        hasAnyFilter={hasAnyFilter}
+        pageSize={query.pageSize}
       />
 
       <p className="mt-3 text-xs text-muted-foreground">

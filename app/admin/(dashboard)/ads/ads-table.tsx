@@ -1,27 +1,18 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  CodeIcon,
-  GlobeIcon,
-  HeartIcon,
-  LeafIcon,
-  MoreHorizontalIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { CodeIcon, GlobeIcon, HeartIcon, LeafIcon, type LucideIcon } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { AdPlacementType, AdProvider } from "@/types/database";
+
+import { AdRowActions } from "./ad-row-actions";
 
 /**
  * Row shape passed from the server page into the client table. Mirrors the
@@ -90,6 +81,23 @@ const SLOT_CLASSES: Record<AdPlacementType, string> = {
   between_posts: "bg-orange-100 text-orange-700 hover:bg-orange-100",
 };
 
+const PROVIDER_FILTER_OPTIONS: { label: string; value: AdProvider; icon: LucideIcon }[] = (
+  Object.keys(PROVIDER_META) as AdProvider[]
+).map((value) => ({
+  label: PROVIDER_META[value].label,
+  value,
+  icon: PROVIDER_META[value].icon,
+}));
+
+const SLOT_FILTER_OPTIONS: { label: string; value: AdPlacementType }[] = (
+  Object.keys(SLOT_LABELS) as AdPlacementType[]
+).map((value) => ({ label: SLOT_LABELS[value], value }));
+
+const STATUS_FILTER_OPTIONS: { label: string; value: "active" | "inactive" }[] = [
+  { label: "Active", value: "active" },
+  { label: "Inactive", value: "inactive" },
+];
+
 function formatUsd(value: number): string {
   return `$${value.toFixed(2)}`;
 }
@@ -153,87 +161,86 @@ function StatusCell({ isActive }: { isActive: boolean }) {
   );
 }
 
-/**
- * Placeholder dropdown trigger — real row actions (edit, (de)activate,
- * duplicate, delete) land in Task 14c. Rendered as a disabled-looking
- * trigger with no menu items so the column width matches the post-14c
- * layout.
- */
-function RowActionsPlaceholder() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <div className="px-2 py-1.5 text-xs text-muted-foreground">No actions yet</div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export const adsTableColumns: ColumnDef<AdsTableRow>[] = [
   {
+    id: "provider",
     accessorKey: "provider",
     header: "Provider",
     cell: ({ row }) => <ProviderCell provider={row.original.provider} />,
     enableHiding: false,
     enableSorting: false,
+    filterFn: (row, _id, value: string[]) =>
+      Array.isArray(value) && value.length > 0 ? value.includes(row.original.provider) : true,
   },
   {
+    id: "placement_type",
     accessorKey: "placement_type",
     header: "Slot",
     cell: ({ row }) => <SlotCell type={row.original.placement_type} />,
     enableSorting: false,
+    filterFn: (row, _id, value: string[]) =>
+      Array.isArray(value) && value.length > 0 ? value.includes(row.original.placement_type) : true,
   },
   {
     accessorKey: "name",
-    header: "Key",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Key" />,
     cell: ({ row }) => <KeyCell value={row.original.name} />,
-    enableSorting: false,
   },
   {
     accessorKey: "impressions_30d",
-    header: () => <span className="block text-right">Impressions (30d)</span>,
+    header: ({ column }) => (
+      <div className="flex justify-end">
+        <DataTableColumnHeader column={column} title="Impressions (30d)" />
+      </div>
+    ),
     cell: ({ row }) => (
       <div className="text-right tabular-nums text-foreground">
         {row.original.impressions_30d.toLocaleString()}
       </div>
     ),
-    enableSorting: false,
   },
   {
     accessorKey: "est_revenue_30d",
-    header: () => <span className="block text-right">Est. revenue (30d)</span>,
+    header: ({ column }) => (
+      <div className="flex justify-end">
+        <DataTableColumnHeader column={column} title="Est. revenue (30d)" />
+      </div>
+    ),
     cell: ({ row }) => (
       <div className="text-right font-medium tabular-nums text-green-700">
         {formatUsd(row.original.est_revenue_30d)}
       </div>
     ),
-    enableSorting: false,
   },
   {
     accessorKey: "cpm",
-    header: () => <span className="block text-right">CPM</span>,
+    header: ({ column }) => (
+      <div className="flex justify-end">
+        <DataTableColumnHeader column={column} title="CPM" />
+      </div>
+    ),
     cell: ({ row }) => (
       <div className="flex justify-end">
         <CpmCell value={row.original.cpm} isOverride={row.original.cpm_is_override} />
       </div>
     ),
-    enableSorting: false,
   },
   {
+    id: "is_active",
     accessorKey: "is_active",
     header: "Status",
     cell: ({ row }) => <StatusCell isActive={row.original.is_active} />,
     enableSorting: false,
+    filterFn: (row, _id, value: string[]) => {
+      if (!Array.isArray(value) || value.length === 0) return true;
+      const current = row.original.is_active ? "active" : "inactive";
+      return value.includes(current);
+    },
   },
   {
     id: "actions",
     header: () => <span className="sr-only">Actions</span>,
-    cell: () => <RowActionsPlaceholder />,
+    cell: ({ row }) => <AdRowActions placement={row.original} />,
     enableSorting: false,
     enableHiding: false,
   },
@@ -243,10 +250,14 @@ export interface AdsTableProps {
   data: AdsTableRow[];
   totalCount: number;
   /**
-   * When true and data is empty, render an empty-state Card with a hint
-   * about creating the first placement via the page-header button.
+   * When true and data is empty, the table is hidden and an empty-state Card
+   * with a prompt to create the first placement is shown instead.
+   *
+   * When false and data is empty (e.g. a search returned no matches), the
+   * table renders with its built-in "No results." row so the toolbar and
+   * active filters remain visible.
    */
-  showEmptyState?: boolean;
+  hasAnyFilter?: boolean;
   pageSize?: number;
 }
 
@@ -254,16 +265,19 @@ export interface AdsTableProps {
  * Client component that renders the admin ad placements list via the shared
  * `<DataTable>`.
  *
- * Task 14b scope: columns only. Filters, search, sort, URL sync, and row
- * actions are deferred to later tasks; the read-only toolbar is hidden.
+ * Task 14b scaffolded the columns read-only. Task 14c adds provider/slot/
+ * status faceted filters, debounced search over placement key, sortable
+ * columns (key, impressions 30d, est. revenue 30d, cpm), and URL-synced
+ * state (via the shared `useDataTableUrlState` helper inside `<DataTable>`).
+ * Row actions (edit, (de)activate, delete) are wired in via `<AdRowActions>`.
  */
 export function AdsTable({
   data,
   totalCount,
-  showEmptyState = false,
+  hasAnyFilter = false,
   pageSize = ADS_TABLE_PAGE_SIZE,
 }: AdsTableProps) {
-  if (data.length === 0 && showEmptyState) {
+  if (data.length === 0 && !hasAnyFilter) {
     return <AdsEmptyState />;
   }
 
@@ -273,7 +287,40 @@ export function AdsTable({
       data={data}
       totalCount={totalCount}
       pageSize={pageSize}
-      hideToolbar
+      manualPagination
+      manualSorting
+      manualFiltering
+      searchPlaceholder="Search placement key…"
+      toolbar={(table) => {
+        const providerColumn = table.getColumn("provider");
+        const slotColumn = table.getColumn("placement_type");
+        const statusColumn = table.getColumn("is_active");
+        return (
+          <>
+            {providerColumn && (
+              <DataTableFacetedFilter
+                column={providerColumn}
+                title="Provider"
+                options={PROVIDER_FILTER_OPTIONS}
+              />
+            )}
+            {slotColumn && (
+              <DataTableFacetedFilter
+                column={slotColumn}
+                title="Slot"
+                options={SLOT_FILTER_OPTIONS}
+              />
+            )}
+            {statusColumn && (
+              <DataTableFacetedFilter
+                column={statusColumn}
+                title="Status"
+                options={STATUS_FILTER_OPTIONS}
+              />
+            )}
+          </>
+        );
+      }}
     />
   );
 }
