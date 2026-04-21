@@ -4,14 +4,8 @@ import { listAdPlacements } from "@/lib/dal/ad-placements";
 import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
 import { redirect } from "next/navigation";
 import { AdPlacementList } from "./ad-placement-list";
-
-// Default CPM rates by provider (USD per 1,000 impressions)
-const DEFAULT_CPM: Record<string, number> = {
-  adsense: 2.5,
-  carbon: 3.0,
-  ethicalads: 2.0,
-  custom: 1.5,
-};
+import { KpiCard } from "../components/dashboard/kpi-card";
+import { DEFAULT_CPM, resolveCpm } from "@/lib/ads/cpm-defaults";
 
 export default async function AdsPage() {
   const session = await requireAdminSession();
@@ -37,17 +31,22 @@ export default async function AdsPage() {
   // Compute totals for the analytics summary
   const totalImpressions = Array.from(impressionMap.values()).reduce((a, b) => a + b, 0);
 
-  // Estimate revenue per placement based on provider CPM rates
+  // Estimate revenue per placement using the shared CPM resolver
+  // (per-placement `config.est_cpm` override → provider default → fallback).
   const placementRevenue = new Map<string, number>();
   let totalEstRevenue = 0;
   for (const p of placements) {
     const impressions = impressionMap.get(p.id) ?? 0;
-    const cpm =
-      (p.config as Record<string, number> | null)?.est_cpm ?? DEFAULT_CPM[p.provider] ?? 1.5;
+    const cpm = resolveCpm(p);
     const revenue = (impressions / 1000) * cpm;
     placementRevenue.set(p.id, revenue);
     totalEstRevenue += revenue;
   }
+
+  // KPI inputs derived from the same data used in the per-placement table
+  // below, so the headline cards always agree with the detailed breakdown.
+  const activePlacementCount = placements.filter((p) => p.is_active).length;
+  const providersInUse = new Set(placements.map((p) => p.provider)).size;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -58,6 +57,35 @@ export default async function AdsPage() {
             Manage ad slots for sites monetized with ads.
           </p>
         </div>
+      </div>
+
+      {/* Headline KPIs (Last 30 Days) — reuse the dashboard KpiCard so the
+          styling matches /admin. Formulas are documented in the PR body. */}
+      <div
+        aria-live="polite"
+        className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        data-testid="ads-kpi-row"
+      >
+        <KpiCard
+          title="Impressions (30d)"
+          value={totalImpressions.toLocaleString()}
+          description="Total ad impressions across all placements in the last 30 days."
+        />
+        <KpiCard
+          title="Est. revenue (30d)"
+          value={`$${totalEstRevenue.toFixed(2)}`}
+          description="Σ (impressions × CPM ÷ 1000) per placement."
+        />
+        <KpiCard
+          title="Active placements"
+          value={activePlacementCount.toLocaleString()}
+          description={`${placements.length.toLocaleString()} total placement${placements.length === 1 ? "" : "s"}.`}
+        />
+        <KpiCard
+          title="Providers in use"
+          value={providersInUse.toLocaleString()}
+          description="Distinct ad providers across all placements."
+        />
       </div>
 
       {/* Ad Analytics Summary — impressions + revenue estimation */}
@@ -100,10 +128,7 @@ export default async function AdsPage() {
               <tbody className="divide-y divide-gray-50">
                 {placements.map((p) => {
                   const impressions = impressionMap.get(p.id) ?? 0;
-                  const cpm =
-                    (p.config as Record<string, number> | null)?.est_cpm ??
-                    DEFAULT_CPM[p.provider] ??
-                    1.5;
+                  const cpm = resolveCpm(p);
                   const revenue = placementRevenue.get(p.id) ?? 0;
                   return (
                     <tr key={p.id} className="hover:bg-gray-50">
@@ -125,9 +150,12 @@ export default async function AdsPage() {
         )}
 
         <p className="mt-3 text-xs text-gray-400">
-          Revenue estimates are based on default CPM rates by provider. Set a custom{" "}
-          <code className="rounded bg-gray-100 px-1">est_cpm</code> in the placement config for more
-          accurate estimates.
+          Revenue estimates are based on default CPM rates by provider (
+          {Object.entries(DEFAULT_CPM)
+            .map(([k, v]) => `${k}: $${v.toFixed(2)}`)
+            .join(", ")}
+          ). Set a custom <code className="rounded bg-gray-100 px-1">est_cpm</code> in the placement
+          config for more accurate estimates.
         </p>
       </div>
 
