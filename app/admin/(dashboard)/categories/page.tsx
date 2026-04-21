@@ -1,103 +1,128 @@
 import { requireAdminSession } from "../components/admin-guard";
-import { listCategories } from "@/lib/dal/categories";
+import { listCategories, getCategoryUsageCountsBatch } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CategoryDeleteButton } from "./category-delete-button";
 
-export default async function CategoriesPage() {
+import { Button } from "@/components/ui/button";
+import {
+  CATEGORIES_TABLE_PAGE_SIZE,
+  CategoriesTable,
+  type CategoriesTableRow,
+} from "./categories-table";
+
+const DEFAULT_PAGE_SIZE = CATEGORIES_TABLE_PAGE_SIZE;
+
+const TAXONOMY_VALUES = new Set(["general", "budget", "occasion", "recipient", "brand"] as const);
+type TaxonomyValue = typeof TAXONOMY_VALUES extends Set<infer V> ? V : never;
+
+const SORTABLE_COLUMNS = new Set(["name", "content_count", "created_at"] as const);
+type SortableColumn = typeof SORTABLE_COLUMNS extends Set<infer V> ? V : never;
+
+interface CategoriesPageProps {
+  searchParams: Promise<{
+    q?: string;
+    "f.taxonomy_type"?: string;
+    sort?: string;
+    page?: string;
+    size?: string;
+  }>;
+}
+
+function parseCsv(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((v) => v.length > 0);
+}
+
+export default async function CategoriesPage({ searchParams }: CategoriesPageProps) {
+  const sp = await searchParams;
+
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) redirect("/admin/sites");
   const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
-  const categories = await listCategories(dbSiteId);
+
+  const q = (sp.q ?? "").trim();
+  const taxonomyFilter = parseCsv(sp["f.taxonomy_type"]).filter((v): v is TaxonomyValue =>
+    TAXONOMY_VALUES.has(v as TaxonomyValue),
+  );
+
+  let sortCol: SortableColumn = "name";
+  let sortDesc = false;
+  if (sp.sort) {
+    const [col, dir] = sp.sort.split(":");
+    if (col && SORTABLE_COLUMNS.has(col as SortableColumn)) {
+      sortCol = col as SortableColumn;
+      sortDesc = dir === "desc";
+    }
+  }
+
+  const pageNum = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
+  const rawSize = parseInt(sp.size ?? String(DEFAULT_PAGE_SIZE), 10);
+  const pageSize = rawSize > 0 && rawSize <= 200 ? rawSize : DEFAULT_PAGE_SIZE;
+
+  // Categories are typically <100 per site; fetch the q-filtered list in one
+  // shot and do taxonomy filtering / sorting / paging in-memory. This avoids
+  // adding new DAL surface area for something so small (per Task 12 scope).
+  const all = await listCategories(dbSiteId, q ? { q } : undefined);
+
+  const filteredByTaxonomy =
+    taxonomyFilter.length > 0
+      ? all.filter((c) => taxonomyFilter.includes(c.taxonomy_type as TaxonomyValue))
+      : all;
+
+  // Batch-fetch content counts (products count is computed too but unused in
+  // this view) for the full filtered set, so sorting by count is correct
+  // across pages.
+  const { contentCounts } = await getCategoryUsageCountsBatch(
+    dbSiteId,
+    filteredByTaxonomy.map((c) => c.id),
+  );
+
+  const enriched: CategoriesTableRow[] = filteredByTaxonomy.map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    taxonomy_type: c.taxonomy_type,
+    content_count: contentCounts.get(c.id) ?? 0,
+    created_at: c.created_at,
+  }));
+
+  enriched.sort((a, b) => {
+    let cmp = 0;
+    if (sortCol === "name") {
+      cmp = a.name.localeCompare(b.name);
+    } else if (sortCol === "content_count") {
+      cmp = a.content_count - b.content_count;
+    } else if (sortCol === "created_at") {
+      cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }
+    return sortDesc ? -cmp : cmp;
+  });
+
+  const totalCount = enriched.length;
+  const start = (pageNum - 1) * pageSize;
+  const pageRows = enriched.slice(start, start + pageSize);
+
+  const hasAnyFilter = q.length > 0 || taxonomyFilter.length > 0;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-        <Link
-          href="/admin/categories/new"
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-        >
-          Add Category
-        </Link>
+        <h1 className="text-2xl font-bold text-foreground">Categories</h1>
+        <Button asChild>
+          <Link href="/admin/categories/new">Add Category</Link>
+        </Button>
       </div>
 
-      {categories.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
-          <p className="text-gray-500">No categories yet.</p>
-          <Link
-            href="/admin/categories/new"
-            className="mt-2 inline-block text-sm font-medium text-blue-600 hover:underline"
-          >
-            Create your first category
-          </Link>
-        </div>
-      ) : (
-        <>
-          {/* Card layout on mobile */}
-          <div className="grid gap-3 md:hidden">
-            {categories.map((cat) => (
-              <div key={cat.id} className="rounded-lg border border-gray-200 bg-white p-4">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <h3 className="font-medium text-gray-900">{cat.name}</h3>
-                  <span className="inline-flex shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                    {cat.taxonomy_type}
-                  </span>
-                </div>
-                <p className="mb-3 truncate text-sm text-gray-500">{cat.slug}</p>
-                <div className="flex gap-3">
-                  <Link
-                    href={`/admin/categories/${cat.id}`}
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Edit
-                  </Link>
-                  <CategoryDeleteButton id={cat.id} name={cat.name} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Table layout on md+ screens */}
-          <div className="hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
-            <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-200 bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 font-medium text-gray-700">Name</th>
-                  <th className="px-4 py-3 font-medium text-gray-700">Slug</th>
-                  <th className="px-4 py-3 font-medium text-gray-700">Type</th>
-                  <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {categories.map((cat) => (
-                  <tr key={cat.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{cat.slug}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                        {cat.taxonomy_type}
-                      </span>
-                    </td>
-                    <td className="flex gap-2 px-4 py-3">
-                      <Link
-                        href={`/admin/categories/${cat.id}`}
-                        className="text-sm text-blue-600 hover:underline"
-                      >
-                        Edit
-                      </Link>
-                      <CategoryDeleteButton id={cat.id} name={cat.name} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
-          </div>
-        </>
-      )}
+      <CategoriesTable
+        data={pageRows}
+        totalCount={totalCount}
+        hasAnyFilter={hasAnyFilter}
+        pageSize={pageSize}
+      />
     </div>
   );
 }
