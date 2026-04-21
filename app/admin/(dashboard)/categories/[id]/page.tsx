@@ -1,14 +1,13 @@
-import { requireAdminSession } from "../../components/admin-guard";
+import { notFound } from "next/navigation";
+
+import { PageHeader } from "@/components/admin/page-header";
 import { getCategoryById } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { notFound } from "next/navigation";
+
+import { requireAdminSession } from "../../components/admin-guard";
 import { CategoryForm } from "../category-form";
 
-export default async function EditCategoryPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EditCategoryPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) notFound();
   const { id } = await params;
@@ -19,7 +18,10 @@ export default async function EditCategoryPage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Edit Category</h1>
+      <PageHeader
+        title="Edit category"
+        description={`Update “${category.name}” and its taxonomy settings.`}
+      />
       <CategoryForm category={category} />
     </div>
   );
