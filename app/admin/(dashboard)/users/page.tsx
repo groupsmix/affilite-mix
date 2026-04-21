@@ -6,7 +6,7 @@ import { NewUserDialog } from "./new-user-dialog";
 import { UsersTable, type UsersTableRow } from "./users-table";
 
 export default async function AdminUsersPage() {
-  await requireAdminSession();
+  const session = await requireAdminSession();
 
   const [users, memberships] = await Promise.all([
     listAdminUsers(),
@@ -50,7 +50,7 @@ export default async function AdminUsersPage() {
         <NewUserDialog />
       </div>
 
-      <UsersTable data={rows} />
+      <UsersTable data={rows} currentUserId={session.userId ?? null} />
     </div>
   );
 }

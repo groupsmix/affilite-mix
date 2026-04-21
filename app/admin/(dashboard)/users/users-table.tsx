@@ -1,23 +1,19 @@
 "use client";
 
+import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontalIcon } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { formatRelativeTime } from "../categories/categories-table";
+import { UserRowActions } from "./user-row-actions";
 
 /**
  * Role enum values actually used in the `admin_users` table.
@@ -178,100 +174,100 @@ function LastLoginCell({ value }: { value: string | null }) {
   );
 }
 
-/**
- * Placeholder dropdown trigger — real row actions land in Task 13c.
- * Rendered as a disabled-looking trigger with no menu items so the column
- * width matches the post-13c layout.
- */
-function RowActionsPlaceholder() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <div className="px-2 py-1.5 text-xs text-muted-foreground">No actions yet</div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+interface RowActionsContext {
+  currentUserId: string | null;
+  lastActiveSuperAdminId: string | null;
 }
 
-export const usersTableColumns: ColumnDef<UsersTableRow>[] = [
-  {
-    id: "user",
-    accessorKey: "email",
-    header: "User",
-    cell: ({ row }) => <AvatarEmailCell row={row.original} />,
-    enableHiding: false,
-    enableSorting: false,
-  },
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => {
-      const name = row.original.name.trim();
-      if (!name) return <span className="text-muted-foreground">—</span>;
-      return <span className="text-foreground">{name}</span>;
+export function buildUsersTableColumns(context: RowActionsContext): ColumnDef<UsersTableRow>[] {
+  return [
+    {
+      id: "user",
+      accessorKey: "email",
+      header: "User",
+      cell: ({ row }) => <AvatarEmailCell row={row.original} />,
+      enableHiding: false,
+      enableSorting: false,
     },
-    enableSorting: false,
-  },
-  {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => <RoleBadgeCell role={row.original.role} />,
-    enableSorting: false,
-  },
-  {
-    id: "sites",
-    header: "Sites access",
-    cell: ({ row }) => <SitesAccessCell row={row.original} />,
-    enableSorting: false,
-  },
-  {
-    accessorKey: "is_active",
-    header: "Status",
-    cell: ({ row }) => <StatusBadgeCell isActive={row.original.is_active} />,
-    enableSorting: false,
-  },
-  {
-    accessorKey: "last_login_at",
-    header: "Last login",
-    cell: ({ row }) => <LastLoginCell value={row.original.last_login_at} />,
-    enableSorting: false,
-  },
-  {
-    id: "actions",
-    header: () => <span className="sr-only">Actions</span>,
-    cell: () => <RowActionsPlaceholder />,
-    enableSorting: false,
-    enableHiding: false,
-  },
-];
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => {
+        const name = row.original.name.trim();
+        if (!name) return <span className="text-muted-foreground">—</span>;
+        return <span className="text-foreground">{name}</span>;
+      },
+      enableSorting: false,
+    },
+    {
+      accessorKey: "role",
+      header: "Role",
+      cell: ({ row }) => <RoleBadgeCell role={row.original.role} />,
+      enableSorting: false,
+    },
+    {
+      id: "sites",
+      header: "Sites access",
+      cell: ({ row }) => <SitesAccessCell row={row.original} />,
+      enableSorting: false,
+    },
+    {
+      accessorKey: "is_active",
+      header: "Status",
+      cell: ({ row }) => <StatusBadgeCell isActive={row.original.is_active} />,
+      enableSorting: false,
+    },
+    {
+      accessorKey: "last_login_at",
+      header: "Last login",
+      cell: ({ row }) => <LastLoginCell value={row.original.last_login_at} />,
+      enableSorting: false,
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      cell: ({ row }) => (
+        <UserRowActions
+          user={row.original}
+          currentUserId={context.currentUserId}
+          isLastActiveSuperAdmin={
+            context.lastActiveSuperAdminId !== null &&
+            context.lastActiveSuperAdminId === row.original.id
+          }
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+  ];
+}
 
 export interface UsersTableProps {
   data: UsersTableRow[];
+  /** Id of the currently signed-in admin; used for self-action gating. */
+  currentUserId: string | null;
 }
 
 /**
  * Client component rendering the admin users list via the shared
- * `<DataTable>`. Task 13a scope: read-only shell — no filters, search, sort,
- * URL sync, or row actions. Those land in 13b/13c.
+ * `<DataTable>`. Task 13c adds the per-row actions dropdown (edit,
+ * (de)activate, reset password, delete). Filters / search / sort land in 13b.
  */
-export function UsersTable({ data }: UsersTableProps) {
+export function UsersTable({ data, currentUserId }: UsersTableProps) {
+  const columns = useMemo(() => {
+    const activeSuperAdmins = data.filter((u) => u.role === "super_admin" && u.is_active);
+    const lastActiveSuperAdminId =
+      activeSuperAdmins.length === 1 ? (activeSuperAdmins[0]?.id ?? null) : null;
+
+    return buildUsersTableColumns({ currentUserId, lastActiveSuperAdminId });
+  }, [data, currentUserId]);
+
   if (data.length === 0) {
     return <UsersEmptyState />;
   }
 
   return (
-    <DataTable
-      columns={usersTableColumns}
-      data={data}
-      totalCount={data.length}
-      pageSize={20}
-      hideToolbar
-    />
+    <DataTable columns={columns} data={data} totalCount={data.length} pageSize={20} hideToolbar />
   );
 }
 
