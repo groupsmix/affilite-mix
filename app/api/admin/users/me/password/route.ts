@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
     const { valid } = await verifyPassword(currentPassword, user.password_hash);
     if (!valid) {
-      return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
+      return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
     }
 
     const breached = await checkBreachedPassword(newPassword);
