@@ -44,7 +44,7 @@
 #   - ADMIN_BOOTSTRAP_NAME (optional), ADMIN_BOOTSTRAP_ROLE (default: super_admin)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-name: 🚀 Deploy to Cloudflare
+name: Deploy to Cloudflare
 
 on:
   push:
@@ -127,6 +127,12 @@ jobs:
             echo "⚠️ STAGING_SUPABASE_DB_URL not set, skipping DB reset smoke test"
             echo "⚠️ This is NOT recommended for production deploys — add a staging DB URL"
             exit 0
+          fi
+
+          # Guard: refuse to reset a database that matches any production URL
+          if [ -n "$SUPABASE_DB_URL" ] && [ "$_STAGING_DB_URL" = "$SUPABASE_DB_URL" ]; then
+            echo "::error::STAGING_SUPABASE_DB_URL must not equal SUPABASE_DB_URL — refusing to reset production database"
+            exit 1
           fi
 
           echo "🧪 Running database reset smoke test..."
