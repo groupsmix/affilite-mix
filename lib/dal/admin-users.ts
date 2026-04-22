@@ -38,7 +38,9 @@ export async function getAdminUserById(id: string): Promise<AdminUserPublic | nu
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("id, email, name, role, is_active, created_at, updated_at")
+    .select(
+      "id, email, name, role, is_active, totp_enabled, totp_verified_at, created_at, updated_at",
+    )
     .eq("id", id)
     .single();
 
@@ -51,7 +53,9 @@ export async function listAdminUsers(): Promise<AdminUserPublic[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("id, email, name, role, is_active, created_at, updated_at")
+    .select(
+      "id, email, name, role, is_active, totp_enabled, totp_verified_at, created_at, updated_at",
+    )
     .order("created_at", { ascending: true });
 
   if (error) throw error;
