@@ -2,6 +2,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import type { ContentRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
+import { shouldSkipDbCall } from "@/lib/db-available";
 
 const TABLE = "content";
 
@@ -196,14 +197,12 @@ export async function listPublishedContent(
   limit = 20,
   offset = 0,
 ): Promise<ContentRow[]> {
-  const sb = getServiceClient();
-  // Return empty if Supabase is not configured (placeholder URL)
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  // Skip DB calls when Supabase is not configured or during next build
+  // (SUPABASE_SERVICE_ROLE_KEY is a Worker runtime secret, not available at build time).
+  if (shouldSkipDbCall()) {
     return [];
   }
+  const sb = getServiceClient();
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -227,11 +226,8 @@ export async function getRecentContent(siteId: string, limit = 6): Promise<Conte
 
 /** Count published content for pagination */
 export async function countPublishedContent(siteId: string, contentType?: string): Promise<number> {
-  // Return 0 if Supabase is not configured (placeholder URL)
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  // Skip when Supabase is not configured or during next build.
+  if (shouldSkipDbCall()) {
     return 0;
   }
   const sb = getServiceClient();

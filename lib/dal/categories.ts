@@ -1,6 +1,7 @@
 import { getServiceClient } from "@/lib/supabase-server";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
+import { shouldSkipDbCall } from "@/lib/db-available";
 
 const TABLE = "categories";
 
@@ -62,11 +63,9 @@ export async function listCategories(
   siteId: string,
   opts: ListCategoriesOptions = {},
 ): Promise<CategoryRow[]> {
-  // Return empty if Supabase is not configured (placeholder URL)
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  // Skip DB calls when Supabase is not configured or during next build
+  // (SUPABASE_SERVICE_ROLE_KEY is a Worker runtime secret, not available at build time).
+  if (shouldSkipDbCall()) {
     return [];
   }
   const sb = getServiceClient();
@@ -106,11 +105,9 @@ export async function listCategoriesByTaxonomy(
   siteId: string,
   taxonomyType: TaxonomyType,
 ): Promise<CategoryRow[]> {
-  // Return empty if Supabase is not configured (placeholder URL)
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  // Skip DB calls when Supabase is not configured or during next build
+  // (SUPABASE_SERVICE_ROLE_KEY is a Worker runtime secret, not available at build time).
+  if (shouldSkipDbCall()) {
     return [];
   }
   const sb = getServiceClient();
@@ -147,10 +144,7 @@ export async function listCategoriesByTaxonomy(
 
 /** Get a single category by id */
 export async function getCategoryById(siteId: string, id: string): Promise<CategoryRow | null> {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  if (shouldSkipDbCall()) {
     return null;
   }
 
@@ -168,10 +162,7 @@ export async function getCategoryById(siteId: string, id: string): Promise<Categ
 
 /** Get a single category by slug */
 export async function getCategoryBySlug(siteId: string, slug: string): Promise<CategoryRow | null> {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  if (shouldSkipDbCall()) {
     return null;
   }
 
@@ -191,11 +182,9 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
 export async function listCategoriesWithProductCount(
   siteId: string,
 ): Promise<(CategoryRow & { product_count: number })[]> {
-  // Return empty if Supabase is not configured (placeholder URL)
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  // Skip DB calls when Supabase is not configured or during next build
+  // (SUPABASE_SERVICE_ROLE_KEY is a Worker runtime secret, not available at build time).
+  if (shouldSkipDbCall()) {
     return [];
   }
 
@@ -314,11 +303,8 @@ export async function getCategoryUsageCountsBatch(
     return { contentCounts, productCounts };
   }
 
-  // Return zero-filled maps if Supabase is not configured (placeholder URL)
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  // Skip when Supabase is not configured or during next build.
+  if (shouldSkipDbCall()) {
     return { contentCounts, productCounts };
   }
 
@@ -353,10 +339,7 @@ export async function getCategoryUsageCounts(
   siteId: string,
   categoryId: string,
 ): Promise<{ contentCount: number; productCount: number }> {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  if (shouldSkipDbCall()) {
     return { contentCount: 0, productCount: 0 };
   }
 
