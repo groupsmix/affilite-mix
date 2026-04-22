@@ -15,7 +15,7 @@ export interface AdminUserRow {
   updated_at: string;
 }
 
-export type AdminUserPublic = Omit<AdminUserRow, "password_hash">;
+export type AdminUserPublic = Omit<AdminUserRow, "password_hash" | "totp_secret">;
 
 const TABLE = "admin_users";
 

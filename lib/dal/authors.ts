@@ -31,11 +31,15 @@ export async function listAuthors(siteId: string): Promise<AuthorRow[]> {
   return assertRows<AuthorRow>(data);
 }
 
-/** Get an author by ID */
-export async function getAuthorById(id: string): Promise<AuthorRow | null> {
+/** Get an author by ID (scoped to site) */
+export async function getAuthorById(siteId: string, id: string): Promise<AuthorRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE).select("*").eq("id", id).single();
+  const { data, error } = await (sb.from as any)(TABLE)
+    .select("*")
+    .eq("site_id", siteId)
+    .eq("id", id)
+    .single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<AuthorRow>(data);
@@ -74,8 +78,9 @@ export async function createAuthor(input: {
   return assertRow<AuthorRow>(data, "Author");
 }
 
-/** Update an author */
+/** Update an author (scoped to site) */
 export async function updateAuthor(
+  siteId: string,
   id: string,
   input: Partial<
     Pick<
@@ -95,6 +100,7 @@ export async function updateAuthor(
 
   const { data, error } = await (sb.from as any)(TABLE)
     .update(input)
+    .eq("site_id", siteId)
     .eq("id", id)
     .select()
     .single();
@@ -103,10 +109,10 @@ export async function updateAuthor(
   return assertRow<AuthorRow>(data, "Author");
 }
 
-/** Delete an author */
-export async function deleteAuthor(id: string): Promise<void> {
+/** Delete an author (scoped to site) */
+export async function deleteAuthor(siteId: string, id: string): Promise<void> {
   const sb = getServiceClient();
 
-  const { error } = await (sb.from as any)(TABLE).delete().eq("id", id);
+  const { error } = await (sb.from as any)(TABLE).delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;
 }

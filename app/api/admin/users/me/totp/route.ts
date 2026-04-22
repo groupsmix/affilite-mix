@@ -34,6 +34,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    if (user.totp_enabled) {
+      return NextResponse.json(
+        { error: "2FA is already enabled. Disable it first before re-enrolling." },
+        { status: 409 },
+      );
+    }
+
     // Generate a new TOTP secret
     const { secret, uri } = generateTotpSecret(session.email);
 
@@ -122,6 +129,17 @@ export async function DELETE(request: Request) {
   const session = await getAdminSession();
   if (!session || !session.userId || !session.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = await checkRateLimit(`admin:totp-disable:${session.userId}`, {
+    maxRequests: 10,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please try again later." },
+      { status: 429 },
+    );
   }
 
   const bodyOrError = await parseJsonBody(request);
