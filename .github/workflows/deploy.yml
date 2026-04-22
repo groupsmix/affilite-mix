@@ -69,6 +69,11 @@ env:
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
   NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+  # Required at build time by lib/site-context.ts#getCurrentSite: static
+  # prerendering of public pages has no request headers, so the build must
+  # know which site's metadata/layout to render for paths outside the
+  # dynamic routes. Must be a valid slug from config/sites/ or the DB.
+  NEXT_PUBLIC_DEFAULT_SITE: ${{ secrets.NEXT_PUBLIC_DEFAULT_SITE }}
   SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
