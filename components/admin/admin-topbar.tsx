@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { AdminMonetizationType } from "./admin-sidebar";
 import { CommandMenu } from "./command-menu";
 import { TenantBadgeSwitcher } from "./tenant-badge-switcher";
 
@@ -134,10 +135,12 @@ export function AdminTopbar({
   onOpenMobileNav,
   siteName,
   isSuperAdmin,
+  monetizationType,
 }: {
   onOpenMobileNav: () => void;
   siteName: string | null | undefined;
   isSuperAdmin: boolean;
+  monetizationType?: AdminMonetizationType;
 }) {
   const pathname = usePathname();
 
@@ -159,7 +162,7 @@ export function AdminTopbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <CommandMenu />
+        <CommandMenu monetizationType={monetizationType} />
         <TenantBadgeSwitcher initialSiteName={siteName ?? null} isSuperAdmin={isSuperAdmin} />
         <UserMenu />
       </div>

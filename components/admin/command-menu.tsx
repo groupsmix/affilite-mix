@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { SearchIcon } from "lucide-react";
 
 import { adminNavItems } from "@/config/admin-nav";
+import { filterAdminNavItems, type AdminMonetizationType } from "./admin-sidebar";
 import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
@@ -16,7 +17,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-export function CommandMenu() {
+export function CommandMenu({ monetizationType }: { monetizationType?: AdminMonetizationType }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -66,7 +67,7 @@ export function CommandMenu() {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Pages">
-            {adminNavItems.map((item) => {
+            {filterAdminNavItems(adminNavItems, monetizationType).map((item) => {
               const Icon = item.icon;
               return (
                 <CommandItem
