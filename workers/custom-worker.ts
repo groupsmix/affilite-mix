@@ -2,8 +2,8 @@
  * Custom Cloudflare Worker entry point.
  *
  * Wraps the @opennextjs/cloudflare-generated fetch handler and adds a
- * `scheduled` handler so that the cron trigger defined in wrangler.jsonc
- * actually dispatches to `/api/cron/publish`.
+ * `scheduled` handler so that cron triggers defined in wrangler.jsonc
+ * dispatch to the correct `/api/cron/*` endpoint based on the schedule.
  *
  * NOTE: This file is compiled by wrangler at deploy time (not by Next.js/tsc),
  * so Cloudflare Worker globals (ScheduledController, ExecutionContext, etc.)
@@ -65,7 +65,14 @@ const worker = {
       return;
     }
 
-    const url = `${cronHost}/api/cron/publish`;
+    const CRON_ROUTES: Record<string, string> = {
+      "*/5 * * * *": "/api/cron/publish",
+      "0 2 * * *": "/api/cron/ai-generate",
+      "0 3 * * *": "/api/cron/sitemap-refresh",
+    };
+
+    const path = CRON_ROUTES[controller.cron] ?? "/api/cron/publish";
+    const url = `${cronHost}${path}`;
 
     ctx.waitUntil(
       fetch(url, {
@@ -79,12 +86,12 @@ const worker = {
           const body = await res.text();
           if (res.ok) {
             console.log(
-              `[scheduled] cron=${controller.cron} -- /api/cron/publish responded ${res.status}:`,
+              `[scheduled] cron=${controller.cron} -- ${path} responded ${res.status}:`,
               body,
             );
           } else {
             console.error(
-              `[scheduled] cron=${controller.cron} -- /api/cron/publish failed ${res.status}:`,
+              `[scheduled] cron=${controller.cron} -- ${path} failed ${res.status}:`,
               body,
             );
           }

@@ -568,34 +568,34 @@ export interface Database {
         Row: {
           id: string;
           site_id: string;
-          actor: string;
+          actor: string | null;
           action: string;
           entity_type: string;
           entity_id: string;
           details: Record<string, unknown>;
-          ip: string;
+          ip: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           site_id: string;
-          actor: string;
+          actor?: string | null;
           action: string;
           entity_type: string;
           entity_id: string;
           details?: Record<string, unknown>;
-          ip?: string;
+          ip?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           site_id?: string;
-          actor?: string;
+          actor?: string | null;
           action?: string;
           entity_type?: string;
           entity_id?: string;
           details?: Record<string, unknown>;
-          ip?: string;
+          ip?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -707,27 +707,36 @@ export interface Database {
           id: string;
           site_id: string;
           ad_placement_id: string;
+          content_id: string | null;
           page_path: string;
           impression_date: string;
-          count: number;
+          impression_count: number;
+          cpm_revenue_cents: number;
+          last_seen_at: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           site_id: string;
           ad_placement_id: string;
+          content_id?: string | null;
           page_path: string;
           impression_date: string;
-          count?: number;
+          impression_count?: number;
+          cpm_revenue_cents?: number;
+          last_seen_at?: string;
           created_at?: string;
         };
         Update: {
           id?: string;
           site_id?: string;
           ad_placement_id?: string;
+          content_id?: string | null;
           page_path?: string;
           impression_date?: string;
-          count?: number;
+          impression_count?: number;
+          cpm_revenue_cents?: number;
+          last_seen_at?: string;
           created_at?: string;
         };
         Relationships: [
@@ -1334,6 +1343,16 @@ export interface Database {
       };
       reorder_pages: {
         Args: { updates: { id: string; sort_order: number }[] };
+        Returns: undefined;
+      };
+      record_ad_impression: {
+        Args: {
+          p_site_id: string;
+          p_ad_placement_id: string;
+          p_content_id: string | null;
+          p_page_path: string;
+          p_cpm_revenue_cents: number;
+        };
         Returns: undefined;
       };
     };

@@ -44,7 +44,7 @@
 #   - ADMIN_BOOTSTRAP_NAME (optional), ADMIN_BOOTSTRAP_ROLE (default: super_admin)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-name: 🚀 Deploy to Cloudflare
+name: Deploy to Cloudflare
 
 on:
   push:
@@ -88,7 +88,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm install
+      - run: npm ci
 
       # ── Install psql for direct DB migration ─────────────────────────────────
       #
@@ -103,16 +103,123 @@ jobs:
       # This step accepts either secret and prefers SUPABASE_DB_POOLER_URL when
       # set, so teams can keep the direct URL around for other tooling while
       # still giving CI an IPv4-reachable URL.
-      - name: Install psql and apply database migrations
-        env:
-          _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+      - name: Install psql
         run: |
           set -euo pipefail
           echo "🔄 Installing psql..."
           sudo apt-get update && sudo apt-get install -y postgresql-client 2>&1 | tail -5
 
-          echo "🔄 Applying database migrations..."
+      # ── Database reset smoke test (pre-production gate) ──────────────────────
+      # This job creates a temporary test database, runs the full migration
+      # chain from zero, and verifies the schema matches runtime expectations.
+      # It catches migration drift, missing tables, and broken RPCs BEFORE
+      # they reach production.
+      #
+      # IMPORTANT: This uses a separate STAGING_SUPABASE_DB_URL to avoid
+      # touching production data. The staging database is reset on every deploy.
+      - name: Database reset smoke test
+        env:
+          _STAGING_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          
+          if [ -z "$_STAGING_DB_URL" ]; then
+            echo "⚠️ STAGING_SUPABASE_DB_URL not set, skipping DB reset smoke test"
+            echo "⚠️ This is NOT recommended for production deploys — add a staging DB URL"
+            exit 0
+          fi
+
+          # Guard: refuse to reset a database that matches any production URL
+          if [ -n "$SUPABASE_DB_URL" ] && [ "$_STAGING_DB_URL" = "$SUPABASE_DB_URL" ]; then
+            echo "::error::STAGING_SUPABASE_DB_URL must not equal SUPABASE_DB_URL — refusing to reset production database"
+            exit 1
+          fi
+
+          echo "🧪 Running database reset smoke test..."
+          
+          # Drop and recreate the public schema (equivalent to supabase db reset)
+          psql "$_STAGING_DB_URL" -v ON_ERROR_STOP=1 <<-EOSQL
+            DROP SCHEMA IF EXISTS public CASCADE;
+            CREATE SCHEMA public;
+            GRANT ALL ON SCHEMA public TO postgres;
+            GRANT ALL ON SCHEMA public TO public;
+EOSQL
+
+          echo "✅ Staging database reset complete"
+          
+          # Apply all migrations in order
+          echo "📥 Applying migrations to clean database..."
+          for file in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
+            filename=$(basename "$file")
+            [[ "$filename" == *.sql ]] || continue
+            
+            echo "  → $filename"
+            if ! psql "$_STAGING_DB_URL" -v ON_ERROR_STOP=1 -f "$file" > /tmp/migration.log 2>&1; then
+              echo "❌ Migration failed: $filename"
+              cat /tmp/migration.log
+              exit 1
+            fi
+          done
+          
+          echo "✅ All migrations applied successfully"
+          
+          # Verify critical tables exist
+          echo "🔍 Verifying schema..."
+          TABLES="sites categories products content affiliate_clicks admin_users newsletter_subscribers audit_log ad_placements ad_impressions ai_drafts affiliate_networks"
+          for table in $TABLES; do
+            if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='$table';" | grep -q 1; then
+              echo "❌ Missing table: $table"
+              exit 1
+            fi
+          done
+          echo "✅ All critical tables exist"
+          
+          # Verify critical columns
+          echo "🔍 Verifying critical columns..."
+          
+          # audit_log columns
+          for col in actor entity_type ip; do
+            if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='$col';" | grep -q 1; then
+              echo "❌ Missing audit_log.$col column"
+              exit 1
+            fi
+          done
+          
+          # sites.is_active
+          if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_name='sites' AND column_name='is_active';" | grep -q 1; then
+            echo "❌ Missing sites.is_active column"
+            exit 1
+          fi
+          
+          # newsletter_subscribers.unsubscribe_token
+          if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_name='newsletter_subscribers' AND column_name='unsubscribe_token';" | grep -q 1; then
+            echo "❌ Missing newsletter_subscribers.unsubscribe_token column"
+            exit 1
+          fi
+          
+          echo "✅ All critical columns exist"
+          
+          # Verify analytics RPCs
+          echo "🔍 Verifying analytics RPC functions..."
+          RPCS="get_top_products get_top_referrers get_top_content_slugs get_daily_clicks"
+          for rpc in $RPCS; do
+            if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM pg_proc WHERE proname='$rpc';" | grep -q 1; then
+              echo "❌ Missing RPC function: $rpc"
+              exit 1
+            fi
+          done
+          echo "✅ All analytics RPCs exist"
+          
+          echo "✅ Database reset smoke test PASSED"
+
+      - name: Apply database migrations to production
+        env:
+          _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+        run: |
+          set -euo pipefail
+
+          echo "🔄 Applying database migrations to production..."
           # Prefer the pooler URL if provided; fall back to the direct URL.
           DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
 

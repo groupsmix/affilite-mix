@@ -45,10 +45,8 @@ describe("middleware DB-fallback deactivation branch", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).toBe(404);
-    expect(res.headers.get("Content-Type")).toMatch(/text\/html/);
-    const body = await res.text();
-    expect(body).toContain("Niche Not Found");
-    expect(body).toContain("no longer active");
+    // Middleware now rewrites to /not-found for tenant-aware branding
+    expect(res.headers.get("x-middleware-rewrite")).toContain("/not-found");
     // Deactivated tenants must NOT leak through to downstream handlers.
     expect(res.headers.get("x-site-id")).toBeNull();
   });
@@ -67,8 +65,8 @@ describe("middleware DB-fallback deactivation branch", () => {
     const res = await middleware(req);
 
     expect(res.status).toBe(404);
-    const body = await res.text();
-    expect(body).toContain("Niche Not Found");
+    // Middleware rewrites to /not-found for tenant-aware branding
+    expect(res.headers.get("x-middleware-rewrite")).toContain("/not-found");
   });
 
   it("injects x-site-id header and proceeds when DB reports site is active", async () => {
