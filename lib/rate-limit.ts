@@ -43,8 +43,21 @@ function getKVNamespace(): KVNamespace | undefined {
   return undefined;
 }
 
-interface KVRateLimitData {
-  timestamps: number[];
+/**
+ * Fixed-window counter stored in KV.
+ *
+ * Uses a window-bucketed key (`rate:{key}:{windowId}`) with a simple integer
+ * counter instead of a timestamp array.  This minimises the data written on
+ * each request and narrows the read-then-write race window to a single
+ * integer increment — far less exploitable than the previous get→filter→
+ * push→put pattern on a full JSON array.
+ *
+ * NOTE: Cloudflare KV does not support atomic compare-and-swap, so a small
+ * race still exists under extreme concurrency.  For strict per-key atomicity
+ * migrate to Durable Objects or the Cloudflare Rate Limiting API.
+ */
+interface KVCounterData {
+  count: number;
 }
 
 async function checkRateLimitKV(
@@ -53,32 +66,30 @@ async function checkRateLimitKV(
   config: RateLimitConfig,
 ): Promise<RateLimitResult> {
   const now = Date.now();
-  const cutoff = now - config.windowMs;
-  const kvKey = `rate:${key}`;
+  const windowId = Math.floor(now / config.windowMs);
+  const kvKey = `rate:${key}:${windowId}`;
+  const ttlSeconds = Math.ceil(config.windowMs / 1000) + 1;
 
-  const existing = (await kv.get(kvKey, "json")) as KVRateLimitData | null;
-  const timestamps = existing ? existing.timestamps.filter((t) => t > cutoff) : [];
+  const existing = (await kv.get(kvKey, "json")) as KVCounterData | null;
+  const currentCount = existing?.count ?? 0;
 
-  if (timestamps.length >= config.maxRequests) {
-    const oldestInWindow = timestamps[0];
-    const retryAfterMs = oldestInWindow + config.windowMs - now;
+  if (currentCount >= config.maxRequests) {
+    const windowStart = windowId * config.windowMs;
+    const windowEnd = windowStart + config.windowMs;
     return {
       allowed: false,
       remaining: 0,
-      retryAfterMs: Math.max(retryAfterMs, 0),
+      retryAfterMs: Math.max(windowEnd - now, 0),
     };
   }
 
-  timestamps.push(now);
-
-  const ttlSeconds = Math.ceil(config.windowMs / 1000);
-  await kv.put(kvKey, JSON.stringify({ timestamps }), {
+  await kv.put(kvKey, JSON.stringify({ count: currentCount + 1 }), {
     expirationTtl: ttlSeconds,
   });
 
   return {
     allowed: true,
-    remaining: config.maxRequests - timestamps.length,
+    remaining: config.maxRequests - (currentCount + 1),
     retryAfterMs: 0,
   };
 }

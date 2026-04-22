@@ -43,6 +43,12 @@ export interface SiteDefinition {
   /** How this site earns revenue. Controls which UI blocks render. */
   monetizationType: "affiliate" | "ads" | "both";
 
+  /**
+   * Fine-grained monetization modules. Replaces the coarse monetizationType enum.
+   * When present, monetizationType is derived from this list for backward compat.
+   */
+  monetizationModules?: MonetizationModule[];
+
   /** Estimated revenue per affiliate click (USD). Used in admin analytics. */
   estRevenuePerClick?: number;
 
@@ -97,4 +103,29 @@ export interface NavItem {
   title: string;
   href: string;
   children?: NavItem[];
+}
+
+/** Fine-grained monetization modules — each drives different UX and accounting. */
+export type MonetizationModule =
+  | "affiliate_links"
+  | "display_ads"
+  | "newsletter_sponsor"
+  | "lead_gen"
+  | "paid_membership"
+  | "price_alerts"
+  | "sponsored_reviews";
+
+/**
+ * Derive the legacy monetizationType enum from a monetizationModules array.
+ * Used for backward compatibility with existing UI code.
+ */
+export function deriveMonetizationType(
+  modules: MonetizationModule[] | undefined,
+): "affiliate" | "ads" | "both" {
+  if (!modules || modules.length === 0) return "both";
+  const hasAffiliate = modules.includes("affiliate_links");
+  const hasAds = modules.includes("display_ads");
+  if (hasAffiliate && hasAds) return "both";
+  if (hasAds) return "ads";
+  return "affiliate";
 }

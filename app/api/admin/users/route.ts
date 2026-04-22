@@ -28,11 +28,15 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
   return null;
 }
 
-/** GET /api/admin/users — list all admin users */
+/** GET /api/admin/users — list all admin users (super_admin only) */
 export async function GET() {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
 
   const rlError = await enforceRateLimit(session.email, session.userId);
@@ -40,9 +44,7 @@ export async function GET() {
 
   try {
     const users = await listAdminUsers();
-    // Strip password_hash from response
-    const safe = users.map(({ password_hash: _ph, ...rest }) => rest);
-    return NextResponse.json(safe);
+    return NextResponse.json(users);
   } catch (err) {
     captureException(err, { context: "Failed to list admin users:" });
     return NextResponse.json({ error: "Failed to list users" }, { status: 500 });

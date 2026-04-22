@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
-import { ChevronRight, LogOut, Menu, User } from "lucide-react";
+import { ChevronRight, LogOut, Menu, Settings, User } from "lucide-react";
 
 import { adminNavItems } from "@/config/admin-nav";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
@@ -18,6 +18,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { AdminMonetizationType } from "./admin-sidebar";
+import { CommandMenu } from "./command-menu";
 import { TenantBadgeSwitcher } from "./tenant-badge-switcher";
 
 interface Crumb {
@@ -114,9 +116,11 @@ function UserMenu() {
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel>Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled className="cursor-not-allowed opacity-60">
-          <User className="size-4" />
-          Profile
+        <DropdownMenuItem asChild>
+          <Link href="/admin/settings">
+            <Settings className="size-4" />
+            Settings
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void handleLogout()} variant="destructive">
           <LogOut className="size-4" />
@@ -131,10 +135,12 @@ export function AdminTopbar({
   onOpenMobileNav,
   siteName,
   isSuperAdmin,
+  monetizationType,
 }: {
   onOpenMobileNav: () => void;
   siteName: string | null | undefined;
   isSuperAdmin: boolean;
+  monetizationType?: AdminMonetizationType;
 }) {
   const pathname = usePathname();
 
@@ -156,6 +162,7 @@ export function AdminTopbar({
       </div>
 
       <div className="flex items-center gap-2">
+        <CommandMenu monetizationType={monetizationType} />
         <TenantBadgeSwitcher initialSiteName={siteName ?? null} isSuperAdmin={isSuperAdmin} />
         <UserMenu />
       </div>

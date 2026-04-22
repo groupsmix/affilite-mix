@@ -95,6 +95,7 @@ export function AdminShell({
           onOpenMobileNav={() => setMobileOpen(true)}
           siteName={siteName}
           isSuperAdmin={isSuperAdmin}
+          monetizationType={monetizationType}
         />
         {hasActiveSite && (
           <div

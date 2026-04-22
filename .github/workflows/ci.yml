@@ -14,6 +14,7 @@ env:
   CRON_SECRET: ci-test-cron-secret
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
+  NEXT_PUBLIC_DEFAULT_SITE: ai-compared
 
 jobs:
   check:
@@ -29,8 +30,12 @@ jobs:
         run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm test
-      - run: npm run typecheck
+      - run: npm run typecheck:all
       - run: npm run build
+        env:
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+      - name: Bundle size check
+        run: bash scripts/check-bundle-size.sh 180
 
   # ── Cross-workflow required gates ──────────────────────────────────
   # Branch protection should require ALL of the following check names:
