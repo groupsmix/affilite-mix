@@ -37,7 +37,7 @@ const DEFAULT_EST_REVENUE_PER_CLICK = 0.35;
 const UNIQUE_REFERRER_SAMPLE_LIMIT = 100;
 
 interface AnalyticsPageProps {
-  searchParams?: Promise<AnalyticsRangeSearchParams> | AnalyticsRangeSearchParams;
+  searchParams?: Promise<AnalyticsRangeSearchParams>;
 }
 
 export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps) {
@@ -88,7 +88,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
     getTopProducts(siteId, thirtyDaysAgoIso, 50),
     getTopReferrers(siteId, thirtyDaysAgoIso, 50),
     getTopContentSlugs(siteId, thirtyDaysAgoIso, 50),
-    getDailyClicks(siteId, 30),
+    getDailyClicks(siteId, range.days),
     getRecentClicks(siteId, 20),
     countProducts({ siteId, status: "active" }),
     getClickCount(siteId, thirtyDaysAgoIso),
@@ -168,10 +168,10 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
       {/* Click trend chart */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Clicks — Last 30 Days</CardTitle>
-          <CardDescription>Daily affiliate-link clicks across the last 30 days.</CardDescription>
+          <CardTitle>Clicks — {rangeLabelText}</CardTitle>
+          <CardDescription>Daily affiliate-link clicks across the selected window.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pl-2">
           <ClickChart data={dailyClicks} />
         </CardContent>
       </Card>
