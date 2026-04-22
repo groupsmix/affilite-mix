@@ -28,6 +28,19 @@ export async function getAdminUserByEmail(email: string): Promise<AdminUserRow |
   return rowOrNull<AdminUserRow>(data);
 }
 
+/** Find an admin user by ID (excludes password_hash for safety) */
+export async function getAdminUserById(id: string): Promise<AdminUserRow | null> {
+  const sb = getServiceClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("id, email, name, role, is_active, created_at, updated_at")
+    .eq("id", id)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return rowOrNull<AdminUserRow>(data);
+}
+
 /** List all admin users (excludes password_hash for safety) */
 export async function listAdminUsers(): Promise<AdminUserRow[]> {
   const sb = getServiceClient();
