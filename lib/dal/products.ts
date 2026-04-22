@@ -2,6 +2,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { shouldSkipDbCall } from "@/lib/db-available";
 
 const TABLE = "products";
 
@@ -100,11 +101,8 @@ export async function listProducts(opts: ListProductsOptions): Promise<ProductRo
 
 /** Count products matching filters */
 export async function countProducts(opts: CountProductsOptions): Promise<number> {
-  // Return 0 if Supabase is not configured (placeholder URL)
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  // Skip when Supabase is not configured or during next build.
+  if (shouldSkipDbCall()) {
     return 0;
   }
   const sb = getServiceClient();
@@ -144,10 +142,7 @@ export async function countProducts(opts: CountProductsOptions): Promise<number>
  * "network" faceted filter in the products admin table.
  */
 export async function listDistinctMerchants(siteId: string): Promise<string[]> {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  if (shouldSkipDbCall()) {
     return [];
   }
   const sb = getServiceClient();
@@ -251,11 +246,9 @@ export async function listActiveProducts(
   siteId: string,
   categorySlug?: string,
 ): Promise<ProductRow[]> {
-  // Return empty if Supabase is not configured (placeholder URL)
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  // Skip DB calls when Supabase is not configured or during next build
+  // (SUPABASE_SERVICE_ROLE_KEY is a Worker runtime secret, not available at build time).
+  if (shouldSkipDbCall()) {
     return [];
   }
   const sb = getServiceClient();
@@ -343,11 +336,9 @@ export async function listProductsByNames(
 
 /** List featured products for a site */
 export async function listFeaturedProducts(siteId: string, limit = 6): Promise<ProductRow[]> {
-  // Return empty if Supabase is not configured (placeholder URL)
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
-  ) {
+  // Skip DB calls when Supabase is not configured or during next build
+  // (SUPABASE_SERVICE_ROLE_KEY is a Worker runtime secret, not available at build time).
+  if (shouldSkipDbCall()) {
     return [];
   }
   const sb = getServiceClient();
