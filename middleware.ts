@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSiteByDomain, allSites } from "@/config/sites";
 import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
-import { INTERNAL_HEADER, getInternalToken } from "@/lib/internal-auth";
+import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
 
 /**
@@ -47,22 +47,16 @@ export async function middleware(request: NextRequest) {
     process.env.NODE_ENV !== "production" &&
     (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost"));
 
-  // 2. For unknown domains (dashboard-managed custom domains), do async DB lookup
-  //    This enables adding domains via Cloudflare Dashboard without code changes
+  // 2. For unknown domains (dashboard-managed custom domains), do direct DB lookup.
+  //    Previous implementation used a self-fetch to /api/internal/resolve-site
+  //    which added latency and coupling on the hot path.
   if (!siteId && !isLocalhostDev) {
     try {
-      const dbRes = await fetch(
-        new URL(`/api/internal/resolve-site?domain=${encodeURIComponent(hostname)}`, request.url),
-        { headers: { [INTERNAL_HEADER]: getInternalToken() } },
-      );
-      if (dbRes.ok) {
-        const data = await dbRes.json();
-        if (data.siteId && data.isActive) {
-          siteId = data.siteId;
-        } else if (data.siteId && !data.isActive) {
-          // Site exists but is deactivated
-          return nicheNotFoundResponse(request);
-        }
+      const row = await getSiteRowByDomain(hostname);
+      if (row && row.is_active) {
+        siteId = row.slug;
+      } else if (row && !row.is_active) {
+        return nicheNotFoundResponse(request);
       }
     } catch {
       // DB lookup failed; fall through to 404

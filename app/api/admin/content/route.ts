@@ -8,6 +8,7 @@ import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import { getSiteById } from "@/config/sites";
+import { getSiteRowBySlug } from "@/lib/dal/sites";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 
@@ -39,8 +40,23 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Resolve the site domain for sitemap pinging.
+ * Tries static config first, falls back to DB for admin-panel-created sites.
+ */
+async function resolveSiteDomain(siteSlug: string): Promise<string | null> {
+  const configSite = getSiteById(siteSlug);
+  if (configSite) return configSite.domain;
+  try {
+    const dbRow = await getSiteRowBySlug(siteSlug);
+    return dbRow?.domain ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const rawOrError = await parseJsonBody(request);
@@ -86,10 +102,9 @@ export async function POST(request: NextRequest) {
 
     // Ping search engines when content is published
     if (data.status === "published") {
-      const siteSlug = request.headers.get("x-site-id");
-      const site = siteSlug ? getSiteById(siteSlug) : null;
-      if (site) {
-        void pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
+      const domain = await resolveSiteDomain(siteSlug);
+      if (domain) {
+        void pingSitemapIndexers(`https://${domain}/sitemap.xml`);
       }
     }
 
@@ -101,7 +116,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
+  const { error, session, dbSiteId, siteSlug } = await requireAdmin();
   if (error) return error;
 
   const rawOrError = await parseJsonBody(request);
@@ -137,10 +152,9 @@ export async function PATCH(request: NextRequest) {
 
     // Ping search engines when content is published
     if (updates.status === "published") {
-      const siteSlug = request.headers.get("x-site-id");
-      const site = siteSlug ? getSiteById(siteSlug) : null;
-      if (site) {
-        void pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
+      const domain = await resolveSiteDomain(siteSlug);
+      if (domain) {
+        void pingSitemapIndexers(`https://${domain}/sitemap.xml`);
       }
     }
 

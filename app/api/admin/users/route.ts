@@ -28,11 +28,15 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
   return null;
 }
 
-/** GET /api/admin/users — list all admin users */
+/** GET /api/admin/users — list all admin users (super_admin only) */
 export async function GET() {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
 
   const rlError = await enforceRateLimit(session.email, session.userId);

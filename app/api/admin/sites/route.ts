@@ -2,6 +2,7 @@
 import { getAdminSession } from "@/lib/auth";
 import { allSites } from "@/config/sites";
 import { listSites, createSite, updateSite, deleteSite } from "@/lib/dal/sites";
+import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
@@ -22,7 +23,7 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
   return null;
 }
 
-/** GET /api/admin/sites — list all available sites (DB-first, config fallback) */
+/** GET /api/admin/sites — list all available sites (super_admin: all, admin: membership-filtered) */
 export async function GET() {
   const session = await getAdminSession();
   if (!session) {
@@ -31,6 +32,13 @@ export async function GET() {
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
+
+  // Non-super_admin users only see sites they have membership for
+  let allowedSiteIds: Set<string> | null = null;
+  if (session.role !== "super_admin" && session.userId) {
+    const memberships = await listAdminSiteMemberships(session.userId);
+    allowedSiteIds = new Set(memberships.map((m) => m.site_id));
+  }
 
   // Try DB first — returns full SiteRow data with all fields
   let dbSites: {
@@ -92,7 +100,12 @@ export async function GET() {
   }));
 
   const dbSlugs = new Set(dbSites.map((s) => s.id));
-  const mergedSites = [...dbSites, ...configSites.filter((s) => !dbSlugs.has(s.id))];
+  let mergedSites = [...dbSites, ...configSites.filter((s) => !dbSlugs.has(s.id))];
+
+  // Filter to membership-allowed sites for non-super_admin users
+  if (allowedSiteIds) {
+    mergedSites = mergedSites.filter((s) => allowedSiteIds.has("db_id" in s ? s.db_id : s.id));
+  }
 
   return NextResponse.json({ sites: mergedSites });
 }

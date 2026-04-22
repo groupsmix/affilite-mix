@@ -2,48 +2,69 @@
  * Tests for the middleware DB-fallback deactivation branch.
  *
  * When a hostname is not in the static `config/sites` registry, middleware
- * falls back to `/api/internal/resolve-site`. If that endpoint reports the
- * site exists but is deactivated (`isActive: false`), middleware must short
- * circuit with the styled "Niche Not Found" 404 HTML page rather than
- * continuing to inject an `x-site-id` header for a disabled tenant.
+ * falls back to a direct DB lookup via `getSiteRowByDomain()`. If the DB
+ * reports the site exists but is deactivated (`is_active: false`), middleware
+ * must short-circuit with the tenant-aware "Niche Not Found" 404 rewrite
+ * rather than continuing to inject an `x-site-id` header for a disabled tenant.
  *
- * These tests mock `global.fetch` so no real Supabase call happens — the
- * deactivation decision lives in middleware itself.
+ * These tests mock `getSiteRowByDomain` so no real Supabase call happens —
+ * the deactivation decision lives in middleware itself.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { middleware } from "@/middleware";
 
-const ORIGINAL_FETCH = global.fetch;
+vi.mock("@/lib/dal/sites", () => ({
+  getSiteRowByDomain: vi.fn(),
+}));
+
+import { middleware } from "@/middleware";
+import { getSiteRowByDomain } from "@/lib/dal/sites";
+
+const mockedGetSiteRowByDomain = vi.mocked(getSiteRowByDomain);
 
 describe("middleware DB-fallback deactivation branch", () => {
   beforeEach(() => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("INTERNAL_API_TOKEN", "test-internal-token");
+    mockedGetSiteRowByDomain.mockReset();
   });
 
   afterEach(() => {
-    global.fetch = ORIGINAL_FETCH;
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
   it("returns styled 'Niche Not Found' 404 when DB reports site is deactivated", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = typeof input === "string" ? input : input.toString();
-      expect(url).toContain("/api/internal/resolve-site");
-      expect(url).toContain("domain=deactivated.example.com");
-      return new Response(JSON.stringify({ siteId: "deactivated-site", isActive: false }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+    mockedGetSiteRowByDomain.mockResolvedValueOnce({
+      id: "uuid-deactivated",
+      slug: "deactivated-site",
+      name: "Deactivated",
+      domain: "deactivated.example.com",
+      language: "en",
+      direction: "ltr",
+      is_active: false,
+      monetization_type: "affiliate",
+      est_revenue_per_click: 0,
+      theme: {},
+      features: {},
+      meta_title: null,
+      meta_description: null,
+      logo_url: null,
+      favicon_url: null,
+      og_image_url: null,
+      nav_items: [],
+      footer_nav: [],
+      social_links: {},
+      ad_config: {},
+      custom_css: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     });
-    global.fetch = fetchMock as unknown as typeof global.fetch;
 
     const req = new NextRequest("https://deactivated.example.com/");
     const res = await middleware(req);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mockedGetSiteRowByDomain).toHaveBeenCalledWith("deactivated.example.com");
     expect(res.status).toBe(404);
     // Middleware now rewrites to /not-found for tenant-aware branding
     expect(res.headers.get("x-middleware-rewrite")).toContain("/not-found");
@@ -51,15 +72,8 @@ describe("middleware DB-fallback deactivation branch", () => {
     expect(res.headers.get("x-site-id")).toBeNull();
   });
 
-  it("falls through to 404 when DB reports no matching site (siteId=null)", async () => {
-    const fetchMock = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ siteId: null, isActive: false }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-    );
-    global.fetch = fetchMock as unknown as typeof global.fetch;
+  it("falls through to 404 when DB reports no matching site (null)", async () => {
+    mockedGetSiteRowByDomain.mockResolvedValueOnce(null);
 
     const req = new NextRequest("https://unknown.example.com/");
     const res = await middleware(req);
@@ -70,14 +84,31 @@ describe("middleware DB-fallback deactivation branch", () => {
   });
 
   it("injects x-site-id header and proceeds when DB reports site is active", async () => {
-    const fetchMock = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ siteId: "active-site", isActive: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-    );
-    global.fetch = fetchMock as unknown as typeof global.fetch;
+    mockedGetSiteRowByDomain.mockResolvedValueOnce({
+      id: "uuid-active",
+      slug: "active-site",
+      name: "Active",
+      domain: "active.example.com",
+      language: "en",
+      direction: "ltr",
+      is_active: true,
+      monetization_type: "affiliate",
+      est_revenue_per_click: 0,
+      theme: {},
+      features: {},
+      meta_title: null,
+      meta_description: null,
+      logo_url: null,
+      favicon_url: null,
+      og_image_url: null,
+      nav_items: [],
+      footer_nav: [],
+      social_links: {},
+      ad_config: {},
+      custom_css: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
 
     const req = new NextRequest("https://active.example.com/");
     const res = await middleware(req);

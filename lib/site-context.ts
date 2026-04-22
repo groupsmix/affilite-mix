@@ -117,9 +117,18 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     }
   }
 
-  // Fallback to default site from env or first registered site
+  // Fallback to NEXT_PUBLIC_DEFAULT_SITE only — do NOT silently fall back to
+  // the first registered site.  In a multi-tenant context, serving the wrong
+  // tenant's content is a correctness/security risk.
   if (!siteSlug) {
-    siteSlug = process.env.NEXT_PUBLIC_DEFAULT_SITE ?? allSites[0]?.id ?? null;
+    siteSlug = process.env.NEXT_PUBLIC_DEFAULT_SITE ?? null;
+  }
+
+  if (!siteSlug) {
+    throw new Error(
+      "Cannot determine current site: no x-site-id header, cookie, or NEXT_PUBLIC_DEFAULT_SITE configured. " +
+        "Set NEXT_PUBLIC_DEFAULT_SITE in your environment or ensure middleware injects x-site-id.",
+    );
   }
 
   // 1. Try static config first (fast, no DB call for known sites)
@@ -143,12 +152,6 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     }
   } catch {
     // DB lookup failed
-  }
-
-  // 3. Last resort: return first registered site without DB override
-  const fallback = allSites[0];
-  if (fallback) {
-    return fallback;
   }
 
   throw new Error(

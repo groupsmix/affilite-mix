@@ -64,6 +64,7 @@ Edit `.env` and fill in your values:
 | `SUPABASE_SERVICE_ROLE_KEY`      | Yes      | Supabase service role key (server-only)                                 |
 | `JWT_SECRET`                     | Yes      | Random 64-byte hex string for admin JWT signing                         |
 | `ADMIN_PASSWORD`                 | No       | **Deprecated.** Legacy fallback — use DB-managed admin accounts instead |
+| `APP_URL`                        | Prod     | Canonical base URL for absolute links (e.g. password reset emails)      |
 | `CRON_SECRET`                    | Prod     | Secret for authenticating cron job requests                             |
 | `R2_ACCOUNT_ID`                  | Optional | Cloudflare R2 account ID for image uploads                              |
 | `R2_ACCESS_KEY_ID`               | Optional | R2 access key                                                           |
