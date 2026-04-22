@@ -43,10 +43,18 @@ export function isBuildPhase(): boolean {
  *   - Supabase is not configured (no URL env var), OR
  *   - We are inside `next build` static generation with no DB available.
  *
+ * The build-phase skip is load-bearing: `SUPABASE_SERVICE_ROLE_KEY` is a
+ * Worker runtime secret (set via `wrangler secret put`) and is NOT present
+ * during `next build`. Without this guard, server components that call
+ * `getServiceClient()` during prerender — e.g. `app/(public)/deals/page.tsx`
+ * via `listActiveDeals` — crash with `supabaseKey is required` and abort
+ * the build. Pages render a static fallback at build time and fetch real
+ * data at request time when the Worker has the secret.
+ *
  * Callers that want to silently skip optional DB enrichment (metadata, themes,
  * favicons, sitemap entries) should use this instead of `isSupabaseConfigured`
  * alone.
  */
 export function shouldSkipDbCall(): boolean {
-  return !isSupabaseConfigured();
+  return !isSupabaseConfigured() || isBuildPhase();
 }
