@@ -10,7 +10,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { getServiceClient } from "@/lib/supabase-server";
 
-describe("Audit Log Flow Integration", () => {
+const hasRealSupabase =
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+describe.skipIf(!hasRealSupabase)("Audit Log Flow Integration", () => {
   const sb = getServiceClient();
   let testSiteId: string;
   let testAdminId: string;

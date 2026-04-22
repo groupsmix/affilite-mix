@@ -1336,6 +1336,16 @@ export interface Database {
         Args: { updates: { id: string; sort_order: number }[] };
         Returns: undefined;
       };
+      record_ad_impression: {
+        Args: {
+          p_site_id: string;
+          p_ad_placement_id: string;
+          p_content_id: string | null;
+          p_page_path: string;
+          p_cpm_revenue_cents: number;
+        };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

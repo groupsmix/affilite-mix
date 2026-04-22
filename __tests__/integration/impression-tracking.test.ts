@@ -11,7 +11,11 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { getServiceClient } from "@/lib/supabase-server";
 import { recordAdImpression } from "@/lib/dal/ad-impressions";
 
-describe("Impression Tracking Integration", () => {
+const hasRealSupabase =
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+
+describe.skipIf(!hasRealSupabase)("Impression Tracking Integration", () => {
   const sb = getServiceClient();
   let testSiteId: string;
   let testPlacementId: string;
