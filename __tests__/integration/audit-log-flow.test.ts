@@ -80,14 +80,14 @@ describe.skipIf(!hasRealSupabase)("Audit Log Flow Integration", () => {
       .single();
 
     expect(error).toBeNull();
-    expect(auditEntry).toBeDefined();
-    expect(auditEntry.site_id).toBe(testSiteId);
-    expect(auditEntry.actor).toBe(testAdminId);
-    expect(auditEntry.action).toBe(testAction);
-    expect(auditEntry.entity_type).toBe(testEntityType);
-    expect(auditEntry.entity_id).toBe(testEntityId);
-    expect(auditEntry.ip).toBe(testIp);
-    expect(auditEntry.details).toEqual({ name: "Test Product", price: 99.99 });
+    expect(auditEntry).not.toBeNull();
+    expect(auditEntry!.site_id).toBe(testSiteId);
+    expect(auditEntry!.actor).toBe(testAdminId);
+    expect(auditEntry!.action).toBe(testAction);
+    expect(auditEntry!.entity_type).toBe(testEntityType);
+    expect(auditEntry!.entity_id).toBe(testEntityId);
+    expect(auditEntry!.ip).toBe(testIp);
+    expect(auditEntry!.details).toEqual({ name: "Test Product", price: 99.99 });
   });
 
   it("should read audit log entries with filters", async () => {
@@ -173,9 +173,9 @@ describe.skipIf(!hasRealSupabase)("Audit Log Flow Integration", () => {
       .single();
 
     expect(error).toBeNull();
-    expect(auditEntry).toBeDefined();
-    expect(auditEntry.actor).toBeNull();
-    expect(auditEntry.action).toBe("cron.publish");
+    expect(auditEntry).not.toBeNull();
+    expect(auditEntry!.actor).toBeNull();
+    expect(auditEntry!.action).toBe("cron.publish");
   });
 
   it("should support IP address filtering", async () => {

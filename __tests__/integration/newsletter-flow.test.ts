@@ -62,13 +62,13 @@ describe.skipIf(!hasRealSupabase)("Newsletter Flow Integration", () => {
       .single();
 
     expect(subscribeError).toBeNull();
-    expect(subscriber).toBeDefined();
-    expect(subscriber.status).toBe("pending");
-    expect(subscriber.confirmation_token).toBeDefined();
-    expect(subscriber.unsubscribe_token).toBeDefined(); // Issue #1 fix verification
+    expect(subscriber).not.toBeNull();
+    expect(subscriber!.status).toBe("pending");
+    expect(subscriber!.confirmation_token).toBeDefined();
+    expect(subscriber!.unsubscribe_token).toBeDefined(); // Issue #1 fix verification
 
-    const confirmationToken = subscriber.confirmation_token!;
-    const unsubscribeToken = subscriber.unsubscribe_token!;
+    const confirmationToken = subscriber!.confirmation_token!;
+    const unsubscribeToken = subscriber!.unsubscribe_token!;
 
     // Step 2: Confirm subscription
     const { error: confirmError } = await sb
