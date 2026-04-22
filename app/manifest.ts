@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
+import { shouldSkipDbCall } from "@/lib/db-available";
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const site = await getCurrentSite();
@@ -10,17 +11,19 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   let siteName = site.name;
   let siteDescription = site.brand.description;
 
-  try {
-    const dbSite = await resolveDbSiteBySlug(site.id);
-    if (dbSite) {
-      const t = dbSite.theme as Record<string, string> | null;
-      if (t?.accent_color) themeColor = t.accent_color;
-      if (t?.primary_color) themeColor = t.primary_color;
-      if (dbSite.name) siteName = dbSite.name;
-      if (dbSite.meta_description) siteDescription = dbSite.meta_description;
+  if (!shouldSkipDbCall()) {
+    try {
+      const dbSite = await resolveDbSiteBySlug(site.id);
+      if (dbSite) {
+        const t = dbSite.theme as Record<string, string> | null;
+        if (t?.accent_color) themeColor = t.accent_color;
+        if (t?.primary_color) themeColor = t.primary_color;
+        if (dbSite.name) siteName = dbSite.name;
+        if (dbSite.meta_description) siteDescription = dbSite.meta_description;
+      }
+    } catch {
+      // Use config values
     }
-  } catch {
-    // Use config values
   }
 
   return {
