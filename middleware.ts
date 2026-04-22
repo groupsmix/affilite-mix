@@ -95,6 +95,7 @@ export async function middleware(request: NextRequest) {
       "/api/auth/refresh",
       // Cron/webhook endpoints called externally without CSRF cookies
       "/api/cron/publish",
+      "/api/cron/ai-generate",
       "/api/cron/sitemap-refresh",
       "/api/revalidate",
       // Public endpoints using sendBeacon() which cannot send custom headers
