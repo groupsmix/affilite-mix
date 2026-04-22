@@ -19,8 +19,8 @@ export function ChangePasswordCard() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (newPassword.length < 12) {
-      toast.error("New password must be at least 12 characters");
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -55,14 +55,14 @@ export function ChangePasswordCard() {
   }
 
   const isValid =
-    currentPassword.length > 0 && newPassword.length >= 12 && newPassword === confirmPassword;
+    currentPassword.length > 0 && newPassword.length >= 8 && newPassword === confirmPassword;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Change Password</CardTitle>
         <CardDescription>
-          Update your password to keep your account secure. Choose a strong, unique password (min 12
+          Update your password to keep your account secure. Choose a strong, unique password (min 8
           characters).
         </CardDescription>
       </CardHeader>
