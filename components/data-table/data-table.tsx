@@ -55,6 +55,12 @@ interface DataTableProps<TData, TValue> {
    * Useful for read-only shells that don't yet wire filters/search/sort.
    */
   hideToolbar?: boolean;
+  /**
+   * When true, suppress the pagination footer. Useful when the caller has
+   * already applied a server-side row cutoff and does not want additional
+   * client-side paging UI.
+   */
+  hidePagination?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -70,6 +76,7 @@ export function DataTable<TData, TValue>({
   enableRowSelection = false,
   searchPlaceholder,
   hideToolbar = false,
+  hidePagination = false,
 }: DataTableProps<TData, TValue>) {
   const {
     search,
@@ -170,7 +177,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} />
+      {!hidePagination && <DataTablePagination table={table} />}
     </div>
   );
 }

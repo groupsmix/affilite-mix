@@ -12,7 +12,7 @@ import { countProducts } from "@/lib/dal/products";
 import { redirect } from "next/navigation";
 import { ClickChart } from "./click-chart";
 import { ExpandableTable } from "./expandable-table";
-import { LocalTime } from "./local-time";
+import { RecentClicksTable } from "./recent-clicks-table";
 import { getSiteById } from "@/config/sites";
 import { MultiNicheOverview } from "./multi-niche-overview";
 import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
@@ -374,54 +374,7 @@ export default async function AnalyticsPage() {
         {recentClicks.length === 0 ? (
           <p className="text-sm text-gray-500">No clicks recorded yet</p>
         ) : (
-          <>
-            {/* Mobile cards */}
-            <div className="grid gap-2 sm:hidden">
-              {recentClicks.map((click) => (
-                <div key={click.id} className="rounded-lg border border-gray-100 p-3">
-                  <p className="font-medium text-gray-900">{click.product_name}</p>
-                  <div className="mt-1 space-y-0.5 text-sm">
-                    {click.content_slug && (
-                      <p className="text-gray-600">Source: {click.content_slug}</p>
-                    )}
-                    {click.referrer && (
-                      <p className="truncate text-gray-500">Ref: {click.referrer}</p>
-                    )}
-                    <p className="text-gray-500">
-                      <LocalTime dateTime={click.created_at} />
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Desktop table */}
-            <div className="hidden overflow-x-auto sm:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 text-start text-gray-500">
-                    <th className="pb-2 font-medium">Product</th>
-                    <th className="pb-2 font-medium">Source</th>
-                    <th className="pb-2 font-medium">Referrer</th>
-                    <th className="pb-2 text-end font-medium">Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentClicks.map((click) => (
-                    <tr key={click.id} className="border-b border-gray-50">
-                      <td className="py-2 text-gray-900">{click.product_name}</td>
-                      <td className="py-2 text-gray-600">{click.content_slug || "\u2014"}</td>
-                      <td className="max-w-[200px] truncate py-2 text-gray-600">
-                        {click.referrer || "\u2014"}
-                      </td>
-                      <td className="py-2 text-end text-gray-500">
-                        <LocalTime dateTime={click.created_at} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+          <RecentClicksTable data={recentClicks} />
         )}
       </section>
     </div>
