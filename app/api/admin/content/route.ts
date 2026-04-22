@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       const siteSlug = request.headers.get("x-site-id");
       const site = siteSlug ? getSiteById(siteSlug) : null;
       if (site) {
-        pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
+        void pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
       }
     }
 
@@ -140,7 +140,7 @@ export async function PATCH(request: NextRequest) {
       const siteSlug = request.headers.get("x-site-id");
       const site = siteSlug ? getSiteById(siteSlug) : null;
       if (site) {
-        pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
+        void pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
       }
     }
 

@@ -56,12 +56,12 @@ export function PermissionsManager() {
   }, [selectedSiteId]);
 
   useEffect(() => {
-    loadSites();
+    void loadSites();
   }, [loadSites]);
 
   useEffect(() => {
     if (selectedSiteId) {
-      loadPermissions();
+      void loadPermissions();
     }
   }, [selectedSiteId, loadPermissions]);
 

@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       .overrideTypes<{ domain: string }[]>();
     if (sites) {
       for (const site of sites) {
-        pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
+        void pingSitemapIndexers(`https://${site.domain}/sitemap.xml`);
       }
     }
   }

@@ -56,7 +56,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const ad = await updateAdPlacement(dbSiteId, id, updates);
 
-    recordAuditEvent({
+    void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
       action: "update",
@@ -84,7 +84,7 @@ export async function DELETE(
   try {
     await deleteAdPlacement(dbSiteId, id);
 
-    recordAuditEvent({
+    void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
       action: "delete",

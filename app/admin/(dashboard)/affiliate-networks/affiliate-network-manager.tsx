@@ -8,7 +8,7 @@ interface Props {
   configured: AffiliateNetworkConfig[];
   available: AvailableNetwork[];
   loading: boolean;
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
 }
 
 export function AffiliateNetworkManager({ configured, available, loading, onRefresh }: Props) {
@@ -45,7 +45,7 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
       setShowForm(false);
       setFormPublisherId("");
       setFormApiKeyRef("");
-      onRefresh();
+      void onRefresh();
     } catch {
       setError("Failed to save");
     } finally {
@@ -61,7 +61,7 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      onRefresh();
+      void onRefresh();
     } catch {
       setError("Failed to delete");
     }
@@ -122,7 +122,9 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
                 )}
                 <div className="mt-3 flex gap-2">
                   <button
-                    onClick={() => handleDelete(net.id)}
+                    onClick={() => {
+                      void handleDelete(net.id);
+                    }}
                     className="rounded border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
                   >
                     Remove
@@ -137,7 +139,9 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
       {/* Add network form */}
       <div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            setShowForm(!showForm);
+          }}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           {showForm ? "Cancel" : "Add Network"}
@@ -187,7 +191,9 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
               </div>
             </div>
             <button
-              onClick={handleSave}
+              onClick={() => {
+                void handleSave();
+              }}
               disabled={saving}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >

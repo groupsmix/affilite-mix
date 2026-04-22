@@ -176,7 +176,12 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
           <h3 className="mb-4 text-lg font-semibold text-gray-900">
             {editingId ? "Edit Ad Placement" : "New Ad Placement"}
           </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              void handleSubmit(e);
+            }}
+            className="space-y-4"
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="ad-name" className="mb-1 block text-sm font-medium text-gray-700">
@@ -318,7 +323,9 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <h3 className="font-medium text-gray-900">{ad.name}</h3>
                   <button
-                    onClick={() => handleToggleActive(ad)}
+                    onClick={() => {
+                      void handleToggleActive(ad);
+                    }}
                     className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
                       ad.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                     }`}
@@ -373,7 +380,9 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                     <td className="px-4 py-3 text-gray-500">{ad.provider}</td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => handleToggleActive(ad)}
+                        onClick={() => {
+                          void handleToggleActive(ad);
+                        }}
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                           ad.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                         }`}
@@ -420,7 +429,9 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
                 Cancel
               </button>
               <button
-                onClick={() => handleDeleteConfirmed(confirmDeleteId)}
+                onClick={() => {
+                  void handleDeleteConfirmed(confirmDeleteId);
+                }}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
               >
                 Delete

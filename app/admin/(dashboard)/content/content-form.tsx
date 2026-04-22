@@ -1,17 +1,29 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+
 import { useRouter } from "next/navigation";
+
 import type { ContentRow, CategoryRow, ProductRow, ContentProductRow } from "@/types/database";
+
 import type { ContentTypeConfig } from "@/config/site-definition";
+
 import dynamic from "next/dynamic";
+
 import { ProductLinker } from "./product-linker";
+
 import { ImageUploader } from "../components/image-uploader";
+
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+
 import { autoSlug } from "@/lib/auto-slug";
+
 import { sanitizeHtml } from "@/lib/sanitize-html";
+
 import { toast } from "sonner";
+
 import { useCallback } from "react";
+
 import { ErrorBoundary } from "../components/error-boundary";
 
 const RichEditor = dynamic(() => import("./rich-editor").then((m) => m.RichEditor), {
@@ -22,40 +34,58 @@ const RichEditor = dynamic(() => import("./rich-editor").then((m) => m.RichEdito
 
 interface ContentFormProps {
   content?: ContentRow;
+
   categories: CategoryRow[];
+
   products: ProductRow[];
+
   linkedProducts?: (ContentProductRow & { product: ProductRow })[];
+
   contentTypes?: ContentTypeConfig[];
 }
 
 const DEFAULT_CONTENT_TYPES: ContentTypeConfig[] = [
   { value: "article", label: "Article", commercial: false, layout: "standard" },
+
   { value: "review", label: "Review", commercial: true, layout: "sidebar" },
+
   { value: "comparison", label: "Comparison", commercial: true, layout: "sidebar", minProducts: 2 },
+
   { value: "guide", label: "Guide", commercial: false, layout: "standard" },
+
   { value: "blog", label: "Blog", commercial: false, layout: "standard" },
 ];
 
 export function ContentForm({
   content,
+
   categories,
+
   products,
+
   linkedProducts,
+
   contentTypes,
 }: ContentFormProps) {
   const siteContentTypes = contentTypes ?? DEFAULT_CONTENT_TYPES;
+
   const router = useRouter();
+
   const isEdit = !!content;
+
   const isDirtyRef = useRef(false);
 
   // Warn before navigating away with unsaved changes
+
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (isDirtyRef.current) {
         e.preventDefault();
       }
     };
+
     window.addEventListener("beforeunload", handler);
+
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
@@ -64,45 +94,75 @@ export function ContentForm({
   }
 
   const [title, setTitle] = useState(content?.title ?? "");
+
   const [slug, setSlug] = useState(content?.slug ?? "");
+
   const [body, setBody] = useState(content?.body ?? "");
+
   const [excerpt, setExcerpt] = useState(content?.excerpt ?? "");
+
   const [featuredImage, setFeaturedImage] = useState(content?.featured_image ?? "");
+
   const [contentType, setContentType] = useState(content?.type ?? "article");
+
   const [status, setStatus] = useState(content?.status ?? "draft");
+
   const [categoryId, setCategoryId] = useState(content?.category_id ?? "");
+
   const [tagsStr, setTagsStr] = useState((content?.tags ?? []).join(", "));
+
   const [author, setAuthor] = useState(content?.author ?? "");
+
   const [publishAt, setPublishAt] = useState(content?.publish_at ?? "");
+
   const [metaTitle, setMetaTitle] = useState(content?.meta_title ?? "");
+
   const [metaDescription, setMetaDescription] = useState(content?.meta_description ?? "");
+
   const [ogImage, setOgImage] = useState(content?.og_image ?? "");
+
   const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState("");
+
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+
   const [generatingPreview, setGeneratingPreview] = useState(false);
+
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
 
   const handlePreview = useCallback(async () => {
     if (!slug) return;
+
     // Published content can be previewed directly with session-based auth
+
     if (status === "published") {
       window.open(`/${contentType}/${slug}?preview=true`, "_blank");
+
       return;
     }
+
     // Draft/scheduled content needs a short-lived preview token
+
     setGeneratingPreview(true);
+
     try {
       const res = await fetchWithCsrf("/api/admin/preview-token", {
         method: "POST",
+
         headers: { "Content-Type": "application/json" },
+
         body: JSON.stringify({ slug, contentType }),
       });
+
       const data = await res.json();
+
       if (!res.ok) {
         toast.error(data.error ?? "Failed to generate preview link");
+
         return;
       }
+
       window.open(`/${contentType}/${slug}?preview=true&token=${data.token}`, "_blank");
     } catch {
       toast.error("Failed to generate preview link");
@@ -112,82 +172,124 @@ export function ContentForm({
   }, [slug, status, contentType]);
 
   // Product linker state
+
   const [links, setLinks] = useState<{ product_id: string; role: string }[]>(
     linkedProducts?.map((lp) => ({
       product_id: lp.product_id,
+
       role: lp.role,
     })) ?? [],
   );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
     if (saving) return;
+
     setSaving(true);
+
     setError("");
 
     const tags = tagsStr
+
       .split(",")
+
       .map((t) => t.trim())
+
       .filter(Boolean);
 
     const payload = {
       title,
+
       slug,
+
       body,
+
       excerpt,
+
       featured_image: featuredImage,
+
       type: contentType,
+
       status,
+
       category_id: categoryId || null,
+
       tags,
+
       author: author || null,
+
       publish_at: publishAt || null,
+
       meta_title: metaTitle || null,
+
       meta_description: metaDescription || null,
+
       og_image: ogImage || null,
     };
 
     const res = isEdit
       ? await fetchWithCsrf("/api/admin/content", {
           method: "PATCH",
+
           headers: { "Content-Type": "application/json" },
+
           body: JSON.stringify({ id: content?.id, ...payload }),
         })
       : await fetchWithCsrf("/api/admin/content", {
           method: "POST",
+
           headers: { "Content-Type": "application/json" },
+
           body: JSON.stringify(payload),
         });
 
     if (!res.ok) {
       const data = await res.json();
+
       const msg = data.error ?? "Failed to save";
+
       setError(msg);
+
       toast.error(msg);
+
       setSaving(false);
+
       return;
     }
 
     const saved = await res.json();
+
     const contentId = saved.id ?? content?.id;
 
     // Save product links
+
     if (contentId) {
       await fetchWithCsrf("/api/admin/content-products", {
         method: "PUT",
+
         headers: { "Content-Type": "application/json" },
+
         body: JSON.stringify({ content_id: contentId, links }),
       });
     }
 
     toast.success(isEdit ? "Content updated" : "Content created");
+
     isDirtyRef.current = false;
+
     router.push("/admin/content");
+
     router.refresh();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
+    <form
+      onSubmit={(e) => {
+        void handleSubmit(e);
+      }}
+      className="max-w-3xl space-y-6"
+    >
       <fieldset disabled={saving} className={`space-y-6 ${saving ? "opacity-60" : ""}`}>
         {error && (
           <div
@@ -204,29 +306,35 @@ export function ContentForm({
             <label htmlFor="content-title" className="mb-1 block text-sm font-medium text-gray-700">
               Title
             </label>
+
             <input
               id="content-title"
               type="text"
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);
+
                 if (!isEdit) setSlug(autoSlug(e.target.value));
+
                 markDirty();
               }}
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               required
             />
           </div>
+
           <div>
             <label htmlFor="content-slug" className="mb-1 block text-sm font-medium text-gray-700">
               Slug
             </label>
+
             <input
               id="content-slug"
               type="text"
               value={slug}
               onChange={(e) => {
                 setSlug(e.target.value);
+
                 markDirty();
               }}
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -239,11 +347,13 @@ export function ContentForm({
           <label htmlFor="content-excerpt" className="mb-1 block text-sm font-medium text-gray-700">
             Excerpt
           </label>
+
           <textarea
             id="content-excerpt"
             value={excerpt}
             onChange={(e) => {
               setExcerpt(e.target.value);
+
               markDirty();
             }}
             rows={2}
@@ -257,12 +367,14 @@ export function ContentForm({
           <label htmlFor="content-body" className="mb-1 block text-sm font-medium text-gray-700">
             Body
           </label>
+
           <ErrorBoundary
             fallback={
               <textarea
                 value={body}
                 onChange={(e) => {
                   setBody(e.target.value);
+
                   markDirty();
                 }}
                 rows={12}
@@ -275,6 +387,7 @@ export function ContentForm({
               value={body}
               onChange={(html) => {
                 setBody(html);
+
                 markDirty();
               }}
             />
@@ -286,6 +399,7 @@ export function ContentForm({
             <label htmlFor="content-type" className="mb-1 block text-sm font-medium text-gray-700">
               Type
             </label>
+
             <select
               id="content-type"
               value={contentType}
@@ -307,6 +421,7 @@ export function ContentForm({
             >
               Status
             </label>
+
             <select
               id="content-status"
               value={status}
@@ -314,9 +429,13 @@ export function ContentForm({
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="draft">Draft</option>
+
               <option value="review">Review</option>
+
               <option value="scheduled">Scheduled</option>
+
               <option value="published">Published</option>
+
               <option value="archived">Archived</option>
             </select>
           </div>
@@ -328,6 +447,7 @@ export function ContentForm({
             >
               Category
             </label>
+
             <select
               id="content-category"
               value={categoryId}
@@ -335,6 +455,7 @@ export function ContentForm({
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">No category</option>
+
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -345,6 +466,7 @@ export function ContentForm({
         </div>
 
         {/* Scheduling Section — prominent */}
+
         <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
           <div className="mb-3 flex items-center gap-2">
             <svg
@@ -360,37 +482,48 @@ export function ContentForm({
                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
+
             <h3 className="text-sm font-semibold text-indigo-900">Schedule Publishing</h3>
           </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-indigo-800">
                 Publish Date & Time (UTC)
               </label>
+
               <input
                 type="datetime-local"
                 value={publishAt ? publishAt.slice(0, 16) : ""}
                 onChange={(e) => {
                   if (!e.target.value) {
                     setPublishAt("");
+
                     return;
                   }
+
                   // Treat the input value as UTC directly (not local timezone)
+
                   const newDate = e.target.value + ":00.000Z";
+
                   setPublishAt(newDate);
+
                   // Auto-set status to "scheduled" when a future publish date is chosen and status is draft
+
                   if (status === "draft") {
                     setStatus("scheduled");
                   }
                 }}
                 className="w-full rounded border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
+
               <p className="mt-1 text-xs text-indigo-600">
                 {publishAt
                   ? `Scheduled for ${new Date(publishAt).toUTCString()}. Status will be set to "Scheduled" automatically.`
                   : "Set a date to schedule publishing. Status will auto-switch to Scheduled."}
               </p>
             </div>
+
             {publishAt && (
               <div className="flex items-end">
                 <button
@@ -413,6 +546,7 @@ export function ContentForm({
             >
               Author
             </label>
+
             <input
               id="content-author"
               type="text"
@@ -421,10 +555,12 @@ export function ContentForm({
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
+
           <div>
             <label htmlFor="content-tags" className="mb-1 block text-sm font-medium text-gray-700">
               Tags (comma-separated)
             </label>
+
             <input
               id="content-tags"
               type="text"
@@ -436,10 +572,12 @@ export function ContentForm({
         </div>
 
         {/* SEO Meta Fields */}
+
         <details className="rounded-lg border border-gray-200 bg-white">
           <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
             SEO &amp; Open Graph Settings
           </summary>
+
           <div className="space-y-4 border-t border-gray-200 px-4 py-4">
             <div>
               <label
@@ -448,6 +586,7 @@ export function ContentForm({
               >
                 Meta Title
               </label>
+
               <input
                 id="content-meta-title"
                 type="text"
@@ -457,8 +596,10 @@ export function ContentForm({
                 maxLength={70}
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
+
               <p className="mt-1 text-xs text-gray-500">{metaTitle.length}/70 characters</p>
             </div>
+
             <div>
               <label
                 htmlFor="content-meta-desc"
@@ -466,6 +607,7 @@ export function ContentForm({
               >
                 Meta Description
               </label>
+
               <textarea
                 id="content-meta-desc"
                 value={metaDescription}
@@ -475,8 +617,10 @@ export function ContentForm({
                 rows={2}
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
+
               <p className="mt-1 text-xs text-gray-500">{metaDescription.length}/160 characters</p>
             </div>
+
             <div>
               <label
                 htmlFor="content-og-image"
@@ -484,6 +628,7 @@ export function ContentForm({
               >
                 OG Image URL
               </label>
+
               <input
                 id="content-og-image"
                 type="text"
@@ -492,6 +637,7 @@ export function ContentForm({
                 placeholder={featuredImage || "Defaults to featured image"}
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
+
               <p className="mt-1 text-xs text-gray-500">
                 Override the Open Graph image for social sharing
               </p>
@@ -500,6 +646,7 @@ export function ContentForm({
         </details>
 
         {/* Version History */}
+
         {isEdit && content?.body_previous && (
           <details
             className="rounded-lg border border-amber-200 bg-amber-50"
@@ -509,14 +656,17 @@ export function ContentForm({
             <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-amber-800 hover:bg-amber-100">
               Version History
             </summary>
+
             <div className="border-t border-amber-200 px-4 py-4">
               <p className="mb-2 text-xs text-amber-700">
                 Previous version of the body content (before last edit):
               </p>
+
               <div
                 className="mb-3 max-h-48 overflow-auto rounded border border-amber-200 bg-white p-3 text-sm text-gray-700"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(content.body_previous) }}
               />
+
               <button
                 type="button"
                 onClick={() => setShowRestoreConfirm(true)}
@@ -524,16 +674,19 @@ export function ContentForm({
               >
                 Restore Previous Version
               </button>
+
               {showRestoreConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                   <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
                     <h3 className="mb-2 text-lg font-semibold text-gray-900">
                       Restore Previous Version
                     </h3>
+
                     <p className="mb-4 text-sm text-gray-600">
                       Are you sure you want to restore the previous version? Your current body
                       content will be replaced.
                     </p>
+
                     <div className="flex justify-end gap-3">
                       <button
                         type="button"
@@ -542,12 +695,16 @@ export function ContentForm({
                       >
                         Cancel
                       </button>
+
                       <button
                         type="button"
                         onClick={() => {
                           setBody(content!.body_previous!);
+
                           markDirty();
+
                           setShowRestoreConfirm(false);
+
                           toast.success("Previous version restored. Save to persist.");
                         }}
                         className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
@@ -563,6 +720,7 @@ export function ContentForm({
         )}
 
         {/* Product Linker */}
+
         <ProductLinker products={products} links={links} onChange={setLinks} />
 
         <div className="flex gap-3 pt-2">
@@ -573,6 +731,7 @@ export function ContentForm({
           >
             {saving ? "Saving..." : isEdit ? "Update" : "Create"}
           </button>
+
           {isEdit && slug && (
             <button
               type="button"
@@ -585,6 +744,7 @@ export function ContentForm({
               {generatingPreview ? "Generating..." : "Preview"}
             </button>
           )}
+
           <button
             type="button"
             onClick={() => router.push("/admin/content")}

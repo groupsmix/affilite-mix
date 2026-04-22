@@ -29,7 +29,9 @@ export function TokenRefresh() {
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(doRefresh, REFRESH_INTERVAL_MS);
+    timerRef.current = setInterval(() => {
+      void doRefresh();
+    }, REFRESH_INTERVAL_MS);
   }, []);
 
   const stopTimer = useCallback(() => {
@@ -49,7 +51,7 @@ export function TokenRefresh() {
         stopTimer();
       } else {
         // Tab came back — refresh immediately then restart timer
-        doRefresh();
+        void doRefresh();
         startTimer();
       }
     }

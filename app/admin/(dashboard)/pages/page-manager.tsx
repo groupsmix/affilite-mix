@@ -1,54 +1,80 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface PageInfo {
   id: string;
+
   slug: string;
+
   title: string;
+
   body: string;
+
   is_published: boolean;
+
   sort_order: number;
+
   created_at: string;
+
   updated_at: string;
 }
 
 interface PageFormData {
   slug: string;
+
   title: string;
+
   body: string;
+
   is_published: boolean;
+
   sort_order: number;
 }
 
 const emptyForm: PageFormData = {
   slug: "",
+
   title: "",
+
   body: "",
+
   is_published: false,
+
   sort_order: 0,
 };
 
 const inputCls =
   "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500";
+
 const labelCls = "mb-1 block text-sm font-medium text-gray-700";
 
 export function PageManager() {
   const [pages, setPages] = useState<PageInfo[]>([]);
+
   const [loading, setLoading] = useState(true);
+
   const [showForm, setShowForm] = useState(false);
+
   const [editingPage, setEditingPage] = useState<PageInfo | null>(null);
+
   const [form, setForm] = useState<PageFormData>(emptyForm);
+
   const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+
   const [confirmDeletePage, setConfirmDeletePage] = useState<PageInfo | null>(null);
 
   const loadPages = useCallback(async () => {
     try {
       const res = await fetchWithCsrf("/api/admin/pages", { credentials: "include" });
+
       if (res.ok) {
         const data = await res.json();
+
         setPages(data);
       }
     } catch {
@@ -59,61 +85,87 @@ export function PageManager() {
   }, []);
 
   useEffect(() => {
-    loadPages();
+    void loadPages();
   }, [loadPages]);
 
   function openCreateForm() {
     setEditingPage(null);
+
     setForm(emptyForm);
+
     setShowForm(true);
+
     setError(null);
   }
 
   function openEditForm(page: PageInfo) {
     setEditingPage(page);
+
     setForm({
       slug: page.slug,
+
       title: page.title,
+
       body: page.body,
+
       is_published: page.is_published,
+
       sort_order: page.sort_order,
     });
+
     setShowForm(true);
+
     setError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
     setSaving(true);
+
     setError(null);
 
     try {
       if (editingPage) {
         const res = await fetchWithCsrf(`/api/admin/pages/${editingPage.id}`, {
           method: "PATCH",
+
           headers: { "Content-Type": "application/json" },
+
           credentials: "include",
+
           body: JSON.stringify(form),
         });
+
         if (!res.ok) {
           const data = await res.json();
+
           setError(data.error || "Failed to update page");
+
           return;
         }
       } else {
         const res = await fetchWithCsrf("/api/admin/pages", {
           method: "POST",
+
           headers: { "Content-Type": "application/json" },
+
           credentials: "include",
+
           body: JSON.stringify(form),
         });
+
         if (!res.ok) {
           const data = await res.json();
+
           setError(data.error || "Failed to create page");
+
           return;
         }
       }
+
       setShowForm(false);
+
       await loadPages();
     } catch {
       setError("Network error");
@@ -124,11 +176,14 @@ export function PageManager() {
 
   async function handleDeleteConfirmed(page: PageInfo) {
     setConfirmDeletePage(null);
+
     try {
       await fetchWithCsrf(`/api/admin/pages/${page.id}`, {
         method: "DELETE",
+
         credentials: "include",
       });
+
       await loadPages();
     } catch {
       // silent
@@ -137,34 +192,51 @@ export function PageManager() {
 
   async function handleMoveUp(index: number) {
     if (index === 0) return;
+
     const newPages = [...pages];
+
     [newPages[index - 1], newPages[index]] = [newPages[index], newPages[index - 1]];
+
     const reordered = newPages.map((p, i) => ({ id: p.id, sort_order: i }));
+
     setPages(newPages);
+
     try {
       await fetchWithCsrf("/api/admin/pages/reorder", {
         method: "PUT",
+
         headers: { "Content-Type": "application/json" },
+
         credentials: "include",
+
         body: JSON.stringify({ pages: reordered }),
       });
     } catch {
       // silent — reload to reset
+
       await loadPages();
     }
   }
 
   async function handleMoveDown(index: number) {
     if (index >= pages.length - 1) return;
+
     const newPages = [...pages];
+
     [newPages[index], newPages[index + 1]] = [newPages[index + 1], newPages[index]];
+
     const reordered = newPages.map((p, i) => ({ id: p.id, sort_order: i }));
+
     setPages(newPages);
+
     try {
       await fetchWithCsrf("/api/admin/pages/reorder", {
         method: "PUT",
+
         headers: { "Content-Type": "application/json" },
+
         credentials: "include",
+
         body: JSON.stringify({ pages: reordered }),
       });
     } catch {
@@ -180,6 +252,7 @@ export function PageManager() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{pages.length} page(s)</p>
+
         <button
           type="button"
           onClick={openCreateForm}
@@ -190,20 +263,29 @@ export function PageManager() {
       </div>
 
       {/* Form */}
+
       {showForm && (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">
             {editingPage ? "Edit Page" : "Create Page"}
           </h2>
+
           {error && (
             <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
           )}
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+          <form
+            onSubmit={(e) => {
+              void handleSubmit(e);
+            }}
+            className="space-y-4"
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="page-title" className={labelCls}>
                   Title
                 </label>
+
                 <input
                   id="page-title"
                   type="text"
@@ -214,10 +296,12 @@ export function PageManager() {
                   required
                 />
               </div>
+
               <div>
                 <label htmlFor="page-slug" className={labelCls}>
                   Slug
                 </label>
+
                 <input
                   id="page-slug"
                   type="text"
@@ -225,9 +309,13 @@ export function PageManager() {
                   onChange={(e) =>
                     setForm({
                       ...form,
+
                       slug: e.target.value
+
                         .toLowerCase()
+
                         .replace(/[^a-z0-9-]/g, "-")
+
                         .replace(/-+/g, "-"),
                     })
                   }
@@ -235,6 +323,7 @@ export function PageManager() {
                   className={inputCls}
                   required
                 />
+
                 <p className="mt-1 text-xs text-gray-500">URL: /p/{form.slug || "slug"}</p>
               </div>
             </div>
@@ -243,6 +332,7 @@ export function PageManager() {
               <label htmlFor="page-body" className={labelCls}>
                 Body (HTML)
               </label>
+
               <textarea
                 id="page-body"
                 value={form.body}
@@ -251,6 +341,7 @@ export function PageManager() {
                 rows={12}
                 className={`${inputCls} font-mono text-xs`}
               />
+
               <p className="mt-1 text-xs text-gray-500">
                 Supports HTML. A rich text editor (TipTap) can be integrated for a better editing
                 experience.
@@ -266,12 +357,15 @@ export function PageManager() {
                   onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
                   className="h-4 w-4 rounded border-gray-300"
                 />
+
                 <label htmlFor="is_published" className="text-sm text-gray-700">
                   Published
                 </label>
               </div>
+
               <div>
                 <label className="text-sm text-gray-700">Sort Order: </label>
+
                 <input
                   type="number"
                   value={form.sort_order}
@@ -289,6 +383,7 @@ export function PageManager() {
               >
                 {saving ? "Saving..." : editingPage ? "Update Page" : "Create Page"}
               </button>
+
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
@@ -302,9 +397,11 @@ export function PageManager() {
       )}
 
       {/* Pages list */}
+
       {pages.length === 0 && !showForm && (
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
           <p className="text-gray-500">No custom pages yet.</p>
+
           <button
             type="button"
             onClick={openCreateForm}
@@ -324,10 +421,13 @@ export function PageManager() {
             >
               <div className="flex items-center gap-3">
                 {/* Reorder buttons */}
+
                 <div className="flex flex-col gap-0.5">
                   <button
                     type="button"
-                    onClick={() => handleMoveUp(index)}
+                    onClick={() => {
+                      void handleMoveUp(index);
+                    }}
                     disabled={index === 0}
                     className="text-gray-500 hover:text-gray-600 disabled:opacity-30"
                     title="Move up"
@@ -345,9 +445,12 @@ export function PageManager() {
                       />
                     </svg>
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => handleMoveDown(index)}
+                    onClick={() => {
+                      void handleMoveDown(index);
+                    }}
                     disabled={index >= pages.length - 1}
                     className="text-gray-500 hover:text-gray-600 disabled:opacity-30"
                     title="Move down"
@@ -369,6 +472,7 @@ export function PageManager() {
 
                 <div>
                   <h3 className="font-medium text-gray-900">{page.title}</h3>
+
                   <p className="text-xs text-gray-500">/p/{page.slug}</p>
                 </div>
               </div>
@@ -381,6 +485,7 @@ export function PageManager() {
                 >
                   {page.is_published ? "Published" : "Draft"}
                 </span>
+
                 <button
                   type="button"
                   onClick={() => openEditForm(page)}
@@ -388,6 +493,7 @@ export function PageManager() {
                 >
                   Edit
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setConfirmDeletePage(page)}
@@ -400,16 +506,20 @@ export function PageManager() {
           ))}
         </div>
       )}
+
       {/* Delete confirmation dialog */}
+
       {confirmDeletePage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
             <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete Page</h3>
+
             <p className="mb-4 text-sm text-gray-600">
               Are you sure you want to delete{" "}
               <strong>&ldquo;{confirmDeletePage.title}&rdquo;</strong>? This action cannot be
               undone.
             </p>
+
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDeletePage(null)}
@@ -417,8 +527,11 @@ export function PageManager() {
               >
                 Cancel
               </button>
+
               <button
-                onClick={() => handleDeleteConfirmed(confirmDeletePage)}
+                onClick={() => {
+                  void handleDeleteConfirmed(confirmDeletePage);
+                }}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
               >
                 Delete

@@ -87,7 +87,9 @@ export function CategoryDeleteCard({ id, name }: CategoryDeleteCardProps) {
 
       <ConfirmDialog
         open={open}
-        onOpenChange={handleOpenChange}
+        onOpenChange={(next) => {
+          void handleOpenChange(next);
+        }}
         title={
           <>
             Delete <span className="font-semibold">&ldquo;{name}&rdquo;</span>?
@@ -124,7 +126,9 @@ export function CategoryDeleteCard({ id, name }: CategoryDeleteCardProps) {
         destructive
         loading={deleting}
         confirmLabel={deleting ? "Deleting…" : "Delete"}
-        onConfirm={handleDelete}
+        onConfirm={() => {
+          void handleDelete();
+        }}
       />
     </Card>
   );

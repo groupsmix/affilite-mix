@@ -1,13 +1,21 @@
 // Visual layout adapted from https://github.com/arhamkhnz/next-shadcn-admin-dashboard (MIT).
+
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+
 import { useRouter } from "next/navigation";
+
 import { Loader2 } from "lucide-react";
+
 import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
+
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
 import { Button } from "@/components/ui/button";
+
 import {
   Card,
   CardContent,
@@ -16,16 +24,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
 import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
+
   const [password, setPassword] = useState("");
+
   const [error, setError] = useState("");
+
   const [loading, setLoading] = useState(false);
+
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
   const [showForgot, setShowForgot] = useState(false);
+
   const router = useRouter();
 
   const handleTurnstileToken = useCallback((token: string) => {
@@ -38,12 +54,16 @@ export default function AdminLoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
     setLoading(true);
+
     setError("");
 
     const res = await fetchWithCsrf("/api/auth/login", {
       method: "POST",
+
       headers: { "Content-Type": "application/json" },
+
       body: JSON.stringify({ email: email || undefined, password, turnstileToken }),
     });
 
@@ -51,8 +71,10 @@ export default function AdminLoginPage() {
       router.push("/admin");
     } else {
       const data = await res.json();
+
       setError(data.error ?? "Login failed");
     }
+
     setLoading(false);
   }
 
@@ -63,17 +85,25 @@ export default function AdminLoginPage() {
           <CardTitle>
             <h1 className="text-2xl font-bold">Admin Login</h1>
           </CardTitle>
+
           <CardDescription>Sign in to manage all your sites from one dashboard.</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
+
+        <form
+          onSubmit={(e) => {
+            void handleSubmit(e);
+          }}
+        >
           <CardContent className="space-y-4">
             {error && (
               <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-600">
                 <AlertDescription className="text-red-600">{error}</AlertDescription>
               </Alert>
             )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
+
               <Input
                 id="email"
                 type="email"
@@ -83,8 +113,10 @@ export default function AdminLoginPage() {
                 autoComplete="email"
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
+
               <Input
                 id="password"
                 type="password"
@@ -94,7 +126,9 @@ export default function AdminLoginPage() {
                 required
               />
             </div>
+
             <TurnstileWidget onVerify={handleTurnstileToken} onExpire={handleTurnstileExpire} />
+
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? (
                 <>
@@ -107,6 +141,7 @@ export default function AdminLoginPage() {
             </Button>
           </CardContent>
         </form>
+
         <CardFooter className="justify-center">
           <button
             type="button"
@@ -117,6 +152,7 @@ export default function AdminLoginPage() {
           </button>
         </CardFooter>
       </Card>
+
       {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
     </div>
   );
@@ -124,52 +160,73 @@ export default function AdminLoginPage() {
 
 function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
   const [resetEmail, setResetEmail] = useState("");
+
   const [sending, setSending] = useState(false);
+
   const [sent, setSent] = useState(false);
+
   const [resetError, setResetError] = useState("");
+
   const overlayRef = useRef<HTMLDivElement>(null);
+
   const previousActiveElement = useRef<Element | null>(null);
 
   useEffect(() => {
     previousActiveElement.current = document.activeElement;
 
     // Focus the first focusable element inside the modal
+
     const firstInput = overlayRef.current?.querySelector<HTMLElement>(
       'input, button, [tabindex]:not([tabindex="-1"])',
     );
+
     firstInput?.focus();
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         onClose();
+
         return;
       }
+
       if (e.key === "Tab" && overlayRef.current) {
         const focusable = overlayRef.current.querySelectorAll<HTMLElement>(
           'input, button, [tabindex]:not([tabindex="-1"])',
         );
+
         if (focusable.length === 0) return;
+
         const first = focusable[0];
+
         const last = focusable[focusable.length - 1];
+
         if (e.shiftKey && document.activeElement === first) {
           e.preventDefault();
+
           last.focus();
         } else if (!e.shiftKey && document.activeElement === last) {
           e.preventDefault();
+
           first.focus();
         }
       }
     }
 
     // Prevent body scroll
+
     const origOverflow = document.body.style.overflow;
+
     document.body.style.overflow = "hidden";
 
     document.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+
       document.body.style.overflow = origOverflow;
+
       // Return focus to trigger button
+
       if (previousActiveElement.current instanceof HTMLElement) {
         previousActiveElement.current.focus();
       }
@@ -178,12 +235,16 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
 
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault();
+
     setSending(true);
+
     setResetError("");
 
     const res = await fetchWithCsrf("/api/auth/forgot-password", {
       method: "POST",
+
       headers: { "Content-Type": "application/json" },
+
       body: JSON.stringify({ email: resetEmail }),
     });
 
@@ -191,8 +252,10 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
       setSent(true);
     } else {
       const data = await res.json();
+
       setResetError(data.error ?? "Failed to send reset email");
     }
+
     setSending(false);
   }
 
@@ -214,12 +277,14 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
               Reset Password
             </h3>
           </CardTitle>
+
           {!sent && (
             <CardDescription>
               Enter your email address and we&apos;ll send you a link to reset your password.
             </CardDescription>
           )}
         </CardHeader>
+
         {sent ? (
           <>
             <CardContent>
@@ -228,6 +293,7 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
                 your inbox.
               </p>
             </CardContent>
+
             <CardFooter>
               <Button onClick={onClose} className="w-full">
                 Back to Login
@@ -235,15 +301,21 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
             </CardFooter>
           </>
         ) : (
-          <form onSubmit={handleForgot}>
+          <form
+            onSubmit={(e) => {
+              void handleForgot(e);
+            }}
+          >
             <CardContent className="space-y-4">
               {resetError && (
                 <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-600">
                   <AlertDescription className="text-red-600">{resetError}</AlertDescription>
                 </Alert>
               )}
+
               <div className="space-y-2">
                 <Label htmlFor="reset-email">Email</Label>
+
                 <Input
                   id="reset-email"
                   type="email"
@@ -255,10 +327,12 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
                 />
               </div>
             </CardContent>
+
             <CardFooter className="justify-end gap-3">
               <Button type="button" variant="ghost" onClick={onClose} disabled={sending}>
                 Cancel
               </Button>
+
               <Button type="submit" disabled={sending}>
                 {sending ? (
                   <>

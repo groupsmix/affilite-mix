@@ -54,7 +54,7 @@ export default function AffiliateNetworksPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   return (
