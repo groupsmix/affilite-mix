@@ -57,7 +57,7 @@ export function breadcrumbJsonLd(site: SiteDefinition, items: { name: string; pa
 
 /** Article schema for content pages */
 export function articleJsonLd(site: SiteDefinition, content: ContentRow) {
-  return {
+  const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: content.title,
@@ -78,6 +78,12 @@ export function articleJsonLd(site: SiteDefinition, content: ContentRow) {
     },
     inLanguage: site.language,
   };
+
+  if (content.featured_image) {
+    data.image = content.featured_image;
+  }
+
+  return data;
 }
 
 /** Review schema for review-type content */
@@ -204,14 +210,19 @@ export function productJsonLd(site: SiteDefinition, product: ProductRow) {
     data.image = product.image_url;
   }
 
-  if (product.price) {
-    data.offers = {
-      "@type": "Offer",
-      price: product.price.replace(/[^0-9.]/g, "") || undefined,
-      priceCurrency: product.price_currency || "USD",
-      availability: "https://schema.org/InStock",
-      url: product.affiliate_url || undefined,
-    };
+  if (product.price_amount || product.price) {
+    const numericPrice =
+      product.price_amount ??
+      (product.price ? Number(product.price.replace(/[^0-9.]/g, "")) : undefined);
+    if (numericPrice && numericPrice > 0) {
+      data.offers = {
+        "@type": "Offer",
+        price: numericPrice,
+        priceCurrency: product.price_currency || "USD",
+        availability: "https://schema.org/InStock",
+        ...(product.affiliate_url ? { url: product.affiliate_url } : {}),
+      };
+    }
   }
 
   if (product.score !== null) {
