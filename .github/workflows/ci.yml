@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install
+      - run: npm ci
       - name: Security audit
         run: npm audit --audit-level=high
       - run: npm run lint

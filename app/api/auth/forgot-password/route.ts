@@ -73,8 +73,16 @@ export async function POST(request: Request) {
     }
 
     // Send reset email via Resend
-    const origin = request.headers.get("origin") ?? "";
-    const resetUrl = `${origin}/admin/reset-password?token=${resetToken}`;
+    // SECURITY: Use canonical APP_URL instead of request origin header
+    const baseUrl = process.env.APP_URL;
+    if (!baseUrl) {
+      captureException(new Error("APP_URL environment variable is not configured"), {
+        context: "[api/auth/forgot-password] Cannot build reset URL",
+      });
+      // Still return success to prevent information disclosure
+      return successResponse;
+    }
+    const resetUrl = `${baseUrl}/admin/reset-password?token=${resetToken}`;
     const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {

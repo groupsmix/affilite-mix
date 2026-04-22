@@ -102,12 +102,22 @@
 		// Option C: Add another { "pattern": "newdomain.xyz", "custom_domain": true } here
 		// The middleware resolves any domain → site_id via DB lookup
 	],
-	// Cron triggers — publish scheduled content & archive expired products
-	// Runs every 5 minutes. The worker will POST to /api/cron/publish
-	// with the CRON_SECRET from environment variables.
+	// Cron triggers — publish scheduled content, AI generation, and sitemap refresh
+	// 
+	// SCHEDULE BREAKDOWN:
+	// - */5 * * * *  → Every 5 minutes: Publish scheduled content
+	// - 0 2 * * *    → Daily at 2 AM UTC: AI content generation
+	// - 0 3 * * *    → Daily at 3 AM UTC: Sitemap refresh
+	//
+	// The worker will POST to /api/cron/publish, /api/cron/ai-generate, and
+	// /api/cron/sitemap-refresh with the CRON_SECRET from environment variables.
 	// Set CRON_SECRET via: wrangler secret put CRON_SECRET
 	"triggers": {
-		"crons": ["*/5 * * * *"]
+		"crons": [
+			"*/5 * * * *",  // Scheduled publishing (every 5 minutes)
+			"0 2 * * *",    // AI content generation (daily at 2 AM UTC)
+			"0 3 * * *"     // Sitemap refresh (daily at 3 AM UTC)
+		]
 	},
 	// Workers observability (logs, errors, metrics in CF dashboard)
 	"observability": {
