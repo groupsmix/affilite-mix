@@ -8,6 +8,9 @@ export interface AdminUserRow {
   name: string;
   role: "admin" | "super_admin";
   is_active: boolean;
+  totp_secret: string | null;
+  totp_enabled: boolean;
+  totp_verified_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -81,7 +84,18 @@ export async function createAdminUser(input: {
 /** Update an admin user */
 export async function updateAdminUser(
   id: string,
-  input: Partial<Pick<AdminUserRow, "name" | "role" | "is_active" | "password_hash">>,
+  input: Partial<
+    Pick<
+      AdminUserRow,
+      | "name"
+      | "role"
+      | "is_active"
+      | "password_hash"
+      | "totp_secret"
+      | "totp_enabled"
+      | "totp_verified_at"
+    >
+  >,
 ): Promise<AdminUserRow> {
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
