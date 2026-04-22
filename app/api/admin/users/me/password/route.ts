@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     }
 
     const breached = await checkBreachedPassword(newPassword);
-    if (breached) {
+    if (breached > 0) {
       return NextResponse.json(
         { error: "This password has appeared in a data breach. Please choose a different one." },
         { status: 400 },
