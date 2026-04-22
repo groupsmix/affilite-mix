@@ -1,426 +1,463 @@
-import { requireAdminSession } from "../components/admin-guard";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import Image from "next/image";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { PageHeader } from "@/components/admin/page-header";
+import { KpiCard } from "../components/dashboard/kpi-card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { resolveEstimatedRevenuePerClick } from "@/lib/analytics/epc";
+import {
+  getAnalyticsRangeLabel,
+  parseAnalyticsRange,
+  type AnalyticsRangeSearchParams,
+} from "@/lib/analytics/range";
 import {
   getClickCount,
+  getDailyClicks,
   getRecentClicks,
+  getTopContentSlugs,
   getTopProducts,
   getTopReferrers,
-  getTopContentSlugs,
-  getDailyClicks,
 } from "@/lib/dal/affiliate-clicks";
-import { countProducts } from "@/lib/dal/products";
-import { redirect } from "next/navigation";
-import { ClickChart } from "./click-chart";
-import { ExpandableTable } from "./expandable-table";
-import { RecentClicksTable } from "./recent-clicks-table";
-import { getSiteById } from "@/config/sites";
-import { MultiNicheOverview } from "./multi-niche-overview";
 import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
 
-/** Default estimated revenue per click (USD). Overridden by site config. */
-const DEFAULT_EST_REVENUE_PER_CLICK = 0.35;
+import { listProductsByNames } from "@/lib/dal/products";
+import { resolveDbSiteBySlug, resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getSiteById } from "@/config/sites";
 
-export default async function AnalyticsPage() {
+import { requireAdminSession } from "../components/admin-guard";
+import { ClickChart } from "./click-chart";
+import { ExpandableTable } from "./expandable-table";
+import { MultiNicheOverview } from "./multi-niche-overview";
+import { RangeSelector } from "./range-selector";
+import { RecentClicksTable, type RecentClickRow } from "./recent-clicks-table";
+
+function formatUSD(value: number): string {
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+}
+
+function getReferrerMeta(referrer: string): {
+  href: string | null;
+  host: string | null;
+  faviconUrl: string | null;
+} {
+  if (!referrer || referrer === "(direct)") {
+    return { href: null, host: null, faviconUrl: null };
+  }
+
+  try {
+    const url = new URL(referrer);
+    return {
+      href: url.toString(),
+      host: url.hostname,
+      faviconUrl: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(url.hostname)}&sz=64`,
+    };
+  } catch {
+    return { href: null, host: null, faviconUrl: null };
+  }
+}
+
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<AnalyticsRangeSearchParams>;
+}) {
   const session = await requireAdminSession();
+  const activeSiteSlug = session.activeSiteSlug ?? "";
 
-  if (!session.activeSiteSlug) {
+  if (!activeSiteSlug) {
     redirect("/admin/sites");
   }
 
   const isSuperAdmin = session.role === "super_admin";
-  const siteId = await resolveDbSiteId(session.activeSiteSlug);
-  const siteConfig = getSiteById(session.activeSiteSlug);
-  const EST_REVENUE_PER_CLICK = siteConfig?.estRevenuePerClick ?? DEFAULT_EST_REVENUE_PER_CLICK;
+  const dbSite = await resolveDbSiteBySlug(activeSiteSlug);
+  const siteId = dbSite?.id ?? (await resolveDbSiteId(activeSiteSlug));
+  const siteConfig = getSiteById(activeSiteSlug);
 
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const sp = await searchParams;
+  const range = parseAnalyticsRange(sp);
+  const rangeLabel = range.isCustom ? range.label : getAnalyticsRangeLabel(range.key);
+  const rangeHeadingSuffix = range.isCustom ? rangeLabel : getAnalyticsRangeLabel(range.key);
+
+  const estRevenuePerClick = resolveEstimatedRevenuePerClick({
+    siteConfig,
+    dbSite,
+  });
 
   const [
-    clicksToday,
-    clicks7d,
-    clicks30d,
-    clicksAllTime,
+    clicksInRange,
     topProducts,
     topReferrers,
     topContent,
     dailyClicks,
     recentClicks,
-    totalProducts,
     adImpressionStats,
   ] = await Promise.all([
-    getClickCount(siteId, todayStart),
-    getClickCount(siteId, sevenDaysAgo),
-    getClickCount(siteId, thirtyDaysAgo),
-    getClickCount(siteId),
-    getTopProducts(siteId, thirtyDaysAgo, 50),
-    getTopReferrers(siteId, thirtyDaysAgo, 50),
-    getTopContentSlugs(siteId, thirtyDaysAgo, 50),
-    getDailyClicks(siteId, 30),
-    getRecentClicks(siteId, 20),
-    countProducts({ siteId, status: "active" }),
-    getAdImpressionStats(siteId, thirtyDaysAgo),
+    getClickCount(siteId, range.since, range.until),
+    getTopProducts(siteId, range.since, 50, range.until),
+    getTopReferrers(siteId, range.since, 50, range.until),
+    getTopContentSlugs(siteId, range.since, 50, range.until),
+    getDailyClicks(siteId, {
+      since: range.since,
+      until: range.until,
+    }),
+    getRecentClicks(siteId, 20, {
+      since: range.since,
+      until: range.until,
+    }),
+    getAdImpressionStats(siteId, range.since.slice(0, 10), range.until?.slice(0, 10)),
   ]);
 
-  // CTR estimate: clicks / (products * 30 days * ~100 impressions/product/day)
-  const estimatedImpressions30d = totalProducts * 30 * 100;
-  const ctr30d = estimatedImpressions30d > 0 ? (clicks30d / estimatedImpressions30d) * 100 : 0;
+  const uniqueReferrers = topReferrers.length;
+  const estimatedRevenue = clicksInRange * estRevenuePerClick;
+  const totalAdImpressions = adImpressionStats.reduce((sum, row) => sum + row.total_impressions, 0);
+  const showAdImpressionsCard =
+    (dbSite?.monetization_type ?? siteConfig?.monetizationType) === "ads" ||
+    (dbSite?.monetization_type ?? siteConfig?.monetizationType) === "both";
 
-  // Revenue estimates
-  const estRevenue30d = clicks30d * EST_REVENUE_PER_CLICK;
-  const estRevenue7d = clicks7d * EST_REVENUE_PER_CLICK;
+  const productRows =
+    topProducts.length > 0
+      ? await listProductsByNames(
+          siteId,
+          topProducts.map((p) => p.product_name),
+        )
+      : [];
+  const productByName = new Map<string, { id: string; image_url: string; image_alt: string }>();
+  for (const row of productRows) {
+    productByName.set(row.name, {
+      id: row.id,
+      image_url: row.image_url ?? "",
+      image_alt: row.image_alt ?? row.name,
+    });
+  }
 
-  // Total referrer clicks for percentage calculation
-  const totalReferrerClicks = topReferrers.reduce((sum, r) => sum + r.click_count, 0);
+  const topContentWithTitles = topContent.map((row) => ({
+    ...row,
+    displayTitle: row.content_slug,
+  }));
+
+  const recentClickRows: RecentClickRow[] = recentClicks;
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <h1 className="mb-2 text-2xl font-bold text-gray-900">Analytics</h1>
-      <p className="mb-8 text-sm text-gray-500">
-        Affiliate click data for{" "}
-        <span className="font-medium">{session.activeSiteName ?? session.activeSiteSlug}</span>
-      </p>
+    <div className="mx-auto w-full max-w-7xl">
+      <PageHeader
+        title="Analytics"
+        description={
+          <>
+            Affiliate click analytics for{" "}
+            <span className="font-medium text-foreground">
+              {session.activeSiteName ?? session.activeSiteSlug}
+            </span>
+          </>
+        }
+        actions={<RangeSelector />}
+      />
 
-      {/* Multi-niche overview for super_admin */}
       {isSuperAdmin && <MultiNicheOverview />}
 
-      {/* Summary cards */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Today" value={clicksToday} />
-        <StatCard label="Last 7 days" value={clicks7d} />
-        <StatCard label="Last 30 days" value={clicks30d} />
-        <StatCard label="All time" value={clicksAllTime} />
-      </div>
-
-      {/* Revenue & CTR cards */}
-      <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-        Revenue and CTR figures are estimates based on an assumed ${EST_REVENUE_PER_CLICK}/click
-        rate and ~100 impressions/product/day. Actual results will vary. Configure the per-click
-        rate in your site definition.
-      </div>
-      <div className="mb-8 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Est. Revenue (30d)</p>
-          <p className="mt-1 text-3xl font-bold text-green-700">${estRevenue30d.toFixed(2)}</p>
-          <p className="mt-1 text-xs text-gray-500">@ ${EST_REVENUE_PER_CLICK}/click</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Est. Revenue (7d)</p>
-          <p className="mt-1 text-3xl font-bold text-green-700">${estRevenue7d.toFixed(2)}</p>
-          <p className="mt-1 text-xs text-gray-500">@ ${EST_REVENUE_PER_CLICK}/click</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Est. CTR (30d)</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{ctr30d.toFixed(2)}%</p>
-          <p className="mt-1 text-xs text-gray-500">
-            {clicks30d} clicks / ~{estimatedImpressions30d.toLocaleString()} impressions
-          </p>
-        </div>
-      </div>
-
-      {/* Conversion Funnel */}
-      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Conversion Funnel (30d)</h2>
-        <div className="flex items-center gap-2">
-          <FunnelStep
-            label="Active Products"
-            value={totalProducts}
-            width={100}
-            color="bg-blue-500"
-          />
-          <FunnelArrow />
-          <FunnelStep
-            label="Impressions (est.)"
-            value={estimatedImpressions30d}
-            width={80}
-            color="bg-indigo-500"
-          />
-          <FunnelArrow />
-          <FunnelStep label="Clicks" value={clicks30d} width={60} color="bg-purple-500" />
-          <FunnelArrow />
-          <FunnelStep
-            label="Revenue (est.)"
-            value={`$${estRevenue30d.toFixed(0)}`}
-            width={40}
-            color="bg-green-500"
+      <div aria-live="polite" className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div role="region" aria-label="Clicks KPI">
+          <KpiCard
+            title="Clicks"
+            value={clicksInRange.toLocaleString()}
+            description={rangeLabel}
+            className="h-full"
           />
         </div>
-      </section>
-
-      {/* Click trend chart */}
-      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Clicks — Last 30 Days</h2>
-        <ClickChart data={dailyClicks} />
-      </section>
-
-      <div className="mb-8 grid gap-6 lg:grid-cols-2">
-        {/* Top products with CTR */}
-        <section className="rounded-lg border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Top Clicked Products</h2>
-          {topProducts.length === 0 ? (
-            <p className="text-sm text-gray-500">No click data yet</p>
-          ) : (
-            <ExpandableTable rows={topProducts.length} initialLimit={10}>
-              {(limit) => (
-                <>
-                  {/* Mobile cards */}
-                  <div className="grid gap-2 sm:hidden">
-                    {topProducts.slice(0, limit).map((p, i) => (
-                      <div key={i} className="rounded-lg border border-gray-100 p-3">
-                        <p className="font-medium text-gray-900">{p.product_name}</p>
-                        <div className="mt-1 flex items-center gap-3 text-sm">
-                          <span className="text-gray-500">{p.click_count} clicks</span>
-                          <span className="text-green-700">
-                            ${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Desktop table */}
-                  <table className="hidden w-full text-sm sm:table">
-                    <thead>
-                      <tr className="border-b border-gray-100 text-start text-gray-500">
-                        <th className="pb-2 font-medium">Product</th>
-                        <th className="pb-2 text-end font-medium">Clicks</th>
-                        <th className="pb-2 text-end font-medium">Est. Rev</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topProducts.slice(0, limit).map((p, i) => (
-                        <tr key={i} className="border-b border-gray-50">
-                          <td className="py-2 text-gray-900">{p.product_name}</td>
-                          <td className="py-2 text-end font-medium text-gray-700">
-                            {p.click_count}
-                          </td>
-                          <td className="py-2 text-end text-green-700">
-                            ${(p.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </>
-              )}
-            </ExpandableTable>
-          )}
-        </section>
-
-        {/* Top referrers with percentages */}
-        <section className="rounded-lg border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Top Referring Pages</h2>
-          {topReferrers.length === 0 ? (
-            <p className="text-sm text-gray-500">No referrer data yet</p>
-          ) : (
-            <ExpandableTable rows={topReferrers.length} initialLimit={10}>
-              {(limit) => (
-                <>
-                  {/* Mobile cards */}
-                  <div className="grid gap-2 sm:hidden">
-                    {topReferrers.slice(0, limit).map((r, i) => {
-                      const pct =
-                        totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
-                      return (
-                        <div key={i} className="rounded-lg border border-gray-100 p-3">
-                          <p className="truncate font-medium text-gray-900">{r.referrer}</p>
-                          <div className="mt-1 flex items-center gap-3 text-sm">
-                            <span className="text-gray-500">{r.click_count} clicks</span>
-                            <span className="text-gray-500">{pct.toFixed(1)}%</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Desktop table */}
-                  <table className="hidden w-full text-sm sm:table">
-                    <thead>
-                      <tr className="border-b border-gray-100 text-start text-gray-500">
-                        <th className="pb-2 font-medium">Referrer</th>
-                        <th className="pb-2 text-end font-medium">Clicks</th>
-                        <th className="pb-2 text-end font-medium">%</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topReferrers.slice(0, limit).map((r, i) => {
-                        const pct =
-                          totalReferrerClicks > 0 ? (r.click_count / totalReferrerClicks) * 100 : 0;
-                        return (
-                          <tr key={i} className="border-b border-gray-50">
-                            <td className="max-w-[200px] truncate py-2 text-gray-900">
-                              {r.referrer}
-                            </td>
-                            <td className="py-2 text-end font-medium text-gray-700">
-                              {r.click_count}
-                            </td>
-                            <td className="py-2 text-end text-gray-500">{pct.toFixed(1)}%</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </>
-              )}
-            </ExpandableTable>
-          )}
-        </section>
-      </div>
-
-      {/* Top content driving clicks */}
-      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
-          Top Content Driving Clicks (30d)
-        </h2>
-        {topContent.length === 0 ? (
-          <p className="text-sm text-gray-500">No content click data yet</p>
-        ) : (
-          <ExpandableTable rows={topContent.length} initialLimit={10}>
-            {(limit) => (
-              <>
-                {/* Mobile cards */}
-                <div className="grid gap-2 sm:hidden">
-                  {topContent.slice(0, limit).map((c, i) => {
-                    const pct = clicks30d > 0 ? (c.click_count / clicks30d) * 100 : 0;
-                    return (
-                      <div key={i} className="rounded-lg border border-gray-100 p-3">
-                        <p className="truncate font-medium text-gray-900">{c.content_slug}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-3 text-sm">
-                          <span className="text-gray-500">{c.click_count} clicks</span>
-                          <span className="text-gray-500">{pct.toFixed(1)}%</span>
-                          <span className="text-green-700">
-                            ${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* Desktop table */}
-                <table className="hidden w-full text-sm sm:table">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-start text-gray-500">
-                      <th className="pb-2 font-medium">Content Page</th>
-                      <th className="pb-2 text-end font-medium">Clicks</th>
-                      <th className="pb-2 text-end font-medium">% of Total</th>
-                      <th className="pb-2 text-end font-medium">Est. Rev</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topContent.slice(0, limit).map((c, i) => {
-                      const pct = clicks30d > 0 ? (c.click_count / clicks30d) * 100 : 0;
-                      return (
-                        <tr key={i} className="border-b border-gray-50">
-                          <td className="max-w-[300px] truncate py-2 text-gray-900">
-                            {c.content_slug}
-                          </td>
-                          <td className="py-2 text-end font-medium text-gray-700">
-                            {c.click_count}
-                          </td>
-                          <td className="py-2 text-end text-gray-500">{pct.toFixed(1)}%</td>
-                          <td className="py-2 text-end text-green-700">
-                            ${(c.click_count * EST_REVENUE_PER_CLICK).toFixed(2)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </>
-            )}
-          </ExpandableTable>
-        )}
-      </section>
-
-      {/* Ad Impression Stats */}
-      {adImpressionStats.length > 0 && (
-        <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Ad Impressions (30d)</h2>
-          {/* Mobile cards */}
-          <div className="grid gap-2 sm:hidden">
-            {adImpressionStats.map((stat) => (
-              <div key={stat.ad_placement_id} className="rounded-lg border border-gray-100 p-3">
-                <p className="truncate font-mono text-xs text-gray-900">{stat.ad_placement_id}</p>
-                <p className="mt-1 text-sm font-medium text-gray-700">
-                  {stat.total_impressions.toLocaleString()} impressions
-                </p>
-              </div>
-            ))}
+        <div role="region" aria-label="Unique referrers KPI">
+          <KpiCard
+            title="Unique referrers"
+            value={uniqueReferrers.toLocaleString()}
+            description={`Top referrers captured for ${rangeLabel.toLowerCase()}.`}
+            className="h-full"
+          />
+        </div>
+        <div role="region" aria-label="Estimated revenue KPI">
+          <KpiCard
+            title="Estimated revenue"
+            value={formatUSD(estimatedRevenue)}
+            description={`Using ${formatUSD(estRevenuePerClick)}/click.`}
+            className="h-full"
+          />
+        </div>
+        {showAdImpressionsCard && (
+          <div role="region" aria-label="Ad impressions KPI">
+            <KpiCard
+              title="Ad impressions"
+              value={totalAdImpressions.toLocaleString()}
+              description={rangeLabel}
+              className="h-full"
+            />
           </div>
-          {/* Desktop table */}
-          <table className="hidden w-full text-sm sm:table">
-            <thead>
-              <tr className="border-b border-gray-100 text-start text-gray-500">
-                <th className="pb-2 font-medium">Placement ID</th>
-                <th className="pb-2 text-end font-medium">Impressions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {adImpressionStats.map((stat) => (
-                <tr key={stat.ad_placement_id} className="border-b border-gray-50">
-                  <td className="py-2 font-mono text-xs text-gray-900">{stat.ad_placement_id}</td>
-                  <td className="py-2 text-end font-medium text-gray-700">
-                    {stat.total_impressions.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {/* Recent clicks */}
-      <section className="rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Recent Clicks</h2>
-        {recentClicks.length === 0 ? (
-          <p className="text-sm text-gray-500">No clicks recorded yet</p>
-        ) : (
-          <RecentClicksTable data={recentClicks} />
         )}
-      </section>
-    </div>
-  );
-}
+      </div>
 
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="mt-1 text-3xl font-bold text-gray-900">{value.toLocaleString()}</p>
-    </div>
-  );
-}
+      <div className="mb-6">
+        <Card role="region" aria-label="Daily clicks trend">
+          <CardHeader>
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Daily clicks trend</CardTitle>
+              <CardDescription>{rangeHeadingSuffix}</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ClickChart data={dailyClicks} />
+          </CardContent>
+        </Card>
+      </div>
 
-function FunnelStep({
-  label,
-  value,
-  width,
-  color,
-}: {
-  label: string;
-  value: number | string;
-  width: number;
-  color: string;
-}) {
-  return (
-    <div className="flex-1 text-center">
-      <div className={`mx-auto h-2 rounded-full ${color}`} style={{ width: `${width}%` }} />
-      <p className="mt-2 text-lg font-bold text-gray-900">
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </p>
-      <p className="text-xs text-gray-500">{label}</p>
-    </div>
-  );
-}
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <Card role="region" aria-label="Top products">
+          <CardHeader>
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Top products</CardTitle>
+              <CardDescription>
+                Most-clicked affiliate products for {rangeLabel.toLowerCase()}.
+              </CardDescription>
+            </div>
+            <CardAction>
+              <Link
+                href="/admin/products"
+                className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                All products
+              </Link>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            {topProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No click data yet.</p>
+            ) : (
+              <ExpandableTable rows={topProducts.length} initialLimit={10}>
+                {(limit) => (
+                  <ul className="divide-y divide-border">
+                    {topProducts.slice(0, limit).map((product, index) => {
+                      const match = productByName.get(product.product_name);
+                      const href = match ? `/admin/products/${match.id}` : "/admin/products";
+                      const image = match?.image_url;
 
-function FunnelArrow() {
-  return (
-    <svg
-      className="h-4 w-4 flex-shrink-0 text-gray-300"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
+                      return (
+                        <li
+                          key={`${product.product_name}-${index}`}
+                          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <Badge variant="outline" className="shrink-0 tabular-nums">
+                            #{index + 1}
+                          </Badge>
+
+                          <div className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                            {image ? (
+                              <Image
+                                src={image}
+                                alt={match?.image_alt ?? product.product_name}
+                                fill
+                                sizes="40px"
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <span
+                                aria-hidden
+                                className="flex h-full w-full items-center justify-center text-xs font-medium text-muted-foreground"
+                              >
+                                {product.product_name.slice(0, 2).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              href={href}
+                              className="truncate text-sm font-medium text-foreground hover:underline"
+                            >
+                              {product.product_name}
+                            </Link>
+                          </div>
+
+                          <div className="text-end">
+                            <div className="text-sm font-semibold tabular-nums text-foreground">
+                              {product.click_count.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-muted-foreground">clicks</div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </ExpandableTable>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card role="region" aria-label="Top referrers">
+          <CardHeader>
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Top referrers</CardTitle>
+              <CardDescription>
+                Where affiliate clicks came from during {rangeLabel.toLowerCase()}.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {topReferrers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No referrer data yet.</p>
+            ) : (
+              <ExpandableTable rows={topReferrers.length} initialLimit={10}>
+                {(limit) => (
+                  <ul className="divide-y divide-border">
+                    {topReferrers.slice(0, limit).map((referrer, index) => {
+                      const meta = getReferrerMeta(referrer.referrer);
+
+                      return (
+                        <li
+                          key={`${referrer.referrer}-${index}`}
+                          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <Badge variant="outline" className="shrink-0 tabular-nums">
+                            #{index + 1}
+                          </Badge>
+
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            {meta.faviconUrl ? (
+                              <Image
+                                src={meta.faviconUrl}
+                                alt=""
+                                width={16}
+                                height={16}
+                                className="size-4 shrink-0 rounded-sm"
+                                unoptimized
+                              />
+                            ) : (
+                              <span
+                                aria-hidden
+                                className="inline-block size-4 shrink-0 rounded-sm bg-muted"
+                              />
+                            )}
+
+                            <div className="min-w-0">
+                              {meta.href ? (
+                                <a
+                                  href={meta.href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="block truncate text-sm font-medium text-foreground hover:underline"
+                                >
+                                  {referrer.referrer}
+                                </a>
+                              ) : (
+                                <span className="block truncate text-sm font-medium text-foreground">
+                                  {referrer.referrer}
+                                </span>
+                              )}
+
+                              {meta.host ? (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {meta.host}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="text-end">
+                            <div className="text-sm font-semibold tabular-nums text-foreground">
+                              {referrer.click_count.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-muted-foreground">clicks</div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </ExpandableTable>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card role="region" aria-label="Top content">
+          <CardHeader>
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Top content</CardTitle>
+              <CardDescription>
+                Pages driving the most clicks for {rangeLabel.toLowerCase()}.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {topContentWithTitles.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No content click data yet.</p>
+            ) : (
+              <ExpandableTable rows={topContentWithTitles.length} initialLimit={10}>
+                {(limit) => (
+                  <ul className="divide-y divide-border">
+                    {topContentWithTitles.slice(0, limit).map((content, index) => (
+                      <li
+                        key={`${content.content_slug}-${index}`}
+                        className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                      >
+                        <Badge variant="outline" className="shrink-0 tabular-nums">
+                          #{index + 1}
+                        </Badge>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {content.displayTitle}
+                          </p>
+                          {content.displayTitle !== content.content_slug ? (
+                            <p className="truncate text-xs text-muted-foreground">
+                              {content.content_slug}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="text-end">
+                          <div className="text-sm font-semibold tabular-nums text-foreground">
+                            {content.click_count.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">clicks</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </ExpandableTable>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card role="region" aria-label="Recent clicks table" className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Recent clicks</CardTitle>
+              <CardDescription>
+                Latest recorded affiliate clicks within the selected window.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recentClickRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No clicks recorded yet.</p>
+            ) : (
+              <div role="region" aria-label="Recent clicks">
+                <RecentClicksTable data={recentClickRows} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

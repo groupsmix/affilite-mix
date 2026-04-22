@@ -99,7 +99,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const site = await updateSite(id, updates);
-    recordAuditEvent({
+    void recordAuditEvent({
       site_id: id,
       actor: session.email ?? "admin",
       action: "update",
@@ -136,7 +136,7 @@ export async function DELETE(
 
   try {
     await deleteSite(id);
-    recordAuditEvent({
+    void recordAuditEvent({
       site_id: id,
       actor: session.email ?? "admin",
       action: "delete",

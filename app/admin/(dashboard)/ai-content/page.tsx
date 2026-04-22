@@ -45,7 +45,7 @@ export default function AIContentPage() {
   }, [statusFilter]);
 
   useEffect(() => {
-    fetchDrafts();
+    void fetchDrafts();
   }, [fetchDrafts]);
 
   return (

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     // Fire-and-forget via ctx.waitUntil so the isolate is not killed before
     // the insert completes under load.  We still respond immediately with
     // { ok: true } — the client does not need to block on persistence.
-    runAfterResponse(recordAdImpression(siteId, ad_placement_id, page_path ?? "/"), {
+    void runAfterResponse(recordAdImpression(siteId, ad_placement_id, page_path ?? "/"), {
       context: "[api/track/impression] recordAdImpression",
     });
 

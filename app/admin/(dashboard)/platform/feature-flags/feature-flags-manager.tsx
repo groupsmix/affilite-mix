@@ -55,12 +55,12 @@ export function FeatureFlagsManager() {
   }, [selectedSiteId]);
 
   useEffect(() => {
-    loadSites();
+    void loadSites();
   }, [loadSites]);
 
   useEffect(() => {
     if (selectedSiteId) {
-      loadFlags();
+      void loadFlags();
     }
   }, [selectedSiteId, loadFlags]);
 
@@ -202,7 +202,9 @@ export function FeatureFlagsManager() {
           <div className="mt-3 flex gap-2">
             <button
               type="button"
-              onClick={addFlag}
+              onClick={() => {
+                void addFlag();
+              }}
               disabled={saving === "new"}
               className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
             >
@@ -238,7 +240,9 @@ export function FeatureFlagsManager() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => toggleFlag(flag.flag_key, !flag.is_enabled)}
+                    onClick={() => {
+                      void toggleFlag(flag.flag_key, !flag.is_enabled);
+                    }}
                     disabled={saving === flag.flag_key}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
                       flag.is_enabled ? "bg-blue-600" : "bg-gray-200"
@@ -255,7 +259,9 @@ export function FeatureFlagsManager() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => deleteFlag(flag.flag_key)}
+                    onClick={() => {
+                      void deleteFlag(flag.flag_key);
+                    }}
                     disabled={saving === flag.flag_key}
                     className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
                   >

@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase-server";
+import { isSupabaseConfigured } from "@/lib/db-available";
 import type { SiteRow } from "@/types/database";
 import type { Database } from "@/types/supabase";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
@@ -51,6 +52,8 @@ export async function listSites(): Promise<SiteRow[]> {
     return allSitesCache.value;
   }
 
+  if (!isSupabaseConfigured()) return [];
+
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -72,6 +75,8 @@ export async function getAllActiveSites(): Promise<SiteRow[]> {
 
 /** Get a single site by its database UUID */
 export async function getSiteRowById(id: string): Promise<SiteRow | null> {
+  if (!isSupabaseConfigured()) return null;
+
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).select("*").eq("id", id).single();
 
@@ -83,6 +88,8 @@ export async function getSiteRowById(id: string): Promise<SiteRow | null> {
 export async function getSiteRowBySlug(slug: string): Promise<SiteRow | null> {
   const cached = siteBySlugCache.get(slug);
   if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  if (!isSupabaseConfigured()) return null;
 
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
@@ -101,6 +108,8 @@ export async function getSiteRowBySlug(slug: string): Promise<SiteRow | null> {
 export async function getSiteRowByDomain(domain: string): Promise<SiteRow | null> {
   const cached = siteByDomainCache.get(domain);
   if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  if (!isSupabaseConfigured()) return null;
 
   const sb = getServiceClient();
   const { data, error } = await sb.from(TABLE).select("*").eq("domain", domain).single();

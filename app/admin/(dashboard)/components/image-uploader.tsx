@@ -102,7 +102,7 @@ export function ImageUploader({
     setDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith("image/")) {
-      uploadFile(file);
+      void uploadFile(file);
     } else {
       setError("Please drop an image file");
     }
@@ -111,7 +111,7 @@ export function ImageUploader({
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
-      uploadFile(file);
+      void uploadFile(file);
     }
     // Reset so the same file can be re-selected after clearing.
     e.target.value = "";

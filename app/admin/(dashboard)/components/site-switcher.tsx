@@ -26,7 +26,7 @@ export function SiteSwitcher() {
         setSites(data.sites);
       }
     }
-    loadSites();
+    void loadSites();
 
     // Read active site from httpOnly cookie via API
     async function loadActiveSite() {
@@ -42,7 +42,7 @@ export function SiteSwitcher() {
         // Ignore — will show "Select a site" fallback
       }
     }
-    loadActiveSite();
+    void loadActiveSite();
   }, []);
 
   useEffect(() => {
@@ -116,7 +116,7 @@ export function SiteSwitcher() {
             <button
               key={site.id}
               type="button"
-              onClick={() => handleSelectSite(site.id)}
+              onClick={() => void handleSelectSite(site.id)}
               disabled={switching}
               className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                 site.id === activeSiteId

@@ -49,7 +49,10 @@ export function CategoryDeleteButton({ id, name }: { id: string; name: string })
 
   return (
     <>
-      <button onClick={openConfirmDialog} className="text-sm text-red-600 hover:underline">
+      <button
+        onClick={() => void openConfirmDialog()}
+        className="text-sm text-red-600 hover:underline"
+      >
         Delete
       </button>
       {showConfirm && (
@@ -97,7 +100,7 @@ export function CategoryDeleteButton({ id, name }: { id: string; name: string })
                 Cancel
               </button>
               <button
-                onClick={handleDelete}
+                onClick={() => void handleDelete()}
                 disabled={deleting}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
               >

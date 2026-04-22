@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
+import { shouldSkipDbCall } from "@/lib/db-available";
 import { WebVitals } from "./web-vitals";
 import { logger } from "@/lib/logger";
 import "./globals.css";
@@ -13,17 +14,30 @@ import "./globals.css";
  * only downloads fonts whose CSS variables are referenced in computed styles.
  */
 
+export async function generateViewport(): Promise<Viewport> {
+  try {
+    const site = await getCurrentSite();
+    const themeColor = site.theme?.primaryColor || "#1e293b";
+    return { themeColor };
+  } catch {
+    return { themeColor: "#1e293b" };
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   try {
     const site = await getCurrentSite();
-    const dbSite = await resolveDbSiteBySlug(site.id);
+
+    // Skip the DB round-trip entirely when Supabase is not configured
+    // (e.g. during `next build` without env vars set). This prevents the
+    // noisy "Failed to generate metadata from DB" warn that floods local build
+    // output even though the fallback is completely correct.
+    const dbSite = shouldSkipDbCall() ? null : await resolveDbSiteBySlug(site.id);
 
     const title = dbSite?.meta_title || site.name;
     const description =
       dbSite?.meta_description || site.brand.description || "Multi-site affiliate platform";
     const ogImage = dbSite?.og_image_url || undefined;
-
-    const themeColor = site.theme?.primaryColor || "#1e293b";
 
     return {
       title: {
@@ -31,7 +45,6 @@ export async function generateMetadata(): Promise<Metadata> {
         template: `%s | ${title}`,
       },
       description,
-      themeColor,
       openGraph: {
         title,
         description,

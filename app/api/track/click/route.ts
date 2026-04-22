@@ -50,7 +50,7 @@ async function handleClick(request: NextRequest) {
     // Cloudflare isolate keeps the promise alive via ctx.waitUntil() after
     // the redirect is sent — otherwise the DB write is silently dropped
     // when the isolate shuts down under load.
-    runAfterResponse(
+    void runAfterResponse(
       recordClick({
         site_id: siteId,
         product_name: product.name,

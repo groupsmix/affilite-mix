@@ -52,7 +52,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const page = await updatePage(dbSiteId, id, filtered);
 
-    recordAuditEvent({
+    void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
       action: "update",
@@ -79,7 +79,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     const { id } = await params;
     await deletePage(dbSiteId, id);
 
-    recordAuditEvent({
+    void recordAuditEvent({
       site_id: dbSiteId,
       actor: session.email ?? session.userId ?? "admin",
       action: "delete",
