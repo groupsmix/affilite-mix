@@ -17,7 +17,10 @@ export async function POST(
 
   // Rate limit: 10 alerts/hour per IP
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rl = await checkRateLimit(`price-alert:${ip}`, 10, 60 * 60 * 1000);
+  const rl = await checkRateLimit(`price-alert:${ip}`, {
+    maxRequests: 10,
+    windowMs: 60 * 60 * 1000,
+  });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Try again later." },

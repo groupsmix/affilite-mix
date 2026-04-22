@@ -19,22 +19,26 @@ export async function getRelatedProducts(
   if (!source) return [];
 
   // Find related by same category, different product
-  const { data: related } = await sb
-    .from("products")
-    .select("*")
-    .eq("site_id", siteId)
-    .eq("status", "active")
-    .neq("id", productId)
-    .eq("category_id", source.category_id)
-    .order("score", { ascending: false })
-    .limit(limit);
+  let related: ProductRow[] | null = null;
+  if (source.category_id) {
+    const { data } = await sb
+      .from("products")
+      .select("*")
+      .eq("site_id", siteId)
+      .eq("status", "active")
+      .neq("id", productId)
+      .eq("category_id", source.category_id)
+      .order("score", { ascending: false })
+      .limit(limit);
+    related = data as ProductRow[] | null;
+  }
 
   if (related && related.length >= limit) {
-    return related as ProductRow[];
+    return related;
   }
 
   // If not enough by category, fill with same merchant
-  const existing = new Set((related || []).map((p: ProductRow) => p.id));
+  const existing = new Set((related || []).map((p) => p.id));
   const { data: merchantRelated } = await sb
     .from("products")
     .select("*")
@@ -76,6 +80,8 @@ export async function getComparisonSuggestions(
     .single();
 
   if (!source) return [];
+
+  if (!source.category_id) return [];
 
   const { data: peers } = await sb
     .from("products")

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rl = await checkRateLimit(`comment:${ip}`, 10, 60 * 60 * 1000);
+  const rl = await checkRateLimit(`comment:${ip}`, { maxRequests: 10, windowMs: 60 * 60 * 1000 });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many comments. Try again later." },

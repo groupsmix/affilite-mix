@@ -27,7 +27,10 @@ export async function POST(
 
   // Rate limit: 30 submissions/hour per IP
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rl = await checkRateLimit(`quiz-submit:${ip}`, 30, 60 * 60 * 1000);
+  const rl = await checkRateLimit(`quiz-submit:${ip}`, {
+    maxRequests: 30,
+    windowMs: 60 * 60 * 1000,
+  });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests" },

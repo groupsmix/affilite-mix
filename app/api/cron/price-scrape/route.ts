@@ -36,13 +36,20 @@ export async function GET(request: NextRequest) {
     // Create price snapshots in batch
     const snapshots = products
       .filter((p: { price_amount: number | null }) => p.price_amount !== null && p.price_amount > 0)
-      .map((p: { id: string; site_id: string; price_amount: number; price_currency: string }) => ({
-        product_id: p.id,
-        site_id: p.site_id,
-        price_amount: p.price_amount,
-        currency: p.price_currency || "USD",
-        source: "catalog",
-      }));
+      .map(
+        (p: {
+          id: string;
+          site_id: string;
+          price_amount: number | null;
+          price_currency: string;
+        }) => ({
+          product_id: p.id,
+          site_id: p.site_id,
+          price_amount: p.price_amount as number,
+          currency: p.price_currency || "USD",
+          source: "catalog",
+        }),
+      );
 
     const created = await createPriceSnapshots(snapshots);
     logger.info(`Price scrape: created ${created.length} snapshots`);

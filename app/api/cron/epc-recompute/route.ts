@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Get all product+network combos that have affiliate links
 
     const { data: links, error: linkErr } = await (sb.from as any)("product_affiliate_links")
-      .select("product_id, network")
+      .select("product_id, network, url")
       .eq("is_active", true);
 
     if (linkErr) throw linkErr;
@@ -35,18 +35,18 @@ export async function GET(request: NextRequest) {
 
     let updated = 0;
 
-    for (const link of links as { product_id: string; network: string }[]) {
-      // Count clicks (30d and 7d)
+    for (const link of links as { product_id: string; network: string; url: string }[]) {
+      // Count clicks (30d and 7d) — match via affiliate_url from the link
       const { count: clicks30d } = await sb
         .from("affiliate_clicks")
         .select("*", { count: "exact", head: true })
-        .eq("product_id", link.product_id)
+        .eq("affiliate_url", link.url)
         .gte("created_at", thirtyDaysAgo);
 
       const { count: clicks7d } = await sb
         .from("affiliate_clicks")
         .select("*", { count: "exact", head: true })
-        .eq("product_id", link.product_id)
+        .eq("affiliate_url", link.url)
         .gte("created_at", sevenDaysAgo);
 
       // Sum commissions (30d and 7d)

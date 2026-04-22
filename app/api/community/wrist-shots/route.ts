@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rl = await checkRateLimit(`wrist-shot:${ip}`, 5, 60 * 60 * 1000);
+  const rl = await checkRateLimit(`wrist-shot:${ip}`, { maxRequests: 5, windowMs: 60 * 60 * 1000 });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many submissions. Try again later." },

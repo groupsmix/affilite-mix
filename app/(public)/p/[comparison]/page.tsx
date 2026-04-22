@@ -31,8 +31,9 @@ async function getProducts(siteId: string, slugA: string, slugB: string) {
 
   if (!data || data.length < 2) return null;
 
-  const productA = data.find((p: ProductRow) => p.slug === slugA) as ProductRow | undefined;
-  const productB = data.find((p: ProductRow) => p.slug === slugB) as ProductRow | undefined;
+  const rows = data as unknown as ProductRow[];
+  const productA = rows.find((p) => p.slug === slugA);
+  const productB = rows.find((p) => p.slug === slugB);
 
   if (!productA || !productB) return null;
   return { productA, productB };
