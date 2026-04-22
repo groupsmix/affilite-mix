@@ -12,6 +12,8 @@ export interface AdminUserRow {
   updated_at: string;
 }
 
+export type AdminUserPublic = Omit<AdminUserRow, "password_hash">;
+
 const TABLE = "admin_users";
 
 /** Find an active admin user by email (for login) */
@@ -29,7 +31,7 @@ export async function getAdminUserByEmail(email: string): Promise<AdminUserRow |
 }
 
 /** Find an admin user by ID (excludes password_hash for safety) */
-export async function getAdminUserById(id: string): Promise<AdminUserRow | null> {
+export async function getAdminUserById(id: string): Promise<AdminUserPublic | null> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -38,11 +40,11 @@ export async function getAdminUserById(id: string): Promise<AdminUserRow | null>
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
-  return rowOrNull<AdminUserRow>(data);
+  return rowOrNull<AdminUserPublic>(data);
 }
 
 /** List all admin users (excludes password_hash for safety) */
-export async function listAdminUsers(): Promise<AdminUserRow[]> {
+export async function listAdminUsers(): Promise<AdminUserPublic[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -50,7 +52,7 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return assertRows<AdminUserRow>(data);
+  return assertRows<AdminUserPublic>(data);
 }
 
 /** Create a new admin user */
