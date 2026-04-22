@@ -8,10 +8,18 @@ import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { autoSlug } from "@/lib/auto-slug";
 import { toast } from "sonner";
 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
 interface ProductFormProps {
   product?: ProductRow;
   categories: CategoryRow[];
 }
+
+const SELECT_CLASSES =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30";
 
 export function ProductForm({ product, categories }: ProductFormProps) {
   const router = useRouter();
@@ -109,374 +117,343 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
-      <fieldset disabled={saving} className={`space-y-4 ${saving ? "opacity-60" : ""}`}>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <fieldset disabled={saving} className={`space-y-6 ${saving ? "opacity-60" : ""}`}>
         {error && (
           <div
             role="alert"
             aria-live="polite"
-            className="rounded bg-red-50 p-3 text-sm text-red-600"
+            className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
           >
             {error}
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="prod-name" className="mb-1 block text-sm font-medium text-gray-700">
-              Name
-            </label>
-            <input
-              id="prod-name"
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (!isEdit) setSlug(autoSlug(e.target.value));
-                markDirty();
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              required
-            />
-          </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Main</CardTitle>
+            <CardDescription>
+              Core product details shown on listings and the product page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-name">Name</Label>
+                <Input
+                  id="prod-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (!isEdit) setSlug(autoSlug(e.target.value));
+                    markDirty();
+                  }}
+                  required
+                />
+              </div>
 
-          <div>
-            <label htmlFor="prod-slug" className="mb-1 block text-sm font-medium text-gray-700">
-              Slug
-            </label>
-            <input
-              id="prod-slug"
-              type="text"
-              value={slug}
-              onChange={(e) => {
-                setSlug(e.target.value);
-                markDirty();
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              required
-            />
-          </div>
-        </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-slug">Slug</Label>
+                <Input
+                  id="prod-slug"
+                  type="text"
+                  value={slug}
+                  onChange={(e) => {
+                    setSlug(e.target.value);
+                    markDirty();
+                  }}
+                  required
+                />
+              </div>
+            </div>
 
-        <div>
-          <label htmlFor="prod-desc" className="mb-1 block text-sm font-medium text-gray-700">
-            Description
-          </label>
-          <textarea
-            id="prod-desc"
-            value={description}
-            onChange={(e) => {
-              setDescription(e.target.value);
-              markDirty();
-            }}
-            rows={3}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prod-desc">Description</Label>
+              <Textarea
+                id="prod-desc"
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  markDirty();
+                }}
+                rows={3}
+              />
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="prod-affiliate-url"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Affiliate URL
-            </label>
-            <input
-              id="prod-affiliate-url"
-              type="url"
-              value={affiliateUrl}
-              onChange={(e) => {
-                setAffiliateUrl(e.target.value);
-                markDirty();
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="prod-merchant" className="mb-1 block text-sm font-medium text-gray-700">
-              Merchant
-            </label>
-            <input
-              id="prod-merchant"
-              type="text"
-              value={merchant}
-              onChange={(e) => {
-                setMerchant(e.target.value);
-                markDirty();
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-affiliate-url">Affiliate URL</Label>
+                <Input
+                  id="prod-affiliate-url"
+                  type="url"
+                  value={affiliateUrl}
+                  onChange={(e) => {
+                    setAffiliateUrl(e.target.value);
+                    markDirty();
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-merchant">Merchant</Label>
+                <Input
+                  id="prod-merchant"
+                  type="text"
+                  value={merchant}
+                  onChange={(e) => {
+                    setMerchant(e.target.value);
+                    markDirty();
+                  }}
+                />
+              </div>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <ImageUploader value={imageUrl} onChange={setImageUrl} label="Product Image" />
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-price">Price (display)</Label>
+                <Input
+                  id="prod-price"
+                  type="text"
+                  value={price}
+                  onChange={(e) => {
+                    setPrice(e.target.value);
+                    markDirty();
+                  }}
+                  placeholder="e.g. $29.99"
+                />
+              </div>
 
-          <div>
-            <label
-              htmlFor="prod-image-alt"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Image Alt Text
-            </label>
-            <input
-              id="prod-image-alt"
-              type="text"
-              value={imageAlt}
-              onChange={(e) => {
-                setImageAlt(e.target.value);
-                markDirty();
-              }}
-              placeholder="Describe the product image for screen readers"
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Describe the product image for screen readers and SEO.
-            </p>
-          </div>
-        </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-price-amount">Price Amount</Label>
+                <Input
+                  id="prod-price-amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={priceAmount}
+                  onChange={(e) => {
+                    setPriceAmount(e.target.value);
+                    markDirty();
+                  }}
+                  placeholder="29.99"
+                />
+              </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label htmlFor="prod-price" className="mb-1 block text-sm font-medium text-gray-700">
-              Price (display)
-            </label>
-            <input
-              id="prod-price"
-              type="text"
-              value={price}
-              onChange={(e) => {
-                setPrice(e.target.value);
-                markDirty();
-              }}
-              placeholder="e.g. $29.99"
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-currency">Currency</Label>
+                <select
+                  id="prod-currency"
+                  value={priceCurrency}
+                  onChange={(e) => {
+                    setPriceCurrency(e.target.value);
+                    markDirty();
+                  }}
+                  className={SELECT_CLASSES}
+                >
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                  <option value="SAR">SAR</option>
+                  <option value="AED">AED</option>
+                  <option value="EGP">EGP</option>
+                </select>
+              </div>
+            </div>
 
-          <div>
-            <label
-              htmlFor="prod-price-amount"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Price Amount
-            </label>
-            <input
-              id="prod-price-amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={priceAmount}
-              onChange={(e) => {
-                setPriceAmount(e.target.value);
-                markDirty();
-              }}
-              placeholder="29.99"
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prod-category">Category</Label>
+              <select
+                id="prod-category"
+                value={categoryId}
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  markDirty();
+                }}
+                className={SELECT_CLASSES}
+              >
+                <option value="">No category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label htmlFor="prod-currency" className="mb-1 block text-sm font-medium text-gray-700">
-              Currency
-            </label>
-            <select
-              id="prod-currency"
-              value={priceCurrency}
-              onChange={(e) => {
-                setPriceCurrency(e.target.value);
-                markDirty();
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="SAR">SAR</option>
-              <option value="AED">AED</option>
-              <option value="EGP">EGP</option>
-            </select>
-          </div>
-        </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-cta">CTA Text</Label>
+                <Input
+                  id="prod-cta"
+                  type="text"
+                  value={ctaText}
+                  onChange={(e) => {
+                    setCtaText(e.target.value);
+                    markDirty();
+                  }}
+                  placeholder="e.g. Get 50% Off"
+                />
+              </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="prod-score" className="mb-1 block text-sm font-medium text-gray-700">
-              Score (0–10)
-            </label>
-            <input
-              id="prod-score"
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              value={score}
-              onChange={(e) => {
-                setScore(e.target.value);
-                markDirty();
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex items-end pb-1">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-deal">Deal Badge</Label>
+                <Input
+                  id="prod-deal"
+                  type="text"
+                  value={dealText}
+                  onChange={(e) => {
+                    setDealText(e.target.value);
+                    markDirty();
+                  }}
+                  placeholder="e.g. 20% Off"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-deal-expires">Deal Expires (UTC)</Label>
+                <Input
+                  id="prod-deal-expires"
+                  type="datetime-local"
+                  value={dealExpiresAt ? dealExpiresAt.slice(0, 16) : ""}
+                  onChange={(e) => {
+                    if (!e.target.value) {
+                      setDealExpiresAt("");
+                    } else {
+                      // Treat the input value as UTC directly (not local timezone)
+                      setDealExpiresAt(e.target.value + ":00.000Z");
+                    }
+                    markDirty();
+                  }}
+                />
+                {dealExpiresAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Expires at: {new Date(dealExpiresAt).toUTCString()}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="prod-score">Score (0–10)</Label>
+              <Input
+                id="prod-score"
+                type="number"
+                min="0"
+                max="10"
+                step="0.1"
+                value={score}
+                onChange={(e) => {
+                  setScore(e.target.value);
+                  markDirty();
+                }}
+                className="sm:max-w-[200px]"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-pros">Pros (one per line)</Label>
+                <Textarea
+                  id="prod-pros"
+                  value={pros}
+                  onChange={(e) => {
+                    setPros(e.target.value);
+                    markDirty();
+                  }}
+                  rows={3}
+                  placeholder={"Great battery life\nExcellent display\nAffordable price"}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-cons">Cons (one per line)</Label>
+                <Textarea
+                  id="prod-cons"
+                  value={cons}
+                  onChange={(e) => {
+                    setCons(e.target.value);
+                    markDirty();
+                  }}
+                  rows={3}
+                  placeholder={"No wireless charging\nBulky design"}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Metadata</CardTitle>
+            <CardDescription>
+              SEO and accessibility details used for search engines and screen readers.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ImageUploader value={imageUrl} onChange={setImageUrl} label="Product Image" />
+
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-image-alt">Image Alt Text</Label>
+                <Input
+                  id="prod-image-alt"
+                  type="text"
+                  value={imageAlt}
+                  onChange={(e) => {
+                    setImageAlt(e.target.value);
+                    markDirty();
+                  }}
+                  placeholder="Describe the product image for screen readers"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Describe the product image for screen readers and SEO.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Status & Publishing</CardTitle>
+            <CardDescription>
+              Controls whether the product is visible on the public site.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="prod-status">Status</Label>
+              <select
+                id="prod-status"
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value as ProductRow["status"]);
+                  markDirty();
+                }}
+                className={`${SELECT_CLASSES} sm:max-w-[240px]`}
+              >
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
               <input
+                id="prod-featured"
                 type="checkbox"
                 checked={isFeatured}
                 onChange={(e) => {
                   setIsFeatured(e.target.checked);
                   markDirty();
                 }}
-                className="rounded border-gray-300"
+                className="size-4 rounded border-input"
               />
-              Featured product
-            </label>
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="prod-category" className="mb-1 block text-sm font-medium text-gray-700">
-              Category
-            </label>
-            <select
-              id="prod-category"
-              value={categoryId}
-              onChange={(e) => {
-                setCategoryId(e.target.value);
-                markDirty();
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">No category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="prod-status" className="mb-1 block text-sm font-medium text-gray-700">
-              Status
-            </label>
-            <select
-              id="prod-status"
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value as ProductRow["status"]);
-                markDirty();
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label htmlFor="prod-cta" className="mb-1 block text-sm font-medium text-gray-700">
-              CTA Text
-            </label>
-            <input
-              id="prod-cta"
-              type="text"
-              value={ctaText}
-              onChange={(e) => {
-                setCtaText(e.target.value);
-                markDirty();
-              }}
-              placeholder="e.g. Get 50% Off"
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="prod-deal" className="mb-1 block text-sm font-medium text-gray-700">
-              Deal Badge
-            </label>
-            <input
-              id="prod-deal"
-              type="text"
-              value={dealText}
-              onChange={(e) => {
-                setDealText(e.target.value);
-                markDirty();
-              }}
-              placeholder="e.g. 20% Off"
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="prod-deal-expires"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Deal Expires (UTC)
-            </label>
-            <input
-              id="prod-deal-expires"
-              type="datetime-local"
-              value={dealExpiresAt ? dealExpiresAt.slice(0, 16) : ""}
-              onChange={(e) => {
-                if (!e.target.value) {
-                  setDealExpiresAt("");
-                } else {
-                  // Treat the input value as UTC directly (not local timezone)
-                  setDealExpiresAt(e.target.value + ":00.000Z");
-                }
-                markDirty();
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            {dealExpiresAt && (
-              <p className="mt-1 text-xs text-gray-500">
-                Expires at: {new Date(dealExpiresAt).toUTCString()}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="prod-pros" className="mb-1 block text-sm font-medium text-gray-700">
-              Pros (one per line)
-            </label>
-            <textarea
-              id="prod-pros"
-              value={pros}
-              onChange={(e) => {
-                setPros(e.target.value);
-                markDirty();
-              }}
-              rows={3}
-              placeholder={"Great battery life\nExcellent display\nAffordable price"}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="prod-cons" className="mb-1 block text-sm font-medium text-gray-700">
-              Cons (one per line)
-            </label>
-            <textarea
-              id="prod-cons"
-              value={cons}
-              onChange={(e) => {
-                setCons(e.target.value);
-                markDirty();
-              }}
-              rows={3}
-              placeholder={"No wireless charging\nBulky design"}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-        </div>
+              <Label htmlFor="prod-featured" className="font-normal">
+                Featured product
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="flex gap-3 pt-2">
           <button
