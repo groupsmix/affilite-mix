@@ -5,10 +5,27 @@ import {
   countAuditLogs,
   getDistinctActions,
   getDistinctEntityTypes,
+  resolveActorsToAdminUserIds,
 } from "@/lib/dal/audit-log";
 import { redirect } from "next/navigation";
 
 import { AuditLogTable, type AuditLogTableRow } from "./audit-log-table";
+
+/**
+ * The audit-log page is intentionally scoped to the caller's *active* site.
+ *
+ * - `requireAdminSession` + `redirect("/admin")` block non-super_admin users.
+ * - `resolveDbSiteId(session.activeSiteSlug)` pins the query to one tenant.
+ * - `lib/dal/audit-log` only exposes site-scoped helpers (enforced by the
+ *   `dal-site-scoping` test suite).
+ *
+ * Cross-site audit review is NOT supported on purpose: the audit_log table
+ * is a per-site ledger and mixing rows from different tenants into one grid
+ * would break the multi-site isolation contract documented in
+ * `docs/multi-site-architecture.md`. If a future requirement truly calls
+ * for platform-wide review, add a separate DAL surface + route rather than
+ * bolting cross-site behavior onto this page.
+ */
 
 const DEFAULT_PAGE_SIZE = 50;
 const ALLOWED_PAGE_SIZES = new Set([20, 50, 100, 200]);
@@ -120,10 +137,16 @@ export default async function AuditLogPage({
     getDistinctEntityTypes(siteId),
   ]);
 
+  // Resolve email-shaped actors to admin user ids so the Actor column can
+  // link through to the admin-users page for reviewers. Unresolved actors
+  // (literal "admin", JWT userIds, deleted users) fall back to plain text.
+  const actorUserIds = await resolveActorsToAdminUserIds(logs.map((log) => log.actor));
+
   const rows: AuditLogTableRow[] = logs.map((log) => ({
     id: log.id,
     created_at: log.created_at,
     actor: log.actor,
+    actor_user_id: actorUserIds[log.actor] ?? null,
     action: log.action,
     entity_type: log.entity_type,
     entity_id: log.entity_id,

@@ -2,6 +2,20 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { escapeLike } from "./search-utils";
 import { assertRows } from "./type-guards";
 
+/**
+ * Audit-log reads are intentionally scoped to a single `site_id`.
+ *
+ * Every list/count/distinct helper in this module requires a `siteId` and
+ * adds `eq("site_id", siteId)` to the query. Cross-site review (e.g. a
+ * super_admin viewing rows from every tenant in one grid) is deliberately
+ * **not supported** at the DAL level — it would break the multi-site RLS
+ * contract documented in `docs/multi-site-architecture.md` and the
+ * `dal-site-scoping` test suite. The admin audit-log page honors this by
+ * resolving `session.activeSiteSlug → site_id` and never passing a list of
+ * site ids. Keep this file that way; multi-site audit review should be a
+ * separate DAL surface (and migration) if it is ever needed.
+ */
+
 export interface AuditLogEntry {
   id: string;
   site_id: string;
@@ -148,4 +162,48 @@ export async function getDistinctEntityTypes(siteId: string): Promise<string[]> 
   if (error) throw error;
   const unique = new Set(assertRows<{ entity_type: string }>(data ?? []).map((d) => d.entity_type));
   return Array.from(unique);
+}
+
+/**
+ * Resolve audit `actor` strings to admin user ids.
+ *
+ * The audit log records `actor` as a denormalized string — almost always the
+ * admin's email (see `recordAuditEvent` callers), with occasional literal
+ * fallbacks like `"admin"` or a raw JWT `userId`. To render clickable actor
+ * links in the audit grid we match each email-shaped actor against
+ * `admin_users.email` (lowercased, the same shape the writer uses) and
+ * return a map of actor → admin_users.id. Unmatched actors are simply
+ * absent from the map and render as plain text.
+ *
+ * This is intentionally a single `IN (...)` query per page render; there is
+ * no need for a join or a DB view because the set of actors on a single
+ * audit-log page is small and bounded by `pageSize`.
+ */
+export async function resolveActorsToAdminUserIds(
+  actors: readonly string[],
+): Promise<Record<string, string>> {
+  const emails = Array.from(
+    new Set(
+      actors.map((a) => a.trim().toLowerCase()).filter((a) => a.length > 0 && a.includes("@")),
+    ),
+  );
+  if (emails.length === 0) return {};
+
+  const sb = getServiceClient();
+  const { data, error } = await sb.from("admin_users").select("id, email").in("email", emails);
+  if (error) throw error;
+
+  const rows = assertRows<{ id: string; email: string }>(data ?? []);
+  const byEmail = new Map<string, string>();
+  for (const r of rows) {
+    byEmail.set(r.email.toLowerCase(), r.id);
+  }
+
+  const out: Record<string, string> = {};
+  for (const actor of actors) {
+    const key = actor.trim().toLowerCase();
+    const id = byEmail.get(key);
+    if (id) out[actor] = id;
+  }
+  return out;
 }

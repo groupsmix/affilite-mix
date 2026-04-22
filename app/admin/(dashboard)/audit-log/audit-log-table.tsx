@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CalendarIcon, EyeIcon, XIcon } from "lucide-react";
@@ -29,6 +30,14 @@ export interface AuditLogTableRow {
   id: string;
   created_at: string;
   actor: string;
+  /**
+   * `admin_users.id` for the actor if the audit row can be resolved to a real
+   * admin user (typically by matching `actor` email → `admin_users.email`).
+   * `null` means the actor is a literal fallback like `"admin"`, a JWT
+   * `userId` that no longer maps to an active admin, or a deleted user — the
+   * Actor cell then renders plain text instead of a link.
+   */
+  actor_user_id: string | null;
   action: string;
   entity_type: string;
   entity_id: string | null;
@@ -124,6 +133,35 @@ function ActionBadge({ action }: { action: string }) {
   );
 }
 
+/**
+ * Actor cell. When `actor_user_id` resolves to a real admin user we render a
+ * link to `/admin/users?q=<email>` — the admin-users page supports an
+ * email/name `q` search and will land the reviewer on the matched row.
+ * There is no dedicated `/admin/users/[id]` detail route in the app today
+ * (see PR description); the filtered list page is the closest stable target
+ * and keeps this change narrow. Unresolved actors (literal "admin", JWT
+ * user ids, deleted users) fall back to the original plain-text rendering.
+ */
+function ActorCell({ row }: { row: AuditLogTableRow }) {
+  const actor = row.actor || "—";
+  if (row.actor && row.actor_user_id) {
+    return (
+      <Link
+        href={`/admin/users?q=${encodeURIComponent(row.actor)}`}
+        title={actor}
+        className="block max-w-[220px] truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
+      >
+        {actor}
+      </Link>
+    );
+  }
+  return (
+    <span className="block max-w-[220px] truncate text-sm text-foreground" title={actor}>
+      {actor}
+    </span>
+  );
+}
+
 function EntityCell({ row }: { row: AuditLogTableRow }) {
   const short = shortId(row.entity_id);
   return (
@@ -199,14 +237,7 @@ const columns: ColumnDef<AuditLogTableRow>[] = [
   {
     accessorKey: "actor",
     header: "Actor",
-    cell: ({ row }) => {
-      const actor = row.original.actor || "—";
-      return (
-        <span className="max-w-[220px] truncate text-sm text-foreground" title={actor}>
-          {actor}
-        </span>
-      );
-    },
+    cell: ({ row }) => <ActorCell row={row.original} />,
     enableSorting: false,
   },
   {
@@ -365,11 +396,6 @@ export function AuditLogTable({
   actionOptions,
   entityTypeOptions,
 }: AuditLogTableProps) {
-  // Keep a stable ref to the last DataTable toolbar so we can hoist the
-  // date-range filter alongside the faceted filters.
-  const containerRef = useRef<HTMLDivElement>(null);
-  void containerRef;
-
   return (
     <DataTable
       columns={columns}
