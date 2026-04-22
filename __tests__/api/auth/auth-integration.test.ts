@@ -30,6 +30,17 @@ vi.mock("@/lib/auth", async (importOriginal) => {
   };
 });
 
+// Mock admin-users DAL so the 2FA lookup doesn't hit Supabase.
+// Default to a user without TOTP enabled; individual tests can override.
+vi.mock("@/lib/dal/admin-users", () => ({
+  getAdminUserByEmail: vi.fn().mockResolvedValue({
+    id: "user-1",
+    email: "admin@example.com",
+    totp_enabled: false,
+    totp_secret: null,
+  }),
+}));
+
 // ── Helpers ──────────────────────────────────────────────────────
 
 function makeLoginRequest(body: Record<string, unknown>): NextRequest {
