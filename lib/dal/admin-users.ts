@@ -8,11 +8,14 @@ export interface AdminUserRow {
   name: string;
   role: "admin" | "super_admin";
   is_active: boolean;
+  totp_secret: string | null;
+  totp_enabled: boolean;
+  totp_verified_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type AdminUserPublic = Omit<AdminUserRow, "password_hash">;
+export type AdminUserPublic = Omit<AdminUserRow, "password_hash" | "totp_secret">;
 
 const TABLE = "admin_users";
 
@@ -35,7 +38,9 @@ export async function getAdminUserById(id: string): Promise<AdminUserPublic | nu
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("id, email, name, role, is_active, created_at, updated_at")
+    .select(
+      "id, email, name, role, is_active, totp_enabled, totp_verified_at, created_at, updated_at",
+    )
     .eq("id", id)
     .single();
 
@@ -48,7 +53,9 @@ export async function listAdminUsers(): Promise<AdminUserPublic[]> {
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("id, email, name, role, is_active, created_at, updated_at")
+    .select(
+      "id, email, name, role, is_active, totp_enabled, totp_verified_at, created_at, updated_at",
+    )
     .order("created_at", { ascending: true });
 
   if (error) throw error;
@@ -81,10 +88,27 @@ export async function createAdminUser(input: {
 /** Update an admin user */
 export async function updateAdminUser(
   id: string,
-  input: Partial<Pick<AdminUserRow, "name" | "role" | "is_active" | "password_hash">>,
+  input: Partial<
+    Pick<
+      AdminUserRow,
+      | "name"
+      | "role"
+      | "is_active"
+      | "password_hash"
+      | "totp_secret"
+      | "totp_enabled"
+      | "totp_verified_at"
+    >
+  >,
 ): Promise<AdminUserRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
+
+  const { data, error } = await sb
+    .from(TABLE)
+    .update(input as any)
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) throw error;
   return assertRow<AdminUserRow>(data, "AdminUser");

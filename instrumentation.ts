@@ -38,13 +38,6 @@ export function register() {
     }
   }
 
-  // Warn if ADMIN_PASSWORD is set in production — DB-based auth should be used instead
-  if (process.env.NODE_ENV === "production" && process.env.ADMIN_PASSWORD) {
-    logger.warn(
-      "ADMIN_PASSWORD is set in production. This legacy fallback should be removed — use database-managed admin accounts instead.",
-    );
-  }
-
   // Verify KV rate-limit binding availability — fail loudly in production
   // because the rate limiter fails closed (rejects all rate-limited requests)
   // when KV is unavailable, which will break login and other protected routes.

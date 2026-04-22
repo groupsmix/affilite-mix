@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       role: userRole,
     });
 
-    const { password_hash: _ph, ...safe } = user;
+    const { password_hash: _ph, totp_secret: _ts, ...safe } = user;
     return NextResponse.json(safe, { status: 201 });
   } catch (err) {
     const message =
@@ -191,7 +191,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const user = await updateAdminUser(id, updates);
-    const { password_hash: _ph, ...safe } = user;
+    const { password_hash: _ph, totp_secret: _ts, ...safe } = user;
     return NextResponse.json(safe);
   } catch (err) {
     captureException(err, { context: "Failed to update admin user:" });

@@ -63,7 +63,6 @@ Edit `.env` and fill in your values:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Yes       | Supabase anon/public key                                                 |
 | `SUPABASE_SERVICE_ROLE_KEY`      | Yes       | Supabase service role key (server-only)                                  |
 | `JWT_SECRET`                     | Yes       | Random 64-byte hex string for admin JWT signing                          |
-| `ADMIN_PASSWORD`                 | No        | **Deprecated.** Legacy fallback — use DB-managed admin accounts instead  |
 | `APP_URL`                        | Prod      | Canonical base URL for absolute links (e.g. password reset emails)       |
 | `SUPABASE_DB_POOLER_URL`         | CI/Deploy | IPv4-reachable session pooler URL for CI migrations (see `.env.example`) |
 | `STAGING_SUPABASE_DB_URL`        | CI/Deploy | Staging DB for deploy clean-reset smoke test (must differ from prod)     |

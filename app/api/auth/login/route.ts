@@ -7,6 +7,8 @@ import { isValidEmail } from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { getAdminUserByEmail } from "@/lib/dal/admin-users";
+import { verifyTotpToken } from "@/lib/totp";
 
 /** 5 login attempts per 15 minutes per IP */
 const LOGIN_RATE_LIMIT_IP = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
@@ -27,10 +29,11 @@ export async function POST(request: NextRequest) {
 
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
-    const { email, password, turnstileToken } = bodyOrError as {
+    const { email, password, turnstileToken, totp_token } = bodyOrError as {
       email?: string;
       password?: string;
       turnstileToken?: string;
+      totp_token?: string;
     };
 
     // Verify Turnstile token (skipped in dev if not configured)
@@ -67,6 +70,26 @@ export async function POST(request: NextRequest) {
     const authResult = await authenticateUser(email, password);
     if (!authResult) {
       return apiError(401, "Invalid credentials");
+    }
+
+    // Enforce TOTP 2FA if enabled on the account
+    if (authResult.email) {
+      const user = await getAdminUserByEmail(authResult.email);
+      if (user?.totp_enabled) {
+        if (!totp_token) {
+          return NextResponse.json(
+            { requires_2fa: true },
+            { status: 200, headers: rateLimitHeaders(LOGIN_RATE_LIMIT_IP, rl) },
+          );
+        }
+        if (
+          totp_token.length !== 6 ||
+          !user.totp_secret ||
+          !verifyTotpToken(user.totp_secret, totp_token)
+        ) {
+          return apiError(401, "Invalid 2FA token");
+        }
+      }
     }
 
     const token = await createToken(authResult);
