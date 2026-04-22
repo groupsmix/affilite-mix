@@ -1,8 +1,20 @@
-import { listSites } from "@/lib/dal/sites";
-import { getClickCount } from "@/lib/dal/affiliate-clicks";
-import { countProducts } from "@/lib/dal/products";
-import { countContent } from "@/lib/dal/content";
 import Link from "next/link";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { getClickCount } from "@/lib/dal/affiliate-clicks";
+import { countContent } from "@/lib/dal/content";
+import { countProducts } from "@/lib/dal/products";
+import { listSites } from "@/lib/dal/sites";
 
 interface NicheStats {
   siteId: string;
@@ -13,6 +25,21 @@ interface NicheStats {
   totalProducts: number;
   totalContent: number;
   isActive: boolean;
+}
+
+function StatusBadge({ isActive }: { isActive: boolean }) {
+  return (
+    <Badge
+      variant={isActive ? "default" : "secondary"}
+      className={cn(
+        isActive
+          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/20 dark:text-emerald-300"
+          : "bg-muted text-muted-foreground hover:bg-muted",
+      )}
+    >
+      {isActive ? "Active" : "Inactive"}
+    </Badge>
+  );
 }
 
 export async function MultiNicheOverview() {
@@ -53,124 +80,140 @@ export async function MultiNicheOverview() {
   const sorted = [...nicheStats].sort((a, b) => b.clicks7d - a.clicks7d);
 
   return (
-    <section className="mb-8">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">All Niches Overview</h2>
+    <section className="mb-8" data-slot="multi-niche-overview">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">All Niches Overview</h2>
 
       {/* Aggregate stats */}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Total Sites</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{sites.length}</p>
-          <p className="mt-1 text-xs text-gray-500">
+        <Card className="gap-1 py-5">
+          <CardHeader className="px-5 [&>div]:!gap-0">
+            <CardDescription>Total Sites</CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight tabular-nums">
+              {sites.length}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 text-xs text-muted-foreground">
             {sites.filter((s) => s.is_active).length} active
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Total Clicks (7d)</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{totalClicks7d.toLocaleString()}</p>
-          <p className="mt-1 text-xs text-gray-500">{totalClicksToday.toLocaleString()} today</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Total Products</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{totalProducts.toLocaleString()}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Total Content</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{totalContent.toLocaleString()}</p>
-        </div>
+          </CardContent>
+        </Card>
+        <Card className="gap-1 py-5">
+          <CardHeader className="px-5 [&>div]:!gap-0">
+            <CardDescription>Total Clicks (7d)</CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight tabular-nums">
+              {totalClicks7d.toLocaleString()}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 text-xs text-muted-foreground">
+            {totalClicksToday.toLocaleString()} today
+          </CardContent>
+        </Card>
+        <Card className="gap-1 py-5">
+          <CardHeader className="px-5 [&>div]:!gap-0">
+            <CardDescription>Total Products</CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight tabular-nums">
+              {totalProducts.toLocaleString()}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="gap-1 py-5">
+          <CardHeader className="px-5 [&>div]:!gap-0">
+            <CardDescription>Total Content</CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight tabular-nums">
+              {totalContent.toLocaleString()}
+            </CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
       {/* Per-niche cards on mobile */}
       <div className="grid gap-3 md:hidden">
         {sorted.map((niche) => (
-          <div key={niche.siteId} className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="mb-2 flex items-start justify-between gap-2">
-              <div>
+          <Card key={niche.siteId} className="gap-3 py-4" data-slot="multi-niche-overview-row">
+            <CardHeader className="px-4 [&>div]:!gap-0">
+              <div className="flex flex-col gap-0.5">
                 <Link
-                  href={`/admin/analytics`}
-                  className="font-medium text-gray-900 hover:text-blue-600"
+                  href="/admin/analytics"
+                  className="font-medium text-foreground hover:text-primary"
                 >
                   {niche.name}
                 </Link>
-                <p className="text-xs text-gray-500">{niche.slug}</p>
+                <p className="text-xs text-muted-foreground">{niche.slug}</p>
               </div>
-              <span
-                className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                  niche.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                }`}
-              >
-                {niche.isActive ? "Active" : "Inactive"}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="col-start-2 row-span-2 row-start-1 self-start justify-self-end">
+                <StatusBadge isActive={niche.isActive} />
+              </div>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-2 px-4 text-sm">
               <div>
-                <span className="text-gray-500">Clicks (7d): </span>
-                <span className="font-medium text-gray-900">{niche.clicks7d.toLocaleString()}</span>
+                <span className="text-muted-foreground">Clicks (7d): </span>
+                <span className="font-medium text-foreground tabular-nums">
+                  {niche.clicks7d.toLocaleString()}
+                </span>
               </div>
               <div>
-                <span className="text-gray-500">Today: </span>
-                <span className="text-gray-600">{niche.clicksToday.toLocaleString()}</span>
+                <span className="text-muted-foreground">Today: </span>
+                <span className="text-foreground tabular-nums">
+                  {niche.clicksToday.toLocaleString()}
+                </span>
               </div>
               <div>
-                <span className="text-gray-500">Products: </span>
-                <span className="text-gray-600">{niche.totalProducts}</span>
+                <span className="text-muted-foreground">Products: </span>
+                <span className="text-foreground tabular-nums">{niche.totalProducts}</span>
               </div>
               <div>
-                <span className="text-gray-500">Content: </span>
-                <span className="text-gray-600">{niche.totalContent}</span>
+                <span className="text-muted-foreground">Content: </span>
+                <span className="text-foreground tabular-nums">{niche.totalContent}</span>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {/* Per-niche table on md+ */}
-      <div className="hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
-        <table className="w-full text-start text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 font-medium text-gray-700">Niche</th>
-              <th className="px-4 py-3 text-end font-medium text-gray-700">Clicks (7d)</th>
-              <th className="px-4 py-3 text-end font-medium text-gray-700">Today</th>
-              <th className="px-4 py-3 text-end font-medium text-gray-700">Products</th>
-              <th className="px-4 py-3 text-end font-medium text-gray-700">Content</th>
-              <th className="px-4 py-3 font-medium text-gray-700">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
+      <Card className="hidden gap-0 overflow-hidden py-0 md:block">
+        <Table>
+          <TableHeader className="bg-muted/50">
+            <TableRow>
+              <TableHead className="px-4">Niche</TableHead>
+              <TableHead className="px-4 text-end">Clicks (7d)</TableHead>
+              <TableHead className="px-4 text-end">Today</TableHead>
+              <TableHead className="px-4 text-end">Products</TableHead>
+              <TableHead className="px-4 text-end">Content</TableHead>
+              <TableHead className="px-4">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {sorted.map((niche) => (
-              <tr key={niche.siteId} className="hover:bg-gray-50">
-                <td className="px-4 py-3">
+              <TableRow key={niche.siteId} data-slot="multi-niche-overview-row">
+                <TableCell className="px-4 py-3">
                   <Link
-                    href={`/admin/analytics`}
-                    className="font-medium text-gray-900 hover:text-blue-600"
+                    href="/admin/analytics"
+                    className="font-medium text-foreground hover:text-primary"
                   >
                     {niche.name}
                   </Link>
-                  <p className="text-xs text-gray-500">{niche.slug}</p>
-                </td>
-                <td className="px-4 py-3 text-end font-medium text-gray-900">
+                  <p className="text-xs text-muted-foreground">{niche.slug}</p>
+                </TableCell>
+                <TableCell className="px-4 py-3 text-end font-medium tabular-nums">
                   {niche.clicks7d.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-end text-gray-600">
+                </TableCell>
+                <TableCell className="px-4 py-3 text-end text-muted-foreground tabular-nums">
                   {niche.clicksToday.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-end text-gray-600">{niche.totalProducts}</td>
-                <td className="px-4 py-3 text-end text-gray-600">{niche.totalContent}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                      niche.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {niche.isActive ? "Active" : "Inactive"}
-                  </span>
-                </td>
-              </tr>
+                </TableCell>
+                <TableCell className="px-4 py-3 text-end text-muted-foreground tabular-nums">
+                  {niche.totalProducts}
+                </TableCell>
+                <TableCell className="px-4 py-3 text-end text-muted-foreground tabular-nums">
+                  {niche.totalContent}
+                </TableCell>
+                <TableCell className="px-4 py-3">
+                  <StatusBadge isActive={niche.isActive} />
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
     </section>
   );
 }
