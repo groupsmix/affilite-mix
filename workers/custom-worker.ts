@@ -14,8 +14,6 @@
  * @see https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 // @ts-expect-error -- `.open-next/worker.js` is generated at build time
 import { default as handler } from "../.open-next/worker.js";
 
@@ -29,7 +27,7 @@ interface CloudflareExecutionContext {
   passThroughOnException(): void;
 }
 
-export default {
+const worker = {
   fetch: handler.fetch,
 
   async scheduled(
@@ -97,6 +95,8 @@ export default {
     );
   },
 };
+
+export default worker;
 
 // Re-export Durable Object classes required by OpenNext's caching layer
 // @ts-expect-error -- `.open-next/worker.js` is generated at build time
