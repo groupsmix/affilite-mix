@@ -291,19 +291,57 @@ jobs:
           echo "🔧 Checking R2 bucket..."
           npx --yes wrangler@${WRANGLER_VERSION} r2 bucket create next-inc-cache 2>&1 || echo "Bucket may already exist, continuing..."
 
-      # ── Create KV namespace if not exists ────────────────────────────
+      # ── Create KV namespace if not exists, then inline the id ────────
+      # `wrangler.jsonc` uses `"id": "${RATE_LIMIT_KV_NAMESPACE_ID}"` so that
+      # the namespace isn't hardcoded to a specific Cloudflare account.  At
+      # deploy time we always resolve the id (creating the namespace on first
+      # deploy, looking it up on subsequent deploys) and sed it into the
+      # config so `wrangler deploy` sees a literal id — wrangler does NOT
+      # expand `${VAR}` in jsonc fields reliably across versions.
       - name: Create KV namespace (if not exists)
         run: |
-          echo "🔧 Checking KV namespace..."
-          KV_ID=$(npx --yes wrangler@${WRANGLER_VERSION} kv:namespace create RATE_LIMIT_KV 2>&1 | grep -o '"id":"[^"]*"' | cut -d'"' -f4 || echo "")
-          if [ -n "$KV_ID" ]; then
-            echo "Created KV namespace: $KV_ID"
-            # Update wrangler.jsonc with the new KV ID
-            sed -i "s/\"id\": \"[^\"]*\"/\"id\": \"$KV_ID\"/" wrangler.jsonc
-            echo "Updated wrangler.jsonc with KV namespace ID"
-          else
-            echo "KV namespace may already exist, checking wrangler.jsonc..."
+          set -euo pipefail
+          echo "🔧 Resolving KV namespace id for RATE_LIMIT_KV..."
+
+          # Try to look up an existing namespace first.
+          KV_ID=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
+            | jq -r '.[] | select(.title == "RATE_LIMIT_KV" or .title == "affilite-mix-RATE_LIMIT_KV") | .id' \
+            | head -n1 || true)
+
+          # If nothing exists yet, create it and grab the id from the JSON output.
+          if [ -z "$KV_ID" ]; then
+            echo "No existing RATE_LIMIT_KV namespace found — creating one..."
+            CREATE_OUT=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace create RATE_LIMIT_KV 2>&1 || true)
+            echo "$CREATE_OUT"
+            KV_ID=$(echo "$CREATE_OUT" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/' || true)
+            # Fallback: re-list in case `create` raced or used a different title.
+            if [ -z "$KV_ID" ]; then
+              KV_ID=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
+                | jq -r '.[] | select(.title == "RATE_LIMIT_KV" or .title == "affilite-mix-RATE_LIMIT_KV") | .id' \
+                | head -n1 || true)
+            fi
           fi
+
+          if [ -z "$KV_ID" ]; then
+            echo "::error::Unable to resolve RATE_LIMIT_KV namespace id. Check CLOUDFLARE_API_TOKEN has 'Workers KV Storage:Edit' permission."
+            exit 1
+          fi
+
+          echo "Using KV namespace id: $KV_ID"
+          # Replace the `${RATE_LIMIT_KV_NAMESPACE_ID}` placeholder (or any previously
+          # sed'd literal id) inside the RATE_LIMIT_KV binding with the resolved id.
+          # Use Perl for a multi-line regex anchored on "binding": "RATE_LIMIT_KV"
+          # so unrelated `"id": "…"` fields elsewhere in wrangler.jsonc are untouched.
+          KV_ID="$KV_ID" perl -i -0pe '
+            s/("binding"\s*:\s*"RATE_LIMIT_KV"[^}]*?"id"\s*:\s*")[^"]*(")/$1$ENV{KV_ID}$2/s
+          ' wrangler.jsonc
+          # Verify the substitution actually happened.
+          if ! grep -q "\"id\": \"$KV_ID\"" wrangler.jsonc; then
+            echo "::error::Failed to inline KV namespace id into wrangler.jsonc"
+            grep -n RATE_LIMIT_KV wrangler.jsonc || true
+            exit 1
+          fi
+          echo "Inlined KV namespace id into wrangler.jsonc"
 
       # ── Build OpenNext bundle ─────────────────────────────────────────
       - name: Build OpenNext bundle
