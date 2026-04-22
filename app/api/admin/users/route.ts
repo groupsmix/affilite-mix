@@ -44,9 +44,7 @@ export async function GET() {
 
   try {
     const users = await listAdminUsers();
-    // Strip password_hash from response
-    const safe = users.map(({ password_hash: _ph, ...rest }) => rest);
-    return NextResponse.json(safe);
+    return NextResponse.json(users);
   } catch (err) {
     captureException(err, { context: "Failed to list admin users:" });
     return NextResponse.json({ error: "Failed to list users" }, { status: 500 });

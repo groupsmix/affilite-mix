@@ -21,6 +21,7 @@ import {
   Plug,
   Puzzle,
   ScrollText,
+  Settings,
   ShieldCheck,
   Sparkles,
   Users,
@@ -72,4 +73,5 @@ export const adminNavItems: AdminNavItem[] = [
     icon: Flag,
   },
   { href: "/admin/audit-log", label: "Audit Log", iconKey: "audit-log", icon: ScrollText },
+  { href: "/admin/settings", label: "Settings", iconKey: "settings", icon: Settings },
 ];
