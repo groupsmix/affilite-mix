@@ -6,7 +6,7 @@ import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig, LayoutVariant } from "./components/theme-provider";
-import CookieConsent from "./components/cookie-consent";
+import CookieConsentCmp from "./components/cookie-consent-cmp";
 import { Toaster } from "sonner";
 import { logger } from "@/lib/logger";
 
@@ -110,7 +110,7 @@ export default async function PublicLayout({ children }: { children: React.React
           {children}
         </main>
         <SiteFooter site={site} dbFooterNav={dbFooterNav} />
-        {site.features.cookieConsent && <CookieConsent language={site.language} />}
+        {site.features.cookieConsent && <CookieConsentCmp language={site.language} />}
         <Toaster position="bottom-right" richColors closeButton />
       </div>
     </ThemeProvider>
