@@ -98,7 +98,13 @@ export async function updateAdminUser(
   >,
 ): Promise<AdminUserRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
+
+  const { data, error } = await sb
+    .from(TABLE)
+    .update(input as any)
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) throw error;
   return assertRow<AdminUserRow>(data, "AdminUser");

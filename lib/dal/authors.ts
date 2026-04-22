@@ -21,8 +21,8 @@ const TABLE = "authors";
 /** List authors for a site */
 export async function listAuthors(siteId: string): Promise<AuthorRow[]> {
   const sb = getServiceClient();
-  const { data, error } = await sb
-    .from(TABLE)
+
+  const { data, error } = await (sb.from as any)(TABLE)
     .select("*")
     .eq("site_id", siteId)
     .order("name", { ascending: true });
@@ -34,7 +34,8 @@ export async function listAuthors(siteId: string): Promise<AuthorRow[]> {
 /** Get an author by ID */
 export async function getAuthorById(id: string): Promise<AuthorRow | null> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).select("*").eq("id", id).single();
+
+  const { data, error } = await (sb.from as any)(TABLE).select("*").eq("id", id).single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<AuthorRow>(data);
@@ -43,8 +44,8 @@ export async function getAuthorById(id: string): Promise<AuthorRow | null> {
 /** Get an author by slug within a site */
 export async function getAuthorBySlug(siteId: string, slug: string): Promise<AuthorRow | null> {
   const sb = getServiceClient();
-  const { data, error } = await sb
-    .from(TABLE)
+
+  const { data, error } = await (sb.from as any)(TABLE)
     .select("*")
     .eq("site_id", siteId)
     .eq("slug", slug)
@@ -66,7 +67,8 @@ export async function createAuthor(input: {
   social_links?: Record<string, string>;
 }): Promise<AuthorRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).insert(input).select().single();
+
+  const { data, error } = await (sb.from as any)(TABLE).insert(input).select().single();
 
   if (error) throw error;
   return assertRow<AuthorRow>(data, "Author");
@@ -90,7 +92,12 @@ export async function updateAuthor(
   >,
 ): Promise<AuthorRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
+
+  const { data, error } = await (sb.from as any)(TABLE)
+    .update(input)
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) throw error;
   return assertRow<AuthorRow>(data, "Author");
@@ -99,6 +106,7 @@ export async function updateAuthor(
 /** Delete an author */
 export async function deleteAuthor(id: string): Promise<void> {
   const sb = getServiceClient();
-  const { error } = await sb.from(TABLE).delete().eq("id", id);
+
+  const { error } = await (sb.from as any)(TABLE).delete().eq("id", id);
   if (error) throw error;
 }

@@ -81,6 +81,9 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
       role: "admin",
       is_active: true,
       password_hash: "hashed",
+      totp_secret: null,
+      totp_enabled: false,
+      totp_verified_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });

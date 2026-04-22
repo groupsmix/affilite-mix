@@ -20,8 +20,8 @@ export async function listProductAffiliateLinks(
   productId: string,
 ): Promise<ProductAffiliateLinkRow[]> {
   const sb = getServiceClient();
-  const { data, error } = await sb
-    .from(TABLE)
+
+  const { data, error } = await (sb.from as any)(TABLE)
     .select("*")
     .eq("product_id", productId)
     .eq("is_active", true)
@@ -36,8 +36,8 @@ export async function listAllProductAffiliateLinks(
   productId: string,
 ): Promise<ProductAffiliateLinkRow[]> {
   const sb = getServiceClient();
-  const { data, error } = await sb
-    .from(TABLE)
+
+  const { data, error } = await (sb.from as any)(TABLE)
     .select("*")
     .eq("product_id", productId)
     .order("weight", { ascending: false });
@@ -55,7 +55,8 @@ export async function createProductAffiliateLink(input: {
   weight?: number;
 }): Promise<ProductAffiliateLinkRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).insert(input).select().single();
+
+  const { data, error } = await (sb.from as any)(TABLE).insert(input).select().single();
 
   if (error) throw error;
   return assertRow<ProductAffiliateLinkRow>(data, "ProductAffiliateLink");
@@ -67,7 +68,12 @@ export async function updateProductAffiliateLink(
   input: Partial<Pick<ProductAffiliateLinkRow, "network" | "geo" | "url" | "weight" | "is_active">>,
 ): Promise<ProductAffiliateLinkRow> {
   const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
+
+  const { data, error } = await (sb.from as any)(TABLE)
+    .update(input)
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) throw error;
   return assertRow<ProductAffiliateLinkRow>(data, "ProductAffiliateLink");
@@ -76,7 +82,8 @@ export async function updateProductAffiliateLink(
 /** Delete an affiliate link */
 export async function deleteProductAffiliateLink(id: string): Promise<void> {
   const sb = getServiceClient();
-  const { error } = await sb.from(TABLE).delete().eq("id", id);
+
+  const { error } = await (sb.from as any)(TABLE).delete().eq("id", id);
   if (error) throw error;
 }
 

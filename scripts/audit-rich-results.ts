@@ -22,7 +22,7 @@ import type { ContentRow, ProductRow } from "../types/database";
 
 // ── Test fixtures ──────────────────────────────────────────────────────
 
-const mockSite: SiteDefinition = {
+const mockSite = {
   id: "watch-tools",
   name: "WristNerd",
   domain: "wristnerd.xyz",
@@ -57,7 +57,7 @@ const mockSite: SiteDefinition = {
     terms: { title: "Terms", description: "Terms of service" },
   },
   seo: { robotsDisallow: [], sitemapStaticPages: [] },
-};
+} as any as SiteDefinition;
 
 const mockContent: ContentRow = {
   id: "content-1",
@@ -76,6 +76,7 @@ const mockContent: ContentRow = {
   meta_title: null,
   meta_description: null,
   og_image: null,
+  body_previous: null,
   created_at: "2024-01-10T00:00:00Z",
   updated_at: "2024-01-15T00:00:00Z",
 };

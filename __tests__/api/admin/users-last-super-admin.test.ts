@@ -41,6 +41,9 @@ type AdminRow = {
   name: string;
   role: "admin" | "super_admin";
   is_active: boolean;
+  totp_secret: string | null;
+  totp_enabled: boolean;
+  totp_verified_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -53,6 +56,9 @@ function makeRow(partial: Partial<AdminRow>): AdminRow {
     name: "",
     role: "admin",
     is_active: true,
+    totp_secret: null,
+    totp_enabled: false,
+    totp_verified_at: null,
     created_at: "2024-01-01",
     updated_at: "2024-01-01",
     ...partial,
