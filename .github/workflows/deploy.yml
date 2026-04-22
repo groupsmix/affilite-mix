@@ -137,13 +137,14 @@ jobs:
 
           echo "🧪 Running database reset smoke test..."
           
-          # Drop and recreate the public schema (equivalent to supabase db reset)
-          psql "$_STAGING_DB_URL" -v ON_ERROR_STOP=1 <<-EOSQL
-            DROP SCHEMA IF EXISTS public CASCADE;
-            CREATE SCHEMA public;
-            GRANT ALL ON SCHEMA public TO postgres;
-            GRANT ALL ON SCHEMA public TO public;
-EOSQL
+          # Drop and recreate the public schema (equivalent to supabase db reset).
+          # Uses -c flags instead of a heredoc — heredoc terminators at column 0
+          # break YAML block scalars and cause the workflow to fail at parse time.
+          psql "$_STAGING_DB_URL" -v ON_ERROR_STOP=1 \
+            -c "DROP SCHEMA IF EXISTS public CASCADE;" \
+            -c "CREATE SCHEMA public;" \
+            -c "GRANT ALL ON SCHEMA public TO postgres;" \
+            -c "GRANT ALL ON SCHEMA public TO public;"
 
           echo "✅ Staging database reset complete"
           

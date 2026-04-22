@@ -60,6 +60,63 @@ END $$;
 ALTER TABLE ad_impressions 
   ADD COLUMN IF NOT EXISTS content_id uuid REFERENCES content(id) ON DELETE SET NULL;
 
+-- Deduplicate existing rows BEFORE creating the unique index.
+-- Without this, production databases that accumulated duplicate daily impression
+-- rows during the pre-fix race window will fail on CREATE UNIQUE INDEX.
+-- Strategy: for each duplicate group, keep the row with the highest impression
+-- count and the latest created_at as a tiebreaker, delete the rest.
+-- NOTE: At this point in the migration the column is still named "count"
+-- (renamed to impression_count later) and last_seen_at doesn't exist yet,
+-- so we reference the columns that are guaranteed to exist.
+DO $$
+DECLARE
+  has_count boolean;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'ad_impressions'
+      AND column_name = 'count'
+  ) INTO has_count;
+
+  IF has_count THEN
+    DELETE FROM ad_impressions
+    WHERE id IN (
+      SELECT id FROM (
+        SELECT id,
+               ROW_NUMBER() OVER (
+                 PARTITION BY site_id,
+                              ad_placement_id,
+                              COALESCE(content_id, '00000000-0000-0000-0000-000000000000'::uuid),
+                              COALESCE(page_path, ''),
+                              impression_date
+                 ORDER BY count DESC, created_at DESC
+               ) AS rn
+        FROM ad_impressions
+      ) ranked
+      WHERE rn > 1
+    );
+  ELSE
+    -- Column was already renamed to impression_count by an earlier run
+    DELETE FROM ad_impressions
+    WHERE id IN (
+      SELECT id FROM (
+        SELECT id,
+               ROW_NUMBER() OVER (
+                 PARTITION BY site_id,
+                              ad_placement_id,
+                              COALESCE(content_id, '00000000-0000-0000-0000-000000000000'::uuid),
+                              COALESCE(page_path, ''),
+                              impression_date
+                 ORDER BY impression_count DESC, created_at DESC
+               ) AS rn
+        FROM ad_impressions
+      ) ranked
+      WHERE rn > 1
+    );
+  END IF;
+END $$;
+
 -- Create unique constraint for atomic upserts
 -- This allows: INSERT ... ON CONFLICT (site_id, ad_placement_id, content_id, page_path, impression_date) DO UPDATE
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ad_impressions_unique_daily 
