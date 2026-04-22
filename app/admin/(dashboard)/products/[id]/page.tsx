@@ -1,15 +1,14 @@
-import { requireAdminSession } from "../../components/admin-guard";
+import { notFound } from "next/navigation";
+
+import { PageHeader } from "@/components/admin/page-header";
 import { getProductById } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { notFound } from "next/navigation";
+
+import { requireAdminSession } from "../../components/admin-guard";
 import { ProductForm } from "../product-form";
 
-export default async function EditProductPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) notFound();
   const { id } = await params;
@@ -23,7 +22,10 @@ export default async function EditProductPage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Edit Product</h1>
+      <PageHeader
+        title="Edit product"
+        description={`Update “${product.name}” and related media, pricing, and classification.`}
+      />
       <ProductForm product={product} categories={categories} />
     </div>
   );

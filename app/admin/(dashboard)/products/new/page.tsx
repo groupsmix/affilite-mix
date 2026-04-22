@@ -1,6 +1,8 @@
-import { requireAdminSession } from "../../components/admin-guard";
+import { PageHeader } from "@/components/admin/page-header";
 import { listCategories } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+
+import { requireAdminSession } from "../../components/admin-guard";
 import { ProductForm } from "../product-form";
 
 export default async function NewProductPage() {
@@ -11,7 +13,10 @@ export default async function NewProductPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">New Product</h1>
+      <PageHeader
+        title="New product"
+        description="Add a new affiliate product, including pricing, media, and classification."
+      />
       <ProductForm categories={categories} />
     </div>
   );
