@@ -51,6 +51,17 @@ export async function POST(request: Request) {
       return successResponse;
     }
 
+    // SECURITY: Validate APP_URL before writing the reset token to the DB.
+    // If APP_URL is missing we can't build a reset link, so bail out early
+    // to preserve any existing valid token the user may already have.
+    const baseUrl = process.env.APP_URL;
+    if (!baseUrl) {
+      captureException(new Error("APP_URL environment variable is not configured"), {
+        context: "[api/auth/forgot-password] Cannot build reset URL",
+      });
+      return successResponse;
+    }
+
     // Generate reset token with 1-hour expiry
     const resetToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
@@ -69,17 +80,6 @@ export async function POST(request: Request) {
         context: "[api/auth/forgot-password] Failed to store reset token",
       });
       // Don't expose internal errors — still return success
-      return successResponse;
-    }
-
-    // Send reset email via Resend
-    // SECURITY: Use canonical APP_URL instead of request origin header
-    const baseUrl = process.env.APP_URL;
-    if (!baseUrl) {
-      captureException(new Error("APP_URL environment variable is not configured"), {
-        context: "[api/auth/forgot-password] Cannot build reset URL",
-      });
-      // Still return success to prevent information disclosure
       return successResponse;
     }
     const resetUrl = `${baseUrl}/admin/reset-password?token=${resetToken}`;
