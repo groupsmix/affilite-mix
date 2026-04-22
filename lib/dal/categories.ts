@@ -106,7 +106,6 @@ export async function listCategoriesByTaxonomy(
   siteId: string,
   taxonomyType: TaxonomyType,
 ): Promise<CategoryRow[]> {
-  const sb = getServiceClient();
   // Return empty if Supabase is not configured (placeholder URL)
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -114,6 +113,7 @@ export async function listCategoriesByTaxonomy(
   ) {
     return [];
   }
+  const sb = getServiceClient();
   let result: { data: unknown[] | null; error: { message?: string } | null } = (await sb
     .from(TABLE)
     .select(FULL_COLUMNS)
@@ -147,6 +147,13 @@ export async function listCategoriesByTaxonomy(
 
 /** Get a single category by id */
 export async function getCategoryById(siteId: string, id: string): Promise<CategoryRow | null> {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
+  ) {
+    return null;
+  }
+
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -161,6 +168,13 @@ export async function getCategoryById(siteId: string, id: string): Promise<Categ
 
 /** Get a single category by slug */
 export async function getCategoryBySlug(siteId: string, slug: string): Promise<CategoryRow | null> {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
+  ) {
+    return null;
+  }
+
   const sb = getServiceClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -177,7 +191,6 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
 export async function listCategoriesWithProductCount(
   siteId: string,
 ): Promise<(CategoryRow & { product_count: number })[]> {
-  const sb = getServiceClient();
   // Return empty if Supabase is not configured (placeholder URL)
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -186,6 +199,7 @@ export async function listCategoriesWithProductCount(
     return [];
   }
 
+  const sb = getServiceClient();
   let catsResult: { data: unknown[] | null; error: { message?: string } | null } = (await sb
     .from(TABLE)
     .select(FULL_COLUMNS)
@@ -339,6 +353,13 @@ export async function getCategoryUsageCounts(
   siteId: string,
   categoryId: string,
 ): Promise<{ contentCount: number; productCount: number }> {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")
+  ) {
+    return { contentCount: 0, productCount: 0 };
+  }
+
   const sb = getServiceClient();
 
   const [contentResult, productResult] = await Promise.all([

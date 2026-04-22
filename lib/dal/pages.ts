@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase-server";
+import { isSupabaseConfigured } from "@/lib/db-available";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { PageRow } from "@/types/database";
 
@@ -16,6 +17,7 @@ const LIST_COLUMNS =
 
 /** List all pages for a site (ordered by sort_order) */
 export async function listPages(siteId: string): Promise<PageRow[]> {
+  if (!isSupabaseConfigured()) return [];
   const { data, error } = await pagesTable()
     .select(LIST_COLUMNS)
     .eq("site_id", siteId)
@@ -27,6 +29,7 @@ export async function listPages(siteId: string): Promise<PageRow[]> {
 
 /** List only published pages for a site */
 export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
+  if (!isSupabaseConfigured()) return [];
   const { data, error } = await getServiceClient()
     .from("pages")
     .select(LIST_COLUMNS)
@@ -40,6 +43,7 @@ export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
 
 /** Get a single page by slug within a site */
 export async function getPageBySlug(siteId: string, slug: string): Promise<PageRow | null> {
+  if (!isSupabaseConfigured()) return null;
   const { data, error } = await getServiceClient()
     .from("pages")
     .select("*")
@@ -53,6 +57,7 @@ export async function getPageBySlug(siteId: string, slug: string): Promise<PageR
 
 /** Get a single page by id (scoped to site) */
 export async function getPageById(siteId: string, id: string): Promise<PageRow | null> {
+  if (!isSupabaseConfigured()) return null;
   const { data, error } = await pagesTable()
     .select("*")
     .eq("site_id", siteId)
