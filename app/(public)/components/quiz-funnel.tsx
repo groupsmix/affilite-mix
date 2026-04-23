@@ -162,7 +162,8 @@ export function QuizFunnel({ slug, title, description, steps, gateEmail }: QuizF
               className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
             />
             <label htmlFor="email-consent" className="text-sm text-gray-600">
-              <strong>We'll email you your results.</strong> We'll also send you product updates and recommendations. You can unsubscribe anytime.
+              <strong>We&apos;ll email you your results.</strong> We&apos;ll also send you product
+              updates and recommendations. You can unsubscribe anytime.
             </label>
           </div>
           <button

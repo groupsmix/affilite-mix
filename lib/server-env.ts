@@ -56,11 +56,6 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
     description: "Shared secret for authenticating scheduled cron job requests",
     ownerFile: "lib/cron-auth.ts",
   },
-  {
-    name: "TURNSTILE_SECRET_KEY",
-    description: "Cloudflare Turnstile secret key for server-side captcha verification",
-    ownerFile: "lib/turnstile.ts",
-  },
 ] as const;
 
 /**
