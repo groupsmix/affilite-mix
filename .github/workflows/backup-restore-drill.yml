@@ -1,0 +1,168 @@
+# F-022: Quarterly backup-restore drill.
+#
+# Verifies on a recurring cadence that the repo's migrations + restore
+# procedure actually produce a working database from an empty Postgres
+# instance. Runs on the 1st of every quarter and on manual dispatch.
+#
+# The drill does NOT touch production or staging Supabase — it spins up an
+# ephemeral Postgres service container, applies every migration in
+# supabase/migrations/ in order, and optionally restores a provided pg_dump
+# (held in the DR_SAMPLE_DUMP_URL secret) to verify the restore tooling
+# itself works end-to-end. A post-restore smoke query asserts that the core
+# tables exist and that RLS is enabled on tenant tables.
+#
+# If this job fails, follow docs/dr-drill-checklist.md Drill 1 (Database
+# Restore) to investigate. The failure is the drill — file a follow-up issue
+# rather than ignoring the alert.
+
+name: Backup Restore Drill (quarterly)
+
+on:
+  schedule:
+    # 06:00 UTC on the 1st of Jan / Apr / Jul / Oct
+    - cron: "0 6 1 1,4,7,10 *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: drill
+          POSTGRES_USER: drill
+          POSTGRES_DB: drill
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U drill"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: drill
+      PGPASSWORD: drill
+      PGDATABASE: drill
+      DRILL_DB_URL: postgres://drill:drill@localhost:5432/drill
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U drill; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Postgres did not become ready in time"
+          exit 1
+
+      - name: Apply all migrations
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          count=0
+          for f in supabase/migrations/*.sql; do
+            echo "Applying: $f"
+            psql "$DRILL_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
+            count=$((count + 1))
+          done
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No migrations found under supabase/migrations/"
+            exit 1
+          fi
+          echo "Applied $count migrations."
+
+      # Optional: if the team has published a scrubbed sample dump to a
+      # private URL, restore it here to exercise the real restore path.
+      # The secret is not required — the drill still proves migrations apply.
+      - name: Restore sample dump (optional)
+        if: ${{ env.DR_SAMPLE_DUMP_URL != '' }}
+        env:
+          DR_SAMPLE_DUMP_URL: ${{ secrets.DR_SAMPLE_DUMP_URL }}
+        run: |
+          set -euo pipefail
+          curl -fsSL "$DR_SAMPLE_DUMP_URL" -o /tmp/sample.dump
+          pg_restore --dbname="$DRILL_DB_URL" --no-owner --no-acl --data-only /tmp/sample.dump
+
+      - name: Smoke-test restored schema
+        run: |
+          set -euo pipefail
+          psql "$DRILL_DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          -- Core tables must exist after migrations.
+          DO $$
+          DECLARE
+            t TEXT;
+            required TEXT[] := ARRAY[
+              'sites', 'products', 'content', 'categories',
+              'newsletter_subscribers', 'admin_users', 'affiliate_clicks'
+            ];
+          BEGIN
+            FOREACH t IN ARRAY required LOOP
+              IF NOT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = t
+              ) THEN
+                RAISE EXCEPTION 'Missing required table: %', t;
+              END IF;
+            END LOOP;
+          END $$;
+
+          -- Tenant-scoped tables must have RLS enabled. Drift here is the
+          -- whole reason this drill exists.
+          DO $$
+          DECLARE
+            t TEXT;
+            tenant_tables TEXT[] := ARRAY['sites', 'products', 'content', 'categories'];
+            rls_on BOOLEAN;
+          BEGIN
+            FOREACH t IN ARRAY tenant_tables LOOP
+              SELECT c.relrowsecurity INTO rls_on
+              FROM pg_class c
+              JOIN pg_namespace n ON n.oid = c.relnamespace
+              WHERE n.nspname = 'public' AND c.relname = t;
+
+              IF rls_on IS DISTINCT FROM TRUE THEN
+                RAISE EXCEPTION 'RLS not enabled on tenant table: %', t;
+              END IF;
+            END LOOP;
+          END $$;
+          SQL
+
+      - name: Open issue on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Backup restore drill failed (${new Date().toISOString().slice(0,10)})`;
+            const body = [
+              'The quarterly backup restore drill failed.',
+              '',
+              `Workflow: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'Next steps: follow `docs/dr-drill-checklist.md` Drill 1 (Database Restore).',
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['incident', 'dr-drill'],
+            });

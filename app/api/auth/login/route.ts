@@ -92,7 +92,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const token = await createToken(authResult);
+    // F-035: bind the token to the originating user-agent + IP /24.
+    const token = await createToken(authResult, request);
 
     const response = NextResponse.json(
       { ok: true },
