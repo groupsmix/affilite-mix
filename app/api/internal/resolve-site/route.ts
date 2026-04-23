@@ -3,6 +3,7 @@ import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { INTERNAL_HEADER, getInternalToken } from "@/lib/internal-auth";
+import { WILDCARD_PARENT_DOMAINS, getSiteByDomain } from "@/config/sites";
 
 /** 60 resolve-site requests per minute per IP */
 const RESOLVE_SITE_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -44,7 +45,18 @@ export async function GET(request: NextRequest) {
   if (!domain) {
     return NextResponse.json({ error: "domain parameter required" }, { status: 400 });
   }
+// Validate domain is either a known configured domain or a wildcard subdomain
+  const knownSite = getSiteByDomain(domain);
+  const isWildcard = WILDCARD_PARENT_DOMAINS.some((parent) => {
+    const suffix = `.${parent}`;
+    return domain === parent || domain.endsWith(suffix);
+  });
 
+  if (!knownSite && !isWildcard) {
+    return NextResponse.json({ error: "Invalid domain" }, { status: 400 });
+  }
+
+  
   try {
     const row = await getSiteRowByDomain(domain);
     if (!row) {

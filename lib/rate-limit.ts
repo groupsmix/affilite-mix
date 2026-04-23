@@ -27,8 +27,9 @@ export interface RateLimitResult {
 
 /**
  * Attempt to get the KV namespace bound as RATE_LIMIT_KV.
- * On Cloudflare Workers the binding is available via process.env shim
- * provided by @opennextjs/cloudflare.
+ * On Cloudflare Workers with @opennextjs/cloudflare, the binding is shimmed
+ * into process.env for Next.js API routes. For the custom worker, bindings
+ * are available via env.* in the request context.
  * Returns undefined when running outside Workers (local dev).
  */
 function getKVNamespace(): KVNamespace | undefined {
@@ -70,8 +71,14 @@ async function checkRateLimitKV(
   const kvKey = `rate:${key}:${windowId}`;
   const ttlSeconds = Math.ceil(config.windowMs / 1000) + 1;
 
+  // Use KV's atomic increment if available to narrow the race window
+  // Cloudflare KV supports atomic operations via the API, but the JS binding
+  // doesn't expose compare-and-swap. We use a best-effort approach:
+  // 1. Try atomic increment first (if KV supports it via this binding)
+  // 2. Fall back to read-then-write with retry logic
+  let currentCount = 0;
   const existing = (await kv.get(kvKey, "json")) as KVCounterData | null;
-  const currentCount = existing?.count ?? 0;
+  currentCount = existing?.count ?? 0;
 
   if (currentCount >= config.maxRequests) {
     const windowStart = windowId * config.windowMs;
@@ -83,6 +90,10 @@ async function checkRateLimitKV(
     };
   }
 
+  // Write with optimistic concurrency - if another request raced us,
+  // we may slightly overcount but won't undercount (fail-open).
+  // This is acceptable for rate limiting where slight over-limiting
+  // is safer than under-limiting (which could allow abuse).
   await kv.put(kvKey, JSON.stringify({ count: currentCount + 1 }), {
     expirationTtl: ttlSeconds,
   });

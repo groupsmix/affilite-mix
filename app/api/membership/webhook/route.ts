@@ -7,6 +7,72 @@ import {
 import { logger } from "@/lib/logger";
 
 /**
+ * Verify Stripe webhook signature using HMAC-SHA256.
+ * Compatible with Cloudflare Workers (crypto.subtle).
+ *
+ * Stripe signature format: t=<timestamp>,v1=<signature>
+ * The signature is HMAC-SHA256(secret, timestamp + "." + payload)
+ * Tolerance: 5 minutes
+ */
+async function verifyStripeSignature(
+  payload: string,
+  signature: string,
+  secret: string,
+): Promise<boolean> {
+  try {
+    const elements = signature.split(",");
+    const timestamp = elements.find((e) => e.startsWith("t="))?.split("=")[1];
+    const signatureHash = elements.find((e) => e.startsWith("v1="))?.split("=")[1];
+
+    if (!timestamp || !signatureHash) {
+      return false;
+    }
+
+    // Check timestamp tolerance (5 minutes)
+    const now = Math.floor(Date.now() / 1000);
+    const timestampNum = parseInt(timestamp, 10);
+    if (now - timestampNum > 300) {
+      logger.warn("Stripe webhook timestamp too old", { timestamp: timestampNum, now });
+      return false;
+    }
+
+    // Compute HMAC-SHA256
+    const signedPayload = `${timestamp}.${payload}`;
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(secret);
+    const messageData = encoder.encode(signedPayload);
+
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+
+    const signatureBytes = await crypto.subtle.sign("HMAC", cryptoKey, messageData);
+    const expectedSignature = Array.from(new Uint8Array(signatureBytes))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // Constant-time comparison to prevent timing attacks
+    if (signatureHash.length !== expectedSignature.length) {
+      return false;
+    }
+
+    let result = 0;
+    for (let i = 0; i < signatureHash.length; i++) {
+      result |= signatureHash.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
+    }
+
+    return result === 0;
+  } catch (err) {
+    logger.error("Stripe signature verification failed", { error: err });
+    return false;
+  }
+}
+
+/**
  * POST /api/membership/webhook
  * Stripe webhook handler for membership lifecycle events.
  * Handles: checkout.session.completed, invoice.paid,
@@ -31,9 +97,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing stripe-signature header" }, { status: 400 });
   }
 
-  // Verify webhook signature using Stripe's expected format
-  // In production, use stripe.webhooks.constructEvent()
-  // For now, we parse and handle — signature verification should be added with the Stripe SDK
+  // Verify webhook signature
+  const isValid = await verifyStripeSignature(rawBody, signature, webhookSecret);
+  if (!isValid) {
+    logger.warn("Invalid Stripe webhook signature", { signature: signature.substring(0, 20) + "..." });
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
   let event: {
     type: string;
     data: { object: Record<string, unknown> };

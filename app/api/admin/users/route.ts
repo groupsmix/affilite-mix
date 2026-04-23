@@ -84,7 +84,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: policyResult.error }, { status: 400 });
   }
 
-  const breachCount = await checkBreachedPassword(password);
+  const breachCount = await checkBreachedPassword(password).catch((err) => {
+    // Log the error but still block - fail-closed for security
+    captureException(err, { context: "HIBP check failed, blocking password" });
+    return 1; // Treat as breached to force user to choose another password
+  });
   if (breachCount > 0) {
     return NextResponse.json(
       {
@@ -173,8 +177,11 @@ export async function PATCH(request: NextRequest) {
     if (role !== undefined) updates.role = role;
     if (is_active !== undefined) updates.is_active = is_active;
     if (password) {
-      const policyCheck = validatePasswordPolicy(password);
-      if (!policyCheck.valid) {
+      const policyCheck = validatePasswordPolicy(password);.catch((err) => {
+      captureException(err, { context: "HIBP check failed, blocking password" });
+      return 1 // Treat as breached to force user to choose another password
+    });
+    if (!policyCheck.valid) {
         return NextResponse.json({ error: policyCheck.error }, { status: 400 });
       }
       const breaches = await checkBreachedPassword(password);

@@ -17,12 +17,25 @@ let poolerWarningEmitted = false;
 function getSupabaseUrl(): string {
   const url = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL");
 
-  // Warn in production if the Supabase URL is not using the pooler endpoint.
+  // Fail-fast in production if the Supabase URL is not using the pooler endpoint.
   // Direct connections will exhaust PostgreSQL's connection limit on edge runtimes
   // (Cloudflare Workers) where each request opens a new connection.
   if (
-    !poolerWarningEmitted &&
     process.env.NODE_ENV === "production" &&
+    url &&
+    !url.includes("pooler.supabase")
+  ) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL must use the pooler endpoint in production. " +
+        "Use the pooler URL (e.g. https://xxx.pooler.supabase.com) " +
+        "to avoid exhausting PostgreSQL connection limits."
+    );
+  }
+
+  // Warn in development for awareness
+  if (
+    !poolerWarningEmitted &&
+    process.env.NODE_ENV !== "production" &&
     url &&
     !url.includes("pooler.supabase")
   ) {

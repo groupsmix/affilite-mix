@@ -3,6 +3,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createComment, listApprovedComments } from "@/lib/dal/community";
+import { getClientIp } from "@/lib/get-client-ip";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 /**
  * GET /api/community/comments?target_type=product&target_id=xxx
@@ -28,10 +30,10 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/community/comments
  * Submit a comment (goes to moderation queue).
- * Body: { target_type, target_id, parent_id?, user_email, user_name, body }
+ * Body: { target_type, target_id, parent_id?, user_email, user_name, body, turnstileToken }
  */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`comment:${ip}`, { maxRequests: 10, windowMs: 60 * 60 * 1000 });
   if (!rl.allowed) {
     return NextResponse.json(
@@ -47,11 +49,22 @@ export async function POST(request: NextRequest) {
     user_email?: string;
     user_name?: string;
     body?: string;
+    turnstileToken?: string;
   };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  // Verify Turnstile CAPTCHA
+  if (!body.turnstileToken) {
+    return NextResponse.json({ error: "CAPTCHA token is required" }, { status: 400 });
+  }
+
+  const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json({ error: "CAPTCHA verification failed" }, { status: 403 });
   }
 
   if (!body.target_type || !body.target_id || !body.user_email || !body.user_name || !body.body) {

@@ -3,6 +3,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createPriceAlert, getPriceAlert, deactivatePriceAlert } from "@/lib/dal/price-alerts";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * POST /api/products/:productId/price-alert
@@ -15,7 +16,7 @@ export async function POST(
 ) {
   const { productId } = await params;
 
-  // Rate limit: 10 alerts/hour per IP
+  // Rate limgt Clien Ippque
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const rl = await checkRateLimit(`price-alert:${ip}`, {
     maxRequests: 10,

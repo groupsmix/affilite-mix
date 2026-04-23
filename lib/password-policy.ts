@@ -48,44 +48,44 @@ export function validatePasswordPolicy(password: string): PasswordPolicyResult {
  * HaveIBeenPwned Passwords API (k-anonymity range search).
  *
  * Only the first 5 hex characters of the SHA-1 hash are sent to the API.
- * Returns the number of times the password has appeared in breaches,
- * or -1 if the check could not be performed (network error, etc.).
+ * Returns the number of times the password has appeared in breaches.
  *
- * This function is async and should be used as a non-blocking check:
- * if it returns -1, the password should still be accepted (fail-open).
+ * This function is blocking: if the API check fails (network error, etc.),
+ * it throws an error. Callers should catch and handle appropriately.
+ * For production security, we fail-closed on API errors to prevent
+ * accepting potentially compromised passwords when the breach check
+ * service is unavailable.
  */
 export async function checkBreachedPassword(password: string): Promise<number> {
-  try {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest("SHA-1", data);
-    const hashHex = Array.from(new Uint8Array(hashBuffer))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("")
-      .toUpperCase();
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+  const hashHex = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
 
-    const prefix = hashHex.slice(0, 5);
-    const suffix = hashHex.slice(5);
+  const prefix = hashHex.slice(0, 5);
+  const suffix = hashHex.slice(5);
 
-    const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
-      headers: { "Add-Padding": "true" },
-    });
+  const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+    headers: { "Add-Padding": "true" },
+    signal: AbortSignal.timeout(5000), // 5 second timeout
+  });
 
-    if (!response.ok) return -1;
-
-    const body = await response.text();
-    const lines = body.split("\n");
-
-    for (const line of lines) {
-      const [hashSuffix, count] = line.trim().split(":");
-      if (hashSuffix === suffix) {
-        return parseInt(count, 10);
-      }
-    }
-
-    return 0;
-  } catch {
-    // Fail-open: if the check fails, don't block the user
-    return -1;
+  if (!response.ok) {
+    throw new Error(`HIBP API returned ${response.status}`);
   }
+
+  const body = await response.text();
+  const lines = body.split("\n");
+
+  for (const line of lines) {
+    const [hashSuffix, count] = line.trim().split(":");
+    if (hashSuffix === suffix) {
+      return parseInt(count, 10);
+    }
+  }
+
+  return 0;
 }
