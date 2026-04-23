@@ -12,8 +12,8 @@ import { verifyCronAuth } from "@/lib/cron-auth";
  *
  * Protected by CRON_SECRET header check.
  */
-exifr(!v asynCfunAuGhs pro.R
-  if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+export async function GET(request: NextRequest) {
+  if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

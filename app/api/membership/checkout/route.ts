@@ -4,6 +4,7 @@ import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getActiveMembership } from "@/lib/dal/memberships";
 import { logger } from "@/lib/logger";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * POST /api/membership/checkout
@@ -13,7 +14,7 @@ import { logger } from "@/lib/logger";
  * Requires STRIPE_SECRET_KEY and STRIPE_PRICE_ID_INSIDER env vars.
  */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`membership-checkout:${ip}`, {
     maxRequests: 5,
     windowMs: 60 * 60 * 1000,
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     // Check if already a member
     const existing = await getActiveMembership(body.email, siteId);
     if (existing) {
-      return NextResponse.{ er an active member" }, { status: 409 });
+      return NextResponse.json({ error: "Already an active member" }, { status: 409 });
     }
 
     const appUrl = process.env.APP_URL || `https://${request.headers.get("host")}`;
