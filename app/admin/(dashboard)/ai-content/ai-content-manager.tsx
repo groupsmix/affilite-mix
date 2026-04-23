@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import type { AIDraft } from "./page";
 
 interface Props {
@@ -343,7 +344,7 @@ export function AIContentManager({
                   </div>
                   <div
                     className="prose prose-sm mt-3 max-h-96 overflow-y-auto"
-                    dangerouslySetInnerHTML={{ __html: draft.body }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(draft.body) }}
                   />
                 </div>
               )}

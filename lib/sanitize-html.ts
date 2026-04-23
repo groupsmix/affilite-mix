@@ -70,7 +70,44 @@ const VOID_TAGS = new Set(["br", "hr", "img"]);
  */
 const HEADING_REMAP: Record<string, string> = { h1: "h2" };
 
-const DANGEROUS_PROTOCOLS = /^\s*(javascript|data|vbscript)\s*:/i;
+/**
+ * Allow-list of URL schemes permitted in `href`/`src` attributes.
+ *
+ * Deny-lists are fragile — `javascript:`, `data:`, and `vbscript:` are
+ * the well-known offenders but browsers keep inventing new ones
+ * (`blob:`, `filesystem:`, `intent:` on Android, etc.). An allow-list
+ * locks URLs to the small set we actually want users to author.
+ *
+ * Accepted forms:
+ *   - Absolute URLs with schemes `http:`, `https:`, `mailto:`, `tel:`
+ *   - Relative / site-root URLs (`/foo`, `foo/bar`, `../x`)
+ *   - In-page anchors (`#id`)
+ */
+const ALLOWED_URL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
+
+function isSafeUrl(value: string): boolean {
+  if (typeof value !== "string") return false;
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return false;
+
+  // Relative URLs and same-page anchors never specify a scheme.
+  if (trimmed.startsWith("#")) return true;
+  if (trimmed.startsWith("/")) return true;
+
+  // Detect an explicit scheme. The regex matches the URL scheme grammar
+  // (alpha, followed by alpha/digit/+/-/.) — identical to how browsers
+  // parse the leading component of a URL.
+  const schemeMatch = /^([a-z][a-z0-9+\-.]*):/i.exec(trimmed);
+  if (!schemeMatch) {
+    // No scheme and no leading `/` or `#`: treat as a relative path
+    // (e.g. `foo/bar`, `page.html`). Still safe — the browser resolves
+    // it against the document base URL and cannot escape it.
+    return true;
+  }
+
+  return ALLOWED_URL_SCHEMES.has(schemeMatch[1].toLowerCase() + ":");
+}
 
 /** Escape special characters in attribute values */
 function escapeAttrValue(value: string): string {
@@ -101,8 +138,8 @@ function buildAttrs(tag: string, raw: Record<string, string>): string {
 
       if (!allowedSet.has(lc)) continue;
 
-      // Check href/src for dangerous protocols
-      if ((lc === "href" || lc === "src") && DANGEROUS_PROTOCOLS.test(value)) {
+      // Lock href/src to the scheme allow-list defined above.
+      if ((lc === "href" || lc === "src") && !isSafeUrl(value)) {
         continue;
       }
 

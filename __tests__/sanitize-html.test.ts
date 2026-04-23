@@ -70,4 +70,46 @@ describe("sanitizeHtml", () => {
     const result = sanitizeHtml(input);
     expect(result).toContain("&amp;");
   });
+
+  describe("URL scheme allow-list (F-041)", () => {
+    const allowed: Array<[string, string]> = [
+      ["http", '<a href="http://example.com">x</a>'],
+      ["https", '<a href="https://example.com">x</a>'],
+      ["mailto", '<a href="mailto:a@b.com">x</a>'],
+      ["tel", '<a href="tel:+1-555-0100">x</a>'],
+      ["anchor", '<a href="#section">x</a>'],
+      ["site-root", '<a href="/about">x</a>'],
+      ["relative", '<a href="page.html">x</a>'],
+    ];
+    for (const [label, input] of allowed) {
+      it(`keeps ${label} href`, () => {
+        expect(sanitizeHtml(input)).toContain("href=");
+      });
+    }
+
+    const blocked: Array<[string, string]> = [
+      ["javascript", '<a href="javascript:alert(1)">x</a>'],
+      ["javascript (padded)", '<a href="  JavaScript:alert(1)">x</a>'],
+      ["data", '<a href="data:text/html,<script>alert(1)</script>">x</a>'],
+      ["vbscript", '<a href="vbscript:msgbox(1)">x</a>'],
+      ["blob", '<a href="blob:https://evil/abc">x</a>'],
+      ["filesystem", '<a href="filesystem:https://evil/tmp/x">x</a>'],
+      ["intent (android)", '<a href="intent://evil#Intent;end">x</a>'],
+    ];
+    for (const [label, input] of blocked) {
+      it(`strips ${label} href`, () => {
+        expect(sanitizeHtml(input)).not.toContain("href=");
+      });
+    }
+
+    it("blocks data: src on <img>", () => {
+      const input = '<img src="data:image/png;base64,AAAA" />';
+      expect(sanitizeHtml(input)).not.toContain("src=");
+    });
+
+    it("allows https: src on <img>", () => {
+      const input = '<img src="https://cdn.example.com/pic.jpg" />';
+      expect(sanitizeHtml(input)).toContain('src="https://cdn.example.com/pic.jpg"');
+    });
+  });
 });
