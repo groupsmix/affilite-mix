@@ -55,7 +55,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
     }
 
-    const breached = await checkBreachedPassword(newPassword);
+    const breached = await checkBreachedPassword(newPassword).catch((err) => {
+      // Log the error but still block - fail-closed for security
+      captureException(err, { context: "HIBP check failed, blocking password" });
+      return 1; // Treat as breached to force user to choose another password
+    });
     if (breached > 0) {
       return NextResponse.json(
         { error: "This password has appeared in a data breach. Please choose a different one." },

@@ -45,7 +45,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: policyResult.error }, { status: 400 });
     }
 
-    const breachCount = await checkBreachedPassword(password);
+    const breachCount = await checkBreachedPassword(password).catch((err) => {
+      // Log the error but still block - fail-closed for security
+      captureException(err, { context: "HIBP check failed, blocking password" });
+      return 1; // Treat as breached to force user to choose another password
+    });
     if (breachCount > 0) {
       return NextResponse.json(
         {
