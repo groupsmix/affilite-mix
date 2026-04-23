@@ -16,6 +16,7 @@
 
 // @ts-expect-error -- `.open-next/worker.js` is generated at build time
 import { default as handler } from "../.open-next/worker.js";
+import { RateLimiterDO } from "./rate-limiter-do";
 
 // Minimal type stubs for Cloudflare Worker APIs (provided by the runtime)
 interface CloudflareScheduledController {
@@ -25,6 +26,22 @@ interface CloudflareScheduledController {
 interface CloudflareExecutionContext {
   waitUntil(promise: Promise<any>): void;
   passThroughOnException(): void;
+}
+
+// F-028: Cloudflare Queue message for click tracking.
+interface CloudflareQueueMessage<T = unknown> {
+  id: string;
+  timestamp: Date;
+  body: T;
+  ack(): void;
+  retry(options?: { delaySeconds?: number }): void;
+}
+
+interface CloudflareMessageBatch<T = unknown> {
+  queue: string;
+  messages: CloudflareQueueMessage<T>[];
+  ackAll(): void;
+  retryAll(options?: { delaySeconds?: number }): void;
 }
 
 const worker = {
@@ -101,6 +118,66 @@ const worker = {
         }),
     );
   },
+
+  /**
+   * F-028: consume click-tracking queue batches and forward to the internal
+   * API endpoint /api/queue/clicks which persists them to Supabase.
+   *
+   * Uses INTERNAL_API_TOKEN to authenticate (server-side only, never exposed
+   * to clients). Individual message retry/ack is delegated to Cloudflare's
+   * queue semantics: on a successful 2xx we ack the whole batch; on any
+   * failure we retryAll so Cloudflare replays with backoff and eventually
+   * routes to the dead-letter queue after max_retries.
+   */
+  async queue(
+    batch: CloudflareMessageBatch,
+    env: Record<string, unknown>,
+    ctx: CloudflareExecutionContext,
+  ) {
+    if (batch.queue !== "click-tracking") {
+      // Unknown queue — ack so it doesn't loop forever
+      batch.ackAll();
+      return;
+    }
+
+    const internalToken = env.INTERNAL_API_TOKEN;
+    const cronHost =
+      typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
+
+    if (typeof internalToken !== "string" || !internalToken || !cronHost) {
+      console.error(
+        "[queue/click-tracking] INTERNAL_API_TOKEN or CRON_HOST missing — retrying batch",
+      );
+      batch.retryAll({ delaySeconds: 60 });
+      return;
+    }
+
+    const messages = batch.messages.map((m: CloudflareQueueMessage) => m.body);
+    const url = `${cronHost}/api/queue/clicks`;
+
+    ctx.waitUntil(
+      fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${internalToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages }),
+      })
+        .then((res: Response) => {
+          if (res.ok) {
+            batch.ackAll();
+          } else {
+            console.error(`[queue/click-tracking] consumer returned ${res.status}`);
+            batch.retryAll();
+          }
+        })
+        .catch((err: unknown) => {
+          console.error("[queue/click-tracking] consumer fetch error:", err);
+          batch.retryAll();
+        }),
+    );
+  },
 };
 
 export default worker;
@@ -108,3 +185,7 @@ export default worker;
 // Re-export Durable Object classes required by OpenNext's caching layer
 // @ts-expect-error -- `.open-next/worker.js` is generated at build time
 export { DOQueueHandler, DOShardedTagCache } from "../.open-next/worker.js";
+
+// F-005: Durable Object rate limiter (atomic fixed-window counter).
+// Bound as RATE_LIMITER_DO in wrangler.jsonc; consumed by lib/rate-limit.ts.
+export { RateLimiterDO };

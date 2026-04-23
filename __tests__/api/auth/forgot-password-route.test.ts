@@ -45,6 +45,7 @@ import { POST } from "@/app/api/auth/forgot-password/route";
 import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { hashResetToken } from "@/lib/reset-token";
 
 const mockedGetAdminUserByEmail = vi.mocked(getAdminUserByEmail);
 const mockedCheckRateLimit = vi.mocked(checkRateLimit);
@@ -181,5 +182,30 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     expect(capturedResendBody!.to).toEqual(["admin@test.com"]);
     expect(capturedResendBody!.subject).toBe("Password Reset Request");
     expect(capturedResendBody!.from).toContain("test.example.com");
+  });
+
+  it("persists only the SHA-256 hash of the reset token, not the raw value", async () => {
+    const res = await POST(makeRequest({ email: "admin@test.com" }));
+    expect(res.status).toBe(200);
+
+    // Extract the raw token that was embedded in the email link.
+    const textBody = capturedResendBody!.text as string;
+    const match = textBody.match(/token=([^\s&]+)/);
+    expect(match).not.toBeNull();
+    const rawToken = match![1];
+
+    // Grab the payload that was passed to Supabase .update().
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    const storedPayload = mockUpdate.mock.calls[0][0] as {
+      reset_token: string;
+      reset_token_expires_at: string;
+    };
+
+    // The DB must never receive the raw token…
+    expect(storedPayload.reset_token).not.toBe(rawToken);
+    // …and must store the deterministic SHA-256 hash instead.
+    expect(storedPayload.reset_token).toBe(await hashResetToken(rawToken));
+    // SHA-256 hex is 64 chars
+    expect(storedPayload.reset_token).toMatch(/^[0-9a-f]{64}$/);
   });
 });

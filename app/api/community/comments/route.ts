@@ -6,6 +6,7 @@ import { createComment, listApprovedComments } from "@/lib/dal/community";
 import { getClientIp } from "@/lib/get-client-ip";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { sanitizeHtml } from "@/lib/sanitize-html";
+import { normalizeEmail } from "@/lib/validate-email";
 
 /**
  * GET /api/community/comments?target_type=product&target_id=xxx
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  
+
   // Rate limit: 10 comments per hour per IP
   const rl = await checkRateLimit(`comment:${ip}`, { maxRequests: 10, windowMs: 60 * 60 * 1000 });
   if (!rl.allowed) {
@@ -93,11 +94,20 @@ export async function POST(request: NextRequest) {
   // Verify Turnstile CAPTCHA
   const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
   if (!turnstileResult.success) {
-    return NextResponse.json({ error: turnstileResult.error || "Captcha verification failed" }, { status: 403 });
+    return NextResponse.json(
+      { error: turnstileResult.error || "Captcha verification failed" },
+      { status: 403 },
+    );
   }
 
+  // Normalize email (trim + lowercase) so rate limits and storage are case-insensitive.
+  const normalizedEmail = normalizeEmail(body.user_email);
+
   // Per-email rate limit: 5 comments per hour per email
-  const emailRl = await checkRateLimit(`comment-email:${body.user_email}`, { maxRequests: 5, windowMs: 60 * 60 * 1000 });
+  const emailRl = await checkRateLimit(`comment-email:${normalizedEmail}`, {
+    maxRequests: 5,
+    windowMs: 60 * 60 * 1000,
+  });
   if (!emailRl.allowed) {
     return NextResponse.json(
       { error: "Too many comments from this email. Try again later." },
@@ -117,7 +127,7 @@ export async function POST(request: NextRequest) {
       target_type: body.target_type as "product" | "content",
       target_id: body.target_id,
       parent_id: body.parent_id,
-      user_email: body.user_email,
+      user_email: normalizedEmail,
       user_name: body.user_name,
       body: sanitizedBody,
     });

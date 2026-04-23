@@ -1,0 +1,91 @@
+# F-048: Gradual rollout via `wrangler versions deploy --percentage`.
+#
+# The default deploy.yml workflow promotes a new Worker version to 100%
+# traffic as soon as the push-to-main build succeeds. That's fast but
+# risky — a bad release touches every request immediately.
+#
+# This workflow is an explicit, manual path to ramp a new version across
+# traffic percentages (e.g. 10% → 25% → 50% → 100%) using the Cloudflare
+# Workers Versions API. A release manager triggers it from the Actions tab
+# with a target percentage and the commit SHA to promote.
+#
+# Usage:
+#   1. Build and upload a version (without deploying it) from the regular
+#      deploy workflow, which records the versionId.
+#   2. Run this workflow manually and pass:
+#      - version_id:   the UUID returned by `wrangler versions upload`
+#      - percentage:   0-100 (integer). 100 completes the rollout.
+#   3. Watch Workers > Deployments in the Cloudflare dashboard; roll back
+#      by re-running with a previous version_id at percentage=100.
+#
+# Docs: https://developers.cloudflare.com/workers/platform/gradual-deployments/
+
+name: Deploy (gradual rollout)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_id:
+        description: "Worker version UUID to ramp (from `wrangler versions upload`)"
+        required: true
+        type: string
+      percentage:
+        description: "Traffic percentage to route to this version (0-100)"
+        required: true
+        type: number
+        default: 10
+
+env:
+  WRANGLER_VERSION: "4.77.0"
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  gradual-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Validate percentage input
+        run: |
+          pct="${{ inputs.percentage }}"
+          if ! [[ "$pct" =~ ^[0-9]+$ ]] || [ "$pct" -lt 0 ] || [ "$pct" -gt 100 ]; then
+            echo "::error::percentage must be an integer 0-100 (got: $pct)"
+            exit 1
+          fi
+
+      - name: Require scoped CLOUDFLARE_API_TOKEN
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set. A scoped token is required."
+            exit 1
+          fi
+
+      - name: Ramp version ${{ inputs.version_id }} to ${{ inputs.percentage }}%
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
+            "${{ inputs.version_id }}@${{ inputs.percentage }}%" \
+            --yes \
+            --message "Gradual rollout to ${{ inputs.percentage }}% (run ${{ github.run_id }})"
+
+      - name: Summary
+        run: |
+          echo "### Gradual rollout dispatched" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Version: \`${{ inputs.version_id }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Percentage: **${{ inputs.percentage }}%**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Run: \`${{ github.run_id }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Monitor at [Cloudflare Dashboard → Workers → affilite-mix → Deployments](https://dash.cloudflare.com/?to=/:account/workers/services/view/affilite-mix/production/deployments)." >> "$GITHUB_STEP_SUMMARY"

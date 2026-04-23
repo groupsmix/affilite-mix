@@ -3,16 +3,39 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getActiveMembership } from "@/lib/dal/memberships";
-import { logger } from "@/lib/logger";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/membership/checkout
- * Creates a Stripe Checkout session for the membership tier.
- * Body: { email: string, tier?: "insider" | "pro" }
+ * Creates a Stripe Checkout session for a membership tier.
  *
- * Requires STRIPE_SECRET_KEY and STRIPE_PRICE_ID_* env vars.
+ * Body: { email: string, tier?: "insider" | "pro", turnstileToken?: string }
+ *
+ * Security (audit A-2, A-3):
+ *  - `tier` is validated against a fixed allowlist and mapped to a
+ *    server-held STRIPE_PRICE_ID_* env var — the body never controls
+ *    which price gets charged.
+ *  - Turnstile captcha is required (skipped only in dev when
+ *    TURNSTILE_SECRET_KEY is not set; see `lib/turnstile.ts`).
+ *
+ * Requires STRIPE_SECRET_KEY and at least one STRIPE_PRICE_ID_* env var.
  */
+
+const TIER_ALLOWLIST = ["insider", "pro"] as const;
+type Tier = (typeof TIER_ALLOWLIST)[number];
+
+/** Map a validated tier to the server-side env var holding its price id. */
+function priceIdForTier(tier: Tier): string | undefined {
+  switch (tier) {
+    case "insider":
+      return process.env.STRIPE_PRICE_ID_INSIDER;
+    case "pro":
+      return process.env.STRIPE_PRICE_ID_PRO;
+  }
+}
+
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`membership-checkout:${ip}`, {
@@ -26,16 +49,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { email?: string; tier?: "insider" | "pro" };
+  let body: { email?: string; tier?: string; turnstileToken?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  // A-3: Turnstile verification. In dev with no secret configured the
+  // helper short-circuits to success; in production an unset secret is
+  // treated as a failure.
+  const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json(
+      { error: turnstileResult.error ?? "Captcha verification failed" },
+      { status: 403 },
+    );
+  }
+
   if (!body.email || !body.email.includes("@")) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
   }
+
+  // A-2: validate tier against an allowlist *before* resolving a price.
+  // We never trust the raw body value for price selection.
+  const requestedTier = body.tier ?? "insider";
+  if (!TIER_ALLOWLIST.includes(requestedTier as Tier)) {
+    return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
+  }
+  const tier = requestedTier as Tier;
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeKey) {
@@ -43,18 +85,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
   }
 
-  // Server-side price allowlist - never trust client tier selection
-  const PRICE_MAP: Record<string, string | undefined> = {
-    insider: process.env.STRIPE_PRICE_ID_INSIDER,
-    pro: process.env.STRIPE_PRICE_ID_PRO,
-  };
-
-  const tier = body.tier || "insider";
-  const priceId = PRICE_MAP[tier];
-  
-  if (!priceId || !["insider", "pro"].includes(tier)) {
-    logger.error("Invalid tier or price not configured", { tier });
-    return NextResponse.json({ error: "Invalid membership tier" }, { status: 400 });
+  const priceId = priceIdForTier(tier);
+  if (!priceId) {
+    logger.error("Stripe price id not configured for tier", { tier });
+    return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
   }
 
   try {

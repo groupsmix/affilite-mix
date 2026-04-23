@@ -1,10 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import { logger } from "@/lib/logger";
 import { getJwtSecret } from "@/lib/jwt-secret";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
 
 const COOKIE_NAME = "nh_admin_token";
 /** Cookie tracking last admin activity for idle-timeout enforcement */
@@ -34,6 +35,12 @@ export interface AdminPayload {
   email?: string;
   userId?: string;
   role: "admin" | "super_admin";
+  /**
+   * F-035: optional user-agent + IP fingerprint bound at token issuance.
+   * Present on tokens minted from a login request; verified on every read
+   * so a token replayed from a different device/network is rejected.
+   */
+  bnd?: string;
 }
 
 /**
@@ -73,9 +80,21 @@ export async function authenticateUser(
   };
 }
 
-/** Create a signed JWT for admin session */
-export async function createToken(payload: AdminPayload): Promise<string> {
-  return new SignJWT({ ...payload })
+/**
+ * Create a signed JWT for admin session.
+ *
+ * When `request` is provided, a short fingerprint of the requesting client's
+ * user-agent and IP /24 is embedded as the `bnd` claim (F-035). Subsequent
+ * verifications that supply a request will reject replays from a different
+ * client. Callers without a request context (e.g. background jobs) can omit
+ * the parameter and a plain token is issued.
+ */
+export async function createToken(payload: AdminPayload, request?: Request): Promise<string> {
+  const binding = request ? await computeRequestBinding(request) : null;
+  const claims: AdminPayload = { ...payload };
+  if (binding) claims.bnd = binding;
+
+  return new SignJWT({ ...claims })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(EXPIRY)
@@ -84,16 +103,44 @@ export async function createToken(payload: AdminPayload): Promise<string> {
     .sign(getSecretKey());
 }
 
-/** Verify and decode the admin JWT */
-export async function verifyToken(token: string): Promise<AdminPayload | null> {
+/**
+ * Verify and decode the admin JWT.
+ *
+ * If `request` is supplied and the token carries a `bnd` claim (F-035), the
+ * claim is matched against the current request's user-agent + IP /24. A
+ * mismatch returns null so the session is treated as invalid.
+ */
+export async function verifyToken(token: string, request?: Request): Promise<AdminPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), {
       audience: "affiliate-platform",
       issuer: "affiliate-platform",
     });
-    return payload as unknown as AdminPayload;
+    const adminPayload = payload as unknown as AdminPayload;
+
+    if (adminPayload.bnd) {
+      const ok = await verifyRequestBinding(adminPayload.bnd, request);
+      if (!ok) {
+        logger.warn("Admin token rejected: UA/IP binding mismatch", {
+          userId: adminPayload.userId,
+        });
+        return null;
+      }
+    }
+
+    return adminPayload;
   } catch {
     return null;
+  }
+}
+
+/** Build a lightweight Request wrapper from the current Next.js headers() */
+async function requestFromHeaders(): Promise<Request | undefined> {
+  try {
+    const headerList = await headers();
+    return new Request("https://internal/admin-session", { headers: headerList });
+  } catch {
+    return undefined;
   }
 }
 
@@ -111,7 +158,10 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
     if (elapsed > IDLE_TIMEOUT_MS) return null;
   }
 
-  return verifyToken(token);
+  // F-035: verify the token's UA/IP binding (if present) against the
+  // current request. A mismatch = possible session hijack → reject.
+  const req = await requestFromHeaders();
+  return verifyToken(token, req);
 }
 
 /**
