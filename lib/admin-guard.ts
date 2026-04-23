@@ -53,7 +53,7 @@ export async function requireAdmin(): Promise<AdminResult> {
   // Use a hash of the session token to create a per-session rate limit key.
   // This ensures different sessions from the same user have independent limits.
   const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("nh_a_token")?.value;
+  const sessionToken = cookieStore.get("nh_admin_token")?.value;
   const sessionHash = sessionToken
     ? createHash("sha256").update(sessionToken).digest("hex").slice(0, 16)
     : "unknown";
