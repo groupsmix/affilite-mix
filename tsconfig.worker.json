@@ -8,6 +8,6 @@
     "noEmit": true,
     "isolatedModules": true
   },
-  "include": ["workers/custom-worker.ts"],
+  "include": ["workers/custom-worker.ts", "workers/rate-limiter-do.ts"],
   "exclude": ["node_modules"]
 }

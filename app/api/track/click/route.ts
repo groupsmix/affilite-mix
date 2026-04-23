@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { recordClick } from "@/lib/dal/affiliate-clicks";
+import { publishClick } from "@/lib/click-queue";
 import { getProductBySlug } from "@/lib/dal/products";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
@@ -46,19 +46,20 @@ async function handleClick(request: NextRequest) {
     // Always use the DB-stored affiliate URL, preventing open redirects.
     const destinationUrl = product.affiliate_url;
 
-    // Record click (fire-and-forget).  Wrapped in runAfterResponse so the
+    // Publish to the F-028 click queue (falls back to a direct DB write when
+    // the queue binding is absent). Wrapped in runAfterResponse so the
     // Cloudflare isolate keeps the promise alive via ctx.waitUntil() after
-    // the redirect is sent — otherwise the DB write is silently dropped
-    // when the isolate shuts down under load.
+    // the redirect is sent — otherwise the write is silently dropped when
+    // the isolate shuts down under load.
     void runAfterResponse(
-      recordClick({
+      publishClick({
         site_id: siteId,
         product_name: product.name,
         affiliate_url: destinationUrl,
         content_slug: searchParams.get("t") ?? "",
         referrer: request.headers.get("referer") ?? undefined,
       }),
-      { context: "[api/track/click] recordClick" },
+      { context: "[api/track/click] publishClick" },
     );
 
     // 302 redirect to the product's affiliate URL
