@@ -25,14 +25,14 @@ export function getCookieDomain(hostname?: string): string | undefined {
   const WILDCARD_PARENT_DOMAINS = process.env.WILDCARD_PARENT_DOMAINS?.split(",").map(d => d.trim()) ?? ["wristnerd.xyz"];
   
   for (const parent of WILDCARD_PARENT_DOMAINS) {
-    if (host === parent || host.endsWith(`.${parent}`)) {
+    if (hostWithoutPort === parent || hostWithoutPort.endsWith(`.${parent}`)) {
       // Return domain with leading dot for subdomain sharing
       return `.${parent}`;
     }
   }
 
-  // For other domains, return the host itself
-  return host;
+  // For other domains, return the host without port
+  return hostWithoutPort;
 }
 
 /**
