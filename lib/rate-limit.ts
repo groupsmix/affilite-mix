@@ -10,6 +10,23 @@
 
 import { captureException } from "@/lib/sentry";
 
+// ── Durable Object binding types ────────────────────────────────────
+// Minimal structural types for the RATE_LIMITER_DO binding so this file
+// type-checks without pulling in @cloudflare/workers-types.
+
+interface DurableObjectStub {
+  fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+}
+
+interface DurableObjectId {
+  readonly name?: string;
+}
+
+interface DurableObjectNamespace {
+  idFromName(name: string): DurableObjectId;
+  get(id: DurableObjectId): DurableObjectStub;
+}
+
 export interface RateLimitConfig {
   /** Maximum number of requests allowed in the window */
   maxRequests: number;
@@ -23,7 +40,65 @@ export interface RateLimitResult {
   retryAfterMs: number;
 }
 
-// ── KV-based implementation (production) ────────────────────────────
+// ── Binding lookup helpers ──────────────────────────────────────────
+// Cloudflare Worker bindings are exposed via the @opennextjs/cloudflare
+// `process.env` shim at runtime. Node's real `process.env` coerces values
+// to strings, so in test environments we also look up on `globalThis` —
+// this lets Vitest set a mock binding via `vi.stubGlobal(...)` without
+// relying on the production shim.
+
+function readBinding(name: string): unknown {
+  const fromGlobal = (globalThis as Record<string, unknown>)[name];
+  if (fromGlobal !== undefined) return fromGlobal;
+  try {
+    return (process.env as Record<string, unknown>)[name];
+  } catch {
+    return undefined;
+  }
+}
+
+// ── Durable Object-based implementation (F-005, preferred) ──────────
+
+/**
+ * Attempt to get the Durable Object namespace bound as RATE_LIMITER_DO.
+ * When present, it is preferred over KV because the DO provides atomic
+ * per-key read-modify-write semantics — closing the race window that
+ * the KV implementation leaves open.
+ */
+function getRateLimiterDO(): DurableObjectNamespace | undefined {
+  const ns = readBinding("RATE_LIMITER_DO");
+  if (ns && typeof ns === "object" && "idFromName" in ns && "get" in ns) {
+    return ns as unknown as DurableObjectNamespace;
+  }
+  return undefined;
+}
+
+async function checkRateLimitDO(
+  ns: DurableObjectNamespace,
+  key: string,
+  config: RateLimitConfig,
+): Promise<RateLimitResult> {
+  const id = ns.idFromName(key);
+  const stub = ns.get(id);
+
+  const response = await stub.fetch("https://rate-limiter/check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      key,
+      maxRequests: config.maxRequests,
+      windowMs: config.windowMs,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`RATE_LIMITER_DO responded ${response.status}`);
+  }
+
+  return (await response.json()) as RateLimitResult;
+}
+
+// ── KV-based implementation (fallback) ──────────────────────────────
 
 /**
  * Attempt to get the KV namespace bound as RATE_LIMIT_KV.
@@ -32,13 +107,9 @@ export interface RateLimitResult {
  * Returns undefined when running outside Workers (local dev).
  */
 function getKVNamespace(): KVNamespace | undefined {
-  try {
-    const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
-    if (kv && typeof kv === "object" && "get" in kv && "put" in kv) {
-      return kv as unknown as KVNamespace;
-    }
-  } catch {
-    // Not running in Workers — fall through
+  const kv = readBinding("RATE_LIMIT_KV");
+  if (kv && typeof kv === "object" && "get" in kv && "put" in kv) {
+    return kv as unknown as KVNamespace;
   }
   return undefined;
 }
@@ -174,6 +245,18 @@ export async function checkRateLimit(
   key: string,
   config: RateLimitConfig,
 ): Promise<RateLimitResult> {
+  // Prefer the Durable Object — it's atomic, so race-free under concurrency.
+  const doNs = getRateLimiterDO();
+  if (doNs) {
+    try {
+      return await checkRateLimitDO(doNs, key, config);
+    } catch (err) {
+      // DO is bound but unreachable (deploy glitch, etc.): log and fall
+      // through to KV rather than fail-closing the entire endpoint.
+      captureException(err, { context: "rate-limit.do-unavailable" });
+    }
+  }
+
   const kv = getKVNamespace();
   if (kv) {
     return checkRateLimitKV(kv, key, config);

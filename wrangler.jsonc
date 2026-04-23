@@ -50,7 +50,7 @@
 			"bucket_name": "next-inc-cache"
 		}
 	],
-	// Durable Objects for OpenNext's caching layer.
+	// Durable Objects for OpenNext's caching layer and F-005 rate limiting.
 	// These classes are re-exported from workers/custom-worker.ts so wrangler
 	// must declare the bindings and the initial SQLite-backed migration, even
 	// if tag-based revalidation is not yet enabled in open-next.config.ts.
@@ -64,6 +64,12 @@
 			{
 				"name": "NEXT_TAG_CACHE_DO_SHARDED",
 				"class_name": "DOShardedTagCache"
+			},
+			{
+				// F-005: atomic distributed rate limiting.
+				// lib/rate-limit.ts prefers this binding over KV when present.
+				"name": "RATE_LIMITER_DO",
+				"class_name": "RateLimiterDO"
 			}
 		]
 	},
@@ -71,8 +77,42 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["RateLimiterDO"]
 		}
 	],
+	// F-028: Cloudflare Queue for affiliate click tracking.
+	//
+	// The click endpoint (/api/track/click) publishes lightweight messages to
+	// this queue instead of writing directly to Supabase. The consumer runs
+	// the batch insert with retry/backoff and a dead-letter queue for failed
+	// batches, so a Supabase outage no longer drops click data on the floor.
+	//
+	// One-time setup per environment (CI/production):
+	//   npx wrangler queues create click-tracking
+	//   npx wrangler queues create click-tracking-dlq
+	//
+	// The queue is consumed by the worker exported from workers/custom-worker.ts
+	// (see the `queue` handler) which forwards batches to /api/queue/clicks.
+	"queues": {
+		"producers": [
+			{
+				"binding": "CLICK_QUEUE",
+				"queue": "click-tracking"
+			}
+		],
+		"consumers": [
+			{
+				"queue": "click-tracking",
+				"max_batch_size": 25,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+				"dead_letter_queue": "click-tracking-dlq"
+			}
+		]
+	},
 	// ═════════════════════════════════════════════════════════════════
 	// DOMAIN ROUTING - Dashboard Managed
 	// ═════════════════════════════════════════════════════════════════
