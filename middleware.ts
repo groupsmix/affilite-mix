@@ -98,6 +98,9 @@ export async function middleware(request: NextRequest) {
       "/api/track/impression",
       // Browser-automated CSP violation reports — cannot carry CSRF tokens
       "/api/csp-report",
+      // F-028: Cloudflare Queue consumer for click tracking — authenticated
+      // via Bearer INTERNAL_API_TOKEN from the Worker, not via CSRF cookies.
+      "/api/queue/clicks",
       // Unsubscribe: the per-subscriber unsubscribe_token is the auth factor
       // (GET uses query param, POST requires it in the body), so CSRF
       // double-submit is not needed — the token already proves intent.
