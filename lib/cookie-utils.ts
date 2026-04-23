@@ -15,7 +15,8 @@ export function getCookieDomain(hostname?: string): string | undefined {
   if (!host) return undefined;
 
   // Skip domain scoping for localhost or IP addresses
-  if (host === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+  const hostWithoutPort = host.split(":")[0];
+  if (hostWithoutPort === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(hostWithoutPort)) {
     return undefined;
   }
 
