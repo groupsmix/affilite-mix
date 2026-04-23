@@ -9,6 +9,7 @@ import {
   deriveResultTags,
 } from "@/lib/dal/quizzes";
 import { getServiceClient } from "@/lib/supabase-server";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * POST /api/quiz/:slug/submit
@@ -26,7 +27,7 @@ export async function POST(
   const { slug } = await params;
 
   // Rate limit: 30 submissions/hour per IP
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`quiz-submit:${ip}`, {
     maxRequests: 30,
     windowMs: 60 * 60 * 1000,

@@ -3,6 +3,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createComment, listApprovedComments } from "@/lib/dal/community";
+import { getClientIp } from "@/lib/get-client-ip";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 /**
  * GET /api/community/comments?target_type=product&target_id=xxx
@@ -28,10 +31,12 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/community/comments
  * Submit a comment (goes to moderation queue).
- * Body: { target_type, target_id, parent_id?, user_email, user_name, body }
+ * Body: { target_type, target_id, parent_id?, user_email, user_name, body, turnstileToken }
  */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = getClientIp(request);
+  
+  // Rate limit: 10 comments per hour per IP
   const rl = await checkRateLimit(`comment:${ip}`, { maxRequests: 10, windowMs: 60 * 60 * 1000 });
   if (!rl.allowed) {
     return NextResponse.json(
@@ -47,6 +52,7 @@ export async function POST(request: NextRequest) {
     user_email?: string;
     user_name?: string;
     body?: string;
+    turnstileToken?: string;
   };
   try {
     body = await request.json();
@@ -61,6 +67,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(body.user_email)) {
+    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+  }
+
+  // Validate user_name length
+  if (body.user_name.length > 80) {
+    return NextResponse.json({ error: "user_name must be 80 characters or less" }, { status: 400 });
+  }
+
+  // Validate body length
+  if (body.body.length > 2000) {
+    return NextResponse.json({ error: "body must be 2000 characters or less" }, { status: 400 });
+  }
+
   if (!["product", "content"].includes(body.target_type)) {
     return NextResponse.json(
       { error: "target_type must be 'product' or 'content'" },
@@ -68,9 +90,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Verify Turnstile CAPTCHA
+  const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json({ error: turnstileResult.error || "Captcha verification failed" }, { status: 403 });
+  }
+
+  // Per-email rate limit: 5 comments per hour per email
+  const emailRl = await checkRateLimit(`comment-email:${body.user_email}`, { maxRequests: 5, windowMs: 60 * 60 * 1000 });
+  if (!emailRl.allowed) {
+    return NextResponse.json(
+      { error: "Too many comments from this email. Try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(emailRl.retryAfterMs / 1000)) } },
+    );
+  }
+
   try {
     const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
     const siteId = await resolveDbSiteId(siteSlug);
+
+    // Sanitize HTML in body before storing
+    const sanitizedBody = sanitizeHtml(body.body);
 
     const comment = await createComment({
       site_id: siteId,
@@ -79,7 +119,7 @@ export async function POST(request: NextRequest) {
       parent_id: body.parent_id,
       user_email: body.user_email,
       user_name: body.user_name,
-      body: body.body,
+      body: sanitizedBody,
     });
 
     return NextResponse.json({ message: "Comment submitted for review", comment }, { status: 201 });

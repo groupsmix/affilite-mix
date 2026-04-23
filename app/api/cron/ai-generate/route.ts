@@ -4,6 +4,7 @@ import { createAIDraft } from "@/lib/dal/ai-drafts";
 import { allSites } from "@/config/sites";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";
+import { verifyCronAuth } from "@/lib/cron-auth";
 import type { AIContentType } from "@/lib/ai/content-generator";
 
 /**
@@ -14,13 +15,7 @@ import type { AIContentType } from "@/lib/ai/content-generator";
  * Generates 3 articles per site — topics are auto-selected based on niche.
  */
 export async function POST(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  const auth = request.headers.get("authorization");
-  if (auth !== `Bearer ${cronSecret}`) {
+  if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

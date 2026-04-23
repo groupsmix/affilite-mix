@@ -55,7 +55,7 @@ export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProp
           {dbFooterNav && dbFooterNav.length > 0 && (
             <div>
               <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
-                Pages
+                {site?.language === "ar" ? "الصفحات" : "Pages"}
               </h4>
               <ul className="space-y-1">
                 {dbFooterNav.map((item) => (

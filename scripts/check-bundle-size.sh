@@ -55,9 +55,9 @@ if [ -d "$CLIENT_DIR" ]; then
 
   if [ "$OVER_BUDGET" -gt 0 ]; then
     echo ""
-    echo "⚠️  ${OVER_BUDGET} chunk(s) exceed the ${MAX_KB} KB budget."
+    echo "❌ ${OVER_BUDGET} chunk(s) exceed the ${MAX_KB} KB budget."
     echo "   Consider code splitting or lazy loading to reduce bundle size."
-    # Non-blocking for now — just warn. Set FAILED=1 to enforce.
+    FAILED=1
   else
     echo "  All individual chunks under ${MAX_KB} KB budget."
   fi

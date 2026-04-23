@@ -36,7 +36,14 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
-  const budget = Math.min(100000, Math.max(0, parseInt(searchParams.get("budget") ?? "9999", 10)));
+  
+  // Validate budget to prevent NaN bypass
+  let budget = parseInt(searchParams.get("budget") ?? "9999", 10);
+  if (isNaN(budget)) {
+    budget = 9999; // Default to no budget limit if invalid
+  }
+  budget = Math.min(100000, Math.max(0, budget));
+  
   const occasion = searchParams.get("occasion") ?? "";
   const recipient = searchParams.get("recipient") ?? "";
   const style = searchParams.get("style") ?? "";

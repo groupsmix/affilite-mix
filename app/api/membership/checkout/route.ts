@@ -4,16 +4,17 @@ import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getActiveMembership } from "@/lib/dal/memberships";
 import { logger } from "@/lib/logger";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * POST /api/membership/checkout
  * Creates a Stripe Checkout session for the membership tier.
  * Body: { email: string, tier?: "insider" | "pro" }
  *
- * Requires STRIPE_SECRET_KEY and STRIPE_PRICE_ID_INSIDER env vars.
+ * Requires STRIPE_SECRET_KEY and STRIPE_PRICE_ID_* env vars.
  */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`membership-checkout:${ip}`, {
     maxRequests: 5,
     windowMs: 60 * 60 * 1000,
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { email?: string; tier?: string };
+  let body: { email?: string; tier?: "insider" | "pro" };
   try {
     body = await request.json();
   } catch {
@@ -42,10 +43,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
   }
 
-  const priceId = process.env.STRIPE_PRICE_ID_INSIDER;
-  if (!priceId) {
-    logger.error("STRIPE_PRICE_ID_INSIDER not configured");
-    return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
+  // Server-side price allowlist - never trust client tier selection
+  const PRICE_MAP: Record<string, string | undefined> = {
+    insider: process.env.STRIPE_PRICE_ID_INSIDER,
+    pro: process.env.STRIPE_PRICE_ID_PRO,
+  };
+
+  const tier = body.tier || "insider";
+  const priceId = PRICE_MAP[tier];
+  
+  if (!priceId || !["insider", "pro"].includes(tier)) {
+    logger.error("Invalid tier or price not configured", { tier });
+    return NextResponse.json({ error: "Invalid membership tier" }, { status: 400 });
   }
 
   try {
@@ -75,9 +84,9 @@ export async function POST(request: NextRequest) {
         success_url: `${appUrl}/membership/welcome?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${appUrl}/membership`,
         "metadata[site_id]": siteId,
-        "metadata[tier]": body.tier || "insider",
+        "metadata[tier]": tier,
         "subscription_data[metadata][site_id]": siteId,
-        "subscription_data[metadata][tier]": body.tier || "insider",
+        "subscription_data[metadata][tier]": tier,
       }),
     });
 

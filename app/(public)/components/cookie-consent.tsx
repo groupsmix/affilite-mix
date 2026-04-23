@@ -6,24 +6,37 @@ import { getCookieValue } from "@/lib/cookie-utils";
 
 type ConsentState = "pending" | "accepted" | "rejected";
 
-const CONSENT_COOKIE_NAME = "nh-cookie-consent";
+// Domain-scoped cookie consent keys to prevent cross-site consent leakage
+function getConsentCookieName(domain: string): string {
+  return `nh-cookie-consent-${domain.replace(/[^a-zA-Z0-9]/g, "_")}`;
+}
+
+function getConsentStorageKey(domain: string): string {
+  return `nh-cookie-consent-${domain.replace(/[^a-zA-Z0-9]/g, "_")}`;
+}
+
 const CONSENT_EXPIRY_DAYS = 365;
 
-function readConsentFromCookie(): ConsentState {
-  const value = getCookieValue(CONSENT_COOKIE_NAME);
+function readConsentFromCookie(domain: string): ConsentState {
+  const value = getCookieValue(getConsentCookieName(domain));
   if (value === "accepted" || value === "rejected") return value;
   return "pending";
 }
 
-const CONSENT_STORAGE_KEY = "nh-cookie-consent";
+interface CookieConsentProps {
+  language?: string;
+  domain?: string;
+}
 
-function setConsentCookie(value: "accepted" | "rejected") {
+function setConsentCookie(value: "accepted" | "rejected", domain: string) {
   const expires = new Date();
   expires.setDate(expires.getDate() + CONSENT_EXPIRY_DAYS);
-  document.cookie = `${CONSENT_COOKIE_NAME}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+  const cookieName = getConsentCookieName(domain);
+  const storageKey = getConsentStorageKey(domain);
+  document.cookie = `${cookieName}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
   // Also write to localStorage so other tabs can detect the change via the storage event
   try {
-    localStorage.setItem(CONSENT_STORAGE_KEY, value);
+    localStorage.setItem(storageKey, value);
   } catch {
     // localStorage may be unavailable (e.g. private browsing)
   }
@@ -31,10 +44,6 @@ function setConsentCookie(value: "accepted" | "rejected") {
 
 function dispatchConsentEvent(accepted: boolean) {
   window.dispatchEvent(new CustomEvent("cookieConsent", { detail: { accepted } }));
-}
-
-interface CookieConsentProps {
-  language?: string;
 }
 
 const translations = {
@@ -90,34 +99,38 @@ const translations = {
   },
 } as const;
 
-export default function CookieConsent({ language = "en" }: CookieConsentProps) {
+export default function CookieConsent({ language = "en", domain = "" }: CookieConsentProps) {
   const t = language === "ar" ? translations.ar : translations.en;
   const [consent, setConsent] = useState<ConsentState>("pending");
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [currentDomain, setCurrentDomain] = useState(domain);
 
   useEffect(() => {
-    const stored = readConsentFromCookie();
+    // Get domain from window if not provided
+    const effectiveDomain = domain || window.location.hostname;
+    setCurrentDomain(effectiveDomain);
+    const stored = readConsentFromCookie(effectiveDomain);
     setConsent(stored);
     if (stored === "pending") {
       const timer = setTimeout(() => setVisible(true), 500);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [domain]);
 
   const handleAccept = useCallback(() => {
-    setConsentCookie("accepted");
+    setConsentCookie("accepted", currentDomain);
     setConsent("accepted");
     setVisible(false);
     dispatchConsentEvent(true);
-  }, []);
+  }, [currentDomain]);
 
   const handleReject = useCallback(() => {
-    setConsentCookie("rejected");
+    setConsentCookie("rejected", currentDomain);
     setConsent("rejected");
     setVisible(false);
     dispatchConsentEvent(false);
-  }, []);
+  }, [currentDomain]);
 
   const bannerRef = useRef<HTMLDivElement>(null);
   const [bannerHeight, setBannerHeight] = useState(0);
@@ -259,12 +272,15 @@ export default function CookieConsent({ language = "en" }: CookieConsentProps) {
  * Resets cookie consent so the banner re-appears.
  * Call this from a "Cookie Settings" link in the footer.
  */
-export function resetCookieConsent() {
+export function resetCookieConsent(domain?: string) {
+  const effectiveDomain = domain || window.location.hostname;
+  const cookieName = getConsentCookieName(effectiveDomain);
+  const storageKey = getConsentStorageKey(effectiveDomain);
   // Clear the cookie
-  document.cookie = `${CONSENT_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+  document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
   // Clear localStorage mirror
   try {
-    localStorage.removeItem(CONSENT_STORAGE_KEY);
+    localStorage.removeItem(storageKey);
   } catch {
     // localStorage may be unavailable
   }
@@ -275,22 +291,24 @@ export function resetCookieConsent() {
 /**
  * Hook for other components to check cookie consent status.
  */
-export function useCookieConsent(): { accepted: boolean } {
+export function useCookieConsent(domain?: string): { accepted: boolean } {
   const [accepted, setAccepted] = useState(false);
 
   useEffect(() => {
-    setAccepted(readConsentFromCookie() === "accepted");
+    const effectiveDomain = domain || window.location.hostname;
+    setAccepted(readConsentFromCookie(effectiveDomain) === "accepted");
 
     function handleConsentChange() {
-      setAccepted(readConsentFromCookie() === "accepted");
+      setAccepted(readConsentFromCookie(effectiveDomain) === "accepted");
     }
 
     // Listen for same-tab consent changes
     window.addEventListener("cookieConsent", handleConsentChange);
 
     // Listen for cross-tab consent changes via localStorage storage event
+    const storageKey = getConsentStorageKey(effectiveDomain);
     function handleStorageChange(e: StorageEvent) {
-      if (e.key === CONSENT_STORAGE_KEY) {
+      if (e.key === storageKey) {
         handleConsentChange();
       }
     }
@@ -300,7 +318,7 @@ export function useCookieConsent(): { accepted: boolean } {
       window.removeEventListener("cookieConsent", handleConsentChange);
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, []);
+  }, [domain]);
 
   return { accepted };
 }
