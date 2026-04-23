@@ -96,6 +96,8 @@ export async function middleware(request: NextRequest) {
       "/api/track/click",
       "/api/vitals",
       "/api/track/impression",
+      // Browser-automated CSP violation reports — cannot carry CSRF tokens
+      "/api/csp-report",
       // Unsubscribe: the per-subscriber unsubscribe_token is the auth factor
       // (GET uses query param, POST requires it in the body), so CSRF
       // double-submit is not needed — the token already proves intent.

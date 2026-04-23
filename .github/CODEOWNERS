@@ -1,0 +1,26 @@
+# CODEOWNERS
+
+# Default ownership - require review from maintainers
+* @matrix-agent/maintainers
+
+# Security critical files
+**/auth.ts @matrix-agent/maintainers @matrix-agent/security
+**/jwt*.ts @matrix-agent/maintainers @matrix-agent/security
+**/password.ts @matrix-agent/maintainers @matrix-agent/security
+**/rate-limit*.ts @matrix-agent/maintainers @matrix-agent/security
+
+# Infrastructure
+**/middleware.ts @matrix-agent/maintainers @matrix-agent/infra
+**/next.config.ts @matrix-agent/maintainers @matrix-agent/infra
+**/wrangler* @matrix-agent/maintainers @matrix-agent/infra
+
+# Database access
+**/dal/*.ts @matrix-agent/maintainers @matrix-agent/backend
+**/db/**/*.ts @matrix-agent/maintainers @matrix-agent/backend
+
+# Payments
+**/membership/** @matrix-agent/maintainers @matrix-agent/payments
+**/stripe*.ts @matrix-agent/maintainers @matrix-agent/payments
+
+# Cron jobs
+app/api/cron/** @matrix-agent/maintainers @matrix-agent/infra
