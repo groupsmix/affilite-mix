@@ -343,7 +343,7 @@ export function AIContentManager({
                     <strong>Meta description:</strong> {draft.meta_description}
                   </div>
                   <div
-                    className="prose prose-sm mt-3 max-sanitizeHtml(h-96 overf)low-y-auto"
+                    className="prose prose-sm mt-3 max-h-96 overflow-y-auto"
                     dangerouslySetInnerHTML={{ __html: draft.body }}
                   />
                 </div>
