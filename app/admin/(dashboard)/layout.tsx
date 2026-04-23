@@ -87,7 +87,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const defaultTitle = active.name ? `${active.name} · ${brand}` : brand;
   return {
     title: { template, default: defaultTitle },
-    robots: { index: false, follow: false },
+    robots: { index: false, follow: false, noarchive: true },
   };
 }
 

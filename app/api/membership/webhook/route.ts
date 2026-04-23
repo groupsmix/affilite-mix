@@ -5,6 +5,7 @@ import {
   updateMembership,
 } from "@/lib/dal/memberships";
 import { logger } from "@/lib/logger";
+import { getServiceClient } from "@/lib/supabase-server";
 
 /**
  * Verify Stripe webhook signature using HMAC-SHA256.
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
   }
 
   let event: {
+    id?: string;
     type: string;
     data: { object: Record<string, unknown> };
   };
@@ -113,6 +115,34 @@ export async function POST(request: NextRequest) {
     event = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid webhook payload" }, { status: 400 });
+  }
+
+  // Idempotency: reject duplicate Stripe event deliveries.
+  // The stripe_events table has a UNIQUE constraint on event_id; inserting
+  // first lets us atomically claim the event without a read-then-write race.
+  if (event.id) {
+    const sb = getServiceClient();
+    const { error: insertError } = await sb
+      .from("stripe_events")
+      .insert({ event_id: event.id, event_type: event.type });
+
+    if (insertError) {
+      // Postgres unique_violation = 23505; Supabase surfaces it in code/message.
+      const code = (insertError as { code?: string }).code;
+      if (code === "23505" || /duplicate key|already exists/i.test(insertError.message ?? "")) {
+        logger.info("Stripe webhook duplicate event ignored", {
+          eventId: event.id,
+          type: event.type,
+        });
+        return NextResponse.json({ received: true, duplicate: true });
+      }
+      logger.error("Failed to record stripe event for idempotency", {
+        eventId: event.id,
+        error: insertError.message,
+      });
+      // Fail closed: if we can't record the event, don't process it — Stripe will retry.
+      return NextResponse.json({ error: "Idempotency store unavailable" }, { status: 500 });
+    }
   }
 
   try {

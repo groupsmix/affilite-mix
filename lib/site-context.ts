@@ -124,6 +124,17 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     siteSlug = process.env.NEXT_PUBLIC_DEFAULT_SITE ?? null;
   }
 
+  // Build-time fallback: during `next build` static generation, headers/cookies
+  // are unavailable and NEXT_PUBLIC_DEFAULT_SITE may not be set in the CI env.
+  // Fall back to the first registered static site so the build can complete.
+  // Runtime requests still require a real site context (see checks above).
+  if (!siteSlug && process.env.NEXT_PHASE === "phase-production-build") {
+    const fallback = allSites[0];
+    if (fallback) {
+      return fallback;
+    }
+  }
+
   if (!siteSlug) {
     throw new Error(
       "Cannot determine current site: no x-site-id header, cookie, or NEXT_PUBLIC_DEFAULT_SITE configured. " +
