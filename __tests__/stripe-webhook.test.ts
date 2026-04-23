@@ -252,13 +252,13 @@ describe("RLS Policy Drift Test (F-027)", () => {
         schemaname: "public",
         tablename: "memberships",
         policyname: "service_role_memberships",
-        qual: "(auth.role() = 'service_role')",
-        with_check: "(auth.role() = 'service_role')",
-      },
+    const mockPolicies = [
+      { schemaname: "public", tablename: "audit_log", policyname: "enable_read", qual: "true", with_check: null },
     ];
 
-    const badPolicies = mockPolicies.filter((p) => p.qual === "true");
+    const badPolicies = mockPolicies.filter(p => p.qual === "true");
 
-    expect(badPolicies).toHaveLength(0);
+    // This assertion verifies that the filter correctly detects insecure policies
+    expect(badPolicies).toHaveLength(1);
   });
 });
