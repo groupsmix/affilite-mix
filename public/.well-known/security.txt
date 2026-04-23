@@ -1,0 +1,23 @@
+Contact: security@[domain]
+Encryption: https://keys.openpgp.org/search?q=security@[domain]
+Preferred Languages: en
+Canonical: https://affilite-mix.example/.well-known/security.txt
+Policy: https://github.com/groupsmix/affilite-mix/blob/main/SECURITY.md
+
+We operate a responsible disclosure program. For sensitive security issues,
+please contact us directly before creating a public GitHub issue.
+
+Scope:
+- affilite-mix (affiliate platform)
+- Cloudflare Workers deployment
+- Supabase backend
+
+Out of Scope:
+- Third-party services (Stripe, Resend, Cloudflare AI)
+- Social engineering attacks
+- Denial of service attacks on third-party infrastructure
+
+Expected Response Times:
+- Acknowledgement: 48 hours
+- Initial assessment: 7 days
+- Resolution timeline varies by severity (critical: 24-72h, high: 1-2 weeks)
