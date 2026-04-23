@@ -177,14 +177,15 @@ export async function PATCH(request: NextRequest) {
     if (role !== undefined) updates.role = role;
     if (is_active !== undefined) updates.is_active = is_active;
     if (password) {
-      const policyCheck = validatePasswordPolicy(password);.catch((err) => {
-      captureException(err, { context: "HIBP check failed, blocking password" });
-      return 1 // Treat as breached to force user to choose another password
-    });
-    if (!policyCheck.valid) {
+      const policyCheck = validatePasswordPolicy(password);
+      if (!policyCheck.valid) {
         return NextResponse.json({ error: policyCheck.error }, { status: 400 });
       }
-      const breaches = await checkBreachedPassword(password);
+      const breaches = await checkBreachedPassword(password).catch((err) => {
+        // Log the error but still block - fail-closed for security
+        captureException(err, { context: "HIBP check failed, blocking password" });
+        return 1; // Treat as breached to force user to choose another password
+      });
       if (breaches > 0) {
         return NextResponse.json(
           {

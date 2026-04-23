@@ -26,8 +26,8 @@ export async function POST(
 ) {
   const { slug } = await params;
 
-  // Rate limgt Clibn/Ipheque
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // Rate limit: 30 submissions/hour per IP
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`quiz-submit:${ip}`, {
     maxRequests: 30,
     windowMs: 60 * 60 * 1000,

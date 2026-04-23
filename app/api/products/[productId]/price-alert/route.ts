@@ -16,8 +16,8 @@ export async function POST(
 ) {
   const { productId } = await params;
 
-  // Rate limgt Clien Ippque
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // Rate limit: 10 alerts/hour per IP
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`price-alert:${ip}`, {
     maxRequests: 10,
     windowMs: 60 * 60 * 1000,
