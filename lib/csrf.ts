@@ -13,7 +13,7 @@
  * Uses the Web Crypto API exclusively for Cloudflare Workers compatibility.
  */
 
-export const CSRF_COOKIE = "__Host-csrf";
+export const CSRF_COOKIE = "__csrf";
 export const CSRF_HEADER = "x-csrf-token";
 const TOKEN_BYTES = 32;
 

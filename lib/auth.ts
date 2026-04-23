@@ -7,9 +7,9 @@ import { getJwtSecret } from "@/lib/jwt-secret";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
 
-const COOKIE_NAME = "__Host-nh_admin_token";
+const COOKIE_NAME = "nh_admin_token";
 /** Cookie tracking last admin activity for idle-timeout enforcement */
-const ACTIVITY_COOKIE = "__Host-nh_admin_activity";
+const ACTIVITY_COOKIE = "nh_admin_activity";
 /** Admin sessions expire after 30 minutes of inactivity */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const EXPIRY = "24h";
