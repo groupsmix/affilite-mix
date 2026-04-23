@@ -16,21 +16,55 @@ const BLOCKED_HOSTS = new Set([
   "localhost",
   "127.0.0.1",
   "0.0.0.0",
+  "::",
   "::1",
-  "metadata.google.internal",       // GCP metadata
-  "metadata.internal",              // Generic cloud metadata
-  "169.254.169.254",               // AWS/GCP/Azure metadata endpoint
+  "::ffff:7f00:1", // IPv6-mapped 127.0.0.1
+  "::ffff:a9fe:a9fe", // IPv6-mapped 169.254.169.254 (AWS/GCP/Azure metadata)
+  "metadata.google.internal", // GCP metadata
+  "metadata.internal", // Generic cloud metadata
+  "169.254.169.254", // AWS/GCP/Azure metadata endpoint
   "metadata.azure.com",
-  "100.100.100.100",               // Alibaba Cloud metadata
+  "100.100.100.100", // Alibaba Cloud metadata
 ]);
 
 // Blocked CIDR ranges (IPv4)
 const BLOCKED_IP_RANGES = [
   "10.0.0.0/8",
+  "127.0.0.0/8", // Loopback
   "172.16.0.0/12",
   "192.168.0.0/16",
-  "169.254.0.0/16",  // Link-local / metadata
+  "169.254.0.0/16", // Link-local / metadata
+  "0.0.0.0/8", // "This" network
 ];
+
+/**
+ * Normalize a URL.hostname value. For IPv6 literals Node's URL parser
+ * returns the address wrapped in square brackets (e.g. "[::1]"); strip
+ * those so the value matches BLOCKED_HOSTS entries and can be compared
+ * against IPv6-mapped IPv4 addresses.
+ */
+function normalizeHostname(hostname: string): string {
+  return hostname.replace(/^\[|\]$/g, "").toLowerCase();
+}
+
+/**
+ * If the hostname is an IPv6-mapped IPv4 address (::ffff:a.b.c.d or
+ * ::ffff:AABB:CCDD), return the dotted-quad IPv4 equivalent; otherwise
+ * return null.
+ */
+function ipv6MappedToIPv4(hostname: string): string | null {
+  const dotted = hostname.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+  if (dotted) return dotted[1];
+
+  const hex = hostname.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (hex) {
+    const high = parseInt(hex[1], 16);
+    const low = parseInt(hex[2], 16);
+    return [(high >> 8) & 0xff, high & 0xff, (low >> 8) & 0xff, low & 0xff].join(".");
+  }
+
+  return null;
+}
 
 /**
  * Parse a CIDR like "10.0.0.0/8" and check if an IP falls within it.
@@ -42,17 +76,10 @@ function ipInRange(ip: string, cidr: string): boolean {
   const ipParts = ip.split(".").map(Number);
   const rangeParts = range.split(".").map(Number);
 
-  const ipNum =
-    (ipParts[0] << 24) |
-    (ipParts[1] << 16) |
-    (ipParts[2] << 8) |
-    ipParts[3];
+  const ipNum = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
 
   const rangeNum =
-    (rangeParts[0] << 24) |
-    (rangeParts[1] << 16) |
-    (rangeParts[2] << 8) |
-    rangeParts[3];
+    (rangeParts[0] << 24) | (rangeParts[1] << 16) | (rangeParts[2] << 8) | rangeParts[3];
 
   const mask = (-1 << (32 - bits)) >>> 0;
 
@@ -63,16 +90,27 @@ function ipInRange(ip: string, cidr: string): boolean {
  * Resolve hostname and check for blocked IPs.
  */
 function resolveAndValidate(hostname: string, checked = new Set<string>()): boolean {
+  const normalized = normalizeHostname(hostname);
+
   // Prevent DNS rebinding / infinite loops
-  if (checked.has(hostname)) return false;
-  checked.add(hostname);
+  if (checked.has(normalized)) return false;
+  checked.add(normalized);
 
   // Blocklist check
-  if (BLOCKED_HOSTS.has(hostname.toLowerCase())) return false;
+  if (BLOCKED_HOSTS.has(normalized)) return false;
+
+  // IPv6-mapped IPv4: validate the embedded IPv4 against CIDR ranges
+  const mapped = ipv6MappedToIPv4(normalized);
+  if (mapped) {
+    for (const cidr of BLOCKED_IP_RANGES) {
+      if (ipInRange(mapped, cidr)) return false;
+    }
+    return true;
+  }
 
   // Parse IPv4
   const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-  const match = hostname.match(ipv4Regex);
+  const match = normalized.match(ipv4Regex);
   if (match) {
     const ip = match.slice(1).join(".");
     for (const cidr of BLOCKED_IP_RANGES) {
@@ -119,11 +157,21 @@ export function validateExternalUrl(
     return { valid: false, error: `Protocol '${url.protocol}' is not allowed` };
   }
 
-  const hostname = url.hostname.toLowerCase();
+  const hostname = normalizeHostname(url.hostname);
 
   // Blocklist check
   if (BLOCKED_HOSTS.has(hostname)) {
     return { valid: false, error: `Hostname '${hostname}' is blocked` };
+  }
+
+  // IPv6-mapped IPv4 (e.g. ::ffff:7f00:1): check the embedded IPv4 address
+  const mapped = ipv6MappedToIPv4(hostname);
+  if (mapped) {
+    for (const cidr of BLOCKED_IP_RANGES) {
+      if (ipInRange(mapped, cidr)) {
+        return { valid: false, error: `IP range '${cidr}' is blocked (SSRF risk)` };
+      }
+    }
   }
 
   // CIDR range check
