@@ -88,7 +88,11 @@ const ALLOWED_URL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
 function isSafeUrl(value: string): boolean {
   if (typeof value !== "string") return false;
 
-  const trimmed = value.trim();
+  // Strip ASCII tab, newline, and carriage-return characters that browsers
+  // silently remove during URL normalization (WHATWG URL spec §4.4).
+  // Without this, "java\tscript:" evades scheme detection but the browser
+  // still resolves it as "javascript:".
+  const trimmed = value.replace(/[\t\n\r]/g, "").trim();
   if (trimmed.length === 0) return false;
 
   // Relative URLs and same-page anchors never specify a scheme.
