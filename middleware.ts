@@ -30,7 +30,8 @@ export async function middleware(request: NextRequest) {
   // Redirect /foo/ → /foo to prevent duplicate canonical URLs.
   // Skip the root path "/" and Next.js internals.
   if (pathname !== "/" && pathname.endsWith("/") && !pathname.startsWith("/api/")) {
-    const url = request.nextUrl.clone();
+    // Use new URL() pattern to properly preserve query strings
+    const url = new URL(request.url);
     url.pathname = pathname.replace(/\/+$/, "");
     return NextResponse.redirect(url, 308);
   }

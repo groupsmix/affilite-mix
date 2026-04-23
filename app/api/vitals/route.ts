@@ -42,13 +42,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unknown metric name" }, { status: 400 });
     }
 
+    // Cap all string fields at 200 chars to prevent unbounded storage growth
+    const capString = (val: unknown, maxLen = 200): string | undefined => {
+      if (typeof val !== "string") return undefined;
+      return val.slice(0, maxLen) || undefined;
+    };
+
     const metric = {
       name: body.name as string,
       value: body.value as number,
-      id: (body.id as string) ?? undefined,
-      page: (body.page as string) ?? undefined,
-      href: (body.href as string) ?? undefined,
-      rating: (body.rating as string) ?? undefined,
+      id: capString(body.id),
+      page: capString(body.page),
+      href: capString(body.href),
+      rating: capString(body.rating),
     };
 
     // Structured log for observability pipelines (Datadog, Vercel Logs, etc.)

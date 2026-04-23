@@ -30,6 +30,12 @@ if (typeof window !== "undefined" && dsn) {
     integrations: [
       Sentry.breadcrumbsIntegration({ console: true, dom: true, fetch: true }),
       Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration({
+        maskAllText: true,
+        maskAllInputs: true,
+        // Sample 50% of sessions for replay in production to balance quota
+        replaySessionSampleRate: process.env.NODE_ENV === "production" ? 0.5 : 1.0,
+      }),
     ],
 
     // Filter out noisy, non-actionable errors

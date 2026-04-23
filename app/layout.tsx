@@ -111,7 +111,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang={site.language} dir={site.direction} className={Array.from(needed).join(" ")}>
+    <html lang={site.language ?? "en"} dir={site.direction ?? "ltr"} className={Array.from(needed).join(" ")}>
       <body>
         <WebVitals />
         {children}

@@ -154,6 +154,17 @@ export function QuizFunnel({ slug, title, description, steps, gateEmail }: QuizF
             required
             className="w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <input
+              type="checkbox"
+              id="email-consent"
+              required
+              className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
+            />
+            <label htmlFor="email-consent" className="text-sm text-gray-600">
+              <strong>We'll email you your results.</strong> We'll also send you product updates and recommendations. You can unsubscribe anytime.
+            </label>
+          </div>
           <button
             type="submit"
             className="w-full rounded-lg bg-blue-600 px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-700"
