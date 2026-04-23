@@ -34,11 +34,16 @@ export async function checkResendDomainVerification(
   sendingDomain: string,
 ): Promise<VerificationResult> {
   if (!resendApiKey) {
-    return { verified: false, domain: sendingDomain, error: "RESEND_API_KEY not set" };
+    return {
+      verified: false,
+      domain: sendingDomain,
+      status: null,
+      error: "RESEND_API_KEY not set",
+    };
   }
 
   if (!sendingDomain) {
-    return { verified: false, domain: "", error: "Sending domain not configured" };
+    return { verified: false, domain: "", status: null, error: "Sending domain not configured" };
   }
 
   try {
@@ -56,6 +61,7 @@ export async function checkResendDomainVerification(
       return {
         verified: false,
         domain: sendingDomain,
+        status: null,
         error: `Resend API error: ${response.status}`,
       };
     }
@@ -77,14 +83,13 @@ export async function checkResendDomainVerification(
 
     // Find the matching domain (case-insensitive)
     const normalizedSendingDomain = sendingDomain.toLowerCase();
-    const configuredDomain = domains.find(
-      (d) => d.name.toLowerCase() === normalizedSendingDomain,
-    );
+    const configuredDomain = domains.find((d) => d.name.toLowerCase() === normalizedSendingDomain);
 
     if (!configuredDomain) {
       return {
         verified: false,
         domain: sendingDomain,
+        status: null,
         error: "Domain not found in Resend — add and verify it in Resend dashboard",
       };
     }
@@ -123,6 +128,7 @@ export async function checkResendDomainVerification(
     return {
       verified: false,
       domain: sendingDomain,
+      status: null,
       error: message,
     };
   }

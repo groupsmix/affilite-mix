@@ -59,20 +59,26 @@ export async function DELETE(request: NextRequest) {
     }
     results.newsletter_deleted = !newsletterErr;
 
-    // 2. Delete memberships (financial records - may need retention policy)
-    // For GDPR, we anonymize rather than delete financial records
-    const { error: membershipErr } = await sb
-      .from("memberships")
+    // 2. Anonymize memberships (financial records - retained for legal compliance)
+    // `email` is NOT NULL in the schema, so replace with a non-reversible hashed alias
+    // and null out optional PII fields. Stripe IDs are retained for reconciliation.
+    // Cast via `sb.from as typeof sb.from` loses the tuple of known table literals,
+    // matching the pattern used in lib/dal/memberships.ts for tables not yet in the
+    // generated types file.
+    const anonymizedEmail = `anonymized-${hashEmail(email)}@deleted.invalid`;
+    const { error: membershipErr } = await (sb.from as any)("memberships")
       .update({
-        customer_email: null,
-        user_email: null,
-        // Anonymize instead of delete for legal compliance
+        email: anonymizedEmail,
+        name: null,
+        updated_at: new Date().toISOString(),
       })
       .eq("site_id", site_id)
-      .eq("customer_email", email.toLowerCase());
+      .eq("email", email.toLowerCase());
 
     if (membershipErr) {
-      captureException(membershipErr, { context: "[api/admin/privacy] membership anonymize failed" });
+      captureException(membershipErr, {
+        context: "[api/admin/privacy] membership anonymize failed",
+      });
     }
     results.memberships_anonymized = !membershipErr;
 
@@ -112,18 +118,10 @@ export async function DELETE(request: NextRequest) {
     }
     results.quiz_submissions_deleted = !quizErr;
 
-    // 6. Anonymize affiliate_clicks (retain for financial/legal compliance)
-    // GDPR allows retention for legal obligations - anonymize IP instead
-    const { error: clicksErr } = await sb
-      .from("affiliate_clicks")
-      .update({ ip_address: null })
-      .eq("site_id", site_id)
-      .eq("email", email.toLowerCase());
-
-    if (clicksErr) {
-      captureException(clicksErr, { context: "[api/admin/privacy] affiliate_clicks anonymize failed" });
-    }
-    results.affiliate_clicks_anonymized = !clicksErr;
+    // 6. affiliate_clicks is retained for financial/legal compliance.
+    // The current schema stores no direct PII (no email or IP columns) so no
+    // anonymisation action is required here; record the intent in the result.
+    results.affiliate_clicks_retained = true;
 
     // 7. Audit log: record this erasure event (audit_log itself is retained for compliance)
     logger.info("GDPR data erasure performed", {
@@ -150,7 +148,7 @@ function hashEmail(email: string): string {
   const str = email.toLowerCase();
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
   return Math.abs(hash).toString(16).padStart(8, "0");
