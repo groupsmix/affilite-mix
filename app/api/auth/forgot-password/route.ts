@@ -7,6 +7,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { isValidEmail } from "@/lib/validate-email";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { hashResetToken } from "@/lib/reset-token";
 
 /**
  * POST /api/auth/forgot-password
@@ -62,15 +63,19 @@ export async function POST(request: Request) {
       return successResponse;
     }
 
-    // Generate reset token with 1-hour expiry
+    // Generate reset token with 1-hour expiry.
+    // The raw token is sent to the user via email; only its SHA-256 hash is
+    // persisted to the database so a DB leak cannot be replayed to hijack
+    // the reset flow.
     const resetToken = crypto.randomUUID();
+    const resetTokenHash = await hashResetToken(resetToken);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
     const sb = getServiceClient();
     const { error: updateError } = await sb
       .from("admin_users")
       .update({
-        reset_token: resetToken,
+        reset_token: resetTokenHash,
         reset_token_expires_at: expiresAt,
       })
       .eq("id", user.id);
