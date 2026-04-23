@@ -4,6 +4,8 @@ import {
   getMembershipByStripeSubscription,
   updateMembership,
 } from "@/lib/dal/memberships";
+import { recordStripeEvent } from "@/lib/dal/stripe-events";
+import { constructStripeEvent, StripeSignatureError, type StripeEvent } from "@/lib/stripe-webhook";
 import { logger } from "@/lib/logger";
 
 /**
@@ -12,7 +14,15 @@ import { logger } from "@/lib/logger";
  * Handles: checkout.session.completed, invoice.paid,
  *          customer.subscription.updated, customer.subscription.deleted
  *
- * Requires STRIPE_WEBHOOK_SECRET env var for signature verification.
+ * Security (audit F-001 / A-1):
+ *  - Verifies the Stripe-Signature header against
+ *    STRIPE_WEBHOOK_SECRET using HMAC-SHA256 before doing anything.
+ *  - Records each event id in the `stripe_events` table so replayed
+ *    deliveries (Stripe retries any non-2xx) never apply side effects
+ *    twice.
+ *  - If memberships are not configured yet (no STRIPE_SECRET_KEY or
+ *    STRIPE_WEBHOOK_SECRET) we return 503 unconditionally so forged
+ *    webhooks cannot reach the handler.
  */
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -23,26 +33,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
   }
 
-  // Read raw body for signature verification
+  // Read raw body for signature verification — must not be re-parsed
+  // or normalized before HMAC comparison.
   const rawBody = await request.text();
   const signature = request.headers.get("stripe-signature");
 
-  if (!signature) {
-    return NextResponse.json({ error: "Missing stripe-signature header" }, { status: 400 });
+  let event: StripeEvent;
+  try {
+    event = await constructStripeEvent(rawBody, signature, webhookSecret);
+  } catch (err) {
+    if (err instanceof StripeSignatureError) {
+      logger.warn("Stripe webhook signature verification failed", { error: err.message });
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    }
+    logger.error("Stripe webhook verification error", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return NextResponse.json({ error: "Webhook verification failed" }, { status: 400 });
   }
 
-  // Verify webhook signature using Stripe's expected format
-  // In production, use stripe.webhooks.constructEvent()
-  // For now, we parse and handle — signature verification should be added with the Stripe SDK
-  let event: {
-    type: string;
-    data: { object: Record<string, unknown> };
-  };
-
+  // Idempotency: reject replays before doing any work. If the insert
+  // fails for any reason other than a duplicate PK we fall through to
+  // the 500 handler below so Stripe retries the delivery.
+  let firstDelivery: boolean;
   try {
-    event = JSON.parse(rawBody);
-  } catch {
-    return NextResponse.json({ error: "Invalid webhook payload" }, { status: 400 });
+    firstDelivery = await recordStripeEvent(event.id, event.type);
+  } catch (err) {
+    logger.error("Stripe webhook: failed to record event id", {
+      id: event.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return NextResponse.json({ error: "Idempotency store unavailable" }, { status: 500 });
+  }
+
+  if (!firstDelivery) {
+    logger.info("Stripe webhook: skipping duplicate event", { id: event.id, type: event.type });
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
   try {

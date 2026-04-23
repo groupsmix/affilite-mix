@@ -80,6 +80,26 @@ export const RECOMMENDED_SERVER_ENV: readonly RequiredEnvVar[] = [
     description: "Cloudflare Turnstile secret key for server-side captcha verification",
     ownerFile: "lib/turnstile.ts",
   },
+  {
+    name: "STRIPE_SECRET_KEY",
+    description: "Stripe secret API key (required when paid memberships are enabled)",
+    ownerFile: "app/api/membership/** (checkout + webhook)",
+  },
+  {
+    name: "STRIPE_WEBHOOK_SECRET",
+    description: "Stripe webhook signing secret used to verify incoming webhook signatures",
+    ownerFile: "app/api/membership/webhook/route.ts",
+  },
+  {
+    name: "STRIPE_PRICE_ID_INSIDER",
+    description: "Stripe Price ID for the `insider` membership tier",
+    ownerFile: "app/api/membership/checkout/route.ts",
+  },
+  {
+    name: "STRIPE_PRICE_ID_PRO",
+    description: "Stripe Price ID for the `pro` membership tier",
+    ownerFile: "app/api/membership/checkout/route.ts",
+  },
 ] as const;
 
 /** Return the subset of `envs` whose values are unset or blank. */
