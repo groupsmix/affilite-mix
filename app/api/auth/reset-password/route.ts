@@ -5,6 +5,7 @@ import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-po
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { hashResetToken, verifyResetToken } from "@/lib/reset-token";
 
 /**
  * POST /api/auth/reset-password
@@ -58,15 +59,27 @@ export async function POST(request: Request) {
 
     const sb = getServiceClient();
 
-    // Look up the user by reset token
+    // Look up the user by the SHA-256 hash of the submitted token. The DB
+    // only ever stores the hash (see /api/auth/forgot-password); the raw
+    // token lives exclusively in the reset email.
+    const tokenHash = await hashResetToken(token);
     const { data: user, error: findError } = await sb
       .from("admin_users")
-      .select("id, reset_token_expires_at")
-      .eq("reset_token", token)
+      .select("id, reset_token, reset_token_expires_at")
+      .eq("reset_token", tokenHash)
       .eq("is_active", true)
       .single();
 
-    if (findError || !user) {
+    if (findError || !user || !user.reset_token) {
+      return NextResponse.json({ error: "Invalid or expired reset token" }, { status: 400 });
+    }
+
+    // Defense-in-depth: timing-safe verification against the stored hash.
+    // The equality query above already narrows to exactly one row, but
+    // comparing through verifyResetToken means any future lookup change
+    // (e.g. batching, caching, indexless fallbacks) stays timing-safe.
+    const tokenMatches = await verifyResetToken(token, user.reset_token);
+    if (!tokenMatches) {
       return NextResponse.json({ error: "Invalid or expired reset token" }, { status: 400 });
     }
 
