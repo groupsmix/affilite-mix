@@ -79,7 +79,8 @@ export async function checkResendDomainVerification(
       }>;
     }
 
-    const domains: ResendDomain[] = await response.json();
+    const body: { data: ResendDomain[] } = await response.json();
+    const domains = body.data ?? [];
 
     // Find the matching domain (case-insensitive)
     const normalizedSendingDomain = sendingDomain.toLowerCase();
