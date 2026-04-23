@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAdminSession, createToken, COOKIE_NAME } from "@/lib/auth";
-import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { IS_SECURE_COOKIE, getCookieDomain } from "@/lib/cookie-utils";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { headers } from "next/headers";
 
 /** 10 refresh requests per minute per session */
 const REFRESH_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000 };
@@ -29,12 +30,14 @@ export async function POST() {
 
   const token = await createToken(session);
   const response = NextResponse.json({ ok: true });
+  const host = (await headers()).get("host");
   response.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: IS_SECURE_COOKIE,
     sameSite: "strict",
     path: "/",
     maxAge: 60 * 60 * 24, // 24 hours
+    domain: getCookieDomain(host ?? undefined),
   });
 
   return response;

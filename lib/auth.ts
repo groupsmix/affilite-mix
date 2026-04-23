@@ -4,7 +4,7 @@ import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import { logger } from "@/lib/logger";
 import { getJwtSecret } from "@/lib/jwt-secret";
-import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { IS_SECURE_COOKIE, getCookieDomain } from "@/lib/cookie-utils";
 
 const COOKIE_NAME = "nh_admin_token";
 /** Cookie tracking last admin activity for idle-timeout enforcement */
@@ -118,7 +118,7 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
  * Touch the admin activity timestamp.
  * Call this in admin API routes so the idle-timeout cookie stays fresh.
  */
-export function touchAdminActivity(): {
+export function touchAdminActivity(hostname?: string): {
   name: string;
   value: string;
   options: Record<string, unknown>;
@@ -132,6 +132,7 @@ export function touchAdminActivity(): {
       sameSite: "strict" as const,
       path: "/",
       maxAge: 60 * 60 * 24,
+      domain: getCookieDomain(hostname),
     },
   };
 }

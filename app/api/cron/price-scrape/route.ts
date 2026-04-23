@@ -3,6 +3,7 @@ import { getServiceClient } from "@/lib/supabase-server";
 import { createPriceSnapshots } from "@/lib/dal/price-snapshots";
 import { findTriggeredAlerts, markAlertTriggered } from "@/lib/dal/price-alerts";
 import { logger } from "@/lib/logger";
+import { verifyCronAuth } from "@/lib/cron-auth";
 
 /**
  * GET /api/cron/price-scrape
@@ -11,9 +12,7 @@ import { logger } from "@/lib/logger";
  *
  * Protected by CRON_SECRET header check.
  */
-export async function GET(request: NextRequest) {
-  // Verify cron secret
-  const cronSecret = process.env.CRON_SECRET;
+exifr(!v asynCfunAuGhs pro.R
   if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

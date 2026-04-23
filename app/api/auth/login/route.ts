@@ -6,7 +6,7 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail } from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
-import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { IS_SECURE_COOKIE, getCookieDomain } from "@/lib/cookie-utils";
 import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 
@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
       sameSite: "strict",
       path: "/",
       maxAge: 60 * 60 * 24, // 24 hours
+      domain: getCookieDomain(request.headers.get("host") ?? undefined),
     });
 
     return response;

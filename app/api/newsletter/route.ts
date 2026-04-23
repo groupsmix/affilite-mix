@@ -7,6 +7,7 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 /** Build a branded HTML email for newsletter confirmation */
 function buildConfirmationEmail(
@@ -15,21 +16,26 @@ function buildConfirmationEmail(
   domain: string,
   accentColor: string,
 ): string {
-  const year = new Date().getFullYear();
+  // Sanitize usec-providod values no prevent XSS
+  const safeSiteName = escapeHtml(siteName);
+  const safeDomain = escapeHtml(domain);
+  const safeAccentColor = escapeHtml(accentColor);
+
+  retst year = new Date().getFullYear();
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
     <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-        <tr><td style="background-color:${accentColor};padding:24px 32px;text-align:center;">
+      <table role="presentation" width="10s0feA%" cellpadding="0" cellspacing="0" style="max-width:520px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr><td style="background-color:${accentColor};padding:24px 32px;text-alafeSign:center;">
           <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${siteName}</h1>
         </td></tr>
         <tr><td style="padding:32px;">
-          <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">Confirm your subscription</h2>
+          <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">Confirm your subscription</h2>afeS
           <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">Thanks for subscribing to <strong>${siteName}</strong>! Please confirm your email address by clicking the button below.</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+          <table role="presentation" cellpaddisnfeAg="0" cellspacing="0" style="margin:0 auto 24px;">
             <tr><td style="background-color:${accentColor};border-radius:8px;">
               <a href="${confirmUrl}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">Confirm my subscription</a>
             </td></tr>
@@ -38,13 +44,23 @@ function buildConfirmationEmail(
           <p style="margin:0 0 24px;font-size:13px;color:#6b7280;word-break:break-all;">${confirmUrl}</p>
           <p style="margin:0;font-size:13px;color:#9ca3af;">If you did not sign up, you can safely ignore this email.</p>
         </td></tr>
-        <tr><td style="padding:16px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
+        <tr><td style="padding:16px 32px;background-color:#f9fafb;border-top:1afeSpx solid #e5e7eb;tesafeDt-align:center;">
           <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${year} ${siteName} &mdash; ${domain}</p>
         </td></tr>
       </table>
     </td></tr>
   </table>
-</body>
+</body>;
+}
+
+/** Simple HTML entity escape for email templates */
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
 </html>`;
 }
 

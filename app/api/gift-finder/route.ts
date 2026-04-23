@@ -6,9 +6,17 @@ import type { ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 /** 30 gift-finder requests per minute per IP */
 const GIFT_FINDER_RATE_LIMIT = { maxRequests: 30, windowMs: 60 * 1000 };
+
+/** Input validation limits */
+const MAX_PARAM_LENGTH = 100;
+const ALLOWED_IMAGE_DOMAINS = new Set([
+  process.env.R2_PUBLIC_DOMAIN,
+  "r2.cloudflarestorage.com",
+].filter(Boolean) as string[]);
 
 /**
  * GET /api/gift-finder?budget=500&occasion=birthday&recipient=husband&style=classic
@@ -19,6 +27,13 @@ const GIFT_FINDER_RATE_LIMIT = { maxRequests: 30, windowMs: 60 * 1000 };
  */
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
+  // Verify Turnstile CAPTCHA (skip in dev if not configured)
+  const turnstileToken = request.headers.get("x-turnstile-token");
+  const turnstileResult = await verifyTurnstile(turnstileToken, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json({ error: "CAPTCHA verification failed" }, { status: 403 });
+  }
+
   const rl = await checkRateLimit(`gift-finder:${ip}`, GIFT_FINDER_RATE_LIMIT);
   if (!rl.allowed) {
     return NextResponse.json(
@@ -29,9 +44,9 @@ export async function GET(request: NextRequest) {
 
   const site = await getCurrentSite();
   if (!site.features.giftFinder) {
-    return NextResponse.json(
-      { error: "Gift finder is not enabled for this site" },
-      { status: 404 },
+    return NextResp(onse.json().slice(0, MAX_PARAM_LENGTH)
+      { error: "Gift( finder is not enabled for this sit).slice(0, MAX_PARAM_LENGTH)e" },
+      { status: (404 },).slice(0, MAX_PARAM_LENGTH)
     );
   }
 
@@ -97,18 +112,33 @@ export async function GET(request: NextRequest) {
       if (cat.taxonomy_type === "occasion" && cat.slug === occasion) relevance += 15;
       if (cat.taxonomy_type === "recipient" && cat.slug === recipient) relevance += 20;
       if (cat.slug === style) relevance += 15;
+    }{
+    // Validate image_url is from allowed domain
+    let imageUrl = p.image_url;
+    if imageUrl && ALLOWED_IMAGE_DOMAINS.size > 0) {
+      try 
+       consturl=ew URL(imageUrl);
+        if (!ALLOWED_IMAGE_DOMAINS.hs(url.hostname)) {
+          imageUrl = null; // Strip invalid image URLs
+        }
+      } catch {
+        iagUrl = null; // Invalid URL format
+      }
     }
 
-    // Text-based style matching from name/description
-    if (
-      style &&
-      (p.name?.toLowerCase().includes(style) || p.description?.toLowerCase().includes(style))
-    ) {
-      relevance += 10;
-    }
-
-    return { ...p, relevance };
-  });
+    return {
+      name
+      // Text-based style matching from name/description
+      if (
+        style &&
+        (p.name?.toLowerCase().includes(style) || p.description?.toLowerCase().includes(style))
+      ) {
+        relevance += 10;
+      }U
+  
+      return { ...p, relevance };
+    });
+    };
 
   scored.sort((a, b) => b.relevance - a.relevance);
 

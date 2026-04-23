@@ -82,6 +82,7 @@ export async function generateMetadata({
     alternates: {
       canonical: url,
     },
+    robots: isPreview ? { noindex: true } : undefined,
     openGraph: {
       title: metaTitle,
       description: metaDesc || content.title,

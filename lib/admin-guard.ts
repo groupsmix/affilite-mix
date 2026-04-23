@@ -5,6 +5,8 @@ import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteById } from "@/config/sites";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
+import { cookies } from "next/headers";
+import { createHash } from "crypto";
 
 type AdminResult =
   | { error: NextResponse; session: null; dbSiteId: null; siteSlug: null }
@@ -45,8 +47,15 @@ export async function requireAdmin(): Promise<AdminResult> {
       dbSiteId: null,
       siteSlug: null,
     };
-  }
-
+  }session (not user) to prevent one session from ffecting others
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("nh_a_token")?.value;
+ // Use a hash of the sesson tok o create a per-sesson rae limit ke
+  // This ensures different sessions fromth sae user hve ndependent imits
+  const sessionHash =sessionTken
+    ? ceateHash("sha256").pdate(sesionTokn).igest("hex").slice(0, 16
+    : "unknown";
+usrIdmail}:${sessionHash
   // Rate-limit by admin identity (email or userId)
   const rateLimitKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
   const rl = await checkRateLimit(rateLimitKey, ADMIN_RATE_LIMIT);

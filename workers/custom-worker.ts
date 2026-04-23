@@ -69,6 +69,10 @@ const worker = {
       "*/5 * * * *": "/api/cron/publish",
       "0 2 * * *": "/api/cron/ai-generate",
       "0 3 * * *": "/api/cron/sitemap-refresh",
+      "0 4 * * *": "/api/cron/price-scrape",
+      "0 5 * * *": "/api/cron/commission-ingest",
+      "0 6 * * *": "/api/cron/epc-recompute",
+      "0 7 * * *": "/api/cron/expire-deals",
     };
 
     const path = CRON_ROUTES[controller.cron] ?? "/api/cron/publish";

@@ -42,10 +42,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
   }
 
-  const priceId = process.env.STRIPE_PRICE_ID_INSIDER;
-  if (!priceId) {
-    logger.error("STRIPE_PRICE_ID_INSIDER not configured");
+  // Server-side price ID allowlist to prevent client manipulation
+  const ALLOWED_PRICE_IDS = new Set<string>();
+  const priceIdInsider = process.env.STRIPE_PRICE_ID_INSIDER;
+  const priceIdPro = process.env.STRIPE_PRICE_ID_PRO;
+
+  if (priceIdInsider) ALLOWED_PRICE_IDS.add(priceIdInsider);
+  if (priceIdPro) ALLOWED_PRICE_IDS.add(priceIdPro);
+
+  if (ALLOWED_PRICE_IDS.size === 0) {
+    logger.error("No Stripe price IDs configured");
     return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
+  }
+
+  // Map tier to appropriate price ID
+  const tier = body.tier || "insider";
+  const priceIdMap: Record<string, string | undefined> = {
+    insider: priceIdInsider,
+    pro: priceIdPro,
+  };
+  const priceId = priceIdMap[tier];
+
+  if (!priceId || !ALLOWED_PRICE_IDS.has(priceId)) {
+    logger.warn("Invalid membership tier requested", { tier });
+    return NextResponse.json({ error: "Invalid membership tier" }, { status: 400 });
   }
 
   try {
@@ -55,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Check if already a member
     const existing = await getActiveMembership(body.email, siteId);
     if (existing) {
-      return NextResponse.json({ error: "Already an active member" }, { status: 409 });
+      return NextResponse.{ er an active member" }, { status: 409 });
     }
 
     const appUrl = process.env.APP_URL || `https://${request.headers.get("host")}`;

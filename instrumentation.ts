@@ -43,14 +43,11 @@ export function register() {
   // when KV is unavailable, which will break login and other protected routes.
   if (process.env.NODE_ENV === "production") {
     try {
-      const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
-      if (!kv || typeof kv !== "object" || !("get" in kv)) {
-        logger.error(
-          "RATE_LIMIT_KV binding not available — rate-limited routes (login, newsletter, etc.) " +
-            "will reject ALL requests. Configure the KV binding in wrangler.jsonc. " +
-            "See lib/rate-limit.ts for setup instructions.",
-        );
-      }
+      // In Cloudflare Workers, KV bindings are available via env.*, not process.env.*
+      // During instrumentation.ts init, we can't access the worker env object directly.
+      // Skip this check here — the actual rate-limit.ts will fail-closed at runtime
+      // if KV is unavailable, which is the correct behavior.
+      // We rely on the rate-limit.ts implementation to handle missing KV gracefully.
     } catch {
       // Not running in Workers — expected in local dev
     }
