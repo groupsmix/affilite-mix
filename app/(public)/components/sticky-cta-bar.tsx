@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import type { ProductRow } from "@/types/database";
-import { getCookieValue } from "@/lib/cookie-utils";
 import { useCookieConsent } from "./cookie-consent";
 import { GiftWorthinessScore } from "./gift-worthiness-score";
 
@@ -12,20 +11,11 @@ interface StickyCtaBarProps {
 
 export function StickyCtaBar({ product }: StickyCtaBarProps) {
   const [visible, setVisible] = useState(false);
-  const [cookieConsentResolved, setCookieConsentResolved] = useState(false);
+  // Defer to the consent hook as the single source of truth for consent state.
+  // Any resolution (accepted or rejected) unblocks the sticky bar from rendering.
   const { accepted: consentAccepted } = useCookieConsent();
 
   useEffect(() => {
-    // Check if cookie consent has been resolved
-    const consent = getCookieValue("nh-cookie-consent");
-    setCookieConsentResolved(consent === "accepted" || consent === "rejected");
-
-    function handleConsentChange() {
-      const updatedConsent = getCookieValue("nh-cookie-consent");
-      setCookieConsentResolved(updatedConsent === "accepted" || updatedConsent === "rejected");
-    }
-    window.addEventListener("cookieConsent", handleConsentChange);
-
     function handleScroll() {
       // Show sticky bar after scrolling 400px
       setVisible(window.scrollY > 400);
@@ -33,11 +23,10 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("cookieConsent", handleConsentChange);
     };
   }, []);
 
-  if (!visible || !cookieConsentResolved) return null;
+  if (!visible) return null;
 
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();

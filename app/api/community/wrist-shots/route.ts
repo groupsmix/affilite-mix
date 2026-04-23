@@ -3,6 +3,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createWristShot, listApprovedWristShots } from "@/lib/dal/community";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * GET /api/community/wrist-shots?product_id=xxx
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
  * Body: { product_id?: string, user_email: string, user_name: string, image_url: string, caption?: string }
  */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`wrist-shot:${ip}`, { maxRequests: 5, windowMs: 60 * 60 * 1000 });
   if (!rl.allowed) {
     return NextResponse.json(

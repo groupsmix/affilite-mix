@@ -12,25 +12,17 @@ import type { Database } from "@/types/supabase";
 // SUPABASE_SERVICE_ROLE_KEY is missing, so broken config fails fast
 // instead of silently succeeding against a non-existent backend.
 
-let poolerWarningEmitted = false;
-
 function getSupabaseUrl(): string {
   const url = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL");
 
-  // Warn in production if the Supabase URL is not using the pooler endpoint.
+  // Fail-fast in production if not using the pooler endpoint.
   // Direct connections will exhaust PostgreSQL's connection limit on edge runtimes
   // (Cloudflare Workers) where each request opens a new connection.
-  if (
-    !poolerWarningEmitted &&
-    process.env.NODE_ENV === "production" &&
-    url &&
-    !url.includes("pooler.supabase")
-  ) {
-    poolerWarningEmitted = true;
-    console.warn(
-      "NEXT_PUBLIC_SUPABASE_URL does not appear to use the Supabase connection pooler. " +
-        "In production on edge runtimes, use the pooler URL (e.g. https://xxx.pooler.supabase.com) " +
-        "to avoid exhausting PostgreSQL connection limits.",
+  if (process.env.NODE_ENV === "production" && url && !url.includes("pooler.supabase")) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL must use the Supabase connection pooler in production. " +
+        "Use the pooler URL (e.g. https://xxx.pooler.supabase.com) " +
+        "to avoid exhausting PostgreSQL connection limits."
     );
   }
 
