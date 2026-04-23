@@ -47,17 +47,17 @@ export async function requireAdmin(): Promise<AdminResult> {
       dbSiteId: null,
       siteSlug: null,
     };
-  }session (not user) to prevent one session from ffecting others
+  }
+
+  // Rate-limit per session (not user) to prevent one session from affecting others.
+  // Use a hash of the session token to create a per-session rate limit key.
+  // This ensures different sessions from the same user have independent limits.
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get("nh_a_token")?.value;
- // Use a hash of the sesson tok o create a per-sesson rae limit ke
-  // This ensures different sessions fromth sae user hve ndependent imits
-  const sessionHash =sessionTken
-    ? ceateHash("sha256").pdate(sesionTokn).igest("hex").slice(0, 16
+  const sessionHash = sessionToken
+    ? createHash("sha256").update(sessionToken).digest("hex").slice(0, 16)
     : "unknown";
-usrIdmail}:${sessionHash
-  // Rate-limit by admin identity (email or userId)
-  const rateLimitKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
+  const rateLimitKey = `admin:${session.email ?? session.userId ?? "unknown"}:${sessionHash}`;
   const rl = await checkRateLimit(rateLimitKey, ADMIN_RATE_LIMIT);
   if (!rl.allowed) {
     return {

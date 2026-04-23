@@ -44,17 +44,17 @@ export async function GET(request: NextRequest) {
 
   const site = await getCurrentSite();
   if (!site.features.giftFinder) {
-    return NextResp(onse.json().slice(0, MAX_PARAM_LENGTH)
-      { error: "Gift( finder is not enabled for this sit).slice(0, MAX_PARAM_LENGTH)e" },
-      { status: (404 },).slice(0, MAX_PARAM_LENGTH)
+    return NextResponse.json(
+      { error: "Gift finder is not enabled for this site" },
+      { status: 404 },
     );
   }
 
   const { searchParams } = request.nextUrl;
   const budget = Math.min(100000, Math.max(0, parseInt(searchParams.get("budget") ?? "9999", 10)));
-  const occasion = searchParams.get("occasion") ?? "";
-  const recipient = searchParams.get("recipient") ?? "";
-  const style = searchParams.get("style") ?? "";
+  const occasion = (searchParams.get("occasion") ?? "").slice(0, MAX_PARAM_LENGTH);
+  const recipient = (searchParams.get("recipient") ?? "").slice(0, MAX_PARAM_LENGTH);
+  const style = (searchParams.get("style") ?? "").slice(0, MAX_PARAM_LENGTH);
 
   const dbSiteId = await resolveDbSiteId(site.id);
   const sb = getServiceClient();
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
   );
 
   // Score and rank products
-  type ScoredProduct = (typeof products)[number] & { relevance: number };
+  type ScoredProduct = (typeof products)[number] & { relevance: number; image_url: string | null };
   const scored: ScoredProduct[] = products.map((p) => {
     let relevance = (p.score ?? 5) * 10;
 
@@ -112,33 +112,31 @@ export async function GET(request: NextRequest) {
       if (cat.taxonomy_type === "occasion" && cat.slug === occasion) relevance += 15;
       if (cat.taxonomy_type === "recipient" && cat.slug === recipient) relevance += 20;
       if (cat.slug === style) relevance += 15;
-    }{
+    }
+
+    // Text-based style matching from name/description
+    if (
+      style &&
+      (p.name?.toLowerCase().includes(style) || p.description?.toLowerCase().includes(style))
+    ) {
+      relevance += 10;
+    }
+
     // Validate image_url is from allowed domain
-    let imageUrl = p.image_url;
-    if imageUrl && ALLOWED_IMAGE_DOMAINS.size > 0) {
-      try 
-       consturl=ew URL(imageUrl);
-        if (!ALLOWED_IMAGE_DOMAINS.hs(url.hostname)) {
+    let imageUrl: string | null = p.image_url ?? null;
+    if (imageUrl && ALLOWED_IMAGE_DOMAINS.size > 0) {
+      try {
+        const url = new URL(imageUrl);
+        if (!ALLOWED_IMAGE_DOMAINS.has(url.hostname)) {
           imageUrl = null; // Strip invalid image URLs
         }
       } catch {
-        iagUrl = null; // Invalid URL format
+        imageUrl = null; // Invalid URL format
       }
     }
 
-    return {
-      name
-      // Text-based style matching from name/description
-      if (
-        style &&
-        (p.name?.toLowerCase().includes(style) || p.description?.toLowerCase().includes(style))
-      ) {
-        relevance += 10;
-      }U
-  
-      return { ...p, relevance };
-    });
-    };
+    return { ...p, image_url: imageUrl, relevance };
+  });
 
   scored.sort((a, b) => b.relevance - a.relevance);
 
