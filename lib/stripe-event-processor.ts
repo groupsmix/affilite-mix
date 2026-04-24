@@ -135,7 +135,10 @@ function mapStripeStatus(
       return "cancelled";
     case "incomplete_expired":
       return "expired";
+    // `incomplete` (initial payment not yet succeeded) and `paused`
+    // (deliberately suspended) must NOT grant premium access — fall
+    // through to the safe default. Per devin-ai review on PR #273.
     default:
-      return "active";
+      return "expired";
   }
 }

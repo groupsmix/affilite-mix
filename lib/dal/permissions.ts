@@ -5,6 +5,7 @@
  * A user can have a different role per site.
  */
 
+import { cache } from "react";
 import { getServiceClient } from "@/lib/supabase-server";
 import type {
   RoleRow,
@@ -109,7 +110,7 @@ export async function listSiteUserRoles(siteId: string): Promise<UserSiteRoleRow
 }
 
 /** Get a user's role for a specific site */
-export async function getUserSiteRole(
+export const getUserSiteRole = cache(async function getUserSiteRole(
   userId: string,
   siteId: string,
 ): Promise<UserSiteRoleRow | null> {
@@ -123,7 +124,7 @@ export async function getUserSiteRole(
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<UserSiteRoleRow>(data);
-}
+});
 
 /** Assign a role to a user for a specific site (upsert) */
 export async function assignUserSiteRole(input: {
@@ -178,23 +179,38 @@ export async function removeUserSiteRole(userId: string, siteId: string): Promis
  * Global `admin` role no longer silently grants cross-site access.
  * To grant an admin access to a site, insert a user_site_roles row for them.
  */
+// 1. Check global admin_users.role for backward compatibility (cached)
+const getGlobalRole = cache(async (userId: string) => {
+  const sb = getServiceClient();
+  const { data, error } = await sb.from("admin_users").select("role").eq("id", userId).single();
+  if (error) throw error;
+  return (data as AdminRoleLookup | null)?.role;
+});
+
+// Cache permission lookups
+const getRolePermissionCheck = cache(async (roleId: string, feature: string, action: string) => {
+  const sb = getServiceClient();
+  // We can do this in one join query instead of two to save a round-trip
+  const { data, error } = await sb
+    .from("permissions")
+    .select("id, role_permissions!inner(role_id)")
+    .eq("feature", feature)
+    .eq("action", action)
+    .eq("role_permissions.role_id", roleId)
+    .single();
+
+  if (error && error.code === "PGRST116") return false;
+  if (error) throw error;
+  return Boolean(data);
+});
+
 export async function hasPermission(
   userId: string,
   siteId: string,
   feature: PermissionFeature,
   action: PermissionAction,
 ): Promise<boolean> {
-  const sb = getServiceClient();
-
-  // 1. Check global admin_users.role for backward compatibility
-  const { data: adminUser, error: adminError } = await sb
-    .from("admin_users")
-    .select("role")
-    .eq("id", userId)
-    .single();
-
-  if (adminError) throw adminError;
-  const globalRole = (adminUser as AdminRoleLookup | null)?.role;
+  const globalRole = await getGlobalRole(userId);
 
   // Super admin and owner bypass all permission checks
   if (globalRole === "super_admin" || globalRole === "owner") return true;
@@ -203,33 +219,9 @@ export async function hasPermission(
   const userSiteRole = await getUserSiteRole(userId, siteId);
   if (!userSiteRole) {
     // No site-scoped role assigned: deny access.
-    // Only super_admin / owner (handled above) bypass this check.
-    // Assign a user_site_roles row to grant a global admin access to a specific site.
     return false;
   }
 
   // 3. Check if the assigned role has the requested permission
-  const { data: permCheck, error: permError } = await sb
-    .from("permissions")
-    .select("id")
-    .eq("feature", feature)
-    .eq("action", action)
-    .single();
-
-  if (permError && permError.code === "PGRST116") return false;
-  if (permError) throw permError;
-
-  const permissionId = (permCheck as { id: string }).id;
-
-  const { data: rolePermCheck, error: rpError } = await sb
-    .from("role_permissions")
-    .select("role_id")
-    .eq("role_id", userSiteRole.role_id)
-    .eq("permission_id", permissionId)
-    .single();
-
-  if (rpError && rpError.code === "PGRST116") return false;
-  if (rpError) throw rpError;
-
-  return Boolean(rolePermCheck);
+  return await getRolePermissionCheck(userSiteRole.role_id, feature, action);
 }

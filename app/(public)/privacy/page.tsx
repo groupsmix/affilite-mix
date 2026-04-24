@@ -147,6 +147,47 @@ export default async function PrivacyPage() {
           <li>{isAr ? "مقاييس أداء الويب: 30 يومًا" : "Web performance metrics: 30 days"}</li>
         </ul>
 
+        <h2>
+          {isAr
+            ? "معالجو البيانات من الأطراف الثالثة (المعالجون الفرعيون)"
+            : "Third-Party Data Processors (Sub-processors)"}
+        </h2>
+        <p>
+          {isAr
+            ? "نشارك البيانات مع مزودي الخدمة الموثوقين لتشغيل هذا الموقع. يلتزم جميع المعالجين الفرعيين بمتطلبات حماية البيانات الصارمة:"
+            : "We share data with trusted service providers to operate this website. All sub-processors are bound by strict data protection requirements:"}
+        </p>
+        <ul>
+          <li>
+            <strong>Cloudflare:</strong>{" "}
+            {isAr
+              ? "استضافة الويب، شبكة توصيل المحتوى، وتخزين المؤشرات (الولايات المتحدة/عالمي)"
+              : "Web hosting, CDN, and edge computing (US/Global)"}
+          </li>
+          <li>
+            <strong>Supabase:</strong>{" "}
+            {isAr
+              ? "استضافة قاعدة البيانات وتخزين البيانات (الولايات المتحدة/الاتحاد الأوروبي)"
+              : "Database hosting and data storage (US/EU)"}
+          </li>
+          <li>
+            <strong>Stripe:</strong>{" "}
+            {isAr ? "معالجة المدفوعات (الولايات المتحدة)" : "Payment processing (US)"}
+          </li>
+          <li>
+            <strong>Resend:</strong>{" "}
+            {isAr
+              ? "توصيل البريد الإلكتروني ورسائل النشرة البريدية (الولايات المتحدة)"
+              : "Email delivery and newsletter communications (US)"}
+          </li>
+          <li>
+            <strong>Sentry:</strong>{" "}
+            {isAr
+              ? "مراقبة الأخطاء وتتبع الأداء (الولايات المتحدة)"
+              : "Error monitoring and performance tracking (US)"}
+          </li>
+        </ul>
+
         <h2>{isAr ? "روابط الشركاء التابعين" : "Affiliate Links"}</h2>
         <p>
           {isAr

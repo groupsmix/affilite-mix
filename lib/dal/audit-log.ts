@@ -1,3 +1,4 @@
+import { truncateIp } from "../get-client-ip";
 import { getServiceClient } from "@/lib/supabase-server";
 import { escapeLike } from "./search-utils";
 import { assertRows } from "./type-guards";

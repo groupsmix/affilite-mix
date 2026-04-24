@@ -68,7 +68,6 @@ export interface Database {
           meta_description: string | null;
           og_image_url: string | null;
           social_links: Record<string, string>;
-          custom_css: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -93,7 +92,6 @@ export interface Database {
           meta_description?: string | null;
           og_image_url?: string | null;
           social_links?: Record<string, string>;
-          custom_css?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -118,7 +116,6 @@ export interface Database {
           meta_description?: string | null;
           og_image_url?: string | null;
           social_links?: Record<string, string>;
-          custom_css?: string | null;
           created_at?: string;
           updated_at?: string;
         };

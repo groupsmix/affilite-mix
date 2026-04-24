@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { verifyCronAuth } from "@/lib/cron-auth";
+import { getInternalToken } from "@/lib/internal-auth";
+import { timingSafeCompare } from "@/lib/cron-auth";
 import { getServiceClient } from "@/lib/supabase-server";
 import { CONTENT_TAGS, siteTag, type ContentTag } from "@/lib/cache-tags";
 import { captureException } from "@/lib/sentry";
@@ -11,8 +12,8 @@ import { captureException } from "@/lib/sentry";
  * Call this after admin content changes to propagate updates immediately
  * instead of waiting for the ISR revalidation interval (1 hour).
  *
- * Secured via CRON_SECRET env var — pass it in the Authorization header:
- *   Authorization: Bearer <CRON_SECRET>
+ * Secured via INTERNAL_API_TOKEN env var — pass it in the Authorization header:
+ *   Authorization: Bearer <INTERNAL_API_TOKEN>
  *
  * Body (all optional):
  *   {
@@ -26,7 +27,18 @@ import { captureException } from "@/lib/sentry";
  * cache at once.
  */
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request)) {
+  let expected: string;
+  try {
+    expected = getInternalToken();
+  } catch {
+    return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
+  }
+
+  const authHeader = request.headers.get("authorization") ?? "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : "";
+
+  const encoder = new TextEncoder();
+  if (!bearer || !timingSafeCompare(encoder.encode(bearer), encoder.encode(expected))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

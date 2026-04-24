@@ -26,7 +26,7 @@ describe("getClientIp", () => {
       "cf-connecting-ip": "203.0.113.1",
       "x-forwarded-for": "10.0.0.1",
     });
-    expect(getClientIp(req)).toBe("203.0.113.0");
+    expect(getClientIp(req)).toBe("203.0.113.1");
   });
 
   it("ignores x-forwarded-for by default (no trusted-proxy signal)", () => {
@@ -37,13 +37,13 @@ describe("getClientIp", () => {
   it("honours x-forwarded-for when TRUST_PROXY_HEADERS=true", () => {
     process.env.TRUST_PROXY_HEADERS = "true";
     const req = makeRequest({ "x-forwarded-for": "10.0.0.1, 10.0.0.2" });
-    expect(getClientIp(req)).toBe("10.0.0.0");
+    expect(getClientIp(req)).toBe("10.0.0.1");
   });
 
   it("honours x-forwarded-for when TRUST_PROXY_HEADERS=1", () => {
     process.env.TRUST_PROXY_HEADERS = "1";
     const req = makeRequest({ "x-forwarded-for": "10.0.0.1" });
-    expect(getClientIp(req)).toBe("10.0.0.0");
+    expect(getClientIp(req)).toBe("10.0.0.1");
   });
 
   it("returns 'unknown' when no trusted header is present", () => {

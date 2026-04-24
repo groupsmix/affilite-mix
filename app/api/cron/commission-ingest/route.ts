@@ -11,7 +11,7 @@ import { safeFetch } from "@/lib/ssrf-guard";
  * Currently supports placeholder adapters for CJ, Admitad, PartnerStack.
  * Real API integration requires network API keys configured in env.
  */
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

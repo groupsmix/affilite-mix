@@ -34,19 +34,21 @@ vi.mock("@/lib/password-policy", () => ({
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-type AdminRow = {
+interface AdminRow {
   id: string;
   email: string;
-  password_hash: string;
   name: string;
   role: "admin" | "super_admin";
   is_active: boolean;
+  password_hash: string;
   totp_secret: string | null;
   totp_enabled: boolean;
   totp_verified_at: string | null;
+  totp_failed_attempts: number;
+  totp_locked_until: string | null;
   created_at: string;
   updated_at: string;
-};
+}
 
 function makeRow(partial: Partial<AdminRow>): AdminRow {
   return {
@@ -59,7 +61,9 @@ function makeRow(partial: Partial<AdminRow>): AdminRow {
     totp_secret: null,
     totp_enabled: false,
     totp_verified_at: null,
-    created_at: "2024-01-01",
+    totp_failed_attempts: 0,
+    totp_locked_until: null,
+    created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01",
     ...partial,
   };

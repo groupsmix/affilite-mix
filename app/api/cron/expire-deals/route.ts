@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
  * GET /api/cron/expire-deals
  * Hourly cron: auto-deactivates deals past their expiry date.
  */
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

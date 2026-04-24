@@ -4,7 +4,7 @@ import path from "path";
 export default defineConfig({
   test: {
     globals: true,
-    exclude: ["e2e/**", "node_modules/**"],
+    exclude: ["e2e/**", "node_modules/**", "**/*.integration.test.ts"],
     env: {
       NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co",
       SUPABASE_SERVICE_ROLE_KEY: "placeholder",

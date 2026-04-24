@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Check that first-load JS for key pages stays under budget.
 # Usage: scripts/check-bundle-size.sh [max_kb]
-# Default budget: 180 KB per page first-load JS.
+# Default budget: 150 KB per page first-load JS.
 
 set -euo pipefail
 
-MAX_KB="${1:-180}"
+MAX_KB="${1:-150}"
 BUILD_OUTPUT=".next"
 
 if [ ! -d "$BUILD_OUTPUT" ]; then

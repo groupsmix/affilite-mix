@@ -273,4 +273,4 @@ Private -- all rights reserved. See `LICENSE`.
 
 ## Bundle Size Limits
 
-The CI pipeline enforces a strict 180 KB budget per chunk (configured in `scripts/check-bundle-size.sh`). If a chunk exceeds this limit, the build will fail.
+The CI pipeline enforces a strict 150 KB budget per chunk (configured in `scripts/check-bundle-size.sh`). If a chunk exceeds this limit, the build will fail.

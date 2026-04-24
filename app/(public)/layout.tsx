@@ -74,7 +74,6 @@ export default async function PublicLayout({ children }: { children: React.React
           fontHeading: t?.font_heading || site.theme.fontHeading,
           fontBody: t?.font_body || t?.font || site.theme.fontBody,
           layoutVariant: (t?.layout_variant as LayoutVariant) || "standard",
-          customCss: dbSite.custom_css,
         };
         // Dynamic navigation from DB
         if (Array.isArray(dbSite.nav_items) && dbSite.nav_items.length > 0) {
@@ -104,7 +103,7 @@ export default async function PublicLayout({ children }: { children: React.React
   };
 
   return (
-    <ThemeProvider theme={themeConfig} nonce={nonce}>
+    <ThemeProvider theme={themeConfig}>
       <div lang={site.language} dir={site.direction} className="flex min-h-screen flex-col">
         <a
           href="#main-content"

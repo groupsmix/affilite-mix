@@ -86,7 +86,6 @@ export interface SiteRow {
   social_links: Record<string, string>;
 
   // Custom CSS overrides
-  custom_css: string | null;
 
   created_at: string;
   updated_at: string;

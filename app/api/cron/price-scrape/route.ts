@@ -12,7 +12,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
  *
  * Protected by CRON_SECRET header check.
  */
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   // Verify cron secret using timing-safe comparison
   if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -71,9 +71,17 @@ export async function GET(request: NextRequest) {
 
         if (resendKey) {
           const productUrl = `${appUrl}/p/${product.slug}`;
-          const safeName = (product.name || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-          const safePrice = String(product.price_amount || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-          
+          const safeName = (product.name || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+          const safePrice = String(product.price_amount || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+
           const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
@@ -88,7 +96,7 @@ export async function GET(request: NextRequest) {
               text: `Good news! The price for ${product.name} has dropped to $${product.price_amount}.\n\nView Deal: ${productUrl}`,
             }),
           });
-          
+
           if (!res.ok) {
             const errBody = await res.text();
             logger.error("Failed to send price alert email via Resend", {
@@ -102,11 +110,11 @@ export async function GET(request: NextRequest) {
             emailSent = true;
           }
         } else {
-           // Resend is not configured, but we still mark as triggered to avoid
-           // infinite retries for this alert.
-           logger.warn("Price alert triggered but RESEND_API_KEY is not configured", {
-             alertId: alert.id,
-           });
+          // Resend is not configured, but we still mark as triggered to avoid
+          // infinite retries for this alert.
+          logger.warn("Price alert triggered but RESEND_API_KEY is not configured", {
+            alertId: alert.id,
+          });
         }
 
         // Only mark the alert triggered if the email succeeded or Resend isn't configured

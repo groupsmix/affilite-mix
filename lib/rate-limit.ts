@@ -252,31 +252,16 @@ function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitRe
  * unavailable.
  */
 let kvFallbackWarned = false;
-
-// F-3 grace-window state. Module-level (per-isolate) on purpose: an
-// isolate that has been observing KV outages for longer than
-// KV_GRACE_MS should fail closed on its own without coordinating
-// across isolates. A single-isolate view is sufficient because each
-// isolate independently re-derives the state on the next request.
-const KV_GRACE_MS = 60_000;
-let kvFirstUnavailableAt: number | null = null;
-let kvGraceAlerted = false;
-let kvExpiredAlerted = false;
+let kvUnavailableAlerted = false;
 
 /** Reset internal KV-availability state. Exported for tests. */
 export function __resetRateLimitKvStateForTests(): void {
   kvFallbackWarned = false;
-  kvFirstUnavailableAt = null;
-  kvGraceAlerted = false;
-  kvExpiredAlerted = false;
+  kvUnavailableAlerted = false;
 }
 
 function markKvAvailable(): void {
-  if (kvFirstUnavailableAt !== null) {
-    kvFirstUnavailableAt = null;
-    kvGraceAlerted = false;
-    kvExpiredAlerted = false;
-  }
+  kvUnavailableAlerted = false;
 }
 
 /**
@@ -305,41 +290,20 @@ function handleKvUnavailable(
     return checkRateLimitMemory(key, config);
   }
 
-  const now = Date.now();
-  if (kvFirstUnavailableAt === null) {
-    kvFirstUnavailableAt = now;
-  }
-
-  const elapsed = now - kvFirstUnavailableAt;
-  if (elapsed < KV_GRACE_MS) {
-    if (!kvGraceAlerted) {
-      kvGraceAlerted = true;
-      const msg =
-        `[rate-limit] KV unavailable (${reason}) — falling back to in-memory ` +
-        `limiter for a ${Math.round(KV_GRACE_MS / 1000)}s grace window. ` +
-        "Requests will continue to be rate-limited per isolate until KV recovers.";
-      console.error(msg);
-      captureException(err ?? new Error(msg), {
-        context: "rate-limit.kv-grace-open",
-      });
-    }
-    return checkRateLimitMemory(key, config);
-  }
-
-  if (!kvExpiredAlerted) {
-    kvExpiredAlerted = true;
+  // Fail closed immediately in production
+  if (!kvUnavailableAlerted) {
+    kvUnavailableAlerted = true;
     const msg =
-      `[rate-limit] CRITICAL: KV unavailable for >${Math.round(
-        KV_GRACE_MS / 1000,
-      )}s (${reason}). ` +
-      "Fail-open grace window exhausted — rate-limited requests will now be rejected. " +
+      `[rate-limit] CRITICAL: KV unavailable (${reason}). ` +
+      "Fail-closed: rate-limited requests will now be rejected. " +
       "Configure the KV binding in wrangler.jsonc to restore service. " +
       "See lib/rate-limit.ts for KV configuration instructions.";
     console.error(msg);
     captureException(err ?? new Error(msg), {
-      context: "rate-limit.kv-grace-expired",
+      context: "rate-limit.kv-unavailable-fail-closed",
     });
   }
+
   return { allowed: false, remaining: 0, retryAfterMs: 60_000 };
 }
 

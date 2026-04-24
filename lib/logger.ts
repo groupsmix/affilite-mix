@@ -1,3 +1,4 @@
+import { truncateIp } from "./get-client-ip";
 /**
  * Structured logger.
  *
@@ -75,9 +76,12 @@ function emit(
   }
 }
 
-function jsonReplacer(_key: string, value: unknown): unknown {
+function jsonReplacer(key: string, value: unknown): unknown {
   if (value instanceof Error) {
-    return { name: value.name, message: value.message, stack: value.stack };
+    return { message: value.message, name: value.name, stack: value.stack };
+  }
+  if (key === "ip" || key === "client_ip" || key === "ip_address") {
+    return typeof value === "string" ? truncateIp(value) : value;
   }
   return value;
 }

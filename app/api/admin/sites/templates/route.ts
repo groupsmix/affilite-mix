@@ -49,7 +49,6 @@ export async function POST(request: NextRequest) {
       monetization_type: (bodyOrError.monetization_type as string) ?? "affiliate",
       language: (bodyOrError.language as string) ?? "en",
       direction: (bodyOrError.direction as string) ?? "ltr",
-      custom_css: (bodyOrError.custom_css as string) ?? "",
       social_links: (bodyOrError.social_links as Record<string, string>) ?? {},
     });
 

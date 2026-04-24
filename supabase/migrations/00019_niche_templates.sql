@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS niche_templates (
   monetization_type text DEFAULT 'affiliate',
   language        text DEFAULT 'en',
   direction       text DEFAULT 'ltr',
-  custom_css      text DEFAULT '',
   social_links    jsonb DEFAULT '{}'::jsonb,
   -- Metadata
   is_builtin      boolean DEFAULT false,

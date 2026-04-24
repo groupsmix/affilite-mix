@@ -1,3 +1,4 @@
+import { truncateIp } from "./get-client-ip";
 /**
  * Sentry error monitoring helpers for Cloudflare Workers.
  *
@@ -43,7 +44,7 @@ export function checkSentryConfig() {
   if (!dsn && process.env.NODE_ENV === "production") {
     console.warn(
       "[sentry] SENTRY_DSN not set — error monitoring is disabled. " +
-      "Set the SENTRY_DSN environment variable to enable Sentry.",
+        "Set the SENTRY_DSN environment variable to enable Sentry.",
     );
   }
 }
@@ -56,15 +57,22 @@ export function checkSentryConfig() {
  * tag so that errors can be filtered/searched by trace ID in the dashboard.
  */
 export function captureException(error: unknown, context?: Record<string, unknown>) {
+  if (
+    context &&
+    context.user &&
+    typeof context.user === "object" &&
+    (context.user as any).ip_address
+  ) {
+    (context.user as any).ip_address = truncateIp((context.user as any).ip_address);
+  }
   if (isInitialized()) {
     try {
       after(async () => {
-          if (context?.traceId && typeof context.traceId === "string") {
-            setTag("traceId", context.traceId);
-          }
-          sentryCaptureException(error, { data: context });
+        if (context?.traceId && typeof context.traceId === "string") {
+          setTag("traceId", context.traceId);
         }
-      );
+        sentryCaptureException(error, { data: context });
+      });
     } catch {
       if (context?.traceId && typeof context.traceId === "string") {
         setTag("traceId", context.traceId);
@@ -83,9 +91,8 @@ export function captureMessage(message: string, level: SeverityLevel = "info") {
   if (isInitialized()) {
     try {
       after(async () => {
-          sentryCaptureMessage(message, level);
-        }
-      );
+        sentryCaptureMessage(message, level);
+      });
     } catch {
       sentryCaptureMessage(message, level);
     }

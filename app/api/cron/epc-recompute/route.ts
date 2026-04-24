@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
  * Reads from commissions + affiliate_clicks tables, writes to product_epc_stats.
  * Should run after commission-ingest cron.
  */
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
