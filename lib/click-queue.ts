@@ -10,6 +10,7 @@
 
 import { recordClick, type RecordClickInput } from "@/lib/dal/affiliate-clicks";
 import { captureException } from "@/lib/sentry";
+import { randomUUID } from "node:crypto";
 
 // Minimal structural type for the Queue binding — avoids pulling in
 // @cloudflare/workers-types as a project dependency.
@@ -50,8 +51,10 @@ function getClickQueue(): CloudflareQueue<ClickQueueMessage> | undefined {
  * clicks are best-effort analytics.
  */
 export async function publishClick(input: RecordClickInput): Promise<void> {
+  const clickId = input.click_id ?? randomUUID();
+  const enriched: RecordClickInput = { ...input, click_id: clickId };
   const queue = getClickQueue();
-  const payload: ClickQueueMessage = { ...input, ts: Date.now() };
+  const payload: ClickQueueMessage = { ...enriched, ts: Date.now() };
 
   if (queue) {
     try {
@@ -64,7 +67,7 @@ export async function publishClick(input: RecordClickInput): Promise<void> {
   }
 
   try {
-    await recordClick(input);
+    await recordClick(enriched);
   } catch (err) {
     captureException(err, { context: "click-queue.direct-write" });
   }

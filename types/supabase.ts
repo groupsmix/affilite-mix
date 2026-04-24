@@ -403,6 +403,7 @@ export interface Database {
       affiliate_clicks: {
         Row: {
           id: string;
+          click_id: string | null;
           site_id: string;
           product_name: string;
           affiliate_url: string;
@@ -412,6 +413,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          click_id?: string | null;
           site_id?: string;
           product_name?: string;
           affiliate_url?: string;
@@ -421,6 +423,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          click_id?: string | null;
           site_id?: string;
           product_name?: string;
           affiliate_url?: string;
