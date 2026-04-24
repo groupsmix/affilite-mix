@@ -150,8 +150,17 @@
 	// - 0 3 * * *    → Daily at 3 AM UTC: Sitemap refresh
 	//
 	// The worker will POST to /api/cron/publish, /api/cron/ai-generate, and
-	// /api/cron/sitemap-refresh with the CRON_SECRET from environment variables.
-	// Set CRON_SECRET via: wrangler secret put CRON_SECRET
+	// /api/cron/sitemap-refresh. Each route authenticates via its own
+	// per-trigger secret (B-3) and falls back to the shared CRON_SECRET:
+	//
+	//   Route                       Primary secret           Fallback
+	//   --------------------------- ------------------------ ------------
+	//   /api/cron/publish           CRON_PUBLISH_SECRET      CRON_SECRET
+	//   /api/cron/ai-generate       CRON_AI_SECRET           CRON_SECRET
+	//   /api/cron/sitemap-refresh   CRON_SITEMAP_SECRET      CRON_SECRET
+	//
+	// /api/health also accepts CRON_SECRET for backwards compatibility.
+	// Set each secret via: `wrangler secret put CRON_PUBLISH_SECRET` etc.
 	"triggers": {
 		"crons": [
 			"*/5 * * * *",  // Scheduled publishing (every 5 minutes)

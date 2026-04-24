@@ -15,7 +15,7 @@ import type { AIContentType } from "@/lib/ai/content-generator";
  * Generates 3 articles per site — topics are auto-selected based on niche.
  */
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request)) {
+  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_AI_SECRET", "CRON_SECRET"] })) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

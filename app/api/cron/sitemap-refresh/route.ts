@@ -17,7 +17,7 @@ import { captureException } from "@/lib/sentry";
  * mutations invalidate caches and keeps multi-site cache behavior consistent.
  */
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request)) {
+  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_SITEMAP_SECRET", "CRON_SECRET"] })) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

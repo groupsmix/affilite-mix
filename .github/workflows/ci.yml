@@ -28,6 +28,8 @@ jobs:
       - run: npm ci
       - name: Security audit
         run: npm audit --audit-level=high
+      - name: Migration policy lint (E-2)
+        run: bash scripts/check-migrations.sh
       - run: npm run lint
       - run: npm test
       - run: npm run typecheck:all
