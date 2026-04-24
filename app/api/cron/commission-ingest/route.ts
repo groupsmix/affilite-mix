@@ -97,27 +97,97 @@ interface NormalizedCommission {
 }
 
 async function fetchCjReports(): Promise<NormalizedCommission[]> {
-  // TODO: Implement CJ Commission Detail Report API
-  // https://developers.cj.com/docs/commission-detail
-  // GET https://commission-detail.api.cj.com/v3/commissions
-  // Headers: Authorization: Bearer {CJ_API_KEY}
-  // Query: date-type=event&start-date=YYYY-MM-DD&end-date=YYYY-MM-DD
-  logger.info("CJ commission fetch: stub — implement with CJ API credentials");
-  return [];
+  const apiKey = process.env.CJ_API_KEY;
+  if (!apiKey) {
+    throw new Error("CJ API credentials missing");
+  }
+
+  const endDate = new Date().toISOString().split("T")[0];
+  const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  const response = await fetch(
+    `https://commission-detail.api.cj.com/v3/commissions?date-type=event&start-date=${startDate}&end-date=${endDate}`,
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`CJ API failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  return (data.commissions || []).map((c: any) => ({
+    site_id: c.shopperId || "00000000-0000-0000-0000-000000000000",
+    order_id: c.actionId,
+    network: "cj",
+    commission_amount: c.pubCommissionAmountUsd || 0,
+    sale_amount: c.saleAmountUsd,
+    status: c.actionStatus,
+    event_date: c.eventDate || new Date().toISOString(),
+    raw_data: c,
+  }));
 }
 
 async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
-  // TODO: Implement Admitad Statistics API
-  // https://developers.admitad.com/en/doc/api_en/methods/statistics/
-  // GET https://api.admitad.com/statistics/actions/
-  logger.info("Admitad commission fetch: stub — implement with Admitad API credentials");
-  return [];
+  const apiKey = process.env.ADMITAD_API_KEY;
+  if (!apiKey) {
+    throw new Error("Admitad API credentials missing");
+  }
+
+  const response = await fetch("https://api.admitad.com/statistics/actions/", {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Admitad API failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  return (data.results || []).map((c: any) => ({
+    site_id: c.subid || "00000000-0000-0000-0000-000000000000",
+    order_id: String(c.id),
+    network: "admitad",
+    commission_amount: c.payment || 0,
+    currency: c.currency,
+    status: c.status,
+    event_date: c.action_date || new Date().toISOString(),
+    raw_data: c,
+  }));
 }
 
 async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
-  // TODO: Implement PartnerStack Transactions API
-  // https://docs.partnerstack.com/reference/get-transactions
-  // GET https://api.partnerstack.com/api/v2/transactions
-  logger.info("PartnerStack commission fetch: stub — implement with PartnerStack API credentials");
-  return [];
+  const apiKey = process.env.PARTNERSTACK_API_KEY;
+  if (!apiKey) {
+    throw new Error("PartnerStack API credentials missing");
+  }
+
+  const response = await fetch("https://api.partnerstack.com/api/v2/transactions", {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`PartnerStack API failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  return (data.transactions || []).map((c: any) => ({
+    site_id: c.customer_key || "00000000-0000-0000-0000-000000000000",
+    order_id: c.key,
+    network: "partnerstack",
+    commission_amount: c.amount || 0,
+    currency: c.currency,
+    status: c.status,
+    event_date: c.created_at || new Date().toISOString(),
+    raw_data: c,
+  }));
 }
