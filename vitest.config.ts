@@ -5,6 +5,11 @@ export default defineConfig({
   test: {
     globals: true,
     exclude: ["e2e/**", "node_modules/**"],
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "placeholder",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder",
+    },
   },
   // Override tsconfig's `jsx: "preserve"` so tests (and any `.tsx` module they
   // import transitively) are transformed by Vite's oxc loader instead of
