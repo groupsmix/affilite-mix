@@ -82,10 +82,9 @@ export function captureException(error: unknown, context?: Record<string, unknow
 export function captureMessage(message: string, level: SeverityLevel = "info") {
   if (isInitialized()) {
     try {
-      after(
-        (async () => {
+      after(async () => {
           sentryCaptureMessage(message, level);
-        })()
+        }
       );
     } catch {
       sentryCaptureMessage(message, level);
