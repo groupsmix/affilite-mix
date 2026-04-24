@@ -152,7 +152,7 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
   const data = await response.json();
   return (data.results || []).map((c: Record<string, unknown>) => ({
     site_id: typeof c.subid === "string" ? c.subid : "00000000-0000-0000-0000-000000000000",
-    order_id: String(c.id),
+    order_id: typeof c.id === "string" ? c.id : typeof c.id === "number" ? String(c.id) : undefined,
     network: "admitad",
     commission_amount: typeof c.payment === "number" ? c.payment : 0,
     currency: typeof c.currency === "string" ? c.currency : undefined,
