@@ -84,10 +84,14 @@ const worker = {
 
     const CRON_ROUTES: Record<string, string> = {
       "*/5 * * * *": "/api/cron/publish",
+      "0 1 * * *": "/api/cron/stripe-sync",
       "0 2 * * *": "/api/cron/ai-generate",
       "0 3 * * *": "/api/cron/sitemap-refresh",
       "0 4 * * *": "/api/cron/data-retention",
-      "0 1 * * *": "/api/cron/stripe-sync",
+      "0 5 * * *": "/api/cron/commission-ingest",
+      "0 6 * * *": "/api/cron/epc-recompute",
+      "0 7 * * *": "/api/cron/price-scrape",
+      "0 * * * *": "/api/cron/expire-deals",
     };
 
     const path = CRON_ROUTES[controller.cron] ?? "/api/cron/publish";
@@ -125,17 +129,24 @@ const worker = {
    * F-028: consume click-tracking queue batches and forward to the internal
    * API endpoint /api/queue/clicks which persists them to Supabase.
    *
-   * Uses INTERNAL_API_TOKEN to authenticate (server-side only, never exposed
-   * to clients). Individual message retry/ack is delegated to Cloudflare's
-   * queue semantics: on a successful 2xx we ack the whole batch; on any
-   * failure we retryAll so Cloudflare replays with backoff and eventually
-   * routes to the dead-letter queue after max_retries.
+   * Address R5 & R6: Handles both the main queue and the DLQ. Uses per-message
+   * acking/retrying to prevent head-of-line blocking from poison messages.
    */
   async queue(
     batch: CloudflareMessageBatch,
     env: Record<string, unknown>,
     ctx: CloudflareExecutionContext,
   ) {
+    if (batch.queue === "click-tracking-dlq") {
+      // R5: DLQ consumer. Log loudly or alert. In a real system, you'd write to a
+      // click_failures table or page on-call here. For now, log and ack to prevent infinite loop.
+      console.error(
+        `[queue/click-tracking-dlq] Received ${batch.messages.length} dead letters. Revenue attribution lost.`,
+      );
+      batch.ackAll();
+      return;
+    }
+
     if (batch.queue !== "click-tracking") {
       // Unknown queue — ack so it doesn't loop forever
       batch.ackAll();
@@ -154,30 +165,47 @@ const worker = {
       return;
     }
 
-    const messages = batch.messages.map((m: CloudflareQueueMessage) => m.body);
     const url = `${cronHost}/api/queue/clicks`;
 
+    // R6: Instead of sending the whole batch as one chunk and failing the whole batch,
+    // we send messages and handle per-message ack/retry based on the response.
+    // To simplify while maintaining batching, we send the batch. If it fails with a 4xx (poison),
+    // we should ideally split it. For now, we'll send them one by one if we want true per-message ack,
+    // OR we change the API endpoint to return which messages failed.
+    // The simplest robust fix for R6 without rewriting the API is to iterate and send.
+    // Since Cloudflare Worker allows concurrent fetches, we can Promise.all them.
+
     ctx.waitUntil(
-      fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${internalToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ messages }),
-      })
-        .then((res: Response) => {
-          if (res.ok) {
-            batch.ackAll();
-          } else {
-            console.error(`[queue/click-tracking] consumer returned ${res.status}`);
-            batch.retryAll();
+      Promise.all(
+        batch.messages.map(async (msg) => {
+          try {
+            const res = await fetch(url, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${internalToken}`,
+                "Content-Type": "application/json",
+              },
+              // Wrap single message in array since the API expects an array of messages
+              body: JSON.stringify({ messages: [msg.body] }),
+            });
+
+            if (res.ok) {
+              msg.ack();
+            } else if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+              // Client error (e.g. malformed data) - poison message. Ack it so it doesn't block.
+              // (Or retry it and let it hit DLQ, but we want to avoid poisoning the batch).
+              // Let's retry it to let it naturally flow to DLQ.
+              msg.retry();
+            } else {
+              // Server error or rate limit
+              msg.retry();
+            }
+          } catch (err) {
+            console.error("[queue/click-tracking] fetch error for message:", err);
+            msg.retry();
           }
-        })
-        .catch((err: unknown) => {
-          console.error("[queue/click-tracking] consumer fetch error:", err);
-          batch.retryAll();
         }),
+      ),
     );
   },
 };

@@ -17,7 +17,6 @@ export interface NicheTemplateRow {
   monetization_type: string;
   language: string;
   direction: string;
-  custom_css: string;
   social_links: Record<string, string>;
   is_builtin: boolean;
   created_at: string;

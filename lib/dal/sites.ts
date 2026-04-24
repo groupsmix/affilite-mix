@@ -112,7 +112,6 @@ export async function createSite(input: {
   meta_description?: string | null;
   og_image_url?: string | null;
   social_links?: Record<string, string>;
-  custom_css?: string | null;
 }): Promise<SiteRow> {
   const sb = getServiceClient();
 
@@ -139,7 +138,6 @@ export async function createSite(input: {
   if (input.meta_description !== undefined) row.meta_description = input.meta_description;
   if (input.og_image_url !== undefined) row.og_image_url = input.og_image_url;
   if (input.social_links !== undefined) row.social_links = input.social_links;
-  if (input.custom_css !== undefined) row.custom_css = input.custom_css;
 
   const { data, error } = await sb.from(TABLE).insert(row).select().single();
 

@@ -193,33 +193,6 @@ function buildAttrs(tag: string, raw: Record<string, string>): string {
  * - Forces rel="noopener noreferrer nofollow" on all <a> tags
  * - Removes event handler attributes (on*)
  */
-/**
- * Sanitize CSS by stripping dangerous patterns that could be used for
- * data exfiltration or UI manipulation:
- * - @import rules (can load external stylesheets)
- * - url() values (can exfiltrate data via external requests)
- * - expression() (IE CSS expressions — legacy XSS vector)
- * - behavior/binding properties (IE/Mozilla XSS vectors)
- * - javascript:/data: protocols
- */
-export function sanitizeCss(css: string): string {
-  if (!css) return css;
-
-  return (
-    css
-      // Strip @import rules
-      .replace(/@import\s+[^;]+;?/gi, "/* @import removed */")
-      // Strip url() values (used for data exfiltration)
-      .replace(/url\s*\([^)]*\)/gi, "/* url() removed */")
-      // Strip expression() (IE CSS expressions)
-      .replace(/expression\s*\([^)]*\)/gi, "/* expression() removed */")
-      // Strip -moz-binding (Mozilla XSS vector)
-      .replace(/-moz-binding\s*:[^;]+;?/gi, "/* -moz-binding removed */")
-      // Strip behavior (IE XSS vector)
-      .replace(/behavior\s*:[^;]+;?/gi, "/* behavior removed */")
-  );
-}
-
 const MAX_INPUT_LENGTH = 100_000; // 100KB is generous for any blog comment or typical article
 
 export function sanitizeHtml(html: string): string {

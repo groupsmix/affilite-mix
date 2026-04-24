@@ -9,6 +9,8 @@ describe("supabase-server factories", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
+    delete (globalThis as any).__sb_client;
+    delete (globalThis as any).__sb_anon_client;
   });
 
   afterEach(() => {

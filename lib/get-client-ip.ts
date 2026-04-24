@@ -17,12 +17,12 @@
  */
 export function getClientIp(request: Request): string {
   const cfIp = request.headers.get("cf-connecting-ip");
-  if (cfIp) return truncateIp(cfIp);
+  if (cfIp) return cfIp;
 
   if (isProxyHeaderTrusted()) {
     const xff = request.headers.get("x-forwarded-for");
     const first = xff?.split(",")[0]?.trim();
-    if (first) return truncateIp(first);
+    if (first) return first;
   }
 
   return "unknown";
@@ -44,7 +44,7 @@ function isProxyHeaderTrusted(): boolean {
  * IPv4: zeroes the last octet (e.g. 192.168.1.1 -> 192.168.1.0)
  * IPv6: keeps the first 48 bits, zeroes the rest (e.g. 2001:db8:1::1 -> 2001:db8:1::)
  */
-function truncateIp(ip: string): string {
+export function truncateIp(ip: string): string {
   if (!ip || ip === "unknown" || ip.startsWith("cf-ray:")) return ip;
   if (ip.includes(".")) {
     const parts = ip.split(".");

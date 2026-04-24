@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     response.cookies.set(COOKIE_NAME, "", {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
-      sameSite: "lax",
+      sameSite: "strict",
       path: "/",
       maxAge: 0,
     });

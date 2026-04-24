@@ -26,9 +26,8 @@ if (typeof window !== "undefined" && dsn) {
     // Increase during incident investigation; decrease if quota is a concern.
     tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
 
-    // Sample 50% of sessions for replay in production to balance quota.
-    // All replays capture errors at 100%.
-    replaysSessionSampleRate: process.env.NODE_ENV === "production" ? 0.5 : 1.0,
+    // Session replay at high sample rates is a cost trap. Lower to 5% in prod.
+    replaysSessionSampleRate: process.env.NODE_ENV === "production" ? 0.05 : 1.0,
     replaysOnErrorSampleRate: 1.0,
 
     // Capture console.error calls as breadcrumbs for richer context.

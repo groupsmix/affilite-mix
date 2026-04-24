@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { verifyCronAuth } from "@/lib/cron-auth";
 import { getClientIp } from "@/lib/get-client-ip";
 
 /** 10 health check requests per minute per IP */
@@ -30,13 +31,11 @@ export async function GET(request: NextRequest) {
   // Detailed checks (DB latency, env vars, email service) are restricted
   // to authenticated callers (CRON_SECRET or admin JWT) to avoid leaking
   // infrastructure information (Finding 21).
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization") ?? "";
   // Only CRON_SECRET bearer auth unlocks the detailed health view.
   // Cookie-presence is NOT a valid auth check — the admin session cookie is
   // "nh_admin_token", not "admin_token", so a fake cookie would have passed
   // the old check. Bearer auth avoids that class of bug entirely.
-  const isAuthorized = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
+  const isAuthorized = verifyCronAuth(request);
 
   if (!isAuthorized) {
     return NextResponse.json({ status: "healthy" });

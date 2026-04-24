@@ -165,7 +165,6 @@ export async function POST(request: NextRequest) {
       meta_description: body.meta_description as string | null | undefined,
       og_image_url: body.og_image_url as string | null | undefined,
       social_links: body.social_links as Record<string, string> | undefined,
-      custom_css: body.custom_css as string | null | undefined,
     });
     void recordAuditEvent({
       site_id: site.id,
@@ -232,7 +231,6 @@ export async function PATCH(request: NextRequest) {
     "meta_description",
     "og_image_url",
     "social_links",
-    "custom_css",
   ] as const;
 
   const updates: Record<string, unknown> = {};

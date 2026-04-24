@@ -85,6 +85,8 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
       totp_secret: null,
       totp_enabled: false,
       totp_verified_at: null,
+      totp_failed_attempts: 0,
+      totp_locked_until: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { verifyCronAuth } from "@/lib/cron-auth";
+import { getInternalToken } from "@/lib/internal-auth";
 import { getServiceClient } from "@/lib/supabase-server";
 import { CONTENT_TAGS, siteTag, type ContentTag } from "@/lib/cache-tags";
 import { captureException } from "@/lib/sentry";
@@ -26,7 +26,17 @@ import { captureException } from "@/lib/sentry";
  * cache at once.
  */
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request)) {
+  let expected: string;
+  try {
+    expected = getInternalToken();
+  } catch {
+    return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
+  }
+
+  const authHeader = request.headers.get("authorization") ?? "";
+  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : "";
+
+  if (bearer !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

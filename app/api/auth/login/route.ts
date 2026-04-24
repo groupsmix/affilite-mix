@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser, createToken, COOKIE_NAME } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -7,7 +9,7 @@ import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
-import { getAdminUserByEmail } from "@/lib/dal/admin-users";
+import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 
 /** 5 login attempts per 15 minutes per IP */
@@ -74,6 +76,14 @@ export async function POST(request: NextRequest) {
     if (authResult.email) {
       const user = await getAdminUserByEmail(authResult.email);
       if (user?.totp_enabled) {
+        // R9: Account-level TOTP lock
+        if (user.totp_locked_until && new Date(user.totp_locked_until) > new Date()) {
+          return apiError(
+            423,
+            "Account temporarily locked due to too many failed 2FA attempts. Please contact another administrator or try again later.",
+          );
+        }
+
         if (!totp_token) {
           return NextResponse.json(
             { requires_2fa: true },
@@ -97,7 +107,20 @@ export async function POST(request: NextRequest) {
           !user.totp_secret ||
           !verifyTotpToken(user.totp_secret, totp_token)
         ) {
+          // Increment failed attempts and lock if >= 10
+          const attempts = (user.totp_failed_attempts || 0) + 1;
+          const updates: any = { totp_failed_attempts: attempts };
+          if (attempts >= 10) {
+            // Lock for 1 hour
+            updates.totp_locked_until = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+          }
+          await updateAdminUser(user.id, updates);
           return apiError(401, "Invalid 2FA token");
+        }
+
+        // Reset failed attempts on success
+        if (user.totp_failed_attempts > 0 || user.totp_locked_until) {
+          await updateAdminUser(user.id, { totp_failed_attempts: 0, totp_locked_until: null });
         }
       }
     }
@@ -114,7 +137,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
-      sameSite: "lax",
+      sameSite: "strict",
       path: "/",
       maxAge: 60 * 60 * 24, // 24 hours
     });

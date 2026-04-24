@@ -30,7 +30,6 @@ ALTER TABLE sites ADD COLUMN IF NOT EXISTS og_image_url text;
 ALTER TABLE sites ADD COLUMN IF NOT EXISTS social_links jsonb DEFAULT '{}';
 
 -- Custom CSS overrides
-ALTER TABLE sites ADD COLUMN IF NOT EXISTS custom_css text;
 
 -- Timestamps
 ALTER TABLE sites ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();

@@ -1,16 +1,15 @@
 /**
- * F-3 — KV unavailable fail-open grace-window behaviour.
+ * F-3 — KV unavailable behaviour.
  *
  * In production, when RATE_LIMIT_KV is missing or its operations throw,
- * the rate limiter must fall back to the in-memory limiter for a
- * 60-second grace window, then fail closed. In development, it must
- * keep the existing memory fallback without failing closed.
+ * the rate limiter must fail closed immediately. In development, it must
+ * fall back to the in-memory limiter.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const captureExceptionMock = vi.fn();
 vi.mock("@/lib/sentry", () => ({
-  captureException: (...args: unknown[]) => captureExceptionMock(...args),
+  captureException: (...args: any[]) => captureExceptionMock(...args),
 }));
 
 const CONFIG = { maxRequests: 2, windowMs: 60_000 };
@@ -33,67 +32,67 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("F-3 KV unavailability — production fail-open grace", () => {
-  it("falls back to in-memory limiter within the grace window when KV binding is missing", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+describe("F-3 KV unavailability", () => {
+  it("fails closed immediately when KV binding is missing in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
 
     const { checkRateLimit } = await loadModule();
 
-    const first = await checkRateLimit("ip:grace-1", CONFIG);
-    const second = await checkRateLimit("ip:grace-1", CONFIG);
-    const third = await checkRateLimit("ip:grace-1", CONFIG);
+    const result = await checkRateLimit("ip:missing-1", CONFIG);
 
-    expect(first.allowed).toBe(true);
-    expect(second.allowed).toBe(true);
-    // Third call hits the in-memory limiter's cap (2), not the fail-closed path.
-    expect(third.allowed).toBe(false);
-    expect(third.remaining).toBe(0);
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
+    expect(result.retryAfterMs).toBe(60_000);
 
-    // A Sentry alert must be fired exactly once for entering the grace window.
-    const graceAlerts = captureExceptionMock.mock.calls.filter(
+    // A Sentry alert must be fired exactly once
+    const alerts = captureExceptionMock.mock.calls.filter(
       ([, ctx]) =>
-        (ctx as { context?: string } | undefined)?.context === "rate-limit.kv-grace-open",
+        (ctx as { context?: string } | undefined)?.context ===
+        "rate-limit.kv-unavailable-fail-closed",
     );
-    expect(graceAlerts).toHaveLength(1);
+    expect(alerts).toHaveLength(1);
+
+    // Second call should also fail closed, but not alert again
+    const result2 = await checkRateLimit("ip:missing-1", CONFIG);
+    expect(result2.allowed).toBe(false);
+    expect(
+      captureExceptionMock.mock.calls.filter(
+        ([, ctx]) =>
+          (ctx as { context?: string } | undefined)?.context ===
+          "rate-limit.kv-unavailable-fail-closed",
+      ),
+    ).toHaveLength(1);
   });
 
-  it("fails closed after the 60s grace window expires", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+  it("fails closed immediately when KV.get throws in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
+
+    const kvGet = vi.fn().mockRejectedValue(new Error("KV upstream 500"));
+    const kvPut = vi.fn();
+    vi.stubGlobal("RATE_LIMIT_KV", { get: kvGet, put: kvPut });
 
     const { checkRateLimit } = await loadModule();
 
-    // First request — KV missing, grace window begins.
-    const inGrace = await checkRateLimit("ip:expired-1", CONFIG);
-    expect(inGrace.allowed).toBe(true);
+    const res = await checkRateLimit("ip:kv-throw", CONFIG);
+    expect(res.allowed).toBe(false);
+    expect(kvGet).toHaveBeenCalled();
 
-    // Jump past the 60s grace window.
-    vi.setSystemTime(new Date("2026-01-01T00:01:01Z"));
-
-    const expired = await checkRateLimit("ip:expired-1", CONFIG);
-    expect(expired.allowed).toBe(false);
-    expect(expired.retryAfterMs).toBe(60_000);
-
-    const expiredAlerts = captureExceptionMock.mock.calls.filter(
+    const alerts = captureExceptionMock.mock.calls.filter(
       ([, ctx]) =>
-        (ctx as { context?: string } | undefined)?.context === "rate-limit.kv-grace-expired",
+        (ctx as { context?: string } | undefined)?.context ===
+        "rate-limit.kv-unavailable-fail-closed",
     );
-    expect(expiredAlerts).toHaveLength(1);
+    expect(alerts).toHaveLength(1);
   });
 
-  it("resets the grace window when KV recovers mid-session", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+  it("recovers when KV becomes available again mid-session", async () => {
     vi.stubEnv("NODE_ENV", "production");
 
     const { checkRateLimit } = await loadModule();
 
-    // KV missing — grace window opens.
-    const openCall = await checkRateLimit("ip:recover-1", CONFIG);
-    expect(openCall.allowed).toBe(true);
+    // KV missing — fails closed.
+    const missingCall = await checkRateLimit("ip:recover-1", CONFIG);
+    expect(missingCall.allowed).toBe(false);
 
     // KV comes back. Bind it on globalThis so the module picks it up.
     const store = new Map<string, string>();
@@ -111,57 +110,39 @@ describe("F-3 KV unavailability — production fail-open grace", () => {
     expect(kvGet).toHaveBeenCalled();
     expect(kvPut).toHaveBeenCalled();
 
-    // KV breaks again, well after the original grace window would have expired.
-    vi.setSystemTime(new Date("2026-01-01T00:05:00Z"));
+    // KV breaks again
     vi.unstubAllGlobals();
 
-    // A new grace window should open — the call must not fail closed.
-    const reopened = await checkRateLimit("ip:recover-2", CONFIG);
-    expect(reopened.allowed).toBe(true);
-  });
+    // Should fail closed and alert again since state was reset
+    const brokenAgain = await checkRateLimit("ip:recover-2", CONFIG);
+    expect(brokenAgain.allowed).toBe(false);
 
-  it("treats KV.get throwing as an availability failure and falls back to the grace path", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
-    vi.stubEnv("NODE_ENV", "production");
-
-    const kvGet = vi.fn().mockRejectedValue(new Error("KV upstream 500"));
-    const kvPut = vi.fn();
-    vi.stubGlobal("RATE_LIMIT_KV", { get: kvGet, put: kvPut });
-
-    const { checkRateLimit } = await loadModule();
-
-    const res = await checkRateLimit("ip:kv-throw", CONFIG);
-    expect(res.allowed).toBe(true);
-    expect(kvGet).toHaveBeenCalled();
-
-    const graceAlerts = captureExceptionMock.mock.calls.filter(
+    const alerts = captureExceptionMock.mock.calls.filter(
       ([, ctx]) =>
-        (ctx as { context?: string } | undefined)?.context === "rate-limit.kv-grace-open",
+        (ctx as { context?: string } | undefined)?.context ===
+        "rate-limit.kv-unavailable-fail-closed",
     );
-    expect(graceAlerts).toHaveLength(1);
+    expect(alerts).toHaveLength(2); // One from before, one from now
   });
 
-  it("falls back to in-memory indefinitely in non-production even past the grace window", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+  it("falls back to in-memory in non-production", async () => {
     vi.stubEnv("NODE_ENV", "development");
 
     const { checkRateLimit } = await loadModule();
 
     const first = await checkRateLimit("ip:dev-1", CONFIG);
+    const second = await checkRateLimit("ip:dev-1", CONFIG);
+    const third = await checkRateLimit("ip:dev-1", CONFIG);
+
     expect(first.allowed).toBe(true);
+    expect(second.allowed).toBe(true);
+    expect(third.allowed).toBe(false); // Hit in-memory limit
 
-    vi.setSystemTime(new Date("2026-01-01T00:05:00Z"));
-
-    const later = await checkRateLimit("ip:dev-1", CONFIG);
-    expect(later.allowed).toBe(true);
-
-    // No grace-expired alert in dev.
-    const expiredAlerts = captureExceptionMock.mock.calls.filter(
+    const alerts = captureExceptionMock.mock.calls.filter(
       ([, ctx]) =>
-        (ctx as { context?: string } | undefined)?.context === "rate-limit.kv-grace-expired",
+        (ctx as { context?: string } | undefined)?.context ===
+        "rate-limit.kv-unavailable-fail-closed",
     );
-    expect(expiredAlerts).toHaveLength(0);
+    expect(alerts).toHaveLength(0);
   });
 });

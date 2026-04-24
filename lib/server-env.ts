@@ -27,6 +27,11 @@ export interface RequiredEnvVar {
  */
 export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
   {
+    name: "SENTRY_DSN",
+    description: "Sentry DSN for error tracking",
+    ownerFile: "lib/sentry.ts",
+  },
+  {
     name: "NEXT_PUBLIC_SUPABASE_URL",
     description: "Supabase project URL",
     ownerFile: "lib/supabase-server.ts",

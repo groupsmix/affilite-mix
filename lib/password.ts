@@ -9,7 +9,7 @@
 
 import bcrypt from "bcryptjs";
 
-const BCRYPT_ROUNDS = 12;
+const BCRYPT_ROUNDS = 10;
 
 // ── Legacy PBKDF2 helpers (read-only, for migrating existing hashes) ────
 
@@ -27,10 +27,7 @@ function fromHex(hex: string): Uint8Array {
   return new Uint8Array(pairs.map((b) => parseInt(b, 16)));
 }
 
-async function pbkdf2DeriveKey(
-  password: string,
-  salt: Uint8Array,
-): Promise<ArrayBuffer> {
+async function pbkdf2DeriveKey(password: string, salt: Uint8Array): Promise<ArrayBuffer> {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -53,10 +50,7 @@ async function pbkdf2DeriveKey(
 }
 
 /** Verify a password against a legacy PBKDF2 "salt:hash" string */
-async function verifyPbkdf2(
-  password: string,
-  storedHash: string,
-): Promise<boolean> {
+async function verifyPbkdf2(password: string, storedHash: string): Promise<boolean> {
   const [saltHex, hashHex] = storedHash.split(":");
   if (!saltHex || !hashHex) return false;
 
@@ -98,10 +92,7 @@ export interface VerifyResult {
  * When a legacy hash is verified successfully, `needsRehash` is set to `true`
  * so the caller can re-hash and persist the upgraded bcrypt hash.
  */
-export async function verifyPassword(
-  password: string,
-  storedHash: string,
-): Promise<VerifyResult> {
+export async function verifyPassword(password: string, storedHash: string): Promise<VerifyResult> {
   if (!storedHash) return { valid: false, needsRehash: false };
 
   if (isLegacyHash(storedHash)) {

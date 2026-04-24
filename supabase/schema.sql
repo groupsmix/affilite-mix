@@ -39,10 +39,7 @@ CREATE TABLE sites (
   -- Social links
   social_links jsonb DEFAULT '{}',
 
-  -- Custom CSS overrides
-  custom_css  text,
-
-  created_at  timestamptz DEFAULT now(),
+  -- Custom CSS overridescreated_at  timestamptz DEFAULT now(),
   updated_at  timestamptz DEFAULT now()
 );
 
@@ -176,6 +173,11 @@ CREATE TABLE admin_users (
   is_active       boolean NOT NULL DEFAULT true,
   reset_token     text,
   reset_token_expires_at timestamptz,
+  totp_secret     text,
+  totp_enabled    boolean NOT NULL DEFAULT false,
+  totp_verified_at timestamptz,
+  totp_failed_attempts integer NOT NULL DEFAULT 0,
+  totp_locked_until timestamptz,
   created_at      timestamptz DEFAULT now(),
   updated_at      timestamptz DEFAULT now()
 );
@@ -664,8 +666,7 @@ CREATE TABLE IF NOT EXISTS niche_templates (
   default_features jsonb DEFAULT '{}'::jsonb,
   monetization_type text DEFAULT 'affiliate',
   language         text DEFAULT 'en',
-  direction        text DEFAULT 'ltr',
-  custom_css       text DEFAULT '',
+  direction        text DEFAULT 'ltr',,
   social_links     jsonb DEFAULT '{}'::jsonb,
   is_builtin       boolean DEFAULT false,
   created_at       timestamptz DEFAULT now(),

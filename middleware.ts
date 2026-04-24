@@ -95,6 +95,13 @@ export async function middleware(request: NextRequest) {
       "/api/cron/publish",
       "/api/cron/ai-generate",
       "/api/cron/sitemap-refresh",
+      "/api/cron/data-retention",
+      "/api/cron/stripe-sync",
+      "/api/cron/commission-ingest",
+      "/api/cron/epc-recompute",
+      "/api/cron/expire-deals",
+      "/api/cron/price-scrape",
+      "/api/membership/webhook",
       "/api/revalidate",
       // Public endpoints using sendBeacon() which cannot send custom headers
       "/api/track/click",

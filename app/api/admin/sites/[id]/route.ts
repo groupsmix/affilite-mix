@@ -83,7 +83,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     "meta_description",
     "og_image_url",
     "social_links",
-    "custom_css",
   ] as const;
 
   const updates: Record<string, unknown> = {};

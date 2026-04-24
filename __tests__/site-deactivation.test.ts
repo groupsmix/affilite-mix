@@ -56,7 +56,6 @@ describe("middleware DB-fallback deactivation branch", () => {
       footer_nav: [],
       social_links: {},
       ad_config: {},
-      custom_css: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
@@ -105,7 +104,6 @@ describe("middleware DB-fallback deactivation branch", () => {
       footer_nav: [],
       social_links: {},
       ad_config: {},
-      custom_css: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
