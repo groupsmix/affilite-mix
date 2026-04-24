@@ -10,6 +10,7 @@ export interface RecordClickInput {
   affiliate_url: string;
   content_slug?: string;
   referrer?: string;
+  click_id?: string;
 }
 
 export interface ClickDateWindow {
@@ -66,13 +67,16 @@ function resolveChartWindow(window: DailyClicksWindow): {
 /** Record an affiliate click (fire-and-forget) */
 export async function recordClick(input: RecordClickInput): Promise<void> {
   const sb = getServiceClient();
-  const { error } = await sb.from(TABLE).insert({
+  const row = {
     site_id: input.site_id,
     product_name: input.product_name,
     affiliate_url: input.affiliate_url,
     content_slug: input.content_slug ?? "",
     referrer: input.referrer ?? "",
-  });
+    ...(input.click_id ? { click_id: input.click_id } : {}),
+  };
+
+  const { error } = await sb.from(TABLE).insert(row);
 
   // Fire-and-forget: log but don't throw
   if (error) {
@@ -98,7 +102,7 @@ export async function getClickCount(
 
 /** Columns returned for click listings */
 const CLICK_COLUMNS =
-  "id, site_id, product_name, affiliate_url, content_slug, referrer, created_at" as const;
+  "id, click_id, site_id, product_name, affiliate_url, content_slug, referrer, created_at" as const;
 
 /** Get recent clicks for a site (admin) */
 export async function getRecentClicks(

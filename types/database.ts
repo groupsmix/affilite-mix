@@ -42,6 +42,7 @@ export interface NewsletterSubscriberRow {
 
 export interface AffiliateClickRow {
   id: string;
+  click_id: string | null;
   site_id: string;
   product_name: string;
   affiliate_url: string;

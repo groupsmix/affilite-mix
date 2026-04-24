@@ -21,6 +21,7 @@ interface ClickMessage {
   affiliate_url?: string;
   content_slug?: string;
   referrer?: string;
+  click_id?: string;
   ts?: number;
 }
 
@@ -62,13 +63,17 @@ export async function POST(request: NextRequest) {
   }
 
   const messages = Array.isArray(body.messages) ? body.messages : [];
-  const rows = messages.filter(isValidMessage).map((m) => ({
-    site_id: m.site_id,
-    product_name: m.product_name,
-    affiliate_url: m.affiliate_url,
-    content_slug: m.content_slug ?? "",
-    referrer: m.referrer ?? "",
-  }));
+  const rows = messages.filter(isValidMessage).map((m) => {
+    const row: Record<string, unknown> = {
+      site_id: m.site_id,
+      product_name: m.product_name,
+      affiliate_url: m.affiliate_url,
+      content_slug: m.content_slug ?? "",
+      referrer: m.referrer ?? "",
+    };
+    if (m.click_id) row.click_id = m.click_id;
+    return row;
+  });
 
   if (rows.length === 0) {
     return NextResponse.json({ ok: true, inserted: 0 });
@@ -76,9 +81,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const sb = getServiceClient();
-    const { error } = await sb.from("affiliate_clicks").insert(rows);
+    // Use upsert with ignoreDuplicates so retried queue messages with the
+    // same click_id are silently skipped (ON CONFLICT (click_id) DO NOTHING).
+    const { error } = await sb
+      .from("affiliate_clicks")
+      .upsert(rows, { onConflict: "click_id", ignoreDuplicates: true });
     if (error) {
-      captureException(new Error(error.message), { context: "[api/queue/clicks] insert" });
+      captureException(new Error(error.message), { context: "[api/queue/clicks] upsert" });
       return NextResponse.json({ error: "DB insert failed" }, { status: 500 });
     }
     return NextResponse.json({ ok: true, inserted: rows.length });
