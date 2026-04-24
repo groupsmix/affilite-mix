@@ -6,6 +6,16 @@
  *
  * In local development (or when KV is unavailable), falls back to a
  * per-process in-memory store — acceptable for dev but NOT for production.
+ *
+ * F-3 — when KV is unexpectedly unavailable in production (binding
+ * missing or `get`/`put` throws), the limiter fails OPEN to the
+ * per-isolate in-memory store for a 60-second grace window instead of
+ * rejecting every request outright. The grace window prevents transient
+ * KV glitches (cold-start races, brief network blips) from briefly
+ * bricking public endpoints (newsletter, /r/, login, unsubscribe) while
+ * still failing closed if the binding is persistently broken —
+ * capping the window at which an attacker can exploit per-isolate
+ * in-memory rate limiting.
  */
 
 import { captureException } from "@/lib/sentry";
@@ -237,9 +247,101 @@ function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitRe
  * Check and record a request against the rate limit.
  *
  * Uses Cloudflare KV in production for distributed rate limiting.
- * Falls back to in-memory store in local development.
+ * Falls back to in-memory store in local development, or — per F-3 —
+ * in production for a bounded grace window when KV is unexpectedly
+ * unavailable.
  */
 let kvFallbackWarned = false;
+
+// F-3 grace-window state. Module-level (per-isolate) on purpose: an
+// isolate that has been observing KV outages for longer than
+// KV_GRACE_MS should fail closed on its own without coordinating
+// across isolates. A single-isolate view is sufficient because each
+// isolate independently re-derives the state on the next request.
+const KV_GRACE_MS = 60_000;
+let kvFirstUnavailableAt: number | null = null;
+let kvGraceAlerted = false;
+let kvExpiredAlerted = false;
+
+/** Reset internal KV-availability state. Exported for tests. */
+export function __resetRateLimitKvStateForTests(): void {
+  kvFallbackWarned = false;
+  kvFirstUnavailableAt = null;
+  kvGraceAlerted = false;
+  kvExpiredAlerted = false;
+}
+
+function markKvAvailable(): void {
+  if (kvFirstUnavailableAt !== null) {
+    kvFirstUnavailableAt = null;
+    kvGraceAlerted = false;
+    kvExpiredAlerted = false;
+  }
+}
+
+/**
+ * KV is unavailable (binding missing or get/put threw). In production,
+ * fail OPEN to the in-memory limiter for KV_GRACE_MS; after the grace
+ * window elapses without KV recovering, fail CLOSED. In development,
+ * fall back to memory indefinitely (existing behaviour).
+ */
+function handleKvUnavailable(
+  key: string,
+  config: RateLimitConfig,
+  reason: string,
+  err?: unknown,
+): RateLimitResult {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (!isProduction) {
+    if (!kvFallbackWarned) {
+      kvFallbackWarned = true;
+      console.warn(
+        "[rate-limit] KV namespace RATE_LIMIT_KV not available — using in-memory fallback. " +
+          "This is expected in local dev but NOT safe for production. " +
+          "See lib/rate-limit.ts for KV configuration instructions.",
+      );
+    }
+    return checkRateLimitMemory(key, config);
+  }
+
+  const now = Date.now();
+  if (kvFirstUnavailableAt === null) {
+    kvFirstUnavailableAt = now;
+  }
+
+  const elapsed = now - kvFirstUnavailableAt;
+  if (elapsed < KV_GRACE_MS) {
+    if (!kvGraceAlerted) {
+      kvGraceAlerted = true;
+      const msg =
+        `[rate-limit] KV unavailable (${reason}) — falling back to in-memory ` +
+        `limiter for a ${Math.round(KV_GRACE_MS / 1000)}s grace window. ` +
+        "Requests will continue to be rate-limited per isolate until KV recovers.";
+      console.error(msg);
+      captureException(err ?? new Error(msg), {
+        context: "rate-limit.kv-grace-open",
+      });
+    }
+    return checkRateLimitMemory(key, config);
+  }
+
+  if (!kvExpiredAlerted) {
+    kvExpiredAlerted = true;
+    const msg =
+      `[rate-limit] CRITICAL: KV unavailable for >${Math.round(
+        KV_GRACE_MS / 1000,
+      )}s (${reason}). ` +
+      "Fail-open grace window exhausted — rate-limited requests will now be rejected. " +
+      "Configure the KV binding in wrangler.jsonc to restore service. " +
+      "See lib/rate-limit.ts for KV configuration instructions.";
+    console.error(msg);
+    captureException(err ?? new Error(msg), {
+      context: "rate-limit.kv-grace-expired",
+    });
+  }
+  return { allowed: false, remaining: 0, retryAfterMs: 60_000 };
+}
 
 export async function checkRateLimit(
   key: string,
@@ -259,40 +361,16 @@ export async function checkRateLimit(
 
   const kv = getKVNamespace();
   if (kv) {
-    return checkRateLimitKV(kv, key, config);
-  }
-
-  // In production, fail closed: reject requests when KV is unavailable
-  // rather than falling through to per-isolate in-memory rate limiting
-  // that an attacker can trivially bypass.
-  if (process.env.NODE_ENV === "production") {
-    if (!kvFallbackWarned) {
-      kvFallbackWarned = true;
-      const msg =
-        "[rate-limit] CRITICAL: KV namespace RATE_LIMIT_KV not available in production. " +
-        "Rate-limited requests will be rejected. " +
-        "Configure the KV binding in wrangler.jsonc to restore service. " +
-        "See lib/rate-limit.ts for KV configuration instructions.";
-      console.error(msg);
-      // Also fire a Sentry alert so this misconfiguration does not silently
-      // take down every public endpoint (newsletter, tracking, unsubscribe)
-      // behind the fail-closed policy.
-      captureException(new Error(msg), {
-        context: "rate-limit.kv-unavailable",
-      });
+    try {
+      const result = await checkRateLimitKV(kv, key, config);
+      markKvAvailable();
+      return result;
+    } catch (err) {
+      // KV binding is present but a get/put threw — treat as an
+      // availability failure and fall through to the F-3 grace path.
+      return handleKvUnavailable(key, config, "kv-get-or-put-threw", err);
     }
-    return { allowed: false, remaining: 0, retryAfterMs: 60_000 };
   }
 
-  // In local development, fall back to in-memory rate limiting.
-  if (!kvFallbackWarned) {
-    kvFallbackWarned = true;
-    console.warn(
-      "[rate-limit] KV namespace RATE_LIMIT_KV not available — using in-memory fallback. " +
-        "This is expected in local dev but NOT safe for production. " +
-        "See lib/rate-limit.ts for KV configuration instructions.",
-    );
-  }
-
-  return checkRateLimitMemory(key, config);
+  return handleKvUnavailable(key, config, "binding-missing");
 }
