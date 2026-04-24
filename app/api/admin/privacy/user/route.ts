@@ -220,14 +220,19 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-/** Simple hash for logging (not reversible) */
+import crypto from "crypto";
+
+/**
+ * HMAC-SHA256 hash for GDPR audit logging.
+ * Replaces the weak 32-bit rolling hash to prevent dictionary attacks
+ * on exported/erased user emails while still allowing correlation.
+ */
 function hashEmail(email: string): string {
-  let hash = 0;
-  const str = email.toLowerCase();
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16).padStart(8, "0");
+  const secret =
+    process.env.GDPR_HASH_SECRET || process.env.JWT_SECRET || "fallback-secret-do-not-use-in-prod";
+  return crypto
+    .createHmac("sha256", secret)
+    .update(email.toLowerCase().trim())
+    .digest("hex")
+    .substring(0, 16);
 }
