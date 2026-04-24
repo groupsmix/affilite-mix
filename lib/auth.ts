@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { getJwtSecret } from "@/lib/jwt-secret";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
+import { isTokenRevoked } from "@/lib/jwt-revocation";
 
 const COOKIE_NAME = "nh_admin_token";
 /** Cookie tracking last admin activity for idle-timeout enforcement */
@@ -94,8 +95,11 @@ export async function createToken(payload: AdminPayload, request?: Request): Pro
   const claims: AdminPayload = { ...payload };
   if (binding) claims.bnd = binding;
 
+  const jti = crypto.randomUUID();
+
   return new SignJWT({ ...claims })
     .setProtectedHeader({ alg: "HS256" })
+    .setJti(jti)
     .setIssuedAt()
     .setExpirationTime(EXPIRY)
     .setAudience("affiliate-platform")
@@ -116,6 +120,12 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
       audience: "affiliate-platform",
       issuer: "affiliate-platform",
     });
+
+    if (!payload.jti || (await isTokenRevoked(payload.jti))) {
+      logger.warn("Token rejected: missing JTI or explicitly revoked", { jti: payload.jti });
+      return null;
+    }
+
     const adminPayload = payload as unknown as AdminPayload;
 
     if (adminPayload.bnd) {

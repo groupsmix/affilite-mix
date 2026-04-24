@@ -123,47 +123,13 @@ export async function setLinkedProducts(
 ): Promise<void> {
   const sb = getServiceClient();
 
-  // 1. Verify the content belongs to this site.
-  const { data: contentRow, error: contentErr } = await sb
-    .from("content")
-    .select("id")
-    .eq("id", contentId)
-    .eq("site_id", siteId)
-    .maybeSingle();
-  if (contentErr) throw contentErr;
-  if (!contentRow) {
-    throw new Error("Content not found for this site");
+  const { error } = await sb.rpc("set_linked_products", {
+    p_site_id: siteId,
+    p_content_id: contentId,
+    p_links: links,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to set linked products");
   }
-
-  // 2. Verify every referenced product belongs to this site.
-  if (links.length > 0) {
-    const productIds = Array.from(new Set(links.map((l) => l.product_id)));
-    const { data: ownedProducts, error: productErr } = await sb
-      .from("products")
-      .select("id")
-      .eq("site_id", siteId)
-      .in("id", productIds);
-    if (productErr) throw productErr;
-
-    const ownedIds = new Set((ownedProducts ?? []).map((p: { id: string }) => p.id));
-    const foreign = productIds.filter((id) => !ownedIds.has(id));
-    if (foreign.length > 0) {
-      throw new Error("One or more products do not belong to this site");
-    }
-  }
-
-  // 3. Delete existing links for this content (content ownership already verified).
-  const { error: delError } = await sb.from(TABLE).delete().eq("content_id", contentId);
-  if (delError) throw delError;
-
-  if (links.length === 0) return;
-
-  // 4. Insert new links.
-  const rows = links.map((link) => ({
-    ...link,
-    content_id: contentId,
-  }));
-
-  const { error: insError } = await sb.from(TABLE).insert(rows);
-  if (insError) throw insError;
 }
