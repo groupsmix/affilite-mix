@@ -21,10 +21,7 @@ import { hashResetToken, verifyResetToken } from "@/lib/reset-token";
  */
 export async function POST(request: Request) {
   try {
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("cf-connecting-ip") ??
-      "unknown";
+    const ip = getClientIp(request);
 
     // Rate limit: 5 attempts per IP per 15 minutes
     const rl = await checkRateLimit(`reset-password:${ip}`, {
@@ -121,7 +118,8 @@ export async function POST(request: Request) {
       const token = cookieStore.get(COOKIE_NAME)?.value;
       if (token) {
         const [, payloadStr] = token.split(".");
-        const payload = JSON.parse(atob(payloadStr));
+        const base64 = payloadStr.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(base64));
         if (payload.jti) {
           await revokeToken(payload.jti);
         }

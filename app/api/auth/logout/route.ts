@@ -14,7 +14,8 @@ export async function POST() {
       try {
         // Decode without verifying just to get JTI for revocation
         const [, payloadStr] = token.split(".");
-        const payload = JSON.parse(atob(payloadStr));
+        const base64 = payloadStr.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(base64));
         if (payload.jti) {
           await revokeToken(payload.jti);
         }

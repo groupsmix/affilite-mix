@@ -71,7 +71,9 @@ export async function POST(request: NextRequest) {
       entity_id: fileName,
       details: { contentType, publicUrl },
     });
-    return NextResponse.json({ uploadUrl, publicUrl });
+    const res = NextResponse.json({ uploadUrl, publicUrl });
+    res.headers.set("Content-Disposition", "attachment");
+    return res;
   } catch (err) {
     captureException(err, { context: "[api/admin/upload] POST failed:" });
     const message = err instanceof Error ? err.message : "Upload failed";

@@ -290,21 +290,20 @@ function handleKvUnavailable(
     return checkRateLimitMemory(key, config);
   }
 
-  // Fail closed immediately in production
+  // Fail OPEN gracefully in production to in-memory fallback instead of failing closed
   if (!kvUnavailableAlerted) {
     kvUnavailableAlerted = true;
     const msg =
-      `[rate-limit] CRITICAL: KV unavailable (${reason}). ` +
-      "Fail-closed: rate-limited requests will now be rejected. " +
-      "Configure the KV binding in wrangler.jsonc to restore service. " +
-      "See lib/rate-limit.ts for KV configuration instructions.";
+      `[rate-limit] WARNING: KV unavailable (${reason}). ` +
+      "Fail-open: rate-limited requests will temporarily use per-isolate memory fallback. " +
+      "Configure the KV binding in wrangler.jsonc to restore distributed rate limiting.";
     console.error(msg);
     captureException(err ?? new Error(msg), {
-      context: "rate-limit.kv-unavailable-fail-closed",
+      context: "rate-limit.kv-unavailable-fail-open",
     });
   }
 
-  return { allowed: false, remaining: 0, retryAfterMs: 60_000 };
+  return checkRateLimitMemory(key, config);
 }
 
 export async function checkRateLimit(

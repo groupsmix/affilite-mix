@@ -33,38 +33,38 @@ afterEach(() => {
 });
 
 describe("F-3 KV unavailability", () => {
-  it("fails closed immediately when KV binding is missing in production", async () => {
+  it("fails open gracefully when KV binding is missing in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
 
     const { checkRateLimit } = await loadModule();
 
     const result = await checkRateLimit("ip:missing-1", CONFIG);
 
-    expect(result.allowed).toBe(false);
-    expect(result.remaining).toBe(0);
-    expect(result.retryAfterMs).toBe(60_000);
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(1);
+    expect(result.retryAfterMs).toBe(0);
 
     // A Sentry alert must be fired exactly once
     const alerts = captureExceptionMock.mock.calls.filter(
       ([, ctx]) =>
         (ctx as { context?: string } | undefined)?.context ===
-        "rate-limit.kv-unavailable-fail-closed",
+        "rate-limit.kv-unavailable-fail-open",
     );
     expect(alerts).toHaveLength(1);
 
     // Second call should also fail closed, but not alert again
     const result2 = await checkRateLimit("ip:missing-1", CONFIG);
-    expect(result2.allowed).toBe(false);
+    expect(result2.allowed).toBe(true);
     expect(
       captureExceptionMock.mock.calls.filter(
         ([, ctx]) =>
           (ctx as { context?: string } | undefined)?.context ===
-          "rate-limit.kv-unavailable-fail-closed",
+          "rate-limit.kv-unavailable-fail-open",
       ),
     ).toHaveLength(1);
   });
 
-  it("fails closed immediately when KV.get throws in production", async () => {
+  it("fails open gracefully when KV.get throws in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
 
     const kvGet = vi.fn().mockRejectedValue(new Error("KV upstream 500"));
@@ -74,13 +74,13 @@ describe("F-3 KV unavailability", () => {
     const { checkRateLimit } = await loadModule();
 
     const res = await checkRateLimit("ip:kv-throw", CONFIG);
-    expect(res.allowed).toBe(false);
+    expect(res.allowed).toBe(true);
     expect(kvGet).toHaveBeenCalled();
 
     const alerts = captureExceptionMock.mock.calls.filter(
       ([, ctx]) =>
         (ctx as { context?: string } | undefined)?.context ===
-        "rate-limit.kv-unavailable-fail-closed",
+        "rate-limit.kv-unavailable-fail-open",
     );
     expect(alerts).toHaveLength(1);
   });
@@ -92,7 +92,7 @@ describe("F-3 KV unavailability", () => {
 
     // KV missing — fails closed.
     const missingCall = await checkRateLimit("ip:recover-1", CONFIG);
-    expect(missingCall.allowed).toBe(false);
+    expect(missingCall.allowed).toBe(true);
 
     // KV comes back. Bind it on globalThis so the module picks it up.
     const store = new Map<string, string>();
@@ -115,12 +115,12 @@ describe("F-3 KV unavailability", () => {
 
     // Should fail closed and alert again since state was reset
     const brokenAgain = await checkRateLimit("ip:recover-2", CONFIG);
-    expect(brokenAgain.allowed).toBe(false);
+    expect(brokenAgain.allowed).toBe(true);
 
     const alerts = captureExceptionMock.mock.calls.filter(
       ([, ctx]) =>
         (ctx as { context?: string } | undefined)?.context ===
-        "rate-limit.kv-unavailable-fail-closed",
+        "rate-limit.kv-unavailable-fail-open",
     );
     expect(alerts).toHaveLength(2); // One from before, one from now
   });
@@ -141,7 +141,7 @@ describe("F-3 KV unavailability", () => {
     const alerts = captureExceptionMock.mock.calls.filter(
       ([, ctx]) =>
         (ctx as { context?: string } | undefined)?.context ===
-        "rate-limit.kv-unavailable-fail-closed",
+        "rate-limit.kv-unavailable-fail-open",
     );
     expect(alerts).toHaveLength(0);
   });

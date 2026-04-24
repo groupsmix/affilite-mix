@@ -6,6 +6,8 @@
  * the next one is used automatically.
  */
 
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
+
 export interface AIProvider {
   name: string;
   /** Model identifier used by this provider (recorded alongside generations) */
@@ -73,7 +75,7 @@ class CloudflareAIProvider implements AIProvider {
     }
     messages.push({ role: "user", content: prompt });
 
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${cfg.cloudflareApiToken}`,
@@ -112,13 +114,14 @@ class GeminiProvider implements AIProvider {
 
     const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: fullPrompt }] }],
         generationConfig: { maxOutputTokens: 4096 },
       }),
+      timeoutMs: 15000,
     });
 
     if (!res.ok) {
@@ -157,7 +160,7 @@ class GroqProvider implements AIProvider {
     }
     messages.push({ role: "user", content: prompt });
 
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${cfg.groqApiKey}`,
@@ -168,6 +171,7 @@ class GroqProvider implements AIProvider {
         messages,
         max_tokens: 4096,
       }),
+      timeoutMs: 15000,
     });
 
     if (!res.ok) {
@@ -206,7 +210,7 @@ class CohereProvider implements AIProvider {
     }
     messages.push({ role: "user", content: prompt });
 
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${cfg.cohereApiKey}`,
@@ -217,6 +221,7 @@ class CohereProvider implements AIProvider {
         messages,
         max_tokens: 4096,
       }),
+      timeoutMs: 15000,
     });
 
     if (!res.ok) {

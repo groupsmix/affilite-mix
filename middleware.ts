@@ -56,7 +56,20 @@ export async function middleware(request: NextRequest) {
   //    which added latency and coupling on the hot path.
   if (!siteId && !isLocalhostDev) {
     try {
-      const row = await getSiteRowByDomain(hostname);
+      const cacheKey = `site-domain:${hostname}`;
+      let cachedRow = null;
+      try {
+        const kv = (process.env as any).RATE_LIMIT_KV as any;
+        if (kv) cachedRow = await kv.get(cacheKey, "json");
+      } catch (e) {}
+
+      const row = cachedRow || (await getSiteRowByDomain(hostname));
+      if (row && !cachedRow) {
+        try {
+          const kv = (process.env as any).RATE_LIMIT_KV as any;
+          if (kv) await kv.put(cacheKey, JSON.stringify(row), { expirationTtl: 300 });
+        } catch (e) {}
+      }
       if (row && row.is_active) {
         siteId = row.slug;
       } else if (row && !row.is_active) {
@@ -178,7 +191,6 @@ export async function middleware(request: NextRequest) {
       path: "/",
       maxAge: 60 * 60 * 4,
     });
-    response.headers.set("x-csrf-token-refreshed", newToken);
   }
 
   return response;
@@ -188,18 +200,15 @@ function getAllowedOrigins(requestHostname?: string): string[] {
   const origins: string[] = [];
   for (const site of allSites) {
     origins.push(`https://${site.domain}`);
-    origins.push(`http://${site.domain}`);
     if (site.aliases) {
       for (const alias of site.aliases) {
         origins.push(`https://${alias}`);
-        origins.push(`http://${alias}`);
       }
     }
   }
   // Allow the current request hostname (covers wildcard subdomains resolved via DB)
   if (requestHostname) {
     origins.push(`https://${requestHostname}`);
-    origins.push(`http://${requestHostname}`);
   }
   // Allow localhost for dev (common ports)
   if (process.env.NODE_ENV === "development") {
