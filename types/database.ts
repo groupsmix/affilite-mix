@@ -148,6 +148,7 @@ export interface ContentRow {
   meta_description: string | null;
   og_image: string | null;
   body_previous: string | null;
+  review_state: "draft" | "awaiting_edit" | "edited" | "published";
   created_at: string;
   updated_at: string;
 }

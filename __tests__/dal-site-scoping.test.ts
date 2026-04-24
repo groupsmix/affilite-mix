@@ -174,6 +174,7 @@ describe("lib/dal/content — every query is site-scoped", () => {
       meta_description: "",
       og_image: "",
       body_previous: "",
+      review_state: "draft",
       image_alt: "",
     } as Parameters<typeof mod.createContent>[0]);
     expectInsertContainsSiteId(lastRecorder());

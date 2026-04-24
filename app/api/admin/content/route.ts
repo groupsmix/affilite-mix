@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
       meta_description: data.meta_description,
       og_image: data.og_image,
       body_previous: null,
+      review_state: "draft",
     });
 
     void revalidateTag(contentTag(dbSiteId));
