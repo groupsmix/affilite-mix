@@ -111,6 +111,6 @@ function mapStripeStatus(stripeStatus: string): "active" | "cancelled" | "expire
     case "incomplete_expired":
       return "expired";
     default:
-      return "active";
+      return "expired";
   }
 }
