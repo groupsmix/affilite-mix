@@ -14,5 +14,5 @@ ALTER TABLE affiliate_clicks
   ADD COLUMN IF NOT EXISTS click_id UUID;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_affiliate_clicks_click_id
-  ON affiliate_clicks (click_id)
-  WHERE click_id IS NOT NULL;
+  ON affiliate_clicks (click_id);
+
