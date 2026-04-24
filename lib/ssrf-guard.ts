@@ -159,6 +159,21 @@ export function validateExternalUrl(
 
   const hostname = normalizeHostname(url.hostname);
 
+  // Block wildcard DNS services used for DNS rebinding/SSRF bypass
+  const WILDCARD_DNS = [
+    ".nip.io",
+    ".sslip.io",
+    ".localtest.me",
+    ".xip.io",
+    ".vcap.me",
+    ".internal",
+  ];
+  for (const suffix of WILDCARD_DNS) {
+    if (hostname.endsWith(suffix)) {
+      return { valid: false, error: `Wildcard DNS '${suffix}' is blocked` };
+    }
+  }
+
   // Blocklist check
   if (BLOCKED_HOSTS.has(hostname)) {
     return { valid: false, error: `Hostname '${hostname}' is blocked` };

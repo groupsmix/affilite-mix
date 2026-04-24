@@ -3,6 +3,8 @@ import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { shouldSkipDbCall } from "@/lib/db-available";
 
+import { safeFetch } from "@/lib/ssrf-guard";
+
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
@@ -14,7 +16,7 @@ export default async function AppleIcon() {
     try {
       const dbSite = await resolveDbSiteBySlug(site.id);
       if (dbSite?.favicon_url) {
-        const res = await fetch(dbSite.favicon_url);
+        const res = await safeFetch(dbSite.favicon_url);
         if (res.ok) {
           const buffer = await res.arrayBuffer();
           return new Response(buffer, {

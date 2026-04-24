@@ -82,6 +82,7 @@ export async function updateMembership(
       | "current_period_start"
       | "current_period_end"
       | "cancelled_at"
+      | "email"
     >
   >,
 ): Promise<MembershipRow> {

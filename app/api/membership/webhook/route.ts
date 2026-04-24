@@ -5,25 +5,9 @@ import {
   updateMembership,
 } from "@/lib/dal/memberships";
 import { recordStripeEvent } from "@/lib/dal/stripe-events";
-import { constructStripeEvent, StripeSignatureError, type StripeEvent } from "@/lib/stripe-webhook";
 import { logger } from "@/lib/logger";
+import Stripe from "stripe";
 
-/**
- * POST /api/membership/webhook
- * Stripe webhook handler for membership lifecycle events.
- * Handles: checkout.session.completed, invoice.paid,
- *          customer.subscription.updated, customer.subscription.deleted
- *
- * Security (audit F-001 / A-1):
- *  - Verifies the Stripe-Signature header against
- *    STRIPE_WEBHOOK_SECRET using HMAC-SHA256 before doing anything.
- *  - Records each event id in the `stripe_events` table so replayed
- *    deliveries (Stripe retries any non-2xx) never apply side effects
- *    twice.
- *  - If memberships are not configured yet (no STRIPE_SECRET_KEY or
- *    STRIPE_WEBHOOK_SECRET) we return 503 unconditionally so forged
- *    webhooks cannot reach the handler.
- */
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -33,28 +17,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
   }
 
-  // Read raw body for signature verification — must not be re-parsed
-  // or normalized before HMAC comparison.
+  const stripe = new Stripe(stripeKey, {
+    apiVersion: "2024-12-18.acacia",
+    appInfo: { name: "affilite-mix" },
+    httpClient: Stripe.createFetchHttpClient(),
+  });
+
   const rawBody = await request.text();
   const signature = request.headers.get("stripe-signature");
 
-  let event: StripeEvent;
-  try {
-    event = await constructStripeEvent(rawBody, signature, webhookSecret);
-  } catch (err) {
-    if (err instanceof StripeSignatureError) {
-      logger.warn("Stripe webhook signature verification failed", { error: err.message });
-      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-    }
-    logger.error("Stripe webhook verification error", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return NextResponse.json({ error: "Webhook verification failed" }, { status: 400 });
+  if (!signature) {
+    return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
-  // Idempotency: reject replays before doing any work. If the insert
-  // fails for any reason other than a duplicate PK we fall through to
-  // the 500 handler below so Stripe retries the delivery.
+  let event: Stripe.Event;
+  try {
+    event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
+  } catch (err) {
+    logger.warn("Stripe webhook signature verification failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
   let firstDelivery: boolean;
   try {
     firstDelivery = await recordStripeEvent(event.id, event.type);
@@ -74,62 +59,46 @@ export async function POST(request: NextRequest) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object;
-        const metadata = session.metadata as Record<string, string> | undefined;
-        const email = session.customer_email as string;
+        const session = event.data.object as Stripe.Checkout.Session;
+        const metadata = session.metadata;
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
         const siteId = metadata?.site_id;
         const tier = (metadata?.tier as "insider" | "pro") || "insider";
 
-        if (email && siteId && subscriptionId) {
-          // Fetch subscription details from Stripe
-          const subRes = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
-            headers: { Authorization: `Bearer ${stripeKey}` },
-          });
-          const sub = await subRes.json();
+        if (customerId && siteId && subscriptionId) {
+          const sub = await stripe.subscriptions.retrieve(subscriptionId);
+          const customer = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
+          const email = customer.email || session.customer_details?.email;
 
-          await createMembership({
-            site_id: siteId,
-            email,
-            tier,
-            stripe_customer_id: customerId,
-            stripe_subscription_id: subscriptionId,
-            current_period_start: sub.current_period_start
-              ? new Date(sub.current_period_start * 1000).toISOString()
-              : undefined,
-            current_period_end: sub.current_period_end
-              ? new Date(sub.current_period_end * 1000).toISOString()
-              : undefined,
-          });
-
-          logger.info("Membership created via Stripe checkout", { email, siteId, tier });
+          if (email) {
+            await createMembership({
+              site_id: siteId,
+              email,
+              tier,
+              stripe_customer_id: customerId,
+              stripe_subscription_id: subscriptionId,
+              current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+            });
+            logger.info("Membership created via Stripe checkout", { email, siteId, tier });
+          }
         }
         break;
       }
 
       case "invoice.paid": {
-        const invoice = event.data.object;
+        const invoice = event.data.object as Stripe.Invoice;
         const subscriptionId = invoice.subscription as string;
 
         if (subscriptionId) {
           const membership = await getMembershipByStripeSubscription(subscriptionId);
           if (membership) {
-            // Fetch updated subscription period
-            const subRes = await fetch(
-              `https://api.stripe.com/v1/subscriptions/${subscriptionId}`,
-              { headers: { Authorization: `Bearer ${stripeKey}` } },
-            );
-            const sub = await subRes.json();
-
+            const sub = await stripe.subscriptions.retrieve(subscriptionId);
             await updateMembership(membership.id, {
               status: "active",
-              current_period_start: sub.current_period_start
-                ? new Date(sub.current_period_start * 1000).toISOString()
-                : undefined,
-              current_period_end: sub.current_period_end
-                ? new Date(sub.current_period_end * 1000).toISOString()
-                : undefined,
+              current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
             });
             logger.info("Membership renewed", { email: membership.email });
           }
@@ -138,16 +107,25 @@ export async function POST(request: NextRequest) {
       }
 
       case "customer.subscription.updated": {
-        const subscription = event.data.object;
-        const subscriptionId = subscription.id as string;
-        const status = subscription.status as string;
+        const subscription = event.data.object as Stripe.Subscription;
+        const subscriptionId = subscription.id;
+        const status = subscription.status;
+        const customerId = subscription.customer as string;
 
         const membership = await getMembershipByStripeSubscription(subscriptionId);
         if (membership) {
           const mappedStatus = mapStripeStatus(status);
-          await updateMembership(membership.id, { status: mappedStatus });
+          const customer = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
+
+          await updateMembership(membership.id, {
+            status: mappedStatus,
+            email: customer.email || membership.email, // Sync email changes
+            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          });
+
           logger.info("Membership status updated", {
-            email: membership.email,
+            email: customer.email || membership.email,
             status: mappedStatus,
           });
         }
@@ -155,8 +133,8 @@ export async function POST(request: NextRequest) {
       }
 
       case "customer.subscription.deleted": {
-        const subscription = event.data.object;
-        const subscriptionId = subscription.id as string;
+        const subscription = event.data.object as Stripe.Subscription;
+        const subscriptionId = subscription.id;
 
         const membership = await getMembershipByStripeSubscription(subscriptionId);
         if (membership) {
