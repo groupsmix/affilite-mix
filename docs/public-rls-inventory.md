@@ -122,6 +122,23 @@ All recommendations from the original inventory have been addressed:
    longer exist (migration 00037); public reads now go through server
    routes that query under the service role.
 
-Future work: consider adding a CI check that fails if any policy on a
-public-schema table grants `anon` or `authenticated` any privilege
-beyond what is documented here.
+## Live-DB audit (E-6)
+
+`scripts/db-audit.sh` runs the audit queries codified from this
+document against a live database (staging by default) and exits
+non-zero if any of the following invariants are violated:
+
+- **[A]** the `anon` role holds any table privilege
+  (SELECT / INSERT / UPDATE / DELETE / TRUNCATE / REFERENCES / TRIGGER)
+  on ANY public-schema table,
+- **[B]** any RLS policy on a public-schema table names `anon` in its
+  `roles` array, or
+- **[C]** any RLS policy on a public-schema table uses
+  `FOR ALL USING (true)` without a `service_role` scope (this
+  complements the static check in `scripts/check-migrations.sh` by
+  catching drift between migration history and the live DB).
+
+The script is invoked by the `RLS audit (E-6)` job in
+`.github/workflows/ci.yml`, gated on the `STAGING_SUPABASE_DB_URL`
+repo secret. When the secret is unset the script exits 0 with a
+warning so PRs from forks do not fail.
