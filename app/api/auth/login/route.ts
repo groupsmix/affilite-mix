@@ -109,7 +109,9 @@ export async function POST(request: NextRequest) {
         ) {
           // Increment failed attempts and lock if >= 10
           const attempts = (user.totp_failed_attempts || 0) + 1;
-          const updates: any = { totp_failed_attempts: attempts };
+          const updates: { totp_failed_attempts: number; totp_locked_until?: string } = {
+            totp_failed_attempts: attempts,
+          };
           if (attempts >= 10) {
             // Lock for 1 hour
             updates.totp_locked_until = new Date(Date.now() + 60 * 60 * 1000).toISOString();

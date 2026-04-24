@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
  * Uses constant-time XOR to avoid leaking length or content via timing.
  * Compatible with Cloudflare Workers (no Node.js crypto dependency).
  */
-function timingSafeCompare(a: Uint8Array, b: Uint8Array): boolean {
+export function timingSafeCompare(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) {
     // Compare a with itself to keep constant-time behavior
     let result = 0;

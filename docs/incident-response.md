@@ -175,7 +175,7 @@ ETA: [Estimated resolution time, if known]
 5. **Invalidate caches if needed:**
    ```bash
    curl -X POST https://wristnerd.site/api/revalidate \
-     -H "Authorization: Bearer ${CRON_SECRET}" \
+     -H "Authorization: Bearer ${INTERNAL_API_TOKEN}" \
      -H "Content-Type: application/json" \
      -d '{"tags": ["content", "products", "categories"]}'
    ```
