@@ -28,7 +28,7 @@ export async function recordStripeEvent(
 ): Promise<boolean> {
   const sb = getServiceClient();
 
-  const { error } = await (sb.from as any)(TABLE).insert({
+  const { error } = await sb.from(TABLE).insert({
     stripe_event_id: stripeEventId,
     event_type: eventType,
   });
@@ -40,4 +40,17 @@ export async function recordStripeEvent(
     return false;
   }
   throw error;
+}
+
+export async function getRecentStripeEventIds(since: Date): Promise<Set<string>> {
+  const sb = getServiceClient();
+
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("stripe_event_id")
+    .gte("received_at", since.toISOString());
+
+  if (error) throw error;
+
+  return new Set((data as { stripe_event_id: string }[]).map((row) => row.stripe_event_id));
 }

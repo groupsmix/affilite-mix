@@ -58,7 +58,7 @@ export async function ingestCommissions(
 
   // Insert one at a time to handle dedup gracefully
   for (const report of reports) {
-    const { error } = await (sb.from as any)(COMMISSION_TABLE).insert(report).select().single();
+    const { error } = await sb.from(COMMISSION_TABLE).insert(report).select().single();
 
     if (error) {
       if (error.code === "23505") {
@@ -83,7 +83,8 @@ export async function getCommissionStats(
 ): Promise<CommissionRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(COMMISSION_TABLE)
+  const { data, error } = await sb
+    .from(COMMISSION_TABLE)
     .select("*")
     .eq("site_id", siteId)
     .gte("event_date", startDate)
@@ -107,7 +108,8 @@ export async function upsertProductEpc(input: {
 }): Promise<ProductEpcRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(EPC_TABLE)
+  const { data, error } = await sb
+    .from(EPC_TABLE)
     .upsert(
       { ...input, updated_at: new Date().toISOString() },
       { onConflict: "product_id,network" },
@@ -123,7 +125,8 @@ export async function upsertProductEpc(input: {
 export async function getProductEpcStats(productId: string): Promise<ProductEpcRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(EPC_TABLE)
+  const { data, error } = await sb
+    .from(EPC_TABLE)
     .select("*")
     .eq("product_id", productId)
     .order("epc_30d", { ascending: false });

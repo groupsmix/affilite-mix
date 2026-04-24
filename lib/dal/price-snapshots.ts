@@ -24,7 +24,7 @@ export async function createPriceSnapshot(input: {
 }): Promise<PriceSnapshotRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<PriceSnapshotRow>(data, "PriceSnapshot");
 }
@@ -42,7 +42,7 @@ export async function createPriceSnapshots(
   if (inputs.length === 0) return [];
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE).insert(inputs).select();
+  const { data, error } = await sb.from(TABLE).insert(inputs).select();
   if (error) throw error;
   return assertRows<PriceSnapshotRow>(data);
 }
@@ -56,7 +56,8 @@ export async function getPriceHistory(
   const since = new Date();
   since.setDate(since.getDate() - days);
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("product_id", productId)
     .gte("scraped_at", since.toISOString())
@@ -70,7 +71,8 @@ export async function getPriceHistory(
 export async function getLatestPrice(productId: string): Promise<PriceSnapshotRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("product_id", productId)
     .order("scraped_at", { ascending: false })
@@ -90,7 +92,8 @@ export async function getLatestPricesForProducts(
 
   // Get the most recent snapshot per product using distinct on
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .in("product_id", productIds)
     .order("product_id")

@@ -26,7 +26,7 @@ export async function createPriceAlert(input: {
 }): Promise<PriceAlertRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<PriceAlertRow>(data, "PriceAlert");
 }
@@ -38,7 +38,8 @@ export async function getPriceAlert(
 ): Promise<PriceAlertRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("product_id", productId)
     .eq("email", email)
@@ -53,7 +54,8 @@ export async function getPriceAlert(
 export async function listAlertsByEmail(email: string, siteId: string): Promise<PriceAlertRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("email", email)
     .eq("site_id", siteId)
@@ -71,7 +73,8 @@ export async function findTriggeredAlerts(
 ): Promise<PriceAlertRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("product_id", productId)
     .eq("is_active", true)
@@ -85,7 +88,8 @@ export async function findTriggeredAlerts(
 export async function markAlertTriggered(id: string): Promise<void> {
   const sb = getServiceClient();
 
-  const { error } = await (sb.from as any)(TABLE)
+  const { error } = await sb
+    .from(TABLE)
     .update({ triggered_at: new Date().toISOString(), is_active: false })
     .eq("id", id);
   if (error) throw error;
@@ -95,7 +99,7 @@ export async function markAlertTriggered(id: string): Promise<void> {
 export async function deactivatePriceAlert(id: string): Promise<void> {
   const sb = getServiceClient();
 
-  const { error } = await (sb.from as any)(TABLE).update({ is_active: false }).eq("id", id);
+  const { error } = await sb.from(TABLE).update({ is_active: false }).eq("id", id);
   if (error) throw error;
 }
 
@@ -103,7 +107,8 @@ export async function deactivatePriceAlert(id: string): Promise<void> {
 export async function deactivateAllAlerts(email: string, siteId: string): Promise<void> {
   const sb = getServiceClient();
 
-  const { error } = await (sb.from as any)(TABLE)
+  const { error } = await sb
+    .from(TABLE)
     .update({ is_active: false })
     .eq("email", email)
     .eq("site_id", siteId);

@@ -165,7 +165,9 @@
 		"crons": [
 			"*/5 * * * *",  // Scheduled publishing (every 5 minutes)
 			"0 2 * * *",    // AI content generation (daily at 2 AM UTC)
-			"0 3 * * *"     // Sitemap refresh (daily at 3 AM UTC)
+			"0 3 * * *",
+      "0 4 * * *",
+      "0 1 * * *"     // Sitemap refresh (daily at 3 AM UTC)
 		]
 	},
 	// Workers observability (logs, errors, metrics in CF dashboard)

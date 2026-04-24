@@ -100,3 +100,28 @@ function isValidIp(ip: string): boolean {
 
   return false;
 }
+
+/**
+ * Truncate IP addresses for GDPR compliance (PII minimization).
+ * IPv4: zeroes the last octet (e.g. 192.168.1.1 -> 192.168.1.0)
+ * IPv6: keeps the first 48 bits, zeroes the rest (e.g. 2001:db8:1::1 -> 2001:db8:1::)
+ */
+function truncateIp(ip: string): string {
+  if (!ip || ip === "unknown" || ip.startsWith("cf-ray:")) return ip;
+  if (ip.includes(".")) {
+    const parts = ip.split(".");
+    if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+    return ip;
+  }
+  if (ip.includes(":")) {
+    const segments = ip.split(":");
+    const emptyIndex = segments.indexOf("");
+    const out = [];
+    for (let i = 0; i < 3; i++) {
+      if (emptyIndex !== -1 && i >= emptyIndex) out.push("0");
+      else out.push(segments[i] || "0");
+    }
+    return `${out[0]}:${out[1]}:${out[2]}::`;
+  }
+  return ip;
+}

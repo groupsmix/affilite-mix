@@ -22,7 +22,8 @@ const TABLE = "authors";
 export async function listAuthors(siteId: string): Promise<AuthorRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
     .order("name", { ascending: true });
@@ -35,7 +36,8 @@ export async function listAuthors(siteId: string): Promise<AuthorRow[]> {
 export async function getAuthorById(siteId: string, id: string): Promise<AuthorRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
     .eq("id", id)
@@ -49,7 +51,8 @@ export async function getAuthorById(siteId: string, id: string): Promise<AuthorR
 export async function getAuthorBySlug(siteId: string, slug: string): Promise<AuthorRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
     .eq("slug", slug)
@@ -72,7 +75,7 @@ export async function createAuthor(input: {
 }): Promise<AuthorRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
 
   if (error) throw error;
   return assertRow<AuthorRow>(data, "Author");
@@ -98,7 +101,8 @@ export async function updateAuthor(
 ): Promise<AuthorRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .update(input)
     .eq("site_id", siteId)
     .eq("id", id)
@@ -113,6 +117,6 @@ export async function updateAuthor(
 export async function deleteAuthor(siteId: string, id: string): Promise<void> {
   const sb = getServiceClient();
 
-  const { error } = await (sb.from as any)(TABLE).delete().eq("site_id", siteId).eq("id", id);
+  const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;
 }

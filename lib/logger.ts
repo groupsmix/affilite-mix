@@ -7,8 +7,8 @@
  *
  *     { "ts": "…", "level": "info", "msg": "…", "ctx": "…", <...extras> }
  *
- * A request-scoped correlation ID is generated per API request by the
- * withApiHandler() wrapper in lib/api-handler.ts.  Passing it into
+ * A request-scoped correlation ID is generated per API request and propagated
+ * via the `x-trace-id` header in `middleware.ts`. Passing it into
  * `logger.child({ requestId })` adds it to every subsequent log line
  * emitted through that child so log lines from a single request can be
  * correlated end-to-end.

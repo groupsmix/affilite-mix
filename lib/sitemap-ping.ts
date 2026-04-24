@@ -1,3 +1,5 @@
+import { safeFetch } from "./ssrf-guard";
+
 /**
  * Ping search engines to notify them of sitemap updates.
  * Called after publishing content or refreshing sitemaps.
@@ -12,7 +14,7 @@ export async function pingSitemapIndexers(sitemapUrl: string): Promise<void> {
   await Promise.allSettled(
     endpoints.map(async (url) => {
       try {
-        const res = await fetch(url, { method: "GET" });
+        const res = await safeFetch(url, { method: "GET" });
         if (!res.ok) {
           console.warn(`Sitemap ping failed for ${url}: ${res.status}`);
         }

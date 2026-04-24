@@ -3,6 +3,7 @@
  * F-020: Domain verification check for sending domains.
  */
 import { logger } from "./logger";
+import { safeFetch } from "./ssrf-guard";
 
 export interface DomainStatus {
   name: string;
@@ -47,7 +48,7 @@ export async function checkResendDomainVerification(
   }
 
   try {
-    const response = await fetch("https://api.resend.com/domains", {
+    const response = await safeFetch("https://api.resend.com/domains", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${resendApiKey}`,

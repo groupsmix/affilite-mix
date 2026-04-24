@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getServiceClient } from "@/lib/supabase-server";
 import { hashPassword } from "@/lib/password";
 import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { captureException } from "@/lib/sentry";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
+import { revokeToken } from "@/lib/jwt-revocation";
+import { COOKIE_NAME } from "@/lib/auth";
+import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { hashResetToken, verifyResetToken } from "@/lib/reset-token";
 
 /**
@@ -109,7 +115,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to reset password" }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, message: "Password has been reset successfully." });
+    // Invalidate any existing session the user might have
+    try {
+      const cookieStore = await cookies();
+      const token = cookieStore.get(COOKIE_NAME)?.value;
+      if (token) {
+        const [, payloadStr] = token.split(".");
+        const payload = JSON.parse(atob(payloadStr));
+        if (payload.jti) {
+          await revokeToken(payload.jti);
+        }
+      }
+    } catch (e) {
+      // Ignore malformed tokens
+    }
+
+    const response = NextResponse.json({
+      ok: true,
+      message: "Password has been reset successfully.",
+    });
+
+    // Clear cookies
+    response.cookies.set(COOKIE_NAME, "", {
+      httpOnly: true,
+      secure: IS_SECURE_COOKIE,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    response.cookies.set(ACTIVE_SITE_COOKIE, "", {
+      httpOnly: false,
+      secure: IS_SECURE_COOKIE,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    return response;
   } catch (err) {
     captureException(err, { context: "[api/auth/reset-password] POST failed:" });
     return NextResponse.json({ error: "Failed to process request" }, { status: 500 });

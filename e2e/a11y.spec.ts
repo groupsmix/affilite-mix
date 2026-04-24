@@ -67,3 +67,19 @@ test.describe("Accessibility (axe-core)", () => {
     await expectNoViolations(page);
   });
 });
+
+test.describe("RTL Support and Visual Regression (ar-SA)", () => {
+  // Override the locale to Arabic for this test suite
+  test.use({ locale: "ar-SA" });
+
+  test("homepage visually renders correctly in RTL", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    // Enforce a11y checks on the RTL version
+    await expectNoViolations(page);
+
+    // Visual regression test to ensure RTL layout doesn't break
+    await expect(page).toHaveScreenshot("homepage-rtl.png", { fullPage: true });
+  });
+});
