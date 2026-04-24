@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Image from "next/image";
 
 interface QuizOption {
   value: string;
@@ -205,9 +206,11 @@ export function QuizFunnel({ slug, title, description, steps, gateEmail }: QuizF
                   {i + 1}
                 </div>
                 {product.image_url && (
-                  <img
+                  <Image
                     src={product.image_url}
                     alt={product.name}
+                    width={80}
+                    height={80}
                     className="h-20 w-20 rounded-md object-cover"
                   />
                 )}

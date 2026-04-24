@@ -116,7 +116,7 @@ async function checkRateLimitDO(
  * provided by @opennextjs/cloudflare.
  * Returns undefined when running outside Workers (local dev).
  */
-function getKVNamespace(): KVNamespace | undefined {
+export function getKVNamespace(): KVNamespace | undefined {
   const kv = readBinding("RATE_LIMIT_KV");
   if (kv && typeof kv === "object" && "get" in kv && "put" in kv) {
     return kv as unknown as KVNamespace;

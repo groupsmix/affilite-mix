@@ -16,6 +16,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // TODO (Scale Risk): At 10x traffic, processing CJ, Admitad, and PartnerStack sequentially
+  // will exceed the Cloudflare Worker execution time limit (30s HTTP / 15m Cron) or memory limit (128MB).
+  // These should be pushed to Cloudflare Queues so each network's ingestion runs in a separate, isolated Worker.
+
   const results: Record<string, { inserted: number; skipped: number; error?: string }> = {};
 
   // ── CJ (Commission Junction) ──────────────────────────────
@@ -111,7 +115,7 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -181,7 +185,8 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
 
   const data = await response.json();
   return (data.transactions || []).map((c: Record<string, unknown>) => ({
-    site_id: typeof c.customer_key === "string" ? c.customer_key : "00000000-0000-0000-0000-000000000000",
+    site_id:
+      typeof c.customer_key === "string" ? c.customer_key : "00000000-0000-0000-0000-000000000000",
     order_id: typeof c.key === "string" ? c.key : undefined,
     network: "partnerstack",
     commission_amount: typeof c.amount === "number" ? c.amount : 0,

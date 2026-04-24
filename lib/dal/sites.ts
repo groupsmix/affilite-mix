@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { getServiceClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import type { SiteRow } from "@/types/database";
@@ -13,59 +14,26 @@ const LIST_COLUMNS =
   "id, slug, name, domain, language, direction, is_active, monetization_type, logo_url, favicon_url, meta_title, meta_description, og_image_url, created_at, updated_at" as const;
 
 /* ------------------------------------------------------------------ */
-/*  In-memory cache with TTL                                           */
-/* ------------------------------------------------------------------ */
-
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_CACHE_SIZE = 200;
-
-interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
-}
-
-const siteBySlugCache = new Map<string, CacheEntry<SiteRow>>();
-const siteByDomainCache = new Map<string, CacheEntry<SiteRow>>();
-let allSitesCache: CacheEntry<SiteRow[]> | null = null;
-
-function evictOldest<T>(cache: Map<string, CacheEntry<T>>) {
-  if (cache.size >= MAX_CACHE_SIZE) {
-    const firstKey = cache.keys().next().value;
-    if (firstKey !== undefined) cache.delete(firstKey);
-  }
-}
-
-/** Invalidate all site caches (call after create/update/delete) */
-export function invalidateSiteCache(): void {
-  siteBySlugCache.clear();
-  siteByDomainCache.clear();
-  allSitesCache = null;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Read operations (with caching)                                     */
+/*  Read operations (with unstable_cache)                              */
 /* ------------------------------------------------------------------ */
 
 /** List all sites (cached) */
-export async function listSites(): Promise<SiteRow[]> {
-  if (allSitesCache && Date.now() < allSitesCache.expiresAt) {
-    return allSitesCache.value;
-  }
+export const listSites = unstable_cache(
+  async (): Promise<SiteRow[]> => {
+    if (shouldSkipDbCall()) return [];
 
-  if (shouldSkipDbCall()) return [];
+    const sb = getServiceClient();
+    const { data, error } = await sb
+      .from(TABLE)
+      .select(LIST_COLUMNS)
+      .order("created_at", { ascending: true });
 
-  const sb = getServiceClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(LIST_COLUMNS)
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-  const rows = assertRows<SiteRow>(data);
-
-  allSitesCache = { value: rows, expiresAt: Date.now() + CACHE_TTL_MS };
-  return rows;
-}
+    if (error) throw error;
+    return assertRows<SiteRow>(data);
+  },
+  ["all-sites"],
+  { revalidate: 300, tags: ["sites"] },
+);
 
 /** List all active sites (cached, filtered) */
 export async function getAllActiveSites(): Promise<SiteRow[]> {
@@ -85,48 +53,43 @@ export async function getSiteRowById(id: string): Promise<SiteRow | null> {
 }
 
 /** Get a single site by slug (cached) */
-export async function getSiteRowBySlug(slug: string): Promise<SiteRow | null> {
-  const cached = siteBySlugCache.get(slug);
-  if (cached && Date.now() < cached.expiresAt) return cached.value;
+export const getSiteRowBySlug = unstable_cache(
+  async (slug: string): Promise<SiteRow | null> => {
+    if (shouldSkipDbCall()) return null;
 
-  if (shouldSkipDbCall()) return null;
+    const sb = getServiceClient();
+    const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
 
-  const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
-
-  if (error && error.code !== "PGRST116") throw error;
-  const row = rowOrNull<SiteRow>(data);
-
-  if (row) {
-    evictOldest(siteBySlugCache);
-    siteBySlugCache.set(slug, { value: row, expiresAt: Date.now() + CACHE_TTL_MS });
-  }
-  return row;
-}
+    if (error && error.code !== "PGRST116") throw error;
+    return rowOrNull<SiteRow>(data);
+  },
+  ["site-by-slug"],
+  { revalidate: 300, tags: ["sites"] },
+);
 
 /** Get a single site by domain (cached) */
-export async function getSiteRowByDomain(domain: string): Promise<SiteRow | null> {
-  const cached = siteByDomainCache.get(domain);
-  if (cached && Date.now() < cached.expiresAt) return cached.value;
+export const getSiteRowByDomain = unstable_cache(
+  async (domain: string): Promise<SiteRow | null> => {
+    if (shouldSkipDbCall()) return null;
 
-  if (shouldSkipDbCall()) return null;
+    const sb = getServiceClient();
+    const { data, error } = await sb.from(TABLE).select("*").eq("domain", domain).single();
 
-  const sb = getServiceClient();
-  const { data, error } = await sb.from(TABLE).select("*").eq("domain", domain).single();
+    if (error && error.code !== "PGRST116") throw error;
+    return rowOrNull<SiteRow>(data);
+  },
+  ["site-by-domain"],
+  { revalidate: 300, tags: ["sites"] },
+);
 
-  if (error && error.code !== "PGRST116") throw error;
-  const row = rowOrNull<SiteRow>(data);
+/* ------------------------------------------------------------------ */
+/*  Write operations                                                  */
+/* ------------------------------------------------------------------ */
+import { revalidateTag } from "next/cache";
 
-  if (row) {
-    evictOldest(siteByDomainCache);
-    siteByDomainCache.set(domain, { value: row, expiresAt: Date.now() + CACHE_TTL_MS });
-  }
-  return row;
+export function invalidateSiteCache(): void {
+  revalidateTag("sites");
 }
-
-/* ------------------------------------------------------------------ */
-/*  Write operations (invalidate cache on mutation)                    */
-/* ------------------------------------------------------------------ */
 
 /** Create a new site */
 export async function createSite(input: {

@@ -32,6 +32,7 @@ import {
   setTag,
   type SeverityLevel,
 } from "@sentry/cloudflare";
+import { after } from "next/server";
 
 /**
  * Check Sentry availability and log a warning if not configured in production.
@@ -56,10 +57,20 @@ export function checkSentryConfig() {
  */
 export function captureException(error: unknown, context?: Record<string, unknown>) {
   if (isInitialized()) {
-    if (context?.traceId && typeof context.traceId === "string") {
-      setTag("traceId", context.traceId);
+    try {
+      after(async () => {
+          if (context?.traceId && typeof context.traceId === "string") {
+            setTag("traceId", context.traceId);
+          }
+          sentryCaptureException(error, { data: context });
+        }
+      );
+    } catch {
+      if (context?.traceId && typeof context.traceId === "string") {
+        setTag("traceId", context.traceId);
+      }
+      sentryCaptureException(error, { data: context });
     }
-    sentryCaptureException(error, { data: context });
   }
   // Always log to console as well for Cloudflare's built-in log stream
   console.error("[error]", error, context ?? "");
@@ -70,6 +81,13 @@ export function captureException(error: unknown, context?: Record<string, unknow
  */
 export function captureMessage(message: string, level: SeverityLevel = "info") {
   if (isInitialized()) {
-    sentryCaptureMessage(message, level);
+    try {
+      after(async () => {
+          sentryCaptureMessage(message, level);
+        }
+      );
+    } catch {
+      sentryCaptureMessage(message, level);
+    }
   }
 }
