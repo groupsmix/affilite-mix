@@ -49,9 +49,9 @@ export function buildCspHeader(nonce: string): string {
     // ThemeProvider still emit some inline `<style>` tags; they now carry
     // the nonce, so `'unsafe-inline'` is only kept as a Level-2 fallback
     // (ignored by browsers that honour the nonce).
-    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: https: blob:",
+    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
+    "font-src 'self'",
+    "img-src 'self' data: blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.supabase.co https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com",
     "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com https://*.ingest.sentry.io",
     "frame-src https://challenges.cloudflare.com",
     "worker-src 'self' blob:",
@@ -61,6 +61,7 @@ export function buildCspHeader(nonce: string): string {
     "form-action 'self'",
     "frame-ancestors 'none'",
     "upgrade-insecure-requests",
+    "report-uri /api/csp-report",
   ];
   return directives.join("; ");
 }

@@ -167,7 +167,7 @@ export async function middleware(request: NextRequest) {
     response.cookies.set(CSRF_COOKIE, newToken, {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
-      sameSite: "strict",
+      sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 4,
     });
