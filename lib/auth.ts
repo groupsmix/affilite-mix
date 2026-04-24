@@ -121,8 +121,8 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
       issuer: "affiliate-platform",
     });
 
-    if (!payload.jti || (await isTokenRevoked(payload.jti))) {
-      logger.warn("Token rejected: missing JTI or explicitly revoked", { jti: payload.jti });
+    if (payload.jti && (await isTokenRevoked(payload.jti))) {
+      logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
       return null;
     }
 
