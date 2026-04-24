@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import {
   listIntegrationProviders,
   listSiteIntegrations,
@@ -27,10 +27,8 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 
 /** GET /api/admin/integrations?site_id=<uuid> — list integrations for a site */
 export async function GET(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
@@ -72,10 +70,8 @@ export async function GET(request: NextRequest) {
 
 /** POST /api/admin/integrations — upsert a site integration */
 export async function POST(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
@@ -128,10 +124,8 @@ export async function POST(request: NextRequest) {
 
 /** DELETE /api/admin/integrations?site_id=<uuid>&provider_key=<key> — remove integration */
 export async function DELETE(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });

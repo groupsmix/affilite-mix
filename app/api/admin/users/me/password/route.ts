@@ -75,7 +75,8 @@ export async function POST(request: Request) {
       const token = cookieStore.get(COOKIE_NAME)?.value;
       if (token) {
         const [, payloadStr] = token.split(".");
-        const payload = JSON.parse(atob(payloadStr));
+        const base64 = payloadStr.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(base64));
         if (payload.jti) {
           await revokeToken(payload.jti);
         }

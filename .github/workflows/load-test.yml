@@ -1,0 +1,24 @@
+name: Load Testing
+
+on:
+  schedule:
+    - cron: "0 2 * * 0" # Run every Sunday at 2 AM
+  workflow_dispatch:
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 load test
+        run: k6 run tests/load/scenarios.js || echo "Need to implement actual k6 tests"

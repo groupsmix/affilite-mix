@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import {
   listSiteFeatureFlags,
   upsertFeatureFlag,
@@ -27,10 +27,8 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 
 /** GET /api/admin/feature-flags?site_id=<uuid> — list feature flags for a site */
 export async function GET(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
@@ -56,10 +54,8 @@ export async function GET(request: NextRequest) {
 
 /** POST /api/admin/feature-flags — upsert a feature flag */
 export async function POST(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
@@ -112,10 +108,8 @@ export async function POST(request: NextRequest) {
 
 /** PATCH /api/admin/feature-flags — bulk upsert feature flags */
 export async function PATCH(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
@@ -159,10 +153,8 @@ export async function PATCH(request: NextRequest) {
 
 /** DELETE /api/admin/feature-flags?site_id=<uuid>&flag_key=<key> — delete a flag */
 export async function DELETE(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
