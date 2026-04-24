@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
               from: fromEmail,
               to: [alert.email],
               subject: `Price Drop Alert: ${product.name}`,
-              html: `<p>Good news! The price for <strong>${safeName}</strong> has dropped to <strong>$${safePrice}</strong>.</p><p><a href="${productUrl}">View Deal</a></p>`,
+              html: `<p>Good news! The price for <strong>${safeName}</strong> has dropped to <strong>$${safePrice}</strong>.</p><p><a href="${productUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}">View Deal</a></p>`,
               text: `Good news! The price for ${product.name} has dropped to $${product.price_amount}.\n\nView Deal: ${productUrl}`,
             }),
           });
