@@ -62,6 +62,27 @@ jobs:
           STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
         run: bash scripts/db-audit.sh
 
+  # ── DB type drift check (E-5) ─────────────────────────────────────
+  # Regenerates types/supabase.ts from the staging DB via
+  # `supabase gen types` and fails if the checked-in file has drifted.
+  #
+  # Gated on STAGING_SUPABASE_DB_URL; when unset, the script exits 0
+  # with a warning (same pattern as db-audit above).
+  db-types:
+    name: DB type drift (E-5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install Supabase CLI
+        run: npm i -g supabase@latest
+      - name: Check DB types drift
+        env:
+          STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+        run: bash scripts/check-db-types.sh
+
   # ── Cross-workflow required gates ──────────────────────────────────
   # Branch protection should require ALL of the following check names:
   #

@@ -152,6 +152,7 @@ export async function PATCH(request: NextRequest) {
           meta_description: draft.meta_description,
           og_image: null,
           body_previous: null,
+          review_state: "published",
         });
 
         await updateAIDraft(dbSiteId, id, { status: "published" });

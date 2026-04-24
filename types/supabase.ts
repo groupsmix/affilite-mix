@@ -261,6 +261,7 @@ export interface Database {
           meta_title: string | null;
           meta_description: string | null;
           og_image: string | null;
+          review_state: string;
           created_at: string;
           updated_at: string;
         };
@@ -282,6 +283,7 @@ export interface Database {
           meta_title?: string | null;
           meta_description?: string | null;
           og_image?: string | null;
+          review_state?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -303,6 +305,7 @@ export interface Database {
           meta_title?: string | null;
           meta_description?: string | null;
           og_image?: string | null;
+          review_state?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -1303,6 +1306,838 @@ export interface Database {
             referencedColumns: ["id"];
           },
         ];
+      };
+
+      // ── Migration 00046: price_snapshots + price_alerts ──────────────
+
+      price_snapshots: {
+        Row: {
+          id: string;
+          product_id: string;
+          site_id: string;
+          price_amount: number;
+          currency: string;
+          source: string;
+          scraped_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          site_id: string;
+          price_amount: number;
+          currency?: string;
+          source?: string;
+          scraped_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          site_id?: string;
+          price_amount?: number;
+          currency?: string;
+          source?: string;
+          scraped_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_snapshots_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "price_snapshots_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      price_alerts: {
+        Row: {
+          id: string;
+          product_id: string;
+          site_id: string;
+          email: string;
+          target_price: number;
+          currency: string;
+          is_active: boolean;
+          triggered_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          site_id: string;
+          email: string;
+          target_price: number;
+          currency?: string;
+          is_active?: boolean;
+          triggered_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          site_id?: string;
+          email?: string;
+          target_price?: number;
+          currency?: string;
+          is_active?: boolean;
+          triggered_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_alerts_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "price_alerts_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      // ── Migration 00047: quiz funnel ─────────────────────────────────
+
+      quizzes: {
+        Row: {
+          id: string;
+          site_id: string;
+          slug: string;
+          title: string;
+          description: string | null;
+          steps: unknown;
+          result_config: unknown;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          slug: string;
+          title: string;
+          description?: string | null;
+          steps?: unknown;
+          result_config?: unknown;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          slug?: string;
+          title?: string;
+          description?: string | null;
+          steps?: unknown;
+          result_config?: unknown;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quizzes_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      quiz_submissions: {
+        Row: {
+          id: string;
+          quiz_id: string;
+          site_id: string;
+          session_id: string | null;
+          email: string | null;
+          answers: unknown;
+          result_tags: string[];
+          status: string;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          quiz_id: string;
+          site_id: string;
+          session_id?: string | null;
+          email?: string | null;
+          answers?: unknown;
+          result_tags?: string[];
+          status?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          quiz_id?: string;
+          site_id?: string;
+          session_id?: string | null;
+          email?: string | null;
+          answers?: unknown;
+          result_tags?: string[];
+          status?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quiz_submissions_quiz_id_fkey";
+            columns: ["quiz_id"];
+            isOneToOne: false;
+            referencedRelation: "quizzes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quiz_submissions_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      drip_campaigns: {
+        Row: {
+          id: string;
+          site_id: string;
+          name: string;
+          trigger_type: string;
+          trigger_quiz_id: string | null;
+          steps: unknown;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          name: string;
+          trigger_type?: string;
+          trigger_quiz_id?: string | null;
+          steps?: unknown;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          name?: string;
+          trigger_type?: string;
+          trigger_quiz_id?: string | null;
+          steps?: unknown;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "drip_campaigns_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "drip_campaigns_trigger_quiz_id_fkey";
+            columns: ["trigger_quiz_id"];
+            isOneToOne: false;
+            referencedRelation: "quizzes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      drip_enrollments: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          email: string;
+          current_step: number;
+          status: string;
+          next_send_at: string | null;
+          metadata: unknown;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          email: string;
+          current_step?: number;
+          status?: string;
+          next_send_at?: string | null;
+          metadata?: unknown;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          campaign_id?: string;
+          email?: string;
+          current_step?: number;
+          status?: string;
+          next_send_at?: string | null;
+          metadata?: unknown;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "drip_enrollments_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "drip_campaigns";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      // ── Migration 00048: commissions + EPC stats ─────────────────────
+
+      commissions: {
+        Row: {
+          id: string;
+          site_id: string;
+          product_id: string | null;
+          network: string;
+          order_id: string | null;
+          click_id: string | null;
+          commission_amount: number;
+          currency: string;
+          status: string;
+          sale_amount: number | null;
+          event_date: string;
+          ingested_at: string;
+          raw_data: unknown | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          product_id?: string | null;
+          network: string;
+          order_id?: string | null;
+          click_id?: string | null;
+          commission_amount: number;
+          currency?: string;
+          status?: string;
+          sale_amount?: number | null;
+          event_date: string;
+          ingested_at?: string;
+          raw_data?: unknown | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          product_id?: string | null;
+          network?: string;
+          order_id?: string | null;
+          click_id?: string | null;
+          commission_amount?: number;
+          currency?: string;
+          status?: string;
+          sale_amount?: number | null;
+          event_date?: string;
+          ingested_at?: string;
+          raw_data?: unknown | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "commissions_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "commissions_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      product_epc_stats: {
+        Row: {
+          id: string;
+          product_id: string;
+          network: string;
+          clicks_30d: number;
+          commissions_30d: number;
+          epc_30d: number;
+          clicks_7d: number;
+          commissions_7d: number;
+          epc_7d: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          network: string;
+          clicks_30d?: number;
+          commissions_30d?: number;
+          epc_30d?: number;
+          clicks_7d?: number;
+          commissions_7d?: number;
+          epc_7d?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          network?: string;
+          clicks_30d?: number;
+          commissions_30d?: number;
+          epc_30d?: number;
+          clicks_7d?: number;
+          commissions_7d?: number;
+          epc_7d?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_epc_stats_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      // ── Migration 00049: deals ───────────────────────────────────────
+
+      deals: {
+        Row: {
+          id: string;
+          site_id: string;
+          product_id: string | null;
+          title: string;
+          description: string | null;
+          discount_pct: number | null;
+          original_price: number | null;
+          deal_price: number | null;
+          currency: string;
+          source: string | null;
+          url: string;
+          starts_at: string;
+          expires_at: string | null;
+          is_active: boolean;
+          is_featured: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          product_id?: string | null;
+          title: string;
+          description?: string | null;
+          discount_pct?: number | null;
+          original_price?: number | null;
+          deal_price?: number | null;
+          currency?: string;
+          source?: string | null;
+          url: string;
+          starts_at?: string;
+          expires_at?: string | null;
+          is_active?: boolean;
+          is_featured?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          product_id?: string | null;
+          title?: string;
+          description?: string | null;
+          discount_pct?: number | null;
+          original_price?: number | null;
+          deal_price?: number | null;
+          currency?: string;
+          source?: string | null;
+          url?: string;
+          starts_at?: string;
+          expires_at?: string | null;
+          is_active?: boolean;
+          is_featured?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "deals_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deals_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      // ── Migration 00050: community UGC ───────────────────────────────
+
+      wrist_shots: {
+        Row: {
+          id: string;
+          site_id: string;
+          product_id: string | null;
+          user_email: string;
+          user_name: string;
+          image_url: string;
+          caption: string | null;
+          status: string;
+          approved_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          product_id?: string | null;
+          user_email: string;
+          user_name: string;
+          image_url: string;
+          caption?: string | null;
+          status?: string;
+          approved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          product_id?: string | null;
+          user_email?: string;
+          user_name?: string;
+          image_url?: string;
+          caption?: string | null;
+          status?: string;
+          approved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wrist_shots_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wrist_shots_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      comments: {
+        Row: {
+          id: string;
+          site_id: string;
+          target_type: string;
+          target_id: string;
+          parent_id: string | null;
+          user_email: string;
+          user_name: string;
+          body: string;
+          status: string;
+          approved_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          target_type: string;
+          target_id: string;
+          parent_id?: string | null;
+          user_email: string;
+          user_name: string;
+          body: string;
+          status?: string;
+          approved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          target_type?: string;
+          target_id?: string;
+          parent_id?: string | null;
+          user_email?: string;
+          user_name?: string;
+          body?: string;
+          status?: string;
+          approved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "comments_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "comments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      // ── Migration 00051: memberships ─────────────────────────────────
+
+      memberships: {
+        Row: {
+          id: string;
+          site_id: string;
+          email: string;
+          name: string | null;
+          tier: string;
+          status: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          current_period_start: string | null;
+          current_period_end: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          email: string;
+          name?: string | null;
+          tier?: string;
+          status?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          cancelled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          email?: string;
+          name?: string | null;
+          tier?: string;
+          status?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          cancelled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "memberships_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      // ── Migration 00052: A/B testing ─────────────────────────────────
+
+      experiments: {
+        Row: {
+          id: string;
+          site_id: string;
+          name: string;
+          slug: string;
+          description: string | null;
+          variants: unknown;
+          status: string;
+          started_at: string | null;
+          ended_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          name: string;
+          slug: string;
+          description?: string | null;
+          variants?: unknown;
+          status?: string;
+          started_at?: string | null;
+          ended_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          name?: string;
+          slug?: string;
+          description?: string | null;
+          variants?: unknown;
+          status?: string;
+          started_at?: string | null;
+          ended_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "experiments_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      experiment_assignments: {
+        Row: {
+          id: string;
+          experiment_id: string;
+          visitor_id: string;
+          variant_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          experiment_id: string;
+          visitor_id: string;
+          variant_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          experiment_id?: string;
+          visitor_id?: string;
+          variant_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "experiment_assignments_experiment_id_fkey";
+            columns: ["experiment_id"];
+            isOneToOne: false;
+            referencedRelation: "experiments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      experiment_events: {
+        Row: {
+          id: string;
+          experiment_id: string;
+          visitor_id: string;
+          variant_id: string;
+          event_type: string;
+          metadata: unknown | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          experiment_id: string;
+          visitor_id: string;
+          variant_id: string;
+          event_type: string;
+          metadata?: unknown | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          experiment_id?: string;
+          visitor_id?: string;
+          variant_id?: string;
+          event_type?: string;
+          metadata?: unknown | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "experiment_events_experiment_id_fkey";
+            columns: ["experiment_id"];
+            isOneToOne: false;
+            referencedRelation: "experiments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      // ── Migration 00054: Stripe events ───────────────────────────────
+
+      stripe_events: {
+        Row: {
+          stripe_event_id: string;
+          event_type: string;
+          received_at: string;
+        };
+        Insert: {
+          stripe_event_id: string;
+          event_type: string;
+          received_at?: string;
+        };
+        Update: {
+          stripe_event_id?: string;
+          event_type?: string;
+          received_at?: string;
+        };
+        Relationships: [];
       };
     };
 

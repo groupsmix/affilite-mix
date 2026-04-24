@@ -77,6 +77,7 @@ const mockContent: ContentRow = {
   meta_description: null,
   og_image: null,
   body_previous: null,
+  review_state: "published",
   created_at: "2024-01-10T00:00:00Z",
   updated_at: "2024-01-15T00:00:00Z",
 };
