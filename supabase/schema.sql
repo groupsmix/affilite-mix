@@ -39,7 +39,7 @@ CREATE TABLE sites (
   -- Social links
   social_links jsonb DEFAULT '{}',
 
-  -- Custom CSS overridescreated_at  timestamptz DEFAULT now(),
+  created_at  timestamptz DEFAULT now(),
   updated_at  timestamptz DEFAULT now()
 );
 
@@ -666,7 +666,7 @@ CREATE TABLE IF NOT EXISTS niche_templates (
   default_features jsonb DEFAULT '{}'::jsonb,
   monetization_type text DEFAULT 'affiliate',
   language         text DEFAULT 'en',
-  direction        text DEFAULT 'ltr',,
+  direction        text DEFAULT 'ltr',
   social_links     jsonb DEFAULT '{}'::jsonb,
   is_builtin       boolean DEFAULT false,
   created_at       timestamptz DEFAULT now(),
@@ -948,20 +948,12 @@ CREATE POLICY "admin_site_memberships_service_all"
 -- These tables had RLS enabled with zero policies in prod.  Default-deny
 -- already blocked anon/authenticated and service_role bypasses RLS, so
 -- adding explicit service_role policies is cosmetic/documentary only.
-CREATE POLICY "admin_users_service_all" ON admin_users
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+--
+-- Only `sites` needs a new policy here. admin_users has
+-- `service_full_access_admin_users` above, and roles / permissions /
+-- role_permissions / user_site_roles / integration_providers /
+-- site_integrations / site_modules / site_feature_flags all already
+-- have *_service_all policies defined above. Do not re-create them —
+-- `CREATE POLICY` without `IF NOT EXISTS` errors on clean replay.
 CREATE POLICY "sites_service_all" ON sites
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "roles_service_all" ON roles
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "permissions_service_all" ON permissions
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "role_permissions_service_all" ON role_permissions
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "user_site_roles_service_all" ON user_site_roles
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "integration_providers_service_all" ON integration_providers
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "site_integrations_service_all" ON site_integrations
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
--- site_modules_service_all, site_feature_flags_service_all already created above.

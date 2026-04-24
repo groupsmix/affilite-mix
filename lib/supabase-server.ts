@@ -1,7 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
-import { SignJWT } from "jose";
 
 // Environment variables are resolved lazily (inside functions) so that
 // module evaluation during `next build` does not throw when the vars
@@ -71,58 +70,8 @@ export function getAnonClient(): SupabaseClient<Database> {
   });
 }
 
-/**
- * F10: Mint a custom JWT signed with the Supabase JWT secret to provide
- * true defense-in-depth. Instead of bypassing RLS with the service_role key,
- * we use the anon key but inject a custom JWT containing the site_id and user_id.
- *
- * This enables the Supabase RLS policies to actually enforce tenancy at the DB level,
- * rather than relying solely on the DAL `.eq('site_id', site_id)` filters.
- */
-export async function getAuthenticatedClient(
-  userId: string,
-  siteId?: string,
-  role: string = "authenticated",
-): Promise<SupabaseClient<Database>> {
-  const url = getSupabaseUrl();
-  const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  const jwtSecret = requireEnvInProduction("SUPABASE_JWT_SECRET");
-
-  // Create a custom JWT that Supabase will recognize
-  const payload: any = {
-    aud: "authenticated",
-    exp: Math.floor(Date.now() / 1000) + 60 * 5, // 5 minutes
-    sub: userId,
-    role: role,
-    email: "admin@internal",
-    app_metadata: {
-      provider: "email",
-      providers: ["email"],
-    },
-    user_metadata: {},
-  };
-
-  if (siteId) {
-    payload.app_metadata.site_id = siteId;
-  }
-
-  const secret = new TextEncoder().encode(jwtSecret);
-  const token = await new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .sign(secret);
-
-  const client = createClient<Database>(url, anonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  });
-
-  return client;
-}
+// `getAuthenticatedClient` was introduced in this branch to mint a custom
+// JWT signed with SUPABASE_JWT_SECRET so RLS could evaluate a scoped user
+// context instead of always bypassing via service_role. It had no callers,
+// pulled in `jose`, and referenced an env var that is not declared in
+// `lib/server-env.ts`. Removed pending a real consumer + server-env entry.

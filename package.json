@@ -19,7 +19,6 @@
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:integration": "vitest run __tests__/integration",
     "test:e2e": "playwright test",
     "test:a11y": "playwright test e2e/a11y.spec.ts",
     "lighthouse": "lhci autorun",

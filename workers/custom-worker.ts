@@ -138,11 +138,20 @@ const worker = {
     ctx: CloudflareExecutionContext,
   ) {
     if (batch.queue === "click-tracking-dlq") {
-      // R5: DLQ consumer. Log loudly or alert. In a real system, you'd write to a
-      // click_failures table or page on-call here. For now, log and ack to prevent infinite loop.
-      console.error(
-        `[queue/click-tracking-dlq] Received ${batch.messages.length} dead letters. Revenue attribution lost.`,
-      );
+      // R5: DLQ consumer. Every dead letter represents a click whose revenue
+      // attribution we have lost. Until a persistent `click_failures` table
+      // (or equivalent) is wired up, log each payload individually so the
+      // bodies are recoverable from Worker tail logs / Logpush.
+      //
+      // TODO(R5): forward to a durable sink (Supabase `click_failures`, R2,
+      // or Logpush-only retention) and page on-call above a threshold.
+      for (const msg of batch.messages) {
+        console.error("[queue/click-tracking-dlq] dead letter", {
+          id: msg.id,
+          timestamp: msg.timestamp,
+          body: msg.body,
+        });
+      }
       batch.ackAll();
       return;
     }
