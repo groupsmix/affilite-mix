@@ -32,7 +32,7 @@ import { contentTag, productsTag } from "@/lib/cache-tags";
  *   Authorization: Bearer <CRON_SECRET>
  */
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request)) {
+  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_PUBLISH_SECRET", "CRON_SECRET"] })) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
