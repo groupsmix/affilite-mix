@@ -176,6 +176,13 @@ export function validateCreateCategory(
       "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
   }
 
+  if (
+    body.description !== undefined &&
+    body.description !== "" &&
+    (!isString(body.description) || body.description.length > 100_000)
+  ) {
+    errors.description = "description must be a string and under 100,000 characters";
+  }
   if (Object.keys(errors).length > 0) return { data: null, errors };
 
   if (!isString(body.name) || !isString(body.slug)) {
@@ -224,6 +231,13 @@ export function validateUpdateCategory(
       "taxonomy_type must be one of: general, budget, occasion, recipient, brand";
   }
 
+  if (
+    body.description !== undefined &&
+    body.description !== "" &&
+    (!isString(body.description) || body.description.length > 100_000)
+  ) {
+    errors.description = "description must be a string and under 100,000 characters";
+  }
   if (Object.keys(errors).length > 0) return { data: null, errors };
   if (!isUuid(body.id)) return { data: null, errors: { id: "id must be a valid UUID" } };
 
@@ -270,8 +284,12 @@ export function validateCreateProduct(
   if (!isSlug(body.slug) || body.slug.length > 200) {
     errors.slug = "slug must be a lowercase alphanumeric string with hyphens, max 200 chars";
   }
-  if (body.description !== undefined && body.description !== "" && !isString(body.description)) {
-    errors.description = "description must be a string";
+  if (
+    body.description !== undefined &&
+    body.description !== "" &&
+    (!isString(body.description) || body.description.length > 100_000)
+  ) {
+    errors.description = "description must be a string and under 100,000 characters";
   }
   if (
     body.affiliate_url !== undefined &&
@@ -404,6 +422,13 @@ export function validateUpdateProduct(
     errors.category_id = "category_id must be a valid UUID or null";
   }
 
+  if (
+    body.description !== undefined &&
+    body.description !== "" &&
+    (!isString(body.description) || body.description.length > 100_000)
+  ) {
+    errors.description = "description must be a string and under 100,000 characters";
+  }
   if (Object.keys(errors).length > 0) return { data: null, errors };
   if (!isUuid(body.id)) return { data: null, errors: { id: "id must be a valid UUID" } };
 
@@ -474,8 +499,8 @@ export function validateCreateContent(
   if (isString(body.body) && body.body.length > 500_000) {
     errors.body = "body must be less than 500,000 characters";
   }
-  if (body.excerpt !== undefined && !isString(body.excerpt)) {
-    errors.excerpt = "excerpt must be a string";
+  if (body.excerpt !== undefined && (!isString(body.excerpt) || body.excerpt.length > 5000)) {
+    errors.excerpt = "excerpt must be a string and under 5000 characters";
   }
   if (body.status !== undefined && !isContentStatus(body.status)) {
     errors.status = "status must be one of: draft, review, scheduled, published, archived";
@@ -487,6 +512,13 @@ export function validateCreateContent(
     errors.tags = "tags must be an array of strings";
   }
 
+  if (
+    body.meta_description !== undefined &&
+    body.meta_description !== "" &&
+    (!isString(body.meta_description) || body.meta_description.length > 5000)
+  ) {
+    errors.meta_description = "meta_description must be a string under 5000 characters";
+  }
   if (Object.keys(errors).length > 0) return { data: null, errors };
 
   if (!isString(body.title) || !isString(body.slug)) {
@@ -566,13 +598,22 @@ export function validateUpdateContent(
     errors.status = "status must be one of: draft, review, scheduled, published, archived";
   }
   if (body.review_state !== undefined && !isReviewState(body.review_state)) {
-    errors.review_state =
-      "review_state must be one of: draft, awaiting_edit, edited, published";
+    errors.review_state = "review_state must be one of: draft, awaiting_edit, edited, published";
   }
   if (body.category_id !== undefined && body.category_id !== null && !isUuid(body.category_id)) {
     errors.category_id = "category_id must be a valid UUID or null";
   }
 
+  if (body.excerpt !== undefined && (!isString(body.excerpt) || body.excerpt.length > 5000)) {
+    errors.excerpt = "excerpt must be a string and under 5000 characters";
+  }
+  if (
+    body.meta_description !== undefined &&
+    body.meta_description !== "" &&
+    (!isString(body.meta_description) || body.meta_description.length > 5000)
+  ) {
+    errors.meta_description = "meta_description must be a string under 5000 characters";
+  }
   if (Object.keys(errors).length > 0) return { data: null, errors };
   if (!isUuid(body.id)) return { data: null, errors: { id: "id must be a valid UUID" } };
 

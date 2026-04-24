@@ -30,7 +30,7 @@ export async function createWristShot(input: {
 }): Promise<WristShotRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(WRIST_SHOTS_TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(WRIST_SHOTS_TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<WristShotRow>(data, "WristShot");
 }
@@ -42,7 +42,8 @@ export async function listApprovedWristShots(
 ): Promise<WristShotRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(WRIST_SHOTS_TABLE)
+  const { data, error } = await sb
+    .from(WRIST_SHOTS_TABLE)
     .select("*")
     .eq("product_id", productId)
     .eq("status", "approved")
@@ -57,7 +58,8 @@ export async function listApprovedWristShots(
 export async function listPendingWristShots(siteId: string): Promise<WristShotRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(WRIST_SHOTS_TABLE)
+  const { data, error } = await sb
+    .from(WRIST_SHOTS_TABLE)
     .select("*")
     .eq("site_id", siteId)
     .eq("status", "pending")
@@ -74,7 +76,8 @@ export async function moderateWristShot(
 ): Promise<WristShotRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(WRIST_SHOTS_TABLE)
+  const { data, error } = await sb
+    .from(WRIST_SHOTS_TABLE)
     .update({
       status,
       ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
@@ -119,7 +122,7 @@ export async function createComment(input: {
 }): Promise<CommentRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(COMMENTS_TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(COMMENTS_TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<CommentRow>(data, "Comment");
 }
@@ -131,7 +134,8 @@ export async function listApprovedComments(
 ): Promise<CommentRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(COMMENTS_TABLE)
+  const { data, error } = await sb
+    .from(COMMENTS_TABLE)
     .select("*")
     .eq("target_type", targetType)
     .eq("target_id", targetId)
@@ -146,7 +150,8 @@ export async function listApprovedComments(
 export async function listPendingComments(siteId: string): Promise<CommentRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(COMMENTS_TABLE)
+  const { data, error } = await sb
+    .from(COMMENTS_TABLE)
     .select("*")
     .eq("site_id", siteId)
     .eq("status", "pending")
@@ -163,7 +168,8 @@ export async function moderateComment(
 ): Promise<CommentRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(COMMENTS_TABLE)
+  const { data, error } = await sb
+    .from(COMMENTS_TABLE)
     .update({
       status,
       ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
@@ -181,10 +187,7 @@ export async function moderateComment(
 export async function getCommentById(id: string): Promise<CommentRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(COMMENTS_TABLE)
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await sb.from(COMMENTS_TABLE).select("*").eq("id", id).maybeSingle();
 
   if (error) throw error;
   return rowOrNull<CommentRow>(data);

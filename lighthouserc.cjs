@@ -21,6 +21,9 @@ module.exports = {
       startServerReadyTimeout: 120000,
       url: [
         "http://localhost:9222/",
+        "http://localhost:9222/p/comparison-page",
+        "http://localhost:9222/admin",
+        "http://localhost:9222/search",
       ],
       numberOfRuns: 3,
       settings: {
@@ -34,17 +37,18 @@ module.exports = {
       },
     },
     assert: {
+      preset: "lighthouse:recommended",
       assertions: {
         // ── Core Web Vitals (error = CI fails) ──────────────
-        "largest-contentful-paint": ["error", { maxNumericValue: 2500 }],
-        "cumulative-layout-shift": ["error", { maxNumericValue: 0.1 }],
-        "total-blocking-time": ["error", { maxNumericValue: 200 }],
+        "largest-contentful-paint": ["error", { maxNumericValue: 2500, aggregationMethod: "median" }],
+        "cumulative-layout-shift": ["error", { maxNumericValue: 0.1, aggregationMethod: "median" }],
+        "total-blocking-time": ["error", { maxNumericValue: 200, aggregationMethod: "median" }],
 
         // ── Category scores (0-1 scale) ─────────────────────
-        "categories:performance": ["error", { minScore: 0.9 }],
-        "categories:accessibility": ["error", { minScore: 0.9 }],
-        "categories:best-practices": ["warn", { minScore: 0.9 }],
-        "categories:seo": ["warn", { minScore: 0.9 }],
+        "categories:performance": ["error", { minScore: 0.9, aggregationMethod: "median" }],
+        "categories:accessibility": ["error", { minScore: 0.9, aggregationMethod: "median" }],
+        "categories:best-practices": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
+        "categories:seo": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
 
         // ── Resource budgets (warn only — tune after baseline) ──
         "resource-summary:script:size": [

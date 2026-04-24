@@ -129,6 +129,18 @@ function escapeAttrValue(value: string): string {
  * - javascript: / data: / vbscript: protocols in href/src are stripped.
  * - <a> tags always get rel="noopener noreferrer nofollow".
  */
+const ALLOWED_CLASSES = new Set([
+  // TipTap/Highlight.js code languages
+  ...["javascript", "typescript", "html", "css", "json", "python", "bash", "sql"].map(
+    (lang) => `language-${lang}`,
+  ),
+  // Basic alignment classes if needed
+  "text-left",
+  "text-center",
+  "text-right",
+  "text-justify",
+]);
+
 function buildAttrs(tag: string, raw: Record<string, string>): string {
   const allowedSet = ALLOWED_ATTRS[tag];
   const parts: string[] = [];
@@ -141,6 +153,17 @@ function buildAttrs(tag: string, raw: Record<string, string>): string {
       if (lc.startsWith("on") || lc === "style") continue;
 
       if (!allowedSet.has(lc)) continue;
+
+      // Restrict classes to a strict allow-list to prevent UI redressing
+      if (lc === "class") {
+        const safeClasses = value
+          .split(/\s+/)
+          .filter((cls) => ALLOWED_CLASSES.has(cls))
+          .join(" ");
+        if (!safeClasses) continue;
+        parts.push(`class="${escapeAttrValue(safeClasses)}"`);
+        continue;
+      }
 
       // Lock href/src to the scheme allow-list defined above.
       if ((lc === "href" || lc === "src") && !isSafeUrl(value)) {
@@ -197,8 +220,14 @@ export function sanitizeCss(css: string): string {
   );
 }
 
+const MAX_INPUT_LENGTH = 100_000; // 100KB is generous for any blog comment or typical article
+
 export function sanitizeHtml(html: string): string {
   if (!html) return html;
+
+  if (html.length > MAX_INPUT_LENGTH) {
+    throw new Error(`Input exceeds maximum allowed length of ${MAX_INPUT_LENGTH} characters`);
+  }
 
   const chunks: string[] = [];
 

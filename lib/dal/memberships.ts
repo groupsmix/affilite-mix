@@ -32,7 +32,7 @@ export async function createMembership(input: {
 }): Promise<MembershipRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<MembershipRow>(data, "Membership");
 }
@@ -44,7 +44,8 @@ export async function getActiveMembership(
 ): Promise<MembershipRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("email", email)
     .eq("site_id", siteId)
@@ -61,7 +62,8 @@ export async function getMembershipByStripeSubscription(
 ): Promise<MembershipRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("stripe_subscription_id", subscriptionId)
     .maybeSingle();
@@ -82,12 +84,14 @@ export async function updateMembership(
       | "current_period_start"
       | "current_period_end"
       | "cancelled_at"
+      | "email"
     >
   >,
 ): Promise<MembershipRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .update({ ...input, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select()
@@ -101,7 +105,8 @@ export async function updateMembership(
 export async function listMembers(siteId: string, status?: string): Promise<MembershipRow[]> {
   const sb = getServiceClient();
 
-  let query = (sb.from as any)(TABLE)
+  let query = sb
+    .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
     .order("created_at", { ascending: false });
@@ -119,7 +124,8 @@ export async function listMembers(siteId: string, status?: string): Promise<Memb
 export async function getMemberCount(siteId: string): Promise<number> {
   const sb = getServiceClient();
 
-  const { count, error } = await (sb.from as any)(TABLE)
+  const { count, error } = await sb
+    .from(TABLE)
     .select("*", { count: "exact", head: true })
     .eq("site_id", siteId)
     .eq("status", "active");

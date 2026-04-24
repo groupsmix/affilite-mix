@@ -28,7 +28,8 @@ export async function listActiveDeals(siteId: string, limit: number = 50): Promi
   const sb = getServiceClient();
   const now = new Date().toISOString();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
     .eq("is_active", true)
@@ -48,7 +49,8 @@ export async function listFeaturedDeals(siteId: string): Promise<DealRow[]> {
   const sb = getServiceClient();
   const now = new Date().toISOString();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("site_id", siteId)
     .eq("is_active", true)
@@ -66,7 +68,7 @@ export async function listFeaturedDeals(siteId: string): Promise<DealRow[]> {
 export async function getDealById(id: string): Promise<DealRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE).select("*").eq("id", id).maybeSingle();
+  const { data, error } = await sb.from(TABLE).select("*").eq("id", id).maybeSingle();
 
   if (error) throw error;
   return rowOrNull<DealRow>(data);
@@ -90,7 +92,7 @@ export async function createDeal(input: {
 }): Promise<DealRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<DealRow>(data, "Deal");
 }
@@ -115,7 +117,8 @@ export async function updateDeal(
 ): Promise<DealRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .update({ ...input, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select()
@@ -129,7 +132,8 @@ export async function expireDeals(): Promise<number> {
   const sb = getServiceClient();
   const now = new Date().toISOString();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .update({ is_active: false, updated_at: now })
     .eq("is_active", true)
     .lt("expires_at", now)

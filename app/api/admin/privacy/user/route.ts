@@ -21,6 +21,84 @@ import { logger } from "@/lib/logger";
  * NOTE: This is a simplified implementation. For full compliance,
  * consider a background job / queue for large deletions.
  */
+
+export async function GET(request: NextRequest) {
+  const { error: authError, session } = await requireAdmin();
+  if (authError) return authError;
+
+  if (session.role !== "super_admin") {
+    return apiError(403, "Only super admins can perform data exports");
+  }
+
+  const { searchParams } = request.nextUrl;
+  const email = searchParams.get("email");
+  const site_id = searchParams.get("site_id");
+
+  if (!email || !site_id) {
+    return apiError(400, "email and site_id are required");
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return apiError(400, "Invalid email format");
+  }
+
+  const sb = getServiceClient();
+  const lowerEmail = email.toLowerCase();
+
+  try {
+    const [
+      { data: newsletters },
+      { data: memberships },
+      { data: comments },
+      { data: wristShots },
+      { data: quizzes },
+      { data: priceAlerts },
+      { data: dripEnrollments },
+    ] = await Promise.all([
+      sb.from("newsletter_subscribers").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      sb.from("memberships").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      sb.from("comments").select("*").eq("site_id", site_id).eq("user_email", lowerEmail),
+      sb.from("wrist_shots").select("*").eq("site_id", site_id).eq("user_email", lowerEmail),
+      sb.from("quiz_submissions").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      sb.from("price_alerts").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      sb.from("drip_enrollments").select("*").eq("email", lowerEmail),
+    ]);
+
+    const exportPayload = {
+      user: {
+        email: lowerEmail,
+        site_id,
+      },
+      generated_at: new Date().toISOString(),
+      data: {
+        newsletter_subscribers: newsletters || [],
+        memberships: memberships || [],
+        comments: comments || [],
+        wrist_shots: wristShots || [],
+        quiz_submissions: quizzes || [],
+        price_alerts: priceAlerts || [],
+        drip_enrollments: dripEnrollments || [],
+      },
+    };
+
+    logger.info("GDPR data export performed", {
+      actor: session.email ?? session.userId,
+      action: "gdpr_export",
+      target_email_hash: hashEmail(email),
+      site_id,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      export: exportPayload,
+    });
+  } catch (err) {
+    captureException(err, { context: "[api/admin/privacy] unexpected error during export" });
+    return apiError(500, "Failed to process data export");
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   const { error: authError, session } = await requireAdmin();
   if (authError) return authError;

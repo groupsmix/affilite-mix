@@ -30,6 +30,22 @@
 export interface Database {
   public: {
     Tables: {
+      [key: string]: any;
+      epc_metrics: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+      };
+      product_affiliate_links: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+      };
+      authors: {
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
+      };
       sites: {
         Row: {
           id: string;
@@ -503,6 +519,9 @@ export interface Database {
           is_active: boolean;
           reset_token: string | null;
           reset_token_expires_at: string | null;
+          totp_secret: string | null;
+          totp_enabled: boolean;
+          totp_verified_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -515,6 +534,9 @@ export interface Database {
           is_active?: boolean;
           reset_token?: string | null;
           reset_token_expires_at?: string | null;
+          totp_secret?: string | null;
+          totp_enabled?: boolean | null;
+          totp_verified_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -527,6 +549,9 @@ export interface Database {
           is_active?: boolean;
           reset_token?: string | null;
           reset_token_expires_at?: string | null;
+          totp_secret?: string | null;
+          totp_enabled?: boolean | null;
+          totp_verified_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -79,21 +79,30 @@ export async function GET(request: NextRequest) {
   }
 
   // Check RATE_LIMIT_KV Cloudflare binding.
-  // In production, a missing KV binding causes every rate-limited route to
-  // reject all requests (fail-closed). Surfacing this here lets the deploy
-  // pipeline catch a misconfigured binding before traffic hits the worker.
   const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
   const kvPresent = !!kv && typeof kv === "object" && "get" in kv && "put" in kv;
   if (process.env.NODE_ENV === "production" && !kvPresent) {
     checks.kv_binding = {
       status: "error",
       error:
-        "RATE_LIMIT_KV binding not available — all rate-limited routes will reject requests. " +
-        "Add the KV namespace binding in wrangler.jsonc and redeploy.",
+        "RATE_LIMIT_KV binding not available. Rate limits will fail open to per-isolate memory.",
     };
     logger.error("Health check: RATE_LIMIT_KV binding missing in production");
   } else {
     checks.kv_binding = { status: "ok" };
+  }
+
+  // Check RATE_LIMITER_DO Durable Object binding.
+  const doLimiter = (process.env as Record<string, unknown>).RATE_LIMITER_DO;
+  const doPresent = !!doLimiter && typeof doLimiter === "object" && "idFromName" in doLimiter;
+  if (process.env.NODE_ENV === "production" && !doPresent) {
+    checks.do_binding = {
+      status: "error",
+      error: "RATE_LIMITER_DO binding not available. Distributed atomic rate limiting is disabled.",
+    };
+    logger.warn("Health check: RATE_LIMITER_DO binding missing in production");
+  } else {
+    checks.do_binding = { status: "ok" };
   }
 
   // Check Resend email service (production-required for newsletter)

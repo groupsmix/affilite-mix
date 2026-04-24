@@ -86,6 +86,8 @@ const worker = {
       "*/5 * * * *": "/api/cron/publish",
       "0 2 * * *": "/api/cron/ai-generate",
       "0 3 * * *": "/api/cron/sitemap-refresh",
+      "0 4 * * *": "/api/cron/data-retention",
+      "0 1 * * *": "/api/cron/stripe-sync",
     };
 
     const path = CRON_ROUTES[controller.cron] ?? "/api/cron/publish";

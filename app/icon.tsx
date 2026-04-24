@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { safeFetch } from "@/lib/ssrf-guard";
 
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
@@ -15,7 +16,7 @@ export default async function Icon() {
       const dbSite = await resolveDbSiteBySlug(site.id);
       if (dbSite?.favicon_url) {
         // Fetch and return the custom favicon
-        const res = await fetch(dbSite.favicon_url);
+        const res = await safeFetch(dbSite.favicon_url);
         if (res.ok) {
           const buffer = await res.arrayBuffer();
           return new Response(buffer, {

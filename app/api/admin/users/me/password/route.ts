@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
-import { getAdminUserByEmail } from "@/lib/dal/admin-users";
-import { updateAdminUser } from "@/lib/dal/admin-users";
+import { cookies } from "next/headers";
+import { getAdminSession, COOKIE_NAME } from "@/lib/auth";
+import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
+import { revokeToken } from "@/lib/jwt-revocation";
+import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 
 /** POST /api/admin/users/me/password — change own password */
 export async function POST(request: Request) {
@@ -66,7 +69,41 @@ export async function POST(request: Request) {
     const newHash = await hashPassword(newPassword);
     await updateAdminUser(session.userId, { password_hash: newHash });
 
-    return NextResponse.json({ ok: true });
+    // Invalidate the current session to force a fresh login with the new password
+    try {
+      const cookieStore = await cookies();
+      const token = cookieStore.get(COOKIE_NAME)?.value;
+      if (token) {
+        const [, payloadStr] = token.split(".");
+        const payload = JSON.parse(atob(payloadStr));
+        if (payload.jti) {
+          await revokeToken(payload.jti);
+        }
+      }
+    } catch (e) {
+      // Ignore malformed tokens
+    }
+
+    const response = NextResponse.json({ ok: true });
+
+    // Clear cookies
+    response.cookies.set(COOKIE_NAME, "", {
+      httpOnly: true,
+      secure: IS_SECURE_COOKIE,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    response.cookies.set(ACTIVE_SITE_COOKIE, "", {
+      httpOnly: false,
+      secure: IS_SECURE_COOKIE,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    return response;
   } catch (err) {
     captureException(err, { context: "[api/admin/users/me/password] POST failed" });
     return NextResponse.json({ error: "Failed to update password" }, { status: 500 });

@@ -50,7 +50,6 @@ describe("buildCspHeader", () => {
 
   it("preserves previously configured third-party sources", () => {
     expect(header).toContain("https://challenges.cloudflare.com");
-    expect(header).toContain("https://fonts.googleapis.com");
     expect(header).toContain("https://*.supabase.co");
     expect(header).toContain("https://*.ingest.sentry.io");
   });

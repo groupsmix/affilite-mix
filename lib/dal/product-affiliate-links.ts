@@ -21,7 +21,8 @@ export async function listProductAffiliateLinks(
 ): Promise<ProductAffiliateLinkRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("product_id", productId)
     .eq("is_active", true)
@@ -37,7 +38,8 @@ export async function listAllProductAffiliateLinks(
 ): Promise<ProductAffiliateLinkRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
+  const { data, error } = await sb
+    .from(TABLE)
     .select("*")
     .eq("product_id", productId)
     .order("weight", { ascending: false });
@@ -56,7 +58,7 @@ export async function createProductAffiliateLink(input: {
 }): Promise<ProductAffiliateLinkRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(input).select().single();
 
   if (error) throw error;
   return assertRow<ProductAffiliateLinkRow>(data, "ProductAffiliateLink");
@@ -69,11 +71,7 @@ export async function updateProductAffiliateLink(
 ): Promise<ProductAffiliateLinkRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(TABLE)
-    .update(input)
-    .eq("id", id)
-    .select()
-    .single();
+  const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
 
   if (error) throw error;
   return assertRow<ProductAffiliateLinkRow>(data, "ProductAffiliateLink");
@@ -83,7 +81,7 @@ export async function updateProductAffiliateLink(
 export async function deleteProductAffiliateLink(id: string): Promise<void> {
   const sb = getServiceClient();
 
-  const { error } = await (sb.from as any)(TABLE).delete().eq("id", id);
+  const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;
 }
 

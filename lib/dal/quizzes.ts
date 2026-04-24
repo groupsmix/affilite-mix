@@ -54,7 +54,8 @@ const SUBMISSION_TABLE = "quiz_submissions";
 export async function getQuizBySlug(siteId: string, slug: string): Promise<QuizRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(QUIZ_TABLE)
+  const { data, error } = await sb
+    .from(QUIZ_TABLE)
     .select("*")
     .eq("site_id", siteId)
     .eq("slug", slug)
@@ -69,7 +70,8 @@ export async function getQuizBySlug(siteId: string, slug: string): Promise<QuizR
 export async function listQuizzes(siteId: string): Promise<QuizRow[]> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(QUIZ_TABLE)
+  const { data, error } = await sb
+    .from(QUIZ_TABLE)
     .select("*")
     .eq("site_id", siteId)
     .eq("is_active", true)
@@ -90,7 +92,7 @@ export async function createQuiz(input: {
 }): Promise<QuizRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(QUIZ_TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(QUIZ_TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<QuizRow>(data, "Quiz");
 }
@@ -103,7 +105,7 @@ export async function createQuizSubmission(input: {
 }): Promise<QuizSubmissionRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(SUBMISSION_TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(SUBMISSION_TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<QuizSubmissionRow>(data, "QuizSubmission");
 }
@@ -121,7 +123,8 @@ export async function updateQuizSubmission(
 ): Promise<QuizSubmissionRow> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(SUBMISSION_TABLE)
+  const { data, error } = await sb
+    .from(SUBMISSION_TABLE)
     .update(input)
     .eq("id", id)
     .select()
@@ -134,10 +137,7 @@ export async function updateQuizSubmission(
 export async function getQuizSubmission(id: string): Promise<QuizSubmissionRow | null> {
   const sb = getServiceClient();
 
-  const { data, error } = await (sb.from as any)(SUBMISSION_TABLE)
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await sb.from(SUBMISSION_TABLE).select("*").eq("id", id).maybeSingle();
 
   if (error) throw error;
   return rowOrNull<QuizSubmissionRow>(data);
