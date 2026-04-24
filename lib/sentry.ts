@@ -58,13 +58,12 @@ export function checkSentryConfig() {
 export function captureException(error: unknown, context?: Record<string, unknown>) {
   if (isInitialized()) {
     try {
-      after(
-        (async () => {
+      after(async () => {
           if (context?.traceId && typeof context.traceId === "string") {
             setTag("traceId", context.traceId);
           }
           sentryCaptureException(error, { data: context });
-        })()
+        }
       );
     } catch {
       if (context?.traceId && typeof context.traceId === "string") {
