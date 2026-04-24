@@ -1,0 +1,56 @@
+name: Integration tests (nightly)
+
+# J-1: nightly integration run against the staging Supabase project.
+#
+# Unlike the default `test` job in ci.yml (which uses placeholder env vars
+# and therefore skips every `describe.skipIf(!shouldRunSupabaseIntegration)`
+# block), this workflow sets `TEST_WITH_SUPABASE=1` plus real staging
+# credentials so the integration specs actually hit Supabase.
+#
+# The workflow also supports manual dispatch so a human can re-run it
+# against staging on demand (e.g. after touching a migration).
+
+on:
+  schedule:
+    # 03:17 UTC every day — offset from other scheduled jobs to avoid
+    # GitHub Actions queue pile-ups.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  integration:
+    name: Supabase integration tests
+    runs-on: ubuntu-latest
+    # Never fail the whole repo status if the nightly run breaks — the
+    # ci.yml "Required checks" gate remains the authoritative pre-merge
+    # signal.  Missing staging creds are treated as a skip, not a failure.
+    continue-on-error: true
+    env:
+      TEST_WITH_SUPABASE: "1"
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
+      INTERNAL_API_TOKEN: ci-nightly-internal-token
+      CRON_SECRET: ci-nightly-cron-secret
+      NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Detect missing staging creds
+        id: detect
+        run: |
+          if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "Staging Supabase creds not configured — skipping nightly integration run."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - run: npm ci
+        if: steps.detect.outputs.skip != 'true'
+      - name: Run integration suite
+        if: steps.detect.outputs.skip != 'true'
+        run: npm run test:integration

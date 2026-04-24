@@ -4,6 +4,9 @@ import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
+import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
+
+const CSP_HEADER = "Content-Security-Policy";
 
 /**
  * Returns a redirect to the tenant-aware 404 page.
@@ -126,12 +129,35 @@ export async function middleware(request: NextRequest) {
     request.headers.get(TRACE_ID_HEADER) ?? request.headers.get("cf-ray") ?? generateTraceId();
   requestHeaders.set(TRACE_ID_HEADER, traceId);
 
+  // ── CSP nonce generation (H-10) ─────────────────────
+  // Generate a fresh nonce for every HTML request.  We only bother for
+  // non-API routes — the /api/* responses are typically JSON and have no
+  // inline scripts/styles to protect, so the static CSP from next.config.ts
+  // still covers them without an extra per-request allocation.
+  const isApiRoute = pathname.startsWith("/api/");
+  let nonce: string | null = null;
+  let cspHeaderValue: string | null = null;
+  if (!isApiRoute) {
+    nonce = generateCspNonce();
+    cspHeaderValue = buildCspHeader(nonce);
+    requestHeaders.set(NONCE_HEADER, nonce);
+    // Next.js reads CSP from the *request* headers to automatically
+    // propagate the nonce to its own inline runtime scripts.  See:
+    // https://nextjs.org/docs/app/guides/content-security-policy
+    requestHeaders.set(CSP_HEADER, cspHeaderValue);
+  }
+
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
 
   // Echo the trace ID on the response so clients/devtools can correlate.
   response.headers.set(TRACE_ID_HEADER, traceId);
+
+  if (cspHeaderValue) {
+    // Actual browser enforcement is driven by the *response* header.
+    response.headers.set(CSP_HEADER, cspHeaderValue);
+  }
 
   // ── CSRF token rotation on state-changing requests ──────
   // Rotate the CSRF token after every successful state-changing request

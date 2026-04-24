@@ -50,6 +50,13 @@ export function useTheme(): SiteThemeConfig {
 interface ThemeProviderProps {
   theme: Partial<SiteThemeConfig>;
   children: React.ReactNode;
+  /**
+   * Per-request CSP nonce — applied to the inline `<style>` tag that holds
+   * the site's custom CSS so `style-src 'unsafe-inline'` can be removed
+   * (H-10).  Supplied by the public layout after reading `x-nonce` from
+   * middleware-set request headers.
+   */
+  nonce?: string;
 }
 
 /**
@@ -57,7 +64,7 @@ interface ThemeProviderProps {
  * CSS custom properties into a wrapper element. All public-facing components
  * can then use `var(--color-primary)`, `var(--color-secondary)`, etc.
  */
-export function ThemeProvider({ theme, children }: ThemeProviderProps) {
+export function ThemeProvider({ theme, children, nonce }: ThemeProviderProps) {
   const merged = useMemo<SiteThemeConfig>(() => ({ ...defaultTheme, ...theme }), [theme]);
 
   const fontMap: Record<string, string> = {
@@ -80,7 +87,10 @@ export function ThemeProvider({ theme, children }: ThemeProviderProps) {
     <ThemeContext.Provider value={merged}>
       <div style={cssVars} data-layout={merged.layoutVariant}>
         {merged.customCss && (
-          <style dangerouslySetInnerHTML={{ __html: sanitizeCss(merged.customCss!) }} />
+          <style
+            nonce={nonce}
+            dangerouslySetInnerHTML={{ __html: sanitizeCss(merged.customCss!) }}
+          />
         )}
         {children}
       </div>

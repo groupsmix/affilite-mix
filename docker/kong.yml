@@ -1,0 +1,32 @@
+# Kong declarative config for the local Supabase test stack (J-1).
+#
+# Kong fronts PostgREST so that `NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321`
+# produces request paths that match what supabase-js sends (`/rest/v1/...`).
+# Without this router, supabase-js would need to be rewritten to talk to
+# PostgREST's bare `/<table>` paths.
+
+_format_version: "2.1"
+_transform: true
+
+services:
+  - name: rest-v1
+    _comment: "Supabase PostgREST → /rest/v1/"
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-all
+        strip_path: true
+        paths:
+          - /rest/v1/
+    plugins:
+      - name: cors
+
+consumers:
+  # Stubbed consumers so supabase-js's `apikey` header is accepted even
+  # though our local Kong does not actually enforce key-auth.  These map
+  # to the published Supabase self-hosted dev JWTs.
+  - username: anon
+    keyauth_credentials:
+      - key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
+  - username: service_role
+    keyauth_credentials:
+      - key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UtZGVtbyIsImlhdCI6MTY0MTc2OTIwMCwiZXhwIjoxNzk5NTM1NjAwfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q

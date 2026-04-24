@@ -1,0 +1,83 @@
+# Local Supabase stack for integration tests (J-1).
+#
+# Spins up Postgres + PostgREST + Kong so that integration tests can talk
+# to a real Supabase API surface on `http://localhost:54321` without
+# touching a staging database.  All four services are disposable — none of
+# them carry production config and they live in an isolated Docker
+# network so they can be brought up / torn down around test runs.
+#
+# Usage:
+#   docker compose up -d              # start stack
+#   TEST_WITH_SUPABASE=1 \
+#   NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321 \
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY=$LOCAL_SUPABASE_ANON_KEY \
+#   SUPABASE_SERVICE_ROLE_KEY=$LOCAL_SUPABASE_SERVICE_ROLE_KEY \
+#     npm run test:integration
+#   docker compose down -v            # stop + wipe volumes
+#
+# The JWTs below are the standard Supabase self-hosted dev keys — they
+# only decode the test `JWT_SECRET` baked into this compose file and
+# must never be used in production.  See docs/local-supabase.md.
+
+name: affilite-mix-supabase
+
+services:
+  db:
+    image: supabase/postgres:15.1.1.78
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      JWT_EXP: 3600
+    ports:
+      - "54322:5432"
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+      # Apply project migrations on first boot.  `docker-entrypoint-initdb.d`
+      # runs all `*.sql` files in alphabetical order the first time the
+      # data volume is empty — matches the numeric ordering we already use
+      # under `supabase/migrations/`.
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      PGRST_APP_SETTINGS_JWT_EXP: "3600"
+
+  kong:
+    image: kong:3.4
+    depends_on:
+      - rest
+    restart: unless-stopped
+    ports:
+      # Mirrors the Supabase CLI default local endpoint so test configs
+      # that assume `http://localhost:54321` work out of the box.
+      - "54321:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+    volumes:
+      - ./docker/kong.yml:/var/lib/kong/kong.yml:ro
+
+volumes:
+  supabase-db-data:
