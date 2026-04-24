@@ -125,6 +125,18 @@ function isContentStatus(v: unknown): v is ContentStatus {
   return isString(v) && CONTENT_STATUSES.has(v);
 }
 
+type ReviewState = "draft" | "awaiting_edit" | "edited" | "published";
+const REVIEW_STATES: ReadonlySet<string> = new Set([
+  "draft",
+  "awaiting_edit",
+  "edited",
+  "published",
+]);
+
+function isReviewState(v: unknown): v is ReviewState {
+  return isString(v) && REVIEW_STATES.has(v);
+}
+
 type LinkRole = "hero" | "featured" | "related" | "vs-left" | "vs-right";
 const LINK_ROLES: ReadonlySet<string> = new Set([
   "hero",
@@ -514,6 +526,7 @@ export interface UpdateContentInput {
   featured_image?: string;
   type?: ContentType;
   status?: ContentStatus;
+  review_state?: ReviewState;
   category_id?: string | null;
   tags?: string[];
   author?: string | null;
@@ -552,6 +565,10 @@ export function validateUpdateContent(
   if (body.status !== undefined && !isContentStatus(body.status)) {
     errors.status = "status must be one of: draft, review, scheduled, published, archived";
   }
+  if (body.review_state !== undefined && !isReviewState(body.review_state)) {
+    errors.review_state =
+      "review_state must be one of: draft, awaiting_edit, edited, published";
+  }
   if (body.category_id !== undefined && body.category_id !== null && !isUuid(body.category_id)) {
     errors.category_id = "category_id must be a valid UUID or null";
   }
@@ -567,6 +584,7 @@ export function validateUpdateContent(
   if (isString(body.featured_image)) data.featured_image = body.featured_image;
   if (isContentType(body.type)) data.type = body.type;
   if (isContentStatus(body.status)) data.status = body.status;
+  if (isReviewState(body.review_state)) data.review_state = body.review_state;
   if (body.category_id !== undefined) {
     data.category_id = isUuid(body.category_id) ? body.category_id : null;
   }
