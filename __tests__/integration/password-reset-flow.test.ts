@@ -14,12 +14,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { getServiceClient } from "@/lib/supabase-server";
 import { hashPassword } from "@/lib/password";
+import { shouldRunSupabaseIntegration } from "./helpers/should-run";
 
-const hasRealSupabase =
-  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
-
-describe.skipIf(!hasRealSupabase)("Password Reset Flow Integration", () => {
+describe.skipIf(!shouldRunSupabaseIntegration)("Password Reset Flow Integration", () => {
   const sb = getServiceClient();
   let testUserId: string;
   const testEmail = `test-reset-${Date.now()}@example.com`;

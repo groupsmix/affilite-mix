@@ -36,30 +36,23 @@ const nextConfig: NextConfig = {
           key: "Strict-Transport-Security",
           value: "max-age=63072000; includeSubDomains; preload",
         },
+        // Content-Security-Policy is issued per-request by middleware.ts so
+        // we can embed a nonce into `script-src` / `style-src` (H-10).
+        // A static CSP header is still applied to routes that middleware
+        // does not match (see the matcher in middleware.ts — _next/static,
+        // _next/image, favicon.ico, fonts/, api/internal/) to keep a
+        // conservative default.
         {
           key: "Content-Security-Policy",
           value: [
             "default-src 'self'",
-            // Next.js requires 'unsafe-inline' for its runtime styles injected
-            // via <style> tags. True nonce-based CSP for styles needs a custom
-            // Document with per-request nonces, which is incompatible with
-            // Cloudflare Pages static headers. We keep 'strict-dynamic' for
-            // scripts so only our entry-point script (and anything it loads)
-            // can execute — this is a meaningful upgrade over bare
-            // 'unsafe-inline' because it blocks injected <script> tags.
-            "script-src 'self' 'strict-dynamic' https://challenges.cloudflare.com",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "font-src 'self' https://fonts.gstatic.com",
+            "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: https: blob:",
-            "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com https://*.ingest.sentry.io",
-            "frame-src https://challenges.cloudflare.com",
-            "worker-src 'self' blob:",
-            "manifest-src 'self'",
+            "font-src 'self' https://fonts.gstatic.com",
             "object-src 'none'",
             "base-uri 'self'",
-            "form-action 'self'",
             "frame-ancestors 'none'",
-            "upgrade-insecure-requests",
           ].join("; "),
         },
       ],
