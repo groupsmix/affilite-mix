@@ -163,16 +163,16 @@
 	// Set each secret via: `wrangler secret put CRON_PUBLISH_SECRET` etc.
 	"triggers": {
 		"crons": [
-      "*/5 * * * *",
-      "0 1 * * *",
-      "0 2 * * *",
-      "0 3 * * *",
-      "0 4 * * *",
-      "0 5 * * *",
-      "0 6 * * *",
-      "0 7 * * *",
-      "0 * * * *"
-    ]
+			"*/5 * * * *", // Scheduled publishing (every 5 minutes)
+			"0 1 * * *",   // Stripe sync (daily at 1 AM UTC)
+			"0 2 * * *",   // AI content generation (daily at 2 AM UTC)
+			"0 3 * * *",   // Sitemap refresh (daily at 3 AM UTC)
+			"0 4 * * *",   // Data retention (daily at 4 AM UTC)
+			"0 5 * * *",   // Commission ingest (daily at 5 AM UTC)
+			"0 6 * * *",   // EPC recompute (daily at 6 AM UTC)
+			"0 7 * * *",   // Price scrape (daily at 7 AM UTC)
+			"0 * * * *"    // Expire deals (hourly)
+		]
 	},
 	// Workers observability (logs, errors, metrics in CF dashboard)
 	"observability": {

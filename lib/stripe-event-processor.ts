@@ -1,89 +1,106 @@
-import Stripe from "stripe";
-import { logger } from "@/lib/logger";
+import type Stripe from "stripe";
 import {
   createMembership,
   getMembershipByStripeSubscription,
   updateMembership,
 } from "@/lib/dal/memberships";
+import { logger } from "@/lib/logger";
 
-export async function processStripeEvent(stripe: Stripe, event: Stripe.Event) {
+/**
+ * Process a verified Stripe webhook event.
+ *
+ * Extracted from app/api/membership/webhook/route.ts so the signature
+ * verification / idempotency layer stays thin and the side-effectful
+ * business logic can be unit-tested independently.
+ *
+ * Handled event types:
+ *  - checkout.session.completed
+ *  - invoice.paid
+ *  - customer.subscription.updated
+ *  - customer.subscription.deleted
+ *
+ * Any other event type is logged and ignored (the route still returns 2xx
+ * so Stripe does not retry).
+ */
+export async function processStripeEvent(stripe: Stripe, event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      const metadata = session.metadata;
-      const customerId = session.customer as string;
-      const subscriptionId = session.subscription as string;
+      const metadata = (session.metadata ?? undefined) as Record<string, string> | undefined;
+      const email = session.customer_email ?? undefined;
+      const customerId = typeof session.customer === "string" ? session.customer : undefined;
+      const subscriptionId =
+        typeof session.subscription === "string" ? session.subscription : undefined;
       const siteId = metadata?.site_id;
       const tier = (metadata?.tier as "insider" | "pro") || "insider";
 
-      if (customerId && siteId && subscriptionId) {
-        const sub = (await stripe.subscriptions.retrieve(subscriptionId)) as any;
-        const customer = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
-        const email = customer.email || session.customer_details?.email;
+      if (email && siteId && subscriptionId) {
+        const sub = await stripe.subscriptions.retrieve(subscriptionId);
 
-        if (email) {
-          await createMembership({
-            site_id: siteId,
-            email,
-            tier,
-            stripe_customer_id: customerId,
-            stripe_subscription_id: subscriptionId,
-            current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
-          });
-          logger.info("Membership created via Stripe checkout", { email, siteId, tier });
-        }
+        await createMembership({
+          site_id: siteId,
+          email,
+          tier,
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          current_period_start: toIsoOrUndefined(
+            (sub as unknown as { current_period_start?: number | null }).current_period_start,
+          ),
+          current_period_end: toIsoOrUndefined(
+            (sub as unknown as { current_period_end?: number | null }).current_period_end,
+          ),
+        });
+
+        logger.info("Membership created via Stripe checkout", { email, siteId, tier });
       }
       break;
     }
+
     case "invoice.paid": {
-      const invoice = event.data.object as any;
-      const subscriptionId = invoice.subscription as string;
+      const invoice = event.data.object as Stripe.Invoice;
+      const subscriptionId =
+        typeof (invoice as unknown as { subscription?: string | Stripe.Subscription | null })
+          .subscription === "string"
+          ? ((invoice as unknown as { subscription: string }).subscription as string)
+          : undefined;
 
       if (subscriptionId) {
         const membership = await getMembershipByStripeSubscription(subscriptionId);
         if (membership) {
-          const sub = (await stripe.subscriptions.retrieve(subscriptionId)) as any;
+          const sub = await stripe.subscriptions.retrieve(subscriptionId);
+
           await updateMembership(membership.id, {
             status: "active",
-            current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+            current_period_start: toIsoOrUndefined(
+              (sub as unknown as { current_period_start?: number | null }).current_period_start,
+            ),
+            current_period_end: toIsoOrUndefined(
+              (sub as unknown as { current_period_end?: number | null }).current_period_end,
+            ),
           });
           logger.info("Membership renewed", { email: membership.email });
         }
       }
       break;
     }
+
     case "customer.subscription.updated": {
-      const subscription = event.data.object as any;
-      const subscriptionId = subscription.id;
-      const status = subscription.status;
-      const customerId = subscription.customer as string;
-
-      const membership = await getMembershipByStripeSubscription(subscriptionId);
+      const subscription = event.data.object as Stripe.Subscription;
+      const membership = await getMembershipByStripeSubscription(subscription.id);
       if (membership) {
-        const mappedStatus = mapStripeStatus(status);
-        const customer = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
-
-        await updateMembership(membership.id, {
-          status: mappedStatus,
-          email: customer.email || membership.email,
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        });
-
+        const mappedStatus = mapStripeStatus(subscription.status);
+        await updateMembership(membership.id, { status: mappedStatus });
         logger.info("Membership status updated", {
-          email: customer.email || membership.email,
+          email: membership.email,
           status: mappedStatus,
         });
       }
       break;
     }
-    case "customer.subscription.deleted": {
-      const subscription = event.data.object as any;
-      const subscriptionId = subscription.id;
 
-      const membership = await getMembershipByStripeSubscription(subscriptionId);
+    case "customer.subscription.deleted": {
+      const subscription = event.data.object as Stripe.Subscription;
+      const membership = await getMembershipByStripeSubscription(subscription.id);
       if (membership) {
         await updateMembership(membership.id, {
           status: "cancelled",
@@ -93,12 +110,20 @@ export async function processStripeEvent(stripe: Stripe, event: Stripe.Event) {
       }
       break;
     }
+
     default:
       logger.info(`Unhandled Stripe event type: ${event.type}`);
   }
 }
 
-function mapStripeStatus(stripeStatus: string): "active" | "cancelled" | "expired" | "past_due" {
+function toIsoOrUndefined(unixSeconds: number | null | undefined): string | undefined {
+  if (!unixSeconds) return undefined;
+  return new Date(unixSeconds * 1000).toISOString();
+}
+
+function mapStripeStatus(
+  stripeStatus: Stripe.Subscription.Status | string,
+): "active" | "cancelled" | "expired" | "past_due" {
   switch (stripeStatus) {
     case "active":
     case "trialing":
@@ -110,6 +135,9 @@ function mapStripeStatus(stripeStatus: string): "active" | "cancelled" | "expire
       return "cancelled";
     case "incomplete_expired":
       return "expired";
+    // `incomplete` (initial payment not yet succeeded) and `paused`
+    // (deliberately suspended) must NOT grant premium access — fall
+    // through to the safe default. Per devin-ai review on PR #273.
     default:
       return "expired";
   }
