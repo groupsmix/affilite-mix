@@ -57,11 +57,12 @@ BEGIN
 
   -- 4. Insert new links
   IF jsonb_array_length(p_links) > 0 THEN
-    INSERT INTO content_products (content_id, product_id, sort_order)
+    INSERT INTO content_products (content_id, product_id, role)
     SELECT 
       p_content_id,
       (item->>'product_id')::UUID,
-      (item->>'sort_order')::INTEGER
+      (item->>'role')::TEXT
+
     FROM jsonb_array_elements(p_links) AS item;
   END IF;
 END;
