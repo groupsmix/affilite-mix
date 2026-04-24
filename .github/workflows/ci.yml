@@ -39,6 +39,29 @@ jobs:
       - name: Bundle size check
         run: bash scripts/check-bundle-size.sh 180
 
+  # ── RLS / anon-grant audit against staging DB (E-6) ────────────────
+  # Runs the queries from docs/public-rls-inventory.md against the
+  # staging database. Fails the build if any unexpected policies or
+  # grants have drifted onto the public schema.
+  #
+  # Gated on the STAGING_SUPABASE_DB_URL repo secret being set; when
+  # the secret is missing (e.g. PRs from forks), the script exits 0
+  # with a warning so the job stays green while still surfacing the
+  # skip in logs.
+  db-audit:
+    name: RLS audit (E-6)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install psql
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Run db-audit
+        env:
+          STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+        run: bash scripts/db-audit.sh
+
   # ── Cross-workflow required gates ──────────────────────────────────
   # Branch protection should require ALL of the following check names:
   #
