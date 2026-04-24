@@ -120,14 +120,14 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
   }
 
   const data = await response.json();
-  return (data.commissions || []).map((c: any) => ({
-    site_id: c.shopperId || "00000000-0000-0000-0000-000000000000",
-    order_id: c.actionId,
+  return (data.commissions || []).map((c: Record<string, unknown>) => ({
+    site_id: typeof c.shopperId === "string" ? c.shopperId : "00000000-0000-0000-0000-000000000000",
+    order_id: typeof c.actionId === "string" ? c.actionId : undefined,
     network: "cj",
-    commission_amount: c.pubCommissionAmountUsd || 0,
-    sale_amount: c.saleAmountUsd,
-    status: c.actionStatus,
-    event_date: c.eventDate || new Date().toISOString(),
+    commission_amount: typeof c.pubCommissionAmountUsd === "number" ? c.pubCommissionAmountUsd : 0,
+    sale_amount: typeof c.saleAmountUsd === "number" ? c.saleAmountUsd : undefined,
+    status: typeof c.actionStatus === "string" ? c.actionStatus : undefined,
+    event_date: typeof c.eventDate === "string" ? c.eventDate : new Date().toISOString(),
     raw_data: c,
   }));
 }
@@ -150,14 +150,14 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
   }
 
   const data = await response.json();
-  return (data.results || []).map((c: any) => ({
-    site_id: c.subid || "00000000-0000-0000-0000-000000000000",
+  return (data.results || []).map((c: Record<string, unknown>) => ({
+    site_id: typeof c.subid === "string" ? c.subid : "00000000-0000-0000-0000-000000000000",
     order_id: String(c.id),
     network: "admitad",
-    commission_amount: c.payment || 0,
-    currency: c.currency,
-    status: c.status,
-    event_date: c.action_date || new Date().toISOString(),
+    commission_amount: typeof c.payment === "number" ? c.payment : 0,
+    currency: typeof c.currency === "string" ? c.currency : undefined,
+    status: typeof c.status === "string" ? c.status : undefined,
+    event_date: typeof c.action_date === "string" ? c.action_date : new Date().toISOString(),
     raw_data: c,
   }));
 }
@@ -180,14 +180,14 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
   }
 
   const data = await response.json();
-  return (data.transactions || []).map((c: any) => ({
-    site_id: c.customer_key || "00000000-0000-0000-0000-000000000000",
-    order_id: c.key,
+  return (data.transactions || []).map((c: Record<string, unknown>) => ({
+    site_id: typeof c.customer_key === "string" ? c.customer_key : "00000000-0000-0000-0000-000000000000",
+    order_id: typeof c.key === "string" ? c.key : undefined,
     network: "partnerstack",
-    commission_amount: c.amount || 0,
-    currency: c.currency,
-    status: c.status,
-    event_date: c.created_at || new Date().toISOString(),
+    commission_amount: typeof c.amount === "number" ? c.amount : 0,
+    currency: typeof c.currency === "string" ? c.currency : undefined,
+    status: typeof c.status === "string" ? c.status : undefined,
+    event_date: typeof c.created_at === "string" ? c.created_at : new Date().toISOString(),
     raw_data: c,
   }));
 }
