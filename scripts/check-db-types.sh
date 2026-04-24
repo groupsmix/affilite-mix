@@ -18,10 +18,17 @@ if [ -z "${STAGING_SUPABASE_DB_URL:-}" ]; then
   exit 0
 fi
 
-# Ensure supabase CLI is available
+# Ensure supabase CLI is available. Global npm install is explicitly
+# blocked by the supabase CLI's postinstall script — install via one of
+# the supported package managers instead.
+# See: https://github.com/supabase/cli#install-the-cli
 if ! command -v supabase &>/dev/null; then
-  echo "▶ Installing Supabase CLI..."
-  npm i -g supabase@latest
+  echo "❌ supabase CLI not found on PATH."
+  echo "   Install it via one of the supported methods:"
+  echo "     • macOS:  brew install supabase/tap/supabase"
+  echo "     • Linux:  see https://github.com/supabase/cli#install-the-cli"
+  echo "     • CI:     use the supabase/setup-cli@v1 GitHub Action"
+  exit 1
 fi
 
 TMPFILE="$(mktemp)"

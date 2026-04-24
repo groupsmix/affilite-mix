@@ -77,7 +77,9 @@ jobs:
         with:
           node-version: 22
       - name: Install Supabase CLI
-        run: npm i -g supabase@latest
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
       - name: Check DB types drift
         env:
           STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
