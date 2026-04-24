@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
@@ -117,9 +118,11 @@ export default async function ComparisonPage({ params }: ComparisonPageProps) {
         {[productA, productB].map((product) => (
           <div key={product.id} className="text-center">
             {product.image_url && (
-              <img
+              <Image
                 src={product.image_url}
                 alt={product.image_alt || product.name}
+                width={192}
+                height={192}
                 className="mx-auto h-48 w-48 rounded-lg object-cover"
               />
             )}
