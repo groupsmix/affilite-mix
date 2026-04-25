@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { expireDeals } from "@/lib/dal/deals";
 import { logger } from "@/lib/logger";
+import { verifyCronAuth } from "@/lib/cron-auth";
 
 /**
  * GET /api/cron/expire-deals
  * Hourly cron: auto-deactivates deals past their expiry date.
  */
 export async function POST(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_DEALS_SECRET", "CRON_SECRET"] })) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

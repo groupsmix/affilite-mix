@@ -16,17 +16,6 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
 function getSupabaseUrl(): string {
   const url = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL");
 
-  // Fail-fast in production if not using the pooler endpoint.
-  // Direct connections will exhaust PostgreSQL's connection limit on edge runtimes
-  // (Cloudflare Workers) where each request opens a new connection.
-  if (process.env.NODE_ENV === "production" && url && !url.includes("pooler.supabase")) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL must use the Supabase connection pooler in production. " +
-        "Use the pooler URL (e.g. https://xxx.pooler.supabase.com) " +
-        "to avoid exhausting PostgreSQL connection limits.",
-    );
-  }
-
   return url;
 }
 

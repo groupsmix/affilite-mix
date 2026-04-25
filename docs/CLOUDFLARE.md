@@ -91,12 +91,13 @@ All runtime secrets are set via `wrangler secret put <NAME>` (automated in the d
 
 Fallback chain: Cloudflare AI → Gemini → Groq → Cohere.
 
-| Secret                    | Source            | Used by               |
-| ------------------------- | ----------------- | --------------------- |
-| `CLOUDFLARE_AI_API_TOKEN` | CF dashboard → AI | `lib/ai/providers.ts` |
-| `GEMINI_API_KEY`          | Google AI Studio  | `lib/ai/providers.ts` |
-| `GROQ_API_KEY`            | Groq console      | `lib/ai/providers.ts` |
-| `COHERE_API_KEY`          | Cohere dashboard  | `lib/ai/providers.ts` |
+| Secret                    | Source                    | Used by               |
+| ------------------------- | ------------------------- | --------------------- |
+| `CLOUDFLARE_ACCOUNT_ID`   | CF dashboard → Account ID | `lib/ai/providers.ts` |
+| `CLOUDFLARE_AI_API_TOKEN` | CF dashboard → AI         | `lib/ai/providers.ts` |
+| `GEMINI_API_KEY`          | Google AI Studio          | `lib/ai/providers.ts` |
+| `GROQ_API_KEY`            | Groq console              | `lib/ai/providers.ts` |
+| `COHERE_API_KEY`          | Cohere dashboard          | `lib/ai/providers.ts` |
 
 ### Optional — Affiliate Networks
 
@@ -129,7 +130,7 @@ These are consumed by the deploy workflow but are **not** Worker runtime secrets
 | Secret                           | Purpose                                                                                                                                                                                                                                                                                                                                                                               |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CLOUDFLARE_API_TOKEN`           | Wrangler CLI auth (scoped token — **required**)                                                                                                                                                                                                                                                                                                                                       |
-| `CLOUDFLARE_ACCOUNT_ID`          | Wrangler account targeting                                                                                                                                                                                                                                                                                                                                                            |
+| `CLOUDFLARE_ACCOUNT_ID`          | Wrangler account targeting. **Also required as a Worker runtime secret** if Cloudflare AI is enabled (`AI_ENABLE_CLOUDFLARE=true`) — set via `wrangler secret put CLOUDFLARE_ACCOUNT_ID`.                                                                                                                                                                                             |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Turnstile site key (inlined at build)                                                                                                                                                                                                                                                                                                                                                 |
 | `NEXT_PUBLIC_SENTRY_DSN`         | Browser Sentry DSN (inlined at build)                                                                                                                                                                                                                                                                                                                                                 |
 | `SUPABASE_DB_URL`                | psql connection string for DB migrations. **Must be IPv4-reachable.** GitHub runners are IPv4-only, and `db.<ref>.supabase.co` is IPv6-only on Supabase's free tier — use the **Session pooler URL** (`postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:5432/postgres`) from Supabase Dashboard → Project Settings → Database → Connection pooling → Session mode. |

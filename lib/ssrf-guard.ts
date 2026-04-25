@@ -91,46 +91,6 @@ function ipInRange(ip: string, cidr: string): boolean {
   return (ipNum & mask) === (rangeNum & mask);
 }
 
-/**
- * Resolve hostname and check for blocked IPs.
- */
-function resolveAndValidate(hostname: string, checked = new Set<string>()): boolean {
-  const normalized = normalizeHostname(hostname);
-
-  // Prevent DNS rebinding / infinite loops
-  if (checked.has(normalized)) return false;
-  checked.add(normalized);
-
-  // Blocklist check
-  if (BLOCKED_HOSTS.has(normalized)) return false;
-
-  // IPv6-mapped IPv4: validate the embedded IPv4 against CIDR ranges
-  const mapped = ipv6MappedToIPv4(normalized);
-  if (mapped) {
-    for (const cidr of BLOCKED_IP_RANGES) {
-      if (ipInRange(mapped, cidr)) return false;
-    }
-    return true;
-  }
-
-  // Parse IPv4
-  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-  const match = normalized.match(ipv4Regex);
-  if (match) {
-    const ip = match.slice(1).join(".");
-    for (const cidr of BLOCKED_IP_RANGES) {
-      if (ipInRange(ip, cidr)) return false;
-    }
-    return true;
-  }
-
-  // For non-IP hostnames, allow resolution (DNS rebinding risk is mitigated
-  // by also validating the resolved IP against BLOCKED_IP_RANGES above).
-  // In a production hardening pass, consider using a DNS-over-HTTPS resolver
-  // with DNSSEC and a short TTL check — or resolve eagerly and compare.
-  return true;
-}
-
 export interface UrlValidationResult {
   valid: boolean;
   error?: string;
