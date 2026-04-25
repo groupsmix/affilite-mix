@@ -20,6 +20,9 @@ vi.mock("@/lib/supabase-server", () => ({
   getServiceClient: vi.fn(() => ({
     from: (...args: unknown[]) => mockFrom(...args),
   })),
+  getTenantClient: vi.fn(async () => ({
+    from: (...args: unknown[]) => mockFrom(...args),
+  })),
 }));
 
 vi.mock("@/lib/dal/site-resolver", () => ({
