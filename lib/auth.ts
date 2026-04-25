@@ -13,7 +13,7 @@ const COOKIE_NAME = "nh_admin_token";
 const ACTIVITY_COOKIE = "nh_admin_activity";
 /** Admin sessions expire after 30 minutes of inactivity */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-const EXPIRY = "24h";
+const EXPIRY = "8h"; // F-005: Reduced from 24h to limit exposure
 
 /**
  * Dummy bcrypt hash used to equalize timing between known and unknown users.
