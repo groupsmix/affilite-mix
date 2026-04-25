@@ -1,4 +1,4 @@
-import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
@@ -57,7 +57,7 @@ export type CountProductsOptions = Omit<
 
 /** List products for a site with optional filters */
 export async function listProducts(opts: ListProductsOptions): Promise<ProductRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const sortColumn: ProductSortColumn = opts.sortBy ?? "created_at";
   const ascending = opts.sortDirection === "asc";
 
@@ -105,7 +105,7 @@ export async function countProducts(opts: CountProductsOptions): Promise<number>
   if (shouldSkipDbCall()) {
     return 0;
   }
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb
     .from(TABLE)
     .select("id", { count: "exact", head: true })
@@ -145,7 +145,7 @@ export async function listDistinctMerchants(siteId: string): Promise<string[]> {
   if (shouldSkipDbCall()) {
     return [];
   }
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("merchant")
@@ -167,7 +167,7 @@ export async function listDistinctMerchants(siteId: string): Promise<string[]> {
 
 /** Get a single product by id */
 export async function getProductById(siteId: string, id: string): Promise<ProductRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -197,7 +197,7 @@ export async function getProductBySlug(siteId: string, slug: string): Promise<Pr
 export async function createProduct(
   input: Omit<ProductRow, "id" | "created_at" | "updated_at">,
 ): Promise<ProductRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<ProductRow>(data, "Product");
@@ -208,7 +208,7 @@ export async function bulkCreateProducts(
   inputs: Omit<ProductRow, "id" | "created_at" | "updated_at">[],
 ): Promise<ProductRow[]> {
   if (inputs.length === 0) return [];
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from(TABLE).insert(inputs).select();
   if (error) throw error;
   return assertRows<ProductRow>(data);
@@ -220,7 +220,7 @@ export async function updateProduct(
   id: string,
   input: Partial<Omit<ProductRow, "id" | "site_id" | "created_at" | "updated_at">>,
 ): Promise<ProductRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .update(input)
@@ -235,7 +235,7 @@ export async function updateProduct(
 
 /** Delete a product */
 export async function deleteProduct(siteId: string, id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;
@@ -324,7 +324,7 @@ export async function listProductsByNames(
   names: string[],
 ): Promise<Pick<ProductRow, "id" | "name" | "image_url" | "image_alt">[]> {
   if (names.length === 0) return [];
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("id, name, image_url, image_alt")

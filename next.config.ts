@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 import { allSites } from "./config/sites";
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseHostname = supabaseUrl ? new URL(supabaseUrl).hostname : "*.supabase.co";
+
 const nextConfig: NextConfig = {
   // Restrict external images to known sources (R2 bucket, Supabase storage, site domains)
   images: {
@@ -10,7 +13,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.r2.dev" },
       { protocol: "https", hostname: "*.r2.cloudflarestorage.com" },
       // Supabase storage
-      { protocol: "https", hostname: "*.supabase.co" },
+      { protocol: "https", hostname: supabaseHostname },
       // Site domains (for OG images, etc.) — derived from config/sites/
       ...allSites.map((site) => ({ protocol: "https" as const, hostname: site.domain })),
       // Common affiliate product image CDNs
@@ -46,13 +49,15 @@ const nextConfig: NextConfig = {
           key: "Content-Security-Policy",
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",
-            "style-src 'self' 'unsafe-inline'",
+            "script-src 'self'",
+            "style-src 'self'",
             "img-src 'self' data: https: blob:",
             "font-src 'self' https://fonts.gstatic.com",
+            "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com https://*.ingest.sentry.io",
             "object-src 'none'",
             "base-uri 'self'",
             "frame-ancestors 'none'",
+            "report-uri /api/csp-report",
           ].join("; "),
         },
       ],

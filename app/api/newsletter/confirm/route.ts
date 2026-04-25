@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     const site = await getCurrentSite();
     const siteId = await resolveDbSiteId(site.id);
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
 
     // Find the subscriber by confirmation token, scoped to the current site
     const { data: subscriber, error: fetchError } = await sb

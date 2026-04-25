@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { verifyCronAuth } from "@/lib/cron-auth";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { allSiteTags } from "@/lib/cache-tags";
 import { captureException } from "@/lib/sentry";
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data: sites, error } = await sb
     .from("sites")
     .select("id")

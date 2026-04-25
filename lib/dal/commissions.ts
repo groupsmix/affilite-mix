@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow } from "./type-guards";
 
 export interface CommissionRow {
@@ -52,7 +52,7 @@ export async function ingestCommissions(
 ): Promise<{ inserted: number; skipped: number }> {
   if (reports.length === 0) return { inserted: 0, skipped: 0 };
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let inserted = 0;
   let skipped = 0;
 
@@ -81,7 +81,7 @@ export async function getCommissionStats(
   startDate: string,
   endDate: string,
 ): Promise<CommissionRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(COMMISSION_TABLE)
@@ -106,7 +106,7 @@ export async function upsertProductEpc(input: {
   commissions_7d: number;
   epc_7d: number;
 }): Promise<ProductEpcRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(EPC_TABLE)
@@ -123,7 +123,7 @@ export async function upsertProductEpc(input: {
 
 /** Get EPC stats for a product (all networks) */
 export async function getProductEpcStats(productId: string): Promise<ProductEpcRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(EPC_TABLE)

@@ -57,7 +57,33 @@ function createSupabaseRecorder(
     },
   });
 
-  return { client: chain, recorder };
+  // `nonThenable` wraps the recording chain so it can be safely returned
+  // from async helpers. `await nonThenable` resolves to the wrapper itself
+  // (no `.then` trap), but every other property access falls through to
+  // the recording chain, so chained calls like
+  // `(await sb.from("x")).select(...).eq(...)` still resolve to the
+  // configured result via the chain's own thenable behaviour.
+  const nonThenable: unknown = new Proxy(
+    {},
+    {
+      get(_target, prop: string | symbol) {
+        if (prop === "then") return undefined;
+        return (chain as Record<string | symbol, unknown>)[prop];
+      },
+    },
+  );
+
+  // `client` is a non-thenable façade so `const sb = await getTenantClient()`
+  // doesn't recursively unwrap the proxy chain's own `.then` handler.
+  const client = {
+    from: (...args: unknown[]) => {
+      (chain as { from: (...a: unknown[]) => unknown }).from(...args);
+      return nonThenable;
+    },
+    rpc: (...args: unknown[]) => (chain as { rpc: (...a: unknown[]) => unknown }).rpc(...args),
+  };
+
+  return { client, recorder };
 }
 
 // Hoisted shared recorder so vi.mock factories can access it.
@@ -70,6 +96,11 @@ vi.mock("@/lib/supabase-server", () => ({
     return client;
   },
   getAnonClient: () => {
+    const { client, recorder } = createSupabaseRecorder();
+    sharedState.current = recorder;
+    return client;
+  },
+  getTenantClient: async () => {
     const { client, recorder } = createSupabaseRecorder();
     sharedState.current = recorder;
     return client;

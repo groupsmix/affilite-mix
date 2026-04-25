@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 const TABLE = "scheduled_jobs";
@@ -37,7 +37,7 @@ export async function listScheduledJobs(
   status?: ScheduledJobRow["status"],
   limit = 50,
 ): Promise<ScheduledJobRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -54,7 +54,7 @@ export async function listScheduledJobs(
 
 /** Create a scheduled job */
 export async function createScheduledJob(input: CreateScheduledJobInput): Promise<ScheduledJobRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .insert({
@@ -73,7 +73,7 @@ export async function createScheduledJob(input: CreateScheduledJobInput): Promis
 
 /** Cancel a scheduled job */
 export async function cancelScheduledJob(siteId: string, jobId: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb
     .from(TABLE)
     .update({ status: "cancelled" })
@@ -89,7 +89,7 @@ export async function getScheduledJobById(
   siteId: string,
   jobId: string,
 ): Promise<ScheduledJobRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")

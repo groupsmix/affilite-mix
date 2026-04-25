@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyCronAuth } from "@/lib/cron-auth";
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   // Check Supabase connectivity
   const dbStart = Date.now();
   try {
-    const supabase = getServiceClient();
+    const supabase = await getTenantClient();
     const { error } = await supabase.from("sites").select("id").limit(1);
     const latencyMs = Date.now() - dbStart;
 

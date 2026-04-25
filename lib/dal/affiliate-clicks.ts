@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import type { AffiliateClickRow } from "@/types/database";
 import { assertRows } from "./type-guards";
 
@@ -66,7 +66,7 @@ function resolveChartWindow(window: DailyClicksWindow): {
 
 /** Record an affiliate click (fire-and-forget) */
 export async function recordClick(input: RecordClickInput): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const row = {
     site_id: input.site_id,
     product_name: input.product_name,
@@ -90,7 +90,7 @@ export async function getClickCount(
   since?: string,
   until?: string,
 ): Promise<number> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb.from(TABLE).select("id", { count: "exact", head: true }).eq("site_id", siteId);
 
   query = applyCreatedAtWindow(query, { since, until });
@@ -110,7 +110,7 @@ export async function getRecentClicks(
   limit = 50,
   window?: ClickDateWindow,
 ): Promise<AffiliateClickRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb.from(TABLE).select(CLICK_COLUMNS).eq("site_id", siteId);
 
   query = applyCreatedAtWindow(query, window)
@@ -130,7 +130,7 @@ export async function getTopProducts(
   limit = 10,
   until?: string,
 ): Promise<{ product_name: string; click_count: number }[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { since: sinceDate, until: untilDate } = parseWindow({ since, until });
 
   if (!untilDate) {
@@ -173,7 +173,7 @@ export async function getTopReferrers(
   limit = 10,
   until?: string,
 ): Promise<{ referrer: string; click_count: number }[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { since: sinceDate, until: untilDate } = parseWindow({ since, until });
 
   if (!untilDate) {
@@ -217,7 +217,7 @@ export async function getTopContentSlugs(
   limit = 10,
   until?: string,
 ): Promise<{ content_slug: string; click_count: number }[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { since: sinceDate, until: untilDate } = parseWindow({ since, until });
 
   if (!untilDate) {
@@ -260,7 +260,7 @@ export async function getDailyClicks(
   siteId: string,
   daysOrWindow: DailyClicksWindow = 30,
 ): Promise<{ date: string; count: number }[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { sinceDate, untilDate } = resolveChartWindow(daysOrWindow);
 
   if (!untilDate) {

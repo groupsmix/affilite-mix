@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import type { ContentProductRow, ContentRow, ProductRow } from "@/types/database";
 import { assertRow, assertRows } from "./type-guards";
 
@@ -6,7 +6,7 @@ const TABLE = "content_products";
 
 /** Link a product to a content item */
 export async function linkProduct(input: ContentProductRow): Promise<ContentProductRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<ContentProductRow>(data, "ContentProduct");
@@ -18,7 +18,7 @@ export async function unlinkProduct(
   contentId: string,
   productId: string,
 ): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   // Verify the content belongs to this site
   const { data: contentRow, error: contentErr } = await sb
@@ -44,7 +44,7 @@ export async function getLinkedProducts(
   siteId: string,
   contentId: string,
 ): Promise<(ContentProductRow & { product: ProductRow })[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   // Join through products to ensure only products belonging to this site are returned
   const { data, error } = await sb
     .from(TABLE)
@@ -64,7 +64,7 @@ export async function updateProductLink(
   productId: string,
   input: Partial<Pick<ContentProductRow, "role">>,
 ): Promise<ContentProductRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   // Verify the content belongs to this site
   const { data: contentRow, error: contentErr } = await sb
@@ -93,7 +93,7 @@ export async function getRelatedContentForProduct(
   siteId: string,
   productId: string,
 ): Promise<ContentRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("content:content!inner(*)")
@@ -121,7 +121,7 @@ export async function setLinkedProducts(
   siteId: string,
   links: Omit<ContentProductRow, "content_id">[],
 ): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   // @ts-ignore - The RPC is defined in migration 00057 but not yet generated in the local types
   const { error } = await sb.rpc("set_linked_products", {

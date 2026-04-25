@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { hashPassword } from "@/lib/password";
 import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
 import { parseJsonBody } from "@/lib/api-error";
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
 
     // Look up the user by the SHA-256 hash of the submitted token. The DB
     // only ever stores the hash (see /api/auth/forgot-password); the raw

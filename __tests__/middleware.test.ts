@@ -147,7 +147,6 @@ describe("CSRF-exempt paths", () => {
   // These paths should be exempt from CSRF validation in the middleware
   const exemptPaths = new Set([
     "/api/auth/csrf",
-    "/api/auth/login",
     "/api/auth/refresh",
     "/api/cron/publish",
     "/api/cron/sitemap-refresh",
@@ -160,6 +159,7 @@ describe("CSRF-exempt paths", () => {
 
   // These paths should NOT be exempt (require CSRF)
   const protectedPaths = [
+    "/api/auth/login",
     "/api/auth/logout",
     "/api/admin/categories",
     "/api/admin/products",
@@ -170,11 +170,15 @@ describe("CSRF-exempt paths", () => {
   ];
 
   it("exempts the correct set of paths", () => {
-    expect(exemptPaths.size).toBe(10);
+    expect(exemptPaths.size).toBe(9);
     expect(exemptPaths.has("/api/auth/csrf")).toBe(true);
-    expect(exemptPaths.has("/api/auth/login")).toBe(true);
+    expect(exemptPaths.has("/api/auth/refresh")).toBe(true);
     expect(exemptPaths.has("/api/cron/publish")).toBe(true);
     expect(exemptPaths.has("/api/track/click")).toBe(true);
+  });
+
+  it("does NOT exempt /api/auth/login (F-10 fix)", () => {
+    expect(exemptPaths.has("/api/auth/login")).toBe(false);
   });
 
   it("does NOT exempt /api/auth/logout (H-5 fix)", () => {

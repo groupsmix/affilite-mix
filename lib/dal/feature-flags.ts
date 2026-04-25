@@ -5,7 +5,7 @@
  * Flags can be toggled without code deploy.
  */
 
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import type { SiteFeatureFlagRow } from "@/types/database";
 import { assertRows, assertRow } from "./type-guards";
 
@@ -17,7 +17,7 @@ const TABLE = "site_feature_flags";
 
 /** List all feature flags for a site */
 export async function listSiteFeatureFlags(siteId: string): Promise<SiteFeatureFlagRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -30,7 +30,7 @@ export async function listSiteFeatureFlags(siteId: string): Promise<SiteFeatureF
 
 /** Check if a specific feature flag is enabled for a site */
 export async function isFeatureFlagEnabled(siteId: string, flagKey: string): Promise<boolean> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("is_enabled")
@@ -45,7 +45,7 @@ export async function isFeatureFlagEnabled(siteId: string, flagKey: string): Pro
 
 /** Get all enabled flag keys for a site (fast lookup) */
 export async function getEnabledFlagKeys(siteId: string): Promise<string[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("flag_key")
@@ -67,7 +67,7 @@ export async function upsertFeatureFlag(input: {
   is_enabled: boolean;
   description?: string;
 }): Promise<SiteFeatureFlagRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .upsert(
@@ -93,7 +93,7 @@ export async function bulkUpsertFeatureFlags(
 ): Promise<SiteFeatureFlagRow[]> {
   if (flags.length === 0) return [];
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const rows = flags.map((f) => ({
     site_id: siteId,
     flag_key: f.flag_key,
@@ -112,7 +112,7 @@ export async function bulkUpsertFeatureFlags(
 
 /** Delete a feature flag */
 export async function deleteFeatureFlag(siteId: string, flagKey: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("flag_key", flagKey);
 
   if (error) throw error;

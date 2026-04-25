@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 // ── Wrist Shots ──────────────────────────────────────────────
@@ -28,7 +28,7 @@ export async function createWristShot(input: {
   image_url: string;
   caption?: string;
 }): Promise<WristShotRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(WRIST_SHOTS_TABLE).insert(input).select().single();
   if (error) throw error;
@@ -40,7 +40,7 @@ export async function listApprovedWristShots(
   productId: string,
   limit: number = 20,
 ): Promise<WristShotRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(WRIST_SHOTS_TABLE)
@@ -56,7 +56,7 @@ export async function listApprovedWristShots(
 
 /** List pending wrist shots for moderation */
 export async function listPendingWristShots(siteId: string): Promise<WristShotRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(WRIST_SHOTS_TABLE)
@@ -74,7 +74,7 @@ export async function moderateWristShot(
   id: string,
   status: "approved" | "rejected",
 ): Promise<WristShotRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(WRIST_SHOTS_TABLE)
@@ -120,7 +120,7 @@ export async function createComment(input: {
   user_name: string;
   body: string;
 }): Promise<CommentRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(COMMENTS_TABLE).insert(input).select().single();
   if (error) throw error;
@@ -132,7 +132,7 @@ export async function listApprovedComments(
   targetType: "product" | "content",
   targetId: string,
 ): Promise<CommentRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
@@ -148,7 +148,7 @@ export async function listApprovedComments(
 
 /** List pending comments for moderation */
 export async function listPendingComments(siteId: string): Promise<CommentRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
@@ -166,7 +166,7 @@ export async function moderateComment(
   id: string,
   status: "approved" | "rejected" | "spam",
 ): Promise<CommentRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
@@ -185,7 +185,7 @@ export async function moderateComment(
 
 /** Get comment by ID */
 export async function getCommentById(id: string): Promise<CommentRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(COMMENTS_TABLE).select("*").eq("id", id).maybeSingle();
 

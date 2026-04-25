@@ -129,17 +129,15 @@ function escapeAttrValue(value: string): string {
  * - javascript: / data: / vbscript: protocols in href/src are stripped.
  * - <a> tags always get rel="noopener noreferrer nofollow".
  */
-const ALLOWED_CLASSES = new Set([
-  // TipTap/Highlight.js code languages
-  ...["javascript", "typescript", "html", "css", "json", "python", "bash", "sql"].map(
-    (lang) => `language-${lang}`,
-  ),
-  // Basic alignment classes if needed
-  "text-left",
-  "text-center",
-  "text-right",
-  "text-justify",
-]);
+/**
+ * F-041: Make ALLOWED_CLASSES data-driven to support any language prefix
+ * without hardcoding the list of languages.
+ */
+function isAllowedClass(cls: string): boolean {
+  if (cls.startsWith("language-")) return true;
+  if (["text-left", "text-center", "text-right", "text-justify"].includes(cls)) return true;
+  return false;
+}
 
 function buildAttrs(tag: string, raw: Record<string, string>): string {
   const allowedSet = ALLOWED_ATTRS[tag];
@@ -158,7 +156,7 @@ function buildAttrs(tag: string, raw: Record<string, string>): string {
       if (lc === "class") {
         const safeClasses = value
           .split(/\s+/)
-          .filter((cls) => ALLOWED_CLASSES.has(cls))
+          .filter(isAllowedClass)
           .join(" ");
         if (!safeClasses) continue;
         parts.push(`class="${escapeAttrValue(safeClasses)}"`);

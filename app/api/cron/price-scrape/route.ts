@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { createPriceSnapshots } from "@/lib/dal/price-snapshots";
 import { findTriggeredAlerts, markAlertTriggered } from "@/lib/dal/price-alerts";
 import { logger } from "@/lib/logger";
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
 
     // Fetch all active products with a numeric price
     const { data: products, error: prodError } = await sb

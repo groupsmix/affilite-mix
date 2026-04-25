@@ -1,276 +1,420 @@
-# Affilite-Mix — Multi-Site Affiliate Platform
+# Gitleaks
 
-A multi-tenant affiliate content platform built with **Next.js 15** (App Router), **Supabase**, **Tailwind CSS v4**, and deployed to **Cloudflare Workers** via `@opennextjs/cloudflare`.
+```
+┌─○───┐
+│ │╲  │
+│ │ ○ │
+│ ○ ░ │
+└─░───┘
+```
 
-Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has its own domain, language, theme, and content.
+<p align="left">
+  <p align="left">
+	  <a href="https://github.com/zricethezav/gitleaks/actions/workflows/test.yml">
+		  <img alt="Github Test" src="https://github.com/zricethezav/gitleaks/actions/workflows/test.yml/badge.svg">
+	  </a>
+	  <a href="https://hub.docker.com/r/zricethezav/gitleaks">
+		  <img src="https://img.shields.io/docker/pulls/zricethezav/gitleaks.svg" />
+	  </a>
+	  <a href="https://github.com/zricethezav/gitleaks-action">
+        	<img alt="gitleaks badge" src="https://img.shields.io/badge/protected%20by-gitleaks-blue">
+    	 </a>
+	  <a href="https://twitter.com/intent/follow?screen_name=zricethezav">
+		  <img src="https://img.shields.io/twitter/follow/zricethezav?label=Follow%20zricethezav&style=social&color=blue" alt="Follow @zricethezav" />
+	  </a>
+  </p>
+</p>
 
-## Quick Links
+### Join our Discord! [![Discord](https://img.shields.io/discord/1102689410522284044.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/8Hzbrnkr7E)
 
-- [Contributing](#contributing)
-- [Project Structure](#project-structure)
-- [Deployment](#deployment)
-- [License](#license)
+Gitleaks is a SAST tool for **detecting** and **preventing** hardcoded secrets like passwords, api keys, and tokens in git repos. Gitleaks is an **easy-to-use, all-in-one solution** for detecting secrets, past or present, in your code.
 
-## Features
+```
+➜  ~/code(master) gitleaks detect --source . -v
 
-- **Multi-site architecture** — domain-based routing via middleware; site configs in `config/sites/`
-- **Admin panel** — content CMS, product management, category management, user accounts
-- **Affiliate click tracking** — logs outbound clicks with source attribution
-- **Newsletter signups** — per-site subscriber management with Turnstile captcha
-- **Scheduled jobs** — publish/archive content and products on a schedule
-- **SEO** — JSON-LD structured data, Open Graph, canonical URLs, sitemap
-- **Security** — CSRF protection, rate limiting, HTML sanitization, bcrypt password hashing (with transparent PBKDF2 legacy upgrade), CSP headers
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
 
-## Tech Stack
 
-| Layer            | Technology                                      |
-| ---------------- | ----------------------------------------------- |
-| Framework        | Next.js 15 (App Router)                         |
-| Database         | Supabase (PostgreSQL + RLS)                     |
-| Styling          | Tailwind CSS v4                                 |
-| Rich text editor | TipTap                                          |
-| Image storage    | Cloudflare R2 (S3-compatible)                   |
-| Bot protection   | Cloudflare Turnstile                            |
-| Deployment       | Cloudflare Workers via `@opennextjs/cloudflare` |
+Finding:     "export BUNDLE_ENTERPRISE__CONTRIBSYS__COM=cafebabe:deadbeef",
+Secret:      cafebabe:deadbeef
+RuleID:      sidekiq-secret
+Entropy:     2.609850
+File:        cmd/generate/config/rules/sidekiq.go
+Line:        23
+Commit:      cd5226711335c68be1e720b318b7bc3135a30eb2
+Author:      John
+Email:       john@users.noreply.github.com
+Date:        2022-08-03T12:31:40Z
+Fingerprint: cd5226711335c68be1e720b318b7bc3135a30eb2:cmd/generate/config/rules/sidekiq.go:sidekiq-secret:23
+```
 
 ## Getting Started
 
-### Prerequisites
+Gitleaks can be installed using Homebrew, Docker, or Go. Gitleaks is also available in binary form for many popular platforms and OS types on the [releases page](https://github.com/zricethezav/gitleaks/releases). In addition, Gitleaks can be implemented as a pre-commit hook directly in your repo or as a GitHub action using [Gitleaks-Action](https://github.com/gitleaks/gitleaks-action).
 
-- Node.js 22+
-- npm
-- A Supabase project (free tier works)
-
-### 1. Clone and install
+### Installing
 
 ```bash
-git clone https://github.com/groupsmix/affilite-mix.git
-cd affilite-mix
-npm install
+# MacOS
+brew install gitleaks
+
+# Docker (DockerHub)
+docker pull zricethezav/gitleaks:latest
+docker run -v ${path_to_host_folder_to_scan}:/path zricethezav/gitleaks:latest [COMMAND] --source="/path" [OPTIONS]
+
+# Docker (ghcr.io)
+docker pull ghcr.io/gitleaks/gitleaks:latest
+docker run -v ${path_to_host_folder_to_scan}:/path ghcr.io/gitleaks/gitleaks:latest [COMMAND] --source="/path" [OPTIONS]
+
+# From Source
+git clone https://github.com/gitleaks/gitleaks.git
+cd gitleaks
+make build
 ```
 
-### 2. Set up environment variables
+### GitHub Action
 
-```bash
-cp .env.example .env
+Check out the official [Gitleaks GitHub Action](https://github.com/gitleaks/gitleaks-action)
+
+```
+name: gitleaks
+on: [pull_request, push, workflow_dispatch]
+jobs:
+  scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}} # Only required for Organizations, not personal accounts.
 ```
 
-Edit `.env` and fill in your values:
+### Pre-Commit
 
-| Variable                         | Required  | Description                                                              |
-| -------------------------------- | --------- | ------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SUPABASE_URL`       | Yes       | Your Supabase project URL                                                |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Yes       | Supabase anon/public key                                                 |
-| `SUPABASE_SERVICE_ROLE_KEY`      | Yes       | Supabase service role key (server-only)                                  |
-| `JWT_SECRET`                     | Yes       | Random 64-byte hex string for admin JWT signing                          |
-| `APP_URL`                        | Prod      | Canonical base URL for absolute links (e.g. password reset emails)       |
-| `SUPABASE_DB_POOLER_URL`         | CI/Deploy | IPv4-reachable session pooler URL for CI migrations (see `.env.example`) |
-| `STAGING_SUPABASE_DB_URL`        | CI/Deploy | Staging DB for deploy clean-reset smoke test (must differ from prod)     |
-| `CRON_SECRET`                    | Prod      | Secret for authenticating cron job requests                              |
-| `R2_ACCOUNT_ID`                  | Optional  | Cloudflare R2 account ID for image uploads                               |
-| `R2_ACCESS_KEY_ID`               | Optional  | R2 access key                                                            |
-| `R2_SECRET_ACCESS_KEY`           | Optional  | R2 secret key                                                            |
-| `R2_BUCKET_NAME`                 | Optional  | R2 bucket name                                                           |
-| `R2_PUBLIC_URL`                  | Optional  | Public URL for R2 bucket                                                 |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Optional  | Turnstile site key (captcha)                                             |
-| `TURNSTILE_SECRET_KEY`           | Optional  | Turnstile secret key                                                     |
-| `CLOUDFLARE_API_TOKEN`           | Deploy    | For cache purge operations                                               |
-| `CLOUDFLARE_ZONE_ID`             | Deploy    | Cloudflare zone ID                                                       |
+1. Install pre-commit from https://pre-commit.com/#install
+2. Create a `.pre-commit-config.yaml` file at the root of your repository with the following content:
 
-### 3. Set up the database
-
-Apply all migrations to your Supabase project in order:
-
-```bash
-# Option 1 — Supabase CLI (recommended)
-supabase db push
-
-# Option 2 — Direct psql (apply each file in numbered order)
-for f in supabase/migrations/*.sql; do psql "$SUPABASE_DB_URL" -f "$f"; done
-```
-
-> Migrations live in `supabase/migrations/` and are numbered sequentially.
-> Do **not** apply `supabase/schema.sql` directly — it is a snapshot for reference only.
-
-### 4. Run the dev server
-
-```bash
-npm run dev
-```
-
-The app will be available at [http://localhost:3000](http://localhost:3000).
-
-> **Note:** In development, the middleware resolves `localhost` to the first registered site. To test multi-site routing, add entries to `/etc/hosts` or use the site aliases defined in `config/sites/`.
-
-### Local multi-site testing
-
-To test multiple sites simultaneously in local development, use `<slug>.localhost` subdomains — modern browsers resolve any `*.localhost` hostname to `127.0.0.1` per [RFC 6761](https://www.rfc-editor.org/rfc/rfc6761), so no `/etc/hosts` edits are required on macOS, Linux, Windows, or WSL.
-
-1. Start the dev server:
-
-   ```bash
-   npm run dev
+   ```
+   repos:
+     - repo: https://github.com/gitleaks/gitleaks
+       rev: v8.16.1
+       hooks:
+         - id: gitleaks
    ```
 
-2. Visit any registered site by its `id` (slug) from `config/sites/`:
-   - [http://arabic-tools.localhost:3000](http://arabic-tools.localhost:3000) — Arabic Tools
-   - [http://crypto-tools.localhost:3000](http://crypto-tools.localhost:3000) — CryptoRanked
-   - [http://watch-tools.localhost:3000](http://watch-tools.localhost:3000) — WristNerd
-   - [http://ai-compared.localhost:3000](http://ai-compared.localhost:3000) — AI Compared
+   for a [native execution of GitLeaks](https://github.com/zricethezav/gitleaks/releases) or use the [`gitleaks-docker` pre-commit ID](https://github.com/zricethezav/gitleaks/blob/master/.pre-commit-hooks.yaml) for executing GitLeaks using the [official Docker images](#docker)
 
-Unknown slugs (e.g. `http://unknown.localhost:3000`) return the standard "Niche not found" 404.
-
-This pattern is **development-only** — middleware gates it on `NODE_ENV !== "production"` and never makes DB calls for `.localhost` hostnames.
-
-### 5. Access the admin panel
-
-Navigate to [http://localhost:3000/admin/login](http://localhost:3000/admin/login) and log in with a database-managed admin account.
-
-## Local Development
-
-This project uses **domain-based multi-tenant routing**. In production, each site is served from its own domain (e.g. `wristnerd.site`). In development, the middleware automatically resolves `localhost` to the first registered site so you can get started immediately.
-
-### Quick start (single site)
-
-```bash
-npm run dev
-# Visit http://localhost:3000 — serves the first site in config/sites/index.ts
-```
-
-### Choosing a default site
-
-Set the `NEXT_PUBLIC_DEFAULT_SITE` environment variable in your `.env` to control which site `localhost` resolves to:
-
-```env
-NEXT_PUBLIC_DEFAULT_SITE=watch-tools
-```
-
-Available site IDs are defined in `config/sites/` (e.g. `arabic-tools`, `crypto-tools`, `watch-tools`).
-
-### Testing multi-site routing
-
-Each site config can declare `aliases` (e.g. `watch.localhost`). To test multiple sites simultaneously:
-
-1. Add entries to `/etc/hosts`:
-   ```
-   127.0.0.1  watch.localhost
-   127.0.0.1  crypto.localhost
-   127.0.0.1  arabic.localhost
-   ```
-2. Start the dev server: `npm run dev`
-3. Visit `http://watch.localhost:3000`, `http://crypto.localhost:3000`, etc.
-
-The middleware matches `*.localhost` subdomains against site alias prefixes automatically.
-
-### Running tests
-
-```bash
-npm test              # Unit tests (Vitest)
-npm run test:e2e      # End-to-end tests (Playwright)
-```
-
-## Scripts
-
-| Command             | Description                                 |
-| ------------------- | ------------------------------------------- |
-| `npm run dev`       | Start development server                    |
-| `npm run build`     | Production build                            |
-| `npm run start`     | Start production server                     |
-| `npm run lint`      | Run ESLint                                  |
-| `npm run typecheck` | Run TypeScript type checking                |
-| `npm run preview`   | Build and preview Cloudflare Worker locally |
-| `npm run deploy`    | Build and deploy to Cloudflare Workers      |
-
-## Project Structure
+3. Auto-update the config to the latest repos' versions by executing `pre-commit autoupdate`
+4. Install with `pre-commit install`
+5. Now you're all set!
 
 ```
-├── app/
-│   ├── (public)/                 # Public-facing pages (home, content, categories, search)
-│   │   └── components/           # Public UI components (incl. legacy Pagination)
-│   ├── admin/                    # Admin panel (content, products, categories, analytics)
-│   │   └── (dashboard)/
-│   │       ├── <section>/        # Per-section DataTable + server page (e.g. content/, products/, audit-log/)
-│   │       ├── components/       # Remaining admin-scoped pieces (SiteSwitcher, NicheHealth, guards…)
-│   │       └── _dev-datatable/   # NODE_ENV-gated showcase for data-table patterns (not shipped to prod)
-│   └── api/                      # API routes (auth, admin CRUD, cron, newsletter, tracking)
-├── components/
-│   ├── ui/                       # shadcn/ui primitives (button, badge, dialog, table, …)
-│   ├── admin/                    # Admin shell + shared admin widgets (AdminShell, AdminSidebar, StatusBadge)
-│   └── data-table/               # Reusable DataTable + filters/pagination/column-header
-├── config/
-│   ├── site-definition.ts        # SiteDefinition type
-│   └── sites/                    # Per-site configuration (domain, theme, nav, features)
-├── lib/
-│   ├── dal/                      # Data Access Layer (Supabase queries)
-│   ├── auth.ts                   # JWT-based admin authentication
-│   ├── csrf.ts                   # CSRF double-submit cookie protection
-│   ├── rate-limit.ts             # KV-backed rate limiter with in-memory fallback
-│   ├── sanitize-html.ts          # HTML allowlist sanitizer
-│   ├── validation.ts             # Input validation helpers
-│   └── ...                       # Other utilities
-├── supabase/                     # SQL schema, RLS policies, seed data
-├── types/                        # TypeScript type definitions
-└── .github/workflows/            # CI and deploy pipelines
+➜ git commit -m "this commit contains a secret"
+Detect hardcoded secrets.................................................Failed
 ```
 
-> Admin UI uses shadcn/ui primitives under `components/ui/`, lucide-react icons
-> imported one-by-one (no `import * as`), and a shared `components/data-table/`
-> layer. The route-group folder under `app/admin/(dashboard)/_dev-datatable/`
-> is a design-system sandbox and is `notFound()`-guarded in production.
+Note: to disable the gitleaks pre-commit hook you can prepend `SKIP=gitleaks` to the commit command
+and it will skip running gitleaks
 
-## Adding a New Site
+```
+➜ SKIP=gitleaks git commit -m "skip gitleaks check"
+Detect hardcoded secrets................................................Skipped
+```
 
-1. Create a new site config in `config/sites/` (copy an existing one as a template)
-2. Add it to the `allSites` array in `config/sites/index.ts`
-3. Insert a matching row into the `sites` database table
-4. Point the domain's DNS to your Cloudflare Workers deployment
+## Usage
 
-> **Note:** `next.config.ts` automatically derives `images.remotePatterns` from all registered sites — no manual update needed.
+```
+Usage:
+  gitleaks [command]
 
-## Deployment
+Available Commands:
+  completion  generate the autocompletion script for the specified shell
+  detect      detect secrets in code
+  help        Help about any command
+  protect     protect secrets in code
+  version     display gitleaks version
 
-The project deploys to Cloudflare Workers via GitHub Actions (`.github/workflows/deploy.yml`).
+Flags:
+  -b, --baseline-path string       path to baseline with issues that can be ignored
+  -c, --config string              config file path
+                                   order of precedence:
+                                   1. --config/-c
+                                   2. env var GITLEAKS_CONFIG
+                                   3. (--source/-s)/.gitleaks.toml
+                                   If none of the three options are used, then gitleaks will use the default config
+      --exit-code int              exit code when leaks have been encountered (default 1)
+  -h, --help                       help for gitleaks
+  -l, --log-level string           log level (trace, debug, info, warn, error, fatal) (default "info")
+      --max-target-megabytes int   files larger than this will be skipped
+      --no-color                   turn off color for verbose output
+      --no-banner                  suppress banner
+      --redact                     redact secrets from logs and stdout
+  -f, --report-format string       output format (json, csv, junit, sarif) (default "json")
+  -r, --report-path string         report file
+  -s, --source string              path to source (default ".")
+  -v, --verbose                    show verbose output from scan
 
-Required GitHub Secrets:
+Use "gitleaks [command] --help" for more information about a command.
+```
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `JWT_SECRET`
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
+### Commands
 
-For the full secrets inventory (build-time vs runtime, required vs optional), see [`docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md).
+There are two commands you will use to detect secrets; `detect` and `protect`.
 
-### Deployment & Operations Docs
+#### Detect
 
-| Document                                                               | Description                                                                                           |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [`docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md)                             | **Single source of truth** — account IDs, Worker bindings, secrets inventory, deploy runbook          |
-| [`docs/cloudflare-production.md`](docs/cloudflare-production.md)       | Zone security & performance toggles (SSL, HSTS, WAF, rate limiting, cache rules) with dashboard links |
-| [`docs/cloudflare-recovery.md`](docs/cloudflare-recovery.md)           | Account recovery playbook — lost access, compromised account, full rebuild from scratch               |
-| [`docs/cloudflare-r2-images.md`](docs/cloudflare-r2-images.md)         | Image upload architecture (S3-API presigned URLs vs Worker binding)                                   |
-| [`docs/secrets-rotation-runbook.md`](docs/secrets-rotation-runbook.md) | Per-secret rotation procedures, impact, and frequency                                                 |
-| [`docs/rollback-strategy.md`](docs/rollback-strategy.md)               | Rollback via Dashboard, API, or Git revert                                                            |
-| [`docs/incident-response.md`](docs/incident-response.md)               | Production incident detection, triage, and resolution                                                 |
-| [`docs/backup-strategy.md`](docs/backup-strategy.md)                   | Database and media backup strategy                                                                    |
+The `detect` command is used to scan repos, directories, and files. This command can be used on developer machines and in CI environments.
 
-## Contributing
+When running `detect` on a git repository, gitleaks will parse the output of a `git log -p` command (you can see how this executed
+[here](https://github.com/zricethezav/gitleaks/blob/7240e16769b92d2a1b137c17d6bf9d55a8562899/git/git.go#L17-L25)).
+[`git log -p` generates patches](https://git-scm.com/docs/git-log#_generating_patch_text_with_p) which gitleaks will use to detect secrets.
+You can configure what commits `git log` will range over by using the `--log-opts` flag. `--log-opts` accepts any option for `git log -p`.
+For example, if you wanted to run gitleaks on a range of commits you could use the following command: `gitleaks detect --source . --log-opts="--all commitA..commitB"`.
+See the `git log` [documentation](https://git-scm.com/docs/git-log) for more information.
 
-Contributions are welcome for internal collaborators.
+You can scan files and directories by using the `--no-git` option.
 
-1. Create a feature branch from `main`
-2. Run `npm run lint`, `npm run typecheck:all`, and `npm test`
-3. Open a pull request with a clear scope and test notes
+If you want to run only specific rules you can do so by using the `--enable-rule` option (with a rule ID as a parameter), this flag can be used multiple times. For example: `--enable-rule=atlassian-api-token` will only apply that rule. You can find a list of rules [here](config/gitleaks.toml).
 
-## Repository Name
+#### Protect
 
-> **Note:** The repository is named `affilite-mix` (missing an "a" in "affiliate"). This is a known typo. Renaming requires GitHub admin access and would break existing CI/CD integrations, deployment URLs, and git remotes. The typo does not affect functionality.
+The `protect` command is used to scan uncommitted changes in a git repo. This command should be used on developer machines in accordance with
+[shifting left on security](https://cloud.google.com/architecture/devops/devops-tech-shifting-left-on-security).
+When running `protect` on a git repository, gitleaks will parse the output of a `git diff` command (you can see how this executed
+[here](https://github.com/zricethezav/gitleaks/blob/7240e16769b92d2a1b137c17d6bf9d55a8562899/git/git.go#L48-L49)). You can set the
+`--staged` flag to check for changes in commits that have been `git add`ed. The `--staged` flag should be used when running Gitleaks
+as a pre-commit.
 
-## License
+**NOTE**: the `protect` command can only be used on git repos, running `protect` on files or directories will result in an error message.
 
-Private -- all rights reserved. See `LICENSE`.
+### Creating a baseline
 
-## Bundle Size Limits
+When scanning large repositories or repositories with a long history, it can be convenient to use a baseline. When using a baseline,
+gitleaks will ignore any old findings that are present in the baseline. A baseline can be any gitleaks report. To create a gitleaks report, run gitleaks with the `--report-path` parameter.
 
-The CI pipeline enforces a strict 150 KB budget per chunk (configured in `scripts/check-bundle-size.sh`). If a chunk exceeds this limit, the build will fail.
+```
+gitleaks detect --report-path gitleaks-report.json # This will save the report in a file called gitleaks-report.json
+```
+
+Once as baseline is created it can be applied when running the detect command again:
+
+```
+gitleaks detect --baseline-path gitleaks-report.json --report-path findings.json
+```
+
+After running the detect command with the --baseline-path parameter, report output (findings.json) will only contain new issues.
+
+### Verify Findings
+
+You can verify a finding found by gitleaks using a `git log` command.
+Example output:
+
+```
+Finding:     aws_secret="AKIAIMNOJVGFDXXXE4OA"
+RuleID:      aws-access-token
+Secret       AKIAIMNOJVGFDXXXE4OA
+Entropy:     3.65
+File:        checks_test.go
+Line:        37
+Commit:      ec2fc9d6cb0954fb3b57201cf6133c48d8ca0d29
+Author:      Zachary Rice
+Email:       z@email.com
+Date:        2018-01-28T17:39:00Z
+Fingerprint: ec2fc9d6cb0954fb3b57201cf6133c48d8ca0d29:checks_test.go:aws-access-token:37
+```
+
+We can use the following format to verify the leak:
+
+```
+git log -L {StartLine,EndLine}:{File} {Commit}
+```
+
+So in this example it would look like:
+
+```
+git log -L 37,37:checks_test.go ec2fc9d6cb0954fb3b57201cf6133c48d8ca0d29
+```
+
+Which gives us:
+
+```
+commit ec2fc9d6cb0954fb3b57201cf6133c48d8ca0d29
+Author: zricethezav <thisispublicanyways@gmail.com>
+Date:   Sun Jan 28 17:39:00 2018 -0500
+
+    [update] entropy check
+
+diff --git a/checks_test.go b/checks_test.go
+--- a/checks_test.go
++++ b/checks_test.go
+@@ -28,0 +37,1 @@
++               "aws_secret= \"AKIAIMNOJVGFDXXXE4OA\"":          true,
+
+```
+
+## Pre-Commit hook
+
+You can run Gitleaks as a pre-commit hook by copying the example `pre-commit.py` script into
+your `.git/hooks/` directory.
+
+## Configuration
+
+Gitleaks offers a configuration format you can follow to write your own secret detection rules:
+
+```toml
+# Title for the gitleaks configuration file.
+title = "Gitleaks title"
+
+# Extend the base (this) configuration. When you extend a configuration
+# the base rules take precedence over the extended rules. I.e., if there are
+# duplicate rules in both the base configuration and the extended configuration
+# the base rules will override the extended rules.
+# Another thing to know with extending configurations is you can chain together
+# multiple configuration files to a depth of 2. Allowlist arrays are appended
+# and can contain duplicates.
+# useDefault and path can NOT be used at the same time. Choose one.
+[extend]
+# useDefault will extend the base configuration with the default gitleaks config:
+# https://github.com/zricethezav/gitleaks/blob/master/config/gitleaks.toml
+useDefault = true
+# or you can supply a path to a configuration. Path is relative to where gitleaks
+# was invoked, not the location of the base config.
+path = "common_config.toml"
+
+# An array of tables that contain information that define instructions
+# on how to detect secrets
+[[rules]]
+
+# Unique identifier for this rule
+id = "awesome-rule-1"
+
+# Short human readable description of the rule.
+description = "awesome rule 1"
+
+# Golang regular expression used to detect secrets. Note Golang's regex engine
+# does not support lookaheads.
+regex = '''one-go-style-regex-for-this-rule'''
+
+# Golang regular expression used to match paths. This can be used as a standalone rule or it can be used
+# in conjunction with a valid `regex` entry.
+path = '''a-file-path-regex'''
+
+# Array of strings used for metadata and reporting purposes.
+tags = ["tag","another tag"]
+
+# Int used to extract secret from regex match and used as the group that will have
+# its entropy checked if `entropy` is set.
+secretGroup = 3
+
+# Float representing the minimum shannon entropy a regex group must have to be considered a secret.
+entropy = 3.5
+
+# Keywords are used for pre-regex check filtering. Rules that contain
+# keywords will perform a quick string compare check to make sure the
+# keyword(s) are in the content being scanned. Ideally these values should
+# either be part of the idenitifer or unique strings specific to the rule's regex
+# (introduced in v8.6.0)
+keywords = [
+  "auth",
+  "password",
+  "token",
+]
+
+# You can include an allowlist table for a single rule to reduce false positives or ignore commits
+# with known/rotated secrets
+[rules.allowlist]
+description = "ignore commit A"
+commits = [ "commit-A", "commit-B"]
+paths = [
+  '''go\.mod''',
+  '''go\.sum'''
+]
+# note: (rule) regexTarget defaults to check the _Secret_ in the finding.
+# if regexTarget is not specified then _Secret_ will be used.
+# Acceptable values for regexTarget are "match" and "line"
+regexTarget = "match"
+regexes = [
+  '''process''',
+  '''getenv''',
+]
+# note: stopwords targets the extracted secret, not the entire regex match
+# like 'regexes' does. (stopwords introduced in 8.8.0)
+stopwords = [
+  '''client''',
+  '''endpoint''',
+]
+
+
+# This is a global allowlist which has a higher order of precedence than rule-specific allowlists.
+# If a commit listed in the `commits` field below is encountered then that commit will be skipped and no
+# secrets will be detected for said commit. The same logic applies for regexes and paths.
+[allowlist]
+description = "global allow list"
+commits = [ "commit-A", "commit-B", "commit-C"]
+paths = [
+  '''gitleaks\.toml''',
+  '''(.*?)(jpg|gif|doc)'''
+]
+
+# note: (global) regexTarget defaults to check the _Secret_ in the finding.
+# if regexTarget is not specified then _Secret_ will be used.
+# Acceptable values for regexTarget are "match" and "line"
+regexTarget = "match"
+
+regexes = [
+  '''219-09-9999''',
+  '''078-05-1120''',
+  '''(9[0-9]{2}|666)-\d{2}-\d{4}''',
+]
+# note: stopwords targets the extracted secret, not the entire regex match
+# like 'regexes' does. (stopwords introduced in 8.8.0)
+stopwords = [
+  '''client''',
+  '''endpoint''',
+]
+```
+
+Refer to the default [gitleaks config](https://github.com/zricethezav/gitleaks/blob/master/config/gitleaks.toml) for examples or follow the [contributing guidelines](https://github.com/zricethezav/gitleaks/blob/master/README.md) if you would like to contribute to the default configuration. Additionally, you can check out [this gitleaks blog post](https://blog.gitleaks.io/stop-leaking-secrets-configuration-2-3-aeed293b1fbf) which covers advanced configuration setups.
+
+### Additional Configuration
+
+#### gitleaks:allow
+
+If you are knowingly committing a test secret that gitleaks will catch you can add a `gitleaks:allow` comment to that line which will instruct gitleaks
+to ignore that secret. Ex:
+
+```
+class CustomClass:
+    discord_client_secret = '8dyfuiRyq=vVc3RRr_edRk-fK__JItpZ'  #gitleaks:allow
+
+```
+
+#### .gitleaksignore
+
+You can ignore specific findings by creating a `.gitleaksignore` file at the root of your repo. In release v8.10.0 Gitleaks added a `Fingerprint` value to the Gitleaks report. Each leak, or finding, has a Fingerprint that uniquely identifies a secret. Add this fingerprint to the `.gitleaksignore` file to ignore that specific secret. See Gitleaks' [.gitleaksignore](https://github.com/zricethezav/gitleaks/blob/master/.gitleaksignore) for an example. Note: this feature is experimental and is subject to change in the future.
+
+## Sponsorships
+
+<p align="left">
+	  <a href="https://www.tines.com/?utm_source=oss&utm_medium=sponsorship&utm_campaign=gitleaks">
+		  <img alt="Tines Sponsorship" src="https://user-images.githubusercontent.com/15034943/146411864-4878f936-b4f7-49a0-b625-f9f40c704bfa.png" width=200>
+	  </a>
+  </p>
+
+## Exit Codes
+
+You can always set the exit code when leaks are encountered with the --exit-code flag. Default exit codes below:
+
+```
+0 - no leaks present
+1 - leaks or error encountered
+126 - unknown flag
+```

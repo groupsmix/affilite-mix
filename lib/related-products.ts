@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 
 /**
@@ -11,7 +11,7 @@ export async function getRelatedProducts(
   productId: string,
   limit: number = 6,
 ): Promise<ProductRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   // Get the source product
   const { data: source } = await sb.from("products").select("*").eq("id", productId).single();
@@ -69,7 +69,7 @@ export async function getComparisonSuggestions(
   productSlug: string,
   limit: number = 3,
 ): Promise<{ slug: string; title: string }[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data: source } = await sb
     .from("products")

@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRow, assertRows } from "./type-guards";
 
 const TABLE = "shared_content";
@@ -18,7 +18,7 @@ export async function shareContent(
   sourceSiteId: string,
   targetSiteId: string,
 ): Promise<SharedContentRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   // Verify the content actually belongs to the source site
   const { data: contentRow, error: contentErr } = await sb
@@ -50,7 +50,7 @@ export async function unshareContent(
   contentId: string,
   targetSiteId: string,
 ): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb
     .from(TABLE)
     .delete()
@@ -66,7 +66,7 @@ export async function listSharedTargets(
   sourceSiteId: string,
   contentId: string,
 ): Promise<SharedContentRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -80,7 +80,7 @@ export async function listSharedTargets(
 
 /** List content shared TO a given site (from other sites) */
 export async function listContentSharedToSite(targetSiteId: string): Promise<SharedContentRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)
