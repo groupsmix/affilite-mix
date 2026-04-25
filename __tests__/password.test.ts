@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import bcrypt from "bcryptjs";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 describe("hashPassword", () => {
@@ -36,5 +37,20 @@ describe("verifyPassword", () => {
   it("returns valid=false for empty stored hash", async () => {
     const result = await verifyPassword("password", "");
     expect(result.valid).toBe(false);
+  });
+
+  it("flags needsRehash=true for a bcrypt hash stored with fewer rounds", async () => {
+    // Hash at the previous cost factor (10) and verify against the bumped one (12).
+    const lowRoundHash = await bcrypt.hash("legacy-cost", 10);
+    const result = await verifyPassword("legacy-cost", lowRoundHash);
+    expect(result.valid).toBe(true);
+    expect(result.needsRehash).toBe(true);
+  });
+
+  it("does not flag rehash for a hash already at the current cost factor", async () => {
+    const hash = await hashPassword("current-cost");
+    const result = await verifyPassword("current-cost", hash);
+    expect(result.valid).toBe(true);
+    expect(result.needsRehash).toBe(false);
   });
 });

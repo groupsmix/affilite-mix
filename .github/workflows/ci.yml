@@ -85,6 +85,26 @@ jobs:
           STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
         run: bash scripts/check-db-types.sh
 
+  # ── Terraform IaC validation (F-01) ───────────────────────────────
+  # Catches syntax/type errors in terraform/cloudflare/*.tf so the
+  # checked-in policy-as-code is guaranteed to be applyable. We run
+  # `terraform init -backend=false` (no remote state needed for
+  # syntactic validation) followed by `fmt -check` and `validate`.
+  terraform:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - name: terraform fmt -check
+        run: terraform -chdir=terraform/cloudflare fmt -check -recursive
+      - name: terraform init (no backend)
+        run: terraform -chdir=terraform/cloudflare init -backend=false
+      - name: terraform validate
+        run: terraform -chdir=terraform/cloudflare validate
+
   # ── Cross-workflow required gates ──────────────────────────────────
   # Branch protection should require ALL of the following check names:
   #
