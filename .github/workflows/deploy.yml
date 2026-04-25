@@ -4,6 +4,11 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  id-token: write
+  deployments: write
+
 jobs:
   validate-secrets:
     runs-on: ubuntu-latest
@@ -41,8 +46,8 @@ jobs:
     needs: validate-secrets
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      
       - name: Require staging DB smoke test
         if: github.ref == 'refs/heads/main'
         run: |
@@ -71,6 +76,3 @@ jobs:
 
       - name: Stage 7 - Promote traffic
         run: echo "Promoting traffic..."
-
-      # Note: Admin bootstrap steps have been explicitly removed.
-      # Use a separate break-glass workflow for admin creation.
