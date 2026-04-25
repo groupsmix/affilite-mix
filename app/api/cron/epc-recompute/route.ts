@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase-server";
 import { upsertProductEpc } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
+import { verifyCronAuth } from "@/lib/cron-auth";
 
 /**
  * GET /api/cron/epc-recompute
@@ -10,8 +11,7 @@ import { logger } from "@/lib/logger";
  * Should run after commission-ingest cron.
  */
 export async function POST(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_EPC_SECRET", "CRON_SECRET"] })) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

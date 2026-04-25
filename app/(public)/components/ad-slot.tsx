@@ -35,7 +35,7 @@ export default function AdSlot({
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ adId: id, url: window.location.href }),
+            body: JSON.stringify({ ad_placement_id: id, page_path: window.location.pathname }),
             // Use keepalive so the request finishes even if the user navigates away
             keepalive: true,
           }).catch((err) => {

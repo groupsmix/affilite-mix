@@ -3,6 +3,7 @@ import { ingestCommissions } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
 import { safeFetch } from "@/lib/ssrf-guard";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { verifyCronAuth } from "@/lib/cron-auth";
 
 /**
  * GET /api/cron/commission-ingest
@@ -13,8 +14,7 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
  * Real API integration requires network API keys configured in env.
  */
 export async function POST(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_COMMISSION_SECRET", "CRON_SECRET"] })) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
