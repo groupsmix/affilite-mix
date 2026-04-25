@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, rowOrNull } from "./type-guards";
 
 export interface AdminSiteMembershipRow {
@@ -18,7 +18,7 @@ export async function getAdminSiteMembership(
   adminUserId: string,
   siteId: string,
 ): Promise<AdminSiteMembershipRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -36,7 +36,7 @@ export async function getAdminSiteMembership(
 export async function listAdminSiteMemberships(
   adminUserId: string,
 ): Promise<AdminSiteMembershipRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -54,7 +54,7 @@ export async function grantAdminSiteMembership(
   adminUserId: string,
   siteId: string,
 ): Promise<AdminSiteMembershipRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .upsert(
@@ -76,7 +76,7 @@ export async function grantAdminSiteMembership(
 export async function listAllAdminSiteMembershipsWithSlugs(): Promise<
   Array<{ admin_user_id: string; site_id: string; site_slug: string }>
 > {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from(TABLE).select("admin_user_id, site_id, sites!inner(slug)");
 
   if (error) throw error;
@@ -103,7 +103,7 @@ export async function revokeAdminSiteMembership(
   adminUserId: string,
   siteId: string,
 ): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb
     .from(TABLE)
     .delete()

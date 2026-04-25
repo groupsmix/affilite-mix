@@ -1,0 +1,28 @@
+name: DR Drill - Supabase Restore Test
+
+on:
+  schedule:
+    - cron: '0 0 1 * *' # Run monthly on the 1st
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  dr-drill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Supabase CLI
+        run: npm install -g supabase
+
+      - name: Run Restore Drill Script
+        run: ./scripts/dr-restore-test.sh
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          # Normally this script would download a real pg_dump from R2 here.
+          # We use the local `supabase db reset` in the script as the CI proxy.

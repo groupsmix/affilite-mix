@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 /** A single quiz step definition */
@@ -52,7 +52,7 @@ const SUBMISSION_TABLE = "quiz_submissions";
 
 /** Get active quiz by slug */
 export async function getQuizBySlug(siteId: string, slug: string): Promise<QuizRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(QUIZ_TABLE)
@@ -68,7 +68,7 @@ export async function getQuizBySlug(siteId: string, slug: string): Promise<QuizR
 
 /** List active quizzes for a site */
 export async function listQuizzes(siteId: string): Promise<QuizRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(QUIZ_TABLE)
@@ -90,7 +90,7 @@ export async function createQuiz(input: {
   steps: QuizStep[];
   result_config: QuizResultConfig;
 }): Promise<QuizRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(QUIZ_TABLE).insert(input).select().single();
   if (error) throw error;
@@ -103,7 +103,7 @@ export async function createQuizSubmission(input: {
   site_id: string;
   session_id?: string;
 }): Promise<QuizSubmissionRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(SUBMISSION_TABLE).insert(input).select().single();
   if (error) throw error;
@@ -121,7 +121,7 @@ export async function updateQuizSubmission(
     completed_at?: string;
   },
 ): Promise<QuizSubmissionRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(SUBMISSION_TABLE)
@@ -135,7 +135,7 @@ export async function updateQuizSubmission(
 
 /** Get a submission by ID */
 export async function getQuizSubmission(id: string): Promise<QuizSubmissionRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(SUBMISSION_TABLE).select("*").eq("id", id).maybeSingle();
 

@@ -8,6 +8,11 @@ vi.mock("@/lib/supabase-server", () => ({
       insert: mockInsert,
     }),
   }),
+  getTenantClient: async () => ({
+    from: () => ({
+      insert: mockInsert,
+    }),
+  }),
 }));
 
 import { recordAuditEvent, type AuditEvent } from "@/lib/audit-log";
@@ -33,11 +38,12 @@ describe("recordAuditEvent", () => {
     expect(mockInsert).toHaveBeenCalledWith({
       site_id: "site-123",
       actor: "admin@example.com",
+      actor_user_id: null,
       action: "create",
       entity_type: "content",
       entity_id: "content-456",
       details: {},
-      ip: "",
+      ip: null,
     });
   });
 
@@ -59,6 +65,7 @@ describe("recordAuditEvent", () => {
     expect(mockInsert).toHaveBeenCalledWith({
       site_id: "site-123",
       actor: "admin@example.com",
+      actor_user_id: null,
       action: "update",
       entity_type: "product",
       entity_id: "product-789",

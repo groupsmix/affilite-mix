@@ -597,6 +597,7 @@ export interface Database {
           id: string;
           site_id: string;
           actor: string | null;
+          actor_user_id: string | null;
           action: string;
           entity_type: string;
           entity_id: string;
@@ -608,6 +609,7 @@ export interface Database {
           id?: string;
           site_id: string;
           actor?: string | null;
+          actor_user_id?: string | null;
           action: string;
           entity_type: string;
           entity_id: string;
@@ -619,6 +621,7 @@ export interface Database {
           id?: string;
           site_id?: string;
           actor?: string | null;
+          actor_user_id?: string | null;
           action?: string;
           entity_type?: string;
           entity_id?: string;

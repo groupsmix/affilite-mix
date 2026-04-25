@@ -34,6 +34,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  // F-024: The idempotency check (recordStripeEvent) and the side-effect (processStripeEvent)
+  // are currently separate calls. While `recordStripeEvent` uses a unique constraint to prevent
+  // concurrent double-processing, a crash during `processStripeEvent` would leave the event marked
+  // as processed without the side-effects applied, and Stripe retries would be ignored.
+  // We accept this limitation for now as Stripe events can be manually reconciled from the dashboard,
+  // but true atomic processing requires moving the event recording into the same Postgres transaction
+  // as the membership updates via an RPC call.
+
   let firstDelivery: boolean;
   try {
     firstDelivery = await recordStripeEvent(event.id, event.type);

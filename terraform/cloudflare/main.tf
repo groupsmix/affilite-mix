@@ -102,13 +102,24 @@ resource "cloudflare_ruleset" "cache_rules" {
   }
 }
 
-# F-013: Logpush Job for long-term retention (shipping to S3/Datadog)
+variable "logpush_destination_conf" {
+  type        = string
+  description = "The destination configuration string for Cloudflare Logpush (e.g., s3://my-bucket/logs?region=us-east-1)"
+  default     = "s3://placeholder-bucket/logs?region=us-east-1"
+}
+
+variable "logpush_enabled" {
+  type        = bool
+  description = "Whether the Logpush job is enabled"
+  default     = false
+}
+
+# F-012: Logpush Job for long-term retention (shipping to S3/Datadog)
 resource "cloudflare_logpush_job" "worker_logs" {
   account_id       = var.cloudflare_account_id
-  name             = "workers-logpush-to-s3"
+  name             = "workers-logpush"
   dataset          = "workers_trace_events"
   logpull_options  = "fields=Event,EventTimestampMs,Outcome,Logs,Exceptions&timestamps=rfc3339"
-  destination_conf = "s3://my-bucket/logs?region=us-east-1"
-  # In a real environment, you would use AWS IAM roles or credentials
-  enabled = false # Set to true when destination credentials are provided
+  destination_conf = var.logpush_destination_conf
+  enabled          = var.logpush_enabled
 }

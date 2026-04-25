@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { apiError, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     return apiError(400, "Invalid email format");
   }
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const lowerEmail = email.toLowerCase();
 
   try {
@@ -121,7 +121,7 @@ export async function DELETE(request: NextRequest) {
     return apiError(400, "Invalid email format");
   }
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const results: Record<string, unknown> = { email_hash: hashEmail(email) };
 
   try {

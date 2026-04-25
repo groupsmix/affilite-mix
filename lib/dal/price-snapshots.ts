@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow } from "./type-guards";
 
 export interface PriceSnapshotRow {
@@ -22,7 +22,7 @@ export async function createPriceSnapshot(input: {
   currency?: string;
   source?: string;
 }): Promise<PriceSnapshotRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
@@ -40,7 +40,7 @@ export async function createPriceSnapshots(
   }[],
 ): Promise<PriceSnapshotRow[]> {
   if (inputs.length === 0) return [];
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(TABLE).insert(inputs).select();
   if (error) throw error;
@@ -52,7 +52,7 @@ export async function getPriceHistory(
   productId: string,
   days: number = 90,
 ): Promise<PriceSnapshotRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const since = new Date();
   since.setDate(since.getDate() - days);
 
@@ -69,7 +69,7 @@ export async function getPriceHistory(
 
 /** Get the latest price snapshot for a product */
 export async function getLatestPrice(productId: string): Promise<PriceSnapshotRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -88,7 +88,7 @@ export async function getLatestPricesForProducts(
   productIds: string[],
 ): Promise<Map<string, PriceSnapshotRow>> {
   if (productIds.length === 0) return new Map();
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   // Get the most recent snapshot per product using distinct on
 

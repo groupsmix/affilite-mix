@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 export interface AdminUserRow {
@@ -26,7 +26,7 @@ const TABLE = "admin_users";
 
 /** Find an active admin user by email (for login) */
 export async function getAdminUserByEmail(email: string): Promise<AdminUserRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -40,7 +40,7 @@ export async function getAdminUserByEmail(email: string): Promise<AdminUserRow |
 
 /** Find an admin user by ID (excludes password_hash for safety) */
 export async function getAdminUserById(id: string): Promise<AdminUserPublic | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(
@@ -55,7 +55,7 @@ export async function getAdminUserById(id: string): Promise<AdminUserPublic | nu
 
 /** List all admin users (excludes password_hash for safety) */
 export async function listAdminUsers(): Promise<AdminUserPublic[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(
@@ -74,7 +74,7 @@ export async function createAdminUser(input: {
   name: string;
   role?: "admin" | "super_admin";
 }): Promise<AdminUserRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .insert({
@@ -108,7 +108,7 @@ export async function updateAdminUser(
     >
   >,
 ): Promise<AdminUserRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -123,14 +123,14 @@ export async function updateAdminUser(
 
 /** Delete an admin user */
 export async function deleteAdminUser(id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;
 }
 
 /** Count admin users (to check if any exist) */
 export async function countAdminUsers(): Promise<number> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { count, error } = await sb.from(TABLE).select("*", { count: "exact", head: true });
 
   if (error) {
@@ -162,7 +162,7 @@ export async function hasAdminUsers(): Promise<boolean> {
  * or demoting the final active super_admin.
  */
 export async function hasAnotherActiveSuperAdmin(excludingId: string): Promise<boolean> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { count, error } = await sb
     .from(TABLE)
     .select("id", { count: "exact", head: true })

@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import type { SiteRow } from "@/types/database";
 import type { Database } from "@/types/supabase";
@@ -22,7 +22,7 @@ export const listSites = unstable_cache(
   async (): Promise<SiteRow[]> => {
     if (shouldSkipDbCall()) return [];
 
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
     const { data, error } = await sb
       .from(TABLE)
       .select(LIST_COLUMNS)
@@ -32,7 +32,7 @@ export const listSites = unstable_cache(
     return assertRows<SiteRow>(data);
   },
   ["all-sites"],
-  { revalidate: 300, tags: ["sites"] },
+  { revalidate: 60, tags: ["sites"] },
 );
 
 /** List all active sites (cached, filtered) */
@@ -45,7 +45,7 @@ export async function getAllActiveSites(): Promise<SiteRow[]> {
 export async function getSiteRowById(id: string): Promise<SiteRow | null> {
   if (shouldSkipDbCall()) return null;
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from(TABLE).select("*").eq("id", id).single();
 
   if (error && error.code !== "PGRST116") throw error;
@@ -57,14 +57,14 @@ export const getSiteRowBySlug = unstable_cache(
   async (slug: string): Promise<SiteRow | null> => {
     if (shouldSkipDbCall()) return null;
 
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
     const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
 
     if (error && error.code !== "PGRST116") throw error;
     return rowOrNull<SiteRow>(data);
   },
   ["site-by-slug"],
-  { revalidate: 300, tags: ["sites"] },
+  { revalidate: 60, tags: ["sites"] },
 );
 
 /** Get a single site by domain (cached) */
@@ -72,14 +72,14 @@ export const getSiteRowByDomain = unstable_cache(
   async (domain: string): Promise<SiteRow | null> => {
     if (shouldSkipDbCall()) return null;
 
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
     const { data, error } = await sb.from(TABLE).select("*").eq("domain", domain).single();
 
     if (error && error.code !== "PGRST116") throw error;
     return rowOrNull<SiteRow>(data);
   },
   ["site-by-domain"],
-  { revalidate: 300, tags: ["sites"] },
+  { revalidate: 60, tags: ["sites"] },
 );
 
 /* ------------------------------------------------------------------ */
@@ -113,7 +113,7 @@ export async function createSite(input: {
   og_image_url?: string | null;
   social_links?: Record<string, string>;
 }): Promise<SiteRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const row: SiteInsert = {
     slug: input.slug,
@@ -151,7 +151,7 @@ export async function updateSite(
   id: string,
   input: Partial<Omit<SiteRow, "id" | "slug" | "created_at" | "updated_at">>,
 ): Promise<SiteRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const updates: SiteUpdate = { ...input };
   const { data, error } = await sb.from(TABLE).update(updates).eq("id", id).select().single();
 
@@ -167,7 +167,7 @@ export async function deactivateSite(id: string): Promise<SiteRow> {
 
 /** Delete a site permanently */
 export async function deleteSite(id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;
   invalidateSiteCache();

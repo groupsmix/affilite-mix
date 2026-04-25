@@ -1,4 +1,4 @@
-import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
@@ -148,7 +148,7 @@ export async function getCategoryById(siteId: string, id: string): Promise<Categ
     return null;
   }
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -248,7 +248,7 @@ export async function listCategoriesWithProductCount(
 export async function createCategory(
   input: Omit<CategoryRow, "id" | "created_at">,
 ): Promise<CategoryRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<CategoryRow>(data, "Category");
@@ -260,7 +260,7 @@ export async function updateCategory(
   id: string,
   input: Partial<Pick<CategoryRow, "name" | "slug" | "description" | "taxonomy_type">>,
 ): Promise<CategoryRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .update(input)
@@ -308,7 +308,7 @@ export async function getCategoryUsageCountsBatch(
     return { contentCounts, productCounts };
   }
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const [contentResult, productResult] = await Promise.all([
     sb.from("content").select("category_id").eq("site_id", siteId).in("category_id", uniqueIds),
@@ -343,7 +343,7 @@ export async function getCategoryUsageCounts(
     return { contentCount: 0, productCount: 0 };
   }
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const [contentResult, productResult] = await Promise.all([
     sb
@@ -366,7 +366,7 @@ export async function getCategoryUsageCounts(
 
 /** Delete a category */
 export async function deleteCategory(siteId: string, id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;

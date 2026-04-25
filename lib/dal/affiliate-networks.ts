@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 export interface AffiliateNetworkRow {
@@ -17,7 +17,7 @@ const TABLE = "affiliate_networks";
 
 /** List affiliate networks for a site */
 export async function listAffiliateNetworks(siteId: string): Promise<AffiliateNetworkRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -33,7 +33,7 @@ export async function getAffiliateNetworkById(
   siteId: string,
   id: string,
 ): Promise<AffiliateNetworkRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -49,7 +49,7 @@ export async function getAffiliateNetworkById(
 export async function upsertAffiliateNetwork(
   input: Omit<AffiliateNetworkRow, "id" | "created_at" | "updated_at">,
 ): Promise<AffiliateNetworkRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .upsert(input as never, { onConflict: "site_id,network" })
@@ -62,7 +62,7 @@ export async function upsertAffiliateNetwork(
 
 /** Delete an affiliate network config */
 export async function deleteAffiliateNetwork(siteId: string, id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;
 }
