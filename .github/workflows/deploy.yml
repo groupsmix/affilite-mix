@@ -56,8 +56,11 @@ env:
   # Pin wrangler to a known version so CI is reproducible. `npx wrangler`
   # without a version will resolve whatever `@opennextjs/cloudflare`'s
   # floating dep range picks up that day, which has caused OpenNext
-  # breakage before. Bump deliberately when upgrading @opennextjs/cloudflare.
-  WRANGLER_VERSION: "4.77.0"
+  # breakage before. Keep this in sync with the `wrangler` devDependency
+  # in package.json so local `npm run preview` / `npm run deploy` and CI
+  # run the same wrangler. Bump deliberately when upgrading
+  # @opennextjs/cloudflare.
+  WRANGLER_VERSION: "4.85.0"
 
   # ── Build-time only ────────────────────────────────────────────────
   # NEXT_PUBLIC_* vars are inlined by Next.js at bundle time.
