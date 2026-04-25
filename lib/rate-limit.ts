@@ -8,14 +8,21 @@
  * per-process in-memory store — acceptable for dev but NOT for production.
  *
  * F-3 — when KV is unexpectedly unavailable in production (binding
- * missing or `get`/`put` throws), the limiter fails OPEN to the
- * per-isolate in-memory store for a 60-second grace window instead of
- * rejecting every request outright. The grace window prevents transient
- * KV glitches (cold-start races, brief network blips) from briefly
- * bricking public endpoints (newsletter, /r/, login, unsubscribe) while
- * still failing closed if the binding is persistently broken —
- * capping the window at which an attacker can exploit per-isolate
- * in-memory rate limiting.
+ * missing or `get`/`put` throws), the limiter falls back to the
+ * per-isolate in-memory store for a bounded grace window
+ * (KV_GRACE_MS, default 60s). After the grace window elapses without
+ * KV recovering, the limiter fails CLOSED — every rate-limited
+ * request is rejected with a 429-equivalent result. The grace window
+ * exists so transient KV glitches (cold-start races, brief network
+ * blips) don't briefly brick public endpoints (newsletter, /r/, login,
+ * unsubscribe), but caps the window during which an attacker can
+ * exploit per-isolate in-memory limits when KV is persistently broken.
+ *
+ * The KV-availability state is tracked per-isolate; a successful KV
+ * call resets the state so the next outage starts a fresh grace
+ * window. The first failure fires a Sentry alert and emits a
+ * `rate_limit_kv_failopen` log line that operators can scrape into a
+ * burn-rate metric.
  */
 
 import { captureException } from "@/lib/sentry";
@@ -253,20 +260,38 @@ function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitRe
  */
 let kvFallbackWarned = false;
 let kvUnavailableAlerted = false;
+/** Epoch ms at which KV first became unavailable in this isolate; null when KV is healthy. */
+let kvUnavailableSince: number | null = null;
+
+/**
+ * Grace window during which the limiter falls back to per-isolate memory
+ * when KV is unavailable. After the window elapses without recovery the
+ * limiter fails closed. Overridable via RATE_LIMIT_KV_GRACE_MS for ops drills.
+ */
+const DEFAULT_KV_GRACE_MS = 60_000;
+
+function getKvGraceMs(): number {
+  const raw = process.env.RATE_LIMIT_KV_GRACE_MS;
+  if (!raw) return DEFAULT_KV_GRACE_MS;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_KV_GRACE_MS;
+}
 
 /** Reset internal KV-availability state. Exported for tests. */
 export function __resetRateLimitKvStateForTests(): void {
   kvFallbackWarned = false;
   kvUnavailableAlerted = false;
+  kvUnavailableSince = null;
 }
 
 function markKvAvailable(): void {
   kvUnavailableAlerted = false;
+  kvUnavailableSince = null;
 }
 
 /**
  * KV is unavailable (binding missing or get/put threw). In production,
- * fail OPEN to the in-memory limiter for KV_GRACE_MS; after the grace
+ * fall back to the in-memory limiter for KV_GRACE_MS; after the grace
  * window elapses without KV recovering, fail CLOSED. In development,
  * fall back to memory indefinitely (existing behaviour).
  */
@@ -290,17 +315,42 @@ function handleKvUnavailable(
     return checkRateLimitMemory(key, config);
   }
 
-  // Fail OPEN gracefully in production to in-memory fallback instead of failing closed
+  const now = Date.now();
+  if (kvUnavailableSince === null) {
+    kvUnavailableSince = now;
+  }
+
   if (!kvUnavailableAlerted) {
     kvUnavailableAlerted = true;
     const msg =
       `[rate-limit] WARNING: KV unavailable (${reason}). ` +
-      "Fail-open: rate-limited requests will temporarily use per-isolate memory fallback. " +
+      `Falling back to per-isolate memory for up to ${getKvGraceMs()}ms; ` +
+      "after the grace window elapses requests will fail CLOSED. " +
       "Configure the KV binding in wrangler.jsonc to restore distributed rate limiting.";
     console.error(msg);
+    // Structured line for log-based metric (rate_limit_kv_failopen).
+    console.error(
+      JSON.stringify({
+        metric: "rate_limit_kv_failopen",
+        reason,
+        grace_ms: getKvGraceMs(),
+      }),
+    );
     captureException(err ?? new Error(msg), {
       context: "rate-limit.kv-unavailable-fail-open",
+      extra: { reason, graceMs: getKvGraceMs() },
     });
+  }
+
+  const graceMs = getKvGraceMs();
+  if (now - kvUnavailableSince >= graceMs) {
+    // Grace expired: fail closed. Use the smaller of (graceMs, configured window)
+    // for retryAfter so clients back off but eventually retry.
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterMs: Math.min(graceMs, config.windowMs),
+    };
   }
 
   return checkRateLimitMemory(key, config);
