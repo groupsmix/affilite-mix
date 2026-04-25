@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     // F-032: Strip '+' alias tags from email to prevent rate-limit bypass
     const { getRateLimitEmailKey } = await import("@/lib/validate-email");
     const rateLimitEmail = getRateLimitEmailKey(email);
-    
+
     const emailRl = await checkRateLimit(`login-email:${rateLimitEmail}`, LOGIN_RATE_LIMIT_EMAIL);
     if (!emailRl.allowed) {
       return apiError(
@@ -79,10 +79,13 @@ export async function POST(request: NextRequest) {
     // Enforce TOTP 2FA if enabled on the account
     if (authResult.email) {
       const user = await getAdminUserByEmail(authResult.email);
-      
+
       // F-017: Enforce TOTP for super_admin roles
       if (user?.role === "super_admin" && !user?.totp_enabled) {
-        return apiError(403, "Super Admins must have TOTP enabled. Please contact support to provision 2FA.");
+        return apiError(
+          403,
+          "Super Admins must have TOTP enabled. Please contact support to provision 2FA.",
+        );
       }
 
       if (user?.totp_enabled) {
@@ -151,7 +154,7 @@ export async function POST(request: NextRequest) {
       secure: IS_SECURE_COOKIE,
       sameSite: "strict",
       path: "/",
-      maxAge: 60 * 60 * 24, // 24 hours
+      maxAge: 60 * 60 * 8, // 8 hours (matches JWT expiry)
     });
 
     return response;
