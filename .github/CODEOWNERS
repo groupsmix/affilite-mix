@@ -1,26 +1,28 @@
-# CODEOWNERS
+# BLIND SPOT FIX: Ownership and Review Enforcement
+# This file, combined with GitHub Branch Protection rules, ensures
+# that changes to critical infrastructure and security boundaries
+# require explicit approval from the security and platform teams.
 
-# Default ownership - require review from maintainers
-* @matrix-agent/maintainers
+# Default owner for everything not explicitly defined
+*       @groupsmix/engineering
 
-# Security critical files
-**/auth.ts @matrix-agent/maintainers @matrix-agent/security
-**/jwt*.ts @matrix-agent/maintainers @matrix-agent/security
-**/password.ts @matrix-agent/maintainers @matrix-agent/security
-**/rate-limit*.ts @matrix-agent/maintainers @matrix-agent/security
+# Core platform and Edge infrastructure
+/middleware.ts          @groupsmix/platform
+/workers/               @groupsmix/platform
+/open-next.config.ts    @groupsmix/platform
+/wrangler.jsonc         @groupsmix/platform
 
-# Infrastructure
-**/middleware.ts @matrix-agent/maintainers @matrix-agent/infra
-**/next.config.ts @matrix-agent/maintainers @matrix-agent/infra
-**/wrangler* @matrix-agent/maintainers @matrix-agent/infra
+# Security boundaries
+/lib/auth.ts            @groupsmix/security
+/lib/authz.ts           @groupsmix/security
+/lib/ssrf-guard.ts      @groupsmix/security
+/lib/csp.ts             @groupsmix/security
+/lib/rate-limit.ts      @groupsmix/security
 
-# Database access
-**/dal/*.ts @matrix-agent/maintainers @matrix-agent/backend
-**/db/**/*.ts @matrix-agent/maintainers @matrix-agent/backend
+# Database and migrations (Data Plane)
+/supabase/migrations/   @groupsmix/data-platform
+/lib/dal/               @groupsmix/data-platform
 
-# Payments
-**/membership/** @matrix-agent/maintainers @matrix-agent/payments
-**/stripe*.ts @matrix-agent/maintainers @matrix-agent/payments
-
-# Cron jobs
-app/api/cron/** @matrix-agent/maintainers @matrix-agent/infra
+# Infrastructure as Code
+/terraform/             @groupsmix/platform @groupsmix/security
+/.github/workflows/     @groupsmix/platform

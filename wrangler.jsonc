@@ -201,3 +201,26 @@
 	// See: https://developers.cloudflare.com/workers/observability/tail-workers/
 	"tail_consumers": []
 }
+/* 
+  BLIND SPOT FIX: Production Bindings & Secrets Truth
+  ---------------------------------------------------
+  The following secrets MUST be provisioned in the Cloudflare Dashboard
+  or via \`wrangler secret put <NAME> --env production\` for production:
+  
+  - SUPABASE_URL: The REST API URL for the Supabase project
+  - SUPABASE_SERVICE_ROLE_KEY: The service_role JWT for the Supabase project
+  - JWT_SECRET: A strong 256-bit secure random string for signing admin sessions
+  - STRIPE_SECRET_KEY: Live mode Stripe API key (sk_live_...)
+  - STRIPE_WEBHOOK_SECRET: Live mode Stripe webhook signing secret (whsec_...)
+  - INTERNAL_API_TOKEN: Shared secret between Cloudflare Queue and the API
+  - CRON_SECRET: Shared secret between Cloudflare Cron and the API
+  - TURNSTILE_SECRET_KEY: Cloudflare Turnstile secret
+  - RESEND_API_KEY: Resend API key for outbound emails
+  - CLOUDFLARE_ACCOUNT_ID: Required for Cloudflare AI provider
+  - CLOUDFLARE_API_TOKEN: Scoped token for Cloudflare AI provider
+  - SENTRY_DSN: Sentry project DSN
+  
+  Bindings are declared above (kv_namespaces, d1_databases, r2_buckets, 
+  queues, analytics_engine_datasets). Ensure these are created in the 
+  Cloudflare Dashboard before deploying.
+*/

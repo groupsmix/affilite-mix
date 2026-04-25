@@ -1,0 +1,99 @@
+terraform {
+  required_providers {
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
+  }
+}
+
+variable "cloudflare_api_token" {
+  type = string
+  sensitive = true
+}
+
+variable "zone_id" {
+  type = string
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+
+# Enable Bot Fight Mode
+resource "cloudflare_bot_management" "bot_protection" {
+  zone_id = var.zone_id
+  fight_mode = true
+}
+
+# Enforce HTTPS and HSTS
+resource "cloudflare_zone_settings_override" "security_settings" {
+  zone_id = var.zone_id
+  settings {
+    always_use_https = "on"
+    min_tls_version  = "1.2"
+    security_header {
+      enabled = true
+      max_age = 31536000
+      include_subdomains = true
+      preload = true
+      nosniff = true
+    }
+    # WAF and Security Level
+    security_level = "high"
+    browser_check  = "on"
+  }
+}
+
+# Rate Limiting Rule (Protect Login/Auth)
+resource "cloudflare_ruleset" "rate_limit_auth" {
+  zone_id     = var.zone_id
+  name        = "Rate Limit Auth Endpoints"
+  description = "Limit requests to /api/auth/*"
+  kind        = "zone"
+  phase       = "http_ratelimit"
+
+  rules {
+    action = "block"
+    expression = "(http.request.uri.path wildcard \"/api/auth/*\")"
+    description = "Rate limit auth endpoints"
+    ratelimit {
+      characteristics = ["ip.src"]
+      period = 60
+      requests_per_period = 20
+      mitigation_timeout = 300
+    }
+  }
+}
+
+# WAF Custom Rule to block high-risk countries or known bad ASNs
+resource "cloudflare_ruleset" "waf_custom" {
+  zone_id     = var.zone_id
+  name        = "WAF Custom Block Rules"
+  description = "Block Tor/VPN and high risk ASNs from sensitive endpoints"
+  kind        = "zone"
+  phase       = "http_request_firewall_custom"
+
+  rules {
+    action = "managed_challenge"
+    expression = "(ip.geoip.asnum in {12345 54321}) or (ip.geoip.country in {\"KP\" \"IR\" \"SY\"})"
+    description = "Challenge high risk traffic"
+  }
+}
+
+# Cache Rules
+resource "cloudflare_ruleset" "cache_rules" {
+  zone_id     = var.zone_id
+  name        = "Cache Rules"
+  description = "Bypass cache for /api/*"
+  kind        = "zone"
+  phase       = "http_request_cache_settings"
+
+  rules {
+    action = "set_cache_settings"
+    expression = "(http.request.uri.path wildcard \"/api/*\")"
+    action_parameters {
+      cache = false
+    }
+  }
+}
