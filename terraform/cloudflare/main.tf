@@ -1,55 +1,118 @@
+###############################################################################
+# Cloudflare zone-level edge configuration for affilite-mix.
+#
+# Manages the Cloudflare zone settings, Bot Fight Mode, custom WAF rules,
+# rate-limit rules, cache rules and Logpush job that complement the worker
+# deployed via wrangler (see wrangler.jsonc).
+#
+# Targets cloudflare/cloudflare provider v5. v5 was a near-total rewrite
+# generated from the Cloudflare API spec — most repeating blocks (`rules`,
+# `action_parameters`, etc.) became typed attributes, and the
+# `cloudflare_zone_settings_override` umbrella resource was replaced by a
+# per-setting `cloudflare_zone_setting` resource.
+#
+# State backend is intentionally left unset — pick the team's preferred
+# backend (e.g. `cloud { ... }` for Terraform Cloud, or an `s3 { ... }` /
+# `gcs { ... }` block) before running `terraform init` for real.
+###############################################################################
+
 terraform {
+  required_version = ">= 1.5.0"
+
   required_providers {
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = "~> 4.0"
+      version = "~> 5.0"
     }
   }
 }
 
 variable "cloudflare_api_token" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
+  description = "Cloudflare API token with Zone:Edit, Account:Logs:Edit, Account:Bot Management:Edit and Zone:WAF:Edit permissions."
 }
 
 variable "cloudflare_account_id" {
-  type = string
+  type        = string
+  description = "Cloudflare account ID that owns the zone (used for account-scoped resources like Logpush)."
 }
 
 variable "zone_id" {
-  type = string
+  type        = string
+  description = "Cloudflare zone ID for the production hostname."
 }
 
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
-# Enable Bot Fight Mode
-resource "cloudflare_bot_management" "bot_protection" {
+###############################################################################
+# Zone settings
+#
+# Replaces the v4 `cloudflare_zone_settings_override` umbrella resource.
+# Each setting is now its own resource, so plan/apply diffs are scoped and
+# drift detection points at the exact knob that changed.
+###############################################################################
+
+resource "cloudflare_zone_setting" "always_use_https" {
   zone_id    = var.zone_id
-  fight_mode = true
+  setting_id = "always_use_https"
+  value      = "on"
 }
 
-# Enforce HTTPS and HSTS
-resource "cloudflare_zone_settings_override" "security_settings" {
-  zone_id = var.zone_id
-  settings {
-    always_use_https = "on"
-    min_tls_version  = "1.2"
-    security_header {
+resource "cloudflare_zone_setting" "min_tls_version" {
+  zone_id    = var.zone_id
+  setting_id = "min_tls_version"
+  value      = "1.2"
+}
+
+resource "cloudflare_zone_setting" "security_level" {
+  zone_id    = var.zone_id
+  setting_id = "security_level"
+  value      = "high"
+}
+
+resource "cloudflare_zone_setting" "browser_check" {
+  zone_id    = var.zone_id
+  setting_id = "browser_check"
+  value      = "on"
+}
+
+# Bot Fight Mode — the free / Pro tier bot mitigation. Distinct from the
+# paid `cloudflare_bot_management` resource (Super Bot Fight Mode), which
+# requires a Bot Management entitlement on the zone.
+resource "cloudflare_zone_setting" "bot_fight_mode" {
+  zone_id    = var.zone_id
+  setting_id = "bot_fight_mode"
+  value      = "on"
+}
+
+# HSTS — was nested under `security_header { }` in the v4 override block.
+# In v5 it's a top-level setting whose value is an object.
+resource "cloudflare_zone_setting" "security_header" {
+  zone_id    = var.zone_id
+  setting_id = "security_header"
+
+  value = {
+    strict_transport_security = {
       enabled            = true
-      max_age            = 31536000
+      max_age            = 63072000
       include_subdomains = true
       preload            = true
       nosniff            = true
     }
-    # WAF and Security Level
-    security_level = "high"
-    browser_check  = "on"
   }
 }
 
-# Rate Limiting Rule (Protect Login/Auth)
+###############################################################################
+# Rate-limit rule — protect /api/auth/*
+#
+# v5 ruleset schemas use `rules` as a typed list (square-bracketed object
+# array) rather than repeated `rules { }` blocks, and nest action and
+# rate-limit parameters under typed attributes.
+###############################################################################
+
 resource "cloudflare_ruleset" "rate_limit_auth" {
   zone_id     = var.zone_id
   name        = "Rate Limit Auth Endpoints"
@@ -57,35 +120,48 @@ resource "cloudflare_ruleset" "rate_limit_auth" {
   kind        = "zone"
   phase       = "http_ratelimit"
 
-  rules {
+  rules = [{
     action      = "block"
     expression  = "(http.request.uri.path wildcard \"/api/auth/*\")"
     description = "Rate limit auth endpoints"
-    ratelimit {
-      characteristics     = ["ip.src"]
+    enabled     = true
+
+    ratelimit = {
+      characteristics     = ["ip.src", "cf.colo.id"]
       period              = 60
       requests_per_period = 20
       mitigation_timeout  = 300
     }
-  }
+  }]
 }
 
-# WAF Custom Rule to block high-risk countries or known bad ASNs
+###############################################################################
+# Custom WAF rules — challenge high-risk traffic on sensitive endpoints.
+#
+# Note: ASNs and country list below are placeholders; replace 12345 / 54321
+# with the actual offender ASNs surfaced from Cloudflare analytics before
+# applying.
+###############################################################################
+
 resource "cloudflare_ruleset" "waf_custom" {
   zone_id     = var.zone_id
   name        = "WAF Custom Block Rules"
-  description = "Block Tor/VPN and high risk ASNs from sensitive endpoints"
+  description = "Challenge Tor/VPN traffic and high-risk ASNs from sensitive endpoints"
   kind        = "zone"
   phase       = "http_request_firewall_custom"
 
-  rules {
+  rules = [{
     action      = "managed_challenge"
     expression  = "(ip.geoip.asnum in {12345 54321}) or (ip.geoip.country in {\"KP\" \"IR\" \"SY\"})"
-    description = "Challenge high risk traffic"
-  }
+    description = "Challenge high-risk traffic"
+    enabled     = true
+  }]
 }
 
-# Cache Rules
+###############################################################################
+# Cache rules — bypass cache for /api/*
+###############################################################################
+
 resource "cloudflare_ruleset" "cache_rules" {
   zone_id     = var.zone_id
   name        = "Cache Rules"
@@ -93,33 +169,64 @@ resource "cloudflare_ruleset" "cache_rules" {
   kind        = "zone"
   phase       = "http_request_cache_settings"
 
-  rules {
-    action     = "set_cache_settings"
-    expression = "(http.request.uri.path wildcard \"/api/*\")"
-    action_parameters {
+  rules = [{
+    action      = "set_cache_settings"
+    expression  = "(http.request.uri.path wildcard \"/api/*\")"
+    description = "Bypass cache on API routes"
+    enabled     = true
+
+    action_parameters = {
       cache = false
     }
-  }
+  }]
 }
 
-variable "logpush_destination_conf" {
-  type        = string
-  description = "The destination configuration string for Cloudflare Logpush (e.g., s3://my-bucket/logs?region=us-east-1)"
-  default     = "s3://placeholder-bucket/logs?region=us-east-1"
-}
+###############################################################################
+# F-013: Logpush job — Workers trace events to long-term storage.
+#
+# `enabled = false` until the destination credentials are wired up. To turn
+# this on:
+#   1. Replace `destination_conf` with the real bucket / token URL.
+#      Examples (see Cloudflare docs for full list):
+#        s3://<bucket>/<prefix>?region=<region>&access-key-id=...&secret-access-key=...
+#        datadog://api.datadoghq.com/api/v2/logs?header_DD-API-KEY=...&service=...
+#        r2://<account-id>/<bucket>?account-id=...&access-key-id=...&secret-access-key=...
+#   2. Set `enabled = true`.
+#
+# Prefer R2 over S3 for the same-cloud zero-egress path.
+###############################################################################
 
-variable "logpush_enabled" {
-  type        = bool
-  description = "Whether the Logpush job is enabled"
-  default     = false
-}
-
-# F-012: Logpush Job for long-term retention (shipping to S3/Datadog)
 resource "cloudflare_logpush_job" "worker_logs" {
   account_id       = var.cloudflare_account_id
   name             = "workers-logpush"
   dataset          = "workers_trace_events"
-  logpull_options  = "fields=Event,EventTimestampMs,Outcome,Logs,Exceptions&timestamps=rfc3339"
-  destination_conf = var.logpush_destination_conf
-  enabled          = var.logpush_enabled
+  destination_conf = "s3://example-bucket/logs?region=us-east-1"
+  enabled          = false
+
+  output_options = {
+    field_names      = ["Event", "EventTimestampMs", "Outcome", "Logs", "Exceptions"]
+    timestamp_format = "rfc3339"
+    output_type      = "ndjson"
+  }
+}
+
+###############################################################################
+# Outputs — surface the IDs of the rulesets so other automation can attach
+# additional rules to them later (e.g. a separate workspace adding per-route
+# rate limits).
+###############################################################################
+
+output "rate_limit_auth_ruleset_id" {
+  value       = cloudflare_ruleset.rate_limit_auth.id
+  description = "Ruleset ID for the auth rate-limit ruleset."
+}
+
+output "waf_custom_ruleset_id" {
+  value       = cloudflare_ruleset.waf_custom.id
+  description = "Ruleset ID for the custom WAF ruleset."
+}
+
+output "cache_rules_ruleset_id" {
+  value       = cloudflare_ruleset.cache_rules.id
+  description = "Ruleset ID for the cache-rules ruleset."
 }
