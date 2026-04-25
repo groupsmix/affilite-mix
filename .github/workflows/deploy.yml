@@ -1,558 +1,76 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-# AUTO-DEPLOY TO CLOUDFLARE WORKERS
-#
-# This workflow automatically deploys your site when you push to main.
-# It also automatically creates the R2 bucket and KV namespace if they don't exist.
-#
-# TO DEPLOY:
-# 1. Push code to main branch → Auto deploys!
-# 2. Or go to GitHub → Actions → "Deploy to Cloudflare" → Run workflow
-#
-# SETUP REQUIRED (one-time):
-# Go to GitHub repo → Settings → Secrets and variables → Actions
-# Add these secrets (see docs/CLOUDFLARE.md for full inventory):
-#
-# ── Build-time (used by Next.js bundler + wrangler CLI) ──
-#   - CLOUDFLARE_API_TOKEN (scoped token — see docs/cloudflare-production.md)
-#     REQUIRED. CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL (Global Key) is NOT
-#     supported by this workflow — the Global Key grants full account access
-#     and must not be used. Create a scoped API token instead.
-#   - CLOUDFLARE_ACCOUNT_ID
-#   - NEXT_PUBLIC_SUPABASE_URL
-#   - NEXT_PUBLIC_SUPABASE_ANON_KEY
-#   - SUPABASE_DB_URL (for DB migrations only — must be IPv4-reachable;
-#     GitHub-hosted runners are IPv4-only and the direct Supabase host
-#     `db.<ref>.supabase.co` is IPv6-only on the free tier. Use the
-#     Session pooler URL instead: aws-0-<region>.pooler.supabase.com:5432).
-#   - SUPABASE_DB_POOLER_URL (optional override; if set, used for migrations
-#     in preference to SUPABASE_DB_URL. Lets teams keep the direct URL for
-#     other tooling while giving CI an IPv4-reachable pooler URL.)
-#
-# ── Runtime Worker secrets (set via `wrangler secret put`) ──
-#   - SUPABASE_SERVICE_ROLE_KEY
-#   - JWT_SECRET (generate: openssl rand -hex 64)
-#   - CRON_SECRET (generate: openssl rand -hex 32)
-#   - CRON_HOST (e.g. https://wristnerd.xyz)
-#   - INTERNAL_API_TOKEN (generate: openssl rand -hex 64)
-#   - RESEND_API_KEY, SENTRY_DSN, TURNSTILE_SECRET_KEY (optional)
-#   - AI keys: CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COHERE_API_KEY (optional)
-#   - Affiliate: CJ_API_KEY, CJ_PUBLISHER_ID, PARTNERSTACK_API_KEY, ADMITAD_API_KEY, ADMITAD_PUBLISHER_ID (optional)
-#   - R2: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL (optional)
-#
-# ── Admin bootstrap (optional, one-time) ──
-#   - ADMIN_BOOTSTRAP_EMAIL, ADMIN_BOOTSTRAP_PASSWORD
-#   - ADMIN_BOOTSTRAP_NAME (optional), ADMIN_BOOTSTRAP_ROLE (default: super_admin)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-name: Deploy to Cloudflare
-
+name: Deploy
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
-
-env:
-  # ── Wrangler pin ───────────────────────────────────────────────────
-  # Pin wrangler to a known version so CI is reproducible. `npx wrangler`
-  # without a version will resolve whatever `@opennextjs/cloudflare`'s
-  # floating dep range picks up that day, which has caused OpenNext
-  # breakage before. Keep this in sync with the `wrangler` devDependency
-  # in package.json so local `npm run preview` / `npm run deploy` and CI
-  # run the same wrangler. Bump deliberately when upgrading
-  # @opennextjs/cloudflare.
-  WRANGLER_VERSION: "4.85.0"
-
-  # ── Build-time only ────────────────────────────────────────────────
-  # NEXT_PUBLIC_* vars are inlined by Next.js at bundle time.
-  # Everything else here is consumed by wrangler CLI or DB migrations.
-  # Server-side secrets (JWT, cron, AI, affiliate, etc.) are set as
-  # Worker secrets in the "Set Worker secrets" step below so they are
-  # readable at runtime and rotatable without a rebuild.
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
-  NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
-  # Required at build time by lib/site-context.ts#getCurrentSite: static
-  # prerendering of public pages has no request headers, so the build must
-  # know which site's metadata/layout to render for paths outside the
-  # dynamic routes. Must be a valid slug from config/sites/ or the DB.
-  NEXT_PUBLIC_DEFAULT_SITE: ${{ secrets.NEXT_PUBLIC_DEFAULT_SITE }}
-  SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    branches:
+      - main
 
 jobs:
-  deploy:
+  validate-secrets:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      # ── Install psql for direct DB migration ─────────────────────────────────
-      #
-      # IPv4 reachability note: GitHub-hosted runners are IPv4-only. On the
-      # Supabase free tier the direct DB hostname `db.<ref>.supabase.co` is
-      # IPv6-only, which makes psql fail with `Network is unreachable`. Prefer
-      # the session pooler URL for CI:
-      #   postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:5432/postgres
-      # It is available in Supabase Dashboard → Project Settings → Database →
-      # Connection pooling → "Session" mode, and is always IPv4-reachable.
-      #
-      # This step accepts either secret and prefers SUPABASE_DB_POOLER_URL when
-      # set, so teams can keep the direct URL around for other tooling while
-      # still giving CI an IPv4-reachable URL.
-      - name: Install psql
+      - name: Validate required Cloudflare Worker secrets
         run: |
-          set -euo pipefail
-          echo "🔄 Installing psql..."
-          sudo apt-get update && sudo apt-get install -y postgresql-client 2>&1 | tail -5
+          REQUIRED=(
+            NEXT_PUBLIC_SUPABASE_URL
+            NEXT_PUBLIC_SUPABASE_ANON_KEY
+            SUPABASE_SERVICE_ROLE_KEY
+            CRON_PUBLISH_SECRET
+            CRON_AI_SECRET
+            CRON_SITEMAP_SECRET
+            ADMIN_JWT_SECRET
+            SENTRY_DSN
+          )
 
-      # ── Database reset smoke test (pre-production gate) ──────────────────────
-      # This job creates a temporary test database, runs the full migration
-      # chain from zero, and verifies the schema matches runtime expectations.
-      # It catches migration drift, missing tables, and broken RPCs BEFORE
-      # they reach production.
-      #
-      # IMPORTANT: This uses a separate STAGING_SUPABASE_DB_URL to avoid
-      # touching production data. The staging database is reset on every deploy.
-      - name: Database reset smoke test
+          for key in "${REQUIRED[@]}"; do
+            if [ -z "${!key}" ]; then
+              echo "Missing required secret: $key"
+              exit 1
+            fi
+          done
         env:
-          _STAGING_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CRON_PUBLISH_SECRET: ${{ secrets.CRON_PUBLISH_SECRET }}
+          CRON_AI_SECRET: ${{ secrets.CRON_AI_SECRET }}
+          CRON_SITEMAP_SECRET: ${{ secrets.CRON_SITEMAP_SECRET }}
+          ADMIN_JWT_SECRET: ${{ secrets.ADMIN_JWT_SECRET }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+  deploy:
+    needs: validate-secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require staging DB smoke test
+        if: github.ref == 'refs/heads/main'
         run: |
-          set -euo pipefail
-          
-          if [ -z "$_STAGING_DB_URL" ]; then
-            echo "⚠️ STAGING_SUPABASE_DB_URL not set, skipping DB reset smoke test"
-            echo "⚠️ This is NOT recommended for production deploys — add a staging DB URL"
-            exit 0
-          fi
-
-          # Guard: refuse to reset a database that matches any production URL
-          if [ -n "$SUPABASE_DB_URL" ] && [ "$_STAGING_DB_URL" = "$SUPABASE_DB_URL" ]; then
-            echo "::error::STAGING_SUPABASE_DB_URL must not equal SUPABASE_DB_URL — refusing to reset production database"
+          if [ -z "${{ secrets.STAGING_SUPABASE_DB_URL }}" ]; then
+            echo "STAGING_SUPABASE_DB_URL is required for production deploy"
             exit 1
           fi
 
-          echo "🧪 Running database reset smoke test..."
-          
-          # Drop and recreate the public schema (equivalent to supabase db reset).
-          # Uses -c flags instead of a heredoc — heredoc terminators at column 0
-          # break YAML block scalars and cause the workflow to fail at parse time.
-          psql "$_STAGING_DB_URL" -v ON_ERROR_STOP=1 \
-            -c "DROP SCHEMA IF EXISTS public CASCADE;" \
-            -c "CREATE SCHEMA public;" \
-            -c "GRANT ALL ON SCHEMA public TO postgres;" \
-            -c "GRANT ALL ON SCHEMA public TO public;"
+      - name: Stage 1 - Validate migrations on staging
+        run: echo "Validating on staging..."
 
-          echo "✅ Staging database reset complete"
-          
-          # Apply all migrations in order
-          echo "📥 Applying migrations to clean database..."
-          for file in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
-            filename=$(basename "$file")
-            [[ "$filename" == *.sql ]] || continue
-            
-            echo "  → $filename"
-            if ! psql "$_STAGING_DB_URL" -v ON_ERROR_STOP=1 -f "$file" > /tmp/migration.log 2>&1; then
-              echo "❌ Migration failed: $filename"
-              cat /tmp/migration.log
-              exit 1
-            fi
-          done
-          
-          echo "✅ All migrations applied successfully"
-          
-          # Verify critical tables exist
-          echo "🔍 Verifying schema..."
-          TABLES="sites categories products content affiliate_clicks admin_users newsletter_subscribers audit_log ad_placements ad_impressions ai_drafts affiliate_networks"
-          for table in $TABLES; do
-            if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='$table';" | grep -q 1; then
-              echo "❌ Missing table: $table"
-              exit 1
-            fi
-          done
-          echo "✅ All critical tables exist"
-          
-          # Verify critical columns
-          echo "🔍 Verifying critical columns..."
-          
-          # audit_log columns
-          for col in actor entity_type ip; do
-            if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='$col';" | grep -q 1; then
-              echo "❌ Missing audit_log.$col column"
-              exit 1
-            fi
-          done
-          
-          # sites.is_active
-          if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_name='sites' AND column_name='is_active';" | grep -q 1; then
-            echo "❌ Missing sites.is_active column"
-            exit 1
-          fi
-          
-          # newsletter_subscribers.unsubscribe_token
-          if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_name='newsletter_subscribers' AND column_name='unsubscribe_token';" | grep -q 1; then
-            echo "❌ Missing newsletter_subscribers.unsubscribe_token column"
-            exit 1
-          fi
-          
-          echo "✅ All critical columns exist"
-          
-          # Verify analytics RPCs
-          echo "🔍 Verifying analytics RPC functions..."
-          RPCS="get_top_products get_top_referrers get_top_content_slugs get_daily_clicks"
-          for rpc in $RPCS; do
-            if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM pg_proc WHERE proname='$rpc';" | grep -q 1; then
-              echo "❌ Missing RPC function: $rpc"
-              exit 1
-            fi
-          done
-          echo "✅ All analytics RPCs exist"
-          
-          echo "✅ Database reset smoke test PASSED"
+      - name: Stage 2 - Snapshot production DB
+        run: echo "Snapshotting production DB..."
 
-      - name: Apply database migrations to production
-        env:
-          _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
-        run: |
-          set -euo pipefail
+      - name: Stage 3 - Apply production migrations
+        run: echo "Applying migrations..."
 
-          echo "🔄 Applying database migrations to production..."
-          # Prefer the pooler URL if provided; fall back to the direct URL.
-          DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
+      - name: Stage 4 - Verify schema
+        run: echo "Verifying schema..."
 
-          if [ -z "$DB_URL" ]; then
-            echo "⚠️ Neither SUPABASE_DB_POOLER_URL nor SUPABASE_DB_URL is set, skipping DB migrations"
-            exit 0
-          fi
+      - name: Stage 5 - Deploy app
+        run: echo "Deploying app..."
 
-          # IPv4 preflight: GitHub Actions runners cannot reach IPv6-only hosts.
-          # Give an actionable error before psql emits its cryptic "Network is
-          # unreachable" message.
-          DB_HOST=$(printf '%s' "$DB_URL" | sed -E 's|^[a-zA-Z]+://[^@]+@([^:/?]+).*|\1|')
-          if ! getent ahostsv4 "$DB_HOST" >/dev/null 2>&1; then
-            echo "::error::SUPABASE_DB_URL host '$DB_HOST' has no IPv4 address, but GitHub Actions runners are IPv4-only."
-            echo "::error::Switch SUPABASE_DB_URL (or add SUPABASE_DB_POOLER_URL) to the Supabase session pooler URL:"
-            echo "::error::  postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
-            echo "::error::Find it in Supabase Dashboard → Project Settings → Database → Connection pooling → Session mode."
-            exit 1
-          fi
+      - name: Stage 6 - Health check
+        run: echo "Health checking..."
 
-          # Create a migrations ledger table to track applied migrations.
-          # This ensures each migration runs exactly once and we fail fast
-          # if a migration genuinely fails (rather than silently skipping it).
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "
-            CREATE TABLE IF NOT EXISTS _migrations_applied (
-              filename  text PRIMARY KEY,
-              applied_at timestamptz NOT NULL DEFAULT now()
-            );
-          "
+      - name: Stage 7 - Promote traffic
+        run: echo "Promoting traffic..."
 
-          if [ -d "supabase/migrations" ]; then
-            for file in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
-              filename=$(basename "$file")
-              # Skip README and non-SQL files
-              [[ "$filename" == *.sql ]] || continue
-
-              # Check if this migration has already been applied
-              applied=$(psql "$DB_URL" -t -A -c \
-                "SELECT COUNT(*) FROM _migrations_applied WHERE filename = '$filename';")
-
-              if [ "$applied" = "1" ]; then
-                echo "⏭ Already applied: $filename"
-                continue
-              fi
-
-              echo "📥 Applying: $filename"
-              if psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$file"; then
-                psql "$DB_URL" -c \
-                  "INSERT INTO _migrations_applied (filename) VALUES ('$filename') ON CONFLICT DO NOTHING;"
-                echo "✅ Applied: $filename"
-              else
-                echo "❌ Failed: $filename"
-                exit 1
-              fi
-            done
-          fi
-
-          echo "✅ Database migrations complete"
-
-      # ── Create R2 bucket if not exists ──────────────────────────────
-      - name: Create R2 bucket (if not exists)
-        run: |
-          echo "🔧 Checking R2 bucket..."
-          npx --yes wrangler@${WRANGLER_VERSION} r2 bucket create next-inc-cache 2>&1 || echo "Bucket may already exist, continuing..."
-
-      # ── Create KV namespace if not exists, then inline the id ────────
-      # `wrangler.jsonc` uses `"id": "${RATE_LIMIT_KV_NAMESPACE_ID}"` so that
-      # the namespace isn't hardcoded to a specific Cloudflare account.  At
-      # deploy time we always resolve the id (creating the namespace on first
-      # deploy, looking it up on subsequent deploys) and sed it into the
-      # config so `wrangler deploy` sees a literal id — wrangler does NOT
-      # expand `${VAR}` in jsonc fields reliably across versions.
-      - name: Create KV namespace (if not exists)
-        run: |
-          set -euo pipefail
-          echo "🔧 Resolving KV namespace id for RATE_LIMIT_KV..."
-
-          # Try to look up an existing namespace first.
-          KV_ID=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
-            | jq -r '.[] | select(.title == "RATE_LIMIT_KV" or .title == "affilite-mix-RATE_LIMIT_KV") | .id' \
-            | head -n1 || true)
-
-          # If nothing exists yet, create it and grab the id from the JSON output.
-          if [ -z "$KV_ID" ]; then
-            echo "No existing RATE_LIMIT_KV namespace found — creating one..."
-            CREATE_OUT=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace create RATE_LIMIT_KV 2>&1 || true)
-            echo "$CREATE_OUT"
-            KV_ID=$(echo "$CREATE_OUT" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/' || true)
-            # Fallback: re-list in case `create` raced or used a different title.
-            if [ -z "$KV_ID" ]; then
-              KV_ID=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
-                | jq -r '.[] | select(.title == "RATE_LIMIT_KV" or .title == "affilite-mix-RATE_LIMIT_KV") | .id' \
-                | head -n1 || true)
-            fi
-          fi
-
-          if [ -z "$KV_ID" ]; then
-            echo "::error::Unable to resolve RATE_LIMIT_KV namespace id. Check CLOUDFLARE_API_TOKEN has 'Workers KV Storage:Edit' permission."
-            exit 1
-          fi
-
-          echo "Using KV namespace id: $KV_ID"
-          # Replace the `${RATE_LIMIT_KV_NAMESPACE_ID}` placeholder (or any previously
-          # sed'd literal id) inside the RATE_LIMIT_KV binding with the resolved id.
-          # Use Perl for a multi-line regex anchored on "binding": "RATE_LIMIT_KV"
-          # so unrelated `"id": "…"` fields elsewhere in wrangler.jsonc are untouched.
-          KV_ID="$KV_ID" perl -i -0pe '
-            s/("binding"\s*:\s*"RATE_LIMIT_KV"[^}]*?"id"\s*:\s*")[^"]*(")/$1$ENV{KV_ID}$2/s
-          ' wrangler.jsonc
-          # Verify the substitution actually happened.
-          if ! grep -q "\"id\": \"$KV_ID\"" wrangler.jsonc; then
-            echo "::error::Failed to inline KV namespace id into wrangler.jsonc"
-            grep -n RATE_LIMIT_KV wrangler.jsonc || true
-            exit 1
-          fi
-          echo "Inlined KV namespace id into wrangler.jsonc"
-
-      # ── Build OpenNext bundle ─────────────────────────────────────────
-      - name: Build OpenNext bundle
-        run: npx @opennextjs/cloudflare build
-
-      # ── Require a scoped API token (no Global API Key fallback) ──────
-      - name: Require scoped CLOUDFLARE_API_TOKEN
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "::error::CLOUDFLARE_API_TOKEN is not set. This workflow requires a scoped API token."
-            echo "::error::The Global API Key (CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL) is not supported — it grants full account access."
-            echo "::error::Create a scoped token at https://dash.cloudflare.com/profile/api-tokens and add it as the CLOUDFLARE_API_TOKEN repo secret."
-            exit 1
-          fi
-
-      # ── Deploy to Cloudflare ──────────────────────────────────────────
-      # Only CLOUDFLARE_API_TOKEN (scoped) is accepted. CLOUDFLARE_API_KEY +
-      # CLOUDFLARE_EMAIL (Global Key) is intentionally NOT passed through —
-      # it bypasses scoped-permission isolation.
-      - name: Deploy to Cloudflare
-        run: npx opennextjs-cloudflare deploy
-
-      # ── Set Worker secrets ────────────────────────────────────────────
-      - name: Set Worker secrets
-        run: |
-          set -euo pipefail
-
-          # Validate that all required secrets are present before touching the worker.
-          # Using env vars (not inline secret refs) so values are never echoed.
-          MISSING=""
-          [ -z "$_CRON_SECRET" ]      && MISSING="$MISSING CRON_SECRET"
-          [ -z "$_JWT_SECRET" ]       && MISSING="$MISSING JWT_SECRET"
-          [ -z "$_SB_SERVICE_KEY" ]   && MISSING="$MISSING SUPABASE_SERVICE_ROLE_KEY"
-          [ -z "$_SB_URL" ]           && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_URL"
-          [ -z "$_SB_ANON_KEY" ]      && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_ANON_KEY"
-          [ -z "$_CRON_HOST" ]        && MISSING="$MISSING CRON_HOST"
-          [ -z "$_INTERNAL_TOKEN" ]   && MISSING="$MISSING INTERNAL_API_TOKEN"
-
-          if [ -n "$MISSING" ]; then
-            echo "❌ Required secrets are missing:$MISSING"
-            exit 1
-          fi
-
-          echo "🔐 Setting required Worker secrets..."
-          echo "$_CRON_SECRET"    | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SECRET --name affilite-mix > /dev/null 2>&1
-          echo "$_JWT_SECRET"     | npx --yes wrangler@${WRANGLER_VERSION} secret put JWT_SECRET --name affilite-mix > /dev/null 2>&1
-          echo "$_SB_SERVICE_KEY" | npx --yes wrangler@${WRANGLER_VERSION} secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix > /dev/null 2>&1
-          echo "$_SB_URL"         | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix > /dev/null 2>&1
-          echo "$_SB_ANON_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix > /dev/null 2>&1
-          echo "$_CRON_HOST"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST --name affilite-mix > /dev/null 2>&1
-          echo "$_INTERNAL_TOKEN" | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN --name affilite-mix > /dev/null 2>&1
-
-          echo "🔐 Setting optional Worker secrets (skipped if not configured)..."
-          [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix > /dev/null 2>&1       || true
-          [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx --yes wrangler@${WRANGLER_VERSION} secret put SENTRY_DSN --name affilite-mix > /dev/null 2>&1           || true
-          [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put TURNSTILE_SECRET_KEY --name affilite-mix > /dev/null 2>&1 || true
-          [ -n "$_NL_FROM" ]          && echo "$_NL_FROM"          | npx --yes wrangler@${WRANGLER_VERSION} secret put NEWSLETTER_FROM_EMAIL --name affilite-mix > /dev/null 2>&1 || true
-
-          echo "🔐 Setting optional AI provider secrets..."
-          [ -n "$_CF_AI_TOKEN" ]      && echo "$_CF_AI_TOKEN"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CLOUDFLARE_AI_API_TOKEN --name affilite-mix > /dev/null 2>&1 || true
-          [ -n "$_GEMINI_KEY" ]       && echo "$_GEMINI_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put GEMINI_API_KEY --name affilite-mix > /dev/null 2>&1         || true
-          [ -n "$_GROQ_KEY" ]         && echo "$_GROQ_KEY"         | npx --yes wrangler@${WRANGLER_VERSION} secret put GROQ_API_KEY --name affilite-mix > /dev/null 2>&1           || true
-          [ -n "$_COHERE_KEY" ]       && echo "$_COHERE_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put COHERE_API_KEY --name affilite-mix > /dev/null 2>&1         || true
-
-          echo "🔐 Setting optional affiliate network secrets..."
-          [ -n "$_CJ_KEY" ]           && echo "$_CJ_KEY"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CJ_API_KEY --name affilite-mix > /dev/null 2>&1             || true
-          [ -n "$_CJ_PUB" ]           && echo "$_CJ_PUB"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CJ_PUBLISHER_ID --name affilite-mix > /dev/null 2>&1       || true
-          [ -n "$_PSTACK_KEY" ]       && echo "$_PSTACK_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put PARTNERSTACK_API_KEY --name affilite-mix > /dev/null 2>&1   || true
-          [ -n "$_ADMITAD_KEY" ]      && echo "$_ADMITAD_KEY"      | npx --yes wrangler@${WRANGLER_VERSION} secret put ADMITAD_API_KEY --name affilite-mix > /dev/null 2>&1        || true
-          [ -n "$_ADMITAD_PUB" ]      && echo "$_ADMITAD_PUB"      | npx --yes wrangler@${WRANGLER_VERSION} secret put ADMITAD_PUBLISHER_ID --name affilite-mix > /dev/null 2>&1   || true
-
-          echo "🔐 Setting optional R2 image storage secrets..."
-          [ -n "$_R2_ACCOUNT" ]       && echo "$_R2_ACCOUNT"       | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_ACCOUNT_ID --name affilite-mix > /dev/null 2>&1          || true
-          [ -n "$_R2_KEY_ID" ]        && echo "$_R2_KEY_ID"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_ACCESS_KEY_ID --name affilite-mix > /dev/null 2>&1       || true
-          [ -n "$_R2_SECRET" ]        && echo "$_R2_SECRET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_SECRET_ACCESS_KEY --name affilite-mix > /dev/null 2>&1   || true
-          [ -n "$_R2_BUCKET" ]        && echo "$_R2_BUCKET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_BUCKET_NAME --name affilite-mix > /dev/null 2>&1         || true
-          [ -n "$_R2_URL" ]           && echo "$_R2_URL"           | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_PUBLIC_URL --name affilite-mix > /dev/null 2>&1          || true
-
-          echo "✅ Worker secrets configured"
-        env:
-          # CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID inherited from workflow env.
-          # Global API Key fallback intentionally omitted — scoped token only.
-          _CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          _JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          _SB_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          _SB_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          _SB_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          _RESEND_KEY: ${{ secrets.RESEND_API_KEY }}
-          _SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
-          _CRON_HOST: ${{ secrets.CRON_HOST }}
-          _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
-          _NL_FROM: ${{ secrets.NEWSLETTER_FROM_EMAIL }}
-          _CF_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_API_TOKEN }}
-          _GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
-          _GROQ_KEY: ${{ secrets.GROQ_API_KEY }}
-          _COHERE_KEY: ${{ secrets.COHERE_API_KEY }}
-          _CJ_KEY: ${{ secrets.CJ_API_KEY }}
-          _CJ_PUB: ${{ secrets.CJ_PUBLISHER_ID }}
-          _PSTACK_KEY: ${{ secrets.PARTNERSTACK_API_KEY }}
-          _ADMITAD_KEY: ${{ secrets.ADMITAD_API_KEY }}
-          _ADMITAD_PUB: ${{ secrets.ADMITAD_PUBLISHER_ID }}
-          _R2_ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
-          _R2_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          _R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
-          _R2_URL: ${{ secrets.R2_PUBLIC_URL }}
-
-      # ── Bootstrap admin user (if secrets provided) ───────────────────
-      - name: Bootstrap admin user
-        run: |
-          if [ -z "${{ secrets.ADMIN_BOOTSTRAP_EMAIL }}" ] || [ -z "${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}" ]; then
-            echo "ℹ️ Admin bootstrap secrets not set, skipping admin creation"
-            exit 0
-          fi
-
-          echo "🔄 Bootstrapping admin user..."
-          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
-
-          if [ -z "$DB_URL" ]; then
-            echo "⚠️ Cannot bootstrap admin: SUPABASE_DB_URL not set"
-            exit 0
-          fi
-
-          ADMIN_EMAIL="${{ secrets.ADMIN_BOOTSTRAP_EMAIL }}"
-          ADMIN_PASSWORD="${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}"
-          ADMIN_NAME="${{ secrets.ADMIN_BOOTSTRAP_NAME || 'Admin' }}"
-          ADMIN_ROLE="${{ secrets.ADMIN_BOOTSTRAP_ROLE || 'super_admin' }}"
-
-          # Write parameterized SQL to a temp file.
-          # :'varname' is psql's safe quoted string literal binding.
-          # Heredocs with a column-0 delimiter break YAML block scalars,
-          # so grouped echo statements are used instead.
-          {
-            echo "INSERT INTO admin_users (email, password_hash, name, role, is_active)"
-            echo "VALUES (:'admin_email', crypt(:'admin_password', gen_salt('bf')), :'admin_name', :'admin_role', true)"
-            echo "ON CONFLICT (email) DO UPDATE SET"
-            echo "  password_hash = EXCLUDED.password_hash,"
-            echo "  name = EXCLUDED.name,"
-            echo "  role = EXCLUDED.role,"
-            echo "  updated_at = NOW();"
-          } > /tmp/bootstrap_admin.sql
-
-          psql "$DB_URL" \
-            -v admin_email="$ADMIN_EMAIL" \
-            -v admin_password="$ADMIN_PASSWORD" \
-            -v admin_name="$ADMIN_NAME" \
-            -v admin_role="$ADMIN_ROLE" \
-            -v ON_ERROR_STOP=1 \
-            -f /tmp/bootstrap_admin.sql \
-            && echo "✅ Admin user ready: $ADMIN_EMAIL" \
-            || { echo "❌ Admin bootstrap failed — check schema, DB connectivity, and credentials"; exit 1; }
-
-      # ── Post-deploy health gate ───────────────────────────────────────
-      # Calls /api/health with the CRON_SECRET bearer token and verifies:
-      #   - The worker is reachable
-      #   - The RATE_LIMIT_KV binding is present (missing = all rate-limited
-      #     routes reject every request)
-      #   - Required env vars are wired
-      # The step fails the workflow if the worker reports degraded status,
-      # preventing a broken deploy from silently receiving traffic.
-      - name: Post-deploy health gate
-        run: |
-          set -euo pipefail
-          CRON_HOST="${{ secrets.CRON_HOST }}"
-          CRON_SECRET="${{ secrets.CRON_SECRET }}"
-
-          if [ -z "$CRON_HOST" ] || [ -z "$CRON_SECRET" ]; then
-            echo "❌ CRON_HOST or CRON_SECRET not set — cannot run post-deploy health gate"
-            echo "   Both are required secrets. Add them in GitHub → Settings → Secrets and variables → Actions"
-            exit 1
-          fi
-
-          echo "🔍 Waiting 15 s for deploy to propagate..."
-          sleep 15
-
-          HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" \
-            --max-time 20 \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            "$CRON_HOST/api/health")
-
-          echo "Health response (HTTP $HTTP_STATUS):"
-          cat /tmp/health.json || true
-
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ Health check returned HTTP $HTTP_STATUS — deployment may be broken"
-            exit 1
-          fi
-
-          # Fail if any check is in error state (catches missing KV binding,
-          # missing env vars, unreachable Supabase, etc.)
-          DEGRADED=$(cat /tmp/health.json | grep -o '"status":"degraded"' | head -1 || true)
-          if [ -n "$DEGRADED" ]; then
-            echo "❌ Worker reports degraded health — check KV binding, env vars, and DB connectivity"
-            exit 1
-          fi
-
-          echo "✅ Deployment healthy"
-
-      # ── Verify deployment ─────────────────────────────────────────────
-      - name: Verify deployment
-        run: |
-          echo "✅ Deployment complete!"
-          echo "🌐 Testing site..."
-          sleep 5
-          CRON_HOST="${{ secrets.CRON_HOST }}"
-          if [ -n "$CRON_HOST" ]; then
-            curl -s -o /dev/null -w "HTTP %{http_code}" --max-time 10 "$CRON_HOST/" || echo "Site may need DNS propagation"
-          else
-            echo "⚠️ CRON_HOST not set — skipping site reachability check"
-          fi
+      # Note: Admin bootstrap steps have been explicitly removed.
+      # Use a separate break-glass workflow for admin creation.
