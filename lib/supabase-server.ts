@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 // Environment variables are resolved lazily (inside functions) so that
 // module evaluation during `next build` does not throw when the vars
@@ -50,6 +51,14 @@ export function getServiceClient(): SupabaseClient<Database> {
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
+    global: {
+      fetch: async (input, init) => {
+        return fetchWithTimeout(input as string, {
+          ...init,
+          timeoutMs: 12000,
+        });
+      },
+    },
   });
 }
 
@@ -66,6 +75,27 @@ export function getAnonClient(): SupabaseClient<Database> {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
+    },
+    global: {
+      fetch: async (input, init) => {
+        try {
+          const res = await fetchWithTimeout(input as string, {
+            ...init,
+            timeoutMs: 8000,
+            next: {
+              revalidate: 60,
+              ...(init as any)?.next,
+            },
+          });
+          return res;
+        } catch (error) {
+          console.error("[getAnonClient] DB fetch failed (timeout or network):", error);
+          return new Response(JSON.stringify({ error: "Service Unavailable", data: null }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      },
     },
   });
 }
