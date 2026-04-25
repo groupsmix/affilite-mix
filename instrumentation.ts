@@ -38,16 +38,19 @@ export function register() {
     }
   }
 
-  // Verify KV rate-limit binding availability — fail loudly in production
-  // because the rate limiter fails closed (rejects all rate-limited requests)
-  // when KV is unavailable, which will break login and other protected routes.
+  // Verify KV rate-limit binding availability — log loudly in production
+  // because the rate limiter falls back to per-isolate memory for the
+  // KV_GRACE_MS window (default 60s, see lib/rate-limit.ts) and then fails
+  // CLOSED. Login, newsletter, password reset, and the admin guard will
+  // start rejecting requests once the grace window elapses without recovery.
   if (process.env.NODE_ENV === "production") {
     try {
       const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
       if (!kv || typeof kv !== "object" || !("get" in kv)) {
         logger.error(
           "RATE_LIMIT_KV binding not available — rate-limited routes (login, newsletter, etc.) " +
-            "will reject ALL requests. Configure the KV binding in wrangler.jsonc. " +
+            "will fall back to per-isolate memory for KV_GRACE_MS, then fail CLOSED. " +
+            "Configure the KV binding in wrangler.jsonc. " +
             "See lib/rate-limit.ts for setup instructions.",
         );
       }
