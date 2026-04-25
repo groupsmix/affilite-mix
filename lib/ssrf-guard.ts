@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 /**
  * SSRF (Server-Side Request Forgery) protection utilities.
  *
@@ -254,5 +255,8 @@ export async function safeFetch(
     throw new Error(`SSRF guard: ${result.error}`);
   }
 
-  return fetch(urlString, options);
+  return fetchWithTimeout(urlString, {
+    timeoutMs: 15000, // Default 15s timeout to prevent hanging
+    ...options,
+  });
 }
