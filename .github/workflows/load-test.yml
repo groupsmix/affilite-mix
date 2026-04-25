@@ -1,24 +1,40 @@
-name: Load Testing
+name: Nightly k6 Load Test
 
 on:
   schedule:
-    - cron: "0 2 * * 0" # Run every Sunday at 2 AM
+    - cron: '0 3 * * *' # 3 AM nightly
   workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'URL to test against'
+        required: true
+        default: 'https://staging.affilite-mix.com'
 
 jobs:
-  load-test:
+  k6-load-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Setup k6
-        uses: grafana/setup-k6-action@v1
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
 
-      - name: Run k6 load test
-        run: k6 run tests/load/scenarios.js || echo "Need to implement actual k6 tests"
+      - name: Run load test
+        run: k6 run load-test.js
+        env:
+          BASE_URL: ${{ github.event.inputs.target_url || 'https://staging.affilite-mix.com' }}
+
+      - name: Upload Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-report
+          path: |
+            *.html
+            *.json

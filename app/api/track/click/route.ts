@@ -43,7 +43,7 @@ async function handleClick(request: NextRequest) {
     let cachedData: { name: string; url: string } | null = null;
 
     try {
-      const kv = (process.env as any).RATE_LIMIT_KV as any;
+      const kv = (process.env as any).APP_CACHE_KV as any;
       if (kv) {
         cachedData = await kv.get(cacheKey, "json");
       }
@@ -60,7 +60,7 @@ async function handleClick(request: NextRequest) {
 
       // Update cache asynchronously
       try {
-        const kv = (process.env as any).RATE_LIMIT_KV as any;
+        const kv = (process.env as any).APP_CACHE_KV as any;
         if (kv) {
           void runAfterResponse(
             kv.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 3600 }),
@@ -71,6 +71,17 @@ async function handleClick(request: NextRequest) {
     }
 
     const destinationUrl = cachedData.url;
+
+    // F-029: Scheme validation to prevent javascript:/data: SSRF/XSS vectors
+    const allowedSchemes = ["http:", "https:"];
+    try {
+      const urlObj = new URL(destinationUrl);
+      if (!allowedSchemes.includes(urlObj.protocol)) {
+        return apiError(400, "Invalid affiliate URL scheme");
+      }
+    } catch {
+      return apiError(400, "Malformed affiliate URL");
+    }
 
     // Publish to the click queue (falls back to direct DB write if no binding)
     void runAfterResponse(

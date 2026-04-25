@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 export interface MembershipRow {
@@ -30,7 +30,7 @@ export async function createMembership(input: {
   current_period_start?: string;
   current_period_end?: string;
 }): Promise<MembershipRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
@@ -42,7 +42,7 @@ export async function getActiveMembership(
   email: string,
   siteId: string,
 ): Promise<MembershipRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -60,7 +60,7 @@ export async function getActiveMembership(
 export async function getMembershipByStripeSubscription(
   subscriptionId: string,
 ): Promise<MembershipRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -88,7 +88,7 @@ export async function updateMembership(
     >
   >,
 ): Promise<MembershipRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -103,7 +103,7 @@ export async function updateMembership(
 
 /** List all members for a site */
 export async function listMembers(siteId: string, status?: string): Promise<MembershipRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   let query = sb
     .from(TABLE)
@@ -122,7 +122,7 @@ export async function listMembers(siteId: string, status?: string): Promise<Memb
 
 /** Get member count for a site */
 export async function getMemberCount(siteId: string): Promise<number> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { count, error } = await sb
     .from(TABLE)

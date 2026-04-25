@@ -55,8 +55,10 @@ export async function middleware(request: NextRequest) {
   // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
   // Reuse an existing x-trace-id (from an upstream proxy) or cf-ray; otherwise mint a new one.
   // We do this early so we can log it if the DB lookup fails.
-  const traceId =
-    request.headers.get(TRACE_ID_HEADER) ?? request.headers.get("cf-ray") ?? generateTraceId();
+  let traceId = request.headers.get(TRACE_ID_HEADER) ?? request.headers.get("cf-ray");
+  if (!traceId || !/^[A-Za-z0-9_-]{8,64}$/.test(traceId)) {
+    traceId = generateTraceId();
+  }
 
   // 2. For unknown domains (dashboard-managed custom domains), do direct DB lookup.
   //    Previous implementation used a self-fetch to /api/internal/resolve-site
@@ -66,15 +68,15 @@ export async function middleware(request: NextRequest) {
       const cacheKey = `site-domain:${hostname}`;
       let cachedRow = null;
       try {
-        const kv = (process.env as any).RATE_LIMIT_KV as any;
+        const kv = (process.env as any).APP_CACHE_KV as any;
         if (kv) cachedRow = await kv.get(cacheKey, "json");
       } catch (e) {}
 
       const row = cachedRow || (await getSiteRowByDomain(hostname));
       if (row && !cachedRow) {
         try {
-          const kv = (process.env as any).RATE_LIMIT_KV as any;
-          if (kv) await kv.put(cacheKey, JSON.stringify(row), { expirationTtl: 300 });
+          const kv = (process.env as any).APP_CACHE_KV as any;
+          if (kv) await kv.put(cacheKey, JSON.stringify(row), { expirationTtl: 60 });
         } catch (e) {}
       }
       if (row && row.is_active) {
@@ -133,16 +135,6 @@ export async function middleware(request: NextRequest) {
     const csrfExemptPaths = new Set([
       "/api/auth/csrf",
       "/api/auth/refresh",
-      // Cron/webhook endpoints called externally without CSRF cookies
-      "/api/cron/publish",
-      "/api/cron/ai-generate",
-      "/api/cron/sitemap-refresh",
-      "/api/cron/data-retention",
-      "/api/cron/stripe-sync",
-      "/api/cron/commission-ingest",
-      "/api/cron/epc-recompute",
-      "/api/cron/expire-deals",
-      "/api/cron/price-scrape",
       "/api/membership/webhook",
       "/api/revalidate",
       // Public endpoints using sendBeacon() which cannot send custom headers
@@ -159,7 +151,12 @@ export async function middleware(request: NextRequest) {
       // double-submit is not needed — the token already proves intent.
       "/api/newsletter/unsubscribe",
     ]);
-    if (!csrfExemptPaths.has(pathname)) {
+    
+    // F-043: Cron endpoints are authenticated via Bearer CRON_SECRET, 
+    // so we exempt the entire /api/cron/ prefix instead of hard-coding each route.
+    const isExempt = csrfExemptPaths.has(pathname) || pathname.startsWith("/api/cron/");
+    
+    if (!isExempt) {
       const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
       const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
       if (!validateCsrfToken(cookieValue, headerValue)) {
@@ -170,7 +167,9 @@ export async function middleware(request: NextRequest) {
 
   // ── Inject x-site-id and trace-id headers into request ──
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-site-id", siteId);
+  if (siteId) {
+    requestHeaders.set("x-site-id", siteId);
+  }
 
   requestHeaders.set(TRACE_ID_HEADER, traceId);
 

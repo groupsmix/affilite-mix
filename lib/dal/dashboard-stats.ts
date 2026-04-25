@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 
 export interface DashboardStats {
   total_products: number;
@@ -23,7 +23,7 @@ export async function getDashboardStats(
   todayStart: string,
   sevenDaysAgo: string,
 ): Promise<DashboardStats> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.rpc("get_dashboard_stats", {
     p_site_id: siteId,
@@ -62,7 +62,7 @@ async function fallbackDashboardStats(
   todayStart: string,
   sevenDaysAgo: string,
 ): Promise<DashboardStats> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const [
     { count: totalProducts },

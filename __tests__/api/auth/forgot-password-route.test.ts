@@ -20,6 +20,9 @@ vi.mock("@/lib/supabase-server", () => ({
   getServiceClient: () => ({
     from: () => ({ update: mockUpdate }),
   }),
+  getTenantClient: async () => ({
+    from: () => ({ update: mockUpdate }),
+  }),
 }));
 
 vi.mock("@/lib/dal/admin-users", () => ({

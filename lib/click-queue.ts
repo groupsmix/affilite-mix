@@ -10,6 +10,7 @@
 
 import { recordClick, type RecordClickInput } from "@/lib/dal/affiliate-clicks";
 import { captureException } from "@/lib/sentry";
+import { logger } from "@/lib/logger";
 import { randomUUID } from "node:crypto";
 
 // Minimal structural type for the Queue binding — avoids pulling in
@@ -62,7 +63,15 @@ export async function publishClick(input: RecordClickInput): Promise<void> {
       return;
     } catch (err) {
       captureException(err, { context: "click-queue.send" });
-      // Fall through to direct write so we don't lose the click
+      // Do not fall through to direct write in production to prevent slamming Supabase
+      if (process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") {
+        return;
+      }
+    }
+  } else {
+    if (process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") {
+      logger.error("[click-queue] Queue binding missing in production. Dropping click to prevent database overload.");
+      return;
     }
   }
 

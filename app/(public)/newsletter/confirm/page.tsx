@@ -1,6 +1,6 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { captureException } from "@/lib/sentry";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -25,7 +25,7 @@ async function confirmSubscription(token: string | undefined): Promise<ConfirmRe
   }
 
   try {
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
 
     const { data: subscriber, error: fetchError } = await sb
       .from("newsletter_subscribers")

@@ -13,7 +13,7 @@ const COOKIE_NAME = "nh_admin_token";
 const ACTIVITY_COOKIE = "nh_admin_activity";
 /** Admin sessions expire after 30 minutes of inactivity */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-const EXPIRY = "24h";
+const EXPIRY = "8h"; // F-005: Reduced from 24h to limit exposure
 
 /**
  * Dummy bcrypt hash used to equalize timing between known and unknown users.
@@ -102,8 +102,8 @@ export async function createToken(payload: AdminPayload, request?: Request): Pro
     .setJti(jti)
     .setIssuedAt()
     .setExpirationTime(EXPIRY)
-    .setAudience("affiliate-platform")
-    .setIssuer("affiliate-platform")
+    .setAudience("affilite-mix-admin")
+    .setIssuer("affilite-mix-auth")
     .sign(getSecretKey());
 }
 
@@ -117,8 +117,8 @@ export async function createToken(payload: AdminPayload, request?: Request): Pro
 export async function verifyToken(token: string, request?: Request): Promise<AdminPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), {
-      audience: "affiliate-platform",
-      issuer: "affiliate-platform",
+      audience: "affilite-mix-admin",
+      issuer: "affilite-mix-auth",
     });
 
     if (payload.jti && (await isTokenRevoked(payload.jti))) {
@@ -191,7 +191,8 @@ export function touchAdminActivity(): {
       secure: IS_SECURE_COOKIE,
       sameSite: "strict" as const,
       path: "/",
-      maxAge: 60 * 60 * 24,
+      // F-042: Align maxAge with the idle timeout so the browser drops it naturally
+      maxAge: Math.floor(IDLE_TIMEOUT_MS / 1000),
     },
   };
 }

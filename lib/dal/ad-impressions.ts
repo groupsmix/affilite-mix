@@ -1,4 +1,5 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
+import { logger } from "@/lib/logger";
 import { assertRows, hasNumberProp } from "./type-guards";
 
 const TABLE = "ad_impressions";
@@ -11,7 +12,7 @@ export async function recordAdImpression(
   contentId?: string,
   cpmRevenueCents = 0,
 ): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   // Use database-level atomic function for maximum safety under concurrency
   // This is more reliable than application-level upsert because it's a single
@@ -26,7 +27,7 @@ export async function recordAdImpression(
 
   // Fire-and-forget: log but don't throw
   if (error) {
-    console.error("Failed to record ad impression:", error.message);
+    logger.error("Failed to record ad impression:", { error: error.message });
   }
 }
 
@@ -36,7 +37,7 @@ export async function getAdImpressionStats(
   startDate: string,
   endDate?: string,
 ): Promise<{ ad_placement_id: string; total_impressions: number }[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb
     .from(TABLE)
     .select("ad_placement_id, impression_count")

@@ -88,6 +88,12 @@ vi.mock("@/lib/supabase-server", () => ({
     sharedState.recorder = recorder;
     return client;
   },
+  getTenantClient: async () => {
+    const resultFor = sharedState.resultFor ?? (() => ({ data: [] }));
+    const { client, recorder } = createSupabaseRecorder(resultFor);
+    sharedState.recorder = recorder;
+    return client;
+  },
 }));
 
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));

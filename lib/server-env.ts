@@ -52,6 +52,11 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
     ownerFile: "lib/internal-auth.ts",
   },
   {
+    name: "SUPABASE_JWT_SECRET",
+    description: "Secret for signing Supabase JWTs to enforce RLS",
+    ownerFile: "lib/supabase-server.ts",
+  },
+  {
     name: "CRON_SECRET",
     description: "Shared secret for authenticating scheduled cron job requests",
     ownerFile: "lib/cron-auth.ts",

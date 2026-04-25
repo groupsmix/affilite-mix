@@ -1,0 +1,11 @@
+[allowlist]
+description = "Ignore test credentials and local dev mock secrets"
+paths = [
+    "docker/kong.yml",
+    "docker/.env.example",
+    "\\.env\\.example",
+    "\\.env\\.production\\.example",
+    "secrets-template\\.env",
+    "docs/.*",
+    "__tests__/.*",
+]

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { getInternalToken } from "@/lib/internal-auth";
 import { captureException } from "@/lib/sentry";
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
 
     if (isDlq) {
       // F-024: DLQ messages are persisted to click_failures for durable recovery

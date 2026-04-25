@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 export interface AIDraftRow {
@@ -36,7 +36,7 @@ export interface ListAIDraftsOptions {
 
 /** List AI drafts for a site with optional filters */
 export async function listAIDrafts(opts: ListAIDraftsOptions): Promise<AIDraftRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb
     .from(TABLE)
     .select("*")
@@ -58,7 +58,7 @@ export async function listAIDrafts(opts: ListAIDraftsOptions): Promise<AIDraftRo
 
 /** Get a single AI draft by id */
 export async function getAIDraftById(siteId: string, id: string): Promise<AIDraftRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -74,7 +74,7 @@ export async function getAIDraftById(siteId: string, id: string): Promise<AIDraf
 export async function createAIDraft(
   input: Omit<AIDraftRow, "id" | "created_at" | "updated_at" | "reviewed_at" | "reviewed_by">,
 ): Promise<AIDraftRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .insert(input as never)
@@ -103,7 +103,7 @@ export async function updateAIDraft(
     >
   >,
 ): Promise<AIDraftRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .update(input as never)
@@ -118,7 +118,7 @@ export async function updateAIDraft(
 
 /** Delete an AI draft */
 export async function deleteAIDraft(siteId: string, id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;
 }
@@ -128,7 +128,7 @@ export async function countAIDrafts(
   siteId: string,
   status?: AIDraftRow["status"],
 ): Promise<number> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", siteId);
 
   if (status) query = query.eq("status", status);
