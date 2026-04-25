@@ -100,7 +100,7 @@ export async function getContentBySlug(
   slug: string,
   includePreview = false,
 ): Promise<ContentRow | null> {
-  const sb = includePreview ? getTenantClient() : getAnonClient();
+  const sb = includePreview ? await getTenantClient() : getAnonClient();
   let query = sb.from(TABLE).select("*").eq("site_id", siteId).eq("slug", slug);
 
   if (!includePreview) {

@@ -36,7 +36,9 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_DEFAULT_SITE: ai-compared
-      - name: Bundle size check
+          NEXT_PUBLIC_SUPABASE_URL: https://xyz.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder     - name: Bundle size check
         run: npx size-limit
       - name: Wrangler dry-run check (F-035)
         run: npx wrangler deploy --dry-run

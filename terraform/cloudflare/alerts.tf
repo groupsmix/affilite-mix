@@ -9,7 +9,7 @@ resource "cloudflare_notification_policy" "worker_5xx_alert" {
   alert_type  = "workers_alert"
 
   filters {
-    services = ["affilite-mix"]
+    services    = ["affilite-mix"]
     environment = ["production"]
   }
 
@@ -27,7 +27,7 @@ resource "cloudflare_notification_policy" "worker_cpu_time_alert" {
   alert_type  = "workers_alert"
 
   filters {
-    services = ["affilite-mix"]
+    services    = ["affilite-mix"]
     environment = ["production"]
   }
 }

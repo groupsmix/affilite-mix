@@ -3,8 +3,9 @@ import { isSupabaseConfigured } from "@/lib/db-available";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { PageRow } from "@/types/database";
 
-function pagesTable() {
-  return getTenantClient().from("pages");
+async function pagesTable() {
+  const client = await getTenantClient();
+  return client.from("pages");
 }
 
 // Columns needed for list views (excludes heavy body text)
@@ -18,7 +19,8 @@ const LIST_COLUMNS =
 /** List all pages for a site (ordered by sort_order) */
 export async function listPages(siteId: string): Promise<PageRow[]> {
   if (!isSupabaseConfigured()) return [];
-  const { data, error } = await pagesTable()
+  const table = await pagesTable();
+  const { data, error } = await table
     .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("sort_order", { ascending: true });
@@ -58,7 +60,8 @@ export async function getPageBySlug(siteId: string, slug: string): Promise<PageR
 /** Get a single page by id (scoped to site) */
 export async function getPageById(siteId: string, id: string): Promise<PageRow | null> {
   if (!isSupabaseConfigured()) return null;
-  const { data, error } = await pagesTable()
+  const table = await pagesTable();
+  const { data, error } = await table
     .select("*")
     .eq("site_id", siteId)
     .eq("id", id)
@@ -81,7 +84,8 @@ export async function createPage(input: {
   is_published?: boolean;
   sort_order?: number;
 }): Promise<PageRow> {
-  const { data, error } = await pagesTable()
+  const table = await pagesTable();
+  const { data, error } = await table
     .insert({
       site_id: input.site_id,
       slug: input.slug,
@@ -103,7 +107,8 @@ export async function updatePage(
   id: string,
   input: Partial<Pick<PageRow, "slug" | "title" | "body" | "is_published" | "sort_order">>,
 ): Promise<PageRow> {
-  const { data, error } = await pagesTable()
+  const table = await pagesTable();
+  const { data, error } = await table
     .update(input)
     .eq("site_id", siteId)
     .eq("id", id)
@@ -116,7 +121,8 @@ export async function updatePage(
 
 /** Delete a page (scoped to site) */
 export async function deletePage(siteId: string, id: string): Promise<void> {
-  const { error } = await pagesTable().delete().eq("site_id", siteId).eq("id", id);
+  const table = await pagesTable();
+  const { error } = await table.delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;
 }
 

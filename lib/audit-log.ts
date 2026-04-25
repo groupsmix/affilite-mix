@@ -20,12 +20,12 @@ export async function recordAuditEvent(event: AuditEvent): Promise<void> {
   const row = {
     site_id: event.site_id,
     actor: event.actor,
-    actor_user_id: event.actor_user_id,
+    actor_user_id: event.actor_user_id ?? null,
     action: event.action,
     entity_type: event.entity_type,
     entity_id: event.entity_id,
     details: event.details ?? {},
-    ip: event.ip ?? "",
+    ip: event.ip ?? null,
   };
 
   const sb = await getTenantClient();
