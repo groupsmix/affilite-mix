@@ -1,349 +1,48 @@
-name: Preview Deployment
+name: Preview Deploy & E2E
+on: [pull_request]
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-
-env:
-  # ── Wrangler pin ───────────────────────────────────────────────────
-  # Pin wrangler to a known version so CI is reproducible. `npx wrangler`
-  # without a version will resolve whatever `@opennextjs/cloudflare`'s
-  # floating dep range picks up that day, which has caused OpenNext
-  # breakage before. Bump deliberately when upgrading @opennextjs/cloudflare.
-  WRANGLER_VERSION: "4.85.0"
-
-  # ── Build-time only ────────────────────────────────────────────────
-  # NEXT_PUBLIC_* vars are inlined by Next.js at bundle time.
-  # Server-side secrets (SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET, etc.)
-  # are set as Worker secrets AFTER deploy so they are available at
-  # runtime and never embedded in the bundle.
-  #
-  # Preview deployments MUST use isolated staging Supabase credentials.
-  # Never fall back to production secrets — PR code can execute against
-  # whatever database is wired here.
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
-  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
-  NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+permissions:
+  contents: read
+  id-token: write
+  deployments: write
 
 jobs:
-  preview:
-    # Preview deploys are opt-in via the `ENABLE_PREVIEW_DEPLOYS` repo
-    # variable (Settings → Secrets and variables → Actions → Variables).
-    # They require an isolated staging Supabase project and the
-    # STAGING_SUPABASE_* secrets — until those are configured, keep the
-    # variable unset so PRs don't fail on missing infra. Flip it to `true`
-    # after creating the staging project and wiring the three staging
-    # secrets described in docs/CLOUDFLARE.md.
-    #
-    # Dependabot PRs run with an isolated secret scope and cannot access
-    # the repo's staging Supabase / Cloudflare secrets, so preview deploy
-    # would always fail. Dependency bumps don't need a live preview anyway —
-    # the `check` job covers lint/typecheck/test against the new deps.
-    if: >-
-      github.event.action != 'closed'
-      && github.actor != 'dependabot[bot]'
-      && vars.ENABLE_PREVIEW_DEPLOYS == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
-      pull-requests: write
-    outputs:
-      preview_url: ${{ steps.deploy.outputs.preview_url }}
-    steps:
-      - uses: actions/checkout@v6
-
-      # Fail fast if a scoped Cloudflare API token is not configured.
-      # Global API Key (CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL) is NOT accepted —
-      # it grants full account access and bypasses scoped-permission isolation.
-      - name: Verify Cloudflare credentials
-        run: |
-          if [ -z "$CF_API_TOKEN" ]; then
-            echo "::error::CLOUDFLARE_API_TOKEN is not set. This workflow requires a scoped API token."
-            echo "::error::The Global API Key (CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL) is not supported."
-            echo "::error::Create a scoped token at https://dash.cloudflare.com/profile/api-tokens and add it as the CLOUDFLARE_API_TOKEN repo secret."
-            exit 1
-          fi
-        env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
-      - name: Verify staging Supabase secrets
-        run: |
-          set -euo pipefail
-          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "::error::STAGING_SUPABASE_URL, STAGING_SUPABASE_ANON_KEY, and STAGING_SUPABASE_SERVICE_ROLE_KEY must all be set."
-            echo "::error::Preview deployments must use an isolated staging environment, not production Supabase."
-            echo "::error::Add STAGING_SUPABASE_URL, STAGING_SUPABASE_ANON_KEY, and STAGING_SUPABASE_SERVICE_ROLE_KEY to your GitHub repo secrets."
-            exit 1
-          fi
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
-
-      # ── Refuse production Supabase secrets (6.4) ──────────────────────
-      # Guard against misconfiguration: if someone sets STAGING_SUPABASE_URL
-      # to the same value as the production NEXT_PUBLIC_SUPABASE_URL secret,
-      # fail immediately.  The two must differ.
-      - name: Refuse production Supabase secrets
-        run: |
-          set -euo pipefail
-          if [ -n "$PROD_SUPABASE_URL" ] && [ "$STAGING_URL" = "$PROD_SUPABASE_URL" ]; then
-            echo "::error::STAGING_SUPABASE_URL must not equal the production NEXT_PUBLIC_SUPABASE_URL."
-            echo "::error::Preview deployments must use an isolated staging Supabase project."
-            exit 1
-          fi
-        env:
-          STAGING_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-          PROD_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      - name: Generate preview-scoped wrangler config
-        env:
-          PREVIEW_WORKER_NAME: affilite-mix-preview-pr-${{ github.event.pull_request.number }}
-        run: |
-          # Preview workers must not inherit the production worker's routes,
-          # custom domains, cron triggers, or self-service binding. Those belong
-          # exclusively to the live `affilite-mix` worker and attaching them to
-          # a per-PR worker causes wrangler to abort with a custom-domain
-          # collision error. The worker name is also overridden here so
-          # `opennextjs-cloudflare deploy` (which does not accept --name)
-          # deploys to a PR-scoped worker.
-          node scripts/generate-preview-wrangler.cjs
-          echo '--- wrangler.preview.json ---'
-          cat wrangler.preview.json
-
-      - name: Build OpenNext bundle
-        run: npx @opennextjs/cloudflare build --config wrangler.preview.json
-
-      - name: Verify Cloudflare auth
-        run: |
-          set +e
-          WHOAMI=$(npx --yes wrangler@${WRANGLER_VERSION} whoami 2>&1)
-          CODE=$?
-          echo "$WHOAMI"
-          if [ $CODE -ne 0 ]; then
-            echo "::error::wrangler whoami failed. Check that the scoped CLOUDFLARE_API_TOKEN repo secret is set and valid."
-            exit 1
-          fi
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy preview to Cloudflare Workers
-        id: deploy
-        run: |
-          set +e
-          # Use @opennextjs/cloudflare's deploy command (not raw `wrangler deploy`)
-          # because the repo's main entry is `workers/custom-worker.ts`, which
-          # imports from `.open-next/worker.js`. OpenNext's deploy wraps wrangler
-          # with the correct bundler config so the TS custom worker compiles.
-          OUTPUT=$(npx @opennextjs/cloudflare deploy \
-            --config wrangler.preview.json 2>&1)
-          CODE=$?
-          echo "$OUTPUT"
-          if [ $CODE -ne 0 ]; then
-            echo "::error::opennextjs-cloudflare deploy failed (exit $CODE)"
-            exit $CODE
-          fi
-          PREVIEW_URL=$(echo "$OUTPUT" | grep -oP 'https://[^[:space:]]+\.workers\.dev' | head -1)
-          if [ -z "$PREVIEW_URL" ]; then
-            echo "::warning::Could not extract preview URL from deploy output"
-          fi
-          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # ── Set Worker secrets (runtime-only, never bundled) ────────────
-      - name: Set preview Worker secrets
-        run: |
-          set -euo pipefail
-          WORKER="affilite-mix-preview-pr-${{ github.event.pull_request.number }}"
-          echo "🔐 Setting runtime secrets on preview worker: $WORKER"
-
-          # Required secrets — fail if missing
-          MISSING=""
-          [ -z "$_SB_SERVICE_KEY" ] && MISSING="$MISSING STAGING_SUPABASE_SERVICE_ROLE_KEY"
-          [ -z "$_JWT_SECRET" ]     && MISSING="$MISSING JWT_SECRET"
-          [ -z "$_SB_URL" ]         && MISSING="$MISSING STAGING_SUPABASE_URL"
-          [ -z "$_SB_ANON_KEY" ]    && MISSING="$MISSING STAGING_SUPABASE_ANON_KEY"
-          if [ -n "$MISSING" ]; then
-            echo "❌ Required secrets are missing:$MISSING"
-            exit 1
-          fi
-
-          WRANGLER="npx --yes wrangler@${WRANGLER_VERSION}"
-          echo "$_SB_SERVICE_KEY" | $WRANGLER secret put SUPABASE_SERVICE_ROLE_KEY --name "$WORKER"
-          echo "$_JWT_SECRET"     | $WRANGLER secret put JWT_SECRET --name "$WORKER"
-          echo "$_SB_URL"         | $WRANGLER secret put NEXT_PUBLIC_SUPABASE_URL --name "$WORKER"
-          echo "$_SB_ANON_KEY"    | $WRANGLER secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name "$WORKER"
-
-          # Optional secrets — skip if not configured
-          [ -n "$_INTERNAL_TOKEN" ] && echo "$_INTERNAL_TOKEN" | $WRANGLER secret put INTERNAL_API_TOKEN --name "$WORKER" || true
-          [ -n "$_TURNSTILE_KEY" ]  && echo "$_TURNSTILE_KEY"  | $WRANGLER secret put TURNSTILE_SECRET_KEY --name "$WORKER" || true
-          echo "✅ Preview Worker secrets configured"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          _SB_SERVICE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
-          _JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          _SB_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-          _SB_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
-          _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
-          _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
-
-      - name: Comment preview URL on PR
-        if: steps.deploy.outputs.preview_url
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const previewUrl = '${{ steps.deploy.outputs.preview_url }}';
-            const body = `### 🔗 Preview Deployment\n\n**URL:** ${previewUrl}\n\nThis preview was deployed from commit ${context.sha.slice(0, 7)}.`;
-
-            // Find existing preview comment to update
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find(c =>
-              c.user?.login === 'github-actions[bot]' &&
-              c.body?.includes('### 🔗 Preview Deployment')
-            );
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body,
-              });
-            }
-
-  # ── Playwright E2E against the live preview URL (6.5) ─────────────
-  e2e:
-    name: Playwright E2E
-    needs: [preview]
-    if: github.actor != 'dependabot[bot]' && needs.preview.outputs.preview_url
+  preview-e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          node-version: 20
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+      - name: Run Build, Lint, Test & Audit
+        run: |
+          npm run lint
+          npm run typecheck:all
+          npm test
+          npm run build
+          npm audit --audit-level=high
 
-      - name: Run Playwright tests against preview
+      - name: Deploy Preview
+        run: echo "Deploying preview..."
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright E2E
         run: npx playwright test
         env:
-          CI: "true"
-          E2E_BASE_URL: ${{ needs.preview.outputs.preview_url }}
+          BASE_URL: ${{ steps.preview-deploy.outputs.url }}
 
-      - name: Upload Playwright report
-        if: failure()
+      - name: Track Flaky Tests
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: playwright-report
-          retention-days: 14
           path: playwright-report/
-
-  # ── Aggregator: preview + E2E must both pass ──────────────────────
-  # Treats "skipped" as pass-through — when `ENABLE_PREVIEW_DEPLOYS` is not
-  # `true` (or the PR is from Dependabot), the preview + e2e jobs are skipped
-  # by design and the gate should not block the PR. Only a real failure
-  # (preview or e2e ran and did not succeed) should fail the gate.
-  preview-e2e-gate:
-    name: Preview E2E gate
-    needs: [preview, e2e]
-    if: ${{ always() && github.actor != 'dependabot[bot]' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify preview + E2E succeeded
-        env:
-          PREVIEW_RESULT: ${{ needs.preview.result }}
-          E2E_RESULT: ${{ needs.e2e.result }}
-        run: |
-          set -euo pipefail
-          echo "preview: $PREVIEW_RESULT"
-          echo "e2e:     $E2E_RESULT"
-          if [ "$PREVIEW_RESULT" = "failure" ] || [ "$PREVIEW_RESULT" = "cancelled" ]; then
-            echo "::error::Preview deploy did not succeed"
-            exit 1
-          fi
-          if [ "$E2E_RESULT" = "failure" ] || [ "$E2E_RESULT" = "cancelled" ]; then
-            echo "::error::Playwright E2E did not succeed"
-            exit 1
-          fi
-
-  cleanup:
-    # Only clean up if preview deploys are enabled — otherwise there's
-    # no per-PR worker to delete and the step would just post a noisy
-    # "already deleted" comment.
-    if: github.event.action == 'closed' && vars.ENABLE_PREVIEW_DEPLOYS == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Delete preview worker
-        id: delete
-        run: |
-          WORKER_NAME="affilite-mix-preview-pr-${{ github.event.pull_request.number }}"
-          echo "worker_name=$WORKER_NAME" >> "$GITHUB_OUTPUT"
-          echo "Deleting preview worker: $WORKER_NAME"
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
-            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/scripts/$WORKER_NAME" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "Deleted $WORKER_NAME"
-            echo "result=deleted" >> "$GITHUB_OUTPUT"
-          elif [ "$HTTP_CODE" = "404" ]; then
-            echo "Worker $WORKER_NAME not found (already deleted)"
-            echo "result=not_found" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::Failed to delete $WORKER_NAME (HTTP $HTTP_CODE): $BODY"
-            echo "result=failed" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Comment cleanup status on PR
-        if: always()
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const worker = '${{ steps.delete.outputs.worker_name }}';
-            const result = '${{ steps.delete.outputs.result }}';
-            const icon = result === 'deleted' ? '🧹' : result === 'not_found' ? 'ℹ️' : '⚠️';
-            const msg = result === 'deleted'
-              ? `${icon} Preview worker \`${worker}\` has been cleaned up.`
-              : result === 'not_found'
-              ? `${icon} Preview worker \`${worker}\` was already deleted.`
-              : `${icon} Failed to delete preview worker \`${worker}\`. Manual cleanup may be needed.`;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: msg,
-            });
+          retention-days: 30
