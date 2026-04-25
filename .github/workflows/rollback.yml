@@ -42,7 +42,7 @@ env:
   # without a version will resolve whatever `@opennextjs/cloudflare`'s
   # floating dep range picks up that day, which has caused OpenNext
   # breakage before. Bump deliberately when upgrading @opennextjs/cloudflare.
-  WRANGLER_VERSION: "4.77.0"
+  WRANGLER_VERSION: "4.85.0"
 
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
