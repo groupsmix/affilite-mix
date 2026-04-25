@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
@@ -68,7 +68,7 @@ export async function listCategories(
   if (shouldSkipDbCall()) {
     return [];
   }
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const ilikePattern = buildCategoryNameIlikePattern(opts.q);
 
   const runQuery = async (
@@ -110,7 +110,7 @@ export async function listCategoriesByTaxonomy(
   if (shouldSkipDbCall()) {
     return [];
   }
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   let result: { data: unknown[] | null; error: { message?: string } | null } = (await sb
     .from(TABLE)
     .select(FULL_COLUMNS)
@@ -166,7 +166,7 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
     return null;
   }
 
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -188,7 +188,7 @@ export async function listCategoriesWithProductCount(
     return [];
   }
 
-  const sb = getServiceClient();
+  const sb = getAnonClient();
   let catsResult: { data: unknown[] | null; error: { message?: string } | null } = (await sb
     .from(TABLE)
     .select(FULL_COLUMNS)

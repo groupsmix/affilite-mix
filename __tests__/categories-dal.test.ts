@@ -76,6 +76,12 @@ const sharedState: {
 };
 
 vi.mock("@/lib/supabase-server", () => ({
+  getAnonClient: () => {
+    const resultFor = sharedState.resultFor ?? (() => ({ data: [] }));
+    const { client, recorder } = createSupabaseRecorder(resultFor);
+    sharedState.recorder = recorder;
+    return client;
+  },
   getServiceClient: () => {
     const resultFor = sharedState.resultFor ?? (() => ({ data: [] }));
     const { client, recorder } = createSupabaseRecorder(resultFor);
