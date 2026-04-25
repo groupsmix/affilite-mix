@@ -1,7 +1,7 @@
 import { getKVNamespace } from "@/lib/rate-limit"; // Reuse the KV fetcher
 import { logger } from "@/lib/logger";
 
-const REVOKED_TTL_SECONDS = 86400; // 24 hours (matches token expiry)
+const REVOKED_TTL_SECONDS = 28800; // 8 hours (matches token expiry)
 
 /**
  * Check if a JWT ID (jti) is present in the blocklist.
@@ -9,7 +9,9 @@ const REVOKED_TTL_SECONDS = 86400; // 24 hours (matches token expiry)
  * compromised tokens from being used during outages.
  */
 export async function isTokenRevoked(jti: string): Promise<boolean> {
-  const isProduction = process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+  const isProduction =
+    process.env.NODE_ENV === "production" ||
+    (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers");
   try {
     const kv = getKVNamespace();
     if (!kv) {
