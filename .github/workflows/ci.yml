@@ -42,7 +42,17 @@ jobs:
       - name: Bundle size check
         run: npx size-limit
       - name: Wrangler dry-run check (F-035)
-        run: npx wrangler deploy --dry-run
+        # `wrangler.jsonc` references `.open-next/assets`, which is produced by
+        # `opennextjs-cloudflare build` (not by `next build`). Run the OpenNext
+        # build first so the dry-run can resolve the assets directory.
+        run: |
+          npx opennextjs-cloudflare build
+          npx wrangler deploy --dry-run
+        env:
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://xyz.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
 
   # ── RLS / anon-grant audit against staging DB (E-6) ────────────────
   # Runs the queries from docs/public-rls-inventory.md against the
