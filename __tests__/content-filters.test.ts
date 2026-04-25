@@ -38,13 +38,39 @@ function createSupabaseRecorder(): { client: unknown; recorder: Recorder } {
     },
   });
 
-  return { client: chain, recorder };
+  // Non-thenable façade over the chain. `await sb.from("x")` resolves to
+  // this wrapper (instead of recursively unwrapping the proxy's `.then`),
+  // while subsequent chain calls still resolve via the recording proxy.
+  const nonThenable: unknown = new Proxy(
+    {},
+    {
+      get(_target, prop: string | symbol) {
+        if (prop === "then") return undefined;
+        return (chain as Record<string | symbol, unknown>)[prop];
+      },
+    },
+  );
+
+  const client = {
+    from: (...args: unknown[]) => {
+      (chain as { from: (...a: unknown[]) => unknown }).from(...args);
+      return nonThenable;
+    },
+    rpc: (...args: unknown[]) => (chain as { rpc: (...a: unknown[]) => unknown }).rpc(...args),
+  };
+
+  return { client, recorder };
 }
 
 const sharedState: { current: Recorder | null } = { current: null };
 
 vi.mock("@/lib/supabase-server", () => ({
   getServiceClient: () => {
+    const { client, recorder } = createSupabaseRecorder();
+    sharedState.current = recorder;
+    return client;
+  },
+  getTenantClient: async () => {
     const { client, recorder } = createSupabaseRecorder();
     sharedState.current = recorder;
     return client;
