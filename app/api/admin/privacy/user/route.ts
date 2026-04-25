@@ -228,8 +228,12 @@ import crypto from "crypto";
  * on exported/erased user emails while still allowing correlation.
  */
 function hashEmail(email: string): string {
-  const secret =
-    process.env.GDPR_HASH_SECRET || process.env.JWT_SECRET || "fallback-secret-do-not-use-in-prod";
+  const secret = process.env.GDPR_HASH_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      "GDPR_HASH_SECRET or JWT_SECRET must be set — refusing to hash with a hardcoded fallback",
+    );
+  }
   return crypto
     .createHmac("sha256", secret)
     .update(email.toLowerCase().trim())

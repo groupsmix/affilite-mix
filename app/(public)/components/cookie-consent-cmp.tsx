@@ -94,7 +94,7 @@ export default function CookieConsentCmp({
                         type: "Essential",
                       },
                       {
-                        name: "nh_csrf",
+                        name: "__csrf",
                         purpose: "CSRF protection token",
                         type: "Essential",
                       },
