@@ -212,7 +212,7 @@ describe("cookie list documentation", () => {
     { name: "nh-cookie-consent", type: "Essential" },
     { name: "nh_active_site", type: "Essential" },
     { name: "nh_admin_token", type: "Essential" },
-    { name: "nh_csrf", type: "Essential" },
+    { name: "__csrf", type: "Essential" },
     { name: "Affiliate tracking", type: "Non-essential" },
   ];
 
