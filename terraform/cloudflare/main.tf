@@ -94,15 +94,15 @@ resource "cloudflare_zone_setting" "security_header" {
   zone_id    = var.zone_id
   setting_id = "security_header"
 
-  value = jsonencode({
+  value = {
     strict_transport_security = {
       enabled            = true
-      max_age            = 31536000
+      max_age            = 63072000
       include_subdomains = true
       preload            = true
       nosniff            = true
     }
-  })
+  }
 }
 
 ###############################################################################
