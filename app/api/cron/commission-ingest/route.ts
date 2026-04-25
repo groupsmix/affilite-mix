@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ingestCommissions } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
 import { safeFetch } from "@/lib/ssrf-guard";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 /**
  * GET /api/cron/commission-ingest
@@ -13,7 +14,7 @@ import { safeFetch } from "@/lib/ssrf-guard";
  */
 export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -110,12 +111,13 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
   const endDate = new Date().toISOString().split("T")[0];
   const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-  const response = await safeFetch(
+  const response = await fetchWithTimeout(
     `https://commission-detail.api.cj.com/v3/commissions?date-type=event&start-date=${startDate}&end-date=${endDate}`,
     {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
+      timeoutMs: 30000,
     },
   );
 
@@ -143,7 +145,8 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
     throw new Error("Admitad API credentials missing");
   }
 
-  const response = await safeFetch("https://api.admitad.com/statistics/actions/", {
+  const response = await fetchWithTimeout("https://api.admitad.com/statistics/actions/", {
+    timeoutMs: 30000,
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
@@ -173,7 +176,8 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
     throw new Error("PartnerStack API credentials missing");
   }
 
-  const response = await safeFetch("https://api.partnerstack.com/api/v2/transactions", {
+  const response = await fetchWithTimeout("https://api.partnerstack.com/api/v2/transactions", {
+    timeoutMs: 30000,
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },

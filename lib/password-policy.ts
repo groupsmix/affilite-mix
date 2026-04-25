@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 /**
  * Password policy enforcement.
  *
@@ -67,7 +68,7 @@ export async function checkBreachedPassword(password: string): Promise<number> {
     const prefix = hashHex.slice(0, 5);
     const suffix = hashHex.slice(5);
 
-    const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+    const response = await fetchWithTimeout(`https://api.pwnedpasswords.com/range/${prefix}`, {
       headers: { "Add-Padding": "true" },
     });
 

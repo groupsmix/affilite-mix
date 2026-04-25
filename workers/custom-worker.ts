@@ -145,14 +145,36 @@ const worker = {
       //
       // TODO(R5): forward to a durable sink (Supabase `click_failures`, R2,
       // or Logpush-only retention) and page on-call above a threshold.
-      for (const msg of batch.messages) {
-        console.error("[queue/click-tracking-dlq] dead letter", {
-          id: msg.id,
-          timestamp: msg.timestamp,
-          body: msg.body,
-        });
+      // F-024: Persist DLQ messages durably by sending to internal API with dlq flag
+      const internalToken = env.INTERNAL_API_TOKEN;
+      const cronHost =
+        typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
+
+      if (internalToken && cronHost) {
+        ctx.waitUntil(
+          (async () => {
+            try {
+              const dlqUrl = `${cronHost}/api/queue/clicks?dlq=true`;
+              await fetch(dlqUrl, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${internalToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ messages: batch.messages.map((m) => m.body) }),
+              });
+            } catch (err) {
+              console.error("[queue/click-tracking-dlq] failed to persist dead letters:", err);
+            }
+            batch.ackAll();
+          })(),
+        );
+      } else {
+        for (const msg of batch.messages) {
+          console.error("[queue/click-tracking-dlq] dead letter", msg);
+        }
+        batch.ackAll();
       }
-      batch.ackAll();
       return;
     }
 
@@ -184,37 +206,30 @@ const worker = {
     // The simplest robust fix for R6 without rewriting the API is to iterate and send.
     // Since Cloudflare Worker allows concurrent fetches, we can Promise.all them.
 
+    // F-012: Send one batched request instead of fanning out N HTTP calls
     ctx.waitUntil(
-      Promise.all(
-        batch.messages.map(async (msg) => {
-          try {
-            const res = await fetch(url, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${internalToken}`,
-                "Content-Type": "application/json",
-              },
-              // Wrap single message in array since the API expects an array of messages
-              body: JSON.stringify({ messages: [msg.body] }),
-            });
+      (async () => {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${internalToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ messages: batch.messages.map((m) => m.body) }),
+          });
 
-            if (res.ok) {
-              msg.ack();
-            } else if (res.status >= 400 && res.status < 500 && res.status !== 429) {
-              // Client error (e.g. malformed data) - poison message. Ack it so it doesn't block.
-              // (Or retry it and let it hit DLQ, but we want to avoid poisoning the batch).
-              // Let's retry it to let it naturally flow to DLQ.
-              msg.retry();
-            } else {
-              // Server error or rate limit
-              msg.retry();
-            }
-          } catch (err) {
-            console.error("[queue/click-tracking] fetch error for message:", err);
-            msg.retry();
+          if (res.ok) {
+            batch.ackAll();
+          } else {
+            // If the batch fails, retry the whole batch
+            batch.retryAll();
           }
-        }),
-      ),
+        } catch (err) {
+          console.error("[queue/click-tracking] batch fetch error:", err);
+          batch.retryAll();
+        }
+      })(),
     );
   },
 };

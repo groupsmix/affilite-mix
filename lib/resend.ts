@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 /**
  * Resend email service utilities.
  * F-020: Domain verification check for sending domains.

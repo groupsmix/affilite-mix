@@ -66,7 +66,7 @@ const translations = {
         type: "Essential",
       },
       { name: "nh_admin_token", purpose: "Admin session authentication (JWT)", type: "Essential" },
-      { name: "nh_csrf", purpose: "CSRF protection token", type: "Essential" },
+      { name: "__csrf", purpose: "CSRF protection token", type: "Essential" },
       {
         name: "Affiliate tracking",
         purpose: "Tracks affiliate link clicks for conversion attribution",
@@ -89,7 +89,7 @@ const translations = {
       },
       { name: "nh_active_site", purpose: "يتذكر اختيار الموقع النشط", type: "أساسي" },
       { name: "nh_admin_token", purpose: "مصادقة جلسة المشرف (JWT)", type: "أساسي" },
-      { name: "nh_csrf", purpose: "رمز حماية CSRF", type: "أساسي" },
+      { name: "__csrf", purpose: "رمز حماية CSRF", type: "أساسي" },
       {
         name: "تتبع الشركات التابعة",
         purpose: "يتتبع نقرات روابط الشركات التابعة لإسناد التحويل",

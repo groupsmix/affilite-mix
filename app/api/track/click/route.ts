@@ -37,24 +37,46 @@ async function handleClick(request: NextRequest) {
       return apiError(400, "Missing required parameter: p");
     }
 
-    // Validate product exists for this site
-    const product = await getProductBySlug(siteId, productSlug);
-    if (!product || !product.affiliate_url) {
-      return apiError(404, "Product not found or has no affiliate URL");
+    // Validate product exists for this site and resolve affiliate URL
+    // F-011: Use KV cache to avoid synchronous DB read on every click
+    const cacheKey = `product-url:${siteId}:${productSlug}`;
+    let cachedData: { name: string; url: string } | null = null;
+
+    try {
+      const kv = (process.env as any).RATE_LIMIT_KV as any;
+      if (kv) {
+        cachedData = await kv.get(cacheKey, "json");
+      }
+    } catch (e) {
+      // Ignore KV errors and fallback to DB
     }
 
-    // Always use the DB-stored affiliate URL, preventing open redirects.
-    const destinationUrl = product.affiliate_url;
+    if (!cachedData) {
+      const product = await getProductBySlug(siteId, productSlug);
+      if (!product || !product.affiliate_url) {
+        return apiError(404, "Product not found or has no affiliate URL");
+      }
+      cachedData = { name: product.name, url: product.affiliate_url };
 
-    // Publish to the F-028 click queue (falls back to a direct DB write when
-    // the queue binding is absent). Wrapped in runAfterResponse so the
-    // Cloudflare isolate keeps the promise alive via ctx.waitUntil() after
-    // the redirect is sent — otherwise the write is silently dropped when
-    // the isolate shuts down under load.
+      // Update cache asynchronously
+      try {
+        const kv = (process.env as any).RATE_LIMIT_KV as any;
+        if (kv) {
+          void runAfterResponse(
+            kv.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 3600 }),
+            { context: "[api/track/click] cache product URL" },
+          );
+        }
+      } catch (e) {}
+    }
+
+    const destinationUrl = cachedData.url;
+
+    // Publish to the click queue (falls back to direct DB write if no binding)
     void runAfterResponse(
       publishClick({
         site_id: siteId,
-        product_name: product.name,
+        product_name: cachedData.name,
         affiliate_url: destinationUrl,
         content_slug: searchParams.get("t") ?? "",
         referrer: request.headers.get("referer") ?? undefined,
