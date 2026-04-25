@@ -32,10 +32,8 @@ export function withAuthz(
       }
     } else {
       // If the route doesn't specify a site_id but requires authz,
-      // we check if they have super_admin or owner global role.
+      // we check if they have super_admin global role.
       // (This mimics the global bypass in hasPermission)
-      // NOTE: "owner" was mentioned in the spec but type AdminPayload role is "admin" | "super_admin".
-      // We will allow super_admin for global routes.
       if (session.role !== "super_admin") {
         return apiError(403, "Forbidden: Missing site_id context for permission check");
       }

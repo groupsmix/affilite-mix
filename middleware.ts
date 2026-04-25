@@ -5,6 +5,7 @@ import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
 import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
+import { captureException } from "@/lib/sentry";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -51,6 +52,12 @@ export async function middleware(request: NextRequest) {
     process.env.NODE_ENV !== "production" &&
     (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost"));
 
+  // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
+  // Reuse an existing x-trace-id (from an upstream proxy) or cf-ray; otherwise mint a new one.
+  // We do this early so we can log it if the DB lookup fails.
+  const traceId =
+    request.headers.get(TRACE_ID_HEADER) ?? request.headers.get("cf-ray") ?? generateTraceId();
+
   // 2. For unknown domains (dashboard-managed custom domains), do direct DB lookup.
   //    Previous implementation used a self-fetch to /api/internal/resolve-site
   //    which added latency and coupling on the hot path.
@@ -75,8 +82,26 @@ export async function middleware(request: NextRequest) {
       } else if (row && !row.is_active) {
         return nicheNotFoundResponse(request);
       }
-    } catch {
-      // DB lookup failed; fall through to 404
+    } catch (err) {
+      // F-025: Log structured error with trace id and emit Sentry instead of silent failure
+      console.error(`[middleware] DB lookup failed for domain: ${hostname}`, { traceId, err });
+      captureException(err, {
+        context: "[middleware] getSiteRowByDomain",
+        extra: { hostname, traceId },
+      });
+
+      // Serve a branded temporary unavailable response rather than a confusing 404
+      return new NextResponse(
+        JSON.stringify({
+          error: "Service Temporarily Unavailable",
+          message: "The platform is currently experiencing database connectivity issues.",
+          traceId,
+        }),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
   }
 
@@ -143,10 +168,6 @@ export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-site-id", siteId);
 
-  // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
-  // Reuse an existing x-trace-id (from an upstream proxy) or cf-ray; otherwise mint a new one.
-  const traceId =
-    request.headers.get(TRACE_ID_HEADER) ?? request.headers.get("cf-ray") ?? generateTraceId();
   requestHeaders.set(TRACE_ID_HEADER, traceId);
 
   // ── CSP nonce generation (H-10) ─────────────────────
@@ -179,19 +200,8 @@ export async function middleware(request: NextRequest) {
     response.headers.set(CSP_HEADER, cspHeaderValue);
   }
 
-  // ── CSRF token rotation on state-changing requests ──────
-  // Rotate the CSRF token after every successful state-changing request
-  // for defence-in-depth (one-time-use tokens).
-  if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
-    const newToken = generateCsrfToken();
-    response.cookies.set(CSRF_COOKIE, newToken, {
-      httpOnly: true,
-      secure: IS_SECURE_COOKIE,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 4,
-    });
-  }
+  // Removed CSRF token rotation on state-changing requests
+  // to support concurrent POST requests and prevent token exposure in response headers.
 
   return response;
 }

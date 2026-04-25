@@ -48,12 +48,26 @@ export async function POST(request: NextRequest) {
       return val.slice(0, maxLen) || undefined;
     };
 
+    // Strip PII (query parameters and fragments) from URLs
+    const stripPiiFromUrl = (urlStr: unknown): string | undefined => {
+      const capped = capString(urlStr);
+      if (!capped) return undefined;
+      try {
+        // Only keep origin and pathname
+        const u = new URL(capped);
+        return u.origin + u.pathname;
+      } catch {
+        // If it's just a path like "/about", strip query/hash manually
+        return capped.split("?")[0].split("#")[0];
+      }
+    };
+
     const metric = {
       name: body.name as string,
       value: body.value as number,
       id: capString(body.id),
-      page: capString(body.page),
-      href: capString(body.href),
+      page: stripPiiFromUrl(body.page),
+      href: stripPiiFromUrl(body.href),
       rating: capString(body.rating),
     };
 

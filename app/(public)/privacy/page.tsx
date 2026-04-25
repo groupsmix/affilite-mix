@@ -109,7 +109,7 @@ export default async function PrivacyPage() {
               <td>{isAr ? "سنة واحدة" : "1 year"}</td>
             </tr>
             <tr>
-              <td>nh_csrf</td>
+              <td>__csrf</td>
               <td>{isAr ? "رمز حماية CSRF" : "CSRF protection token"}</td>
               <td>{isAr ? "أساسي" : "Essential"}</td>
               <td>{isAr ? "4 ساعات" : "4 hours"}</td>

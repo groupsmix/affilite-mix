@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+const fs = require('fs');
+
+const content = `import { describe, expect, it } from "vitest";
 import { validateExternalUrl } from "../lib/ssrf-guard";
 
 describe("SSRF Guard", () => {
@@ -65,3 +67,6 @@ describe("SSRF Guard", () => {
     expect((await validateExternalUrl("not-a-url")).valid).toBe(false);
   });
 });
+`;
+
+fs.writeFileSync('/data/user/work/affilite-mix/__tests__/ssrf-guard.test.ts', content);

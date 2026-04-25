@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { recordStripeEvent } from "@/lib/dal/stripe-events";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
-import Stripe from "stripe";
+import { constructStripeEvent } from "@/lib/stripe-webhook";
 
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -15,12 +15,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
   }
 
-  const stripe = new Stripe(stripeKey, {
-    apiVersion: null as any,
-    appInfo: { name: "affilite-mix" },
-    httpClient: Stripe.createFetchHttpClient(),
-  });
-
   const rawBody = await request.text();
   const signature = request.headers.get("stripe-signature");
 
@@ -28,9 +22,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
-  let event: Stripe.Event;
+  let event: any;
   try {
-    event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
+    // F-009: Use lightweight Web Crypto verifier instead of full Stripe SDK
+    // to avoid edge runtime bloat/incompatibility.
+    event = await constructStripeEvent(rawBody, signature, webhookSecret);
   } catch (err) {
     logger.warn("Stripe webhook signature verification failed", {
       error: err instanceof Error ? err.message : String(err),
@@ -55,6 +51,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Only import the heavy Stripe SDK when processing is actually needed
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: null as any,
+      appInfo: { name: "affilite-mix" },
+      httpClient: Stripe.createFetchHttpClient(),
+    });
+
     await processStripeEvent(stripe, event);
     return NextResponse.json({ received: true });
   } catch (err) {

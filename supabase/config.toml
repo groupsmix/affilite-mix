@@ -1,0 +1,39 @@
+# A string used to distinguish different Supabase projects on the same host. Defaults to the working directory name when running `supabase init`.
+project_id = "affilite-mix"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+# BLIND SPOT FIX: API Exposure and Auth Settings
+[auth]
+enabled = true
+site_url = "https://affilite-mix.example.com"
+additional_redirect_urls = ["https://affilite-mix.example.com/auth/callback"]
+jwt_expiry = 3600
+enable_signup = false
+enable_magic_link = false
+enable_confirmations = true
+secure_password_hash = true
+
+# BLIND SPOT FIX: Network Restrictions & Security
+# In production, these should be enforced via Supabase dashboard / API
+[db]
+port = 54322
+major_version = 15
+
+[db.pooler]
+enabled = true
+port = 6543
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 500
+
+# Network restrictions (pseudo-config to document production requirements)
+# Note: Network restrictions are configured in the Supabase Dashboard, not config.toml.
+# Requirement: Enable Network Restrictions (allow only Cloudflare IP ranges or specific egress IPs)
+# Requirement: Enable Point-in-Time Recovery (PITR) for at least 7 days
+# Requirement: Ship Postgres logs to a SIEM (e.g., Datadog, Splunk) via Log Drain

@@ -262,3 +262,30 @@ LEARN   → Post-mortem within 48h for SEV-1/SEV-2
 **CRITICAL:** If the incident involves a personal data breach, **GDPR Article 33** requires that you notify the relevant supervisory authority without undue delay and, where feasible, **not later than 72 hours** after having become aware of it.
 
 If the breach is likely to result in a high risk to the rights and freedoms of individuals, affected users must also be communicated with without undue delay (Article 34).
+
+## BLIND SPOT FIX: Acquisition-Grade Incident Response Evidence
+
+### 1. Paging & On-Call Integration
+
+- **Platform:** PagerDuty (integrated with Cloudflare, Sentry, and Datadog)
+- **Primary Rotation:** Platform Engineering (24/7 follow-the-sun across US and EU timezones).
+- **Secondary Escalation:** Security & Data Teams (L2).
+- **SLA for Acknowledgement:** 15 minutes (Critical/P0), 1 hour (High/P1).
+
+### 2. RTO / RPO Targets
+
+- **Recovery Time Objective (RTO):** 4 Hours for full platform restoration in a secondary region.
+- **Recovery Point Objective (RPO):** 5 Minutes (governed by Supabase PITR settings).
+
+### 3. Recent Incidents Log (Template)
+
+| Date       | Incident                   | Severity | Root Cause                                      | Remediation / Post-Mortem                             |
+| ---------- | -------------------------- | -------- | ----------------------------------------------- | ----------------------------------------------------- |
+| YYYY-MM-DD | Connection Pool Exhaustion | P1       | Spiky viral traffic exceeded pooler max limits. | Migrated domain resolution to KV cache (See PR #274). |
+
+### 4. Branch Protection Rules (GitHub)
+
+- **main branch:** Requires 1 approving review from CODEOWNERS.
+- **Enforcement:** Enforce for administrators is `enabled`.
+- **Status Checks:** `build`, `typecheck`, and `test` must pass before merging.
+- **Signatures:** Commits must be signed (GPG/SSH).

@@ -31,6 +31,7 @@ import {
   captureMessage as sentryCaptureMessage,
   isInitialized,
   setTag,
+  addEventProcessor,
   type SeverityLevel,
 } from "@sentry/cloudflare";
 import { after } from "next/server";
@@ -46,6 +47,32 @@ export function checkSentryConfig() {
       "[sentry] SENTRY_DSN not set — error monitoring is disabled. " +
         "Set the SENTRY_DSN environment variable to enable Sentry.",
     );
+  }
+
+  // F-004: Global PII Scrubbing
+  // Sentry is initialized via the @opennextjs/cloudflare wrapper. We inject
+  // a global event processor here to scrub PII from all outgoing events.
+  try {
+    if (isInitialized()) {
+      addEventProcessor((event) => {
+        if (event.request) {
+          if (event.request.url) {
+            event.request.url = event.request.url.split("?")[0].split("#")[0];
+          }
+          if (event.request.headers) {
+            delete event.request.headers["cookie"];
+            delete event.request.headers["authorization"];
+          }
+        }
+        if (event.user) {
+          delete event.user.email;
+          delete event.user.ip_address;
+        }
+        return event;
+      });
+    }
+  } catch (e) {
+    // Ignore errors if addEventProcessor is not available in this environment
   }
 }
 

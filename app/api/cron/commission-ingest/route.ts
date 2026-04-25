@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ingestCommissions } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
 import { safeFetch } from "@/lib/ssrf-guard";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 /**
  * GET /api/cron/commission-ingest
@@ -13,73 +14,78 @@ import { safeFetch } from "@/lib/ssrf-guard";
  */
 export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // TODO (Scale Risk): At 10x traffic, processing CJ, Admitad, and PartnerStack sequentially
-  // will exceed the Cloudflare Worker execution time limit (30s HTTP / 15m Cron) or memory limit (128MB).
-  // These should be pushed to Cloudflare Queues so each network's ingestion runs in a separate, isolated Worker.
-
+  // F-019 & F-026 (Scale Risk): Process network ingestions concurrently using Promise.allSettled
+  // to avoid hitting Worker execution limits when traffic scales 10x.
   const results: Record<string, { inserted: number; skipped: number; error?: string }> = {};
 
-  // ── CJ (Commission Junction) ──────────────────────────────
-  if (process.env.CJ_API_KEY) {
-    try {
-      const reports = await fetchCjReports();
-      results.cj = await ingestCommissions(reports);
-      logger.info("CJ commission ingest complete", results.cj);
-    } catch (err) {
-      results.cj = {
-        inserted: 0,
-        skipped: 0,
-        error: err instanceof Error ? err.message : String(err),
-      };
-      logger.error("CJ commission ingest failed", { error: results.cj.error });
-    }
-  } else {
-    results.cj = { inserted: 0, skipped: 0, error: "CJ_API_KEY not configured" };
-  }
+  const tasks = [
+    (async () => {
+      if (process.env.CJ_API_KEY) {
+        try {
+          const reports = await fetchCjReports();
+          results.cj = await ingestCommissions(reports);
+          logger.info("CJ commission ingest complete", results.cj);
+        } catch (err) {
+          results.cj = {
+            inserted: 0,
+            skipped: 0,
+            error: err instanceof Error ? err.message : String(err),
+          };
+          logger.error("CJ commission ingest failed", { error: results.cj.error });
+        }
+      } else {
+        results.cj = { inserted: 0, skipped: 0, error: "CJ_API_KEY not configured" };
+      }
+    })(),
+    (async () => {
+      if (process.env.ADMITAD_API_KEY) {
+        try {
+          const reports = await fetchAdmitadReports();
+          results.admitad = await ingestCommissions(reports);
+          logger.info("Admitad commission ingest complete", results.admitad);
+        } catch (err) {
+          results.admitad = {
+            inserted: 0,
+            skipped: 0,
+            error: err instanceof Error ? err.message : String(err),
+          };
+          logger.error("Admitad commission ingest failed", { error: results.admitad.error });
+        }
+      } else {
+        results.admitad = { inserted: 0, skipped: 0, error: "ADMITAD_API_KEY not configured" };
+      }
+    })(),
+    (async () => {
+      if (process.env.PARTNERSTACK_API_KEY) {
+        try {
+          const reports = await fetchPartnerStackReports();
+          results.partnerstack = await ingestCommissions(reports);
+          logger.info("PartnerStack commission ingest complete", results.partnerstack);
+        } catch (err) {
+          results.partnerstack = {
+            inserted: 0,
+            skipped: 0,
+            error: err instanceof Error ? err.message : String(err),
+          };
+          logger.error("PartnerStack commission ingest failed", {
+            error: results.partnerstack.error,
+          });
+        }
+      } else {
+        results.partnerstack = {
+          inserted: 0,
+          skipped: 0,
+          error: "PARTNERSTACK_API_KEY not configured",
+        };
+      }
+    })(),
+  ];
 
-  // ── Admitad ────────────────────────────────────────────────
-  if (process.env.ADMITAD_API_KEY) {
-    try {
-      const reports = await fetchAdmitadReports();
-      results.admitad = await ingestCommissions(reports);
-      logger.info("Admitad commission ingest complete", results.admitad);
-    } catch (err) {
-      results.admitad = {
-        inserted: 0,
-        skipped: 0,
-        error: err instanceof Error ? err.message : String(err),
-      };
-      logger.error("Admitad commission ingest failed", { error: results.admitad.error });
-    }
-  } else {
-    results.admitad = { inserted: 0, skipped: 0, error: "ADMITAD_API_KEY not configured" };
-  }
-
-  // ── PartnerStack ──────────────────────────────────────────
-  if (process.env.PARTNERSTACK_API_KEY) {
-    try {
-      const reports = await fetchPartnerStackReports();
-      results.partnerstack = await ingestCommissions(reports);
-      logger.info("PartnerStack commission ingest complete", results.partnerstack);
-    } catch (err) {
-      results.partnerstack = {
-        inserted: 0,
-        skipped: 0,
-        error: err instanceof Error ? err.message : String(err),
-      };
-      logger.error("PartnerStack commission ingest failed", { error: results.partnerstack.error });
-    }
-  } else {
-    results.partnerstack = {
-      inserted: 0,
-      skipped: 0,
-      error: "PARTNERSTACK_API_KEY not configured",
-    };
-  }
+  await Promise.allSettled(tasks);
 
   return NextResponse.json({ message: "Commission ingest complete", results });
 }
@@ -110,12 +116,13 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
   const endDate = new Date().toISOString().split("T")[0];
   const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-  const response = await safeFetch(
+  const response = await fetchWithTimeout(
     `https://commission-detail.api.cj.com/v3/commissions?date-type=event&start-date=${startDate}&end-date=${endDate}`,
     {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
+      timeoutMs: 30000,
     },
   );
 
@@ -143,7 +150,8 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
     throw new Error("Admitad API credentials missing");
   }
 
-  const response = await safeFetch("https://api.admitad.com/statistics/actions/", {
+  const response = await fetchWithTimeout("https://api.admitad.com/statistics/actions/", {
+    timeoutMs: 30000,
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
@@ -173,7 +181,8 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
     throw new Error("PartnerStack API credentials missing");
   }
 
-  const response = await safeFetch("https://api.partnerstack.com/api/v2/transactions", {
+  const response = await fetchWithTimeout("https://api.partnerstack.com/api/v2/transactions", {
+    timeoutMs: 30000,
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },

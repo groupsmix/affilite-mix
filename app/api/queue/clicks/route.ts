@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const isDlq = request.nextUrl.searchParams.get("dlq") === "true";
+
   let body: QueueBody;
   try {
     body = (await request.json()) as QueueBody;
@@ -63,24 +65,53 @@ export async function POST(request: NextRequest) {
   }
 
   const messages = Array.isArray(body.messages) ? body.messages : [];
-  const rows = messages.filter(isValidMessage).map((m) => {
-    const row: Record<string, unknown> = {
-      site_id: m.site_id,
-      product_name: m.product_name,
-      affiliate_url: m.affiliate_url,
-      content_slug: m.content_slug ?? "",
-      referrer: m.referrer ?? "",
-    };
-    if (m.click_id) row.click_id = m.click_id;
-    return row;
-  });
 
-  if (rows.length === 0) {
+  if (messages.length === 0) {
     return NextResponse.json({ ok: true, inserted: 0 });
   }
 
   try {
     const sb = getServiceClient();
+
+    if (isDlq) {
+      // F-024: DLQ messages are persisted to click_failures for durable recovery
+      const dlqRows = messages.map((m) => ({
+        payload: m,
+        error_message: "DLQ message",
+      }));
+
+      const { error } = await sb.from("click_failures" as any).insert(dlqRows);
+      if (error) {
+        captureException(new Error(`Failed to persist DLQ messages: ${error.message}`), {
+          context: "[api/queue/clicks] DLQ",
+        });
+        return NextResponse.json({ error: "DLQ insert failed" }, { status: 500 });
+      }
+
+      // Alert on DLQ rate (triggers Sentry)
+      captureException(new Error(`Processed ${dlqRows.length} dead letter queue messages`), {
+        context: "[api/queue/clicks] DLQ processing",
+      });
+
+      return NextResponse.json({ ok: true, inserted: dlqRows.length });
+    }
+
+    const rows = messages.filter(isValidMessage).map((m) => {
+      const row: Record<string, unknown> = {
+        site_id: m.site_id,
+        product_name: m.product_name,
+        affiliate_url: m.affiliate_url,
+        content_slug: m.content_slug ?? "",
+        referrer: m.referrer ?? "",
+      };
+      if (m.click_id) row.click_id = m.click_id;
+      return row;
+    });
+
+    if (rows.length === 0) {
+      return NextResponse.json({ ok: true, inserted: 0 });
+    }
+
     // Use upsert with ignoreDuplicates so retried queue messages with the
     // same click_id are silently skipped (ON CONFLICT (click_id) DO NOTHING).
     const { error } = await sb

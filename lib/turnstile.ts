@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 /**
  * Server-side Cloudflare Turnstile verification.
  *
@@ -45,7 +46,7 @@ export async function verifyTurnstile(
       body.set("remoteip", ip);
     }
 
-    const res = await fetch(VERIFY_URL, {
+    const res = await fetchWithTimeout(VERIFY_URL, {
       method: "POST",
       body,
     });

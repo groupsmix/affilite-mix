@@ -64,6 +64,7 @@ export async function getVariantAssignment(
   experimentId: string,
   visitorId: string,
   variants: Variant[],
+  siteId: string,
 ): Promise<string> {
   const { getServiceClient } = await import("@/lib/supabase-server");
   const sb = getServiceClient();
@@ -74,6 +75,7 @@ export async function getVariantAssignment(
     .select("variant_id")
     .eq("experiment_id", experimentId)
     .eq("visitor_id", visitorId)
+    .eq("site_id", siteId)
     .maybeSingle();
 
   if (existing) return existing.variant_id as string;
@@ -88,6 +90,7 @@ export async function getVariantAssignment(
       experiment_id: experimentId,
       visitor_id: visitorId,
       variant_id: variantId,
+      site_id: siteId,
     })
     .select()
     .single();
@@ -102,6 +105,7 @@ export async function logExperimentEvent(input: {
   experiment_id: string;
   visitor_id: string;
   variant_id: string;
+  site_id: string;
   event_type: "view" | "click" | "conversion";
   metadata?: Record<string, unknown>;
 }): Promise<void> {

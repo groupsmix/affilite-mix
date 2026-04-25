@@ -18,9 +18,14 @@ export default async function AppleIcon() {
       if (dbSite?.favicon_url) {
         const res = await safeFetch(dbSite.favicon_url);
         if (res.ok) {
+          const cType = res.headers.get("content-type");
+          if (!cType?.startsWith("image/")) throw new Error("Invalid content type");
+
           const buffer = await res.arrayBuffer();
+          if (buffer.byteLength > 2 * 1024 * 1024) throw new Error("Favicon too large");
+
           return new Response(buffer, {
-            headers: { "Content-Type": "image/png" },
+            headers: { "Content-Type": cType },
           });
         }
       }

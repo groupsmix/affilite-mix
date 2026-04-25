@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 /**
  * SSRF (Server-Side Request Forgery) protection utilities.
  *
@@ -10,6 +11,10 @@
  */
 
 import { logger } from "./logger";
+import dns from "node:dns";
+import { promisify } from "node:util";
+
+const lookupAsync = promisify(dns.lookup);
 
 // Blocked hostnames / IP ranges
 const BLOCKED_HOSTS = new Set([
@@ -140,10 +145,10 @@ export interface UrlValidationResult {
  * @param allowPrivateIPs - Set to true only for internal tools with explicit
  *                          security controls; defaults to false (fail-safe).
  */
-export function validateExternalUrl(
+export async function validateExternalUrl(
   urlString: string,
   allowPrivateIPs = false,
-): UrlValidationResult {
+): Promise<UrlValidationResult> {
   let url: URL;
   try {
     url = new URL(urlString);
@@ -204,12 +209,27 @@ export function validateExternalUrl(
   // Domain-to-IP resolution with rebinding check (lightweight approach)
   // For user-supplied URLs, we resolve and validate; fail-closed on errors
   try {
-    // In Cloudflare Workers, Dns.lookup() is available. For Next.js edge/node,
-    // we rely on the hostname check above as a baseline.
-    // Production enhancement: use DNS-over-HTTPS with DNSSEC validation.
-  } catch {
+    // Skip DNS resolution for IP literals (already checked above)
+    if (
+      !hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/) &&
+      !ipv6MappedToIPv4(hostname)
+    ) {
+      const { address } = await lookupAsync(hostname);
+
+      // Check if the resolved IP is in blocked ranges
+      const ipMatch = address.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+      if (ipMatch) {
+        const ip = ipMatch.slice(1).join(".");
+        for (const cidr of BLOCKED_IP_RANGES) {
+          if (ipInRange(ip, cidr)) {
+            return { valid: false, error: `Resolved IP range \'${cidr}\' is blocked (SSRF risk)` };
+          }
+        }
+      }
+    }
+  } catch (err) {
     // If resolution fails, log and block (fail-closed)
-    logger.warn("SSRF guard: DNS resolution failed for hostname", { hostname });
+    logger.warn("SSRF guard: DNS resolution failed for hostname", { hostname, error: String(err) });
     return { valid: false, error: "DNS resolution failed — blocked" };
   }
 
@@ -229,11 +249,14 @@ export async function safeFetch(
   options?: RequestInit,
   allowPrivateIPs = false,
 ): Promise<Response> {
-  const result = validateExternalUrl(urlString, allowPrivateIPs);
+  const result = await validateExternalUrl(urlString, allowPrivateIPs);
   if (!result.valid) {
     logger.warn("SSRF blocked", { url: urlString, reason: result.error });
     throw new Error(`SSRF guard: ${result.error}`);
   }
 
-  return fetch(urlString, options);
+  return fetchWithTimeout(urlString, {
+    timeoutMs: 15000, // Default 15s timeout to prevent hanging
+    ...options,
+  });
 }
