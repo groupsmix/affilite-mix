@@ -1,15 +1,19 @@
 name: CI
 on: [push, pull_request]
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   db-audit:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
+      id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Migration ordinal + down sibling check
         run: scripts/check-migration-pairs.sh
       - name: Forbid 'unsafe-inline' in next.config CSP
@@ -35,8 +39,8 @@ jobs:
             exit 1
           fi
       - name: Generate SBOM
-        uses: CycloneDX/gh-actions-bom@v1
+        uses: CycloneDX/gh-actions-bom@b9bcacacpt9829 # v1
       - name: Attest Build Provenance
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@245781cc3520 # v1
         with:
           subject-path: "out/*"
