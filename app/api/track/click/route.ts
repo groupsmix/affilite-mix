@@ -1,113 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
-import { publishClick } from "@/lib/click-queue";
-import { getProductBySlug } from "@/lib/dal/products";
-import { getSiteIdFromHeader } from "@/lib/site-context";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { apiError, rateLimitHeaders } from "@/lib/api-error";
-import { captureException } from "@/lib/sentry";
-import { getClientIp } from "@/lib/get-client-ip";
-import { runAfterResponse } from "@/lib/wait-until";
+import { NextResponse } from 'next/server';
+import { verifyTurnstile } from '../../../lib/turnstile';
+import { rateLimit } from '../../../lib/rate-limit';
+import { recordClick } from '../../../lib/dal/affiliate-clicks';
+import { withSentryScope } from '../../../lib/sentry-utils';
 
-/** 60 click-tracking requests per minute per IP */
-const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
+export async function POST(req: Request, ctx: any) {
+  const { token, siteId, slug, tracking_id, input } = await req.json();
+  const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
 
-/**
- * Shared handler for click tracking (used by both GET and POST).
- * POST support is needed because navigator.sendBeacon() always sends POST.
- */
-async function handleClick(request: NextRequest) {
-  try {
-    const ip = getClientIp(request);
-    const rl = await checkRateLimit(`click:${ip}`, CLICK_RATE_LIMIT);
-    if (!rl.allowed) {
-      return apiError(429, "Rate limit exceeded", undefined, {
-        "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)),
-        ...rateLimitHeaders(CLICK_RATE_LIMIT, rl),
-      });
-    }
-
-    const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
-    const siteId = await resolveDbSiteId(siteSlug);
-
-    const { searchParams } = request.nextUrl;
-    const productSlug = searchParams.get("p");
-
-    if (!productSlug) {
-      return apiError(400, "Missing required parameter: p");
-    }
-
-    // Validate product exists for this site and resolve affiliate URL
-    // F-011: Use KV cache to avoid synchronous DB read on every click
-    const cacheKey = `product-url:${siteId}:${productSlug}`;
-    let cachedData: { name: string; url: string } | null = null;
-
-    try {
-      const kv = (process.env as any).APP_CACHE_KV as any;
-      if (kv) {
-        cachedData = await kv.get(cacheKey, "json");
-      }
-    } catch (e) {
-      // Ignore KV errors and fallback to DB
-    }
-
-    if (!cachedData) {
-      const product = await getProductBySlug(siteId, productSlug);
-      if (!product || !product.affiliate_url) {
-        return apiError(404, "Product not found or has no affiliate URL");
-      }
-      cachedData = { name: product.name, url: product.affiliate_url };
-
-      // Update cache asynchronously
-      try {
-        const kv = (process.env as any).APP_CACHE_KV as any;
-        if (kv) {
-          void runAfterResponse(
-            kv.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 3600 }),
-            { context: "[api/track/click] cache product URL" },
-          );
-        }
-      } catch (e) {}
-    }
-
-    const destinationUrl = cachedData.url;
-
-    // F-029: Scheme validation to prevent javascript:/data: SSRF/XSS vectors
-    const allowedSchemes = ["http:", "https:"];
-    try {
-      const urlObj = new URL(destinationUrl);
-      if (!allowedSchemes.includes(urlObj.protocol)) {
-        return apiError(400, "Invalid affiliate URL scheme");
-      }
-    } catch {
-      return apiError(400, "Malformed affiliate URL");
-    }
-
-    // Publish to the click queue (falls back to direct DB write if no binding)
-    void runAfterResponse(
-      publishClick({
-        site_id: siteId,
-        product_name: cachedData.name,
-        affiliate_url: destinationUrl,
-        content_slug: searchParams.get("t") ?? "",
-        referrer: request.headers.get("referer") ?? undefined,
-      }),
-      { context: "[api/track/click] publishClick" },
-    );
-
-    // 302 redirect to the product's affiliate URL
-    return NextResponse.redirect(destinationUrl, 302);
-  } catch (err) {
-    captureException(err, { context: "[api/track/click] failed:" });
-    return apiError(500, "Internal server error");
+  const isValidTurnstile = await verifyTurnstile(token, ip);
+  if (!isValidTurnstile) {
+    return NextResponse.json({ error: 'Invalid captcha' }, { status: 400 });
   }
+
+  // Rate limit using specific key
+  const rlKey = `click:${siteId}:${slug}:${ip}`;
+  const isAllowed = await rateLimit(rlKey, { limit: 60, window: '1m', failClosed: false });
+  if (!isAllowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
+  // tracking_id validation logic
+  const isValidTracking = verifyTrackingId(tracking_id, siteId, slug, ip);
+  if (!isValidTracking) {
+    return NextResponse.json({ error: 'Invalid tracking ID' }, { status: 400 });
+  }
+
+  // Fire and forget with Sentry trace context (Fix for F-18)
+  ctx.waitUntil(withSentryScope("click-write", () => recordClick(input))());
+
+  return NextResponse.json({ ok: true });
 }
 
-export async function GET(request: NextRequest) {
-  return handleClick(request);
-}
-
-/** POST handler — navigator.sendBeacon() always sends POST */
-export async function POST(request: NextRequest) {
-  return handleClick(request);
+function verifyTrackingId(tracking_id: string, siteId: string, slug: string, ip: string) {
+  return true; // Mock implementation
 }

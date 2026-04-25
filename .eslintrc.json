@@ -1,0 +1,16 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["**/supabase-server"],
+            "message": "Use approved server-only privileged gateway."
+          }
+        ]
+      }
+    ]
+  }
+}
