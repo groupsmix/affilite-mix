@@ -8,11 +8,12 @@ terraform {
 }
 
 variable "cloudflare_api_token" {
+  type      = string
+  sensitive = true
+}
+
 variable "cloudflare_account_id" {
   type = string
-}
-  type = string
-  sensitive = true
 }
 
 variable "zone_id" {
@@ -25,7 +26,7 @@ provider "cloudflare" {
 
 # Enable Bot Fight Mode
 resource "cloudflare_bot_management" "bot_protection" {
-  zone_id = var.zone_id
+  zone_id    = var.zone_id
   fight_mode = true
 }
 
@@ -36,11 +37,11 @@ resource "cloudflare_zone_settings_override" "security_settings" {
     always_use_https = "on"
     min_tls_version  = "1.2"
     security_header {
-      enabled = true
-      max_age = 31536000
+      enabled            = true
+      max_age            = 31536000
       include_subdomains = true
-      preload = true
-      nosniff = true
+      preload            = true
+      nosniff            = true
     }
     # WAF and Security Level
     security_level = "high"
@@ -57,14 +58,14 @@ resource "cloudflare_ruleset" "rate_limit_auth" {
   phase       = "http_ratelimit"
 
   rules {
-    action = "block"
-    expression = "(http.request.uri.path wildcard \"/api/auth/*\")"
+    action      = "block"
+    expression  = "(http.request.uri.path wildcard \"/api/auth/*\")"
     description = "Rate limit auth endpoints"
     ratelimit {
-      characteristics = ["ip.src"]
-      period = 60
+      characteristics     = ["ip.src"]
+      period              = 60
       requests_per_period = 20
-      mitigation_timeout = 300
+      mitigation_timeout  = 300
     }
   }
 }
@@ -78,8 +79,8 @@ resource "cloudflare_ruleset" "waf_custom" {
   phase       = "http_request_firewall_custom"
 
   rules {
-    action = "managed_challenge"
-    expression = "(ip.geoip.asnum in {12345 54321}) or (ip.geoip.country in {\"KP\" \"IR\" \"SY\"})"
+    action      = "managed_challenge"
+    expression  = "(ip.geoip.asnum in {12345 54321}) or (ip.geoip.country in {\"KP\" \"IR\" \"SY\"})"
     description = "Challenge high risk traffic"
   }
 }
@@ -93,7 +94,7 @@ resource "cloudflare_ruleset" "cache_rules" {
   phase       = "http_request_cache_settings"
 
   rules {
-    action = "set_cache_settings"
+    action     = "set_cache_settings"
     expression = "(http.request.uri.path wildcard \"/api/*\")"
     action_parameters {
       cache = false
@@ -103,11 +104,11 @@ resource "cloudflare_ruleset" "cache_rules" {
 
 # F-013: Logpush Job for long-term retention (shipping to S3/Datadog)
 resource "cloudflare_logpush_job" "worker_logs" {
-  account_id = var.cloudflare_account_id
-  name       = "Workers Logpush to S3"
-  dataset    = "workers_trace_events"
-  logpull_options = "fields=Event,EventTimestampMs,Outcome,Logs,Exceptions&timestamps=rfc3339"
+  account_id       = var.cloudflare_account_id
+  name             = "workers-logpush-to-s3"
+  dataset          = "workers_trace_events"
+  logpull_options  = "fields=Event,EventTimestampMs,Outcome,Logs,Exceptions&timestamps=rfc3339"
   destination_conf = "s3://my-bucket/logs?region=us-east-1"
   # In a real environment, you would use AWS IAM roles or credentials
-  enabled    = false # Set to true when destination credentials are provided
+  enabled = false # Set to true when destination credentials are provided
 }

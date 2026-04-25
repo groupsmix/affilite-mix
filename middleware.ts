@@ -122,12 +122,16 @@ export async function middleware(request: NextRequest) {
 
     // 2. Always validate the CSRF double-submit cookie token
     //    (regardless of whether Origin is present)
-    //    Auth endpoints are exempt: csrf (token issuer), login (pre-auth),
-    //    refresh (background keep-alive).
+    //    Auth endpoints exempt: csrf (token issuer), refresh (background
+    //    keep-alive — sameSite=Strict on the auth cookie covers session
+    //    fixation here).
     //    NOTE: logout is NOT exempt — CSRF protection prevents forced-logout attacks.
+    //    NOTE: login is NOT exempt (F-10) — login CSRF / session fixation
+    //    via attacker-controlled credentials is prevented by requiring a
+    //    one-shot CSRF token issued via /api/auth/csrf. The admin login
+    //    page already uses fetchWithCsrf() to obtain and send the token.
     const csrfExemptPaths = new Set([
       "/api/auth/csrf",
-      "/api/auth/login",
       "/api/auth/refresh",
       // Cron/webhook endpoints called externally without CSRF cookies
       "/api/cron/publish",
