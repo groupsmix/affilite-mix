@@ -8,6 +8,9 @@ terraform {
 }
 
 variable "cloudflare_api_token" {
+variable "cloudflare_account_id" {
+  type = string
+}
   type = string
   sensitive = true
 }
@@ -96,4 +99,15 @@ resource "cloudflare_ruleset" "cache_rules" {
       cache = false
     }
   }
+}
+
+# F-013: Logpush Job for long-term retention (shipping to S3/Datadog)
+resource "cloudflare_logpush_job" "worker_logs" {
+  account_id = var.cloudflare_account_id
+  name       = "Workers Logpush to S3"
+  dataset    = "workers_trace_events"
+  logpull_options = "fields=Event,EventTimestampMs,Outcome,Logs,Exceptions&timestamps=rfc3339"
+  destination_conf = "s3://my-bucket/logs?region=us-east-1"
+  # In a real environment, you would use AWS IAM roles or credentials
+  enabled    = false # Set to true when destination credentials are provided
 }
