@@ -11,29 +11,24 @@ import { logger } from "@/lib/logger";
  * POST /api/membership/checkout
  * Creates a Stripe Checkout session for a membership tier.
  *
- * Body: { email: string, tier?: "insider" | "pro", turnstileToken?: string }
+ * Body: { email: string, tier?: string, turnstileToken?: string }
  *
  * Security (audit A-2, A-3):
- *  - `tier` is validated against a fixed allowlist and mapped to a
- *    server-held STRIPE_PRICE_ID_* env var — the body never controls
- *    which price gets charged.
+ *  - `tier` is validated against configured STRIPE_PRICE_ID_<TIER> env vars
+ *    rather than a hardcoded allowlist (F-031). The body never controls
+ *    which price gets charged directly.
  *  - Turnstile captcha is required (skipped only in dev when
  *    TURNSTILE_SECRET_KEY is not set; see `lib/turnstile.ts`).
  *
  * Requires STRIPE_SECRET_KEY and at least one STRIPE_PRICE_ID_* env var.
  */
 
-const TIER_ALLOWLIST = ["insider", "pro"] as const;
-type Tier = (typeof TIER_ALLOWLIST)[number];
-
-/** Map a validated tier to the server-side env var holding its price id. */
-function priceIdForTier(tier: Tier): string | undefined {
-  switch (tier) {
-    case "insider":
-      return process.env.STRIPE_PRICE_ID_INSIDER;
-    case "pro":
-      return process.env.STRIPE_PRICE_ID_PRO;
-  }
+/** Map a requested tier to the server-side env var holding its price id. */
+function priceIdForTier(tier: string): string | undefined {
+  // F-031: Configure-as-data. Look up the env var dynamically based on the requested tier.
+  // e.g. "insider" -> STRIPE_PRICE_ID_INSIDER
+  const envKey = `STRIPE_PRICE_ID_${tier.toUpperCase()}`;
+  return process.env[envKey];
 }
 
 export async function POST(request: NextRequest) {
@@ -74,10 +69,10 @@ export async function POST(request: NextRequest) {
   // A-2: validate tier against an allowlist *before* resolving a price.
   // We never trust the raw body value for price selection.
   const requestedTier = body.tier ?? "insider";
-  if (!TIER_ALLOWLIST.includes(requestedTier as Tier)) {
-    return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
+  if (!/^[a-zA-Z0-9_-]+$/.test(requestedTier)) {
+    return NextResponse.json({ error: "Invalid tier format" }, { status: 400 });
   }
-  const tier = requestedTier as Tier;
+  const tier = requestedTier;
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeKey) {

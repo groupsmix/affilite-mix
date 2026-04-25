@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     // Persist to DB (best-effort, don't block the response)
     try {
-      const sb = getServiceClient();
+      const sb = await getTenantClient();
       await sb.from("web_vitals").insert({
         name: metric.name,
         value: metric.value,

@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 export interface PriceAlertRow {
@@ -24,7 +24,7 @@ export async function createPriceAlert(input: {
   target_price: number;
   currency?: string;
 }): Promise<PriceAlertRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
@@ -36,7 +36,7 @@ export async function getPriceAlert(
   productId: string,
   email: string,
 ): Promise<PriceAlertRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -52,7 +52,7 @@ export async function getPriceAlert(
 
 /** List all active alerts for an email */
 export async function listAlertsByEmail(email: string, siteId: string): Promise<PriceAlertRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -71,7 +71,7 @@ export async function findTriggeredAlerts(
   productId: string,
   currentPrice: number,
 ): Promise<PriceAlertRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -86,7 +86,7 @@ export async function findTriggeredAlerts(
 
 /** Mark an alert as triggered */
 export async function markAlertTriggered(id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { error } = await sb
     .from(TABLE)
@@ -97,7 +97,7 @@ export async function markAlertTriggered(id: string): Promise<void> {
 
 /** Unsubscribe from an alert */
 export async function deactivatePriceAlert(id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { error } = await sb.from(TABLE).update({ is_active: false }).eq("id", id);
   if (error) throw error;
@@ -105,7 +105,7 @@ export async function deactivatePriceAlert(id: string): Promise<void> {
 
 /** Unsubscribe all alerts for an email */
 export async function deactivateAllAlerts(email: string, siteId: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { error } = await sb
     .from(TABLE)

@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow } from "./type-guards";
 
 export interface ProductAffiliateLinkRow {
@@ -19,7 +19,7 @@ const TABLE = "product_affiliate_links";
 export async function listProductAffiliateLinks(
   productId: string,
 ): Promise<ProductAffiliateLinkRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -36,7 +36,7 @@ export async function listProductAffiliateLinks(
 export async function listAllProductAffiliateLinks(
   productId: string,
 ): Promise<ProductAffiliateLinkRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -56,7 +56,7 @@ export async function createProductAffiliateLink(input: {
   url: string;
   weight?: number;
 }): Promise<ProductAffiliateLinkRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
 
@@ -69,7 +69,7 @@ export async function updateProductAffiliateLink(
   id: string,
   input: Partial<Pick<ProductAffiliateLinkRow, "network" | "geo" | "url" | "weight" | "is_active">>,
 ): Promise<ProductAffiliateLinkRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
 
@@ -79,7 +79,7 @@ export async function updateProductAffiliateLink(
 
 /** Delete an affiliate link */
 export async function deleteProductAffiliateLink(id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;

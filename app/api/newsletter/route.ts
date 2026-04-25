@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     }
 
     const site = await getCurrentSite();
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
 
     // Check if subscriber already exists
     const { data: existing } = await sb
@@ -156,7 +156,8 @@ export async function POST(request: Request) {
             site.name,
             confirmUrl,
             site.domain,
-            site.theme?.accentColor ?? "#10B981",
+            // F-050: Use site theme accent color for newsletter HTML email
+            (site.theme as any)?.accentColor ?? "#10B981",
           ),
           text: `Thanks for subscribing to ${site.name}!\n\nPlease confirm your email by visiting the link below:\n${confirmUrl}\n\nIf you did not sign up, you can safely ignore this email.\n\n© ${new Date().getFullYear()} ${site.name} — ${site.domain}`,
         }),

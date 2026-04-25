@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 
 export interface NicheHealthRow {
   site_id: string;
@@ -18,7 +18,7 @@ export async function getNicheHealthStats(
   sevenDaysAgo: string,
   fourteenDaysAgo: string,
 ): Promise<NicheHealthRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.rpc("get_niche_health_stats", {
     p_seven_days_ago: sevenDaysAgo,

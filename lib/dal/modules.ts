@@ -6,7 +6,7 @@
  * which modules are enabled for each site in the database.
  */
 
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import type { SiteModuleRow } from "@/types/database";
 import { assertRows, assertRow } from "./type-guards";
 
@@ -18,7 +18,7 @@ const TABLE = "site_modules";
 
 /** List all module records for a site */
 export async function listSiteModules(siteId: string): Promise<SiteModuleRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -31,7 +31,7 @@ export async function listSiteModules(siteId: string): Promise<SiteModuleRow[]> 
 
 /** List only enabled modules for a site */
 export async function listEnabledModules(siteId: string): Promise<SiteModuleRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -45,7 +45,7 @@ export async function listEnabledModules(siteId: string): Promise<SiteModuleRow[
 
 /** Check if a specific module is enabled for a site */
 export async function isModuleEnabled(siteId: string, moduleKey: string): Promise<boolean> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("is_enabled")
@@ -69,7 +69,7 @@ export async function upsertSiteModule(input: {
   is_enabled: boolean;
   config?: Record<string, unknown>;
 }): Promise<SiteModuleRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .upsert(
@@ -95,7 +95,7 @@ export async function bulkUpsertSiteModules(
 ): Promise<SiteModuleRow[]> {
   if (modules.length === 0) return [];
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const rows = modules.map((m) => ({
     site_id: siteId,
     module_key: m.module_key,
@@ -114,7 +114,7 @@ export async function bulkUpsertSiteModules(
 
 /** Delete a module record for a site */
 export async function deleteSiteModule(siteId: string, moduleKey: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("module_key", moduleKey);
 
   if (error) throw error;

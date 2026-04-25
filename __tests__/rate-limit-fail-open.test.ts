@@ -2,8 +2,9 @@
  * F-3 — KV unavailable behaviour.
  *
  * In production, when RATE_LIMIT_KV is missing or its operations throw,
- * the rate limiter must fail closed immediately. In development, it must
- * fall back to the in-memory limiter.
+ * the rate limiter falls back to the per-isolate in-memory limiter for
+ * KV_GRACE_MS, then fails CLOSED. In development, it falls back to the
+ * in-memory limiter indefinitely.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -13,6 +14,7 @@ vi.mock("@/lib/sentry", () => ({
 }));
 
 const CONFIG = { maxRequests: 2, windowMs: 60_000 };
+const GRACE_MS = 60_000;
 
 async function loadModule() {
   const mod = await import("@/lib/rate-limit");
@@ -33,7 +35,7 @@ afterEach(() => {
 });
 
 describe("F-3 KV unavailability", () => {
-  it("fails open gracefully when KV binding is missing in production", async () => {
+  it("falls back to memory within grace window when KV is missing", async () => {
     vi.stubEnv("NODE_ENV", "production");
 
     const { checkRateLimit } = await loadModule();
@@ -52,7 +54,8 @@ describe("F-3 KV unavailability", () => {
     );
     expect(alerts).toHaveLength(1);
 
-    // Second call should also fail closed, but not alert again
+    // A second call still within the grace window must also be allowed,
+    // and must NOT alert again (alert is per-state, not per-call).
     const result2 = await checkRateLimit("ip:missing-1", CONFIG);
     expect(result2.allowed).toBe(true);
     expect(
@@ -64,7 +67,32 @@ describe("F-3 KV unavailability", () => {
     ).toHaveLength(1);
   });
 
-  it("fails open gracefully when KV.get throws in production", async () => {
+  it("fails CLOSED after grace window elapses without KV recovering", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.useFakeTimers();
+    const start = Date.UTC(2025, 0, 1, 0, 0, 0);
+    vi.setSystemTime(start);
+
+    const { checkRateLimit } = await loadModule();
+
+    // First call: KV missing → memory fallback inside the grace window.
+    const within = await checkRateLimit("ip:grace", CONFIG);
+    expect(within.allowed).toBe(true);
+
+    // Advance past the grace window.
+    vi.setSystemTime(start + GRACE_MS + 1);
+
+    const expired = await checkRateLimit("ip:grace", CONFIG);
+    expect(expired.allowed).toBe(false);
+    expect(expired.remaining).toBe(0);
+    expect(expired.retryAfterMs).toBeGreaterThan(0);
+
+    // A subsequent call should also fail closed.
+    const expired2 = await checkRateLimit("ip:grace-2", CONFIG);
+    expect(expired2.allowed).toBe(false);
+  });
+
+  it("falls back to memory within grace window when KV.get throws", async () => {
     vi.stubEnv("NODE_ENV", "production");
 
     const kvGet = vi.fn().mockRejectedValue(new Error("KV upstream 500"));
@@ -85,12 +113,15 @@ describe("F-3 KV unavailability", () => {
     expect(alerts).toHaveLength(1);
   });
 
-  it("recovers when KV becomes available again mid-session", async () => {
+  it("recovers when KV becomes available again mid-session and re-arms grace on the next outage", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.useFakeTimers();
+    const t0 = Date.UTC(2025, 0, 1, 0, 0, 0);
+    vi.setSystemTime(t0);
 
     const { checkRateLimit } = await loadModule();
 
-    // KV missing — fails closed.
+    // KV missing — memory fallback inside grace.
     const missingCall = await checkRateLimit("ip:recover-1", CONFIG);
     expect(missingCall.allowed).toBe(true);
 
@@ -113,7 +144,10 @@ describe("F-3 KV unavailability", () => {
     // KV breaks again
     vi.unstubAllGlobals();
 
-    // Should fail closed and alert again since state was reset
+    // Even if a long time has passed since the *first* outage, the
+    // grace window is per-outage — recovery resets it.
+    vi.setSystemTime(t0 + 5 * GRACE_MS);
+
     const brokenAgain = await checkRateLimit("ip:recover-2", CONFIG);
     expect(brokenAgain.allowed).toBe(true);
 
@@ -125,7 +159,7 @@ describe("F-3 KV unavailability", () => {
     expect(alerts).toHaveLength(2); // One from before, one from now
   });
 
-  it("falls back to in-memory in non-production", async () => {
+  it("falls back to in-memory in non-production indefinitely", async () => {
     vi.stubEnv("NODE_ENV", "development");
 
     const { checkRateLimit } = await loadModule();

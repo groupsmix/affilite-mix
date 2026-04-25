@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     const resetTokenHash = await hashResetToken(resetToken);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
     const { error: updateError } = await sb
       .from("admin_users")
       .update({

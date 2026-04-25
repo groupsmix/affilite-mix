@@ -14,6 +14,7 @@ const mockFrom = vi.fn();
 
 vi.mock("@/lib/supabase-server", () => ({
   getServiceClient: () => ({ from: (...args: unknown[]) => mockFrom(...args) }),
+  getTenantClient: async () => ({ from: (...args: unknown[]) => mockFrom(...args) }),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
