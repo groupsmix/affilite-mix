@@ -38,21 +38,46 @@ export function register() {
     }
   }
 
-  // Verify KV rate-limit binding availability — fail loudly in production
-  // because the rate limiter fails closed (rejects all rate-limited requests)
-  // when KV is unavailable, which will break login and other protected routes.
+  // Verify KV rate-limit binding availability — log loudly in production
+  // because the rate limiter falls back to per-isolate memory for the
+  // KV_GRACE_MS window (default 60s, see lib/rate-limit.ts) and then fails
+  // CLOSED. Login, newsletter, password reset, and the admin guard will
+  // start rejecting requests once the grace window elapses without recovery.
   if (process.env.NODE_ENV === "production") {
     try {
       const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
       if (!kv || typeof kv !== "object" || !("get" in kv)) {
         logger.error(
           "RATE_LIMIT_KV binding not available — rate-limited routes (login, newsletter, etc.) " +
-            "will reject ALL requests. Configure the KV binding in wrangler.jsonc. " +
+            "will fall back to per-isolate memory for KV_GRACE_MS, then fail CLOSED. " +
+            "Configure the KV binding in wrangler.jsonc. " +
             "See lib/rate-limit.ts for setup instructions.",
         );
       }
     } catch {
       // Not running in Workers — expected in local dev
+    }
+  }
+
+  // F-09: Verify CLICK_QUEUE binding availability — treat queue absence
+  // as a deploy-blocker, not a runtime fallback. When the queue is
+  // unbound, every click would otherwise become a synchronous Supabase
+  // INSERT inside the redirect path, multiplying DB write QPS during a
+  // viral spike and risking pool exhaustion. Failing boot here forces
+  // operators to fix the wrangler.jsonc binding before serving traffic.
+  // Skipped during `next build` (NEXT_PHASE set) so CI/dev builds aren't
+  // forced to provision a queue binding.
+  const isBuild = !!process.env.NEXT_PHASE;
+  if (process.env.NODE_ENV === "production" && !isBuild) {
+    const queue =
+      (globalThis as Record<string, unknown>).CLICK_QUEUE ??
+      (process.env as Record<string, unknown>).CLICK_QUEUE;
+    if (!queue || typeof queue !== "object" || !("send" in queue)) {
+      throw new Error(
+        "CLICK_QUEUE binding not available — affiliate click tracking would fall back to " +
+          "synchronous Supabase writes from the redirect hot path. Configure the Cloudflare " +
+          "Queue binding in wrangler.jsonc before deploying. See lib/click-queue.ts.",
+      );
     }
   }
 }

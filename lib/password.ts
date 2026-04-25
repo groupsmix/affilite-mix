@@ -1,15 +1,17 @@
 /**
  * Password hashing using bcrypt (via bcryptjs for Cloudflare Workers compatibility).
  *
- * New passwords are hashed with bcrypt (cost factor 12).
- * Legacy PBKDF2-SHA256 hashes (format "salt:hash") are still verified for
- * backwards compatibility, but verifyPassword signals when a rehash is needed
- * so callers can upgrade hashes on next successful login.
+ * New passwords are hashed with bcrypt (cost factor 12). Legacy hashes are
+ * still verified for backwards compatibility, but verifyPassword signals when
+ * a rehash is needed so callers can upgrade hashes on next successful login:
+ *
+ *   - PBKDF2-SHA256 hashes in the legacy "salt:hash" format, and
+ *   - bcrypt hashes that were stored with fewer rounds than BCRYPT_ROUNDS.
  */
 
 import bcrypt from "bcryptjs";
 
-const BCRYPT_ROUNDS = 10;
+const BCRYPT_ROUNDS = 12;
 
 // ── Legacy PBKDF2 helpers (read-only, for migrating existing hashes) ────
 
@@ -74,6 +76,15 @@ function isLegacyHash(storedHash: string): boolean {
   return !storedHash.startsWith("$2") && storedHash.includes(":");
 }
 
+/** True when a bcrypt hash was stored with fewer rounds than BCRYPT_ROUNDS. */
+function bcryptNeedsRehash(storedHash: string): boolean {
+  try {
+    return bcrypt.getRounds(storedHash) < BCRYPT_ROUNDS;
+  } catch {
+    return false;
+  }
+}
+
 /** Hash a password using bcrypt and return a storable string */
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -81,7 +92,11 @@ export async function hashPassword(password: string): Promise<string> {
 
 export interface VerifyResult {
   valid: boolean;
-  /** True when the hash is a legacy PBKDF2 hash that should be upgraded to bcrypt */
+  /**
+   * True when the stored hash should be upgraded — either a legacy PBKDF2
+   * hash, or a bcrypt hash stored with fewer rounds than the current
+   * `BCRYPT_ROUNDS`.
+   */
   needsRehash: boolean;
 }
 
@@ -89,8 +104,10 @@ export interface VerifyResult {
  * Verify a password against a stored hash.
  *
  * Supports both bcrypt hashes (preferred) and legacy PBKDF2 "salt:hash" strings.
- * When a legacy hash is verified successfully, `needsRehash` is set to `true`
- * so the caller can re-hash and persist the upgraded bcrypt hash.
+ * `needsRehash` is set to `true` when the stored hash should be upgraded —
+ * either a legacy PBKDF2 hash, or a bcrypt hash stored with fewer rounds than
+ * the current `BCRYPT_ROUNDS` — so the caller can re-hash and persist the
+ * upgraded bcrypt hash on the next successful login.
  */
 export async function verifyPassword(password: string, storedHash: string): Promise<VerifyResult> {
   if (!storedHash) return { valid: false, needsRehash: false };
@@ -101,5 +118,5 @@ export async function verifyPassword(password: string, storedHash: string): Prom
   }
 
   const valid = await bcrypt.compare(password, storedHash);
-  return { valid, needsRehash: false };
+  return { valid, needsRehash: valid && bcryptNeedsRehash(storedHash) };
 }
