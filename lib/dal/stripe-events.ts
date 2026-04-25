@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 
 /**
  * DAL for the `stripe_events` idempotency table (audit F-001 / A-1).
@@ -26,7 +26,7 @@ export async function recordStripeEvent(
   stripeEventId: string,
   eventType: string,
 ): Promise<boolean> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { error } = await sb.from(TABLE).insert({
     stripe_event_id: stripeEventId,
@@ -43,7 +43,7 @@ export async function recordStripeEvent(
 }
 
 export async function getRecentStripeEventIds(since: Date): Promise<Set<string>> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)

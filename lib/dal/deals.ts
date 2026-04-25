@@ -1,4 +1,4 @@
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
 export interface DealRow {
@@ -25,7 +25,7 @@ const TABLE = "deals";
 
 /** List active deals for a site, sorted by discount % descending */
 export async function listActiveDeals(siteId: string, limit: number = 50): Promise<DealRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const now = new Date().toISOString();
 
   const { data, error } = await sb
@@ -46,7 +46,7 @@ export async function listActiveDeals(siteId: string, limit: number = 50): Promi
 
 /** List featured deals */
 export async function listFeaturedDeals(siteId: string): Promise<DealRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const now = new Date().toISOString();
 
   const { data, error } = await sb
@@ -66,7 +66,7 @@ export async function listFeaturedDeals(siteId: string): Promise<DealRow[]> {
 
 /** Get deal by ID */
 export async function getDealById(id: string): Promise<DealRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(TABLE).select("*").eq("id", id).maybeSingle();
 
@@ -90,7 +90,7 @@ export async function createDeal(input: {
   expires_at?: string;
   is_featured?: boolean;
 }): Promise<DealRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
@@ -115,7 +115,7 @@ export async function updateDeal(
     >
   >,
 ): Promise<DealRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -129,7 +129,7 @@ export async function updateDeal(
 
 /** Auto-expire deals past their expiry date */
 export async function expireDeals(): Promise<number> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const now = new Date().toISOString();
 
   const { data, error } = await sb

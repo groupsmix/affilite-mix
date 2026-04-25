@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { JsonLd, breadcrumbJsonLd, productJsonLd } from "../../components/json-ld";
 import { PriceHistoryChart } from "../../components/price-history-chart";
@@ -22,7 +22,7 @@ function parseComparisonSlug(slug: string): { slugA: string; slugB: string } | n
 }
 
 async function getProducts(siteId: string, slugA: string, slugB: string) {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data } = await sb
     .from("products")
     .select("*")

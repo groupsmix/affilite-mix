@@ -1,10 +1,10 @@
-import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
 import { isSupabaseConfigured } from "@/lib/db-available";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { PageRow } from "@/types/database";
 
 function pagesTable() {
-  return getServiceClient().from("pages");
+  return getTenantClient().from("pages");
 }
 
 // Columns needed for list views (excludes heavy body text)
@@ -125,7 +125,7 @@ export async function reorderPages(
   siteId: string,
   pages: { id: string; sort_order: number }[],
 ): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   // Verify all page IDs belong to this site before reordering
   if (pages.length > 0) {

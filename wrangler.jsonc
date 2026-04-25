@@ -41,6 +41,10 @@
 		{
 			"binding": "RATE_LIMIT_KV",
 			"id": "${RATE_LIMIT_KV_NAMESPACE_ID}"
+		},
+		{
+			"binding": "APP_CACHE_KV",
+			"id": "${APP_CACHE_KV_NAMESPACE_ID}"
 		}
 	],
 	// R2 incremental cache — create the bucket in the Cloudflare dashboard first

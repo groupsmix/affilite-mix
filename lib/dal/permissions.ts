@@ -6,7 +6,7 @@
  */
 
 import { cache } from "react";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import type {
   RoleRow,
   PermissionRow,
@@ -26,7 +26,7 @@ interface AdminRoleLookup {
 
 /** List all roles */
 export async function listRoles(): Promise<RoleRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from("roles").select("*").order("name", { ascending: true });
 
   if (error) throw error;
@@ -35,7 +35,7 @@ export async function listRoles(): Promise<RoleRow[]> {
 
 /** Get a role by name */
 export async function getRoleByName(name: string): Promise<RoleRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from("roles").select("*").eq("name", name).single();
 
   if (error && error.code !== "PGRST116") throw error;
@@ -48,7 +48,7 @@ export async function getRoleByName(name: string): Promise<RoleRow | null> {
 
 /** List all permissions */
 export async function listPermissions(): Promise<PermissionRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from("permissions")
     .select("*")
@@ -60,7 +60,7 @@ export async function listPermissions(): Promise<PermissionRow[]> {
 
 /** Get permissions for a role */
 export async function getPermissionsForRole(roleId: string): Promise<PermissionRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from("role_permissions")
     .select("permission_id")
@@ -85,7 +85,7 @@ export async function getPermissionsForRole(roleId: string): Promise<PermissionR
 
 /** List all role assignments for a user */
 export async function listUserSiteRoles(userId: string): Promise<UserSiteRoleRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from("user_site_roles")
     .select("*")
@@ -98,7 +98,7 @@ export async function listUserSiteRoles(userId: string): Promise<UserSiteRoleRow
 
 /** List all role assignments for a site */
 export async function listSiteUserRoles(siteId: string): Promise<UserSiteRoleRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from("user_site_roles")
     .select("*")
@@ -114,7 +114,7 @@ export const getUserSiteRole = cache(async function getUserSiteRole(
   userId: string,
   siteId: string,
 ): Promise<UserSiteRoleRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from("user_site_roles")
     .select("*")
@@ -132,7 +132,7 @@ export async function assignUserSiteRole(input: {
   site_id: string;
   role_id: string;
 }): Promise<UserSiteRoleRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from("user_site_roles")
     .upsert(
@@ -152,7 +152,7 @@ export async function assignUserSiteRole(input: {
 
 /** Remove a user's role for a specific site */
 export async function removeUserSiteRole(userId: string, siteId: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb
     .from("user_site_roles")
     .delete()
@@ -181,7 +181,7 @@ export async function removeUserSiteRole(userId: string, siteId: string): Promis
  */
 // 1. Check global admin_users.role for backward compatibility (cached)
 const getGlobalRole = cache(async (userId: string) => {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from("admin_users").select("role").eq("id", userId).single();
   if (error) throw error;
   return (data as AdminRoleLookup | null)?.role;
@@ -189,7 +189,7 @@ const getGlobalRole = cache(async (userId: string) => {
 
 // Cache permission lookups
 const getRolePermissionCheck = cache(async (roleId: string, feature: string, action: string) => {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   // We can do this in one join query instead of two to save a round-trip
   const { data, error } = await sb
     .from("permissions")

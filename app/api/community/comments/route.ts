@@ -102,9 +102,11 @@ export async function POST(request: NextRequest) {
 
   // Normalize email (trim + lowercase) so rate limits and storage are case-insensitive.
   const normalizedEmail = normalizeEmail(body.user_email);
+  const { getRateLimitEmailKey } = await import("@/lib/validate-email");
+  const rateLimitEmail = getRateLimitEmailKey(normalizedEmail);
 
   // Per-email rate limit: 5 comments per hour per email
-  const emailRl = await checkRateLimit(`comment-email:${normalizedEmail}`, {
+  const emailRl = await checkRateLimit(`comment-email:${rateLimitEmail}`, {
     maxRequests: 5,
     windowMs: 60 * 60 * 1000,
   });
@@ -120,7 +122,15 @@ export async function POST(request: NextRequest) {
     const siteId = await resolveDbSiteId(siteSlug);
 
     // Sanitize HTML in body before storing
-    const sanitizedBody = sanitizeHtml(body.body);
+    let sanitizedBody: string;
+    try {
+      sanitizedBody = sanitizeHtml(body.body);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("100KB")) {
+        return NextResponse.json({ error: "Comment is too large" }, { status: 400 });
+      }
+      throw err;
+    }
 
     const comment = await createComment({
       site_id: siteId,

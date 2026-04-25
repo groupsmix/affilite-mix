@@ -1,4 +1,4 @@
-import { getServiceClient, getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
 import type { ContentRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
@@ -45,7 +45,7 @@ const LIST_COLUMNS =
 
 /** List content for a site with optional filters */
 export async function listContent(opts: ListContentOptions): Promise<ContentRow[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const sortColumn: ContentSortColumn = opts.sortBy ?? "created_at";
   const ascending = opts.sortDirection === "asc";
 
@@ -82,7 +82,7 @@ export async function listContent(opts: ListContentOptions): Promise<ContentRow[
 
 /** Get a single content item by id */
 export async function getContentById(siteId: string, id: string): Promise<ContentRow | null> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -100,7 +100,7 @@ export async function getContentBySlug(
   slug: string,
   includePreview = false,
 ): Promise<ContentRow | null> {
-  const sb = includePreview ? getServiceClient() : getAnonClient();
+  const sb = includePreview ? getTenantClient() : getAnonClient();
   let query = sb.from(TABLE).select("*").eq("site_id", siteId).eq("slug", slug);
 
   if (!includePreview) {
@@ -117,7 +117,7 @@ export async function getContentBySlug(
 export async function createContent(
   input: Omit<ContentRow, "id" | "created_at" | "updated_at">,
 ): Promise<ContentRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<ContentRow>(data, "Content");
@@ -129,7 +129,7 @@ export async function updateContent(
   id: string,
   input: Partial<Omit<ContentRow, "id" | "site_id" | "created_at" | "updated_at">>,
 ): Promise<ContentRow> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
 
   // If body is being updated, save current body as body_previous for versioning
   if (typeof input.body === "string") {
@@ -159,7 +159,7 @@ export async function updateContent(
 
 /** Delete content */
 export async function deleteContent(siteId: string, id: string): Promise<void> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;
@@ -167,7 +167,7 @@ export async function deleteContent(siteId: string, id: string): Promise<void> {
 
 /** Count content items matching filters */
 export async function countContent(opts: CountContentOptions): Promise<number> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", opts.siteId);
 
   if (opts.types && opts.types.length > 0) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
 
     // Validate the token actually matches a row before reporting success.
     // Previously the UPDATE was fire-and-forget on eq("unsubscribe_token", token),
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Site could not be resolved" }, { status: 400 });
     }
 
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
 
     const { data, error } = await sb
       .from("newsletter_subscribers")

@@ -301,18 +301,15 @@ function handleKvUnavailable(
   reason: string,
   err?: unknown,
 ): RateLimitResult {
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 
-  if (!isProduction) {
-    if (!kvFallbackWarned) {
-      kvFallbackWarned = true;
-      console.warn(
-        "[rate-limit] KV namespace RATE_LIMIT_KV not available — using in-memory fallback. " +
-          "This is expected in local dev but NOT safe for production. " +
-          "See lib/rate-limit.ts for KV configuration instructions.",
-      );
-    }
-    return checkRateLimitMemory(key, config);
+  if (!isProduction && !kvFallbackWarned) {
+    kvFallbackWarned = true;
+    console.warn(
+      "[rate-limit] KV namespace RATE_LIMIT_KV not available — using in-memory fallback. " +
+        "This is expected in local dev but NOT safe for production. " +
+        "See lib/rate-limit.ts for KV configuration instructions.",
+    );
   }
 
   const now = Date.now();
@@ -320,7 +317,7 @@ function handleKvUnavailable(
     kvUnavailableSince = now;
   }
 
-  if (!kvUnavailableAlerted) {
+  if (isProduction && !kvUnavailableAlerted) {
     kvUnavailableAlerted = true;
     const msg =
       `[rate-limit] WARNING: KV unavailable (${reason}). ` +
@@ -343,7 +340,7 @@ function handleKvUnavailable(
   }
 
   const graceMs = getKvGraceMs();
-  if (now - kvUnavailableSince >= graceMs) {
+  if (isProduction && now - kvUnavailableSince >= graceMs) {
     // Grace expired: fail closed. Use the smaller of (graceMs, configured window)
     // for retryAfter so clients back off but eventually retry.
     return {

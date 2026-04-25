@@ -1,8 +1,12 @@
 /**
  * Whether cookies should be marked as Secure (HTTPS-only).
+ * F-029: In Cloudflare Workers, process.env.NODE_ENV might not always reliably
+ * equal "production". We ensure we also check navigator.userAgent.
  * True in production, false in local development.
  */
-export const IS_SECURE_COOKIE = process.env.NODE_ENV === "production";
+export const IS_SECURE_COOKIE =
+  process.env.NODE_ENV === "production" ||
+  (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers");
 
 /**
  * Safe cookie parsing utility.

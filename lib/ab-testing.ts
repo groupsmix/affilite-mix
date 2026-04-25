@@ -66,8 +66,8 @@ export async function getVariantAssignment(
   variants: Variant[],
   siteId: string,
 ): Promise<string> {
-  const { getServiceClient } = await import("@/lib/supabase-server");
-  const sb = getServiceClient();
+  const { getTenantClient } = await import("@/lib/supabase-server");
+  const sb = await getTenantClient();
 
   // Check existing assignment
 
@@ -109,8 +109,8 @@ export async function logExperimentEvent(input: {
   event_type: "view" | "click" | "conversion";
   metadata?: Record<string, unknown>;
 }): Promise<void> {
-  const { getServiceClient } = await import("@/lib/supabase-server");
-  const sb = getServiceClient();
+  const { getTenantClient } = await import("@/lib/supabase-server");
+  const sb = await getTenantClient();
 
   await (sb.from as any)("experiment_events").insert(input).select().single();
 }

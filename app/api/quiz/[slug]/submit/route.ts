@@ -8,7 +8,7 @@ import {
   updateQuizSubmission,
   deriveResultTags,
 } from "@/lib/dal/quizzes";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { getClientIp } from "@/lib/get-client-ip";
 
 /**
@@ -103,7 +103,7 @@ export async function POST(
     }
 
     // Fetch matching products by tags
-    const sb = getServiceClient();
+    const sb = await getTenantClient();
     const { data: products } = await sb
       .from("products")
       .select(

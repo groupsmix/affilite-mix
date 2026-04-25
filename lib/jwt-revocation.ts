@@ -5,19 +5,26 @@ const REVOKED_TTL_SECONDS = 86400; // 24 hours (matches token expiry)
 
 /**
  * Check if a JWT ID (jti) is present in the blocklist.
- * Fails open (allows token) if KV is unavailable, to prevent
- * outages if Cloudflare KV goes down.
+ * Fails closed (blocks token) if KV is unavailable in production, to prevent
+ * compromised tokens from being used during outages.
  */
 export async function isTokenRevoked(jti: string): Promise<boolean> {
+  const isProduction = process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
   try {
     const kv = getKVNamespace();
-    if (!kv) return false;
+    if (!kv) {
+      if (isProduction) {
+        logger.error("KV unavailable, failing closed for JWT revocation check", { jti });
+        return true;
+      }
+      return false;
+    }
 
     const value = await kv.get(`revoked:${jti}`);
     return value !== null;
   } catch (err) {
     logger.error("Failed to check token revocation status", { jti, error: String(err) });
-    return false; // Fail open
+    return isProduction; // Fail closed in prod, open in dev
   }
 }
 

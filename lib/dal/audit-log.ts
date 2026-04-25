@@ -1,5 +1,5 @@
 import { truncateIp } from "../get-client-ip";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { escapeLike } from "./search-utils";
 import { assertRows } from "./type-guards";
 
@@ -62,7 +62,7 @@ export async function listAuditLogs(
   offset = 0,
   filters?: AuditLogFilters,
 ): Promise<AuditLogEntry[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb
     .from("audit_log")
     .select(AUDIT_COLUMNS)
@@ -102,7 +102,7 @@ export async function listAuditLogs(
 
 /** Count audit-log rows matching the same filters used by `listAuditLogs`. */
 export async function countAuditLogs(siteId: string, filters?: AuditLogFilters): Promise<number> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   let query = sb
     .from("audit_log")
     .select("*", { count: "exact", head: true })
@@ -139,7 +139,7 @@ export async function countAuditLogs(siteId: string, filters?: AuditLogFilters):
 
 /** Get distinct actions for filter dropdown */
 export async function getDistinctActions(siteId: string): Promise<string[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from("audit_log")
     .select("action")
@@ -153,7 +153,7 @@ export async function getDistinctActions(siteId: string): Promise<string[]> {
 
 /** Get distinct entity types for filter dropdown */
 export async function getDistinctEntityTypes(siteId: string): Promise<string[]> {
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from("audit_log")
     .select("entity_type")
@@ -190,7 +190,7 @@ export async function resolveActorsToAdminUserIds(
   );
   if (emails.length === 0) return {};
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb.from("admin_users").select("id, email").in("email", emails);
   if (error) throw error;
 

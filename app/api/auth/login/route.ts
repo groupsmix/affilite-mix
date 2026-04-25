@@ -54,7 +54,11 @@ export async function POST(request: NextRequest) {
 
     // Per-email rate limiting — prevents brute-force from rotating IPs
     const normalized = normalizeEmail(email);
-    const emailRl = await checkRateLimit(`login-email:${normalized}`, LOGIN_RATE_LIMIT_EMAIL);
+    // F-032: Strip '+' alias tags from email to prevent rate-limit bypass
+    const { getRateLimitEmailKey } = await import("@/lib/validate-email");
+    const rateLimitEmail = getRateLimitEmailKey(email);
+    
+    const emailRl = await checkRateLimit(`login-email:${rateLimitEmail}`, LOGIN_RATE_LIMIT_EMAIL);
     if (!emailRl.allowed) {
       return apiError(
         429,
@@ -75,6 +79,12 @@ export async function POST(request: NextRequest) {
     // Enforce TOTP 2FA if enabled on the account
     if (authResult.email) {
       const user = await getAdminUserByEmail(authResult.email);
+      
+      // F-017: Enforce TOTP for super_admin roles
+      if (user?.role === "super_admin" && !user?.totp_enabled) {
+        return apiError(403, "Super Admins must have TOTP enabled. Please contact support to provision 2FA.");
+      }
+
       if (user?.totp_enabled) {
         // R9: Account-level TOTP lock
         if (user.totp_locked_until && new Date(user.totp_locked_until) > new Date()) {
@@ -92,7 +102,7 @@ export async function POST(request: NextRequest) {
         }
         // Separate tight rate limit for TOTP brute-forcing (5 attempts per 5 mins per email)
         const totpLimit = { maxRequests: 5, windowMs: 5 * 60 * 1000 };
-        const totpRl = await checkRateLimit(`login-totp:${normalized}`, totpLimit);
+        const totpRl = await checkRateLimit(`login-totp:${rateLimitEmail}`, totpLimit);
 
         if (!totpRl.allowed) {
           return apiError(429, "Too many 2FA attempts. Please try again later.", undefined, {

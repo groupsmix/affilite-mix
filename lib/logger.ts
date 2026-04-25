@@ -80,7 +80,8 @@ function jsonReplacer(key: string, value: unknown): unknown {
   if (value instanceof Error) {
     return { message: value.message, name: value.name, stack: value.stack };
   }
-  if (key === "ip" || key === "client_ip" || key === "ip_address") {
+  // F-026: Tighten IP truncation logic to catch all common IP keys
+  if (/^(?:req_)?ip(?:_address)?$|peer(?:_ip)?|^client_ip$/i.test(key)) {
     return typeof value === "string" ? truncateIp(value) : value;
   }
   return value;

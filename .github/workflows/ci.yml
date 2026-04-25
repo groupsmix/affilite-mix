@@ -37,7 +37,9 @@ jobs:
         env:
           NEXT_PUBLIC_DEFAULT_SITE: ai-compared
       - name: Bundle size check
-        run: bash scripts/check-bundle-size.sh 150
+        run: npx size-limit
+      - name: Wrangler dry-run check (F-035)
+        run: npx wrangler deploy --dry-run
 
   # ── RLS / anon-grant audit against staging DB (E-6) ────────────────
   # Runs the queries from docs/public-rls-inventory.md against the

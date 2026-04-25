@@ -2,6 +2,9 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { SignJWT } from "jose";
+import { headers } from "next/headers";
+import { getAdminSession } from "@/lib/auth";
 
 // Environment variables are resolved lazily (inside functions) so that
 // module evaluation during `next build` does not throw when the vars
@@ -31,10 +34,17 @@ function getSupabaseUrl(): string {
  * fetch implementation reuses connections (which they do via connection pooling).
  * The global client caching was causing cross-request state pollution and was an anti-pattern.
  */
+// F-022: Cache clients per-isolate to reduce CPU overhead.
+// These clients do not hold mutable state (persistSession: false).
+let _serviceClient: SupabaseClient<Database> | null = null;
+let _anonClient: SupabaseClient<Database> | null = null;
+
 export function getServiceClient(): SupabaseClient<Database> {
+  if (_serviceClient) return _serviceClient;
+
   const url = getSupabaseUrl();
   const key = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY");
-  return createClient<Database>(url, key, {
+  _serviceClient = createClient<Database>(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -49,6 +59,24 @@ export function getServiceClient(): SupabaseClient<Database> {
       },
     },
   });
+  return _serviceClient;
+}
+
+export async function getTenantClient(): Promise<SupabaseClient<Database>> {
+  const h = await headers();
+  const siteId = h.get("x-site-id");
+  
+  let userId: string | null = null;
+  try {
+    const session = await getAdminSession();
+    if (session?.userId) {
+      userId = session.userId;
+    }
+  } catch (e) {
+    // If not in a request context where cookies work, ignore
+  }
+
+  return getAuthenticatedClient(siteId, userId, "authenticated");
 }
 
 /**
@@ -57,9 +85,11 @@ export function getServiceClient(): SupabaseClient<Database> {
  * to provide defense-in-depth security.
  */
 export function getAnonClient(): SupabaseClient<Database> {
+  if (_anonClient) return _anonClient;
+
   const url = getSupabaseUrl();
   const key = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  return createClient<Database>(url, key, {
+  _anonClient = createClient<Database>(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -87,10 +117,47 @@ export function getAnonClient(): SupabaseClient<Database> {
       },
     },
   });
+  return _anonClient;
 }
 
 // `getAuthenticatedClient` was introduced in this branch to mint a custom
 // JWT signed with SUPABASE_JWT_SECRET so RLS could evaluate a scoped user
-// context instead of always bypassing via service_role. It had no callers,
-// pulled in `jose`, and referenced an env var that is not declared in
-// `lib/server-env.ts`. Removed pending a real consumer + server-env entry.
+// context instead of always bypassing via service_role.
+export async function getAuthenticatedClient(
+  siteId?: string | null,
+  userId?: string | null,
+  role = "authenticated"
+): Promise<SupabaseClient<Database>> {
+  const url = getSupabaseUrl();
+  const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const secret = requireEnvInProduction("SUPABASE_JWT_SECRET");
+
+  const payload: any = { role };
+  if (userId) payload.sub = userId;
+  if (siteId) payload.site_id = siteId;
+
+  const token = await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(secret));
+
+  return createClient<Database>(url, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      fetch: async (input, init) => {
+        return fetchWithTimeout(input as string, {
+          ...init,
+          timeoutMs: 12000,
+        });
+      },
+    },
+  });
+}

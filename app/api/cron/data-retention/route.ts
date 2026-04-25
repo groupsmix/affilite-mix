@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sb = getServiceClient();
+  const sb = await getTenantClient();
   const results: Record<string, { success: boolean; error?: string }> = {};
   const now = new Date();
 
