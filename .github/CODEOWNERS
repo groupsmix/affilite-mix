@@ -1,28 +1,29 @@
-# BLIND SPOT FIX: Ownership and Review Enforcement
-# This file, combined with GitHub Branch Protection rules, ensures
-# that changes to critical infrastructure and security boundaries
-# require explicit approval from the security and platform teams.
+* @tech-lead
 
-# Default owner for everything not explicitly defined
-*       @groupsmix/engineering
+# Auth
+/app/api/auth/ @sec-ops
+/lib/internal-auth.ts @sec-ops
+/lib/jwt-binding.ts @sec-ops
 
-# Core platform and Edge infrastructure
-/middleware.ts          @groupsmix/platform
-/workers/               @groupsmix/platform
-/open-next.config.ts    @groupsmix/platform
-/wrangler.jsonc         @groupsmix/platform
+# Database
+/supabase/migrations/ @dba
+/lib/dal/ @backend-team
 
-# Security boundaries
-/lib/auth.ts            @groupsmix/security
-/lib/authz.ts           @groupsmix/security
-/lib/ssrf-guard.ts      @groupsmix/security
-/lib/csp.ts             @groupsmix/security
-/lib/rate-limit.ts      @groupsmix/security
+# Cron & AI
+/app/api/cron/ @backend-team
+/lib/ai/ @ai-lead
 
-# Database and migrations (Data Plane)
-/supabase/migrations/   @groupsmix/data-platform
-/lib/dal/               @groupsmix/data-platform
+# Deploy & Ops
+/.github/workflows/ @devops
+/terraform/ @devops
+/workers/ @devops
 
-# Infrastructure as Code
-/terraform/             @groupsmix/platform @groupsmix/security
-/.github/workflows/     @groupsmix/platform
+# Security
+/lib/security/ @sec-ops
+/middleware.ts @sec-ops
+/next.config.ts @sec-ops
+/lib/server-only/ @sec-ops
+
+# Frontend & SEO
+/app/(public)/ @frontend-team
+/components/ @frontend-team

@@ -1,28 +1,15 @@
-# Threat Model: Affilite-Mix
+# Threat Model (STRIDE)
 
-## Trust Boundaries
-
-- **Cloudflare Edge**: All incoming HTTP traffic terminates at Cloudflare. We rely on Cloudflare WAF, Turnstile, and Rate Limiting.
-- **Application Middleware**: Enforces CSRF, basic rate limits, active site scoping, and JWT extraction.
-- **Supabase Database**: Uses Row Level Security (RLS) to enforce isolation for public data. Note that server-side API routes largely use `service_role` keys which bypass RLS. This is an accepted risk mitigated by strong API-level authorization.
-
-## Known Risks and Accepted Trade-offs
-
-1. **In-Memory Rate Limiter Fail-Open**:
-   - _Risk_: If Cloudflare KV is unavailable, the rate limiter (`lib/rate-limit.ts`) falls back to per-isolate memory for a bounded grace window (`KV_GRACE_MS`, default 60 seconds, overridable via `RATE_LIMIT_KV_GRACE_MS`). After the grace window elapses without KV recovering, the limiter fails CLOSED — every rate-limited request is rejected with a 429-equivalent result. A successful KV call resets the grace window, so the next outage starts a fresh budget.
-   - _Impact_: In a multi-isolate environment (like Cloudflare Pages / Workers), this gives an attacker temporary burst capacity (up to `KV_GRACE_MS` × isolate_count) before the limiter starts rejecting all requests. Login, newsletter, password reset, unsubscribe, and admin guard all share this code path.
-   - _Mitigation_: The first failure fires a Sentry alert (`rate-limit.kv-unavailable-fail-open`) and emits a structured `rate_limit_kv_failopen` log line that operators can scrape into a burn-rate metric. The Durable Object rate limiter (`RATE_LIMITER_DO`) is preferred over KV when bound — it provides atomic per-key counters and avoids this fallback entirely.
-
-2. **Service Role DB Access**:
-   - _Risk_: API routes use `getServiceClient()` which bypasses Postgres RLS.
-   - _Impact_: Any SQL injection or SSRF vulnerability in the API layer could lead to full database compromise.
-   - _Mitigation_: Supabase migration `00055_harden_remaining_rls.sql` enforces `service_role` explicitly. Future work includes minting custom JWTs with `site_id` claims for true defense-in-depth.
-
-3. **Cloudflare Vendor Lock-in**:
-   - _Risk_: The platform is entirely dependent on Cloudflare Workers, KV, DOs, Queues, and Turnstile.
-   - _Impact_: A Cloudflare-wide outage or policy change represents a single point of failure.
-
-4. **JWT IP/UA Binding Aggregation**:
-   - _Risk_: JWTs are bound to a `/24` IPv4 subnet and User-Agent hash.
-   - _Impact_: Corporate VPNs or mobile carrier NATs may allow cross-device token reuse within the same network.
-   - _Mitigation_: Accepted risk for improved UX over strict `/32` binding.
+| Threat | Vector | Mitigation Strategy |
+|--------|--------|---------------------|
+| **Multi-Tenant Isolation Breach** | IDOR / `site_id` query param manipulation. | Replaced query param checks with `authorizeResource` validating DB membership. |
+| **Admin Compromise** | Stolen JWT / Password. | Enforced TOTP locking on `(user_id, IP /24)`. IP binding on JWTs. Super-admin alerts. |
+| **Service-Role Abuse** | Exposing `SUPABASE_SERVICE_ROLE_KEY` in frontend or loose APIs. | Banned via `.eslintrc.json` `no-restricted-imports`. Restricted to `lib/server-only/service-role.ts`. |
+| **Cron Abuse** | Calling cron endpoints externally to rack up AI costs. | `timingSafeEqual` checks on `Authorization: Bearer <secret>`. Non-public origin blocking. |
+| **Queue Poisoning** | Sending bad JSON payloads to crash worker. | Zod schema validation at ingestion. Cloudflare Queue DLQ handles unprocessable messages. |
+| **AI Prompt Injection** | Submitting malicious affiliate metadata. | Inputs sanitized. Content flagged as `draft`. Budget kill switches in place. |
+| **Stripe Webhook Replay** | Replaying an old successful payment event. | Stripe signature validation + 5-minute timestamp tolerance + Idempotency keys. |
+| **Affiliate Link Manipulation** | Changing a product link to an XSS payload. | SQL constraint `products_affiliate_url_https` enforcing valid schemes. |
+| **SSRF** | Triggering internal API calls via URL ingest features. | Blocked `localhost`, `10.x`, `192.168.x`, `169.254.x.x` in `lib/security/ssrf.ts`. |
+| **XSS** | User content rendering JavaScript. | Strict-Dynamic nonce-based CSP. React automatic escaping. Tiptap sanitization. |
+| **CSRF** | Tricking admin into clicking a malicious link. | Cookie `sameSite=strict`. State-changing endpoints require explicit CSRF tokens or Cron bearer auth. |
