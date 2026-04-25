@@ -143,8 +143,6 @@ const worker = {
       // (or equivalent) is wired up, log each payload individually so the
       // bodies are recoverable from Worker tail logs / Logpush.
       //
-      // TODO(R5): forward to a durable sink (Supabase `click_failures`, R2,
-      // or Logpush-only retention) and page on-call above a threshold.
       // F-024: Persist DLQ messages durably by sending to internal API with dlq flag
       const internalToken = env.INTERNAL_API_TOKEN;
       const cronHost =
