@@ -86,15 +86,17 @@ the zone is on the Free plan. Re-evaluate once the plan is upgraded.
 
 ## 4. WAF rules
 
-| Control                        | Expected                                                                  | IaC source                                                       |
-| ------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Custom rule: high-risk traffic | `managed_challenge` for ASNs in {12345, 54321} or country in {KP, IR, SY} | `terraform/cloudflare/main.tf` → `cloudflare_ruleset.waf_custom` |
-| Managed Ruleset (Cloudflare)   | _Free plan: not available; tracked in `cloudflare-production.md`_         | n/a                                                              |
-| OWASP Core Ruleset             | _Free plan: not available_                                                | n/a                                                              |
+| Control                        | Expected                                                                                                                  | IaC source                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Custom rule: high-risk traffic | `managed_challenge` for ASNs in `var.waf_blocked_asns` or country in `var.waf_blocked_countries` (default `{KP, IR, SY}`) | `terraform/cloudflare/main.tf` → `cloudflare_ruleset.waf_custom` |
+| Managed Ruleset (Cloudflare)   | _Free plan: not available; tracked in `cloudflare-production.md`_                                                         | n/a                                                              |
+| OWASP Core Ruleset             | _Free plan: not available_                                                                                                | n/a                                                              |
 
-> The placeholder ASNs `12345 / 54321` must be replaced with real offender ASNs
-> from Cloudflare analytics before applying. See the inline comment in
-> `main.tf`.
+> Offender ASN data is sourced from Cloudflare analytics (Security → Events →
+> top offending ASNs) and supplied via tfvars (`waf_blocked_asns`) — it is
+> intentionally never hardcoded in `main.tf`. The default empty list scopes
+> the rule to the country list only; populate the tfvar before apply once
+> analytics has surfaced concrete offenders.
 
 Snapshot file: `rulesets.json` → entry where `phase == "http_request_firewall_custom"`.
 
