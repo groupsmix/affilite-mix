@@ -89,6 +89,11 @@ jobs:
       - name: Run db-audit
         env:
           STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+          # Pooler URL is preferred from GitHub-hosted runners because
+          # Supabase direct hostnames (db.<ref>.supabase.co) only resolve
+          # over IPv6, which the runners cannot reach. db-audit.sh picks
+          # the first available URL in the order: STAGING > POOLER > DATABASE_URL.
+          SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
           # Hard-fail on missing secret for trusted runs (main push or
           # non-fork PRs); fork PRs fall through to skip-green.
           REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
@@ -116,6 +121,9 @@ jobs:
       - name: Check DB types drift
         env:
           STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+          # See db-audit job for the IPv6/pooler rationale; check-db-types.sh
+          # uses the same fallback ordering.
+          SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
           REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
         run: bash scripts/check-db-types.sh
 
