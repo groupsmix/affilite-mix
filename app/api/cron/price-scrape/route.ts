@@ -5,6 +5,7 @@ import { findTriggeredAlerts, markAlertTriggered } from "@/lib/dal/price-alerts"
 import { getSiteRowById } from "@/lib/dal/sites";
 import { logger } from "@/lib/logger";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 
 /**
  * Resolve the public origin (https://<domain>) for a product's owning site.
@@ -40,8 +41,9 @@ async function resolveSiteOrigin(siteId: string): Promise<string> {
  * Protected by CRON_SECRET header check.
  */
 export async function POST(request: NextRequest) {
-  // Verify cron secret using timing-safe comparison
-  if (!verifyCronAuth(request)) {
+  // Verify cron secret using timing-safe comparison.
+  // Accepts the per-trigger secret first, then the shared CRON_SECRET fallback.
+  if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/price-scrape"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

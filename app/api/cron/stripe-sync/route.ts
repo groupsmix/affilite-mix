@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { getRecentStripeEventIds, recordStripeEvent } from "@/lib/dal/stripe-events";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_STRIPE_SYNC_SECRET", "CRON_SECRET"] })) {
+  if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/stripe-sync"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
