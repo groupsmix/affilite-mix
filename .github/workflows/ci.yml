@@ -88,11 +88,14 @@ jobs:
           sudo apt-get install -y postgresql-client
       - name: Run db-audit
         env:
-          STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
-          # Pooler URL is preferred from GitHub-hosted runners because
-          # Supabase direct hostnames (db.<ref>.supabase.co) only resolve
-          # over IPv6, which the runners cannot reach. db-audit.sh picks
-          # the first available URL in the order: STAGING > POOLER > DATABASE_URL.
+          # Prefer the transaction-pooler URL when it's set as a secret
+          # because Supabase direct hostnames (db.<ref>.supabase.co) only
+          # resolve over IPv6, and GitHub-hosted runners are IPv4-only.
+          # Fall back to the direct URL for setups that don't use the
+          # pooler. db-audit.sh treats whatever lands here as the primary
+          # URL (its own STAGING > POOLER > DATABASE_URL ordering remains
+          # in place for local invocations that set both).
+          STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
           SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
           # Hard-fail on missing secret for trusted runs (main push or
           # non-fork PRs); fork PRs fall through to skip-green.
@@ -120,9 +123,8 @@ jobs:
           version: latest
       - name: Check DB types drift
         env:
-          STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
-          # See db-audit job for the IPv6/pooler rationale; check-db-types.sh
-          # uses the same fallback ordering.
+          # See db-audit job above for the IPv6/pooler rationale.
+          STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
           SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
           REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
         run: bash scripts/check-db-types.sh
