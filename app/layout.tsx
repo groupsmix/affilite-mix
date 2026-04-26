@@ -40,6 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
     const ogImage = dbSite?.og_image_url || undefined;
 
     return {
+      metadataBase: new URL(`https://${site.domain}`),
       title: {
         default: title,
         template: `%s | ${title}`,
@@ -50,6 +51,7 @@ export async function generateMetadata(): Promise<Metadata> {
         description,
         siteName: site.name,
         type: "website",
+        locale: site.locale,
         ...(ogImage ? { images: [{ url: ogImage, width: 1200, height: 630 }] } : {}),
       },
       twitter: {
@@ -111,7 +113,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang={site.language ?? "en"} dir={site.direction ?? "ltr"} className={Array.from(needed).join(" ")}>
+    <html
+      lang={site.language ?? "en"}
+      dir={site.direction ?? "ltr"}
+      className={Array.from(needed).join(" ")}
+    >
       <body>
         <WebVitals />
         {children}

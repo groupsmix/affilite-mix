@@ -3,15 +3,18 @@ import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { listActiveDeals } from "@/lib/dal/deals";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
+import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import type { DealRow } from "@/lib/dal/deals";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  return {
-    title: `Today's Best Deals — ${site.name}`,
-    description: `The latest watch deals, discounts, and price drops curated by ${site.name}. Updated daily.`,
-  };
+  return staticPageMetadata({
+    site,
+    title: "Today's Best Deals",
+    description: `The latest deals, discounts, and price drops curated by ${site.name}. Updated daily.`,
+    path: "/deals",
+  });
 }
 
 function formatPrice(amount: number, currency: string): string {

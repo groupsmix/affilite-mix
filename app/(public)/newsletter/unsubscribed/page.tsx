@@ -10,6 +10,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const isAr = site.language === "ar";
   return {
     title: `${isAr ? "تم إلغاء الاشتراك" : "Unsubscribed"} — ${site.name}`,
+    description: isAr
+      ? `تم إلغاء اشتراكك في النشرة البريدية لـ ${site.name}.`
+      : `You have been unsubscribed from the ${site.name} newsletter.`,
+    alternates: { canonical: `https://${site.domain}/newsletter/unsubscribed` },
+    robots: { index: false, follow: false },
   };
 }
 

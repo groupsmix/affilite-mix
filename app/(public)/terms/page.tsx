@@ -1,11 +1,19 @@
 import { getCurrentSite } from "@/lib/site-context";
+import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  return {
-    title: site.language === "ar" ? "شروط الاستخدام" : "Terms of Use",
-  };
+  const isAr = site.language === "ar";
+
+  return staticPageMetadata({
+    site,
+    title: isAr ? "شروط الاستخدام" : "Terms of Use",
+    description: isAr
+      ? `الشروط والأحكام الخاصة باستخدام موقع ${site.name}.`
+      : `Terms and conditions for using ${site.name}.`,
+    path: "/terms",
+  });
 }
 
 export default async function TermsPage() {
