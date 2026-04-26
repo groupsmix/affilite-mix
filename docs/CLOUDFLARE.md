@@ -33,6 +33,7 @@ This document describes every Cloudflare resource, binding, secret, and zone set
 | `ASSETS`                   | Assets  | `.open-next/assets`                                       | Static assets for Next.js |
 | `WORKER_SELF_REFERENCE`    | Service | `affilite-mix` (self)                                     | OpenNext caching layer    |
 | `RATE_LIMIT_KV`            | KV      | `${RATE_LIMIT_KV_NAMESPACE_ID}` (env-provided, see below) | Distributed rate limiting |
+| `APP_CACHE_KV`             | KV      | `${APP_CACHE_KV_NAMESPACE_ID}` (env-provided, see below)  | Application-level cache   |
 | `NEXT_INC_CACHE_R2_BUCKET` | R2      | `next-inc-cache`                                          | Incremental cache storage |
 
 ### Wrangler deploy-time variables
@@ -42,11 +43,21 @@ This document describes every Cloudflare resource, binding, secret, and zone set
 | Variable                     | Used in `wrangler.jsonc` field | How to obtain                                                                |
 | ---------------------------- | ------------------------------ | ---------------------------------------------------------------------------- |
 | `RATE_LIMIT_KV_NAMESPACE_ID` | `kv_namespaces[0].id`          | `npx wrangler kv:namespace create RATE_LIMIT_KV` — copy `id` from the output |
+| `APP_CACHE_KV_NAMESPACE_ID`  | `kv_namespaces[1].id`          | `npx wrangler kv:namespace create APP_CACHE_KV` — copy `id` from the output  |
+
+If the namespaces are managed via Terraform (see [`terraform/cloudflare/storage.tf`](../terraform/cloudflare/README.md)), pull the IDs from the Terraform outputs instead:
+
+```bash
+cd terraform/cloudflare
+export RATE_LIMIT_KV_NAMESPACE_ID=$(terraform output -raw rate_limit_kv_namespace_id)
+export APP_CACHE_KV_NAMESPACE_ID=$(terraform output -raw app_cache_kv_namespace_id)
+```
 
 Example:
 
 ```bash
 export RATE_LIMIT_KV_NAMESPACE_ID="<namespace-id-from-wrangler-output>"
+export APP_CACHE_KV_NAMESPACE_ID="<namespace-id-from-wrangler-output>"
 npx opennextjs-cloudflare deploy
 ```
 
