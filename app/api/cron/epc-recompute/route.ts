@@ -3,6 +3,7 @@ import { getTenantClient } from "@/lib/supabase-server";
 import { upsertProductEpc } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 
 /**
  * GET /api/cron/epc-recompute
@@ -11,7 +12,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
  * Should run after commission-ingest cron.
  */
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_EPC_SECRET", "CRON_SECRET"] })) {
+  if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/epc-recompute"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

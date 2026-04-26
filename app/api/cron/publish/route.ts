@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { getTenantClient } from "@/lib/supabase-server";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import type { ContentRow, ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
@@ -32,7 +33,7 @@ import { contentTag, productsTag } from "@/lib/cache-tags";
  *   Authorization: Bearer <CRON_SECRET>
  */
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_PUBLISH_SECRET", "CRON_SECRET"] })) {
+  if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/publish"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
