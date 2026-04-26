@@ -13,7 +13,7 @@ inside this repository.
 | Access recertification | Quarterly              | `docs/access-recertification.md` + completed checklist artefacts in `docs/evidence/access-recert-YYYYQn.md` | Security      |
 | Backup verification    | Monthly                | `docs/BACKUP-POLICY.md` + DR drill log in `docs/dr-drill-checklist.md`                                      | Platform      |
 | RLS posture            | Per release            | `__tests__/cross-tenant-authz.test.ts` + `supabase/migrations/00067_harden_tenant_isolation_rls.sql`        | Data platform |
-| Secret rotation        | Quarterly              | `docs/secrets-rotation-runbook.md` + CRON_SECRET / RESEND / OPENAI rotation log                             | Security      |
+| Secret rotation        | Quarterly              | `docs/secrets-rotation-runbook.md` + CRON_SECRET / RESEND / AI-provider rotation log                        | Security      |
 | Threat model review    | Yearly                 | `docs/threat-model.md` (top-of-file revision history)                                                       | Security      |
 | AI usage governance    | Per change             | `docs/ai-governance.md` + `ai_usage_log` table                                                              | AI council    |
 | Vendor DPAs            | At onboarding + yearly | `docs/vendor-dpas.md` + signed PDF in `docs/evidence/dpa/`                                                  | Legal         |
