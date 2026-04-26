@@ -12,6 +12,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
+    // Desktop browsers
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
@@ -23,6 +24,18 @@ export default defineConfig({
     {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
+    },
+    // Mobile / tablet form-factors. Catches viewport-specific regressions
+    // (mobile menu, responsive grids, touch targets) that desktop browsers
+    // miss. Use the Playwright-curated device descriptors so the user-agent,
+    // viewport, device-scale-factor and touch settings stay accurate.
+    {
+      name: "Pixel 5",
+      use: { ...devices["Pixel 5"] },
+    },
+    {
+      name: "iPad Mini",
+      use: { ...devices["iPad Mini"] },
     },
   ],
   webServer: process.env.CI
