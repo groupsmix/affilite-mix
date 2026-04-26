@@ -1,0 +1,56 @@
+/**
+ * Allow-list of source paths that may import the privileged Supabase
+ * gateway (`@/lib/server-only/service-role`).
+ *
+ * Service-role access bypasses RLS, so any file in this list must:
+ *   - have a justifying comment at the import site explaining why a
+ *     tenant-scoped client (`getTenantClient()`) cannot be used; and
+ *   - be covered by a route-level auth gate (cron secret, internal
+ *     bearer token, super_admin session, etc.) before the privileged
+ *     client is reached.
+ *
+ * Adding a new entry must go through the security CODEOWNER review (see
+ * `.github/CODEOWNERS`). The static test
+ * `__tests__/service-role-allowlist.test.ts` fails CI if any source file
+ * imports the gateway without being on this list.
+ *
+ * Test files are intentionally NOT covered here — vitest specs live under
+ * `__tests__/` and are excluded from the allowlist scan because they only
+ * run in CI/local dev and never ship to production.
+ */
+export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
+  // Gateway itself — re-exports getServiceClient under the approved name.
+  "lib/server-only/service-role.ts",
+
+  // Legacy thin wrapper kept until every direct caller is migrated.
+  // This file is the only sanctioned place to import getServiceClient
+  // from `@supabase/supabase-js` directly; new code must go through the
+  // gateway above.
+  "lib/supabase-server.ts",
+
+  // Authorisation helpers run before any DAL call and therefore must
+  // resolve admin context (active site, role membership) without a
+  // tenant-scoped client.
+  "lib/authz.ts",
+
+  // Cloudflare Worker queue dispatcher cannot supply an x-site-id header
+  // (no cookies, no admin session, the per-message site_id is in the
+  // body). The route is INTERNAL_API_TOKEN-gated; see F-002 deep-audit
+  // notes in app/api/queue/clicks/route.ts.
+  "app/api/queue/clicks/route.ts",
+
+  // Cron routes run from the Cloudflare scheduled handler and have no
+  // request-scoped tenant context. Each route is gated by its
+  // per-trigger Bearer secret via lib/cron-auth.ts.
+  "app/api/cron/publish/route.ts",
+  "app/api/cron/sitemap-refresh/route.ts",
+  "app/api/cron/data-retention/route.ts",
+  "app/api/cron/epc-recompute/route.ts",
+  "app/api/cron/price-scrape/route.ts",
+] as const;
+
+export type ServiceRoleAllowlistedPath = (typeof SERVICE_ROLE_IMPORT_ALLOWLIST)[number];
+
+export function isServiceRoleAllowlisted(repoRelativePath: string): boolean {
+  return (SERVICE_ROLE_IMPORT_ALLOWLIST as readonly string[]).includes(repoRelativePath);
+}

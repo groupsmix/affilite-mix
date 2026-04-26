@@ -19,6 +19,18 @@
 /lib/csp.ts             @groupsmix/security
 /lib/rate-limit.ts      @groupsmix/security
 
+# Privileged Supabase gateway and its allow-list of importers.
+# Touching these files (or adding a new caller via the allow-list) MUST
+# go through @groupsmix/security review — service-role access bypasses
+# RLS and is the most direct path to a cross-tenant breach.
+/lib/server-only/                       @groupsmix/security
+/lib/security/service-role-allowlist.ts @groupsmix/security
+
+# Multi-tenant CSRF/exemption registry — every exempt route is its own
+# security boundary, so additions/changes to the registry route through
+# the security team.
+/lib/security/csrf-exempt-registry.ts   @groupsmix/security
+
 # Database and migrations (Data Plane)
 /supabase/migrations/   @groupsmix/data-platform
 /lib/dal/               @groupsmix/data-platform
