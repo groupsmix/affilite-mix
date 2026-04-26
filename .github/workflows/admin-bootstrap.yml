@@ -1,0 +1,140 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# BREAK-GLASS: Admin User Bootstrap
+#
+# This workflow creates or resets a super_admin user in the database.
+# It is intentionally separated from the deploy pipeline to prevent
+# routine deployments from having write access to admin credentials.
+#
+# SECURITY CONTROLS:
+# - Manual trigger only (workflow_dispatch)
+# - Requires manual approval via GitHub environment protection rules
+# - Credentials are short-lived (password must be rotated within 24h)
+# - Full audit trail via GitHub Actions logs
+# - Limited to specific GitHub actors (configure in environment settings)
+#
+# SETUP:
+# 1. Create a GitHub environment called "admin-bootstrap" in repo Settings
+# 2. Enable "Required reviewers" and add authorized approvers
+# 3. Optionally restrict to specific branches and deployment branches
+# 4. Add the following secrets to the environment (or repo-level):
+#    - SUPABASE_DB_URL or SUPABASE_DB_POOLER_URL
+#    - ADMIN_BOOTSTRAP_EMAIL
+#    - ADMIN_BOOTSTRAP_PASSWORD (temporary — must be rotated after use)
+#    - ADMIN_BOOTSTRAP_NAME (optional, defaults to "Admin")
+#    - ADMIN_BOOTSTRAP_ROLE (optional, defaults to "super_admin")
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "Break-glass: Admin Bootstrap"
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for admin bootstrap (logged for audit)"
+        required: true
+        type: string
+      rotate_password:
+        description: "Force password rotation (resets even if user exists)"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    environment: admin-bootstrap
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Audit log entry
+        run: |
+          echo "### Admin Bootstrap Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Triggered by:** ${{ github.actor }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Reason:** ${{ inputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Run ID:** ${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Force rotate:** ${{ inputs.rotate_password }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+
+          if [ -z "${{ secrets.ADMIN_BOOTSTRAP_EMAIL }}" ]; then
+            echo "::error::ADMIN_BOOTSTRAP_EMAIL secret is not set"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}" ]; then
+            echo "::error::ADMIN_BOOTSTRAP_PASSWORD secret is not set"
+            exit 1
+          fi
+
+          if [ -z "${{ inputs.reason }}" ]; then
+            echo "::error::A reason is required for audit purposes"
+            exit 1
+          fi
+
+      - name: Install psql
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client 2>&1 | tail -5
+
+      - name: Bootstrap admin user
+        env:
+          _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+        run: |
+          set -euo pipefail
+
+          DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
+          if [ -z "$DB_URL" ]; then
+            echo "::error::Neither SUPABASE_DB_POOLER_URL nor SUPABASE_DB_URL is set"
+            exit 1
+          fi
+
+          ADMIN_EMAIL="${{ secrets.ADMIN_BOOTSTRAP_EMAIL }}"
+          ADMIN_PASSWORD="${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}"
+          ADMIN_NAME="${{ secrets.ADMIN_BOOTSTRAP_NAME }}"
+          ADMIN_ROLE="${{ secrets.ADMIN_BOOTSTRAP_ROLE }}"
+
+          # Defaults
+          ADMIN_NAME="${ADMIN_NAME:-Admin}"
+          ADMIN_ROLE="${ADMIN_ROLE:-super_admin}"
+
+          echo "Bootstrapping admin user..."
+
+          {
+            echo "INSERT INTO admin_users (email, password_hash, name, role, is_active)"
+            echo "VALUES (:'admin_email', crypt(:'admin_password', gen_salt('bf')), :'admin_name', :'admin_role', true)"
+            echo "ON CONFLICT (email) DO UPDATE SET"
+            echo "  password_hash = EXCLUDED.password_hash,"
+            echo "  name = EXCLUDED.name,"
+            echo "  role = EXCLUDED.role,"
+            echo "  updated_at = NOW();"
+          } > /tmp/bootstrap_admin.sql
+
+          psql "$DB_URL" \
+            -v admin_email="$ADMIN_EMAIL" \
+            -v admin_password="$ADMIN_PASSWORD" \
+            -v admin_name="$ADMIN_NAME" \
+            -v admin_role="$ADMIN_ROLE" \
+            -v ON_ERROR_STOP=1 \
+            -f /tmp/bootstrap_admin.sql \
+            && echo "Admin user ready: $ADMIN_EMAIL" \
+            || { echo "::error::Admin bootstrap failed"; exit 1; }
+
+          rm -f /tmp/bootstrap_admin.sql
+
+      - name: Post-bootstrap reminder
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "---" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**MANDATORY: Rotate the bootstrap password within 24 hours.**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. Log in with the bootstrap credentials" >> "$GITHUB_STEP_SUMMARY"
+          echo "2. Change the password immediately via the admin panel" >> "$GITHUB_STEP_SUMMARY"
+          echo "3. Update or remove ADMIN_BOOTSTRAP_PASSWORD from GitHub Secrets" >> "$GITHUB_STEP_SUMMARY"
+          echo "4. Verify the audit_log table has the login event" >> "$GITHUB_STEP_SUMMARY"
