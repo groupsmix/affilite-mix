@@ -105,48 +105,50 @@ ALTER TABLE IF EXISTS content_products DROP CONSTRAINT IF EXISTS content_product
 ALTER TABLE IF EXISTS newsletter_subscribers DROP CONSTRAINT IF EXISTS newsletter_subscribers_status_check;
 
 -- ── 3. Drop old-style RLS policies ───────────────────────────────────
--- Old manually-created policies (title-case names from early SQL editor setup)
-DROP POLICY IF EXISTS "Public read sites" ON sites;
-
-DROP POLICY IF EXISTS "Public read categories" ON categories;
-
-DROP POLICY IF EXISTS "Public read products" ON products;
-
-DROP POLICY IF EXISTS "Public read published content" ON content;
-
-DROP POLICY IF EXISTS "Public read content_products" ON content_products;
-
-DROP POLICY IF EXISTS "Insert affiliate clicks" ON affiliate_clicks;
-
-DROP POLICY IF EXISTS "Service full access affiliate_clicks" ON affiliate_clicks;
-
-DROP POLICY IF EXISTS "Service full access categories" ON categories;
-
-DROP POLICY IF EXISTS "Service full access content" ON content;
-
-DROP POLICY IF EXISTS "Service full access content_products" ON content_products;
-
-DROP POLICY IF EXISTS "Service full access products" ON products;
-
-DROP POLICY IF EXISTS "Service full access sites" ON sites;
-
--- service_full_access_* policies that may exist with USING(true) instead of
--- auth.role() = 'service_role' — drop so 00003 can recreate correctly
-DROP POLICY IF EXISTS "service_full_access_categories" ON categories;
-
-DROP POLICY IF EXISTS "service_full_access_products" ON products;
-
-DROP POLICY IF EXISTS "service_full_access_content" ON content;
-
-DROP POLICY IF EXISTS "service_full_access_content_products" ON content_products;
-
-DROP POLICY IF EXISTS "service_full_access_clicks" ON affiliate_clicks;
-
-DROP POLICY IF EXISTS "service_full_access_newsletter" ON newsletter_subscribers;
-
-DROP POLICY IF EXISTS "service_full_access_scheduled_jobs" ON scheduled_jobs;
-
-DROP POLICY IF EXISTS "service_full_access_audit_log" ON audit_log;
+-- Old manually-created policies (title-case names from early SQL editor setup).
+-- Wrapped in to_regclass() guards so the migration is a true no-op on a
+-- fresh database where these tables don't yet exist (DROP POLICY IF EXISTS
+-- still raises "relation does not exist" when the table is missing).
+DO $$ BEGIN
+  IF to_regclass('public.sites') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read sites" ON sites;
+    DROP POLICY IF EXISTS "Service full access sites" ON sites;
+  END IF;
+  IF to_regclass('public.categories') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read categories" ON categories;
+    DROP POLICY IF EXISTS "Service full access categories" ON categories;
+    DROP POLICY IF EXISTS "service_full_access_categories" ON categories;
+  END IF;
+  IF to_regclass('public.products') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read products" ON products;
+    DROP POLICY IF EXISTS "Service full access products" ON products;
+    DROP POLICY IF EXISTS "service_full_access_products" ON products;
+  END IF;
+  IF to_regclass('public.content') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read published content" ON content;
+    DROP POLICY IF EXISTS "Service full access content" ON content;
+    DROP POLICY IF EXISTS "service_full_access_content" ON content;
+  END IF;
+  IF to_regclass('public.content_products') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read content_products" ON content_products;
+    DROP POLICY IF EXISTS "Service full access content_products" ON content_products;
+    DROP POLICY IF EXISTS "service_full_access_content_products" ON content_products;
+  END IF;
+  IF to_regclass('public.affiliate_clicks') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Insert affiliate clicks" ON affiliate_clicks;
+    DROP POLICY IF EXISTS "Service full access affiliate_clicks" ON affiliate_clicks;
+    DROP POLICY IF EXISTS "service_full_access_clicks" ON affiliate_clicks;
+  END IF;
+  IF to_regclass('public.newsletter_subscribers') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "service_full_access_newsletter" ON newsletter_subscribers;
+  END IF;
+  IF to_regclass('public.scheduled_jobs') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "service_full_access_scheduled_jobs" ON scheduled_jobs;
+  END IF;
+  IF to_regclass('public.audit_log') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "service_full_access_audit_log" ON audit_log;
+  END IF;
+END $$;
 
 -- ── 4. Add missing columns ───────────────────────────────────────────
 -- Products columns that 00001 defines in CREATE TABLE but can't add when
@@ -187,6 +189,19 @@ ALTER TABLE IF EXISTS newsletter_subscribers ADD COLUMN IF NOT EXISTS confirmed_
 
 -- Sites column
 ALTER TABLE IF EXISTS sites ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+
+-- ── 4b. Trigger helper function ──────────────────────────────────────
+-- The legacy hand-managed schema.sql defined update_updated_at() outside of
+-- the numbered migration chain, so subsequent migrations (e.g. 00002) assume
+-- it already exists. On a fresh database this assumption fails — define it
+-- here so the chain is self-contained.
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ── 5. Remove sites.domain UNIQUE constraint ─────────────────────────
 -- Multi-site routing allows empty or shared domain values; the UNIQUE
