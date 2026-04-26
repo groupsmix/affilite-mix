@@ -131,7 +131,9 @@ echo "  ✓ dns.json ($(jq 'length' "${OUT_DIR}/dns.json") records)"
 # `rate_limits_legacy.json` is the canonical name; `rate_limits.json` is
 # kept as a symlink for the audit checklist in docs/cloudflare-evidence.md.
 cf_get "/zones/${ZONE_ID}/rate_limits"      "${OUT_DIR}/rate_limits_legacy.json" || true
-ln -sf rate_limits_legacy.json "${OUT_DIR}/rate_limits.json"
+if [ -f "${OUT_DIR}/rate_limits_legacy.json" ]; then
+  ln -sf rate_limits_legacy.json "${OUT_DIR}/rate_limits.json"
+fi
 cf_get "/zones/${ZONE_ID}/rulesets"         "${OUT_DIR}/rulesets.json"
 echo "  ✓ rate_limits_legacy.json + rulesets.json"
 
