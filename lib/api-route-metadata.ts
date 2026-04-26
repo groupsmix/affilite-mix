@@ -666,7 +666,7 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     path: "/api/newsletter/confirm",
-    methods: ["GET", "POST"],
+    methods: ["GET"],
     auth: "token",
     adminRequired: false,
     scope: "site",
