@@ -571,7 +571,12 @@ jobs:
             fi
 
             if [ -z "$id" ]; then
-              echo "::error::Unable to resolve $name namespace id. Check CLOUDFLARE_API_TOKEN has 'Workers KV Storage:Edit' permission."
+              # `resolve_or_create_kv` is invoked via command substitution
+              # (`id=$(resolve_or_create_kv "$binding")`), which captures
+              # stdout into the variable. Diagnostics must go to stderr
+              # (`>&2`) so the GitHub Actions runner log surfaces them
+              # instead of swallowing them inside `$id`.
+              echo "::error::Unable to resolve $name namespace id. Check CLOUDFLARE_API_TOKEN has 'Workers KV Storage:Edit' permission." >&2
               exit 1
             fi
             echo "$id"
