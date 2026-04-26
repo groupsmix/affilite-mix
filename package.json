@@ -97,6 +97,7 @@
     "lint-staged": "^16.4.0",
     "postcss": "^8.5.10",
     "prettier": "^3.8.3",
+    "server-only": "^0.0.1",
     "size-limit": "^12.1.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.0",

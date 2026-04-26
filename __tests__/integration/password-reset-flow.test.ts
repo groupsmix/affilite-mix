@@ -12,12 +12,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { hashPassword } from "@/lib/password";
 import { shouldRunSupabaseIntegration } from "./helpers/should-run";
 
 describe.skipIf(!shouldRunSupabaseIntegration)("Password Reset Flow Integration", () => {
-  const sb = getServiceClient();
+  const sb = getPrivilegedSupabaseClient();
   let testUserId: string;
   const testEmail = `test-reset-${Date.now()}@example.com`;
 

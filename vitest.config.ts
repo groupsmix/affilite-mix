@@ -23,6 +23,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "."),
+      // Next.js replaces `import "server-only"` at compile time, but the
+      // npm package always throws at runtime. Map it to an empty module
+      // so vitest can import server-only files (e.g. the privileged
+      // Supabase gateway) without tripping that runtime guard.
+      "server-only": path.resolve(__dirname, "__tests__/helpers/server-only-shim.ts"),
     },
   },
 });

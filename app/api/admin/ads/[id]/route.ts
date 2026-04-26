@@ -5,6 +5,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { parseJsonBody } from "@/lib/api-error";
 import type { AdPlacementType, AdProvider } from "@/types/database";
 import { captureException } from "@/lib/sentry";
+import { authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 
 const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
   "sidebar",
@@ -20,6 +21,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (error) return error;
 
   const { id } = await params;
+
+  // Defense-in-depth: derive the placement's real site_id and require it
+  // to match the active site. A forged `id` from a different tenant is a
+  // 404 here instead of a silent no-op or 500.
+  const authz = await authorizeResource({
+    session,
+    feature: "settings",
+    action: "edit",
+    resourceType: "ad_placement",
+    resourceId: id,
+    expectedSiteId: dbSiteId,
+  });
+  if (!authz.ok) return authorizationErrorResponse(authz);
+
   const rawOrError = await parseJsonBody(request);
   if (rawOrError instanceof NextResponse) return rawOrError;
 
@@ -80,6 +95,16 @@ export async function DELETE(
   if (error) return error;
 
   const { id } = await params;
+
+  const authz = await authorizeResource({
+    session,
+    feature: "settings",
+    action: "delete",
+    resourceType: "ad_placement",
+    resourceId: id,
+    expectedSiteId: dbSiteId,
+  });
+  if (!authz.ok) return authorizationErrorResponse(authz);
 
   try {
     await deleteAdPlacement(dbSiteId, id);
