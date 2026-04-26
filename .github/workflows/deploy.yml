@@ -385,9 +385,13 @@ jobs:
           # Prefer the pooler URL if provided; fall back to the direct URL.
           DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
 
+          # Audit F-005: production migrations cannot silently skip when the
+          # DB URL secret is missing. A green deploy without a corresponding
+          # migration apply is exactly how schemas drift in production.
           if [ -z "$DB_URL" ]; then
-            echo "::warning::Neither SUPABASE_DB_POOLER_URL nor SUPABASE_DB_URL is set, skipping DB migrations"
-            exit 0
+            echo "::error::SUPABASE_DB_POOLER_URL or SUPABASE_DB_URL is required for production deploy"
+            echo "::error::Add the Supabase session pooler URL to GitHub repo secrets before retrying."
+            exit 1
           fi
 
           # IPv4 preflight: GitHub Actions runners cannot reach IPv6-only hosts.
@@ -445,9 +449,13 @@ jobs:
           set -euo pipefail
           DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
 
+          # Audit F-005: schema verification is only meaningful when it ran
+          # against the same DB the migration step targeted. Missing URL
+          # here means the previous step did the same skip; both must
+          # fail closed instead of greenwashing the deploy.
           if [ -z "$DB_URL" ]; then
-            echo "::warning::No DB URL set, skipping schema verification"
-            exit 0
+            echo "::error::SUPABASE_DB_POOLER_URL or SUPABASE_DB_URL is required for post-migration schema verification"
+            exit 1
           fi
 
           echo "Verifying production schema after migration..."
@@ -529,47 +537,66 @@ jobs:
           echo "── tail_consumers after rewrite ─────────────────────"
           grep -n -B1 -A3 '"tail_consumers"' wrangler.jsonc | grep -v '//' || true
 
-      # ── Create KV namespace if not exists, then inline the id ────────
-      - name: Create KV namespace (if not exists)
+      # ── Create KV namespaces if not exists, then inline the ids ──────
+      #
+      # Audit F-007: APP_CACHE_KV is referenced by middleware for dynamic
+      # domain resolution; it has the same lifecycle requirements as
+      # RATE_LIMIT_KV and must be provisioned/inlined or the deploy will
+      # ship with an unresolved binding placeholder.
+      - name: Create KV namespaces (if not exist)
         run: |
           set -euo pipefail
-          echo "Resolving KV namespace id for RATE_LIMIT_KV..."
 
-          # Try to look up an existing namespace first.
-          KV_ID=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
-            | jq -r '.[] | select(.title == "RATE_LIMIT_KV" or .title == "affilite-mix-RATE_LIMIT_KV") | .id' \
-            | head -n1 || true)
+          resolve_or_create_kv() {
+            local name="$1"
+            local id
 
-          # If nothing exists yet, create it and grab the id from the JSON output.
-          if [ -z "$KV_ID" ]; then
-            echo "No existing RATE_LIMIT_KV namespace found — creating one..."
-            CREATE_OUT=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace create RATE_LIMIT_KV 2>&1 || true)
-            echo "$CREATE_OUT"
-            KV_ID=$(echo "$CREATE_OUT" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/' || true)
-            # Fallback: re-list in case `create` raced or used a different title.
-            if [ -z "$KV_ID" ]; then
-              KV_ID=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
-                | jq -r '.[] | select(.title == "RATE_LIMIT_KV" or .title == "affilite-mix-RATE_LIMIT_KV") | .id' \
-                | head -n1 || true)
+            id=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
+              | jq -r --arg n "$name" --arg pn "affilite-mix-$name" \
+                  '.[] | select(.title == $n or .title == $pn) | .id' \
+              | head -n1 || true)
+
+            if [ -z "$id" ]; then
+              echo "No existing $name namespace found — creating one..." >&2
+              local create_out
+              create_out=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace create "$name" 2>&1 || true)
+              echo "$create_out" >&2
+              id=$(echo "$create_out" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/' || true)
+              if [ -z "$id" ]; then
+                id=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
+                  | jq -r --arg n "$name" --arg pn "affilite-mix-$name" \
+                      '.[] | select(.title == $n or .title == $pn) | .id' \
+                  | head -n1 || true)
+              fi
             fi
-          fi
 
-          if [ -z "$KV_ID" ]; then
-            echo "::error::Unable to resolve RATE_LIMIT_KV namespace id. Check CLOUDFLARE_API_TOKEN has 'Workers KV Storage:Edit' permission."
-            exit 1
-          fi
+            if [ -z "$id" ]; then
+              echo "::error::Unable to resolve $name namespace id. Check CLOUDFLARE_API_TOKEN has 'Workers KV Storage:Edit' permission."
+              exit 1
+            fi
+            echo "$id"
+          }
 
-          echo "Using KV namespace id: $KV_ID"
-          KV_ID="$KV_ID" perl -i -0pe '
-            s/("binding"\s*:\s*"RATE_LIMIT_KV"[^}]*?"id"\s*:\s*")[^"]*(")/$1$ENV{KV_ID}$2/s
-          ' wrangler.jsonc
-          # Verify the substitution actually happened.
-          if ! grep -q "\"id\": \"$KV_ID\"" wrangler.jsonc; then
-            echo "::error::Failed to inline KV namespace id into wrangler.jsonc"
-            grep -n RATE_LIMIT_KV wrangler.jsonc || true
-            exit 1
-          fi
-          echo "Inlined KV namespace id into wrangler.jsonc"
+          inline_kv_id() {
+            local binding="$1"
+            local id="$2"
+            BINDING="$binding" KV_ID="$id" perl -i -0pe '
+              s/("binding"\s*:\s*"$ENV{BINDING}"[^}]*?"id"\s*:\s*")[^"]*(")/$1$ENV{KV_ID}$2/s
+            ' wrangler.jsonc
+            if ! grep -q "\"id\": \"$id\"" wrangler.jsonc; then
+              echo "::error::Failed to inline $binding namespace id into wrangler.jsonc"
+              grep -n "$binding" wrangler.jsonc || true
+              exit 1
+            fi
+          }
+
+          for binding in RATE_LIMIT_KV APP_CACHE_KV; do
+            echo "Resolving KV namespace id for $binding..."
+            id=$(resolve_or_create_kv "$binding")
+            echo "Using $binding namespace id: $id"
+            inline_kv_id "$binding" "$id"
+            echo "Inlined $binding namespace id into wrangler.jsonc"
+          done
 
       # ── Build OpenNext bundle ─────────────────────────────────────────
       - name: Build OpenNext bundle
