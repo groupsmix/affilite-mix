@@ -19,8 +19,14 @@ interface SearchPageProps {
 
 export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
   const { q } = await searchParams;
+  const site = await getCurrentSite();
   const title = q ? `Search: ${q}` : "Search";
-  return { title, robots: { index: false } };
+  return {
+    title: `${title} — ${site.name}`,
+    description: `Search products and articles on ${site.name}.`,
+    alternates: { canonical: `https://${site.domain}/search` },
+    robots: { index: false, follow: false },
+  };
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {

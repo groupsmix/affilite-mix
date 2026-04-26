@@ -1,12 +1,15 @@
 import { getCurrentSite } from "@/lib/site-context";
+import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
-  return {
-    title: `Media Kit — ${site.name}`,
+  return staticPageMetadata({
+    site,
+    title: "Media Kit",
     description: `Partner with ${site.name}. Traffic stats, audience demographics, ad rates, and sponsorship opportunities.`,
-  };
+    path: "/media-kit",
+  });
 }
 
 export default async function MediaKitPage() {

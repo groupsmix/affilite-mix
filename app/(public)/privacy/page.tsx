@@ -1,19 +1,19 @@
 import { getCurrentSite } from "@/lib/site-context";
+import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
   const isAr = site.language === "ar";
-  const title = isAr ? "سياسة الخصوصية" : "Privacy Policy";
-  const url = `https://${site.domain}/privacy`;
 
-  return {
-    title,
+  return staticPageMetadata({
+    site,
+    title: isAr ? "سياسة الخصوصية" : "Privacy Policy",
     description: isAr
       ? `سياسة الخصوصية لموقع ${site.name} — كيف نجمع بياناتك ونستخدمها ونحميها.`
       : `Privacy policy for ${site.name} — how we collect, use, and protect your information.`,
-    alternates: { canonical: url },
-  };
+    path: "/privacy",
+  });
 }
 
 export default async function PrivacyPage() {
