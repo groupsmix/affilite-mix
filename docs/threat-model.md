@@ -26,3 +26,57 @@
    - _Risk_: JWTs are bound to a `/24` IPv4 subnet and User-Agent hash.
    - _Impact_: Corporate VPNs or mobile carrier NATs may allow cross-device token reuse within the same network.
    - _Mitigation_: Accepted risk for improved UX over strict `/32` binding.
+
+## Tenant Isolation (audit R-1, R-2, R-3, R-8)
+
+The Supabase JWT carries `app_metadata.site_id` which Postgres RLS
+reads via `public.current_request_site_id()`. Top-level `site_id`
+claims are accepted only as a fallback for service-issued tokens and
+are NOT consumed when an `app_metadata.site_id` is present. The 00067
+migration removes the previous `IS NULL` fallback that allowed
+authenticated users without a claim to see every row in every
+site_id-scoped table.
+
+Global config tables (`admin_users`, `roles`, `permissions`,
+`role_permissions`, `audit_log`, `niche_templates`,
+`integration_providers`, `site_integrations`, `stripe_events`,
+`user_site_roles`) are service*role-only with explicit
+`authenticated_no_access*<table>`deny policies for defense in depth.
+RLS-only access to these tables is impossible by construction; any new
+admin RPC that needs to write to them must use the`service_role`
+client.
+
+**Adversary**: Authenticated Supabase user (e.g. a comments author or
+a magic-link recipient) attempts cross-tenant SELECT.
+**Pre-00067 outcome**: SELECT on every site's content via `IS NULL`
+fallback.
+**Post-00067 outcome**: 0 rows. Cross-tenant authz integration tests
+(`__tests__/cross-tenant-authz.test.ts` plus `tenant-isolation-rls`)
+assert this directly.
+
+## R2 Upload Path (audit U-1 — U-9)
+
+The browser → R2 upload now flows through a private staging bucket and
+a server-side promotion step. Magic-byte validation runs against the
+staging bucket BEFORE the object is reachable at the public CDN URL.
+
+| Threat                              | Mitigation                                                                                                                                                                                                                    |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Path traversal via filename         | Object key is generated server-side as `uploads/YYYY/MM/DD/<uuid>.<ext>`; the client filename is captured (after sanitization) only in `x-amz-meta-original-name`.                                                            |
+| Oversized upload                    | `R2_MAX_UPLOAD_BYTES` is signed into the presigned PUT via `Content-Length`. Bodies that exceed the cap are rejected by R2 with 403 SignatureDoesNotMatch.                                                                    |
+| MIME spoof / SVG XSS                | SVG is excluded from `ALLOWED_IMAGE_TYPES`. Magic-byte validation rejects `<?xml`, `<svg`, `<html` prefixes outright and verifies full PNG/JPEG/GIF/WEBP/AVIF brand signatures.                                               |
+| Public visibility before validation | Uploads land in `R2_PRIVATE_BUCKET`. `/api/admin/upload/finalize` reads the first 32 bytes via a signed S3 GET; only on success does it server-side copy to `R2_PUBLIC_BUCKET`. Failed validations delete the staging object. |
+| Audit log races upload              | Audit events fire from `/api/admin/upload/finalize` after promotion, not from `/api/admin/upload`.                                                                                                                            |
+
+## CSV Import Memory Exhaustion (audit U-7)
+
+`/api/admin/products/import` rejects bodies > 5 MB and CSVs with > 50 000
+rows with `413 Payload Too Large`. The cap is enforced both via the
+`Content-Length` header pre-form-data parsing and against `Blob.size`
+after parsing.
+
+## Pagination DoS (audit #22)
+
+`lib/pagination.ts` clamps `?limit=` to `[1, 100]` and rejects
+`offset > 100 000` and non-integer / non-finite values. Applied to
+`/api/admin/products`, `/api/admin/content`, `/api/admin/ai-content`.
