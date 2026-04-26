@@ -36,19 +36,23 @@ for the `affilite-mix` worker. Pinned to `cloudflare/cloudflare ~> 5.0`.
 
 ## Variables
 
-| Variable                   | Required | Default            | Source                                                                   |
-| -------------------------- | -------- | ------------------ | ------------------------------------------------------------------------ |
-| `cloudflare_api_token`     | yes      | —                  | Scoped token; see [docs/CLOUDFLARE.md](../../docs/CLOUDFLARE.md).        |
-| `cloudflare_account_id`    | yes      | —                  | `0dadac330461be7f3e6fce8cb6611ba4` (production).                         |
-| `zone_id`                  | yes      | —                  | `a3fc8a7a314e9b6ab61362f7aacee29c` (`wristnerd.xyz`).                    |
-| `worker_service_name`      | no       | `affilite-mix`     | Must match `wrangler.jsonc → name`.                                      |
-| `worker_environment`       | no       | `production`       | Worker environment for custom-domain bindings.                           |
-| `worker_custom_domains`    | no       | 3 hostnames        | Mirrors `wrangler.jsonc → routes[*].custom_domain = true`.               |
-| `dns_records`              | no       | `{}`               | Map of non-Worker DNS records (MX, TXT, CAA, …).                         |
-| `r2_default_location`      | no       | `WNAM`             | R2 bucket data-location hint.                                            |
-| `worker_logs_bucket_name`  | no       | `workers-logpush`  | R2 bucket that receives the workers_trace_events Logpush job.            |
-| `logpush_destination_conf` | no       | `null` (sensitive) | Full Logpush destination URL (R2/S3/Datadog). See LIVE-09 runbook below. |
-| `logpush_enabled`          | no       | `false`            | Toggle Logpush. Requires a paid Workers plan + a real destination.       |
+| Variable                   | Required | Default            | Source                                                                     |
+| -------------------------- | -------- | ------------------ | -------------------------------------------------------------------------- |
+| `cloudflare_api_token`     | yes      | —                  | Scoped token; see [docs/CLOUDFLARE.md](../../docs/CLOUDFLARE.md).          |
+| `cloudflare_account_id`    | yes      | —                  | `0dadac330461be7f3e6fce8cb6611ba4` (production).                           |
+| `zone_id`                  | yes      | —                  | `a3fc8a7a314e9b6ab61362f7aacee29c` (`wristnerd.xyz`).                      |
+| `worker_service_name`      | no       | `affilite-mix`     | Must match `wrangler.jsonc → name`.                                        |
+| `worker_environment`       | no       | `production`       | Worker environment for custom-domain bindings.                             |
+| `worker_custom_domains`    | no       | 3 hostnames        | Mirrors `wrangler.jsonc → routes[*].custom_domain = true`.                 |
+| `dns_records`              | no       | `{}`               | Map of non-Worker DNS records (MX, TXT, CAA, …).                           |
+| `r2_default_location`      | no       | `WNAM`             | R2 bucket data-location hint.                                              |
+| `worker_logs_bucket_name`  | no       | `workers-logpush`  | R2 bucket that receives the workers_trace_events Logpush job.              |
+| `logpush_destination_conf` | no       | `null` (sensitive) | Full Logpush destination URL (R2/S3/Datadog). See LIVE-09 runbook below.   |
+| `logpush_enabled`          | no       | `false`            | Toggle Logpush. Requires a paid Workers plan + a real destination.         |
+| `waf_blocked_asns`         | no       | `[]`               | Offender ASNs to managed-challenge. Source from CF analytics; tfvars-only. |
+| `waf_blocked_countries`    | no       | `["KP","IR","SY"]` | ISO-3166-1 alpha-2 country codes to managed-challenge.                     |
+| `alert_mechanisms`         | no       | empty lists        | Notification destination IDs for the SLO burn-rate alerts (`alerts.tf`).   |
+| `alerts_enabled`           | no       | `false`            | Enable SLO burn-rate notification policies. Requires `alert_mechanisms`.   |
 
 ## API token scopes
 
