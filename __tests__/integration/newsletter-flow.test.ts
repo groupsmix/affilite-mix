@@ -13,11 +13,11 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { shouldRunSupabaseIntegration } from "./helpers/should-run";
 
 describe.skipIf(!shouldRunSupabaseIntegration)("Newsletter Flow Integration", () => {
-  const sb = getServiceClient();
+  const sb = getPrivilegedSupabaseClient();
   let testSiteId: string;
   let testEmail: string;
 
