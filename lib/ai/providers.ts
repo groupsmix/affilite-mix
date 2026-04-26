@@ -7,6 +7,7 @@
  */
 
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { assembleSystemPrompt, sanitizePrompt } from "./prompt-sanitization";
 
 export interface AIProvider {
   name: string;
@@ -253,11 +254,21 @@ const ALL_PROVIDERS: AIProvider[] = [
 /**
  * Try each provider in order until one succeeds.
  * Throws if all providers fail.
+ *
+ * Prompt-injection guard (LIVE-18): both the user prompt and system
+ * prompt are passed through `sanitizePrompt` / `assembleSystemPrompt`
+ * BEFORE we hit the provider fallback loop. This ensures the same
+ * length cap, control-token strip, and hardening preamble are
+ * applied to every provider regardless of which one wins the chain.
+ * See `lib/ai/prompt-sanitization.ts`.
  */
 export async function generateWithFallback(
   prompt: string,
   systemPrompt?: string,
 ): Promise<{ text: string; provider: string; model: string }> {
+  const safePrompt = sanitizePrompt(prompt);
+  const safeSystemPrompt = assembleSystemPrompt(systemPrompt);
+
   const errors: string[] = [];
 
   for (const provider of ALL_PROVIDERS) {
@@ -267,7 +278,7 @@ export async function generateWithFallback(
     }
 
     try {
-      const text = await provider.generate(prompt, systemPrompt);
+      const text = await provider.generate(safePrompt, safeSystemPrompt);
       return { text, provider: provider.name, model: provider.model };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
