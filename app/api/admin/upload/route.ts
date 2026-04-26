@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0) {
+  if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || !Number.isInteger(fileSize) || fileSize <= 0) {
     return NextResponse.json({ error: "fileSize must be a positive integer" }, { status: 400 });
   }
   if (fileSize > R2_MAX_UPLOAD_BYTES) {
