@@ -5,6 +5,7 @@ import { timingSafeCompare } from "@/lib/cron-auth";
 import { getTenantClient } from "@/lib/supabase-server";
 import { CONTENT_TAGS, siteTag, type ContentTag } from "@/lib/cache-tags";
 import { captureException } from "@/lib/sentry";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/revalidate — On-demand cache revalidation webhook.
@@ -40,6 +41,26 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
   if (!bearer || !timingSafeCompare(encoder.encode(bearer), encoder.encode(expected))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // F-005: rate-limit cache invalidation per-token. The endpoint is
+  // already INTERNAL_API_TOKEN-gated, but a leaked token could be
+  // weaponised into a cache-invalidation flood that hammers the
+  // origin DB on every revalidation. Cap to 30 calls / minute.
+  const rl = await checkRateLimit("revalidate:internal-token", {
+    maxRequests: 30,
+    windowMs: 60_000,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded", retryAfterMs: rl.retryAfterMs },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)),
+        },
+      },
+    );
   }
 
   let kinds: ContentTag[] = [...CONTENT_TAGS];
@@ -89,6 +110,21 @@ export async function POST(request: NextRequest) {
       revalidated.push(tag);
     }
   }
+
+  // F-005: structured audit log of every cache-purge call. We log to
+  // stdout so the Tail Worker (when LOG_SHIPPER_ENABLED=true) ships the
+  // event to durable storage. Sentry breadcrumbs would not retain
+  // enough volume for cache-purge auditing.
+  console.log(
+    JSON.stringify({
+      event: "cache.revalidate",
+      kinds,
+      site_id: siteId,
+      site_count: siteIds.length,
+      tag_count: revalidated.length,
+      timestamp: new Date().toISOString(),
+    }),
+  );
 
   return NextResponse.json({
     ok: true,

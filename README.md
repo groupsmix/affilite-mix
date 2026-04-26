@@ -269,7 +269,16 @@ Contributions are welcome for internal collaborators.
 
 ## License
 
-Private -- all rights reserved. See `LICENSE`.
+This is proprietary, all-rights-reserved software. See [`LICENSE`](./LICENSE)
+for the full grant — narrowly-scoped permissions are given for reading the
+source for evaluation, security research with prior consent, and contributing
+through pull requests; every other use requires a separate written agreement.
+
+Note for reviewers: GitHub repository visibility is a separate setting from
+the source license. If this repo is currently visible publicly on github.com
+that is a deliberate publication choice by the maintainers; it does NOT
+imply an open-source grant. The LICENSE file is the authoritative statement
+of usage rights regardless of repository visibility.
 
 ## Bundle Size Limits
 

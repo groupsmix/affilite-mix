@@ -1,21 +1,40 @@
-MIT License
+Proprietary — All Rights Reserved
+Copyright (c) 2025 Erosqa / groupsmix contributors
 
-Copyright (c) 2019 Zachary Rice
+This source repository is published in read-only form for the
+convenience of the project's contributors, deployment automation,
+and authorised reviewers. It is NOT open-source software.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+No license — express or implied — is granted to use, copy, modify,
+merge, publish, distribute, sublicense, or sell copies of this
+software or any portion of it. All rights are expressly reserved
+by the copyright holders.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Notwithstanding the above, the following narrowly-scoped permissions
+are granted to anyone who has lawfully obtained access to this
+repository:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  1. Reading the source code for the purpose of evaluating the
+     project, performing security research with prior written
+     consent, or contributing changes back through a pull request
+     to the canonical repository.
+  2. Running the project locally, in a personal development
+     environment, exclusively for the purposes described in (1).
+
+Any other use — including but not limited to running the project
+in production, redistributing the source or binaries, hosting a
+fork as a service, or training machine-learning models on the
+contents of this repository — requires a separate written
+agreement with the copyright holders.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For commercial licensing enquiries, contact the project owner
+listed in `package.json`.

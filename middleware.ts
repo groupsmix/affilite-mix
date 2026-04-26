@@ -7,6 +7,7 @@ import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
 import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
 import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
+import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -53,9 +54,16 @@ export async function middleware(request: NextRequest) {
   // ── CORS preflight (OPTIONS) ───────────────────────────
   // Respond to preflight requests early with the correct allow-list.
   // Only allow origins that match known tenant domains — never wildcard.
+  // F-008: at preflight time we have not yet run the DB site lookup,
+  // so we trust the request hostname only if it appears in static
+  // `allSites` config; otherwise the allow-list falls back to the
+  // static set alone. Custom DB-registered domains will resolve
+  // their preflight from the static set or the cached site row that
+  // was minted during the previous request.
   if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const requestOrigin = request.headers.get("origin") ?? "";
-    const allowedOrigins = getAllowedOrigins(hostname);
+    const isStaticConfigured = Boolean(getSiteByDomain(hostname));
+    const allowedOrigins = getAllowedOrigins(isStaticConfigured ? hostname : undefined);
     const matchedOrigin =
       requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";
 
@@ -99,14 +107,34 @@ export async function middleware(request: NextRequest) {
   // 2. For unknown domains (dashboard-managed custom domains), do direct DB lookup.
   //    Previous implementation used a self-fetch to /api/internal/resolve-site
   //    which added latency and coupling on the hot path.
+  //
+  //    F-007: bot floods sending random Host: headers would force a
+  //    Supabase lookup for every unknown hostname. We negative-cache
+  //    "no such site" responses for 5 minutes so repeated hits land
+  //    entirely at the edge after the first DB miss.
   if (!siteId && !isLocalhostDev) {
     try {
       const cacheKey = `site-domain:${hostname}`;
-      let cachedRow = null;
+      const negativeCacheKey = `site-domain-miss:${hostname}`;
+      let cachedRow: { id?: string; slug?: string; is_active?: boolean } | null = null;
+      let isNegativeCached = false;
       try {
         const kv = (process.env as any).APP_CACHE_KV as any;
-        if (kv) cachedRow = await kv.get(cacheKey, "json");
+        if (kv) {
+          // Check negative cache first — short-circuits the DB lookup
+          // entirely for hostnames we've already seen as unknown.
+          const negative = await kv.get(negativeCacheKey);
+          if (negative === "1") {
+            isNegativeCached = true;
+          } else {
+            cachedRow = await kv.get(cacheKey, "json");
+          }
+        }
       } catch (e) {}
+
+      if (isNegativeCached) {
+        return nicheNotFoundResponse(request);
+      }
 
       const row = cachedRow || (await getSiteRowByDomain(hostname));
       if (row && !cachedRow) {
@@ -119,6 +147,15 @@ export async function middleware(request: NextRequest) {
         siteId = row.slug;
       } else if (row && !row.is_active) {
         return nicheNotFoundResponse(request);
+      } else if (!row) {
+        // Negative-cache the unknown hostname for 5 minutes so a flood
+        // of bot traffic with random Host headers does not hammer the
+        // DB. 5 minutes is short enough that legitimate domain
+        // onboarding still propagates promptly.
+        try {
+          const kv = (process.env as any).APP_CACHE_KV as any;
+          if (kv) await kv.put(negativeCacheKey, "1", { expirationTtl: 300 });
+        } catch (e) {}
       }
     } catch (err) {
       // F-025: Log structured error with trace id and emit Sentry instead of silent failure
@@ -160,41 +197,13 @@ export async function middleware(request: NextRequest) {
 
     // 2. Always validate the CSRF double-submit cookie token
     //    (regardless of whether Origin is present)
-    //    Auth endpoints exempt: csrf (token issuer), refresh (background
-    //    keep-alive — sameSite=Strict on the auth cookie covers session
-    //    fixation here).
-    //    NOTE: logout is NOT exempt — CSRF protection prevents forced-logout attacks.
-    //    NOTE: login is NOT exempt (F-10) — login CSRF / session fixation
-    //    via attacker-controlled credentials is prevented by requiring a
-    //    one-shot CSRF token issued via /api/auth/csrf. The admin login
-    //    page already uses fetchWithCsrf() to obtain and send the token.
-    const csrfExemptPaths = new Set([
-      "/api/auth/csrf",
-      "/api/auth/refresh",
-      "/api/membership/webhook",
-      "/api/revalidate",
-      // Public endpoints using sendBeacon() which cannot send custom headers
-      "/api/track/click",
-      "/api/vitals",
-      "/api/track/impression",
-      // Browser-automated CSP violation reports — cannot carry CSRF tokens
-      "/api/csp-report",
-      // F-028: Cloudflare Queue consumer for click tracking — authenticated
-      // via Bearer INTERNAL_API_TOKEN from the Worker, not via CSRF cookies.
-      "/api/queue/clicks",
-      // Unsubscribe: the per-subscriber unsubscribe_token is the auth factor
-      // (GET uses query param, POST requires it in the body), so CSRF
-      // double-submit is not needed — the token already proves intent.
-      "/api/newsletter/unsubscribe",
-    ]);
-
-    // F-043 / P0 #2: Cron endpoints are authenticated via Bearer per-trigger
-    // secret (with CRON_SECRET fallback), so we exempt the entire cron path
-    // prefix instead of hard-coding each route. The prefix is sourced from
-    // the central cron registry (lib/cron-registry.ts) so adding a new cron
-    // job under /api/cron/ automatically inherits the exemption — and the
-    // registry test asserts every registered cron job sets csrfExempt: true.
-    const isExempt = csrfExemptPaths.has(pathname) || pathname.startsWith(CRON_PATH_PREFIX);
+    //
+    //    The exempt set is defined in lib/security/csrf-exempt-registry.ts
+    //    so every entry is paired with a documented compensating-control
+    //    list and a security CODEOWNER. Cron paths are still exempted
+    //    via the prefix below — every cron route's per-trigger Bearer
+    //    secret comes from lib/cron-registry.ts.
+    const isExempt = csrfExemptPaths().has(pathname) || pathname.startsWith(CRON_PATH_PREFIX);
 
     if (!isExempt) {
       const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
@@ -265,7 +274,24 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-function getAllowedOrigins(requestHostname?: string): string[] {
+/**
+ * Build the CORS allow-list for cross-origin API requests.
+ *
+ * F-008: previously we appended `https://${requestHostname}` to the
+ * allow-list to support custom domains resolved via DB. That meant any
+ * hostname that happened to route to the Worker was implicitly trusted
+ * for the duration of the request — runtime host trust rather than
+ * verifiable persisted trust.
+ *
+ * Now we trust only:
+ *   - Domains and aliases listed in static `allSites` config.
+ *   - `verifiedHostname` — passed by the caller ONLY after the DB
+ *     site-row lookup confirmed the hostname is registered on an
+ *     active row in `sites`. The middleware passes this when CORS is
+ *     evaluated *after* successful resolution.
+ *   - localhost ports in development.
+ */
+function getAllowedOrigins(verifiedHostname?: string): string[] {
   const origins: string[] = [];
   for (const site of allSites) {
     origins.push(`https://${site.domain}`);
@@ -275,11 +301,9 @@ function getAllowedOrigins(requestHostname?: string): string[] {
       }
     }
   }
-  // Allow the current request hostname (covers wildcard subdomains resolved via DB)
-  if (requestHostname) {
-    origins.push(`https://${requestHostname}`);
+  if (verifiedHostname) {
+    origins.push(`https://${verifiedHostname}`);
   }
-  // Allow localhost for dev (common ports)
   if (process.env.NODE_ENV === "development") {
     origins.push("http://localhost:3000");
     origins.push("http://localhost:3001");
