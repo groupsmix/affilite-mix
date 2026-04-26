@@ -112,6 +112,7 @@ jobs:
           _NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           _NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           _SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          _SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
           _CRON_SECRET: ${{ secrets.CRON_SECRET }}
           _JWT_SECRET: ${{ secrets.JWT_SECRET }}
           _SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
@@ -127,6 +128,7 @@ jobs:
             _NEXT_PUBLIC_SUPABASE_URL
             _NEXT_PUBLIC_SUPABASE_ANON_KEY
             _SUPABASE_SERVICE_ROLE_KEY
+            _SUPABASE_JWT_SECRET
             _CRON_SECRET
             _JWT_SECRET
             _SENTRY_DSN
@@ -141,6 +143,7 @@ jobs:
             [_NEXT_PUBLIC_SUPABASE_URL]=NEXT_PUBLIC_SUPABASE_URL
             [_NEXT_PUBLIC_SUPABASE_ANON_KEY]=NEXT_PUBLIC_SUPABASE_ANON_KEY
             [_SUPABASE_SERVICE_ROLE_KEY]=SUPABASE_SERVICE_ROLE_KEY
+            [_SUPABASE_JWT_SECRET]=SUPABASE_JWT_SECRET
             [_CRON_SECRET]=CRON_SECRET
             [_JWT_SECRET]=JWT_SECRET
             [_SENTRY_DSN]=SENTRY_DSN
@@ -532,24 +535,27 @@ jobs:
       - name: Build OpenNext bundle
         run: npx @opennextjs/cloudflare build
 
-      # ── Deploy to Cloudflare ──────────────────────────────────────────
-      - name: Deploy to Cloudflare
-        run: npx opennextjs-cloudflare deploy
-
-      # ── Set Worker secrets ────────────────────────────────────────────
+      # ── Set Worker secrets BEFORE deploy (audit R-004) ────────────────
+      #
+      # Cloudflare evaluates secrets at request time, so a deploy that
+      # ships before the secret rotation completes will serve traffic
+      # against stale or missing secrets — a partial outage masquerading
+      # as a successful deploy. Synchronise secrets first; the deploy
+      # below either picks them up immediately or never runs.
       - name: Set Worker secrets
         run: |
           set -euo pipefail
 
           # Validate that all required secrets are present before touching the worker.
           MISSING=""
-          [ -z "$_CRON_SECRET" ]      && MISSING="$MISSING CRON_SECRET"
-          [ -z "$_JWT_SECRET" ]       && MISSING="$MISSING JWT_SECRET"
-          [ -z "$_SB_SERVICE_KEY" ]   && MISSING="$MISSING SUPABASE_SERVICE_ROLE_KEY"
-          [ -z "$_SB_URL" ]           && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_URL"
-          [ -z "$_SB_ANON_KEY" ]      && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_ANON_KEY"
-          [ -z "$_CRON_HOST" ]        && MISSING="$MISSING CRON_HOST"
-          [ -z "$_INTERNAL_TOKEN" ]   && MISSING="$MISSING INTERNAL_API_TOKEN"
+          [ -z "$_CRON_SECRET" ]        && MISSING="$MISSING CRON_SECRET"
+          [ -z "$_JWT_SECRET" ]         && MISSING="$MISSING JWT_SECRET"
+          [ -z "$_SB_SERVICE_KEY" ]     && MISSING="$MISSING SUPABASE_SERVICE_ROLE_KEY"
+          [ -z "$_SB_JWT_SECRET" ]      && MISSING="$MISSING SUPABASE_JWT_SECRET"
+          [ -z "$_SB_URL" ]             && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_URL"
+          [ -z "$_SB_ANON_KEY" ]        && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          [ -z "$_CRON_HOST" ]          && MISSING="$MISSING CRON_HOST"
+          [ -z "$_INTERNAL_TOKEN" ]     && MISSING="$MISSING INTERNAL_API_TOKEN"
 
           if [ -n "$MISSING" ]; then
             echo "::error::Required secrets are missing:$MISSING"
@@ -557,13 +563,14 @@ jobs:
           fi
 
           echo "Setting required Worker secrets..."
-          echo "$_CRON_SECRET"    | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SECRET --name affilite-mix > /dev/null 2>&1
-          echo "$_JWT_SECRET"     | npx --yes wrangler@${WRANGLER_VERSION} secret put JWT_SECRET --name affilite-mix > /dev/null 2>&1
-          echo "$_SB_SERVICE_KEY" | npx --yes wrangler@${WRANGLER_VERSION} secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix > /dev/null 2>&1
-          echo "$_SB_URL"         | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix > /dev/null 2>&1
-          echo "$_SB_ANON_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix > /dev/null 2>&1
-          echo "$_CRON_HOST"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST --name affilite-mix > /dev/null 2>&1
-          echo "$_INTERNAL_TOKEN" | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_SECRET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_JWT_SECRET"         | npx --yes wrangler@${WRANGLER_VERSION} secret put JWT_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_SB_SERVICE_KEY"     | npx --yes wrangler@${WRANGLER_VERSION} secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix > /dev/null 2>&1
+          echo "$_SB_JWT_SECRET"      | npx --yes wrangler@${WRANGLER_VERSION} secret put SUPABASE_JWT_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_SB_URL"             | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix > /dev/null 2>&1
+          echo "$_SB_ANON_KEY"        | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_HOST"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST --name affilite-mix > /dev/null 2>&1
+          echo "$_INTERNAL_TOKEN"     | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN --name affilite-mix > /dev/null 2>&1
 
           echo "Setting optional Worker secrets (skipped if not configured)..."
           [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix > /dev/null 2>&1       || true
@@ -596,6 +603,7 @@ jobs:
           _CRON_SECRET: ${{ secrets.CRON_SECRET }}
           _JWT_SECRET: ${{ secrets.JWT_SECRET }}
           _SB_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          _SB_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
           _SB_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           _SB_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           _RESEND_KEY: ${{ secrets.RESEND_API_KEY }}
@@ -618,6 +626,15 @@ jobs:
           _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           _R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
           _R2_URL: ${{ secrets.R2_PUBLIC_URL }}
+
+      # ── Deploy to Cloudflare (after secrets are synced) ────────────────
+      #
+      # Audit R-004: this step runs AFTER `Set Worker secrets` so traffic
+      # never hits the new Worker bundle while the secret store is still
+      # mid-rotation. The post-deploy health-check stage below verifies
+      # the live Worker reports `status=ok` for every required secret.
+      - name: Deploy to Cloudflare
+        run: npx opennextjs-cloudflare deploy
 
   # ═══════════════════════════════════════════════════════════════════
   # STAGE 4: Health check + verify deployment
