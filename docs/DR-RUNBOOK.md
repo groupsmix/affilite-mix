@@ -252,7 +252,7 @@ Prevent a specific cron from executing by returning early. This does not require
 **Option A — Revoke the per-trigger secret:**
 
 ```bash
-# Remove the per-trigger secret (the route will 401 on next invocation)
+# Remove the per-trigger secret (the cron will still fire via the CRON_SECRET fallback — see note below)
 wrangler secret delete CRON_PUBLISH_SECRET
 ```
 
