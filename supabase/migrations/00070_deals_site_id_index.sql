@@ -1,0 +1,59 @@
+-- ═══════════════════════════════════════════════════════
+-- Migration 00070: Index site_id on `deals` for RLS-filtered reads
+-- (follow-up to 00069, closes LIVE-15)
+-- ═══════════════════════════════════════════════════════
+--
+-- Live-audit finding LIVE-15 ("22 tables missing site_id index despite
+-- being tenant-scoped") listed a set of 22 tables. Most entries on that
+-- list are in one of these categories and require no new index:
+--
+--   1. Covered by 00069_site_id_indexes_for_rls.sql — comments,
+--      drip_campaigns, price_alerts, quiz_submissions, quizzes,
+--      experiments.
+--   2. Already have a site_id-leading non-partial btree — affiliate_clicks
+--      (idx_clicks_site), ai_drafts (idx_ai_drafts_site_status),
+--      audit_log (idx_audit_log_site), commissions (idx_commissions_site),
+--      memberships (idx_memberships_site_status), price_snapshots
+--      (idx_price_snapshots_site).
+--   3. Do not have a `site_id` column and are therefore not tenant-scoped
+--      at the row level — click_failures, stripe_events, integration_providers,
+--      permissions, niche_templates, content_products, drip_enrollments,
+--      experiment_assignments, experiment_events, product_epc_stats,
+--      product_affiliate_links. These tables are either global config
+--      lookups protected by deny-by-default RLS (00067) or inherit
+--      isolation transitively via a parent FK (e.g. experiment_id ->
+--      experiments, product_id -> products). Their RLS policies do not
+--      reference `site_id`, so indexing `site_id` on them is a no-op
+--      (and in fact impossible — there is no such column).
+--
+-- That leaves exactly one table with a `site_id` column and no
+-- non-partial site_id-leading index:
+--
+--   deals — has `idx_deals_site_active (site_id, is_active, starts_at
+--   DESC) WHERE is_active = true`. The `WHERE is_active = true` clause
+--   makes this a partial index that cannot serve the generic RLS
+--   equality predicate `site_id = X` (e.g. admin listings that include
+--   inactive deals, or any query path that does not carry an explicit
+--   `is_active = true` filter). Authenticated reads on the table
+--   therefore degrade into a sequential scan once deals grows past a
+--   few thousand rows.
+--
+-- Fix: add a narrow non-partial `(site_id)` btree. This mirrors the
+-- approach taken in 00069 — cover every RLS-filtered query cheaply
+-- without speculatively widening the index for query shapes we do not
+-- yet have EXPLAIN evidence for. The existing partial index is
+-- preserved; it still wins for hot active-deal listings.
+--
+-- Idempotent: CREATE INDEX IF NOT EXISTS means re-running the
+-- migration on a database where the index was created out-of-band is a
+-- no-op.
+--
+-- Rollback: see 00070_deals_site_id_index-down.sql.
+-- ═══════════════════════════════════════════════════════
+
+-- ── deals ──────────────────────────────────────────────────────────────
+-- Existing `idx_deals_site_active` is partial (WHERE is_active = true)
+-- and cannot serve a bare site_id equality from the tenant-isolation
+-- RLS policy or from admin-side listings that include inactive deals.
+CREATE INDEX IF NOT EXISTS idx_deals_site
+  ON deals (site_id);
