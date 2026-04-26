@@ -11,6 +11,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const isAr = site.language === "ar";
   return {
     title: `${isAr ? "تأكيد الاشتراك" : "Confirm Subscription"} — ${site.name}`,
+    description: isAr
+      ? `تأكيد اشتراكك في النشرة البريدية لـ ${site.name}.`
+      : `Confirm your newsletter subscription to ${site.name}.`,
+    alternates: { canonical: `https://${site.domain}/newsletter/confirm` },
+    robots: { index: false, follow: false },
   };
 }
 

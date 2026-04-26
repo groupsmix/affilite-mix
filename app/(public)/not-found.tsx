@@ -1,5 +1,11 @@
 import { getCurrentSite } from "@/lib/site-context";
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Page not found",
+  robots: { index: false, follow: false },
+};
 
 export default async function PublicNotFound() {
   let isArabic = false;

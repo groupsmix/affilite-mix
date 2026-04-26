@@ -46,11 +46,29 @@ export async function generateMetadata({ params }: ComparisonPageProps): Promise
   if (!parsed) return { title: "Comparison" };
 
   const site = await getCurrentSite();
-  const title = `${parsed.slugA.replace(/-/g, " ")} vs ${parsed.slugB.replace(/-/g, " ")} — ${site.name}`;
+  const nameA = parsed.slugA.replace(/-/g, " ");
+  const nameB = parsed.slugB.replace(/-/g, " ");
+  const title = `${nameA} vs ${nameB}`;
+  const description = `Compare ${nameA} and ${nameB} side by side. Specs, prices, pros & cons on ${site.name}.`;
+  const url = `https://${site.domain}/p/${comparison}`;
 
   return {
-    title,
-    description: `Compare ${parsed.slugA.replace(/-/g, " ")} and ${parsed.slugB.replace(/-/g, " ")} side by side. Specs, prices, pros & cons.`,
+    title: `${title} — ${site.name}`,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${title} — ${site.name}`,
+      description,
+      url,
+      siteName: site.name,
+      locale: site.locale,
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} — ${site.name}`,
+      description,
+    },
   };
 }
 
