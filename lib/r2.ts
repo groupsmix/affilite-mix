@@ -10,8 +10,24 @@
  * covers the presigned PUT flow we actually use.
  *
  * Required env vars (all server-only):
- *   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
- *   R2_BUCKET_NAME, R2_PUBLIC_URL
+ *   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL
+ *
+ * Optional env vars (recommended for production):
+ *   R2_PRIVATE_BUCKET — staging bucket for un-validated uploads. Defaults
+ *                       to R2_BUCKET_NAME for backwards compatibility.
+ *   R2_PUBLIC_BUCKET  — bucket served at R2_PUBLIC_URL. Defaults to
+ *                       R2_BUCKET_NAME for backwards compatibility.
+ *
+ * Security notes (audit items U-1, U-2, U-5, U-8):
+ *   • Object keys are derived server-side from a UUID + extension drawn
+ *     from the validated Content-Type. Client-supplied filenames are
+ *     never echoed into the key.
+ *   • Presigned PUTs sign the Content-Length header so R2 rejects
+ *     uploads whose body size deviates from the server-validated cap.
+ *   • Presigned PUTs sign x-amz-meta-original-name so the client cannot
+ *     rebind the upload to a different display name after the fact.
+ *   • Magic-byte validation runs against the private staging bucket
+ *     before the object is ever visible at R2_PUBLIC_URL.
  */
 
 // ── Lightweight AWS Signature V4 presigner ────────────────────────────
@@ -59,8 +75,34 @@ interface PresignParams {
   secretAccessKey: string;
   region: string;
   contentType: string;
+  /**
+   * Maximum allowed body size in bytes. When supplied we sign
+   * `content-length` so R2 rejects bodies that don't match. Browsers and
+   * fetch clients always populate `Content-Length` for in-memory blobs,
+   * so this is durable enforcement rather than advisory.
+   */
   contentLength?: number;
+  /** Server-derived original-name fingerprint, signed via x-amz-meta. */
+  originalName?: string;
   expiresIn: number;
+  method?: "PUT";
+}
+
+function encodeRfc3986(value: string): string {
+  return encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
+function encodeS3Key(key: string): string {
+  // S3 keys are signed path components. Each segment must be RFC3986
+  // encoded but the "/" separators must remain literal so the canonical
+  // request matches what the client sends.
+  return key
+    .split("/")
+    .map((segment) => encodeRfc3986(segment))
+    .join("/");
 }
 
 async function presignPutUrl(params: PresignParams): Promise<string> {
@@ -69,26 +111,38 @@ async function presignPutUrl(params: PresignParams): Promise<string> {
   const amzDate = `${dateStamp}T${now.toISOString().slice(11, 19).replace(/:/g, "")}Z`;
 
   const host = new URL(params.endpoint).host;
-  const path = `/${params.bucket}/${params.key}`;
+  const path = `/${params.bucket}/${encodeS3Key(params.key)}`;
   const scope = `${dateStamp}/${params.region}/s3/aws4_request`;
+
+  const headersToSign: Array<[string, string]> = [
+    ["content-type", params.contentType],
+    ["host", host],
+  ];
+  if (typeof params.contentLength === "number" && params.contentLength > 0) {
+    headersToSign.push(["content-length", String(params.contentLength)]);
+  }
+  if (params.originalName) {
+    headersToSign.push(["x-amz-meta-original-name", params.originalName]);
+  }
+  headersToSign.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const signedHeaders = headersToSign.map(([name]) => name).join(";");
+  const canonicalHeaders =
+    headersToSign.map(([name, value]) => `${name}:${value}`).join("\n") + "\n";
 
   const queryParams = new URLSearchParams({
     "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
     "X-Amz-Credential": `${params.accessKeyId}/${scope}`,
     "X-Amz-Date": amzDate,
     "X-Amz-Expires": String(params.expiresIn),
-    "X-Amz-SignedHeaders": "content-type;host",
+    "X-Amz-SignedHeaders": signedHeaders,
   });
   // Sort query parameters for canonical request
   queryParams.sort();
   const canonicalQueryString = queryParams.toString();
 
-  const canonicalHeaders = `content-type:${params.contentType}\nhost:${host}\n`;
-  const signedHeaders = "content-type;host";
-
   // UNSIGNED-PAYLOAD for presigned URLs (client provides body at upload time)
   const canonicalRequest = [
-    "PUT",
+    params.method ?? "PUT",
     path,
     canonicalQueryString,
     canonicalHeaders,
@@ -106,46 +160,172 @@ async function presignPutUrl(params: PresignParams): Promise<string> {
   return `${params.endpoint}${path}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
 }
 
-// ── Public API ────────────────────────────────────────────────────────
+// ── Bucket / extension policy ─────────────────────────────────────────
 
-/** Generate a presigned upload URL for R2. Returns { uploadUrl, publicUrl }. */
-export async function getUploadUrl(
-  fileName: string,
-  contentType: string,
-  contentLength?: number,
-): Promise<{ uploadUrl: string; publicUrl: string }> {
+/**
+ * Allowed Content-Types and their canonical extension. The extension is
+ * what we put into the server-derived key; client-supplied filenames are
+ * NOT honoured.
+ */
+const CONTENT_TYPE_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/avif": "avif",
+};
+
+/** Maximum bytes admins are allowed to upload via the presign route. */
+export const R2_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+/** Maximum length of a sanitized "original name" we record in metadata. */
+const MAX_ORIGINAL_NAME = 128;
+
+const SAFE_FILENAME_CHARS = /^[A-Za-z0-9._\- ]+$/;
+
+/**
+ * Sanitize the original filename for storage in object metadata. We
+ * never use this in the key itself — the key is generated entirely
+ * server-side — but it's useful for the audit log and for the admin UI.
+ * Returns null if the value is unusable.
+ */
+export function sanitizeOriginalName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > MAX_ORIGINAL_NAME) return null;
+  if (!SAFE_FILENAME_CHARS.test(trimmed)) return null;
+  return trimmed;
+}
+
+interface BucketEnv {
+  accountId: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  privateBucket: string;
+  publicBucket: string;
+  publicUrlBase: string;
+}
+
+function readBucketEnv(): BucketEnv {
   const accountId = process.env.R2_ACCOUNT_ID;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const bucket = process.env.R2_BUCKET_NAME;
-  const publicBase = process.env.R2_PUBLIC_URL;
+  const fallbackBucket = process.env.R2_BUCKET_NAME;
+  const privateBucket = process.env.R2_PRIVATE_BUCKET ?? fallbackBucket;
+  const publicBucket = process.env.R2_PUBLIC_BUCKET ?? fallbackBucket;
+  const publicUrlBase = process.env.R2_PUBLIC_URL;
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     throw new Error(
       "R2 credentials not configured. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.",
     );
   }
-  if (!bucket || !publicBase) {
-    throw new Error("R2_BUCKET_NAME and R2_PUBLIC_URL must be set.");
+  if (!privateBucket || !publicBucket || !publicUrlBase) {
+    throw new Error(
+      "R2 buckets not configured. Set R2_BUCKET_NAME (or R2_PRIVATE_BUCKET + R2_PUBLIC_BUCKET) and R2_PUBLIC_URL.",
+    );
+  }
+  return { accountId, accessKeyId, secretAccessKey, privateBucket, publicBucket, publicUrlBase };
+}
+
+/**
+ * Datestamp used to shard upload keys (uploads/YYYY/MM/DD/<uuid>.<ext>).
+ * Sharding keeps R2 listing operations efficient and lets a janitor job
+ * scope itself to a single day's prefix.
+ */
+function todayPrefix(now: Date = new Date()): string {
+  const yyyy = now.getUTCFullYear().toString();
+  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(now.getUTCDate()).padStart(2, "0");
+  return `uploads/${yyyy}/${mm}/${dd}`;
+}
+
+export interface PresignedUploadResult {
+  /** Presigned PUT URL the browser uploads directly to. */
+  uploadUrl: string;
+  /** Server-derived staging key (private bucket). */
+  stagingKey: string;
+  /** Bucket the uploadUrl writes to. */
+  stagingBucket: string;
+  /**
+   * URL the admin UI shows once the object has been promoted to the
+   * public bucket. Only valid AFTER /api/admin/upload/finalize succeeds.
+   */
+  publicUrl: string;
+  /** Public bucket key. */
+  publicKey: string;
+  /** Required headers the client must send on the upload. */
+  requiredHeaders: Record<string, string>;
+  /** Maximum body size (bytes) the presign URL allows. */
+  maxBytes: number;
+}
+
+/**
+ * Generate a presigned upload URL for R2.
+ *
+ * The URL signs:
+ *   • Content-Type
+ *   • Content-Length (when provided)
+ *   • host
+ *   • x-amz-meta-original-name (when provided)
+ *
+ * The client MUST send those exact header values, otherwise R2 will
+ * reject the PUT with a 403 SignatureDoesNotMatch.
+ */
+export async function getUploadUrl(
+  contentType: string,
+  contentLength: number,
+  options: { originalName?: string | null } = {},
+): Promise<PresignedUploadResult> {
+  const env = readBucketEnv();
+
+  const ext = CONTENT_TYPE_TO_EXT[contentType];
+  if (!ext) {
+    throw new Error(`Unsupported content type: ${contentType}`);
+  }
+  if (!Number.isFinite(contentLength) || contentLength <= 0) {
+    throw new Error("contentLength must be a positive number");
+  }
+  if (contentLength > R2_MAX_UPLOAD_BYTES) {
+    throw new Error(`Upload exceeds the ${R2_MAX_UPLOAD_BYTES / (1024 * 1024)}MB limit`);
   }
 
-  const key = `uploads/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${fileName}`;
-  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;
+  const publicKey = stagingKey; // Promotion preserves the key path.
+  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
+
+  const originalName = sanitizeOriginalName(options.originalName);
 
   const uploadUrl = await presignPutUrl({
     endpoint,
-    bucket,
-    key,
-    accessKeyId,
-    secretAccessKey,
+    bucket: env.privateBucket,
+    key: stagingKey,
+    accessKeyId: env.accessKeyId,
+    secretAccessKey: env.secretAccessKey,
     region: "auto",
     contentType,
     contentLength,
+    originalName: originalName ?? undefined,
     expiresIn: 300,
   });
 
-  const publicUrl = `${publicBase}/${key}`;
-  return { uploadUrl, publicUrl };
+  const requiredHeaders: Record<string, string> = {
+    "Content-Type": contentType,
+    "Content-Length": String(contentLength),
+  };
+  if (originalName) {
+    requiredHeaders["x-amz-meta-original-name"] = originalName;
+  }
+
+  return {
+    uploadUrl,
+    stagingKey,
+    stagingBucket: env.privateBucket,
+    publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${publicKey}`,
+    publicKey,
+    requiredHeaders,
+    maxBytes: R2_MAX_UPLOAD_BYTES,
+  };
 }
 
 /** Check whether R2 credentials are configured */
@@ -154,7 +334,177 @@ export function isR2Configured(): boolean {
     process.env.R2_ACCOUNT_ID &&
     process.env.R2_ACCESS_KEY_ID &&
     process.env.R2_SECRET_ACCESS_KEY &&
-    process.env.R2_BUCKET_NAME &&
+    (process.env.R2_BUCKET_NAME ||
+      (process.env.R2_PRIVATE_BUCKET && process.env.R2_PUBLIC_BUCKET)) &&
     process.env.R2_PUBLIC_URL
   );
+}
+
+// ── Internal S3 helpers used by the finalize / janitor flows ──────────
+
+interface SignedRequestParams {
+  method: "GET" | "DELETE" | "PUT" | "HEAD";
+  endpoint: string;
+  bucket: string;
+  key: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  region: string;
+  /** Optional copy-source for PUT (server-side R2 copy). */
+  copySource?: string;
+}
+
+/**
+ * Build a fully signed S3 request (path-style). Used for HEAD / DELETE /
+ * server-side COPY (PUT with x-amz-copy-source) operations triggered by
+ * /api/admin/upload/finalize.
+ */
+async function signRequest(
+  params: SignedRequestParams,
+): Promise<{ url: string; headers: Record<string, string> }> {
+  const now = new Date();
+  const dateStamp = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const amzDate = `${dateStamp}T${now.toISOString().slice(11, 19).replace(/:/g, "")}Z`;
+  const host = new URL(params.endpoint).host;
+  const path = `/${params.bucket}/${encodeS3Key(params.key)}`;
+  const scope = `${dateStamp}/${params.region}/s3/aws4_request`;
+
+  const payloadHashHex = await sha256Hex("");
+  const headers: Array<[string, string]> = [
+    ["host", host],
+    ["x-amz-content-sha256", payloadHashHex],
+    ["x-amz-date", amzDate],
+  ];
+  if (params.copySource) {
+    headers.push(["x-amz-copy-source", params.copySource]);
+  }
+  headers.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const canonicalHeaders = headers.map(([n, v]) => `${n}:${v}`).join("\n") + "\n";
+  const signedHeaders = headers.map(([n]) => n).join(";");
+
+  const canonicalRequest = [
+    params.method,
+    path,
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    payloadHashHex,
+  ].join("\n");
+
+  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, await sha256Hex(canonicalRequest)].join(
+    "\n",
+  );
+  const signingKey = await getSigningKey(params.secretAccessKey, dateStamp, params.region, "s3");
+  const signature = toHex(await hmacSha256(signingKey, stringToSign));
+
+  const out: Record<string, string> = {
+    Host: host,
+    "x-amz-content-sha256": payloadHashHex,
+    "x-amz-date": amzDate,
+    Authorization: `AWS4-HMAC-SHA256 Credential=${params.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+  };
+  if (params.copySource) {
+    out["x-amz-copy-source"] = params.copySource;
+  }
+  return { url: `${params.endpoint}${path}`, headers: out };
+}
+
+/**
+ * GET the first `byteCount` bytes of an object in the private staging
+ * bucket. Used by /api/admin/upload/finalize to magic-byte validate the
+ * upload BEFORE it's published.
+ */
+export async function fetchStagingBytes(stagingKey: string, byteCount = 32): Promise<Uint8Array> {
+  const env = readBucketEnv();
+  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
+  const signed = await signRequest({
+    method: "GET",
+    endpoint,
+    bucket: env.privateBucket,
+    key: stagingKey,
+    accessKeyId: env.accessKeyId,
+    secretAccessKey: env.secretAccessKey,
+    region: "auto",
+  });
+  const res = await fetch(signed.url, {
+    method: "GET",
+    headers: { ...signed.headers, Range: `bytes=0-${byteCount - 1}` },
+  });
+  if (!res.ok && res.status !== 206) {
+    throw new Error(`R2 staging read failed: ${res.status}`);
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/**
+ * Promote a validated staging object into the public bucket via R2's
+ * server-side copy. Returns the canonical public URL.
+ */
+export async function promoteToPublicBucket(
+  stagingKey: string,
+  contentType: string,
+): Promise<{ publicKey: string; publicUrl: string }> {
+  const env = readBucketEnv();
+  if (env.privateBucket === env.publicBucket) {
+    // Same bucket: nothing to copy. The public URL is already correct.
+    return {
+      publicKey: stagingKey,
+      publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${stagingKey}`,
+    };
+  }
+  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
+  const copySource = `/${env.privateBucket}/${encodeS3Key(stagingKey)}`;
+  const signed = await signRequest({
+    method: "PUT",
+    endpoint,
+    bucket: env.publicBucket,
+    key: stagingKey,
+    accessKeyId: env.accessKeyId,
+    secretAccessKey: env.secretAccessKey,
+    region: "auto",
+    copySource,
+  });
+  const res = await fetch(signed.url, {
+    method: "PUT",
+    headers: {
+      ...signed.headers,
+      "Content-Type": contentType,
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`R2 promote failed: ${res.status}`);
+  }
+  // Best-effort cleanup of staging object on success.
+  await deleteFromBucket(env.privateBucket, stagingKey).catch(() => undefined);
+  return {
+    publicKey: stagingKey,
+    publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${stagingKey}`,
+  };
+}
+
+/**
+ * Delete an object from the private staging bucket (used when magic-
+ * byte validation fails so the bad upload doesn't linger).
+ */
+export async function deleteStagingObject(stagingKey: string): Promise<void> {
+  const env = readBucketEnv();
+  await deleteFromBucket(env.privateBucket, stagingKey);
+}
+
+async function deleteFromBucket(bucket: string, key: string): Promise<void> {
+  const env = readBucketEnv();
+  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
+  const signed = await signRequest({
+    method: "DELETE",
+    endpoint,
+    bucket,
+    key,
+    accessKeyId: env.accessKeyId,
+    secretAccessKey: env.secretAccessKey,
+    region: "auto",
+  });
+  const res = await fetch(signed.url, { method: "DELETE", headers: signed.headers });
+  if (!res.ok && res.status !== 204 && res.status !== 404) {
+    throw new Error(`R2 delete failed: ${res.status}`);
+  }
 }

@@ -7,19 +7,23 @@ import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { parsePagination } from "@/lib/pagination";
 
 export async function GET(request: NextRequest) {
   const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
+  const pagination = parsePagination(searchParams);
+  if (pagination instanceof NextResponse) return pagination;
+
   try {
     const products = await listProducts({
       siteId: dbSiteId,
       categoryId: searchParams.get("category_id") ?? undefined,
       status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
-      limit: searchParams.get("limit") ? Number(searchParams.get("limit")) : undefined,
-      offset: searchParams.get("offset") ? Number(searchParams.get("offset")) : undefined,
+      limit: pagination.limit,
+      offset: pagination.offset,
     });
 
     return NextResponse.json(products);
