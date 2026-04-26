@@ -61,6 +61,11 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
     description: "Shared secret for authenticating scheduled cron job requests",
     ownerFile: "lib/cron-auth.ts",
   },
+  {
+    name: "APP_URL",
+    description: "Canonical app URL for constructing absolute URLs (e.g. password reset links)",
+    ownerFile: "app/api/auth/forgot-password/route.ts",
+  },
 ] as const;
 
 /**
