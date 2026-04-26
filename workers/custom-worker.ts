@@ -94,7 +94,16 @@ const worker = {
       "0 * * * *": "/api/cron/expire-deals",
     };
 
-    const path = CRON_ROUTES[controller.cron] ?? "/api/cron/publish";
+    const path = CRON_ROUTES[controller.cron];
+
+    if (!path) {
+      console.error(
+        `[scheduled] Unknown cron schedule "${controller.cron}" -- no matching route. ` +
+          "Add it to CRON_ROUTES in workers/custom-worker.ts.",
+      );
+      return;
+    }
+
     const url = `${cronHost}${path}`;
 
     ctx.waitUntil(
