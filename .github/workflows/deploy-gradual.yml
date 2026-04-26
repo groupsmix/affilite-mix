@@ -35,6 +35,11 @@ on:
         type: number
         default: 10
 
+# Read-only by default. The deploy job opts into `deployments: write`
+# (and any other extra scopes) at the job level.
+permissions:
+  contents: read
+
 env:
   WRANGLER_VERSION: "4.85.0"
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

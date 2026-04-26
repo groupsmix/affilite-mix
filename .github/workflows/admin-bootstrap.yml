@@ -39,6 +39,11 @@ on:
         type: boolean
         default: true
 
+# Default to read-only for the workflow GITHUB_TOKEN. Each job opts into
+# any extra scopes it actually needs (see job-level `permissions:` blocks).
+permissions:
+  contents: read
+
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
