@@ -6,6 +6,7 @@ import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
 import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
+import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -151,11 +152,15 @@ export async function middleware(request: NextRequest) {
       // double-submit is not needed — the token already proves intent.
       "/api/newsletter/unsubscribe",
     ]);
-    
-    // F-043: Cron endpoints are authenticated via Bearer CRON_SECRET, 
-    // so we exempt the entire /api/cron/ prefix instead of hard-coding each route.
-    const isExempt = csrfExemptPaths.has(pathname) || pathname.startsWith("/api/cron/");
-    
+
+    // F-043 / P0 #2: Cron endpoints are authenticated via Bearer per-trigger
+    // secret (with CRON_SECRET fallback), so we exempt the entire cron path
+    // prefix instead of hard-coding each route. The prefix is sourced from
+    // the central cron registry (lib/cron-registry.ts) so adding a new cron
+    // job under /api/cron/ automatically inherits the exemption — and the
+    // registry test asserts every registered cron job sets csrfExempt: true.
+    const isExempt = csrfExemptPaths.has(pathname) || pathname.startsWith(CRON_PATH_PREFIX);
+
     if (!isExempt) {
       const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
       const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
