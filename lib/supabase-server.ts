@@ -5,6 +5,7 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { SignJWT } from "jose";
 import { headers } from "next/headers";
 import { getAdminSession } from "@/lib/auth";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 
 // Environment variables are resolved lazily (inside functions) so that
 // module evaluation during `next build` does not throw when the vars
@@ -36,36 +37,25 @@ function getSupabaseUrl(): string {
  */
 // F-022: Cache clients per-isolate to reduce CPU overhead.
 // These clients do not hold mutable state (persistSession: false).
-let _serviceClient: SupabaseClient<Database> | null = null;
 let _anonClient: SupabaseClient<Database> | null = null;
 
+/**
+ * @deprecated Service-role access has moved to the approved server-only
+ * gateway at `lib/server-only/service-role.ts`. Import
+ * `getPrivilegedSupabaseClient` from there directly. This thin wrapper is
+ * kept only so existing tests and a small number of legacy call sites keep
+ * working; an ESLint `no-restricted-imports` rule prevents new code from
+ * importing it. New code that genuinely needs to bypass RLS must use the
+ * gateway.
+ */
 export function getServiceClient(): SupabaseClient<Database> {
-  if (_serviceClient) return _serviceClient;
-
-  const url = getSupabaseUrl();
-  const key = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY");
-  _serviceClient = createClient<Database>(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-    global: {
-      fetch: async (input, init) => {
-        return fetchWithTimeout(input as string, {
-          ...init,
-          timeoutMs: 12000,
-        });
-      },
-    },
-  });
-  return _serviceClient;
+  return getPrivilegedSupabaseClient();
 }
 
 export async function getTenantClient(): Promise<SupabaseClient<Database>> {
   const h = await headers();
   const siteId = h.get("x-site-id");
-  
+
   let userId: string | null = null;
   try {
     const session = await getAdminSession();
@@ -126,7 +116,7 @@ export function getAnonClient(): SupabaseClient<Database> {
 export async function getAuthenticatedClient(
   siteId?: string | null,
   userId?: string | null,
-  role = "authenticated"
+  role = "authenticated",
 ): Promise<SupabaseClient<Database>> {
   const url = getSupabaseUrl();
   const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");

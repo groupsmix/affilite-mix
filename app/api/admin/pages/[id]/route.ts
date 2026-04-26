@@ -5,6 +5,7 @@ import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -38,6 +39,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   try {
     const { id } = await params;
+
+    // Defense-in-depth: derive the page's real site_id and require it to
+    // match the active site. A forged `id` from a different tenant is a
+    // 404 here instead of an opaque DAL failure later.
+    const authz = await authorizeResource({
+      session,
+      feature: "content",
+      action: "edit",
+      resourceType: "page",
+      resourceId: id,
+      expectedSiteId: dbSiteId,
+    });
+    if (!authz.ok) return authorizationErrorResponse(authz);
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
 
@@ -77,6 +92,17 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
   try {
     const { id } = await params;
+
+    const authz = await authorizeResource({
+      session,
+      feature: "content",
+      action: "delete",
+      resourceType: "page",
+      resourceId: id,
+      expectedSiteId: dbSiteId,
+    });
+    if (!authz.ok) return authorizationErrorResponse(authz);
+
     await deletePage(dbSiteId, id);
 
     void recordAuditEvent({

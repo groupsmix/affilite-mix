@@ -14,6 +14,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "."),
+      // Stub `server-only` so the privileged gateway module can be
+      // imported in integration tests too.
+      "server-only": path.resolve(__dirname, "__tests__/helpers/server-only-shim.ts"),
     },
   },
 });
