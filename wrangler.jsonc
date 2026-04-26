@@ -213,18 +213,26 @@
 	// Audit R-008: durable observability sink.
 	//
 	// The Tail Worker scaffold ships in this repo at
-	// `workers/log-shipper/` (READme.md + index.ts + wrangler.jsonc).
+	// `workers/log-shipper/` (README.md + index.ts + wrangler.jsonc).
 	// It is intentionally NOT enabled by default here because
 	// referencing a non-existent service would fail every deploy.
 	//
-	// To enable durable logs:
-	//   1. Provision the R2 bucket and deploy the shipper Worker
-	//      (`workers/log-shipper/README.md` has the full procedure).
-	//   2. Replace the empty list below with:
-	//        "tail_consumers": [
-	//          { "service": "affilite-mix-log-shipper" }
-	//        ]
-	//   3. Redeploy this main Worker.
+	// PRODUCTION (recommended): set the `LOG_SHIPPER_ENABLED=true`
+	// repo *variable* (Settings → Secrets and variables → Actions →
+	// Variables, NOT Secrets). The deploy workflow will then:
+	//   1. Idempotently create the `affilite-mix-logs` R2 bucket.
+	//   2. Deploy the Tail Worker from `workers/log-shipper/`.
+	//   3. Rewrite this `tail_consumers` array via
+	//      `scripts/inject-tail-consumers.mjs` before the main deploy.
+	// See `.github/workflows/deploy.yml` and `workers/log-shipper/README.md`.
+	//
+	// MANUAL: deploy the shipper as documented in
+	// `workers/log-shipper/README.md`, then replace the empty list below
+	// with:
+	//   "tail_consumers": [
+	//     { "service": "affilite-mix-log-shipper" }
+	//   ]
+	// and redeploy this main Worker.
 	"tail_consumers": []
 }
 /* 

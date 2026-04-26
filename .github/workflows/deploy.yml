@@ -489,6 +489,46 @@ jobs:
           echo "Checking R2 bucket..."
           npx --yes wrangler@${WRANGLER_VERSION} r2 bucket create next-inc-cache 2>&1 || echo "Bucket may already exist, continuing..."
 
+      # ── N-003 / Audit R-008: deploy the Tail Worker before the main Worker ──
+      #
+      # The log-shipper Tail Worker must already exist in the account
+      # before the main Worker can reference it via `tail_consumers`,
+      # otherwise wrangler rejects the deploy. This step:
+      #   1. Idempotently creates the `affilite-mix-logs` R2 bucket
+      #      that the shipper writes to.
+      #   2. Deploys the shipper Worker from `workers/log-shipper/`.
+      #   3. Rewrites `wrangler.jsonc` so the main Worker's
+      #      `tail_consumers` references the now-deployed shipper.
+      #
+      # Gated on the `LOG_SHIPPER_ENABLED` repo variable so existing
+      # accounts without the shipper provisioned keep deploying as
+      # before. Operators flip the variable to `true` once they want
+      # durable observability — no code change required.
+      - name: Deploy log-shipper Tail Worker
+        if: vars.LOG_SHIPPER_ENABLED == 'true'
+        run: |
+          set -euo pipefail
+          echo "LOG_SHIPPER_ENABLED=true — provisioning Tail Worker..."
+
+          # 1. R2 bucket for durable log storage. `r2 bucket create` is
+          # idempotent on Cloudflare's side but emits non-zero on conflict;
+          # tolerate that so reruns don't fail.
+          npx --yes wrangler@${WRANGLER_VERSION} r2 bucket create affilite-mix-logs 2>&1 \
+            || echo "affilite-mix-logs bucket may already exist, continuing..."
+
+          # 2. Deploy the Tail Worker.
+          npx --yes wrangler@${WRANGLER_VERSION} deploy \
+            --config workers/log-shipper/wrangler.jsonc
+
+      - name: Wire tail_consumers in wrangler.jsonc
+        if: vars.LOG_SHIPPER_ENABLED == 'true'
+        run: |
+          set -euo pipefail
+          SHIPPER_SERVICE=affilite-mix-log-shipper \
+            node scripts/inject-tail-consumers.mjs wrangler.jsonc
+          echo "── tail_consumers after rewrite ─────────────────────"
+          grep -n -B1 -A3 '"tail_consumers"' wrangler.jsonc | grep -v '//' || true
+
       # ── Create KV namespace if not exists, then inline the id ────────
       - name: Create KV namespace (if not exists)
         run: |
