@@ -36,6 +36,11 @@ on:
         type: boolean
         default: false
 
+# Read-only by default. Jobs that revert commits or update deployments
+# opt into `contents: write` / `deployments: write` at the job level.
+permissions:
+  contents: read
+
 env:
   # ── Wrangler pin ───────────────────────────────────────────────────
   # Pin wrangler to a known version so CI is reproducible. `npx wrangler`

@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Lighthouse CI uses its own LHCI_GITHUB_APP_TOKEN to post status checks,
+# so the default GITHUB_TOKEN only needs read access to the repo.
+permissions:
+  contents: read
+
 env:
   NEXT_PUBLIC_SUPABASE_URL: https://xyz.supabase.co
   NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
