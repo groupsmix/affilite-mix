@@ -43,6 +43,37 @@ variable "zone_id" {
   description = "Cloudflare zone ID for the production hostname."
 }
 
+# Logpush destination wiring.
+#
+# `logpush_destination_conf` carries the full Cloudflare destination
+# string for the worker_logs Logpush job (see
+# https://developers.cloudflare.com/logs/get-started/enable-destinations/).
+# The default of `null` keeps the resource in a disabled state, which
+# prevents `terraform apply` from being blocked when the destination
+# credentials have not been provisioned yet. Once a real bucket/token
+# pair exists, supply it via -var or a tfvars file and set
+# `logpush_enabled = true`. The job stays opt-in to avoid silently
+# shipping logs to a placeholder destination.
+variable "logpush_destination_conf" {
+  type        = string
+  default     = null
+  sensitive   = true
+  description = <<-EOT
+    Full Cloudflare Logpush destination string for the worker_logs job.
+    Prefer R2 over S3 for the same-cloud, zero-egress path. Examples:
+      r2://<account-id>/<bucket>?account-id=...&access-key-id=...&secret-access-key=...
+      s3://<bucket>/<prefix>?region=<region>&access-key-id=...&secret-access-key=...
+      datadog://api.datadoghq.com/api/v2/logs?header_DD-API-KEY=...&service=...
+    Leave unset (null) to keep the Logpush resource disabled.
+  EOT
+}
+
+variable "logpush_enabled" {
+  type        = bool
+  default     = false
+  description = "Whether the worker_logs Logpush job should be enabled. Requires logpush_destination_conf to be set."
+}
+
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
@@ -184,29 +215,39 @@ resource "cloudflare_ruleset" "cache_rules" {
 ###############################################################################
 # F-013: Logpush job — Workers trace events to long-term storage.
 #
-# `enabled = false` until the destination credentials are wired up. To turn
-# this on:
-#   1. Replace `destination_conf` with the real bucket / token URL.
-#      Examples (see Cloudflare docs for full list):
-#        s3://<bucket>/<prefix>?region=<region>&access-key-id=...&secret-access-key=...
-#        datadog://api.datadoghq.com/api/v2/logs?header_DD-API-KEY=...&service=...
-#        r2://<account-id>/<bucket>?account-id=...&access-key-id=...&secret-access-key=...
-#   2. Set `enabled = true`.
+# Wiring:
+#   * `var.logpush_destination_conf` — full Cloudflare destination URL.
+#     See the variable declaration at the top of this file for the
+#     supported schemes (R2, S3, Datadog, …) and an example string.
+#   * `var.logpush_enabled` — kept off by default so a fresh
+#     `terraform apply` doesn't silently start shipping logs.
 #
-# Prefer R2 over S3 for the same-cloud zero-egress path.
+# The resource stays count-1 even when disabled so its lifecycle is
+# managed by Terraform regardless of whether the destination has been
+# wired up yet — flipping `logpush_enabled = true` is then a one-line
+# tfvars change instead of a code change. The previous placeholder
+# string `s3://example-bucket/logs?region=us-east-1` was removed because
+# it bypassed any review of where the data actually lands.
 ###############################################################################
 
 resource "cloudflare_logpush_job" "worker_logs" {
   account_id       = var.cloudflare_account_id
   name             = "workers-logpush"
   dataset          = "workers_trace_events"
-  destination_conf = "s3://example-bucket/logs?region=us-east-1"
-  enabled          = false
+  destination_conf = var.logpush_destination_conf
+  enabled          = var.logpush_enabled
 
   output_options = {
     field_names      = ["Event", "EventTimestampMs", "Outcome", "Logs", "Exceptions"]
     timestamp_format = "rfc3339"
     output_type      = "ndjson"
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.logpush_enabled || var.logpush_destination_conf != null
+      error_message = "logpush_enabled = true requires logpush_destination_conf to be set."
+    }
   }
 }
 
