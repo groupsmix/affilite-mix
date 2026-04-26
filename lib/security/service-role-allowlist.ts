@@ -47,6 +47,14 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   "app/api/cron/data-retention/route.ts",
   "app/api/cron/epc-recompute/route.ts",
   "app/api/cron/price-scrape/route.ts",
+
+  // LIVE-10 / F-024: applyStripeEventAtomic calls the
+  // apply_stripe_membership_event RPC, which is GRANTed only to
+  // service_role. The Stripe webhook delivers events with no
+  // x-site-id header and no admin session, so a tenant-scoped client
+  // can't resolve. The webhook route is gated by Stripe-signature
+  // verification (lib/stripe-webhook.ts) before this DAL is reached.
+  "lib/dal/stripe-events.ts",
 ] as const;
 
 export type ServiceRoleAllowlistedPath = (typeof SERVICE_ROLE_IMPORT_ALLOWLIST)[number];

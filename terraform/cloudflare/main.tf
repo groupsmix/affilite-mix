@@ -213,14 +213,30 @@ resource "cloudflare_ruleset" "cache_rules" {
 }
 
 ###############################################################################
-# F-013: Logpush job — Workers trace events to long-term storage.
+# F-013 / LIVE-09: Logpush job — Workers trace events to long-term storage.
 #
 # Wiring:
 #   * `var.logpush_destination_conf` — full Cloudflare destination URL.
 #     See the variable declaration at the top of this file for the
 #     supported schemes (R2, S3, Datadog, …) and an example string.
+#     The recommended target is the R2 bucket declared in storage.tf
+#     (`cloudflare_r2_bucket.worker_logs`); see the README for the
+#     `r2://` URL template.
 #   * `var.logpush_enabled` — kept off by default so a fresh
 #     `terraform apply` doesn't silently start shipping logs.
+#
+# Operator runbook (LIVE-09 — close the SOC 2 log retention gap):
+#   1. Upgrade the Cloudflare Workers plan to a tier that includes
+#      Logpush (Workers Paid or higher).
+#   2. Apply storage.tf so `cloudflare_r2_bucket.worker_logs` exists.
+#   3. Mint an R2 access key pair scoped to that bucket
+#      (Cloudflare dashboard → R2 → Manage R2 API tokens).
+#   4. Set `logpush_destination_conf` (sensitive tfvar) to:
+#        r2://<account-id>/<worker_logs_bucket_name>
+#          ?account-id=<account-id>
+#          &access-key-id=<...>
+#          &secret-access-key=<...>
+#   5. Flip `logpush_enabled = true` and run `terraform apply`.
 #
 # The resource stays count-1 even when disabled so its lifecycle is
 # managed by Terraform regardless of whether the destination has been
