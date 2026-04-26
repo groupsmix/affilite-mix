@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
 
+# Top-level default: read-only. Jobs that need to comment on PRs or
+# manage deployments below explicitly request `pull-requests: write` and
+# `deployments: write` at the job level.
+permissions:
+  contents: read
+
 env:
   # ── Wrangler pin ───────────────────────────────────────────────────
   # Pin wrangler to a known version so CI is reproducible. `npx wrangler`
