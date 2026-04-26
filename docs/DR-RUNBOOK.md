@@ -275,8 +275,8 @@ npm run deploy
 ### Disable All Cron Jobs
 
 ```bash
-# Nuclear option: revoke the shared CRON_SECRET
-# All cron routes will 401 because no per-trigger or fallback secret matches
+# Nuclear option: revoke the shared CRON_SECRET AND all per-trigger secrets
+# If only CRON_SECRET is deleted, routes with per-trigger secrets (e.g. CRON_PUBLISH_SECRET) will still fire
 wrangler secret delete CRON_SECRET
 
 # Or: remove all triggers from Cloudflare Dashboard
