@@ -213,8 +213,8 @@ test.describe("Mobile menu — focus trap & escape", () => {
     const toggle = page.locator(
       'header button[aria-label*="menu" i], header button[aria-label*="قائمة"]',
     );
-    if ((await toggle.count()) === 0) {
-      test.skip(true, "mobile menu toggle not present on this tenant");
+    if ((await toggle.count()) === 0 || !(await toggle.first().isVisible())) {
+      test.skip(true, "mobile menu toggle not visible on this viewport");
       return;
     }
 
