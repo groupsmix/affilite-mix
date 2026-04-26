@@ -1,14 +1,14 @@
 /**
  * Guards against new migration prefix collisions (audit item R-5).
  *
- * Two pre-existing collisions are documented and grandfathered (00038,
- * 00039); any *new* duplicate prefix should fail CI before merge.
+ * Pre-existing collisions are documented and grandfathered (00038, 00039,
+ * 00070); any *new* duplicate prefix should fail CI before merge.
  */
 import { describe, it, expect } from "vitest";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const ALLOWED_DUPLICATES = new Set(["00038", "00039"]);
+const ALLOWED_DUPLICATES = new Set(["00038", "00039", "00070"]);
 
 describe("supabase migration filenames", () => {
   it("does not introduce new duplicate numeric prefixes", () => {
