@@ -6,25 +6,33 @@
 #
 # Usage:
 #   STAGING_SUPABASE_DB_URL="postgresql://..." bash scripts/check-db-types.sh
+#   SUPABASE_DB_POOLER_URL="postgresql://..." bash scripts/check-db-types.sh
 #
-# When STAGING_SUPABASE_DB_URL is unset (fork PRs, local without creds)
-# the script exits 0 with a warning so CI stays green while still
-# surfacing the skip in logs.
+# DB URL resolution (matches scripts/db-audit.sh):
+#   STAGING_SUPABASE_DB_URL > SUPABASE_DB_POOLER_URL > DATABASE_URL
+# The pooler URL is preferred from GitHub-hosted runners because
+# Supabase direct hostnames (db.<ref>.supabase.co) only resolve over
+# IPv6, which the runners cannot reach.
+#
+# When no URL is set (fork PRs, local without creds) the script exits 0
+# with a warning so CI stays green while still surfacing the skip in logs.
 set -euo pipefail
 
-if [ -z "${STAGING_SUPABASE_DB_URL:-}" ]; then
+DB_URL="${STAGING_SUPABASE_DB_URL:-${SUPABASE_DB_POOLER_URL:-${DATABASE_URL:-}}}"
+
+if [ -z "$DB_URL" ]; then
   # N-005: skip-with-success is only acceptable for fork PRs that cannot
   # reach the staging secret. Trusted branches (main pushes, internal PRs)
   # MUST run this gate — set REQUIRE_STAGING_DB=true in CI for those
   # contexts so the missing secret is a hard error instead of silent green.
   if [ "${REQUIRE_STAGING_DB:-false}" = "true" ]; then
-    echo "::error::STAGING_SUPABASE_DB_URL is required on protected branches / non-fork PRs."
+    echo "::error::STAGING_SUPABASE_DB_URL (or SUPABASE_DB_POOLER_URL) is required on protected branches / non-fork PRs."
     echo "::error::Add it in GitHub → Settings → Secrets and variables → Actions."
     echo "::error::(Fork PRs can run this job in skip-green mode by leaving REQUIRE_STAGING_DB unset.)"
     exit 1
   fi
-  echo "⚠  STAGING_SUPABASE_DB_URL not set — skipping DB type drift check (REQUIRE_STAGING_DB!=true)."
-  echo "   Set the secret in your repo to enable this gate."
+  echo "⚠  No DB URL set (STAGING_SUPABASE_DB_URL, SUPABASE_DB_POOLER_URL, DATABASE_URL) — skipping DB type drift check (REQUIRE_STAGING_DB!=true)."
+  echo "   Set one of these in your repo to enable this gate."
   exit 0
 fi
 
@@ -45,7 +53,7 @@ TMPFILE="$(mktemp)"
 trap 'rm -f "$TMPFILE"' EXIT
 
 echo "▶ Regenerating types/supabase.ts from staging DB..."
-supabase gen types typescript --db-url "$STAGING_SUPABASE_DB_URL" > "$TMPFILE"
+supabase gen types typescript --db-url "$DB_URL" > "$TMPFILE"
 
 echo "▶ Comparing with checked-in types/supabase.ts..."
 if ! diff -u types/supabase.ts "$TMPFILE"; then
