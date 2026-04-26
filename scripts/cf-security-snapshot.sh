@@ -139,8 +139,11 @@ echo "  ✓ rate_limits_legacy.json + rulesets.json"
 # Page Rules are deprecated by Cloudflare in favour of Rulesets. The expected
 # steady state is an empty `result: []`. Capture anyway so an auditor can
 # verify nothing was added behind the team's back.
-cf_get "/zones/${ZONE_ID}/pagerules"        "${OUT_DIR}/page_rules.json" || true
-echo "  ✓ page_rules.json"
+if cf_get "/zones/${ZONE_ID}/pagerules" "${OUT_DIR}/page_rules.json"; then
+  echo "  ✓ page_rules.json"
+else
+  echo "  ✗ page_rules.json (continuing)"
+fi
 
 # Expand each http_ratelimit phase entrypoint into its full rule list so the
 # snapshot is self-contained.
