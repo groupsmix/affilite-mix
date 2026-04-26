@@ -52,11 +52,14 @@ export async function POST(request: Request) {
       return successResponse;
     }
 
-    // SECURITY: Validate APP_URL before writing the reset token to the DB.
-    // If APP_URL is missing we can't build a reset link, so bail out early
-    // to preserve any existing valid token the user may already have.
-    const baseUrl = process.env.APP_URL;
-    if (!baseUrl) {
+    // Fail hard in production if APP_URL is missing — we cannot build a
+    // reset link without it, and silently swallowing this masks a deploy
+    // misconfiguration.
+    const appUrl = process.env.APP_URL;
+    if (!appUrl && process.env.NODE_ENV === "production") {
+      throw new Error("APP_URL is required for password reset");
+    }
+    if (!appUrl) {
       captureException(new Error("APP_URL environment variable is not configured"), {
         context: "[api/auth/forgot-password] Cannot build reset URL",
       });
@@ -87,7 +90,7 @@ export async function POST(request: Request) {
       // Don't expose internal errors — still return success
       return successResponse;
     }
-    const resetUrl = `${baseUrl}/admin/reset-password?token=${resetToken}`;
+    const resetUrl = `${appUrl}/admin/reset-password?token=${resetToken}`;
     const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {
@@ -115,7 +118,13 @@ export async function POST(request: Request) {
         });
       }
     } else {
-      console.warn("[api/auth/forgot-password] RESEND_API_KEY not set. Reset link:", resetUrl);
+      if (process.env.NODE_ENV === "production") {
+        captureException(new Error("RESEND_API_KEY missing"), {
+          context: "[api/auth/forgot-password] Cannot send reset email",
+        });
+        return NextResponse.json({ ok: true });
+      }
+      console.warn("[dev] Password reset email provider missing");
     }
 
     return successResponse;
