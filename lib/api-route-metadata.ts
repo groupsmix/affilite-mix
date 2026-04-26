@@ -334,7 +334,8 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     path: "/api/admin/upload",
     methods: ["POST"],
     requestSchema: "UploadPresignInput",
-    responseSchema: "{ uploadUrl: string; key: string }",
+    responseSchema:
+      "{ uploadUrl: string; stagingKey: string; publicUrl: string; requiredHeaders: Record<string,string>; maxBytes: number }",
     sensitiveFields: ["uploadUrl"],
   },
   {
