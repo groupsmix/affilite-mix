@@ -13,7 +13,17 @@
 set -euo pipefail
 
 if [ -z "${STAGING_SUPABASE_DB_URL:-}" ]; then
-  echo "⚠  STAGING_SUPABASE_DB_URL not set — skipping DB type drift check."
+  # N-005: skip-with-success is only acceptable for fork PRs that cannot
+  # reach the staging secret. Trusted branches (main pushes, internal PRs)
+  # MUST run this gate — set REQUIRE_STAGING_DB=true in CI for those
+  # contexts so the missing secret is a hard error instead of silent green.
+  if [ "${REQUIRE_STAGING_DB:-false}" = "true" ]; then
+    echo "::error::STAGING_SUPABASE_DB_URL is required on protected branches / non-fork PRs."
+    echo "::error::Add it in GitHub → Settings → Secrets and variables → Actions."
+    echo "::error::(Fork PRs can run this job in skip-green mode by leaving REQUIRE_STAGING_DB unset.)"
+    exit 1
+  fi
+  echo "⚠  STAGING_SUPABASE_DB_URL not set — skipping DB type drift check (REQUIRE_STAGING_DB!=true)."
   echo "   Set the secret in your repo to enable this gate."
   exit 0
 fi

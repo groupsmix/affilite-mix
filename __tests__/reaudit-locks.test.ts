@@ -16,6 +16,15 @@
  *          .get("site_id") in executable code paths.
  *   R-009  next.config.ts CSP fallback must NOT contain 'unsafe-inline'
  *          for script-src or style-src.
+ *   N-001  /api/track/click route MUST publish to the queue
+ *          (publishClick) and MUST NOT call recordClick directly.
+ *   N-002  Worker DLQ branch MUST only ackAll() on a 2xx DLQ-persistence
+ *          response and MUST retryAll() on non-2xx / fetch errors.
+ *   N-003  deploy workflow MUST be able to auto-deploy the log-shipper
+ *          Tail Worker and inject `tail_consumers` when
+ *          LOG_SHIPPER_ENABLED is set.
+ *   N-005  CI db-audit / db-types jobs MUST hard-fail on missing
+ *          STAGING_SUPABASE_DB_URL for trusted contexts (push / non-fork PRs).
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -157,5 +166,110 @@ describe("re-audit lock — R-009 static CSP fallback rejects unsafe-inline", ()
     const m = cfg.match(/"style-src[^"]*"/);
     expect(m, "style-src directive missing").not.toBeNull();
     expect(m![0]).not.toMatch(/unsafe-inline/);
+  });
+});
+
+describe("re-audit lock — N-001 click route uses the queue, not direct DB writes", () => {
+  const route = readRepoFile("app", "api", "track", "click", "route.ts");
+  const code = stripComments(route);
+
+  it("imports publishClick from @/lib/click-queue", () => {
+    expect(code).toMatch(
+      /import\s*\{[^}]*\bpublishClick\b[^}]*\}\s*from\s*["']@\/lib\/click-queue["']/,
+    );
+  });
+
+  it("does not import recordClick directly in executable code", () => {
+    // The route must go through the queue producer (which falls through to
+    // recordClick only when no CLICK_QUEUE binding is present). A direct
+    // `import { recordClick }` in the route would bypass the queue's
+    // retry/DLQ durability — exactly what N-001 flagged.
+    expect(code).not.toMatch(/import\s*\{[^}]*\brecordClick\b[^}]*\}/);
+    expect(code).not.toMatch(/from\s*["']@\/lib\/dal\/affiliate-clicks["']/);
+  });
+
+  it("calls publishClick (and not recordClick) in the request handler", () => {
+    expect(code).toMatch(/publishClick\s*\(/);
+    expect(code).not.toMatch(/\brecordClick\s*\(/);
+  });
+});
+
+describe("re-audit lock — N-002 DLQ branch only acks on 2xx persistence", () => {
+  const worker = readRepoFile("workers", "custom-worker.ts");
+  const code = stripComments(worker);
+
+  it("inspects res.ok / res.status before acking the DLQ batch", () => {
+    // Pin the shape of the fix: the DLQ branch must check the response
+    // (`res.ok` or `res.status`) so a 500 from /api/queue/clicks?dlq=true
+    // (e.g. click_failures insert failure) does not silently lose the
+    // dead-letter evidence.
+    expect(code).toMatch(/dlq=true[\s\S]*?res(\.ok|\.status)/);
+  });
+
+  it("retries the DLQ batch on non-2xx or fetch errors", () => {
+    // Both branches must exist: a successful ack on res.ok AND a
+    // retryAll() on the failure path. A bare `batch.ackAll()` after a
+    // fetch with no status check is the regression we are guarding.
+    const dlqBlock = code.match(/click-tracking-dlq[\s\S]*?return;/);
+    expect(dlqBlock, "DLQ branch missing in worker").not.toBeNull();
+    expect(dlqBlock![0]).toMatch(/batch\.retryAll\(\)/);
+    expect(dlqBlock![0]).toMatch(/batch\.ackAll\(\)/);
+  });
+});
+
+describe("re-audit lock — N-003 log-shipper wiring is gated on LOG_SHIPPER_ENABLED", () => {
+  const deploy = readRepoFile(".github", "workflows", "deploy.yml");
+
+  it("deploy workflow deploys the log-shipper before the main Worker", () => {
+    expect(deploy).toMatch(/Deploy log-shipper Tail Worker/);
+    expect(deploy).toMatch(
+      /wrangler@\$\{WRANGLER_VERSION\}\s+deploy\s+\\\s*\n\s+--config\s+workers\/log-shipper\/wrangler\.jsonc/,
+    );
+  });
+
+  it("workflow rewrites tail_consumers via inject-tail-consumers.mjs", () => {
+    expect(deploy).toMatch(/scripts\/inject-tail-consumers\.mjs/);
+  });
+
+  it("both shipper steps are gated on the LOG_SHIPPER_ENABLED repo variable", () => {
+    const shipperBlock = deploy.match(
+      /Deploy log-shipper Tail Worker[\s\S]*?Wire tail_consumers in wrangler\.jsonc[\s\S]*?inject-tail-consumers\.mjs[\s\S]*?\n\n/,
+    );
+    expect(shipperBlock, "shipper steps missing in deploy.yml").not.toBeNull();
+    const gates = shipperBlock![0].match(/if:\s*vars\.LOG_SHIPPER_ENABLED\s*==\s*'true'/g) ?? [];
+    expect(gates.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("re-audit lock — N-005 staging-DB CI jobs hard-fail on trusted contexts", () => {
+  const ci = readRepoFile(".github", "workflows", "ci.yml");
+  const auditScript = readRepoFile("scripts", "db-audit.sh");
+  const typesScript = readRepoFile("scripts", "check-db-types.sh");
+
+  it("ci.yml passes REQUIRE_STAGING_DB to the db-audit job", () => {
+    const block = ci.match(/db-audit:[\s\S]*?bash scripts\/db-audit\.sh/);
+    expect(block, "db-audit job missing in ci.yml").not.toBeNull();
+    expect(block![0]).toMatch(/REQUIRE_STAGING_DB:/);
+    expect(block![0]).toMatch(/github\.event_name == 'push'/);
+    expect(block![0]).toMatch(/head\.repo\.full_name == github\.repository/);
+  });
+
+  it("ci.yml passes REQUIRE_STAGING_DB to the db-types job", () => {
+    const block = ci.match(/db-types:[\s\S]*?bash scripts\/check-db-types\.sh/);
+    expect(block, "db-types job missing in ci.yml").not.toBeNull();
+    expect(block![0]).toMatch(/REQUIRE_STAGING_DB:/);
+    expect(block![0]).toMatch(/github\.event_name == 'push'/);
+  });
+
+  it("scripts/db-audit.sh exits 1 when REQUIRE_STAGING_DB=true and the secret is missing", () => {
+    expect(auditScript).toMatch(/REQUIRE_STAGING_DB.*?true/);
+    const guard = auditScript.match(/REQUIRE_STAGING_DB[\s\S]{0,300}exit\s+1/);
+    expect(guard, "db-audit.sh must exit 1 when REQUIRE_STAGING_DB=true").not.toBeNull();
+  });
+
+  it("scripts/check-db-types.sh exits 1 when REQUIRE_STAGING_DB=true and the secret is missing", () => {
+    expect(typesScript).toMatch(/REQUIRE_STAGING_DB.*?true/);
+    const guard = typesScript.match(/REQUIRE_STAGING_DB[\s\S]{0,300}exit\s+1/);
+    expect(guard, "check-db-types.sh must exit 1 when REQUIRE_STAGING_DB=true").not.toBeNull();
   });
 });

@@ -70,10 +70,13 @@ jobs:
   # staging database. Fails the build if any unexpected policies or
   # grants have drifted onto the public schema.
   #
-  # Gated on the STAGING_SUPABASE_DB_URL repo secret being set; when
-  # the secret is missing (e.g. PRs from forks), the script exits 0
-  # with a warning so the job stays green while still surfacing the
-  # skip in logs.
+  # Gating policy (N-005):
+  #   - Trusted contexts (main pushes, PRs from this repo) set
+  #     REQUIRE_STAGING_DB=true so a missing STAGING_SUPABASE_DB_URL
+  #     hard-fails the job instead of silently passing.
+  #   - Fork PRs cannot read the secret and run in skip-green mode so
+  #     external contributors are not blocked. This is enforced by
+  #     scripts/db-audit.sh based on REQUIRE_STAGING_DB.
   db-audit:
     name: RLS audit (E-6)
     runs-on: ubuntu-latest
@@ -86,14 +89,18 @@ jobs:
       - name: Run db-audit
         env:
           STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+          # Hard-fail on missing secret for trusted runs (main push or
+          # non-fork PRs); fork PRs fall through to skip-green.
+          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
         run: bash scripts/db-audit.sh
 
   # ── DB type drift check (E-5) ─────────────────────────────────────
   # Regenerates types/supabase.ts from the staging DB via
   # `supabase gen types` and fails if the checked-in file has drifted.
   #
-  # Gated on STAGING_SUPABASE_DB_URL; when unset, the script exits 0
-  # with a warning (same pattern as db-audit above).
+  # Gating policy (N-005): same as db-audit above — trusted contexts
+  # set REQUIRE_STAGING_DB=true so missing secrets fail loudly; fork
+  # PRs run in skip-green mode.
   db-types:
     name: DB type drift (E-5)
     runs-on: ubuntu-latest
@@ -109,6 +116,7 @@ jobs:
       - name: Check DB types drift
         env:
           STAGING_SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
         run: bash scripts/check-db-types.sh
 
   # ── Terraform IaC validation (F-01) ───────────────────────────────
