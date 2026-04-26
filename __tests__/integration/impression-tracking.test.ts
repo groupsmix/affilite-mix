@@ -8,12 +8,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { getServiceClient } from "@/lib/supabase-server";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAdImpression } from "@/lib/dal/ad-impressions";
 import { shouldRunSupabaseIntegration } from "./helpers/should-run";
 
 describe.skipIf(!shouldRunSupabaseIntegration)("Impression Tracking Integration", () => {
-  const sb = getServiceClient();
+  const sb = getPrivilegedSupabaseClient();
   let testSiteId: string;
   let testPlacementId: string;
 
