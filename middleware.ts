@@ -10,6 +10,15 @@ import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 
 const CSP_HEADER = "Content-Security-Policy";
 
+/** Methods allowed via CORS for public API endpoints (beacon, vitals, etc.) */
+const CORS_ALLOWED_METHODS = "GET, POST, OPTIONS";
+/** Headers the browser is allowed to send on cross-origin requests */
+const CORS_ALLOWED_HEADERS = [CSRF_HEADER, "Content-Type", "Authorization", TRACE_ID_HEADER].join(
+  ", ",
+);
+/** Preflight cache duration: 1 hour */
+const CORS_MAX_AGE = "3600";
+
 /**
  * Returns a redirect to the tenant-aware 404 page.
  * The app's not-found.tsx will render with proper branding and localization.
@@ -39,6 +48,32 @@ export async function middleware(request: NextRequest) {
     const url = new URL(request.url);
     url.pathname = pathname.replace(/\/+$/, "");
     return NextResponse.redirect(url, 308);
+  }
+
+  // ── CORS preflight (OPTIONS) ───────────────────────────
+  // Respond to preflight requests early with the correct allow-list.
+  // Only allow origins that match known tenant domains — never wildcard.
+  if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
+    const requestOrigin = request.headers.get("origin") ?? "";
+    const allowedOrigins = getAllowedOrigins(hostname);
+    const matchedOrigin =
+      requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";
+
+    if (!matchedOrigin) {
+      return new NextResponse(null, { status: 403 });
+    }
+
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": matchedOrigin,
+        "Access-Control-Allow-Methods": CORS_ALLOWED_METHODS,
+        "Access-Control-Allow-Headers": CORS_ALLOWED_HEADERS,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": CORS_MAX_AGE,
+        Vary: "Origin",
+      },
+    });
   }
 
   // ── Resolve site ──────────────────────────────────────
@@ -202,6 +237,22 @@ export async function middleware(request: NextRequest) {
 
   // Echo the trace ID on the response so clients/devtools can correlate.
   response.headers.set(TRACE_ID_HEADER, traceId);
+
+  // ── CORS response headers ──────────────────────────────
+  // Reflect the requesting origin if it is in the tenant allow-list.
+  // Never use wildcard "*" — all endpoints may carry credentials.
+  if (isApiRoute) {
+    const requestOrigin = request.headers.get("origin") ?? "";
+    if (requestOrigin) {
+      const allowedOrigins = getAllowedOrigins(hostname);
+      if (allowedOrigins.includes(requestOrigin)) {
+        response.headers.set("Access-Control-Allow-Origin", requestOrigin);
+        response.headers.set("Access-Control-Allow-Credentials", "true");
+      }
+    }
+    // Always set Vary: Origin so CDN/browser caches key on the origin.
+    response.headers.append("Vary", "Origin");
+  }
 
   if (cspHeaderValue) {
     // Actual browser enforcement is driven by the *response* header.

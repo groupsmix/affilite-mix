@@ -53,30 +53,38 @@ export function ImageUploader({
       setUploading(true);
 
       try {
-        // 1. Get presigned URL from our API
-        const res = await fetchWithCsrf("/api/admin/upload", {
+        // 1. Ask the server for a presigned URL targeting the private
+        //    staging bucket. The server returns the exact headers we
+        //    must echo on the PUT — Content-Length is signed so we can
+        //    no longer lie about the upload size.
+        const presignRes = await fetchWithCsrf("/api/admin/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, "_"),
+            fileName: file.name,
             contentType: file.type,
             fileSize: file.size,
           }),
         });
 
-        if (!res.ok) {
-          const data = await res.json();
+        if (!presignRes.ok) {
+          const data = await presignRes.json().catch(() => ({}));
           setError(data.error ?? "Failed to get upload URL");
           setUploading(false);
           return;
         }
 
-        const { uploadUrl, publicUrl } = await res.json();
+        const presigned = (await presignRes.json()) as {
+          uploadUrl: string;
+          stagingKey: string;
+          publicUrl: string;
+          requiredHeaders: Record<string, string>;
+        };
 
-        // 2. Upload directly to R2
-        const uploadRes = await fetch(uploadUrl, {
+        // 2. PUT to R2 with the exact headers the server signed.
+        const uploadRes = await fetch(presigned.uploadUrl, {
           method: "PUT",
-          headers: { "Content-Type": file.type },
+          headers: presigned.requiredHeaders,
           body: file,
         });
 
@@ -86,8 +94,27 @@ export function ImageUploader({
           return;
         }
 
-        // 3. Set the public URL
-        onChange(publicUrl);
+        // 3. Ask the server to magic-byte validate and promote the
+        //    upload to the public bucket. Only after this succeeds is
+        //    publicUrl actually reachable.
+        const finalizeRes = await fetchWithCsrf("/api/admin/upload/finalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            stagingKey: presigned.stagingKey,
+            expectedType: file.type,
+          }),
+        });
+
+        if (!finalizeRes.ok) {
+          const data = await finalizeRes.json().catch(() => ({}));
+          setError(data.error ?? "Validation failed");
+          setUploading(false);
+          return;
+        }
+
+        const finalized = (await finalizeRes.json()) as { publicUrl: string };
+        onChange(finalized.publicUrl);
       } catch {
         setError("Upload failed. You can paste an image URL instead.");
       } finally {

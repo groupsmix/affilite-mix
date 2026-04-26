@@ -8,6 +8,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { getSiteById } from "@/config/sites";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { parsePagination } from "@/lib/pagination";
 import type { AIContentType } from "@/lib/ai/content-generator";
 
 const VALID_CONTENT_TYPES = new Set(["article", "review", "comparison", "guide"]);
@@ -19,6 +20,9 @@ export async function GET(request: NextRequest) {
   if (error) return error;
 
   const { searchParams } = request.nextUrl;
+  const pagination = parsePagination(searchParams);
+  if (pagination instanceof NextResponse) return pagination;
+
   try {
     const drafts = await listAIDrafts({
       siteId: dbSiteId,
@@ -26,8 +30,8 @@ export async function GET(request: NextRequest) {
         ? (searchParams.get("status") as "pending" | "approved" | "rejected" | "published")
         : undefined,
       contentType: searchParams.get("content_type") ?? undefined,
-      limit: searchParams.get("limit") ? Number(searchParams.get("limit")) : undefined,
-      offset: searchParams.get("offset") ? Number(searchParams.get("offset")) : undefined,
+      limit: pagination.limit,
+      offset: pagination.offset,
     });
 
     return NextResponse.json(drafts);

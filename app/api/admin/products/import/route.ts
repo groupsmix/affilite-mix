@@ -9,10 +9,32 @@ export async function POST(request: NextRequest) {
   const guard = await requireAdmin();
   if (guard.error) return guard.error;
 
+  // Audit U-7: bound the request body and the row count so an admin
+  // (or an XSS-against-admin) can't OOM the worker by uploading a 1 GB
+  // CSV. The Worker request limit is 100 MB, but our use case is well
+  // under 5 MB / 50 000 rows.
+  const MAX_CSV_BYTES = 5 * 1024 * 1024; // 5 MB
+  const MAX_CSV_ROWS = 50_000;
+
+  const declaredSize = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declaredSize) && declaredSize > MAX_CSV_BYTES) {
+    return NextResponse.json(
+      { error: `CSV body exceeds the ${MAX_CSV_BYTES / (1024 * 1024)}MB limit` },
+      { status: 413 },
+    );
+  }
+
   const formData = await request.formData();
   const file = formData.get("file");
   if (!file || !(file instanceof Blob)) {
     return NextResponse.json({ error: "CSV file is required" }, { status: 400 });
+  }
+
+  if (file.size > MAX_CSV_BYTES) {
+    return NextResponse.json(
+      { error: `CSV file exceeds the ${MAX_CSV_BYTES / (1024 * 1024)}MB limit` },
+      { status: 413 },
+    );
   }
 
   const text = await file.text();
@@ -21,6 +43,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "CSV must have a header row and at least one data row" },
       { status: 400 },
+    );
+  }
+  if (lines.length - 1 > MAX_CSV_ROWS) {
+    return NextResponse.json(
+      { error: `CSV row count exceeds the ${MAX_CSV_ROWS} row limit` },
+      { status: 413 },
     );
   }
 
