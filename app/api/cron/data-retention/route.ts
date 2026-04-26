@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTenantClient } from "@/lib/supabase-server";
+// F-001 (deep audit): cron Worker calls have no x-site-id header so
+// tenant JWTs carry no site claim and the tenant_isolation RLS policy
+// rejects writes. Cron is CRON_SECRET-gated; use the privileged client
+// and do tenant scoping per query.
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { captureException } from "@/lib/sentry";
@@ -19,7 +23,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sb = await getTenantClient();
+  const sb = getPrivilegedSupabaseClient();
   const results: Record<string, { success: boolean; error?: string }> = {};
   const now = new Date();
 

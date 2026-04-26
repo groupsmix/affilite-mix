@@ -116,6 +116,40 @@ export async function GET(request: NextRequest) {
     checks.do_binding = { status: "ok" };
   }
 
+  // Audit F-007: APP_CACHE_KV is consumed by middleware for dynamic
+  // domain resolution. A missing binding silently degrades multi-tenant
+  // routing without surfacing in dashboards, so it has the same
+  // health-check posture as RATE_LIMIT_KV.
+  const appCacheKv = (process.env as Record<string, unknown>).APP_CACHE_KV;
+  const appCacheKvPresent =
+    !!appCacheKv && typeof appCacheKv === "object" && "get" in appCacheKv && "put" in appCacheKv;
+  if (process.env.NODE_ENV === "production" && !appCacheKvPresent) {
+    checks.app_cache_kv_binding = {
+      status: "error",
+      error:
+        "APP_CACHE_KV binding not available. Dynamic domain resolution will fall back to per-isolate memory.",
+    };
+    logger.error("Health check: APP_CACHE_KV binding missing in production");
+  } else {
+    checks.app_cache_kv_binding = { status: "ok" };
+  }
+
+  // Audit F-007: CLICK_QUEUE producer binding. The Worker's queue
+  // consumer is unaffected by a missing binding here, but every
+  // /api/track/click request still depends on this binding to publish
+  // attribution events. Surfacing it makes silent click-loss visible.
+  const clickQueue = (process.env as Record<string, unknown>).CLICK_QUEUE;
+  const clickQueuePresent = !!clickQueue && typeof clickQueue === "object" && "send" in clickQueue;
+  if (process.env.NODE_ENV === "production" && !clickQueuePresent) {
+    checks.click_queue_binding = {
+      status: "error",
+      error: "CLICK_QUEUE binding not available. Click attribution events cannot be enqueued.",
+    };
+    logger.error("Health check: CLICK_QUEUE binding missing in production");
+  } else {
+    checks.click_queue_binding = { status: "ok" };
+  }
+
   // Check Resend email service (production-required for newsletter)
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey) {

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTenantClient } from "@/lib/supabase-server";
+// F-001 (deep audit): cron Worker calls have no x-site-id header so
+// tenant JWTs carry no site claim and the tenant_isolation RLS policy
+// rejects writes. Cron is CRON_SECRET-gated; use the privileged client
+// and do tenant scoping per query.
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { upsertProductEpc } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
 import { verifyCronAuth } from "@/lib/cron-auth";
@@ -17,7 +21,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const sb = await getTenantClient();
+    const sb = getPrivilegedSupabaseClient();
 
     // Get all product+network combos that have affiliate links
 
