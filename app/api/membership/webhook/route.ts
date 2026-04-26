@@ -1,7 +1,6 @@
 export const runtime = "edge";
 
 import { NextRequest, NextResponse } from "next/server";
-import { recordStripeEvent } from "@/lib/dal/stripe-events";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
 import { constructStripeEvent } from "@/lib/stripe-webhook";
@@ -34,32 +33,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  // F-024: The idempotency check (recordStripeEvent) and the side-effect (processStripeEvent)
-  // are currently separate calls. While `recordStripeEvent` uses a unique constraint to prevent
-  // concurrent double-processing, a crash during `processStripeEvent` would leave the event marked
-  // as processed without the side-effects applied, and Stripe retries would be ignored.
-  // We accept this limitation for now as Stripe events can be manually reconciled from the dashboard,
-  // but true atomic processing requires moving the event recording into the same Postgres transaction
-  // as the membership updates via an RPC call.
-
-  let firstDelivery: boolean;
   try {
-    firstDelivery = await recordStripeEvent(event.id, event.type);
-  } catch (err) {
-    logger.error("Stripe webhook: failed to record event id", {
-      id: event.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return NextResponse.json({ error: "Idempotency store unavailable" }, { status: 500 });
-  }
-
-  if (!firstDelivery) {
-    logger.info("Stripe webhook: skipping duplicate event", { id: event.id, type: event.type });
-    return NextResponse.json({ received: true, duplicate: true });
-  }
-
-  try {
-    // Only import the heavy Stripe SDK when processing is actually needed
+    // Only import the heavy Stripe SDK when processing is actually needed.
     const Stripe = (await import("stripe")).default;
     const stripe = new Stripe(stripeKey, {
       apiVersion: null as any,
@@ -67,10 +42,18 @@ export async function POST(request: NextRequest) {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    await processStripeEvent(stripe, event);
+    // LIVE-10 / F-024: idempotency record + membership side effect run
+    // in a single Postgres transaction inside `processStripeEvent`. A
+    // crash here rolls the event row back so Stripe will retry.
+    const result = await processStripeEvent(stripe, event);
+
+    if (result.duplicate) {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
     return NextResponse.json({ received: true });
   } catch (err) {
     logger.error("Stripe webhook processing failed", {
+      id: event.id,
       type: event.type,
       error: err instanceof Error ? err.message : String(err),
     });
