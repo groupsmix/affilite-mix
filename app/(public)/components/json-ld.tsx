@@ -4,6 +4,7 @@ import { parseDocument, DomUtils } from "htmlparser2";
 import type { Element, Text, ChildNode } from "domhandler";
 import { headers } from "next/headers";
 import { NONCE_HEADER } from "@/lib/csp";
+import { safeJsonLdString } from "@/lib/safe-json-ld";
 
 interface JsonLdProps {
   data: Record<string, unknown>;
@@ -25,7 +26,7 @@ export async function JsonLd({ data }: JsonLdProps) {
     <script
       type="application/ld+json"
       nonce={nonce}
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLdString(data) }}
     />
   );
 }

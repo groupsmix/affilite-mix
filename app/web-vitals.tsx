@@ -17,14 +17,17 @@ export function WebVitals() {
 
     // In production, send to analytics endpoint (fire-and-forget)
     if (process.env.NODE_ENV === "production") {
+      // Field names (`page`, `href`) match what /api/vitals reads
+      // and persists to the `web_vitals` table. `navigationType` is sent
+      // for completeness but is not yet stored.
       const body = JSON.stringify({
         name: metric.name,
         value: metric.value,
         rating: metric.rating,
         id: metric.id,
         navigationType: metric.navigationType,
-        url: location.href,
-        path: location.pathname,
+        href: location.href,
+        page: location.pathname,
       });
 
       // Prefer sendBeacon (works during page unload), fall back to fetch

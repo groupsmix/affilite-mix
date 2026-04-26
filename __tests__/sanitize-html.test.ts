@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeHtml } from "@/lib/sanitize-html";
+import { sanitizeHtml, isSafeUrl } from "@/lib/sanitize-html";
 
 describe("sanitizeHtml", () => {
   it("returns empty/falsy input unchanged", () => {
@@ -111,5 +111,28 @@ describe("sanitizeHtml", () => {
       const input = '<img src="https://cdn.example.com/pic.jpg" />';
       expect(sanitizeHtml(input)).toContain('src="https://cdn.example.com/pic.jpg"');
     });
+  });
+
+  describe("URL scheme evasion via C0 control characters", () => {
+    // Browsers strip ASCII tabs, LFs and CRs globally from URLs, and trim
+    // leading/trailing C0 controls (U+0000..U+001F) + space before parsing
+    // the scheme. Any of those characters must not let `javascript:` slip
+    // through scheme detection.
+    const controlEvasions: Array<[string, string]> = [
+      ["tab inside scheme", "java\tscript:alert(1)"],
+      ["newline inside scheme", "java\nscript:alert(1)"],
+      ["carriage return inside scheme", "java\rscript:alert(1)"],
+      ["leading null byte", "\u0000javascript:alert(1)"],
+      ["leading SOH", "\u0001javascript:alert(1)"],
+      ["leading space", " javascript:alert(1)"],
+      ["leading form feed", "\u000cjavascript:alert(1)"],
+    ];
+    for (const [label, href] of controlEvasions) {
+      it(`blocks ${label}`, () => {
+        expect(isSafeUrl(href)).toBe(false);
+        const out = sanitizeHtml(`<a href="${href.replace(/"/g, "&quot;")}">x</a>`);
+        expect(out).not.toContain("href=");
+      });
+    }
   });
 });
