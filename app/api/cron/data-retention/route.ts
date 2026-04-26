@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantClient } from "@/lib/supabase-server";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 
@@ -14,7 +15,7 @@ import { logger } from "@/lib/logger";
  * - stripe_events: older than 30 days
  */
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_RETENTION_SECRET", "CRON_SECRET"] })) {
+  if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/data-retention"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

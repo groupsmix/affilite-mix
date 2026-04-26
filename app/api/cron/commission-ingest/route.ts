@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { safeFetch } from "@/lib/ssrf-guard";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 
 /**
  * GET /api/cron/commission-ingest
@@ -14,7 +15,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
  * Real API integration requires network API keys configured in env.
  */
 export async function POST(request: NextRequest) {
-  if (!verifyCronAuth(request, { secretEnvVars: ["CRON_COMMISSION_SECRET", "CRON_SECRET"] })) {
+  if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/commission-ingest"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
