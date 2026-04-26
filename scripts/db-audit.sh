@@ -22,6 +22,11 @@
 #      scripts/check-migrations.sh by catching drift between the
 #      migration history and the live DB.
 #
+#   D. Every ordinary table in the public schema MUST have RLS enabled
+#      (`relrowsecurity = true` in pg_class). This is the invariant
+#      that LIVE-12 violated — `scheduled_jobs` had RLS disabled on
+#      staging because no migration explicitly asserted the flag.
+#
 # Usage (local):
 #   DATABASE_URL=postgres://… ./scripts/db-audit.sh
 #   STAGING_SUPABASE_DB_URL=postgres://… ./scripts/db-audit.sh
@@ -164,6 +169,30 @@ if [ -n "$permissive_policies" ]; then
   violations=$((violations + 1))
 else
   echo "  ok — no permissive 'FOR ALL' policies without a service_role guard."
+fi
+
+# ── Invariant D: every public-schema table has RLS enabled (LIVE-12) ─
+echo ""
+echo "▶ [D] Checking that all public-schema tables have RLS enabled…"
+no_rls=$($PSQL <<'SQL'
+SELECT c.relname
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+  AND c.relkind = 'r'
+  AND NOT c.relrowsecurity
+ORDER BY c.relname;
+SQL
+)
+
+if [ -n "$no_rls" ]; then
+  echo "::error::db-audit: [D] public-schema tables without RLS enabled:" >&2
+  while IFS= read -r line; do
+    [ -n "$line" ] && echo "  • $line" >&2
+  done <<< "$no_rls"
+  violations=$((violations + 1))
+else
+  echo "  ok — every public-schema table has RLS enabled."
 fi
 
 echo ""
