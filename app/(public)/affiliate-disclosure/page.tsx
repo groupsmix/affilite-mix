@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
+import { staticPageMetadata } from "@/lib/seo";
 import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { redirect } from "next/navigation";
@@ -16,25 +17,15 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   const isAr = site.language === "ar";
-  const title = isAr ? "إفصاح الشراكة" : disclosurePage.title;
-  const description = isAr
-    ? "تعرّف على كيفية عمل روابط الشراكة التابعة على موقعنا وسياستنا التحريرية."
-    : disclosurePage.description;
-  const url = `https://${site.domain}/affiliate-disclosure`;
 
-  return {
-    title,
-    description,
-    alternates: { canonical: url },
-    openGraph: {
-      title,
-      description,
-      url,
-      siteName: site.name,
-      locale: site.locale,
-      type: "website",
-    },
-  };
+  return staticPageMetadata({
+    site,
+    title: isAr ? "إفصاح الشراكة" : disclosurePage.title,
+    description: isAr
+      ? "تعرّف على كيفية عمل روابط الشراكة التابعة على موقعنا وسياستنا التحريرية."
+      : disclosurePage.description,
+    path: "/affiliate-disclosure",
+  });
 }
 
 export default async function AffiliateDisclosurePage() {

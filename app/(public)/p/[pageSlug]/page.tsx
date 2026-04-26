@@ -18,8 +18,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const page = await getPageBySlug(siteId, pageSlug);
     if (!page || !page.is_published) return {};
 
+    const url = `https://${site.domain}/p/${pageSlug}`;
+    const description = `${page.title} — ${site.name}`;
+    const fullTitle = `${page.title} — ${site.name}`;
+
     return {
-      title: page.title,
+      title: fullTitle,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title: fullTitle,
+        description,
+        url,
+        siteName: site.name,
+        locale: site.locale,
+        type: "article",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: fullTitle,
+        description,
+      },
     };
   } catch {
     return {};

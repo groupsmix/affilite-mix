@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
+import { staticPageMetadata } from "@/lib/seo";
 import { Breadcrumbs } from "../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../components/json-ld";
 import { redirect } from "next/navigation";
@@ -15,25 +16,15 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   const isAr = site.language === "ar";
-  const title = isAr ? "اتصل بنا" : contactPage.title;
-  const description = isAr
-    ? "تواصل معنا لأي استفسارات أو اقتراحات أو فرص تعاون."
-    : contactPage.description;
-  const url = `https://${site.domain}/contact`;
 
-  return {
-    title,
-    description,
-    alternates: { canonical: url },
-    openGraph: {
-      title,
-      description,
-      url,
-      siteName: site.name,
-      locale: site.locale,
-      type: "website",
-    },
-  };
+  return staticPageMetadata({
+    site,
+    title: isAr ? "اتصل بنا" : contactPage.title,
+    description: isAr
+      ? "تواصل معنا لأي استفسارات أو اقتراحات أو فرص تعاون."
+      : contactPage.description,
+    path: "/contact",
+  });
 }
 
 export default async function ContactPage() {
