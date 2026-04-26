@@ -47,9 +47,15 @@
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "check" },
-          { "context": "secret-scan" },
-          { "context": "codeql" },
-          { "context": "dependency-review" }
+          { "context": "Required checks" },
+          { "context": "RLS audit (E-6)" },
+          { "context": "DB type drift (E-5)" },
+          { "context": "Terraform validate" },
+          { "context": "Dependency review" },
+          { "context": "Secret leak prevention" },
+          { "context": "License compliance" },
+          { "context": "npm audit (high / critical)" },
+          { "context": "Preview E2E gate" }
         ]
       }
     }
