@@ -189,20 +189,30 @@
 	// ═════════════════════════════════════════════════════════════════
 	// TAIL CONSUMERS — Log Shipping / Long-Term Retention (W8)
 	// ═════════════════════════════════════════════════════════════════
-	// Currently empty — Workers Observability (above) provides dashboard
-	// logs but NO long-term retention or external alerting pipeline.
+	// Workers Observability (above) provides dashboard logs but NO
+	// long-term retention or external alerting pipeline.  A Tail Worker
+	// forwards every request/log/exception event to a durable log sink
+	// (e.g. Axiom, Datadog, Grafana Loki, Better Stack, S3).
 	//
-	// To add a tail consumer:
-	// 1. Create a tail worker:  wrangler generate my-tail-worker
-	// 2. Deploy it:             wrangler deploy --name my-tail-worker
-	// 3. Uncomment and update the entry below:
+	// Setup (one-time):
+	//   1. Create the tail worker:
+	//        wrangler generate affilite-mix-log-shipper
+	//   2. Implement the tail handler — see the Cloudflare docs link
+	//      below for a minimal template that forwards to your sink.
+	//   3. Deploy it:
+	//        cd affilite-mix-log-shipper && wrangler deploy
+	//   4. Uncomment the entry below and redeploy the main worker.
+	//
+	// Alternative: Cloudflare Logpush (Enterprise) can push Worker
+	// Trace Events directly to R2, S3, Datadog, or Splunk without a
+	// Tail Worker.  Enable via Dashboard → Analytics & Logs → Logpush.
+	//
+	// See: https://developers.cloudflare.com/workers/observability/tail-workers/
+	// See: https://developers.cloudflare.com/logs/about/
 	//
 	// "tail_consumers": [
-	//   { "service": "my-log-shipper" }
+	//   { "service": "affilite-mix-log-shipper" }
 	// ]
-	//
-	// Common destinations: Datadog, Grafana Loki, Axiom, Logflare, S3.
-	// See: https://developers.cloudflare.com/workers/observability/tail-workers/
 	"tail_consumers": []
 }
 /* 
@@ -219,6 +229,7 @@
   - INTERNAL_API_TOKEN: Shared secret between Cloudflare Queue and the API
   - CRON_SECRET: Shared secret between Cloudflare Cron and the API
   - TURNSTILE_SECRET_KEY: Cloudflare Turnstile secret
+  - APP_URL: Canonical app URL for absolute URLs (e.g. password reset links)
   - RESEND_API_KEY: Resend API key for outbound emails
   - CLOUDFLARE_ACCOUNT_ID: Required for Cloudflare AI provider
   - CLOUDFLARE_API_TOKEN: Scoped token for Cloudflare AI provider
