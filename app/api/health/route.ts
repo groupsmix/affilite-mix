@@ -69,6 +69,18 @@ export async function GET(request: NextRequest) {
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
     "JWT_SECRET",
+    // Audit R-006: SUPABASE_JWT_SECRET is signed by lib/supabase-server.ts
+    // (getAuthenticatedClient) so per-tenant Supabase calls degrade
+    // immediately on a missing or rotated value. Surfacing it here
+    // makes the failure visible in the authenticated health view.
+    "SUPABASE_JWT_SECRET",
+    // CRON_SECRET / CRON_HOST: the Cloudflare scheduled handler refuses
+    // to dispatch without these. Their absence is a silent prod failure.
+    "CRON_SECRET",
+    "CRON_HOST",
+    // INTERNAL_API_TOKEN: Cloudflare Queue consumer auth between the
+    // Worker and /api/queue/clicks.
+    "INTERNAL_API_TOKEN",
   ];
   const missingVars = requiredVars.filter((v) => !process.env[v]);
   if (missingVars.length > 0) {
