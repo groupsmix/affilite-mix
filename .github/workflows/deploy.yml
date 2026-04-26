@@ -512,6 +512,29 @@ jobs:
       # accounts without the shipper provisioned keep deploying as
       # before. Operators flip the variable to `true` once they want
       # durable observability — no code change required.
+      #
+      # F-009: durable observability is mandatory for production. If
+      # the deploy workflow is invoked against the production
+      # environment but LOG_SHIPPER_ENABLED is unset/false, fail
+      # closed before any Worker mutation happens. Set the variable
+      # `LOG_SHIPPER_REQUIRED_OVERRIDE=true` for a one-off override
+      # (logged, audited).
+      - name: Enforce log shipping in production (F-009)
+        run: |
+          set -euo pipefail
+          ENABLED="${{ vars.LOG_SHIPPER_ENABLED }}"
+          OVERRIDE="${{ vars.LOG_SHIPPER_REQUIRED_OVERRIDE }}"
+          if [ "$ENABLED" != "true" ] && [ "$OVERRIDE" != "true" ]; then
+            echo "::error::F-009: production deploy requires LOG_SHIPPER_ENABLED=true." >&2
+            echo "::error::Provision the Tail Worker (workers/log-shipper) and set the repo" >&2
+            echo "::error::variable LOG_SHIPPER_ENABLED=true. For a temporary, audited" >&2
+            echo "::error::override (e.g. shipper outage), set LOG_SHIPPER_REQUIRED_OVERRIDE=true." >&2
+            exit 1
+          fi
+          if [ "$OVERRIDE" = "true" ] && [ "$ENABLED" != "true" ]; then
+            echo "::warning::F-009: LOG_SHIPPER_REQUIRED_OVERRIDE=true is bypassing the durable-log-shipping requirement. Restore LOG_SHIPPER_ENABLED=true ASAP."
+          fi
+
       - name: Deploy log-shipper Tail Worker
         if: vars.LOG_SHIPPER_ENABLED == 'true'
         run: |

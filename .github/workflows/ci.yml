@@ -118,9 +118,13 @@ jobs:
         with:
           node-version: 22
       - name: Install Supabase CLI
+        # F-011: pin the Supabase CLI version so a breaking upstream
+        # release cannot change `supabase gen types` output without a
+        # deliberate code change. Bump deliberately via Renovate /
+        # Dependabot; do NOT switch back to `version: latest`.
         uses: supabase/setup-cli@b60b5899c73b63a2d2d651b1e90db8d4c9392f51 # v1
         with:
-          version: latest
+          version: 2.45.5
       - name: Check DB types drift
         env:
           # See db-audit job above for the IPv6/pooler rationale.

@@ -47,11 +47,17 @@ const nextConfig: NextConfig = {
         // conservative default.
         {
           key: "Content-Security-Policy",
+          // F-013: keep the static fallback img-src in sync with the
+          // per-request CSP built in lib/csp.ts. The previous
+          // `img-src 'self' data: https: blob:` allowed any HTTPS image
+          // host and provided no provenance for content rendered on
+          // routes the middleware does not cover (see matcher in
+          // middleware.ts — _next/static, _next/image, fonts, etc.).
           value: [
             "default-src 'self'",
             "script-src 'self'",
             "style-src 'self'",
-            "img-src 'self' data: https: blob:",
+            "img-src 'self' data: blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.supabase.co https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com",
             "font-src 'self' https://fonts.gstatic.com",
             "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com https://*.ingest.sentry.io",
             "object-src 'none'",
