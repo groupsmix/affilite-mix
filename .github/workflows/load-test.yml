@@ -2,13 +2,17 @@ name: Nightly k6 Load Test
 
 on:
   schedule:
-    - cron: '0 3 * * *' # 3 AM nightly
+    - cron: "0 3 * * *" # 3 AM nightly
   workflow_dispatch:
     inputs:
       target_url:
-        description: 'URL to test against'
+        description: "URL to test against"
         required: true
-        default: 'https://staging.affilite-mix.com'
+        default: "https://staging.affilite-mix.com"
+
+# Load tester only hits an external URL — no GitHub writes needed.
+permissions:
+  contents: read
 
 jobs:
   k6-load-test:

@@ -17,6 +17,10 @@ on:
     - cron: "17 3 * * *"
   workflow_dispatch:
 
+# Read-only — this workflow only runs tests, no GitHub writes.
+permissions:
+  contents: read
+
 jobs:
   integration:
     name: Supabase integration tests

@@ -2,8 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTenantClient } from "@/lib/supabase-server";
 import { createPriceSnapshots } from "@/lib/dal/price-snapshots";
 import { findTriggeredAlerts, markAlertTriggered } from "@/lib/dal/price-alerts";
+import { getSiteRowById } from "@/lib/dal/sites";
 import { logger } from "@/lib/logger";
 import { verifyCronAuth } from "@/lib/cron-auth";
+
+/**
+ * Resolve the public origin (https://<domain>) for a product's owning site.
+ *
+ * Price-alert emails go to subscribers across multiple tenants, so the
+ * "View Deal" link MUST point at the actual domain that hosts the product
+ * — not at the raw site UUID. We look up the row in the `sites` table by
+ * its UUID and prefix the configured domain with `https://`. If the lookup
+ * fails (DB error, missing row, mis-typed UUID), fall back to APP_URL so
+ * the email still has a working link, even if it points at the canonical
+ * default site instead of the tenant.
+ */
+async function resolveSiteOrigin(siteId: string): Promise<string> {
+  try {
+    const site = await getSiteRowById(siteId);
+    if (site?.domain) {
+      return `https://${site.domain}`;
+    }
+  } catch (err) {
+    logger.warn("Failed to resolve site domain for price alert email", {
+      siteId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  return process.env.APP_URL ?? "";
+}
 
 /**
  * GET /api/cron/price-scrape
@@ -54,6 +81,17 @@ export async function POST(request: NextRequest) {
     const created = await createPriceSnapshots(snapshots);
     logger.info(`Price scrape: created ${created.length} snapshots`);
 
+    // Cache site-origin lookups across this cron run so we don't hit the DB
+    // once per triggered alert when many alerts share a site.
+    const siteOriginCache = new Map<string, string>();
+    async function getSiteOrigin(siteId: string): Promise<string> {
+      const cached = siteOriginCache.get(siteId);
+      if (cached !== undefined) return cached;
+      const origin = await resolveSiteOrigin(siteId);
+      siteOriginCache.set(siteId, origin);
+      return origin;
+    }
+
     // Check for triggered alerts
     let alertsTriggered = 0;
     for (const product of products) {
@@ -65,12 +103,23 @@ export async function POST(request: NextRequest) {
         // Send email notification via Resend
         const resendKey = process.env.RESEND_API_KEY;
         const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? "noreply@example.com";
-        const appUrl = process.env.APP_URL ?? `https://${product.site_id}`;
+        const siteOrigin = await getSiteOrigin(product.site_id);
 
         let emailSent = false;
 
         if (resendKey) {
-          const productUrl = `${appUrl}/p/${product.slug}`;
+          if (!siteOrigin) {
+            // Without a tenant origin we'd send a broken "View Deal" link.
+            // Skip retry-and-resend on the next cron run instead of mailing
+            // a useless link.
+            logger.error("Skipping price alert email: no site origin resolved", {
+              alertId: alert.id,
+              siteId: product.site_id,
+            });
+            continue;
+          }
+          // Outbound product link is the affiliate redirect route at /r/<slug>.
+          const productUrl = `${siteOrigin}/r/${product.slug}`;
           const safeName = (product.name || "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")

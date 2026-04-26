@@ -2,8 +2,13 @@ name: DR Drill - Supabase Restore Test
 
 on:
   schedule:
-    - cron: '0 0 1 * *' # Run monthly on the 1st
+    - cron: "0 0 1 * *" # Run monthly on the 1st
   workflow_dispatch: # Allow manual trigger
+
+# DR drill only checks out the repo and exercises a Supabase restore
+# script — it doesn't touch GitHub state. Lock GITHUB_TOKEN to read-only.
+permissions:
+  contents: read
 
 jobs:
   dr-drill:
@@ -15,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Install Supabase CLI
         run: npm install -g supabase
