@@ -35,6 +35,8 @@
 #   - CRON_HOST (e.g. https://wristnerd.xyz)
 #   - INTERNAL_API_TOKEN (generate: openssl rand -hex 64)
 #   - RESEND_API_KEY, SENTRY_DSN, TURNSTILE_SECRET_KEY (optional)
+#   - Stripe: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID_INSIDER, STRIPE_PRICE_ID_PRO (optional — required for paid memberships)
+#   - Stripe cron: CRON_STRIPE_SYNC_SECRET (optional per-trigger secret for /api/cron/stripe-sync)
 #   - AI keys: CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COHERE_API_KEY (optional)
 #   - Affiliate: CJ_API_KEY, CJ_PUBLISHER_ID, PARTNERSTACK_API_KEY, ADMITAD_API_KEY, ADMITAD_PUBLISHER_ID (optional)
 #   - R2: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL (optional)
@@ -686,6 +688,13 @@ jobs:
           [ -n "$_ADMITAD_KEY" ]      && echo "$_ADMITAD_KEY"      | npx --yes wrangler@${WRANGLER_VERSION} secret put ADMITAD_API_KEY --name affilite-mix > /dev/null 2>&1        || true
           [ -n "$_ADMITAD_PUB" ]      && echo "$_ADMITAD_PUB"      | npx --yes wrangler@${WRANGLER_VERSION} secret put ADMITAD_PUBLISHER_ID --name affilite-mix > /dev/null 2>&1   || true
 
+          echo "Setting optional Stripe secrets (LIVE-17)..."
+          [ -n "$_STRIPE_KEY" ]       && echo "$_STRIPE_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_SECRET_KEY --name affilite-mix > /dev/null 2>&1        || true
+          [ -n "$_STRIPE_WH" ]        && echo "$_STRIPE_WH"        | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_WEBHOOK_SECRET --name affilite-mix > /dev/null 2>&1   || true
+          [ -n "$_STRIPE_INSIDER" ]   && echo "$_STRIPE_INSIDER"   | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_PRICE_ID_INSIDER --name affilite-mix > /dev/null 2>&1 || true
+          [ -n "$_STRIPE_PRO" ]       && echo "$_STRIPE_PRO"       | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_PRICE_ID_PRO --name affilite-mix > /dev/null 2>&1     || true
+          [ -n "$_CRON_STRIPE" ]      && echo "$_CRON_STRIPE"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_STRIPE_SYNC_SECRET --name affilite-mix > /dev/null 2>&1 || true
+
           echo "Setting optional R2 image storage secrets..."
           [ -n "$_R2_ACCOUNT" ]       && echo "$_R2_ACCOUNT"       | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_ACCOUNT_ID --name affilite-mix > /dev/null 2>&1          || true
           [ -n "$_R2_KEY_ID" ]        && echo "$_R2_KEY_ID"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_ACCESS_KEY_ID --name affilite-mix > /dev/null 2>&1       || true
@@ -716,6 +725,11 @@ jobs:
           _PSTACK_KEY: ${{ secrets.PARTNERSTACK_API_KEY }}
           _ADMITAD_KEY: ${{ secrets.ADMITAD_API_KEY }}
           _ADMITAD_PUB: ${{ secrets.ADMITAD_PUBLISHER_ID }}
+          _STRIPE_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          _STRIPE_WH: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          _STRIPE_INSIDER: ${{ secrets.STRIPE_PRICE_ID_INSIDER }}
+          _STRIPE_PRO: ${{ secrets.STRIPE_PRICE_ID_PRO }}
+          _CRON_STRIPE: ${{ secrets.CRON_STRIPE_SYNC_SECRET }}
           _R2_ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
           _R2_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
