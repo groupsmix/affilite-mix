@@ -72,3 +72,8 @@ sbom.*.bundle
 # security audit (keep out of public repos — see W5)
 SECURITY-AUDIT.md
 supabase/.temp/
+
+# audit F-016: gitleaks binary/archive must not be vendored
+gitleaks
+gitleaks_*.tar.gz
+gitleaks_*.zip

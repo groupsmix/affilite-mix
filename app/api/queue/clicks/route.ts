@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTenantClient } from "@/lib/supabase-server";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getInternalToken } from "@/lib/internal-auth";
 import { captureException } from "@/lib/sentry";
 
@@ -10,6 +10,16 @@ import { captureException } from "@/lib/sentry";
  * CLICK_QUEUE and inserts them into `affiliate_clicks` in a single batch
  * write. Called exclusively from the Worker `queue` handler (see
  * workers/custom-worker.ts); the shared INTERNAL_API_TOKEN gates access.
+ *
+ * F-002 (deep audit): this endpoint uses the privileged server-only
+ * Supabase client rather than `getTenantClient()`. The Worker queue
+ * dispatcher cannot supply an `x-site-id` request header — there is no
+ * cookie context, no admin session, and the per-message `site_id` lives
+ * in the JSON body. Without that header the tenant JWT minted by
+ * `getTenantClient()` carries no `site_id` claim, and the
+ * `tenant_isolation_auth_<table>` RLS policies (migration 00067) deny
+ * the insert. The endpoint is already token-gated by INTERNAL_API_TOKEN,
+ * so privileged access is the appropriate model here.
  *
  * On any unexpected error we return 500 so Cloudflare Queues retries the
  * batch with backoff and eventually routes it to the dead-letter queue.
@@ -71,7 +81,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const sb = await getTenantClient();
+    const sb = getPrivilegedSupabaseClient();
 
     if (isDlq) {
       // F-024: DLQ messages are persisted to click_failures for durable recovery

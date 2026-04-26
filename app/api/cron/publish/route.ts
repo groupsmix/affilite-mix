@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { getTenantClient } from "@/lib/supabase-server";
+// F-001 (deep audit): cron routes invoked from the Cloudflare Worker have
+// no `x-site-id` request header (there are no cookies, no admin session,
+// and a single cron may iterate many sites). The tenant JWT minted by
+// `getTenantClient()` would therefore carry no site claim and fail the
+// `tenant_isolation_auth_<t>` RLS predicate from migration 00067.
+// Cron is already gated by `CRON_SECRET`, so the privileged server-only
+// Supabase client is the correct model — every query in this route
+// must perform its own tenant scoping.
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
@@ -37,7 +45,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sb = await getTenantClient();
+  const sb = getPrivilegedSupabaseClient();
   const now = new Date().toISOString();
   const results: Record<string, unknown> = {};
 

@@ -1,5 +1,24 @@
 -- ═══════════════════════════════════════════════════════
--- Affilite-Mix — Schema (matches live Supabase DB)
+-- Affilite-Mix — Schema (LEGACY snapshot — DO NOT TREAT AS SOURCE OF TRUTH)
+-- ═══════════════════════════════════════════════════════
+--
+-- Audit F-008 (deep-audit pass):
+--   This file is a frozen snapshot from earlier in the project's life. The
+--   authoritative schema is the ordered set of files under
+--   `supabase/migrations/*.sql`, applied in filename order by the deploy
+--   workflow's `migrate-production` job. Generated TypeScript types live in
+--   `types/supabase.ts` and are validated against a live staging database
+--   by the `db-type-drift` CI job (scripts/check-db-types.mjs).
+--
+--   Tables added after this snapshot include (non-exhaustive):
+--     - click_failures            (migration 00039)
+--     - commissions, product_epc_stats (migration 00048)
+--     - memberships               (migration 00051)
+--     - tenant isolation policies (migration 00067)
+--
+--   Do NOT modify this file when shipping schema changes — write a new
+--   migration in `supabase/migrations/` instead. Modifying this snapshot
+--   has no production effect and will desynchronise reviewers.
 -- ═══════════════════════════════════════════════════════
 
 -- SITES — master registry
