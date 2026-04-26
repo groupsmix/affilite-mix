@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
-import { getRecentStripeEventIds, recordStripeEvent } from "@/lib/dal/stripe-events";
+import { getRecentStripeEventIds } from "@/lib/dal/stripe-events";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
 
@@ -37,9 +37,13 @@ export async function POST(request: NextRequest) {
       if (!processedEventIds.has(event.id)) {
         logger.info("Syncing missed Stripe event", { id: event.id, type: event.type });
 
-        const isFirstDelivery = await recordStripeEvent(event.id, event.type);
-        if (isFirstDelivery) {
-          await processStripeEvent(stripe, event);
+        // LIVE-10 / F-024: `processStripeEvent` records the event id
+        // and applies the membership-side effect atomically. The
+        // `processedEventIds` pre-check above is just a perf
+        // optimisation — duplicates are still safely skipped by the
+        // RPC if the in-memory snapshot is stale.
+        const result = await processStripeEvent(stripe, event);
+        if (!result.duplicate) {
           syncedCount++;
         }
       }
