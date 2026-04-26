@@ -197,10 +197,17 @@ evidence/<timestamp>/
 ├── automatic_https_rewrites.json
 ├── opportunistic_encryption.json
 ├── tls_1_3.json
+├── brotli.json
+├── http3.json
+├── 0rtt.json
+├── cache_level.json
+├── browser_cache_ttl.json
 ├── dns.json                      # all zone DNS records
 ├── rulesets.json                 # WAF + rate limit + cache phase entrypoints
-├── page_rules.json               # legacy; expected to be empty
-└── rate_limits.json              # legacy v1 endpoint; superseded by rulesets
+├── ruleset_<id>.json             # one per http_ratelimit phase entrypoint, expanded
+├── page_rules.json               # legacy; expected to be `result: []`
+├── rate_limits_legacy.json       # legacy v1 endpoint; superseded by rulesets
+└── rate_limits.json              # symlink → rate_limits_legacy.json
 ```
 
 To produce the full audit packet:
