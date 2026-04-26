@@ -58,15 +58,16 @@ All runtime secrets are set via `wrangler secret put <NAME>` (automated in the d
 
 ### Required
 
-| Secret                          | Source                  | Used by                                            |
-| ------------------------------- | ----------------------- | -------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase dashboard      | `lib/supabase.ts`, SSR                             |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase dashboard      | `lib/supabase.ts`, SSR                             |
-| `SUPABASE_SERVICE_ROLE_KEY`     | Supabase dashboard      | `lib/supabase-server.ts`                           |
-| `JWT_SECRET`                    | `openssl rand -hex 64`  | `lib/auth/`, admin JWT signing                     |
-| `CRON_SECRET`                   | `openssl rand -hex 32`  | `workers/custom-worker.ts`, `lib/cron-auth.ts`     |
-| `CRON_HOST`                     | `https://wristnerd.xyz` | `workers/custom-worker.ts` — cron dispatch target  |
-| `INTERNAL_API_TOKEN`            | `openssl rand -hex 64`  | `lib/internal-auth.ts` — middleware ↔ resolve-site |
+| Secret                          | Source                  | Used by                                                |
+| ------------------------------- | ----------------------- | ------------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase dashboard      | `lib/supabase.ts`, SSR                                 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase dashboard      | `lib/supabase.ts`, SSR                                 |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Supabase dashboard      | `lib/supabase-server.ts`                               |
+| `JWT_SECRET`                    | `openssl rand -hex 64`  | `lib/auth/`, admin JWT signing                         |
+| `CRON_SECRET`                   | `openssl rand -hex 32`  | `workers/custom-worker.ts`, `lib/cron-auth.ts`         |
+| `CRON_HOST`                     | `https://wristnerd.xyz` | `workers/custom-worker.ts` — cron dispatch target      |
+| `INTERNAL_API_TOKEN`            | `openssl rand -hex 64`  | `lib/internal-auth.ts` — middleware ↔ resolve-site     |
+| `APP_URL`                       | `https://wristnerd.xyz` | `app/api/auth/forgot-password/` — password reset links |
 
 ### Optional — Email
 
