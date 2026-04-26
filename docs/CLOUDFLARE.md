@@ -4,6 +4,8 @@ This document describes every Cloudflare resource, binding, secret, and zone set
 
 **See also:**
 
+- [cloudflare-evidence.md](./cloudflare-evidence.md) — control-by-control audit checklist mapping each WAF/cache/rate-limit/TLS/HSTS/origin control to its IaC source and verification command (P2 #63)
+- [../terraform/cloudflare/README.md](../terraform/cloudflare/README.md) — IaC coverage matrix (P2 #64): what's source-controlled, what's owned by wrangler, and how to import existing resources
 - [cloudflare-production.md](./cloudflare-production.md) — step-by-step zone security & performance toggles (SSL, HSTS, WAF, rate limiting, cache rules) with dashboard links and verification scripts
 - [cloudflare-recovery.md](./cloudflare-recovery.md) — account recovery playbook (lost access, compromised account, full rebuild from scratch)
 - [cloudflare-r2-images.md](./cloudflare-r2-images.md) — image upload architecture (S3-API presigned URLs)
