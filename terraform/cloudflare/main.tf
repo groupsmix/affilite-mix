@@ -74,6 +74,39 @@ variable "logpush_enabled" {
   description = "Whether the worker_logs Logpush job should be enabled. Requires logpush_destination_conf to be set."
 }
 
+# WAF custom-rule offender lists.
+#
+# Replaces the previously hardcoded placeholder ASNs (`12345 / 54321`) that
+# were never meant to ship to a real apply. ASN data must come from
+# Cloudflare analytics (Security → Events → top offending ASNs) and is
+# operationally sensitive, so it lives outside the codebase and is supplied
+# via tfvars at apply time. The country list defaults to the OFAC-restricted
+# set so a fresh apply still produces a meaningful rule even before the
+# operator has triaged ASNs.
+variable "waf_blocked_asns" {
+  type        = list(number)
+  default     = []
+  description = <<-EOT
+    ASNs to managed-challenge on the http_request_firewall_custom phase.
+    Source from Cloudflare analytics offender data and supply via tfvars;
+    the empty default scopes the rule to the country list only.
+  EOT
+}
+
+variable "waf_blocked_countries" {
+  type        = list(string)
+  default     = ["KP", "IR", "SY"]
+  description = <<-EOT
+    ISO 3166-1 alpha-2 country codes to managed-challenge on the
+    http_request_firewall_custom phase. Defaults to the OFAC-restricted
+    set; supply via tfvars to extend or override.
+  EOT
+  validation {
+    condition     = alltrue([for c in var.waf_blocked_countries : can(regex("^[A-Z]{2}$", c))])
+    error_message = "waf_blocked_countries entries must be uppercase ISO 3166-1 alpha-2 codes (e.g. \"KP\")."
+  }
+}
+
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
@@ -169,10 +202,27 @@ resource "cloudflare_ruleset" "rate_limit_auth" {
 ###############################################################################
 # Custom WAF rules — challenge high-risk traffic on sensitive endpoints.
 #
-# Note: ASNs and country list below are placeholders; replace 12345 / 54321
-# with the actual offender ASNs surfaced from Cloudflare analytics before
-# applying.
+# The match expression is composed at plan time from `var.waf_blocked_asns`
+# and `var.waf_blocked_countries`. Both lists are tfvar-driven so no
+# placeholder offender data lives in source. The expression drops a clause
+# entirely when its list is empty (Cloudflare rejects `in {}`); a
+# precondition guarantees at least one clause is non-empty before apply.
 ###############################################################################
+
+locals {
+  waf_asn_clause = length(var.waf_blocked_asns) > 0 ? format(
+    "(ip.geoip.asnum in {%s})",
+    join(" ", [for a in var.waf_blocked_asns : tostring(a)]),
+  ) : ""
+
+  waf_country_clause = length(var.waf_blocked_countries) > 0 ? format(
+    "(ip.geoip.country in {%s})",
+    join(" ", [for c in var.waf_blocked_countries : "\"${c}\""]),
+  ) : ""
+
+  waf_clauses    = compact([local.waf_asn_clause, local.waf_country_clause])
+  waf_expression = join(" or ", local.waf_clauses)
+}
 
 resource "cloudflare_ruleset" "waf_custom" {
   zone_id     = var.zone_id
@@ -183,10 +233,17 @@ resource "cloudflare_ruleset" "waf_custom" {
 
   rules = [{
     action      = "managed_challenge"
-    expression  = "(ip.geoip.asnum in {12345 54321}) or (ip.geoip.country in {\"KP\" \"IR\" \"SY\"})"
+    expression  = local.waf_expression
     description = "Challenge high-risk traffic"
     enabled     = true
   }]
+
+  lifecycle {
+    precondition {
+      condition     = length(local.waf_clauses) > 0
+      error_message = "waf_blocked_asns and waf_blocked_countries cannot both be empty — at least one match clause is required."
+    }
+  }
 }
 
 ###############################################################################
