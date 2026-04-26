@@ -17,6 +17,7 @@
 // @ts-expect-error -- `.open-next/worker.js` is generated at build time
 import { default as handler } from "../.open-next/worker.js";
 import { RateLimiterDO } from "./rate-limiter-do";
+import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
 
 // Minimal type stubs for Cloudflare Worker APIs (provided by the runtime)
 interface CloudflareScheduledController {
@@ -52,15 +53,6 @@ const worker = {
     env: Record<string, unknown>,
     ctx: CloudflareExecutionContext,
   ) {
-    const cronSecret = env.CRON_SECRET;
-    if (!cronSecret || typeof cronSecret !== "string") {
-      console.error(
-        "[scheduled] CRON_SECRET not configured -- skipping cron dispatch. " +
-          "Set it with: wrangler secret put CRON_SECRET",
-      );
-      return;
-    }
-
     // Determine the canonical base URL for cron dispatch.
     // Priority: CRON_HOST (explicit, required in production) -> CF_PAGES_URL (legacy).
     // A hardcoded domain fallback is intentionally absent: silently posting to
@@ -82,28 +74,42 @@ const worker = {
       return;
     }
 
-    const CRON_ROUTES: Record<string, string> = {
-      "*/5 * * * *": "/api/cron/publish",
-      "0 1 * * *": "/api/cron/stripe-sync",
-      "0 2 * * *": "/api/cron/ai-generate",
-      "0 3 * * *": "/api/cron/sitemap-refresh",
-      "0 4 * * *": "/api/cron/data-retention",
-      "0 5 * * *": "/api/cron/commission-ingest",
-      "0 6 * * *": "/api/cron/epc-recompute",
-      "0 7 * * *": "/api/cron/price-scrape",
-      "0 * * * *": "/api/cron/expire-deals",
-    };
-
-    const path = CRON_ROUTES[controller.cron];
-
-    if (!path) {
+    // Schedule -> job lookup is derived from the central cron registry
+    // (lib/cron-registry.ts) so wrangler.jsonc, this dispatch table,
+    // the route handlers, and .env.example never drift apart.
+    const job = getCronJobBySchedule(controller.cron);
+    if (!job) {
       console.error(
         `[scheduled] Unknown cron schedule "${controller.cron}" -- no matching route. ` +
-          "Add it to CRON_ROUTES in workers/custom-worker.ts.",
+          "Add it to lib/cron-registry.ts so the registry, wrangler.jsonc, " +
+          "and the dispatch map all stay in sync.",
       );
       return;
     }
 
+    // Prefer the per-trigger secret so operators can rotate or revoke a
+    // single trigger without touching the others. Fall back to the shared
+    // CRON_SECRET so deployments that haven't rolled out per-trigger
+    // secrets yet keep working — matches the route-side acceptance order.
+    const perTriggerSecret = env[job.secretEnvVar];
+    const fallbackSecret = env[CRON_FALLBACK_SECRET_ENV];
+    const cronSecret =
+      typeof perTriggerSecret === "string" && perTriggerSecret
+        ? perTriggerSecret
+        : typeof fallbackSecret === "string" && fallbackSecret
+          ? fallbackSecret
+          : null;
+
+    if (!cronSecret) {
+      console.error(
+        `[scheduled] Neither ${job.secretEnvVar} nor ${CRON_FALLBACK_SECRET_ENV} is configured ` +
+          `for cron "${controller.cron}" (${job.path}) -- skipping dispatch. ` +
+          `Set it with: wrangler secret put ${job.secretEnvVar}`,
+      );
+      return;
+    }
+
+    const path = job.path;
     const url = `${cronHost}${path}`;
 
     ctx.waitUntil(
