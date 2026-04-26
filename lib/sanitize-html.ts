@@ -85,14 +85,22 @@ const HEADING_REMAP: Record<string, string> = { h1: "h2" };
  */
 const ALLOWED_URL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
 
-function isSafeUrl(value: string): boolean {
+/**
+ * URLs are pre-cleaned to match what the browser will actually resolve:
+ *   - Leading/trailing C0 control characters (U+0000..U+001F) and space
+ *     are stripped by the URL parser (WHATWG URL spec §4.4).
+ *   - ASCII tab, LF and CR inside the URL are stripped everywhere.
+ * Without this, crafted inputs like `java\tscript:` or `\x01javascript:`
+ * would sneak past scheme detection and still be resolved as
+ * `javascript:` by the browser.
+ */
+export function isSafeUrl(value: string): boolean {
   if (typeof value !== "string") return false;
 
-  // Strip ASCII tab, newline, and carriage-return characters that browsers
-  // silently remove during URL normalization (WHATWG URL spec §4.4).
-  // Without this, "java\tscript:" evades scheme detection but the browser
-  // still resolves it as "javascript:".
-  const trimmed = value.replace(/[\t\n\r]/g, "").trim();
+  // Strip all ASCII tab, newline and carriage-return characters (anywhere
+  // in the string — the URL parser removes them globally), then trim
+  // leading/trailing C0 controls and spaces.
+  const trimmed = value.replace(/[\t\n\r]/g, "").replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, "");
   if (trimmed.length === 0) return false;
 
   // Relative URLs and same-page anchors never specify a scheme.
@@ -154,10 +162,7 @@ function buildAttrs(tag: string, raw: Record<string, string>): string {
 
       // Restrict classes to a strict allow-list to prevent UI redressing
       if (lc === "class") {
-        const safeClasses = value
-          .split(/\s+/)
-          .filter(isAllowedClass)
-          .join(" ");
+        const safeClasses = value.split(/\s+/).filter(isAllowedClass).join(" ");
         if (!safeClasses) continue;
         parts.push(`class="${escapeAttrValue(safeClasses)}"`);
         continue;

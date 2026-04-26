@@ -44,3 +44,16 @@ jobs:
         run: npx @lhci/cli autorun || echo "LHCI failures allowed during bootstrap"
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      # Upload the raw .lighthouseci/ directory so reviewers can inspect
+      # actual LCP / INP / CLS / bundle-size / 3rd-party / font / image
+      # metrics instead of only seeing that the workflow ran. Also runs on
+      # failure so budget-violation reports are preserved.
+      - name: Upload Lighthouse results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lighthouse-results
+          path: .lighthouseci/
+          if-no-files-found: warn
+          retention-days: 14

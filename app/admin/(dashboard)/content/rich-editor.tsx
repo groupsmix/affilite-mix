@@ -7,6 +7,19 @@ import Image from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
 import Youtube from "@tiptap/extension-youtube";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { isSafeUrl } from "@/lib/sanitize-html";
+
+/**
+ * Only http(s) URLs are permitted inside the editor for images and videos.
+ * `isSafeUrl` additionally covers relative / mailto / tel for link anchors,
+ * but for `<img>`/embeds we want the stricter http(s)-only rule so data:,
+ * blob:, javascript: etc. cannot be inserted even accidentally.
+ */
+function isHttpUrl(value: string): boolean {
+  if (!isSafeUrl(value)) return false;
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.startsWith("http://") || trimmed.startsWith("https://");
+}
 
 interface RichEditorProps {
   value: string;
@@ -222,6 +235,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
             label="URL"
             placeholder="https://example.com"
             onSubmit={(url) => {
+              if (!isSafeUrl(url)) return;
               editor.chain().focus().setLink({ href: url }).run();
               setShowLinkPopover(false);
             }}
@@ -257,6 +271,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
             label="Image URL"
             placeholder="https://example.com/image.jpg"
             onSubmit={(url) => {
+              if (!isHttpUrl(url)) return;
               editor.chain().focus().setImage({ src: url }).run();
               setShowImagePopover(false);
             }}
@@ -282,6 +297,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
             label="Video URL"
             placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
             onSubmit={(url) => {
+              if (!isHttpUrl(url)) return;
               editor.commands.setYoutubeVideo({ src: url });
               setShowVideoPopover(false);
             }}
@@ -302,6 +318,10 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { rel: "noopener noreferrer nofollow" },
+        // Reject `javascript:`, `data:`, etc. during paste / autolink so the
+        // editor never renders an unsafe anchor, even though server-side
+        // sanitization would strip it on save.
+        validate: (href) => isSafeUrl(href),
       }),
       Image.configure({
         HTMLAttributes: { class: "rounded-lg" },
