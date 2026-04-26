@@ -1,10 +1,17 @@
 import type Stripe from "stripe";
-import {
-  createMembership,
-  getMembershipByStripeSubscription,
-  updateMembership,
-} from "@/lib/dal/memberships";
+import { applyStripeEventAtomic, type StripeEventOp } from "@/lib/dal/stripe-events";
 import { logger } from "@/lib/logger";
+
+/**
+ * Result returned to the webhook / cron caller after processing a
+ * verified Stripe event.
+ */
+export interface StripeProcessingResult {
+  /** True when the event was already recorded (and therefore skipped). */
+  duplicate: boolean;
+  /** Membership row touched by the side effect, if any. */
+  membershipId: string | null;
+}
 
 /**
  * Process a verified Stripe webhook event.
@@ -13,16 +20,55 @@ import { logger } from "@/lib/logger";
  * verification / idempotency layer stays thin and the side-effectful
  * business logic can be unit-tested independently.
  *
+ * LIVE-10 / F-024: the previous implementation recorded the event id
+ * via `recordStripeEvent` and then mutated `memberships` in separate
+ * Supabase queries. A crash between the two steps left the event
+ * marked processed without the side effect applied, and Stripe
+ * retries skipped the event as a duplicate — silently dropping
+ * subscription updates.
+ *
+ * The current implementation:
+ *   1. Resolves any extra data needed from the Stripe API (e.g.
+ *      `subscriptions.retrieve` for current_period_*).
+ *   2. Builds a `StripeEventOp` payload describing the side effect.
+ *   3. Calls the `apply_stripe_membership_event` Postgres RPC, which
+ *      records the event id and applies the side effect inside a
+ *      single transaction. If the side effect raises, the event row
+ *      is rolled back and Stripe will retry.
+ *
  * Handled event types:
  *  - checkout.session.completed
  *  - invoice.paid
  *  - customer.subscription.updated
  *  - customer.subscription.deleted
  *
- * Any other event type is logged and ignored (the route still returns 2xx
- * so Stripe does not retry).
+ * Any other event type is logged and recorded as a no-op (the route
+ * still returns 2xx so Stripe does not retry).
  */
-export async function processStripeEvent(stripe: Stripe, event: Stripe.Event): Promise<void> {
+export async function processStripeEvent(
+  stripe: Stripe,
+  event: Stripe.Event,
+): Promise<StripeProcessingResult> {
+  const payload = await buildStripeEventPayload(stripe, event);
+
+  const result = await applyStripeEventAtomic(event.id, event.type, payload);
+
+  if (result.duplicate) {
+    logger.info("Stripe event already processed, skipping", {
+      id: event.id,
+      type: event.type,
+    });
+  } else {
+    logStripeSideEffect(event.type, payload, result.membership_id);
+  }
+
+  return { duplicate: result.duplicate, membershipId: result.membership_id };
+}
+
+async function buildStripeEventPayload(
+  stripe: Stripe,
+  event: Stripe.Event,
+): Promise<StripeEventOp> {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -34,26 +80,27 @@ export async function processStripeEvent(stripe: Stripe, event: Stripe.Event): P
       const siteId = metadata?.site_id;
       const tier = (metadata?.tier as "insider" | "pro") || "insider";
 
-      if (email && siteId && subscriptionId) {
-        const sub = await stripe.subscriptions.retrieve(subscriptionId);
-
-        await createMembership({
-          site_id: siteId,
-          email,
-          tier,
-          stripe_customer_id: customerId,
-          stripe_subscription_id: subscriptionId,
-          current_period_start: toIsoOrUndefined(
-            (sub as unknown as { current_period_start?: number | null }).current_period_start,
-          ),
-          current_period_end: toIsoOrUndefined(
-            (sub as unknown as { current_period_end?: number | null }).current_period_end,
-          ),
-        });
-
-        logger.info("Membership created via Stripe checkout", { email, siteId, tier });
+      if (!email || !siteId || !subscriptionId) {
+        // Not enough data to attach a membership; record the event so
+        // Stripe stops retrying but skip the side effect.
+        return { op: "noop" };
       }
-      break;
+
+      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      return {
+        op: "create_membership",
+        site_id: siteId,
+        email,
+        tier,
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        current_period_start: toIsoOrUndefined(
+          (sub as unknown as { current_period_start?: number | null }).current_period_start,
+        ),
+        current_period_end: toIsoOrUndefined(
+          (sub as unknown as { current_period_end?: number | null }).current_period_end,
+        ),
+      };
     }
 
     case "invoice.paid": {
@@ -64,55 +111,84 @@ export async function processStripeEvent(stripe: Stripe, event: Stripe.Event): P
           ? ((invoice as unknown as { subscription: string }).subscription as string)
           : undefined;
 
-      if (subscriptionId) {
-        const membership = await getMembershipByStripeSubscription(subscriptionId);
-        if (membership) {
-          const sub = await stripe.subscriptions.retrieve(subscriptionId);
-
-          await updateMembership(membership.id, {
-            status: "active",
-            current_period_start: toIsoOrUndefined(
-              (sub as unknown as { current_period_start?: number | null }).current_period_start,
-            ),
-            current_period_end: toIsoOrUndefined(
-              (sub as unknown as { current_period_end?: number | null }).current_period_end,
-            ),
-          });
-          logger.info("Membership renewed", { email: membership.email });
-        }
+      if (!subscriptionId) {
+        return { op: "noop" };
       }
-      break;
+
+      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      return {
+        op: "renew_membership",
+        stripe_subscription_id: subscriptionId,
+        current_period_start: toIsoOrUndefined(
+          (sub as unknown as { current_period_start?: number | null }).current_period_start,
+        ),
+        current_period_end: toIsoOrUndefined(
+          (sub as unknown as { current_period_end?: number | null }).current_period_end,
+        ),
+      };
     }
 
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
-      const membership = await getMembershipByStripeSubscription(subscription.id);
-      if (membership) {
-        const mappedStatus = mapStripeStatus(subscription.status);
-        await updateMembership(membership.id, { status: mappedStatus });
-        logger.info("Membership status updated", {
-          email: membership.email,
-          status: mappedStatus,
-        });
-      }
-      break;
+      return {
+        op: "update_status",
+        stripe_subscription_id: subscription.id,
+        status: mapStripeStatus(subscription.status),
+      };
     }
 
     case "customer.subscription.deleted": {
       const subscription = event.data.object as Stripe.Subscription;
-      const membership = await getMembershipByStripeSubscription(subscription.id);
-      if (membership) {
-        await updateMembership(membership.id, {
-          status: "cancelled",
-          cancelled_at: new Date().toISOString(),
-        });
-        logger.info("Membership cancelled", { email: membership.email });
-      }
-      break;
+      return {
+        op: "cancel_membership",
+        stripe_subscription_id: subscription.id,
+      };
     }
 
     default:
       logger.info(`Unhandled Stripe event type: ${event.type}`);
+      return { op: "noop" };
+  }
+}
+
+function logStripeSideEffect(
+  eventType: string,
+  payload: StripeEventOp,
+  membershipId: string | null,
+): void {
+  switch (payload.op) {
+    case "create_membership":
+      logger.info("Membership created via Stripe checkout", {
+        email: payload.email,
+        siteId: payload.site_id,
+        tier: payload.tier,
+        membershipId,
+      });
+      break;
+    case "renew_membership":
+      logger.info("Membership renewed", {
+        stripeSubscriptionId: payload.stripe_subscription_id,
+        membershipId,
+      });
+      break;
+    case "update_status":
+      logger.info("Membership status updated", {
+        stripeSubscriptionId: payload.stripe_subscription_id,
+        status: payload.status,
+        membershipId,
+      });
+      break;
+    case "cancel_membership":
+      logger.info("Membership cancelled", {
+        stripeSubscriptionId: payload.stripe_subscription_id,
+        membershipId,
+      });
+      break;
+    case "noop":
+      logger.info("Stripe event recorded with no membership side effect", {
+        type: eventType,
+      });
+      break;
   }
 }
 
@@ -136,9 +212,9 @@ function mapStripeStatus(
     case "incomplete_expired":
       return "expired";
     // `incomplete` (initial payment not yet succeeded) and `paused`
-    // (deliberately suspended) must NOT grant premium access — fall
-    // through to the safe default. Per devin-ai review on PR #273.
+    // are treated as past_due so the membership stays gated until a
+    // subsequent webhook clarifies the state.
     default:
-      return "expired";
+      return "past_due";
   }
 }

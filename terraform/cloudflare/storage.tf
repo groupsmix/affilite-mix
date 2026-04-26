@@ -12,6 +12,17 @@
 #   ─────────────────────     ─────────────────────────────
 #   NEXT_INC_CACHE_R2_BUCKET  cloudflare_r2_bucket.next_inc_cache
 #
+# Additional non-binding R2 bucket:
+#
+#   bucket name               IaC resource                          purpose
+#   ─────────────────────     ──────────────────────────────────    ───────────
+#   workers-logpush-<env>     cloudflare_r2_bucket.worker_logs      LIVE-09:
+#                                                                   Logpush
+#                                                                   destination
+#                                                                   for the
+#                                                                   workers_trace_events
+#                                                                   dataset.
+#
 # Ownership boundary: Terraform owns the namespace/bucket resources and their
 # IDs. wrangler.jsonc references those IDs at deploy time via
 # `${RATE_LIMIT_KV_NAMESPACE_ID}` / `${APP_CACHE_KV_NAMESPACE_ID}` (see
@@ -26,6 +37,8 @@
 #     "${var.cloudflare_account_id}/<namespace-id>"
 #   terraform import cloudflare_r2_bucket.next_inc_cache \
 #     "${var.cloudflare_account_id}/next-inc-cache"
+#   terraform import cloudflare_r2_bucket.worker_logs \
+#     "${var.cloudflare_account_id}/<worker-logs-bucket-name>"
 #
 # Run `npx wrangler kv namespace list` and `npx wrangler r2 bucket list` to
 # discover the IDs/names currently in use before importing.
@@ -53,6 +66,27 @@ resource "cloudflare_r2_bucket" "next_inc_cache" {
   location   = var.r2_default_location
 }
 
+# LIVE-09: dedicated R2 bucket that receives workers_trace_events from the
+# Logpush job declared in main.tf. Kept separate from `next_inc_cache` so log
+# retention / lifecycle / access controls can be tuned independently of the
+# OpenNext incremental cache.
+#
+# Bucket creation does NOT require a paid Cloudflare Workers plan, but
+# Logpush itself does (see docs/CLOUDFLARE.md → "Logpush"). Importing or
+# applying this resource on a free-tier account is therefore safe; flipping
+# `var.logpush_enabled = true` is the step that requires the upgrade.
+variable "worker_logs_bucket_name" {
+  type        = string
+  default     = "workers-logpush"
+  description = "R2 bucket name that receives Cloudflare Logpush deliveries for the workers_trace_events dataset. Override per environment if multi-env tenants share the same account."
+}
+
+resource "cloudflare_r2_bucket" "worker_logs" {
+  account_id = var.cloudflare_account_id
+  name       = var.worker_logs_bucket_name
+  location   = var.r2_default_location
+}
+
 ###############################################################################
 # Outputs — surface IDs so the deploy pipeline can pass them to wrangler via
 # the documented `${RATE_LIMIT_KV_NAMESPACE_ID}` / `${APP_CACHE_KV_NAMESPACE_ID}`
@@ -72,4 +106,9 @@ output "app_cache_kv_namespace_id" {
 output "next_inc_cache_bucket_name" {
   value       = cloudflare_r2_bucket.next_inc_cache.name
   description = "Name of the R2 bucket bound to NEXT_INC_CACHE_R2_BUCKET in wrangler.jsonc."
+}
+
+output "worker_logs_bucket_name" {
+  value       = cloudflare_r2_bucket.worker_logs.name
+  description = "Name of the R2 bucket that receives the workers_trace_events Logpush job (LIVE-09). Wire this into `logpush_destination_conf` after generating R2 access keys."
 }

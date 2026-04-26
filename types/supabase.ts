@@ -2276,6 +2276,14 @@ export interface Database {
         };
         Returns: undefined;
       };
+      apply_stripe_membership_event: {
+        Args: {
+          p_stripe_event_id: string;
+          p_event_type: string;
+          p_event_data: Record<string, unknown>;
+        };
+        Returns: { duplicate: boolean; membership_id: string | null };
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
