@@ -400,11 +400,14 @@ If click data was backed up to R2 before loss:
 wrangler r2 object get backup-bucket/clicks/YYYY-MM-DD.json --file clicks.json
 
 # Re-submit in batches of 25 (matching consumer batch size)
-cat clicks.json | jq -c '.[0:25]' | \
-  xargs -I{} curl -s -X POST https://wristnerd.site/api/queue/clicks \
+TOTAL=$(cat clicks.json | jq 'length')
+for ((i=0; i<TOTAL; i+=25)); do
+  BATCH=$(jq -c ".[$i:$((i+25))]" clicks.json)
+  curl -s -X POST https://wristnerd.site/api/queue/clicks \
     -H "Authorization: Bearer $INTERNAL_API_TOKEN" \
     -H "Content-Type: application/json" \
-    -d '{"messages": {}}'
+    -d "{\"messages\": $BATCH}"
+done
 ```
 
 ### Post-Replay Verification
