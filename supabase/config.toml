@@ -9,15 +9,29 @@ extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 # BLIND SPOT FIX: API Exposure and Auth Settings
+#
+# Schema migrated for Supabase CLI v2: keys that lived directly under [auth]
+# in v1 (`enable_magic_link`, `enable_confirmations`, `secure_password_hash`)
+# were removed or moved under sub-tables in v2. The intent of each line
+# is preserved:
+#   - `enable_signup = false` is still valid under [auth] and still gates
+#     account creation across all providers.
+#   - `enable_magic_link = false` no longer has an equivalent toggle; magic
+#     links are now controlled by [auth.email] flows. Email signups are
+#     additionally disabled below via [auth.email].enable_signup = false.
+#   - `enable_confirmations = true` moved verbatim under [auth.email].
+#   - `secure_password_hash = true` was removed entirely — the modern hash
+#     (Argon2id) is the default and cannot be disabled.
 [auth]
 enabled = true
 site_url = "https://affilite-mix.example.com"
 additional_redirect_urls = ["https://affilite-mix.example.com/auth/callback"]
 jwt_expiry = 3600
 enable_signup = false
-enable_magic_link = false
+
+[auth.email]
+enable_signup = false
 enable_confirmations = true
-secure_password_hash = true
 
 # BLIND SPOT FIX: Network Restrictions & Security
 # In production, these should be enforced via Supabase dashboard / API

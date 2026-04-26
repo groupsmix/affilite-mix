@@ -99,10 +99,13 @@ SETTINGS=(
   tls_1_3
   security_header
   automatic_https_rewrites
+  opportunistic_encryption
   brotli
   http3
   0rtt
   security_level
+  bot_fight_mode
+  browser_check
   cache_level
   browser_cache_ttl
 )
@@ -124,9 +127,25 @@ echo "  ✓ dns.json ($(jq 'length' "${OUT_DIR}/dns.json") records)"
 # returns rules created via the old system. Keep it for compatibility but
 # also capture the current WAF http_ratelimit rulesets, which is where
 # dashboard-created and API-v2-created rate-limit rules live.
+#
+# `rate_limits_legacy.json` is the canonical name; `rate_limits.json` is
+# kept as a symlink for the audit checklist in docs/cloudflare-evidence.md.
 cf_get "/zones/${ZONE_ID}/rate_limits"      "${OUT_DIR}/rate_limits_legacy.json" || true
+if [ -f "${OUT_DIR}/rate_limits_legacy.json" ]; then
+  ln -sf rate_limits_legacy.json "${OUT_DIR}/rate_limits.json"
+fi
 cf_get "/zones/${ZONE_ID}/rulesets"         "${OUT_DIR}/rulesets.json"
 echo "  ✓ rate_limits_legacy.json + rulesets.json"
+
+# ── Page Rules (legacy) ─────────────────────────────────────────────────────
+# Page Rules are deprecated by Cloudflare in favour of Rulesets. The expected
+# steady state is an empty `result: []`. Capture anyway so an auditor can
+# verify nothing was added behind the team's back.
+if cf_get "/zones/${ZONE_ID}/pagerules" "${OUT_DIR}/page_rules.json"; then
+  echo "  ✓ page_rules.json"
+else
+  echo "  ✗ page_rules.json (continuing)"
+fi
 
 # Expand each http_ratelimit phase entrypoint into its full rule list so the
 # snapshot is self-contained.

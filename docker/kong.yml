@@ -19,6 +19,25 @@ services:
           - /rest/v1/
     plugins:
       - name: cors
+        config:
+          origins:
+            - "http://localhost:3000"
+            - "http://localhost:3001"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+            - OPTIONS
+          headers:
+            - Content-Type
+            - Authorization
+            - apikey
+            - x-csrf-token
+            - x-trace-id
+          credentials: true
+          max_age: 3600
 
 consumers:
   # Stubbed consumers so supabase-js's `apikey` header is accepted even
