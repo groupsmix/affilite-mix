@@ -45,7 +45,7 @@ This document describes every Cloudflare resource, binding, secret, and zone set
 | `RATE_LIMIT_KV_NAMESPACE_ID` | `kv_namespaces[0].id`          | `npx wrangler kv:namespace create RATE_LIMIT_KV` — copy `id` from the output |
 | `APP_CACHE_KV_NAMESPACE_ID`  | `kv_namespaces[1].id`          | `npx wrangler kv:namespace create APP_CACHE_KV` — copy `id` from the output  |
 
-If the namespaces are managed via Terraform (see [`terraform/cloudflare/storage.tf`](../terraform/cloudflare/README.md)), pull the IDs from the Terraform outputs instead:
+If the namespaces are managed via Terraform (see [`terraform/cloudflare/storage.tf`](../terraform/cloudflare/storage.tf) and [the module README](../terraform/cloudflare/README.md)), pull the IDs from the Terraform outputs instead:
 
 ```bash
 cd terraform/cloudflare
