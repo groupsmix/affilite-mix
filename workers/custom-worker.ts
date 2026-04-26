@@ -163,12 +163,16 @@ const worker = {
       const cronHost =
         typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
 
-      if (internalToken && cronHost) {
+      if (typeof internalToken === "string" && internalToken && cronHost) {
+        // R-N002: only ack DLQ messages once /api/queue/clicks?dlq=true has
+        // confirmed they were durably persisted (HTTP 2xx). On any non-2xx,
+        // network error, or unexpected exception we retry the batch so the
+        // last-parachute attribution evidence cannot vanish silently.
         ctx.waitUntil(
           (async () => {
+            const dlqUrl = `${cronHost}/api/queue/clicks?dlq=true`;
             try {
-              const dlqUrl = `${cronHost}/api/queue/clicks?dlq=true`;
-              await fetch(dlqUrl, {
+              const res = await fetch(dlqUrl, {
                 method: "POST",
                 headers: {
                   Authorization: `Bearer ${internalToken}`,
@@ -176,13 +180,27 @@ const worker = {
                 },
                 body: JSON.stringify({ messages: batch.messages.map((m) => m.body) }),
               });
+
+              if (res.ok) {
+                batch.ackAll();
+              } else {
+                const bodyText = await res.text().catch(() => "");
+                console.error(
+                  `[queue/click-tracking-dlq] DLQ persistence returned ${res.status} — retrying batch:`,
+                  bodyText,
+                );
+                batch.retryAll();
+              }
             } catch (err) {
               console.error("[queue/click-tracking-dlq] failed to persist dead letters:", err);
+              batch.retryAll();
             }
-            batch.ackAll();
           })(),
         );
       } else {
+        // Without an internal token / cron host we have no durable sink, so
+        // log the bodies (recoverable from Worker tail / Logpush) and ack —
+        // there is nothing to retry against.
         for (const msg of batch.messages) {
           console.error("[queue/click-tracking-dlq] dead letter", msg);
         }

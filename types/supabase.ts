@@ -68,6 +68,7 @@ export interface Database {
           meta_description: string | null;
           og_image_url: string | null;
           social_links: Record<string, string>;
+          monetization_modules: Record<string, unknown>[];
           created_at: string;
           updated_at: string;
         };
@@ -92,6 +93,7 @@ export interface Database {
           meta_description?: string | null;
           og_image_url?: string | null;
           social_links?: Record<string, string>;
+          monetization_modules?: Record<string, unknown>[];
           created_at?: string;
           updated_at?: string;
         };
@@ -116,6 +118,7 @@ export interface Database {
           meta_description?: string | null;
           og_image_url?: string | null;
           social_links?: Record<string, string>;
+          monetization_modules?: Record<string, unknown>[];
           created_at?: string;
           updated_at?: string;
         };
@@ -130,6 +133,8 @@ export interface Database {
           slug: string;
           description: string;
           taxonomy_type: string;
+          meta_title: string | null;
+          meta_description: string | null;
           created_at: string;
         };
         Insert: {
@@ -139,6 +144,8 @@ export interface Database {
           slug: string;
           description?: string;
           taxonomy_type?: string;
+          meta_title?: string | null;
+          meta_description?: string | null;
           created_at?: string;
         };
         Update: {
@@ -148,6 +155,8 @@ export interface Database {
           slug?: string;
           description?: string;
           taxonomy_type?: string;
+          meta_title?: string | null;
+          meta_description?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -270,6 +279,7 @@ export interface Database {
           category_id: string | null;
           tags: string[];
           author: string | null;
+          author_id: string | null;
           publish_at: string | null;
           meta_title: string | null;
           meta_description: string | null;
@@ -292,6 +302,7 @@ export interface Database {
           category_id?: string | null;
           tags?: string[];
           author?: string | null;
+          author_id?: string | null;
           publish_at?: string | null;
           meta_title?: string | null;
           meta_description?: string | null;
@@ -314,6 +325,7 @@ export interface Database {
           category_id?: string | null;
           tags?: string[];
           author?: string | null;
+          author_id?: string | null;
           publish_at?: string | null;
           meta_title?: string | null;
           meta_description?: string | null;
@@ -465,11 +477,15 @@ export interface Database {
           job_type: string;
           target_id: string;
           scheduled_for: string;
+          run_at: string;
           status: string;
           payload: Record<string, unknown>;
           executed_at: string | null;
+          attempts: number | null;
+          last_error: string | null;
           error: string | null;
           created_at: string;
+          updated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -477,11 +493,15 @@ export interface Database {
           job_type: string;
           target_id: string;
           scheduled_for: string;
+          run_at?: string;
           status?: string;
           payload?: Record<string, unknown>;
           executed_at?: string | null;
+          attempts?: number | null;
+          last_error?: string | null;
           error?: string | null;
           created_at?: string;
+          updated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -489,11 +509,15 @@ export interface Database {
           job_type?: string;
           target_id?: string;
           scheduled_for?: string;
+          run_at?: string;
           status?: string;
           payload?: Record<string, unknown>;
           executed_at?: string | null;
+          attempts?: number | null;
+          last_error?: string | null;
           error?: string | null;
           created_at?: string;
+          updated_at?: string | null;
         };
         Relationships: [
           {
@@ -519,6 +543,8 @@ export interface Database {
           totp_secret: string | null;
           totp_enabled: boolean;
           totp_verified_at: string | null;
+          totp_failed_attempts: number;
+          totp_locked_until: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -534,6 +560,8 @@ export interface Database {
           totp_secret?: string | null;
           totp_enabled?: boolean | null;
           totp_verified_at?: string | null;
+          totp_failed_attempts?: number;
+          totp_locked_until?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -549,6 +577,8 @@ export interface Database {
           totp_secret?: string | null;
           totp_enabled?: boolean | null;
           totp_verified_at?: string | null;
+          totp_failed_attempts?: number;
+          totp_locked_until?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -598,7 +628,9 @@ export interface Database {
           site_id: string;
           actor: string | null;
           actor_user_id: string | null;
+          user_id: string | null;
           action: string;
+          entity: string;
           entity_type: string;
           entity_id: string;
           details: Record<string, unknown>;
@@ -610,7 +642,9 @@ export interface Database {
           site_id: string;
           actor?: string | null;
           actor_user_id?: string | null;
+          user_id?: string | null;
           action: string;
+          entity?: string;
           entity_type: string;
           entity_id: string;
           details?: Record<string, unknown>;
@@ -622,7 +656,9 @@ export interface Database {
           site_id?: string;
           actor?: string | null;
           actor_user_id?: string | null;
+          user_id?: string | null;
           action?: string;
+          entity?: string;
           entity_type?: string;
           entity_id?: string;
           details?: Record<string, unknown>;
@@ -2161,6 +2197,28 @@ export interface Database {
           stripe_event_id?: string;
           event_type?: string;
           received_at?: string;
+        };
+        Relationships: [];
+      };
+
+      click_failures: {
+        Row: {
+          id: string;
+          payload: Record<string, unknown>;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          payload: Record<string, unknown>;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          payload?: Record<string, unknown>;
+          error_message?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };

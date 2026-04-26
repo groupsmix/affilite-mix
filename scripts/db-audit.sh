@@ -41,11 +41,20 @@ set -euo pipefail
 DB_URL="${STAGING_SUPABASE_DB_URL:-${SUPABASE_DB_POOLER_URL:-${DATABASE_URL:-}}}"
 
 if [ -z "$DB_URL" ]; then
+  # N-005: skip-with-success is only acceptable for fork PRs that cannot
+  # reach the staging secret. Trusted branches (main pushes, internal PRs)
+  # MUST run this gate — set REQUIRE_STAGING_DB=true in CI for those
+  # contexts so the missing secret is a hard error instead of silent green.
+  if [ "${REQUIRE_STAGING_DB:-false}" = "true" ]; then
+    echo "::error::db-audit: STAGING_SUPABASE_DB_URL is required on protected branches / non-fork PRs." >&2
+    echo "::error::Add it in GitHub → Settings → Secrets and variables → Actions." >&2
+    echo "::error::(Fork PRs can run this job in skip-green mode by leaving REQUIRE_STAGING_DB unset.)" >&2
+    exit 1
+  fi
   echo "db-audit: no DB URL configured (STAGING_SUPABASE_DB_URL, SUPABASE_DB_POOLER_URL, or DATABASE_URL)."
-  echo "db-audit: skipping — set one of these to run the audit."
-  # Exit code 0 when skipped so CI can gate on secrets without failing.
-  # The CI job decides whether a skip is acceptable via the STAGING_*
-  # repo secret being set.
+  echo "db-audit: skipping — set one of these to run the audit (REQUIRE_STAGING_DB!=true)."
+  # Exit code 0 when skipped so fork-PR CI can stay green; trusted-branch
+  # CI sets REQUIRE_STAGING_DB=true above to make this a hard failure.
   exit 0
 fi
 
