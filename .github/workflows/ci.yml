@@ -57,6 +57,24 @@ jobs:
           fi
           echo "No dev fallback tokens found in wrangler.jsonc."
 
+      - name: Admin route authz enforcement (F-01)
+        run: |
+          # F-01: Every app/api/admin/**/route.ts MUST import requireAdmin,
+          # withAuthz, or withAuthzDynamic. A route that imports DAL
+          # without an authz wrapper is a cross-tenant data exposure risk.
+          set -euo pipefail
+          VIOLATIONS=""
+          for file in $(find app/api/admin -name 'route.ts' -o -name 'route.tsx'); do
+            if ! grep -qE 'requireAdmin|withAuthz|withAuthzDynamic' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Admin routes missing authz import (requireAdmin/withAuthz/withAuthzDynamic):$VIOLATIONS"
+            exit 1
+          fi
+          echo "All admin routes import an approved authz wrapper."
+
       - name: Verify Stripe uses Restricted API Keys (F-033)
         run: |
           # FIX-15 (F-033): Stripe legacy sk_live_ / sk_test_ keys grant full account
