@@ -22,6 +22,8 @@ export function register() {
     );
   }
 
+  const isBuild = !!process.env.NEXT_PHASE;
+
   if (missing.length > 0) {
     const message = formatMissingEnvMessage(missing, "MISSING REQUIRED ENVIRONMENT VARIABLES");
 
@@ -30,7 +32,6 @@ export function register() {
     // `next build` (NEXT_PHASE set) or in development, just warn so the
     // build/dev loop is not broken for contributors who do not have the
     // production secrets locally.
-    const isBuild = !!process.env.NEXT_PHASE;
     if (process.env.NODE_ENV === "production" && !isBuild) {
       throw new Error(message);
     } else {
