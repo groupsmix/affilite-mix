@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getAdminSession, COOKIE_NAME } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
+import { COOKIE_NAME } from "@/lib/auth";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
@@ -13,7 +14,8 @@ import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 
 /** POST /api/admin/users/me/password — change own password */
 export async function POST(request: Request) {
-  const session = await getAdminSession();
+  const { error, session } = await requireAdmin();
+  if (error) return error;
   if (!session || !session.userId || !session.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

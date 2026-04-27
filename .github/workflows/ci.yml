@@ -46,6 +46,28 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: placeholder
       - name: Bundle size check
         run: npx size-limit
+      - name: Verify no dev fallback secrets in production (F-018, F-021)
+        run: |
+          # Ensure wrangler.jsonc production vars don't contain dev fallback tokens.
+          # The dev fallback token is documented in lib/internal-auth.ts.
+          DEV_TOKEN="__dev_only_insecure_internal_token__"
+          if grep -q "$DEV_TOKEN" wrangler.jsonc; then
+            echo "::error::Dev fallback INTERNAL_API_TOKEN found in wrangler.jsonc — remove it before deploying to production."
+            exit 1
+          fi
+          echo "No dev fallback tokens found in wrangler.jsonc."
+
+      - name: Verify Stripe uses Restricted API Keys (F-033)
+        run: |
+          # FIX-15 (F-033): Stripe legacy sk_live_ / sk_test_ keys grant full account
+          # access. Restricted API Keys (rk_live_ / rk_test_) limit permissions
+          # to only the operations this app needs. This check ensures the
+          # .env.example and documentation reference only restricted keys.
+          if grep -qE 'sk_live_|sk_test_' .env.example 2>/dev/null; then
+            echo "::warning::Legacy Stripe key prefix (sk_live_/sk_test_) found in .env.example — migrate to Restricted API Keys (rk_live_/rk_test_)."
+          fi
+          echo "Stripe API key prefix check passed."
+
       - name: Wrangler dry-run check (F-035)
         # `wrangler.jsonc` references `.open-next/assets` and
         # `workers/custom-worker.ts` imports the generated

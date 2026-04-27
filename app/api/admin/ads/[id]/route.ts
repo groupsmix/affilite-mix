@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthzDynamic, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { updateAdPlacement, deleteAdPlacement } from "@/lib/dal/ad-placements";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { parseJsonBody } from "@/lib/api-error";
 import type { AdPlacementType, AdProvider } from "@/types/database";
 import { captureException } from "@/lib/sentry";
-import { authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 
 const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
   "sidebar",
@@ -16,18 +15,15 @@ const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
 ];
 const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom"];
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
-  const { id } = await params;
+export const PUT = withAuthzDynamic("ads", "edit", async (request, { session, siteId: dbSiteId, params }) => {
+  const { id } = params;
 
   // Defense-in-depth: derive the placement's real site_id and require it
   // to match the active site. A forged `id` from a different tenant is a
   // 404 here instead of a silent no-op or 500.
   const authz = await authorizeResource({
     session,
-    feature: "settings",
+    feature: "ads",
     action: "edit",
     resourceType: "ad_placement",
     resourceId: id,
@@ -85,20 +81,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     captureException(err, { context: "[api/admin/ads] PUT failed:" });
     return NextResponse.json({ error: "Failed to update ad placement" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
-  const { id } = await params;
+export const DELETE = withAuthzDynamic("ads", "delete", async (_request, { session, siteId: dbSiteId, params }) => {
+  const { id } = params;
 
   const authz = await authorizeResource({
     session,
-    feature: "settings",
+    feature: "ads",
     action: "delete",
     resourceType: "ad_placement",
     resourceId: id,
@@ -122,4 +112,4 @@ export async function DELETE(
     captureException(err, { context: "[api/admin/ads] DELETE failed:" });
     return NextResponse.json({ error: "Failed to delete ad placement" }, { status: 500 });
   }
-}
+});

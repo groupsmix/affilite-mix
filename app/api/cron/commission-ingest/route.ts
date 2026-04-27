@@ -7,6 +7,8 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { recordCronLiveness } from "@/lib/cron-liveness";
+import { createHmac } from "crypto";
 
 /**
  * GET /api/cron/commission-ingest
@@ -110,6 +112,7 @@ export async function POST(request: NextRequest) {
 
   await Promise.allSettled(tasks);
 
+  void recordCronLiveness("commission-ingest");
   return NextResponse.json({ message: "Commission ingest complete", results });
 }
 
@@ -128,6 +131,8 @@ interface NormalizedCommission {
   sale_amount?: number;
   event_date: string;
   raw_data?: Record<string, unknown>;
+  /** F-034: HMAC of the raw API response body for integrity verification */
+  response_hmac?: string;
 }
 
 type ResolvedCommission = {
@@ -183,6 +188,14 @@ async function resolveCommissions(
   return { resolved, discarded };
 }
 
+// F-034: Compute HMAC-SHA256 of raw response body for integrity verification.
+// The HMAC key is derived from the network API key so it's unique per network
+// and rotates when the API key changes.
+function computeResponseHmac(rawBody: string, apiKey: string): string {
+  const hmacKey = `commission-hmac:${apiKey}`;
+  return createHmac("sha256", hmacKey).update(rawBody).digest("hex");
+}
+
 async function fetchCjReports(): Promise<NormalizedCommission[]> {
   const apiKey = process.env.CJ_API_KEY;
   if (!apiKey) {
@@ -207,7 +220,10 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
     throw new Error(`CJ API failed (${response.status}): ${errorText}`);
   }
 
-  const data = await response.json();
+  // F-034: Capture raw body for HMAC before JSON parsing
+  const rawBody = await response.text();
+  const responseHmac = computeResponseHmac(rawBody, apiKey);
+  const data = JSON.parse(rawBody);
   return (data.commissions || []).map((c: Record<string, unknown>) => ({
     tracking_key: typeof c.shopperId === "string" ? c.shopperId : "",
     order_id: typeof c.actionId === "string" ? c.actionId : undefined,
@@ -217,6 +233,7 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
     status: typeof c.actionStatus === "string" ? c.actionStatus : undefined,
     event_date: typeof c.eventDate === "string" ? c.eventDate : new Date().toISOString(),
     raw_data: c,
+    response_hmac: responseHmac,
   }));
 }
 
@@ -238,7 +255,10 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
     throw new Error(`Admitad API failed (${response.status}): ${errorText}`);
   }
 
-  const data = await response.json();
+  // F-034: Capture raw body for HMAC before JSON parsing
+  const rawBody = await response.text();
+  const responseHmac = computeResponseHmac(rawBody, apiKey);
+  const data = JSON.parse(rawBody);
   return (data.results || []).map((c: Record<string, unknown>) => ({
     tracking_key: typeof c.subid === "string" ? c.subid : "",
     order_id: typeof c.id === "string" ? c.id : typeof c.id === "number" ? String(c.id) : undefined,
@@ -248,6 +268,7 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
     status: typeof c.status === "string" ? c.status : undefined,
     event_date: typeof c.action_date === "string" ? c.action_date : new Date().toISOString(),
     raw_data: c,
+    response_hmac: responseHmac,
   }));
 }
 
@@ -269,7 +290,10 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
     throw new Error(`PartnerStack API failed (${response.status}): ${errorText}`);
   }
 
-  const data = await response.json();
+  // F-034: Capture raw body for HMAC before JSON parsing
+  const rawBody = await response.text();
+  const responseHmac = computeResponseHmac(rawBody, apiKey);
+  const data = JSON.parse(rawBody);
   return (data.transactions || []).map((c: Record<string, unknown>) => ({
     tracking_key: typeof c.customer_key === "string" ? c.customer_key : "",
     order_id: typeof c.key === "string" ? c.key : undefined,
@@ -279,5 +303,6 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
     status: typeof c.status === "string" ? c.status : undefined,
     event_date: typeof c.created_at === "string" ? c.created_at : new Date().toISOString(),
     raw_data: c,
+    response_hmac: responseHmac,
   }));
 }

@@ -29,6 +29,10 @@ vi.mock("@/lib/csp", () => ({
 
 vi.mock("@/lib/cookie-utils", () => ({ IS_SECURE_COOKIE: false }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 30, retryAfterMs: 0 }),
+}));
+
 function makeRequest(host: string, path = "/"): NextRequest {
   return new NextRequest(`https://${host}${path}`, {
     headers: { host },

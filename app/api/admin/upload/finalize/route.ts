@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
@@ -24,9 +24,7 @@ import { logger } from "@/lib/logger";
  *     audit event is recorded — replacing the previous behaviour where
  *     the audit log fired before the upload completed (#U-9).
  */
-export async function POST(request: NextRequest) {
-  const guard = await requireAdmin();
-  if (guard.error) return guard.error;
+export const POST = withAuthz("upload", "create", async (request, { session, siteId }) => {
 
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;
@@ -71,8 +69,8 @@ export async function POST(request: NextRequest) {
     const promoted = await promoteToPublicBucket(stagingKey, expectedType);
 
     void recordAuditEvent({
-      site_id: guard.dbSiteId,
-      actor: guard.session.email ?? guard.session.userId ?? "admin",
+      site_id: siteId,
+      actor: session.email ?? session.userId ?? "admin",
       action: "upload",
       entity_type: "image",
       entity_id: promoted.publicKey,
@@ -88,7 +86,7 @@ export async function POST(request: NextRequest) {
     captureException(err, { context: "[api/admin/upload/finalize] failed" });
     return NextResponse.json({ error: "Validation failed" }, { status: 500 });
   }
-}
+});
 
 /**
  * Strict magic-byte check.

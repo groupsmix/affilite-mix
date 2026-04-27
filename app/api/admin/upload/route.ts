@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import { getUploadUrl, isR2Configured, R2_MAX_UPLOAD_BYTES, sanitizeOriginalName } from "@/lib/r2";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 /**
  * Allowed image content types.
@@ -35,9 +36,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
  *   • The presign response carries `X-Content-Type-Options: nosniff`
  *     and `Cache-Control: no-store` so the JSON itself is not cached.
  */
-export async function POST(request: NextRequest) {
-  const { error } = await requireAdmin();
-  if (error) return error;
+export const POST = withAuthz("upload", "create", async (request) => {
 
   if (!isR2Configured()) {
     return NextResponse.json(
@@ -77,6 +76,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const presigned = await getUploadUrl(contentType, fileSize, { originalName });
+
+    // FIX-34 (F-017): Audit log for upload presign request
+    void recordAuditEvent({
+      site_id: "00000000-0000-0000-0000-000000000000",
+      actor: "admin-upload",
+      action: "upload_presign",
+      entity_type: "upload",
+      entity_id: presigned.stagingKey,
+      details: { contentType, fileSize, originalName },
+    });
+
     const res = NextResponse.json({
       uploadUrl: presigned.uploadUrl,
       stagingKey: presigned.stagingKey,
@@ -93,4 +103,4 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Upload failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

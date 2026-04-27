@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import {
   listNicheTemplates,
   createNicheTemplate,
@@ -10,10 +10,7 @@ import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 
 /** List all available niche templates */
-export async function GET() {
-  const { error } = await requireAdmin();
-  if (error) return error;
-
+export const GET = withAuthz("settings", "view", async () => {
   try {
     const templates = await listNicheTemplates();
     return NextResponse.json(templates);
@@ -21,13 +18,10 @@ export async function GET() {
     captureException(err, { context: "[api/admin/sites/templates] GET failed:" });
     return NextResponse.json({ error: "Failed to list templates" }, { status: 500 });
   }
-}
+});
 
 /** Create a new niche template */
-export async function POST(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
+export const POST = withAuthz("settings", "create", async (request, { session, siteId: dbSiteId }) => {
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;
 
@@ -66,13 +60,10 @@ export async function POST(request: NextRequest) {
     captureException(err, { context: "[api/admin/sites/templates] POST failed:" });
     return NextResponse.json({ error: "Failed to create template" }, { status: 500 });
   }
-}
+});
 
 /** Delete a niche template */
-export async function DELETE(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
+export const DELETE = withAuthz("settings", "delete", async (request, { session, siteId: dbSiteId }) => {
   const delBodyOrError = await parseJsonBody(request);
   if (delBodyOrError instanceof NextResponse) return delBodyOrError;
   const { id } = delBodyOrError;
@@ -96,4 +87,4 @@ export async function DELETE(request: NextRequest) {
     captureException(err, { context: "[api/admin/sites/templates] DELETE failed:" });
     return NextResponse.json({ error: "Failed to delete template" }, { status: 500 });
   }
-}
+});

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getInternalToken } from "@/lib/internal-auth";
+import { verifyInternalHmac } from "@/lib/internal-hmac";
 import { captureException } from "@/lib/sentry";
 
 /**
@@ -116,17 +117,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
 
-  const authHeader = request.headers.get("authorization") ?? "";
-  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : "";
-  if (bearer !== expected) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // FIX-03 (F-003): Prefer HMAC verification; fall back to legacy Bearer token
+  // during migration. Set INTERNAL_HMAC_MIGRATION_MODE=strict to reject Bearer.
+  const migrationMode = process.env.INTERNAL_HMAC_MIGRATION_MODE ?? "permissive";
+  const bodyText = await request.text();
+  const hmacResult = await verifyInternalHmac(expected, request, bodyText);
+
+  if (!hmacResult.valid) {
+    // Fallback: legacy Bearer token (permissive mode only)
+    if (migrationMode === "permissive") {
+      const authHeader = request.headers.get("authorization") ?? "";
+      const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : "";
+      if (bearer !== expected) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    } else {
+      return NextResponse.json({ error: "Forbidden", reason: hmacResult.reason }, { status: 403 });
+    }
   }
 
   const isDlq = request.nextUrl.searchParams.get("dlq") === "true";
 
   let body: QueueBody;
   try {
-    body = (await request.json()) as QueueBody;
+    body = JSON.parse(bodyText) as QueueBody;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }

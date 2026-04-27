@@ -3,7 +3,11 @@ export const runtime = "edge";
 import { NextRequest, NextResponse } from "next/server";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
-import { constructStripeEvent } from "@/lib/stripe-webhook";
+import { constructStripeEvent, prewarmStripeWebhookKey } from "@/lib/stripe-webhook";
+
+// FIX-13 (F-004): Pre-warm the HMAC crypto key on cold start so the first
+// webhook verification doesn't pay the importKey() latency penalty.
+let _prewarmed = false;
 
 export async function POST(request: NextRequest) {
   // F-FE-01: Fail fast if critical env vars are missing in edge runtime.
@@ -14,6 +18,12 @@ export async function POST(request: NextRequest) {
   if (!webhookSecret || !stripeKey) {
     logger.error("Stripe webhook: missing STRIPE_WEBHOOK_SECRET or STRIPE_SECRET_KEY");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
+  }
+
+  // FIX-13: Pre-warm on first invocation per isolate
+  if (!_prewarmed) {
+    _prewarmed = true;
+    await prewarmStripeWebhookKey(webhookSecret);
   }
 
   const rawBody = await request.text();

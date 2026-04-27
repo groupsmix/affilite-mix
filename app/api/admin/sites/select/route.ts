@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import { getSiteById } from "@/config/sites";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -7,16 +7,16 @@ import { parseJsonBody } from "@/lib/api-error";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
 /** POST /api/admin/sites/select — set the active site cookie */
 export async function POST(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const rlKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
   const rl = await checkRateLimit(rlKey, ADMIN_RATE_LIMIT);
@@ -51,6 +51,17 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.json({ ok: true, site: { id: site.id, name: site.name } });
+
+  // FIX-34 (F-017): Audit log for site context switch
+  void recordAuditEvent({
+    site_id: siteId,
+    actor: session.email ?? session.userId ?? "admin",
+    action: "select_site",
+    entity_type: "site",
+    entity_id: siteId,
+    details: { siteName: site.name },
+  });
+
   response.cookies.set(ACTIVE_SITE_COOKIE, site.id, {
     httpOnly: true,
     secure: IS_SECURE_COOKIE,

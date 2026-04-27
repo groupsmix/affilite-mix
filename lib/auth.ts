@@ -3,7 +3,7 @@ import { cookies, headers } from "next/headers";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import { logger } from "@/lib/logger";
-import { getJwtSecret, getJwtSecretPrevious } from "@/lib/jwt-secret";
+import { getJwtSecret, getJwtSecretPrevious, getJwtKid } from "@/lib/jwt-secret";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
 import { isTokenRevoked } from "@/lib/jwt-revocation";
@@ -117,8 +117,10 @@ export async function createToken(payload: AdminPayload, request?: Request): Pro
 
   const jti = crypto.randomUUID();
 
+  const kid = await getJwtKid();
+
   return new SignJWT({ ...claims })
-    .setProtectedHeader({ alg: "HS256", kid: "current" })
+    .setProtectedHeader({ alg: "HS256", kid })
     .setJti(jti)
     .setIssuedAt()
     .setExpirationTime(EXPIRY)

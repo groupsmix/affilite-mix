@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import { generatePreviewToken } from "@/lib/preview-token";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
@@ -9,10 +9,7 @@ import { parseJsonBody } from "@/lib/api-error";
  * Generate a short-lived preview token for draft/scheduled content.
  * Body: { slug: string, contentType: string }
  */
-export async function POST(request: NextRequest) {
-  const { error, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
+export const POST = withAuthz("content", "edit", async (request, { siteId: dbSiteId }) => {
   try {
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
@@ -32,4 +29,4 @@ export async function POST(request: NextRequest) {
     captureException(err, { context: "[api/admin/preview-token] POST failed:" });
     return NextResponse.json({ error: "Failed to generate preview token" }, { status: 500 });
   }
-}
+});

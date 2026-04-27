@@ -22,6 +22,10 @@ vi.mock("@/lib/dal/sites", () => ({
   getSiteRowByDomain: vi.fn(),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 30, retryAfterMs: 0 }),
+}));
+
 import { middleware } from "@/middleware";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { isWildcardSubdomain } from "@/config/sites";

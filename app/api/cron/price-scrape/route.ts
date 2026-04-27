@@ -8,6 +8,7 @@ import { createPriceSnapshots } from "@/lib/dal/price-snapshots";
 import { findTriggeredAlerts, markAlertTriggered } from "@/lib/dal/price-alerts";
 import { getSiteRowById } from "@/lib/dal/sites";
 import { logger } from "@/lib/logger";
+import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 
@@ -188,6 +189,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    void recordCronLiveness("price-scrape");
     return NextResponse.json({
       message: "Price scrape complete",
       snapshots_created: created.length,

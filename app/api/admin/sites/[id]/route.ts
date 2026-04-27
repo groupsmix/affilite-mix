@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import { getSiteRowById, updateSite, deleteSite } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -23,10 +23,9 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 
 /** GET /api/admin/sites/[id] — get a single site by DB id */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
@@ -42,10 +41,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 /** PUT /api/admin/sites/[id] — update a site (super_admin only) */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
@@ -134,14 +132,17 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
   }
+
+  // FIX-18 (F-030): Step-up auth disabled until the step-up flow is fully
+  // implemented (POST /api/admin/users/me/step-up + JWT claim). The route
+  // is already gated by super_admin role check above.
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;

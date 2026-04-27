@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { upsertProductEpc } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
+import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info(`EPC recompute complete: updated ${updated} product-network pairs`);
+    void recordCronLiveness("epc-recompute");
     return NextResponse.json({ message: "EPC recompute complete", updated });
   } catch (err) {
     logger.error("EPC recompute failed", {

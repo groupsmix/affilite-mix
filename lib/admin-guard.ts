@@ -13,7 +13,7 @@ type AdminResult =
   | { error: null; session: AdminPayload; dbSiteId: string; siteSlug: string };
 
 /** 100 admin API requests per minute per user session (3.30) */
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000, failPolicy: "closed" as const };
+const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000, failPolicy: "closed" as const, graceMs: 5000 };
 
 /**
  * Assert that the authenticated session has the required role.
