@@ -89,13 +89,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { error: auditError } = await sb
-      .from("audit_log")
-      .delete()
-      .lt("created_at", auditDate.toISOString());
+    // Only delete rows that were successfully fetched (and potentially archived).
+    // This prevents deleting more rows than were archived when >10k qualify.
+    if (auditRows && auditRows.length > 0) {
+      const ids = auditRows.map((row) => row.id);
+      const { error: auditError } = await sb.from("audit_log").delete().in("id", ids);
 
-    if (auditError) throw auditError;
-    results.audit_log = { success: true, archived: archivedCount };
+      if (auditError) throw auditError;
+    }
+    results.audit_log = { success: true, archived: archivedCount, deleted: auditRows?.length ?? 0 };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     results.audit_log = { success: false, error: msg };

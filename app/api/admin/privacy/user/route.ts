@@ -214,14 +214,9 @@ export async function DELETE(request: NextRequest) {
       ok: true,
       message: "User data erased successfully",
       results,
-      deleted: [
-        "newsletter_subscribers",
-        "memberships",
-        "comments",
-        "wrist_shots",
-        "quiz_submissions",
-      ],
-      anonymised: ["affiliate_clicks", "audit_log"],
+      deleted: ["newsletter_subscribers", "comments", "wrist_shots", "quiz_submissions"],
+      anonymised: ["memberships"],
+      retained: ["affiliate_clicks", "audit_log"],
       retention_basis: "GDPR Art. 17(3)(e) — retention for legal/financial claims",
     });
   } catch (err) {
