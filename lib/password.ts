@@ -87,6 +87,9 @@ function bcryptNeedsRehash(storedHash: string): boolean {
 
 /** Hash a password using bcrypt and return a storable string */
 export async function hashPassword(password: string): Promise<string> {
+  if (new TextEncoder().encode(password).byteLength > 72) {
+    throw new Error("Password too long (>72 bytes after UTF-8 encode)");
+  }
   return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
@@ -111,6 +114,10 @@ export interface VerifyResult {
  */
 export async function verifyPassword(password: string, storedHash: string): Promise<VerifyResult> {
   if (!storedHash) return { valid: false, needsRehash: false };
+
+  if (new TextEncoder().encode(password).byteLength > 72) {
+    return { valid: false, needsRehash: false };
+  }
 
   if (isLegacyHash(storedHash)) {
     const valid = await verifyPbkdf2(password, storedHash);

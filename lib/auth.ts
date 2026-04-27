@@ -1,9 +1,9 @@
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, errors as joseErrors } from "jose";
 import { cookies, headers } from "next/headers";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import { logger } from "@/lib/logger";
-import { getJwtSecret } from "@/lib/jwt-secret";
+import { getJwtSecret, getJwtSecretPrevious } from "@/lib/jwt-secret";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
 import { isTokenRevoked } from "@/lib/jwt-revocation";
@@ -34,6 +34,12 @@ const DUMMY_PASSWORD_HASH = "$2b$12$TeQV2VccuCYpmsfgIaWx1eQsGCyowOfMyZClxCXbjNAj
 
 function getSecretKey() {
   return new TextEncoder().encode(getJwtSecret());
+}
+
+/** F-AUTH-03: Returns the previous secret key for rotation grace window, or null. */
+function getPreviousSecretKey(): Uint8Array | null {
+  const prev = getJwtSecretPrevious();
+  return prev ? new TextEncoder().encode(prev) : null;
 }
 
 export interface AdminPayload {
@@ -96,13 +102,23 @@ export async function authenticateUser(
  */
 export async function createToken(payload: AdminPayload, request?: Request): Promise<string> {
   const binding = request ? await computeRequestBinding(request) : null;
+
+  // F-AUTH-02: In production, when a request is provided (login context), fail
+  // issuance if binding cannot be computed. In dev/test environments, binding is
+  // best-effort since Cloudflare headers (cf-connecting-ip) are unavailable.
+  if (request && !binding && process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Cannot issue admin token: unable to compute request binding (no UA + unknown IP)",
+    );
+  }
+
   const claims: AdminPayload = { ...payload };
   if (binding) claims.bnd = binding;
 
   const jti = crypto.randomUUID();
 
   return new SignJWT({ ...claims })
-    .setProtectedHeader({ alg: "HS256" })
+    .setProtectedHeader({ alg: "HS256", kid: "current" })
     .setJti(jti)
     .setIssuedAt()
     .setExpirationTime(EXPIRY)
@@ -119,33 +135,55 @@ export async function createToken(payload: AdminPayload, request?: Request): Pro
  * mismatch returns null so the session is treated as invalid.
  */
 export async function verifyToken(token: string, request?: Request): Promise<AdminPayload | null> {
+  const jwtOpts = {
+    audience: "affilite-mix-admin",
+    issuer: "affilite-mix-auth",
+  };
+
+  let payload: Record<string, unknown> | null = null;
+
+  // F-AUTH-03: Try the current key first, then fall back to the previous key
+  // during rotation grace window. Only fall back for JOSE-specific errors
+  // (signature mismatch, expired, etc.); unexpected errors should propagate.
   try {
-    const { payload } = await jwtVerify(token, getSecretKey(), {
-      audience: "affilite-mix-admin",
-      issuer: "affilite-mix-auth",
-    });
-
-    if (payload.jti && (await isTokenRevoked(payload.jti))) {
-      logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
-      return null;
-    }
-
-    const adminPayload = payload as unknown as AdminPayload;
-
-    if (adminPayload.bnd) {
-      const ok = await verifyRequestBinding(adminPayload.bnd, request);
-      if (!ok) {
-        logger.warn("Admin token rejected: UA/IP binding mismatch", {
-          userId: adminPayload.userId,
-        });
+    const result = await jwtVerify(token, getSecretKey(), jwtOpts);
+    payload = result.payload as Record<string, unknown>;
+  } catch (err) {
+    if (!(err instanceof joseErrors.JOSEError)) throw err;
+    const prevKey = getPreviousSecretKey();
+    if (prevKey) {
+      try {
+        const result = await jwtVerify(token, prevKey, jwtOpts);
+        payload = result.payload as Record<string, unknown>;
+      } catch (prevErr) {
+        if (!(prevErr instanceof joseErrors.JOSEError)) throw prevErr;
         return null;
       }
+    } else {
+      return null;
     }
+  }
 
-    return adminPayload;
-  } catch {
+  if (!payload) return null;
+
+  if (payload.jti && (await isTokenRevoked(payload.jti as string))) {
+    logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
     return null;
   }
+
+  const adminPayload = payload as unknown as AdminPayload;
+
+  if (adminPayload.bnd) {
+    const ok = await verifyRequestBinding(adminPayload.bnd, request);
+    if (!ok) {
+      logger.warn("Admin token rejected: UA/IP binding mismatch", {
+        userId: adminPayload.userId,
+      });
+      return null;
+    }
+  }
+
+  return adminPayload;
 }
 
 /** Build a lightweight Request wrapper from the current Next.js headers() */
@@ -222,9 +260,11 @@ export function touchAdminActivity(): {
  * Callers (e.g. login route) should set this cookie with the same
  * policy as the main auth token.
  */
-export function getAdminBindingCookie(
-  binding: string,
-): { name: string; value: string; options: Record<string, unknown> } {
+export function getAdminBindingCookie(binding: string): {
+  name: string;
+  value: string;
+  options: Record<string, unknown>;
+} {
   return {
     name: BINDING_COOKIE,
     value: binding,

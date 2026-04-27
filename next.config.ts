@@ -45,6 +45,9 @@ const nextConfig: NextConfig = {
         // does not match (see the matcher in middleware.ts — _next/static,
         // _next/image, favicon.ico, fonts/, api/internal/) to keep a
         // conservative default.
+        // F-CSP-01: TODO — once confirmed every dynamic path flows through
+        // middleware, drop this static fallback and verify with a test that
+        // no response carries the static CSP.
         {
           key: "Content-Security-Policy",
           // F-013: keep the static fallback img-src in sync with the

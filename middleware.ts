@@ -11,6 +11,10 @@ import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
 
 const CSP_HEADER = "Content-Security-Policy";
 
+// F-PERF-02: Per-isolate maintenance mode cache (30s TTL)
+let _maintenanceCacheValue = false;
+let _maintenanceCacheExpiry = 0;
+
 /** Methods allowed via CORS for public API endpoints (beacon, vitals, etc.) */
 const CORS_ALLOWED_METHODS = "GET, POST, OPTIONS";
 /** Headers the browser is allowed to send on cross-origin requests */
@@ -41,29 +45,34 @@ function nicheNotFoundResponse(request: NextRequest): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname, hostname } = request.nextUrl;
 
-  // ── Maintenance mode (A-023) ──────────────────────────
+  // ── Maintenance mode (A-023 / F-PERF-02) ──────────────
   // Checked early so every route (including API) can be taken offline
   // without redeploying. Supports both an env var and a KV flag.
+  // F-PERF-02: KV lookups are memoised per-isolate with a 30s TTL
+  // to avoid per-request KV reads.
   if (pathname !== "/api/health" && pathname !== "/api/csp-report") {
     const maintenanceMode =
-      process.env.APP_MAINTENANCE_MODE === "1" ||
-      process.env.APP_MAINTENANCE_MODE === "true";
+      process.env.APP_MAINTENANCE_MODE === "1" || process.env.APP_MAINTENANCE_MODE === "true";
     if (maintenanceMode) {
-      return new NextResponse(
-        JSON.stringify({ error: "Service temporarily unavailable." }),
-        { status: 503, headers: { "Content-Type": "application/json" } },
-      );
+      return new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
     }
     try {
-      const kv = (process.env as any).APP_CACHE_KV as any;
-      if (kv) {
-        const kvMaintenance = await kv.get("maintenance_mode");
-        if (kvMaintenance === "1" || kvMaintenance === "true") {
-          return new NextResponse(
-            JSON.stringify({ error: "Service temporarily unavailable." }),
-            { status: 503, headers: { "Content-Type": "application/json" } },
-          );
+      if (_maintenanceCacheExpiry < Date.now()) {
+        const kv = (process.env as any).APP_CACHE_KV as any;
+        if (kv) {
+          const kvMaintenance = await kv.get("maintenance_mode");
+          _maintenanceCacheValue = kvMaintenance === "1" || kvMaintenance === "true";
         }
+        _maintenanceCacheExpiry = Date.now() + 30_000;
+      }
+      if (_maintenanceCacheValue) {
+        return new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        });
       }
     } catch {
       // Ignore KV errors; maintenance gate is best-effort.
