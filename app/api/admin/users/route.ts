@@ -12,6 +12,7 @@ import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-po
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { requireStepUpAuth } from "@/lib/step-up-auth";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -130,6 +131,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
 
+  // FIX-18 (F-030): Step-up auth required for role changes and user updates
+  const stepUpError = requireStepUpAuth(session);
+  if (stepUpError) return stepUpError;
+
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -201,6 +206,10 @@ export async function DELETE(request: NextRequest) {
   const { error, session } = await requireAdmin();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // FIX-18 (F-030): Step-up auth required for user deletion
+  const stepUpError = requireStepUpAuth(session);
+  if (stepUpError) return stepUpError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;

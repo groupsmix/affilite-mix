@@ -441,6 +441,13 @@ export async function checkRateLimit(
   key: string,
   config: RateLimitConfig,
 ): Promise<RateLimitResult> {
+  // FIX-07 (F-015): Kill-switch for incident response. When set, every
+  // rate-limited request is immediately rejected without consulting
+  // KV/DO. Use during active abuse to shed load instantly.
+  if (process.env.RATE_LIMIT_FORCE_CLOSED === "true") {
+    return { allowed: false, remaining: 0, retryAfterMs: config.windowMs };
+  }
+
   // Prefer the Durable Object — it's atomic, so race-free under concurrency.
   const doNs = getRateLimiterDO();
   if (doNs) {
