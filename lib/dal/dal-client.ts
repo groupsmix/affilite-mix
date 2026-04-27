@@ -30,6 +30,20 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+/**
+ * FIX-04 (F-001): Branded SiteId type.
+ *
+ * A plain `string` can be any user input. A `SiteId` can only come from
+ * a verified source (middleware x-site-id header, admin session, or DB
+ * lookup). This makes it a type error to pass an unvalidated string to
+ * a DAL function that uses the privileged client.
+ *
+ * Cast with: `someString as SiteId` (only after validation).
+ * Brand is nominal — `string & { __brand: "SiteId" }` is not assignable
+ * from a bare `string` without an explicit cast.
+ */
+export type SiteId = string & { readonly __brand: unique symbol };
+
 /** Type returned by both getTenantClient() and getPrivilegedSupabaseClient(). */
 export type DalClient = SupabaseClient;
 /** A zero-arg async function that returns a Supabase client. */
