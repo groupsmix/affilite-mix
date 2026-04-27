@@ -1,5 +1,16 @@
 export const runtime = "edge";
 
+// F-FE-01: Fail fast if critical env vars are missing in edge runtime
+if (
+  typeof process !== "undefined" &&
+  process.env?.NODE_ENV === "production" &&
+  !process.env.STRIPE_WEBHOOK_SECRET
+) {
+  throw new Error(
+    "STRIPE_WEBHOOK_SECRET missing for edge runtime — /api/membership/webhook cannot verify signatures",
+  );
+}
+
 import { NextRequest, NextResponse } from "next/server";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";

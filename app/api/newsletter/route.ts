@@ -81,6 +81,16 @@ export async function POST(request: Request) {
       return apiError(400, "Valid email is required");
     }
 
+    // F-ABUSE-01: Per-email rate limit — 5 signups per email per hour
+    const emailRateConfig = { maxRequests: 5, windowMs: 60 * 60 * 1000 };
+    const emailRl = await checkRateLimit(`newsletter:cooldown:${email}`, emailRateConfig);
+    if (!emailRl.allowed) {
+      return apiError(429, "Too many signup attempts for this email", undefined, {
+        "Retry-After": String(Math.ceil(emailRl.retryAfterMs / 1000)),
+        ...rateLimitHeaders(emailRateConfig, emailRl),
+      });
+    }
+
     const site = await getCurrentSite();
     const sb = await getTenantClient();
 

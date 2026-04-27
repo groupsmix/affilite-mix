@@ -68,6 +68,22 @@ const eslintConfig = [
     },
   },
   {
+    // F-ARCH-02: Enforce DAL site-scoping — raw .from() calls on supabase
+    // clients outside the DAL layer are forbidden. Use tenantQuery() instead.
+    files: ["app/**/*.ts", "app/**/*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name='from'][callee.object.callee.property.name='from']",
+          message:
+            "Use tenantQuery() from @/lib/dal/tenant-query, not raw .from().",
+        },
+      ],
+    },
+  },
+  {
     // The legacy thin wrapper is allowed to keep a single import of the
     // privileged gateway until it is fully removed.
     files: ["lib/supabase-server.ts"],

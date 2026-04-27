@@ -70,7 +70,7 @@ variable "logpush_destination_conf" {
 
 variable "logpush_enabled" {
   type        = bool
-  default     = false
+  default     = true
   description = "Whether the worker_logs Logpush job should be enabled. Requires logpush_destination_conf to be set."
 }
 

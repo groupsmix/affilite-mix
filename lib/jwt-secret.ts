@@ -31,6 +31,10 @@ let devFallbackWarned = false;
  * which memoizes the resolved value.
  */
 export function resolveJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
+  // F-AUTH-03: Prefer JWT_SECRET_CURRENT for key rotation support.
+  const current = env.JWT_SECRET_CURRENT;
+  if (current && current.trim().length > 0) return current;
+
   const value = env.JWT_SECRET;
   const isBuild = !!env.NEXT_PHASE;
   const isProd = env.NODE_ENV === "production";
@@ -39,7 +43,7 @@ export function resolveJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
 
   if (isProd && !isBuild) {
     throw new Error(
-      "JWT_SECRET is required in production. Refusing to boot with a random " +
+      "JWT_SECRET (or JWT_SECRET_CURRENT) is required in production. Refusing to boot with a random " +
         "per-process fallback — it would invalidate sessions on every cold start.",
     );
   }
@@ -55,10 +59,22 @@ export function resolveJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
   return DEV_ONLY_JWT_SECRET;
 }
 
+/**
+ * F-AUTH-03: Returns the previous JWT secret for key rotation grace window.
+ * During rotation, tokens signed with the previous key are still accepted
+ * until the grace window expires (24h recommended, token TTL is 8h).
+ */
+export function resolveJwtSecretPrevious(env: NodeJS.ProcessEnv = process.env): string | null {
+  const prev = env.JWT_SECRET_PREVIOUS;
+  if (prev && prev.trim().length > 0) return prev;
+  return null;
+}
+
 let cached: string | null = null;
+let cachedPrevious: string | null | undefined = undefined;
 
 /**
- * Returns the JWT secret, resolving and memoizing it on first call.
+ * Returns the current JWT secret, resolving and memoizing it on first call.
  */
 export function getJwtSecret(): string {
   if (cached !== null) return cached;
@@ -66,8 +82,19 @@ export function getJwtSecret(): string {
   return cached;
 }
 
+/**
+ * F-AUTH-03: Returns the previous JWT secret for rotation grace window.
+ * Returns null if no previous secret is configured.
+ */
+export function getJwtSecretPrevious(): string | null {
+  if (cachedPrevious !== undefined) return cachedPrevious;
+  cachedPrevious = resolveJwtSecretPrevious();
+  return cachedPrevious;
+}
+
 /** Test-only helper to reset the memoized secret between test cases. */
 export function __resetJwtSecretCacheForTests(): void {
   cached = null;
+  cachedPrevious = undefined;
   devFallbackWarned = false;
 }

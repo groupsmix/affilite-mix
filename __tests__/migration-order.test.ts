@@ -8,10 +8,8 @@ import { describe, it, expect } from "vitest";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const ALLOWED_DUPLICATES = new Set(["00038", "00039", "00070"]);
-
 describe("supabase migration filenames", () => {
-  it("does not introduce new duplicate numeric prefixes", () => {
+  it("does not introduce any duplicate numeric prefixes", () => {
     const dir = join(process.cwd(), "supabase", "migrations");
     const prefixes: Record<string, string[]> = {};
     for (const file of readdirSync(dir)) {
@@ -21,12 +19,8 @@ describe("supabase migration filenames", () => {
       const prefix = match[1];
       (prefixes[prefix] ??= []).push(file);
     }
-    const collisions = Object.entries(prefixes)
-      .filter(([, files]) => files.length > 1)
-      .filter(([prefix]) => !ALLOWED_DUPLICATES.has(prefix));
-    expect(collisions, `New migration prefix collisions: ${JSON.stringify(collisions)}`).toEqual(
-      [],
-    );
+    const collisions = Object.entries(prefixes).filter(([, files]) => files.length > 1);
+    expect(collisions, `Migration prefix collisions: ${JSON.stringify(collisions)}`).toEqual([]);
   });
 
   it("every forward migration has a paired down file when its name suggests a destructive change", () => {
