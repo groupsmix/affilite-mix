@@ -7,6 +7,13 @@ vi.mock("@/lib/admin-guard", () => ({
   requireAdmin: vi.fn(),
 }));
 
+// FIX-18 step-up auth is enforced on PATCH/DELETE; bypass it for these tests
+// so we can exercise the last-super_admin guard in isolation. Step-up
+// behavior itself is covered by lib/__tests__ for step-up-auth.
+vi.mock("@/lib/step-up-auth", () => ({
+  requireStepUpAuth: vi.fn().mockReturnValue(null),
+}));
+
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 10, retryAfterMs: 0 }),
 }));

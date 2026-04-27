@@ -11,9 +11,12 @@ describe("sanitizeHtml", () => {
     expect(sanitizeHtml(input)).toBe(input);
   });
 
-  it("strips disallowed tags", () => {
+  it("strips disallowed tags and their text content", () => {
+    // <script>/<style> bodies must be discarded entirely — leaking the text
+    // would re-enable payloads like `<style>body{background:url(javascript:…)}`
+    // that pass the tag-allowlist but smuggle dangerous content through.
     const input = "<script>alert('xss')</script><p>safe</p>";
-    expect(sanitizeHtml(input)).toBe("alert('xss')<p>safe</p>");
+    expect(sanitizeHtml(input)).toBe("<p>safe</p>");
   });
 
   it("strips event handler attributes", () => {
@@ -140,34 +143,49 @@ describe("sanitizeHtml", () => {
   describe("OWASP XSS filter evasion payloads", () => {
     const xssPayloads: Array<[string, string]> = [
       // Event handler variants
-      ["onerror on img", '<img src=x onerror=alert(1) />'],
-      ["onload on img", '<img src=x onload=alert(1) />'],
-      ["onmouseover on div", '<div onmouseover=alert(1)>x</div>'],
+      ["onerror on img", "<img src=x onerror=alert(1) />"],
+      ["onload on img", "<img src=x onload=alert(1) />"],
+      ["onmouseover on div", "<div onmouseover=alert(1)>x</div>"],
       ["onfocus on a", '<a href="#" onfocus=alert(1)>x</a>'],
       ["onblur on a", '<a href="#" onblur=alert(1)>x</a>'],
 
       // SVG/MathML vectors (tags not in allowlist)
-      ["svg onload", '<svg onload=alert(1)>'],
-      ["svg script", '<svg><script>alert(1)</script></svg>'],
-      ["math href", '<math><maction actiontype="statusline" xlink:href="javascript:alert(1)">x</maction></math>'],
+      ["svg onload", "<svg onload=alert(1)>"],
+      ["svg script", "<svg><script>alert(1)</script></svg>"],
+      [
+        "math href",
+        '<math><maction actiontype="statusline" xlink:href="javascript:alert(1)">x</maction></math>',
+      ],
 
       // Encoding-based evasion
-      ["HTML entity in href", '<a href="&#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;:alert(1)">x</a>'],
-      ["hex entity in href", '<a href="&#x6A;&#x61;&#x76;&#x61;&#x73;&#x63;&#x72;&#x69;&#x70;&#x74;:alert(1)">x</a>'],
+      [
+        "HTML entity in href",
+        '<a href="&#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;:alert(1)">x</a>',
+      ],
+      [
+        "hex entity in href",
+        '<a href="&#x6A;&#x61;&#x76;&#x61;&#x73;&#x63;&#x72;&#x69;&#x70;&#x74;:alert(1)">x</a>',
+      ],
       ["mixed case javascript", '<a href="JaVaScRiPt:alert(1)">x</a>'],
       ["URL-encoded javascript", '<a href="java%73cript:alert(1)">x</a>'],
 
       // data: URI variants
       ["data:text/html", '<a href="data:text/html,<script>alert(1)</script>">x</a>'],
-      ["data: base64", '<a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">x</a>'],
-      ["data: with charset", '<a href="data:text/html;charset=utf-8,<script>alert(1)</script>">x</a>'],
+      [
+        "data: base64",
+        '<a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">x</a>',
+      ],
+      [
+        "data: with charset",
+        '<a href="data:text/html;charset=utf-8,<script>alert(1)</script>">x</a>',
+      ],
 
       // Nested/recursive stripping
-      ["nested script", '<scr<script>ipt>alert(1)</scr</script>ipt>'],
+      ["nested script", "<scr<script>ipt>alert(1)</scr</script>ipt>"],
       ["script in tag attr", '<p title="<script>alert(1)</script>">x</p>'],
 
       // Style-based attacks
-      ["style tag", '<style>body{background:url(javascript:alert(1))}</style>'],
+      ["style tag", "<style>body{background:url(javascript:alert(1))}</style>"],
       ["inline style expression", '<p style="width:expression(alert(1))">x</p>'],
       ["style url", '<p style="background:url(javascript:alert(1))">x</p>'],
 
@@ -178,7 +196,7 @@ describe("sanitizeHtml", () => {
 
       // Form/input injection
       ["form action", '<form action="javascript:alert(1)"><input type=submit>'],
-      ["input onfocus", '<input onfocus=alert(1) autofocus>'],
+      ["input onfocus", "<input onfocus=alert(1) autofocus>"],
 
       // Meta redirect
       ["meta refresh", '<meta http-equiv="refresh" content="0;url=javascript:alert(1)">'],
@@ -187,7 +205,7 @@ describe("sanitizeHtml", () => {
       ["base href", '<base href="javascript:alert(1)">'],
 
       // Null byte injection
-      ["null in tag name", '<scr\x00ipt>alert(1)</script>'],
+      ["null in tag name", "<scr\x00ipt>alert(1)</script>"],
     ];
 
     for (const [label, input] of xssPayloads) {
@@ -196,7 +214,9 @@ describe("sanitizeHtml", () => {
         expect(result).not.toMatch(/on\w+\s*=/i);
         expect(result).not.toContain("javascript:");
         expect(result).not.toContain("expression(");
-        expect(result).not.toMatch(/<(script|style|iframe|embed|object|form|input|meta|base|svg|math)\b/i);
+        expect(result).not.toMatch(
+          /<(script|style|iframe|embed|object|form|input|meta|base|svg|math)\b/i,
+        );
       });
     }
   });
@@ -205,7 +225,10 @@ describe("sanitizeHtml", () => {
     const dataUris: Array<[string, string]> = [
       ["plain data:image/svg", '<img src="data:image/svg+xml,<svg onload=alert(1)>" />'],
       ["data:image/png base64", '<img src="data:image/png;base64,iVBORw0KGgo=" />'],
-      ["data:image/gif", '<img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" />'],
+      [
+        "data:image/gif",
+        '<img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" />',
+      ],
     ];
     for (const [label, input] of dataUris) {
       it(`blocks ${label}`, () => {

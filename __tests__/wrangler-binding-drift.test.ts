@@ -37,28 +37,27 @@ function parseWranglerJsonc(): WranglerConfig {
 }
 
 /** Canonical list of expected bindings (source of truth). */
-const EXPECTED_KV_BINDINGS = [
-  "RATE_LIMIT_KV",
-  "APP_CACHE_KV",
-];
+const EXPECTED_KV_BINDINGS = ["RATE_LIMIT_KV", "APP_CACHE_KV"];
 
 const EXPECTED_DO_BINDINGS = [
+  // OpenNext caching layer (declared in wrangler.jsonc, even when tag-based
+  // revalidation is not yet enabled — see https://opennext.js.org/cloudflare/caching)
+  "NEXT_CACHE_DO_QUEUE",
+  "NEXT_TAG_CACHE_DO_SHARDED",
+  // F-005: atomic distributed rate limiting
   "RATE_LIMITER_DO",
 ];
 
-const EXPECTED_QUEUE_BINDINGS = [
-  "CLICK_QUEUE",
-];
+const EXPECTED_QUEUE_BINDINGS = ["CLICK_QUEUE"];
 
 const EXPECTED_R2_BINDINGS = [
-  "R2_PRIVATE_BUCKET",
-  "R2_PUBLIC_BUCKET",
-  "R2_LOG_BUCKET",
+  // OpenNext incremental cache bucket. R2_PRIVATE_BUCKET / R2_PUBLIC_BUCKET /
+  // R2_LOG_BUCKET are env-var bucket *names* used by lib/r2.ts (S3-compatible
+  // access via R2_ACCOUNT_ID + R2_ACCESS_KEY_ID), not Worker bindings.
+  "NEXT_INC_CACHE_R2_BUCKET",
 ];
 
-const EXPECTED_VARS = [
-  "NODE_ENV",
-];
+const EXPECTED_VARS = ["NODE_ENV"];
 
 describe("FIX-32: wrangler binding drift detection", () => {
   const config = parseWranglerJsonc();
@@ -88,9 +87,7 @@ describe("FIX-32: wrangler binding drift detection", () => {
   });
 
   describe("Durable Objects", () => {
-    const actual = new Set(
-      config.durable_objects?.bindings?.map((b) => b.name) ?? [],
-    );
+    const actual = new Set(config.durable_objects?.bindings?.map((b) => b.name) ?? []);
 
     for (const expected of EXPECTED_DO_BINDINGS) {
       it(`declares DO binding: ${expected}`, () => {
@@ -110,9 +107,7 @@ describe("FIX-32: wrangler binding drift detection", () => {
   });
 
   describe("Queues", () => {
-    const actual = new Set(
-      config.queues?.producers?.map((p) => p.binding) ?? [],
-    );
+    const actual = new Set(config.queues?.producers?.map((p) => p.binding) ?? []);
 
     for (const expected of EXPECTED_QUEUE_BINDINGS) {
       it(`declares Queue binding: ${expected}`, () => {

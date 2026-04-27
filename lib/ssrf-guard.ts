@@ -40,6 +40,7 @@ const BLOCKED_IP_RANGES = [
   "192.168.0.0/16",
   "169.254.0.0/16", // Link-local / metadata
   "0.0.0.0/8", // "This" network
+  "100.64.0.0/10", // Carrier-grade NAT (RFC 6598)
 ];
 
 /**
@@ -69,6 +70,38 @@ function ipv6MappedToIPv4(hostname: string): string | null {
   }
 
   return null;
+}
+
+/**
+ * Check whether an IPv6 hostname falls into a private/blocked prefix:
+ *   - fe80::/10  link-local
+ *   - fc00::/7   unique-local addresses (covers fd00::/8)
+ * Returns true if the address must be blocked.
+ *
+ * The check is conservative: any address whose first hextet matches the
+ * prefix is rejected, regardless of the rest of the address.
+ */
+function isBlockedIPv6Prefix(hostname: string): boolean {
+  // Must contain a colon to be an IPv6 literal at all.
+  if (!hostname.includes(":")) return false;
+
+  // Take the first hextet (chars before the first colon).
+  const firstColon = hostname.indexOf(":");
+  const headRaw = hostname.slice(0, firstColon).toLowerCase();
+  if (headRaw.length === 0 || !/^[0-9a-f]{1,4}$/.test(headRaw)) return false;
+
+  const head = parseInt(headRaw, 16);
+
+  // fc00::/7 — first 7 bits are 1111 110x → first byte is 0xfc or 0xfd.
+  // The first hextet's high byte equals (head >> 8).
+  const highByte = (head >> 8) & 0xff;
+  if (highByte === 0xfc || highByte === 0xfd) return true;
+
+  // fe80::/10 — first 10 bits are 1111 1110 10. The first hextet is
+  // 0xfe80–0xfebf inclusive.
+  if (head >= 0xfe80 && head <= 0xfebf) return true;
+
+  return false;
 }
 
 /**
@@ -149,6 +182,14 @@ export async function validateExternalUrl(
   // Blocklist check
   if (BLOCKED_HOSTS.has(hostname)) {
     return { valid: false, error: `Hostname '${hostname}' is blocked` };
+  }
+
+  // IPv6 link-local (fe80::/10) and unique-local (fc00::/7) ranges.
+  if (isBlockedIPv6Prefix(hostname)) {
+    return {
+      valid: false,
+      error: `IPv6 private/link-local address '${hostname}' is blocked (SSRF risk)`,
+    };
   }
 
   // IPv6-mapped IPv4 (e.g. ::ffff:7f00:1): check the embedded IPv4 address
