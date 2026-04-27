@@ -103,6 +103,8 @@ describe("admin/users last-super_admin safety guard", () => {
         userId: "root-id",
         role: "super_admin",
       },
+      dbSiteId: "site-uuid",
+      siteSlug: "test-site",
     });
   });
 
