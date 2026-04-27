@@ -15,7 +15,7 @@ const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
 ];
 const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom"];
 
-export const GET = withAuthz("settings", "view", async (_request, { siteId }) => {
+export const GET = withAuthz("ads", "read", async (_request, { siteId }) => {
   try {
     const ads = await listAdPlacements(siteId);
     return NextResponse.json(ads);
@@ -26,7 +26,7 @@ export const GET = withAuthz("settings", "view", async (_request, { siteId }) =>
 });
 
 export const POST = withAuthz(
-  "settings",
+  "ads",
   "create",
   async (request: NextRequest, { session, siteId }) => {
     const rawOrError = await parseJsonBody(request);

@@ -1,6 +1,6 @@
 // Authorization helpers for /api/admin/* routes.
 //
-// Two patterns are exposed:
+// Three patterns are exposed:
 //
 //   1. `withAuthz(feature, action, handler)` — wrap a route handler in a
 //      permission check scoped to the **server-derived** active site
@@ -9,7 +9,12 @@
 //      body, so a caller cannot widen access by appending
 //      `?site_id=<another>`.
 //
-//   2. `authorizeResource({ session, feature, action, resourceType,
+//   2. `withAuthzDynamic(feature, action, handler)` — same as withAuthz
+//      but preserves Next 15's `(request, { params })` signature for
+//      dynamic routes (e.g. `app/api/admin/foo/[id]/route.ts`). The
+//      resolved params are passed as `context.params`.
+//
+//   3. `authorizeResource({ session, feature, action, resourceType,
 //      resourceId })` — fetch the row by its primary key, read its real
 //      `site_id`, then check permission against that derived id. This is
 //      the right primitive for routes that mutate a single resource by
@@ -42,16 +47,24 @@ export type AuthenticatedRouteHandler = (
   },
 ) => Promise<NextResponse> | NextResponse;
 
+export type AuthenticatedDynamicRouteHandler = (
+  request: NextRequest,
+  context: {
+    session: AdminPayload;
+    /** Server-derived active site id (from the validated cookie). */
+    siteId: string;
+    /** Server-derived active site slug (from the validated cookie). */
+    siteSlug: string;
+    /** Resolved dynamic route params (e.g. `{ id: "abc" }`). */
+    params: Record<string, string>;
+  },
+) => Promise<NextResponse> | NextResponse;
+
 /**
  * Guard a non-dynamic route (no `[param]` segments) by feature+action
  * against the **server-derived** active site. Use this in place of any
  * handler that previously read `request.nextUrl.searchParams.get("site_id")`
  * for authorization.
- *
- * For dynamic routes (e.g. `app/api/admin/foo/[id]/route.ts`) keep using
- * `requireAdmin()` + `authorizeResource()` so the route signature stays
- * exactly `(request, { params: Promise<{ id: string }> })` — Next 15's
- * route validator rejects any other shape for the second argument.
  */
 export function withAuthz(
   feature: PermissionFeature,
@@ -76,6 +89,48 @@ export function withAuthz(
       session,
       siteId: dbSiteId,
       siteSlug,
+    });
+  };
+}
+
+/**
+ * Guard a dynamic route (with `[param]` segments) by feature+action
+ * against the **server-derived** active site. Same as `withAuthz` but
+ * preserves Next 15's `(request, { params })` signature so the route
+ * validator accepts the export. The resolved params are passed as
+ * `context.params` to the inner handler.
+ *
+ * Inside the handler, call `authorizeResource()` for the specific
+ * resource ID to get defense-in-depth tenant isolation.
+ */
+export function withAuthzDynamic(
+  feature: PermissionFeature,
+  action: PermissionAction,
+  handler: AuthenticatedDynamicRouteHandler,
+) {
+  return async (
+    request: NextRequest,
+    { params }: { params: Promise<Record<string, string>> },
+  ) => {
+    const auth = await requireAdmin();
+    if (auth.error) return auth.error;
+    const { session, dbSiteId, siteSlug } = auth;
+
+    if (!session.userId) {
+      return apiError(401, "Unauthorized");
+    }
+
+    const allowed = await hasPermission(session.userId, dbSiteId, feature, action);
+    if (!allowed) {
+      return apiError(403, "Forbidden");
+    }
+
+    const resolvedParams = await params;
+    return handler(request, {
+      session,
+      siteId: dbSiteId,
+      siteSlug,
+      params: resolvedParams,
     });
   };
 }

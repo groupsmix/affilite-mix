@@ -22,6 +22,8 @@ export function register() {
     );
   }
 
+  const isBuild = !!process.env.NEXT_PHASE;
+
   if (missing.length > 0) {
     const message = formatMissingEnvMessage(missing, "MISSING REQUIRED ENVIRONMENT VARIABLES");
 
@@ -30,11 +32,25 @@ export function register() {
     // `next build` (NEXT_PHASE set) or in development, just warn so the
     // build/dev loop is not broken for contributors who do not have the
     // production secrets locally.
-    const isBuild = !!process.env.NEXT_PHASE;
     if (process.env.NODE_ENV === "production" && !isBuild) {
       throw new Error(message);
     } else {
       console.warn(message);
+    }
+  }
+
+  // FIX-02: Warn if NODE_ENV is not production when any public-domain/cron env vars
+  // are set (indicates a misconfigured production deploy).
+  if (process.env.NODE_ENV !== "production" && !isBuild) {
+    const hasPublicDomainVars =
+      !!process.env.CRON_HOST ||
+      !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (hasPublicDomainVars) {
+      console.error(
+        "NODE_ENV is not 'production' but CRON_HOST or public-domain env vars are set. " +
+          "This likely indicates a misconfigured production deploy. " +
+          "Set NODE_ENV=production in wrangler.jsonc vars for the production environment.",
+      );
     }
   }
 
@@ -62,8 +78,8 @@ export function register() {
   // F-INFRA-01: Verify CLICK_QUEUE binding — log error and enter degraded
   // mode instead of crashing. When the queue is unbound, the redirect path
   // will fall through to a synchronous Supabase insert (with circuit breaker).
-  const isBuild = !!process.env.NEXT_PHASE;
-  if (process.env.NODE_ENV === "production" && !isBuild) {
+  const isBuild2 = !!process.env.NEXT_PHASE;
+  if (process.env.NODE_ENV === "production" && !isBuild2) {
     const queue =
       (globalThis as Record<string, unknown>).CLICK_QUEUE ??
       (process.env as Record<string, unknown>).CLICK_QUEUE;

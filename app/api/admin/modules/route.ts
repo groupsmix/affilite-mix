@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import { listSiteModules, upsertSiteModule, bulkUpsertSiteModules } from "@/lib/dal/modules";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -22,14 +22,8 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 }
 
 /** GET /api/admin/modules?site_id=<uuid> — list modules for a site */
-export async function GET(request: NextRequest) {
-  const { error, session } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-32 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const GET = withAuthz("modules", "read", async (request, { session }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -58,17 +52,11 @@ export async function GET(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to list modules";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 /** POST /api/admin/modules — upsert a module for a site */
-export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-32 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const POST = withAuthz("modules", "configure", async (request, { session }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -121,17 +109,11 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to upsert module";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 /** PATCH /api/admin/modules — bulk upsert modules for a site */
-export async function PATCH(request: NextRequest) {
-  const { error, session } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-32 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const PATCH = withAuthz("modules", "configure", async (request, { session }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -166,4 +148,4 @@ export async function PATCH(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to bulk upsert modules";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import {
   listIntegrationProviders,
   listSiteIntegrations,
@@ -26,14 +26,8 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 }
 
 /** GET /api/admin/integrations?site_id=<uuid> — list integrations for a site */
-export async function GET(request: NextRequest) {
-  const { error, session } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-32 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const GET = withAuthz("integrations", "read", async (request, { session }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -66,17 +60,11 @@ export async function GET(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to list integrations";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 /** POST /api/admin/integrations — upsert a site integration */
-export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-32 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const POST = withAuthz("integrations", "configure", async (request, { session }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -120,17 +108,11 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to upsert integration";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 /** DELETE /api/admin/integrations?site_id=<uuid>&provider_key=<key> — remove integration */
-export async function DELETE(request: NextRequest) {
-  const { error, session } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-32 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const DELETE = withAuthz("integrations", "delete", async (request, { session }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -158,4 +140,4 @@ export async function DELETE(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to delete integration";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

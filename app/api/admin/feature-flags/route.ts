@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import {
   listSiteFeatureFlags,
   upsertFeatureFlag,
@@ -26,19 +26,11 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 }
 
 /** GET /api/admin/feature-flags — list feature flags for the active site */
-export async function GET(_request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-28 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const GET = withAuthz("feature-flags", "read", async (_request, { session, siteId: dbSiteId }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
-  // A-015: Use server-derived active site id from requireAdmin() instead of
-  // trusting request query params (prevents cross-tenant enumeration).
   try {
     const flags = await listSiteFeatureFlags(dbSiteId);
     return NextResponse.json({ flags });
@@ -47,17 +39,11 @@ export async function GET(_request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to list feature flags";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 /** POST /api/admin/feature-flags — upsert a feature flag for the active site */
-export async function POST(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-28 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const POST = withAuthz("feature-flags", "configure", async (request, { session, siteId: dbSiteId }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -105,17 +91,11 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to upsert feature flag";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 /** PATCH /api/admin/feature-flags — bulk upsert feature flags for the active site */
-export async function PATCH(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-28 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const PATCH = withAuthz("feature-flags", "configure", async (request, { session, siteId: dbSiteId }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -154,17 +134,11 @@ export async function PATCH(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to bulk upsert feature flags";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 /** DELETE /api/admin/feature-flags?flag_key=<key> — delete a flag for the active site */
-export async function DELETE(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
-
+// FIX-28 (F-009): Migrate from requireAdmin + role check to withAuthz
+export const DELETE = withAuthz("feature-flags", "delete", async (request, { session, siteId: dbSiteId }) => {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
@@ -196,4 +170,4 @@ export async function DELETE(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to delete feature flag";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

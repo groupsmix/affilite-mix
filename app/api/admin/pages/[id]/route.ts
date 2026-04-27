@@ -1,23 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthzDynamic, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { getPageById, updatePage, deletePage } from "@/lib/dal/pages";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
-import { authorizeResource, authorizationErrorResponse } from "@/lib/authz";
-
-type Params = { params: Promise<{ id: string }> };
 
 /**
  * GET /api/admin/pages/:id  — get a single page
  */
-export async function GET(_request: NextRequest, { params }: Params) {
-  const { error, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
+export const GET = withAuthzDynamic("pages", "read", async (_request, { siteId: dbSiteId, params }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
     const page = await getPageById(dbSiteId, id);
     if (!page) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
@@ -27,25 +21,22 @@ export async function GET(_request: NextRequest, { params }: Params) {
     captureException(err, { context: "[api/admin/pages] GET by id failed:" });
     return NextResponse.json({ error: "Failed to get page" }, { status: 500 });
   }
-}
+});
 
 /**
  * PATCH /api/admin/pages/:id  — update a page
  * Body: { slug?, title?, body?, is_published?, sort_order? }
  */
-export async function PATCH(request: NextRequest, { params }: Params) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
+export const PATCH = withAuthzDynamic("pages", "edit", async (request, { session, siteId: dbSiteId, params }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     // Defense-in-depth: derive the page's real site_id and require it to
     // match the active site. A forged `id` from a different tenant is a
     // 404 here instead of an opaque DAL failure later.
     const authz = await authorizeResource({
       session,
-      feature: "content",
+      feature: "pages",
       action: "edit",
       resourceType: "page",
       resourceId: id,
@@ -81,21 +72,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     captureException(err, { context: "[api/admin/pages] PATCH failed:" });
     return NextResponse.json({ error: "Failed to update page" }, { status: 500 });
   }
-}
+});
 
 /**
  * DELETE /api/admin/pages/:id  — delete a page
  */
-export async function DELETE(_request: NextRequest, { params }: Params) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
-
+export const DELETE = withAuthzDynamic("pages", "delete", async (_request, { session, siteId: dbSiteId, params }) => {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     const authz = await authorizeResource({
       session,
-      feature: "content",
+      feature: "pages",
       action: "delete",
       resourceType: "page",
       resourceId: id,
@@ -118,4 +106,4 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     captureException(err, { context: "[api/admin/pages] DELETE failed:" });
     return NextResponse.json({ error: "Failed to delete page" }, { status: 500 });
   }
-}
+});

@@ -8,6 +8,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
+import { recordCronLiveness } from "@/lib/cron-liveness";
 
 /**
  * POST /api/cron/data-retention — GDPR Data Retention
@@ -47,64 +48,89 @@ export async function POST(request: NextRequest) {
     captureException(err, { context: "[cron/data-retention] affiliate_clicks failed:" });
   }
 
-  // F-DATA-02: Export audit log cohort to R2 before deletion.
-  // Rows older than 365 days are archived as JSONL, then deleted from the hot table.
+  // FIX-11 (F-016): Transactional audit_log purge via Postgres RPC.
+  // The previous fetch→archive→delete was non-transactional: if the delete
+  // failed after a successful R2 archive, rows were lost without a hot-table
+  // record. The `purge_retention` SECURITY DEFINER function does the
+  // archive + delete inside a single transaction, returning the count of
+  // archived/deleted rows. If the function doesn't exist yet (pre-migration),
+  // fall back to the old fetch→archive→delete path.
   try {
     const auditDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-    // Fetch rows to archive before deleting
-    const { data: auditRows, error: fetchError } = await sb
-      .from("audit_log")
-      .select("*")
-      .lt("created_at", auditDate.toISOString())
-      .limit(10000);
+    // Try the transactional RPC first
+    // @ts-ignore - The RPC is defined in migration but not yet generated in the local types
+    const { data: rpcResult, error: rpcError } = await sb.rpc("purge_retention", {
+      p_table: "audit_log",
+      p_cutoff: auditDate.toISOString(),
+      p_batch_limit: 10000,
+    });
 
-    if (fetchError) throw fetchError;
+    if (rpcError) {
+      // RPC not yet migrated — fall back to the old non-transactional path
+      logger.warn("purge_retention RPC not available, falling back to fetch→archive→delete", {
+        error: rpcError.message,
+      });
 
-    let archivedCount = 0;
-    let archiveSucceeded = false;
-    if (auditRows && auditRows.length > 0) {
-      // Attempt R2 archive export
-      try {
-        const r2 = (process.env as Record<string, unknown>).AUDIT_ARCHIVE_R2 as
-          | { put: (key: string, body: string) => Promise<void> }
-          | undefined;
+      // Fetch rows to archive before deleting
+      const { data: auditRows, error: fetchError } = await sb
+        .from("audit_log")
+        .select("*")
+        .lt("created_at", auditDate.toISOString())
+        .limit(10000);
 
-        if (r2 && typeof r2.put === "function") {
-          const yearMonth = `${auditDate.getFullYear()}-${String(auditDate.getMonth() + 1).padStart(2, "0")}`;
-          const jsonl = auditRows.map((row) => JSON.stringify(row)).join("\n");
-          const archiveKey = `audit-log-archive/${yearMonth}/${now.toISOString()}.jsonl`;
-          await r2.put(archiveKey, jsonl);
-          archivedCount = auditRows.length;
-          archiveSucceeded = true;
-          logger.info("Audit log archived to R2", { key: archiveKey, count: archivedCount });
-        } else {
-          logger.warn(
-            "AUDIT_ARCHIVE_R2 binding not available — skipping audit log deletion until R2 is configured. " +
-              "Rows will be retried on the next cron run.",
-          );
+      if (fetchError) throw fetchError;
+
+      let archivedCount = 0;
+      let archiveSucceeded = false;
+      if (auditRows && auditRows.length > 0) {
+        try {
+          const r2 = (process.env as Record<string, unknown>).AUDIT_ARCHIVE_R2 as
+            | { put: (key: string, body: string) => Promise<void> }
+            | undefined;
+
+          if (r2 && typeof r2.put === "function") {
+            const yearMonth = `${auditDate.getFullYear()}-${String(auditDate.getMonth() + 1).padStart(2, "0")}`;
+            const jsonl = auditRows.map((row) => JSON.stringify(row)).join("\n");
+            const archiveKey = `audit-log-archive/${yearMonth}/${now.toISOString()}.jsonl`;
+            await r2.put(archiveKey, jsonl);
+            archivedCount = auditRows.length;
+            archiveSucceeded = true;
+            logger.info("Audit log archived to R2", { key: archiveKey, count: archivedCount });
+          } else {
+            logger.warn(
+              "AUDIT_ARCHIVE_R2 binding not available — skipping audit log deletion until R2 is configured. " +
+                "Rows will be retried on the next cron run.",
+            );
+          }
+        } catch (archiveErr) {
+          logger.error("Failed to archive audit log to R2 — skipping deletion to prevent data loss", {
+            error: archiveErr instanceof Error ? archiveErr.message : String(archiveErr),
+          });
+          captureException(archiveErr, {
+            context: "[cron/data-retention] audit_log R2 archive failed",
+          });
         }
-      } catch (archiveErr) {
-        logger.error("Failed to archive audit log to R2 — skipping deletion to prevent data loss", {
-          error: archiveErr instanceof Error ? archiveErr.message : String(archiveErr),
-        });
-        captureException(archiveErr, {
-          context: "[cron/data-retention] audit_log R2 archive failed",
-        });
       }
-    }
 
-    // Only delete rows after successful archival to prevent compliance data loss.
-    // If archival failed or R2 is unavailable, rows are retained and retried next run.
-    let deletedCount = 0;
-    if (archiveSucceeded && auditRows && auditRows.length > 0) {
-      const ids = auditRows.map((row) => row.id);
-      const { error: auditError } = await sb.from("audit_log").delete().in("id", ids);
+      let deletedCount = 0;
+      if (archiveSucceeded && auditRows && auditRows.length > 0) {
+        const ids = auditRows.map((row) => row.id);
+        const { error: auditError } = await sb.from("audit_log").delete().in("id", ids);
 
-      if (auditError) throw auditError;
-      deletedCount = ids.length;
+        if (auditError) throw auditError;
+        deletedCount = ids.length;
+      }
+      results.audit_log = { success: true, archived: archivedCount, deleted: deletedCount };
+    } else {
+      // Transactional RPC succeeded
+      const result = rpcResult as { archived: number; deleted: number } | null;
+      results.audit_log = {
+        success: true,
+        archived: result?.archived ?? 0,
+        deleted: result?.deleted ?? 0,
+      };
     }
-    results.audit_log = { success: true, archived: archivedCount, deleted: deletedCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     results.audit_log = { success: false, error: msg };
@@ -137,5 +163,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  void recordCronLiveness("data-retention");
   return NextResponse.json({ ok: true, results });
 }

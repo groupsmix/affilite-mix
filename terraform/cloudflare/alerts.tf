@@ -71,6 +71,12 @@ locals {
   )
 }
 
+# ── FIX-01: Notification destinations ────────────────────────────────
+# In v5, notification email/webhook destinations are managed out-of-band
+# via the Cloudflare dashboard or API. Supply their IDs via the
+# alert_mechanisms variable in tfvars. At least one destination must
+# exist before enabling alerts (enforced by the lifecycle precondition).
+
 resource "cloudflare_notification_policy" "worker_5xx_alert" {
   account_id  = var.cloudflare_account_id
   name        = "Affilite-Mix Worker 5xx Burn Rate Alert"
@@ -83,7 +89,11 @@ resource "cloudflare_notification_policy" "worker_5xx_alert" {
     environment = ["production"]
   }
 
-  mechanisms = var.alert_mechanisms
+  mechanisms = {
+    email     = var.alert_mechanisms.email
+    pagerduty = var.alert_mechanisms.pagerduty
+    webhooks  = var.alert_mechanisms.webhooks
+  }
 
   lifecycle {
     precondition {
@@ -105,7 +115,11 @@ resource "cloudflare_notification_policy" "worker_cpu_time_alert" {
     environment = ["production"]
   }
 
-  mechanisms = var.alert_mechanisms
+  mechanisms = {
+    email     = var.alert_mechanisms.email
+    pagerduty = var.alert_mechanisms.pagerduty
+    webhooks  = var.alert_mechanisms.webhooks
+  }
 
   lifecycle {
     precondition {

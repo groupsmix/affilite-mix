@@ -70,15 +70,27 @@ export function resolveJwtSecretPrevious(env: NodeJS.ProcessEnv = process.env): 
   return null;
 }
 
+// FIX-12 (F-007, F-032): Re-read JWT secret per mint instead of caching
+// for the entire isolate lifetime. On Cloudflare Workers, env vars can
+// be updated via `wrangler secret put` without a redeploy; the cached
+// value would keep signing with the old key until the next cold start.
+// We still cache for a short window (5 minutes) to avoid re-reading the
+// env var on every single request.
 let cached: string | null = null;
+let cachedAt: number = 0;
+const SECRET_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 let cachedPrevious: string | null | undefined = undefined;
+let cachedPreviousAt: number = 0;
 
 /**
- * Returns the current JWT secret, resolving and memoizing it on first call.
+ * Returns the current JWT secret, re-reading from env at most every 5 minutes.
  */
 export function getJwtSecret(): string {
-  if (cached !== null) return cached;
+  const now = Date.now();
+  if (cached !== null && now - cachedAt < SECRET_CACHE_TTL_MS) return cached;
   cached = resolveJwtSecret();
+  cachedAt = now;
   return cached;
 }
 
@@ -87,14 +99,34 @@ export function getJwtSecret(): string {
  * Returns null if no previous secret is configured.
  */
 export function getJwtSecretPrevious(): string | null {
-  if (cachedPrevious !== undefined) return cachedPrevious;
+  const now = Date.now();
+  if (cachedPrevious !== undefined && now - cachedPreviousAt < SECRET_CACHE_TTL_MS) return cachedPrevious;
   cachedPrevious = resolveJwtSecretPrevious();
+  cachedPreviousAt = now;
   return cachedPrevious;
+}
+
+/**
+ * FIX-12 (F-032): Derive a key ID from the secret for the JWT `kid` header.
+ * Uses the first 8 hex chars of a SHA-256 hash of the secret so that
+ * different secrets produce different kids, but the same secret always
+ * produces the same kid. This lets verifiers identify which key was used
+ * without exposing the secret itself.
+ */
+export async function getJwtKid(): Promise<string> {
+  const secret = getJwtSecret();
+  const encoder = new TextEncoder();
+  const data = encoder.encode(secret);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.slice(0, 4).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Test-only helper to reset the memoized secret between test cases. */
 export function __resetJwtSecretCacheForTests(): void {
   cached = null;
+  cachedAt = 0;
   cachedPrevious = undefined;
+  cachedPreviousAt = 0;
   devFallbackWarned = false;
 }

@@ -7,6 +7,9 @@
 // Re-export shared email validation from the canonical utility module (task 18.6)
 export { isValidEmail } from "./validate-email";
 
+// FIX-05 (F-010): Affiliate domain allow-list validation
+import { validateAffiliateDomain } from "./affiliate-domain-allowlist";
+
 type ValidationResult<T> =
   | { data: T; errors: null }
   | { data: null; errors: Record<string, string> };
@@ -298,6 +301,17 @@ export function validateCreateProduct(
   ) {
     errors.affiliate_url = "affiliate_url must be a valid HTTPS URL or empty string";
   }
+  // FIX-05 (F-010): Validate affiliate_url domain against allow-list
+  if (
+    body.affiliate_url !== undefined &&
+    body.affiliate_url !== "" &&
+    isHttpsUrl(body.affiliate_url)
+  ) {
+    const domainCheck = validateAffiliateDomain(body.affiliate_url);
+    if (!domainCheck.allowed) {
+      errors.affiliate_url = domainCheck.reason ?? "affiliate_url domain is not on the allow-list";
+    }
+  }
   if (body.image_url !== undefined && body.image_url !== "" && !isUrl(body.image_url)) {
     errors.image_url = "image_url must be a valid URL or empty string";
   }
@@ -407,6 +421,17 @@ export function validateUpdateProduct(
     !isHttpsUrl(body.affiliate_url)
   ) {
     errors.affiliate_url = "affiliate_url must be a valid HTTPS URL or empty string";
+  }
+  // FIX-05 (F-010): Validate affiliate_url domain against allow-list
+  if (
+    body.affiliate_url !== undefined &&
+    body.affiliate_url !== "" &&
+    isHttpsUrl(body.affiliate_url)
+  ) {
+    const domainCheck = validateAffiliateDomain(body.affiliate_url);
+    if (!domainCheck.allowed) {
+      errors.affiliate_url = domainCheck.reason ?? "affiliate_url domain is not on the allow-list";
+    }
   }
   if (
     body.score !== undefined &&

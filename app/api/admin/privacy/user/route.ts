@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import { getTenantClient } from "@/lib/supabase-server";
 import { apiError, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
@@ -22,10 +22,7 @@ import { logger } from "@/lib/logger";
  * consider a background job / queue for large deletions.
  */
 
-export async function GET(request: NextRequest) {
-  const { error: authError, session } = await requireAdmin();
-  if (authError) return authError;
-
+export const GET = withAuthz("privacy", "read", async (request, { session }) => {
   if (session.role !== "super_admin") {
     return apiError(403, "Only super admins can perform data exports");
   }
@@ -97,12 +94,9 @@ export async function GET(request: NextRequest) {
     captureException(err, { context: "[api/admin/privacy] unexpected error during export" });
     return apiError(500, "Failed to process data export");
   }
-}
+});
 
-export async function DELETE(request: NextRequest) {
-  const { error: authError, session } = await requireAdmin();
-  if (authError) return authError;
-
+export const DELETE = withAuthz("privacy", "delete", async (request, { session }) => {
   // F-021: Only super_admin can perform data erasure (security-critical operation)
   if (session.role !== "super_admin") {
     return apiError(403, "Only super admins can perform data erasure");
@@ -223,7 +217,7 @@ export async function DELETE(request: NextRequest) {
     captureException(err, { context: "[api/admin/privacy] unexpected error" });
     return apiError(500, "Failed to process data erasure");
   }
-}
+});
 
 import crypto from "crypto";
 

@@ -181,6 +181,12 @@
 			"0 * * * *"    // Expire deals (hourly)
 		]
 	},
+	// FIX-02 (F-018): NODE_ENV must be "production" so the app rejects dev fallback
+	// tokens and enables production-only guards. Without this, the Workers runtime
+	// defaults NODE_ENV to "production" but the Next.js shim may not propagate it.
+	"vars": {
+		"NODE_ENV": "production"
+	},
 	// Workers observability (logs, errors, metrics in CF dashboard)
 	"observability": {
 		"enabled": true

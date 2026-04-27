@@ -1,0 +1,38 @@
+# Production tfvars — copy to production.tfvars and fill in real values.
+# NEVER commit real secrets to source control; use:
+#   terraform apply -var-file=production.tfvars
+
+cloudflare_api_token      = ""  # Scoped API token (see main.tf description)
+cloudflare_account_id     = ""  # Your Cloudflare account ID
+zone_id                   = ""  # Zone ID for the production domain
+
+# ── FIX-01: Alerts & Logpush ──────────────────────────────────────────
+# Set alerts_enabled = true after provisioning at least one notification
+# destination below. Create destinations in the Cloudflare Dashboard:
+#   Dashboard → Notifications → Destinations → Add
+# Then paste the destination IDs here.
+
+alerts_enabled = true
+
+alert_mechanisms = {
+  email     = []           # e.g. [{ id = "abc123" }]
+  pagerduty = []           # e.g. [{ id = "def456" }]
+  webhooks  = []           # e.g. [{ id = "ghi789" }]  (Slack webhook, etc.)
+}
+
+# Logpush — ship Workers trace events to R2 for long-term retention.
+# 1. Apply storage.tf so cloudflare_r2_bucket.worker_logs exists.
+# 2. Mint R2 API token scoped to that bucket.
+# 3. Fill in the r2:// URL below, then set logpush_enabled = true.
+
+logpush_enabled       = true
+logpush_destination_conf = ""  # e.g. "r2://<account-id>/workers-logpush?account-id=...&access-key-id=...&secret-access-key=..."
+
+# ── WAF configuration ─────────────────────────────────────────────────
+# Source from Cloudflare analytics → Security → Events → top ASNs.
+waf_blocked_asns      = []
+waf_blocked_countries = ["KP", "IR", "SY"]
+
+# ── R2 location hint ──────────────────────────────────────────────────
+r2_default_location   = "WNAM"
+worker_logs_bucket_name = "workers-logpush"

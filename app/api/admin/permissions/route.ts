@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import {
   listRoles,
   listPermissions,
@@ -34,10 +34,9 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
  *   - site_id: optional — if provided, returns user-role assignments for that site
  */
 export async function GET(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
@@ -71,10 +70,9 @@ export async function GET(request: NextRequest) {
 
 /** POST /api/admin/permissions — assign a role to a user for a site */
 export async function POST(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
@@ -131,10 +129,9 @@ export async function POST(request: NextRequest) {
 
 /** DELETE /api/admin/permissions?user_id=<uuid>&site_id=<uuid> — remove role assignment */
 export async function DELETE(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });

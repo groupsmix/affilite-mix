@@ -64,6 +64,14 @@ export interface RateLimitConfig {
    *   Use for security-critical routes (e.g. login, admin, checkout).
    */
   failPolicy?: RateLimitFailPolicy;
+  /**
+   * FIX-07 (F-015): Override the grace window for this specific check.
+   * When set, overrides the global KV_GRACE_MS for "grace" fail policy.
+   * Use a shorter window (e.g. 5000ms) for sensitive endpoints so the
+   * per-isolate fallback window is minimal, reducing the attack surface
+   * when KV/DO is persistently broken.
+   */
+  graceMs?: number;
 }
 
 export interface RateLimitResult {
@@ -415,7 +423,7 @@ function handleKvUnavailable(
     });
   }
 
-  const graceMs = getKvGraceMs();
+  const graceMs = config.graceMs ?? getKvGraceMs();
   if (isProduction && now - kvUnavailableSince >= graceMs) {
     // Grace expired: fail closed. Use the smaller of (graceMs, configured window)
     // for retryAfter so clients back off but eventually retry.

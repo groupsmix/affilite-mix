@@ -6,6 +6,7 @@ import { getRecentStripeEventIds } from "@/lib/dal/stripe-events";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
+import { recordCronLiveness } from "@/lib/cron-liveness";
 
 export async function POST(request: NextRequest) {
   if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/stripe-sync"))) {
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    void recordCronLiveness("stripe-sync");
     return NextResponse.json({ success: true, syncedCount });
   } catch (error) {
     logger.error("Stripe sync failed", {

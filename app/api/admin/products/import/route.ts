@@ -1,13 +1,11 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import { createProduct, bulkCreateProducts } from "@/lib/dal/products";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 
 /** POST /api/admin/products/import — bulk import products from CSV */
-export async function POST(request: NextRequest) {
-  const guard = await requireAdmin();
-  if (guard.error) return guard.error;
+export const POST = withAuthz("products", "create", async (request, { session, siteId }) => {
 
   // Audit U-7: bound the request body and the row count so an admin
   // (or an XSS-against-admin) can't OOM the worker by uploading a 1 GB
@@ -142,7 +140,7 @@ export async function POST(request: NextRequest) {
         rowIndex: i + 1,
         name: row.name,
         product: {
-          site_id: guard.dbSiteId,
+          site_id: siteId,
           name: row.name,
           slug: row.slug,
           description: row.description ?? "",
@@ -190,8 +188,8 @@ export async function POST(request: NextRequest) {
     const errors = results.filter((r) => r.status === "error").length;
 
     void recordAuditEvent({
-      site_id: guard.dbSiteId,
-      actor: guard.session.email ?? "admin",
+      site_id: siteId,
+      actor: session.email ?? "admin",
       action: "bulk_import",
       entity_type: "product",
       entity_id: "bulk",
@@ -203,7 +201,7 @@ export async function POST(request: NextRequest) {
     captureException(err, { context: "[api/admin/products/import] POST failed:" });
     return NextResponse.json({ error: "Failed to import products" }, { status: 500 });
   }
-}
+});
 
 /** Parse a CSV line, handling quoted fields */
 function parseCsvLine(line: string): string[] {
