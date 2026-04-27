@@ -396,7 +396,7 @@ resource "cloudflare_healthcheck" "worker_origin" {
     }
   }
 
-  check_regions = ["WEUR", "NA"]
+  check_regions = ["WEU", "WNAM"]
   interval      = 60
   retries       = 2
   timeout       = 10
