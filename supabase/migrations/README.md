@@ -178,3 +178,25 @@ applying 00067:
 Rollback: `00067_harden_tenant_isolation_rls-down.sql` restores the
 00064 behaviour. Use only as a last-resort emergency revert and re-apply
 00067 immediately afterwards.
+
+### 00072 — multi-site tenant scope (A-09)
+
+`00067_harden_tenant_isolation_rls.sql` enforced single-site-per-user at
+the DB layer (`current_request_site_id() RETURNS uuid` + equality
+predicates). The audit's A-09 finding flagged that as a structural
+limitation now that `user_site_roles` already models multi-site
+assignments. `00072_tenant_site_ids_array.sql` evolves the helper:
+
+- New `public.current_request_site_ids() RETURNS uuid[]` reads
+  `app_metadata.site_ids` (server-controlled jsonb array). It falls
+  back to the legacy `app_metadata.site_id` and top-level `site_id`
+  single-claim shapes so JWTs minted before deploy keep working.
+- Every `tenant_isolation_auth_<t>` policy is reissued as
+  `cardinality(current_request_site_ids()) > 0 AND site_id = ANY(...)`,
+  preserving 00067's "no claim → no rows" hardening.
+- `current_request_site_id()` is retained as a thin shim
+  (`current_request_site_ids()[1]`) so external SQL and the 00067
+  regression-lock tests keep passing.
+
+Rollback: `00072_tenant_site_ids_array-down.sql` restores the 00067
+single-uuid helper and equality predicates verbatim.

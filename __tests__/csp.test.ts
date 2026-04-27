@@ -1,8 +1,15 @@
 /**
- * Tests for lib/csp.ts — nonce generation and CSP header assembly (H-10).
+ * Tests for lib/csp.ts — nonce generation and CSP header assembly
+ * (H-10 + A-11 audit hardening).
  */
-import { describe, it, expect } from "vitest";
-import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import {
+  buildCspHeader,
+  cspHeaderName,
+  generateCspNonce,
+  isCspReportOnly,
+  NONCE_HEADER,
+} from "@/lib/csp";
 
 describe("generateCspNonce", () => {
   it("returns a non-empty base64 string", () => {
@@ -43,9 +50,15 @@ describe("buildCspHeader", () => {
     expect(header).toMatch(/script-src[^;]*'strict-dynamic'/);
   });
 
-  it("retains 'unsafe-inline' fallback (CSP Level-3 browsers ignore it when a nonce is present)", () => {
-    expect(header).toMatch(/script-src[^;]*'unsafe-inline'/);
-    expect(header).toMatch(/style-src[^;]*'unsafe-inline'/);
+  // A-11: 'unsafe-inline' has been dropped from both directives. CSP
+  // Level-3 browsers ignored it whenever a nonce was present anyway, but
+  // keeping it left a Level-2 escape hatch open for older engines.
+  it("does NOT include 'unsafe-inline' in script-src (A-11)", () => {
+    expect(header).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+  });
+
+  it("does NOT include 'unsafe-inline' in style-src (A-11)", () => {
+    expect(header).not.toMatch(/style-src[^;]*'unsafe-inline'/);
   });
 
   it("preserves previously configured third-party sources", () => {
@@ -61,10 +74,51 @@ describe("buildCspHeader", () => {
     expect(header).toContain("upgrade-insecure-requests");
   });
 
+  it("retains the violation collector via report-uri", () => {
+    expect(header).toContain("report-uri /api/csp-report");
+  });
+
   it("does not leak the nonce across multiple invocations", () => {
     const other = buildCspHeader("different-nonce");
     expect(other).toContain("'nonce-different-nonce'");
     expect(other).not.toContain("'nonce-test-nonce-abc123'");
+  });
+});
+
+describe("isCspReportOnly / cspHeaderName (A-11 rollout toggle)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("defaults to report-only when CSP_REPORT_ONLY is unset", () => {
+    vi.stubEnv("CSP_REPORT_ONLY", "");
+    // A blank string is treated as "set but empty" — our helper still
+    // explicitly checks `=== undefined`, which the stub respects.
+    vi.unstubAllEnvs();
+    expect(isCspReportOnly()).toBe(true);
+    expect(cspHeaderName()).toBe("Content-Security-Policy-Report-Only");
+  });
+
+  it("flips to enforcing mode when CSP_REPORT_ONLY=false", () => {
+    vi.stubEnv("CSP_REPORT_ONLY", "false");
+    expect(isCspReportOnly()).toBe(false);
+    expect(cspHeaderName()).toBe("Content-Security-Policy");
+  });
+
+  it("treats common falsy spellings as enforcing", () => {
+    for (const v of ["0", "off", "no", "FALSE", "  False  "]) {
+      vi.stubEnv("CSP_REPORT_ONLY", v);
+      expect(isCspReportOnly()).toBe(false);
+      expect(cspHeaderName()).toBe("Content-Security-Policy");
+    }
+  });
+
+  it("any other value keeps the policy in report-only mode", () => {
+    for (const v of ["true", "1", "yes", "anything"]) {
+      vi.stubEnv("CSP_REPORT_ONLY", v);
+      expect(isCspReportOnly()).toBe(true);
+      expect(cspHeaderName()).toBe("Content-Security-Policy-Report-Only");
+    }
   });
 });
 

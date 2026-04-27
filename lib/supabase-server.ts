@@ -37,6 +37,15 @@ function getSupabaseUrl(): string {
  */
 // F-022: Cache clients per-isolate to reduce CPU overhead.
 // These clients do not hold mutable state (persistSession: false).
+//
+// A-10 (audit): The memoised reference is FROZEN after construction
+// (Object.freeze) so a stray `_anonClient = something` reassignment from
+// inside this module fails fast in dev. Callers MUST NOT mutate any
+// property on the returned client (in particular `client.headers` /
+// `client.rest.headers`); the client is shared across every request that
+// runs inside the same Worker isolate. ESLint enforces this via a
+// `no-restricted-syntax` rule that bans `<client>.headers.*= …` and
+// related mutation patterns; see `eslint.config.mjs`.
 let _anonClient: SupabaseClient<Database> | null = null;
 
 /**
@@ -79,7 +88,7 @@ export function getAnonClient(): SupabaseClient<Database> {
 
   const url = getSupabaseUrl();
   const key = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  _anonClient = createClient<Database>(url, key, {
+  const client = createClient<Database>(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -107,14 +116,83 @@ export function getAnonClient(): SupabaseClient<Database> {
       },
     },
   });
+  // A-10: freeze so callers cannot reassign top-level properties on the
+  // memoised client. supabase-js does not expose a public mutable header
+  // bag, but freezing the instance plus the ESLint mutation guard makes
+  // the contract explicit.
+  _anonClient = Object.freeze(client) as SupabaseClient<Database>;
   return _anonClient;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// A-08 (audit): per-isolate JWT cache for `getAuthenticatedClient`.
+//
+// Before this fix, every request through `getTenantClient()` minted a
+// fresh HS256 JWT — `jose.SignJWT(...).sign()` is a CPU hot spot under
+// load (it does an HMAC of the canonical JSON). With the cache, we sign
+// at most one JWT per `(siteId, userId, role)` tuple per
+// JWT_CACHE_SLIDING_WINDOW_MS.
+//
+// The cached entry stores the signed token and the wall-clock time at
+// which the cache entry expires (NOT the JWT's own `exp`, which is
+// still 1 hour and unchanged below). The cached token therefore stays
+// well within its server-side validity window even at the upper edge
+// of the 30s sliding window.
+//
+// Memory bound: a small LRU-like cap protects long-lived isolates from
+// unbounded growth on multi-tenant traffic; on overflow we drop the
+// oldest entry. 4096 entries × ~512 B ≈ 2 MiB worst case.
+// ─────────────────────────────────────────────────────────────────────
+const JWT_CACHE_SLIDING_WINDOW_MS = 30_000;
+const JWT_CACHE_MAX_ENTRIES = 4096;
+
+interface TenantJwtCacheEntry {
+  token: string;
+  /** Wall-clock ms after which this cache entry must be re-signed. */
+  exp: number;
+}
+
+const _tenantJwtCache: Map<string, TenantJwtCacheEntry> = new Map();
+
+function tenantJwtCacheKey(
+  siteId: string | null | undefined,
+  userId: string | null | undefined,
+  role: string,
+): string {
+  // The empty string is a valid sentinel for "no claim" — both empty
+  // siteId and empty userId hash distinctly from any real uuid.
+  return `${siteId ?? ""}|${userId ?? ""}|${role}`;
+}
+
+/**
+ * Test helper: clear the per-isolate JWT cache so unit tests that
+ * change `SUPABASE_JWT_SECRET` between cases see fresh signatures.
+ * Production code MUST NOT call this.
+ */
+export function __resetTenantJwtCacheForTests(): void {
+  _tenantJwtCache.clear();
+}
+
+async function mintTenantJwt(secret: string, payload: Record<string, unknown>): Promise<string> {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(secret));
 }
 
 // `getAuthenticatedClient` was introduced in this branch to mint a custom
 // JWT signed with SUPABASE_JWT_SECRET so RLS could evaluate a scoped user
 // context instead of always bypassing via service_role.
+//
+// A-09 (audit): we now write the tenant scope as `app_metadata.site_ids`
+// (uuid array) so RLS can match `site_id = ANY(current_request_site_ids())`
+// — the DB function still falls back to the legacy single-claim shapes
+// for backward compatibility during the deploy window. The first
+// argument may still be passed as a single string for callers (and tests)
+// that have not yet been updated; it is wrapped to a one-element array.
 export async function getAuthenticatedClient(
-  siteId?: string | null,
+  siteIdOrIds?: string | string[] | null,
   userId?: string | null,
   role = "authenticated",
 ): Promise<SupabaseClient<Database>> {
@@ -122,15 +200,46 @@ export async function getAuthenticatedClient(
   const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   const secret = requireEnvInProduction("SUPABASE_JWT_SECRET");
 
-  const payload: any = { role };
-  if (userId) payload.sub = userId;
-  if (siteId) payload.site_id = siteId;
+  const siteIds: string[] = Array.isArray(siteIdOrIds)
+    ? siteIdOrIds.filter((s): s is string => typeof s === "string" && s.length > 0)
+    : siteIdOrIds
+      ? [siteIdOrIds]
+      : [];
 
-  const token = await new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("1h")
-    .sign(new TextEncoder().encode(secret));
+  // Cache key is tuple-stable: deduped, sorted site_ids + userId + role.
+  const dedupedSorted = Array.from(new Set(siteIds)).sort();
+  const cacheKey = tenantJwtCacheKey(dedupedSorted.join(","), userId, role);
+
+  let token: string;
+  const now = Date.now();
+  const cached = _tenantJwtCache.get(cacheKey);
+  if (cached && cached.exp > now) {
+    token = cached.token;
+  } else {
+    const payload: Record<string, unknown> = { role };
+    if (userId) payload.sub = userId;
+    if (dedupedSorted.length > 0) {
+      // A-09: server-controlled tenant scope — RLS reads
+      // `app_metadata.site_ids` via `current_request_site_ids()`.
+      payload.app_metadata = { site_ids: dedupedSorted };
+      // Backwards-compat singular claim so any RLS predicate still on
+      // 00067's `current_request_site_id()` keeps working until 00072
+      // is rolled out everywhere.
+      if (dedupedSorted.length === 1) payload.site_id = dedupedSorted[0];
+    }
+
+    token = await mintTenantJwt(secret, payload);
+
+    if (_tenantJwtCache.size >= JWT_CACHE_MAX_ENTRIES) {
+      // Drop the oldest entry to bound memory in long-lived isolates.
+      const firstKey = _tenantJwtCache.keys().next().value;
+      if (firstKey !== undefined) _tenantJwtCache.delete(firstKey);
+    }
+    _tenantJwtCache.set(cacheKey, {
+      token,
+      exp: now + JWT_CACHE_SLIDING_WINDOW_MS,
+    });
+  }
 
   return createClient<Database>(url, anonKey, {
     auth: {

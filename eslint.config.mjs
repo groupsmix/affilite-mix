@@ -29,6 +29,29 @@ const eslintConfig = [
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/await-thenable": "error",
       "@typescript-eslint/require-await": "off",
+      // A-10 (audit): the memoised Supabase clients in
+      // `lib/server-only/service-role.ts` and `lib/supabase-server.ts`
+      // are shared across requests inside the same Worker isolate.
+      // Mutating their `.headers` (or anything else on the client) leaks
+      // tenant context across requests and produces extremely hard-to-
+      // trace auth bugs. We deny the syntactic shapes of those mutations
+      // here; per-request headers must be passed at construction time
+      // (see `global.headers` in `getAuthenticatedClient`).
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "AssignmentExpression[left.type='MemberExpression'][left.object.type='MemberExpression'][left.object.property.name='headers']",
+          message:
+            "Do not mutate `.headers` on a Supabase client — the memoised clients in `lib/server-only/service-role.ts` and `lib/supabase-server.ts` are frozen and shared across every request inside a Worker isolate. Build per-request headers via `createClient(..., { global: { headers } })` on a fresh client instead.",
+        },
+        {
+          selector:
+            "AssignmentExpression[left.type='MemberExpression'][left.object.type='CallExpression'][left.object.callee.name=/^(getPrivilegedSupabaseClient|getServiceClient|getAnonClient|getTenantClient)$/]",
+          message:
+            "Do not mutate the returned Supabase client — it is shared across every request inside the same Worker isolate (A-10). Construct a fresh client with the headers you need instead.",
+        },
+      ],
       // Service-role access bypasses RLS, so the only sanctioned path for
       // a privileged Supabase client is the server-only gateway at
       // `lib/server-only/service-role.ts`. Importing `getServiceClient`
@@ -42,7 +65,7 @@ const eslintConfig = [
               name: "@/lib/supabase-server",
               importNames: ["getServiceClient"],
               message:
-                "Use the approved server-only privileged gateway: `import { getPrivilegedSupabaseClient } from \"@/lib/server-only/service-role\"`.",
+                'Use the approved server-only privileged gateway: `import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"`.',
             },
           ],
           patterns: [
@@ -50,7 +73,7 @@ const eslintConfig = [
               group: ["**/supabase-server"],
               importNames: ["getServiceClient"],
               message:
-                "Use the approved server-only privileged gateway: `import { getPrivilegedSupabaseClient } from \"@/lib/server-only/service-role\"`.",
+                'Use the approved server-only privileged gateway: `import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"`.',
             },
           ],
         },

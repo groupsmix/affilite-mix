@@ -24,6 +24,8 @@ vi.mock("@/lib/sentry", () => ({
 vi.mock("@/lib/csp", () => ({
   buildCspHeader: () => "default-src 'self'",
   generateCspNonce: () => "nonce",
+  cspHeaderName: () => "Content-Security-Policy",
+  isCspReportOnly: () => false,
   NONCE_HEADER: "x-csp-nonce",
 }));
 

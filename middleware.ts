@@ -4,12 +4,19 @@ import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
-import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
+import { buildCspHeader, cspHeaderName, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
 import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
 
-const CSP_HEADER = "Content-Security-Policy";
+/**
+ * Header name Next.js reads from the *request* to inject the per-request
+ * nonce into its inline runtime scripts. Always the enforcing name —
+ * even in report-only rollouts the nonce wiring on the request side is
+ * unconditional; only the *response* header name flips between
+ * enforce / report-only via {@link cspHeaderName}.
+ */
+const CSP_REQUEST_HEADER = "Content-Security-Policy";
 
 /** Methods allowed via CORS for public API endpoints (beacon, vitals, etc.) */
 const CORS_ALLOWED_METHODS = "GET, POST, OPTIONS";
@@ -237,7 +244,7 @@ export async function middleware(request: NextRequest) {
     // Next.js reads CSP from the *request* headers to automatically
     // propagate the nonce to its own inline runtime scripts.  See:
     // https://nextjs.org/docs/app/guides/content-security-policy
-    requestHeaders.set(CSP_HEADER, cspHeaderValue);
+    requestHeaders.set(CSP_REQUEST_HEADER, cspHeaderValue);
   }
 
   const response = NextResponse.next({
@@ -264,8 +271,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (cspHeaderValue) {
-    // Actual browser enforcement is driven by the *response* header.
-    response.headers.set(CSP_HEADER, cspHeaderValue);
+    // A-11: pick the response-side header dynamically. During the
+    // rollout window `cspHeaderName()` returns
+    // `Content-Security-Policy-Report-Only` so violations surface via
+    // `report-uri /api/csp-report` without breaking the page; flipping
+    // `CSP_REPORT_ONLY=false` switches the same policy to full
+    // enforcement.
+    response.headers.set(cspHeaderName(), cspHeaderValue);
   }
 
   // Removed CSRF token rotation on state-changing requests
