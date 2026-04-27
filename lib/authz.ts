@@ -38,6 +38,8 @@ export type AuthenticatedRouteHandler = (
     session: AdminPayload;
     /** Server-derived active site id (from the validated cookie). */
     siteId: string;
+    /** Server-derived active site slug (from the validated cookie). */
+    siteSlug: string;
   },
 ) => Promise<NextResponse> | NextResponse;
 
@@ -51,10 +53,13 @@ export function withAuthz(
   action: PermissionAction,
   handler: AuthenticatedRouteHandler,
 ) {
-  return async (request: NextRequest, context: { params: Record<string, string> }) => {
+  return async (
+    request: NextRequest,
+    context?: { params?: Record<string, string> | Promise<Record<string, string>> },
+  ) => {
     const auth = await requireAdmin();
     if (auth.error) return auth.error;
-    const { session, dbSiteId } = auth;
+    const { session, dbSiteId, siteSlug } = auth;
 
     if (!session.userId) {
       return apiError(401, "Unauthorized");
@@ -65,7 +70,18 @@ export function withAuthz(
       return apiError(403, "Forbidden");
     }
 
-    return handler(request, { ...context, session, siteId: dbSiteId });
+    const rawParams = context?.params;
+    const resolvedParams: Record<string, string> =
+      rawParams && typeof (rawParams as Promise<unknown>).then === "function"
+        ? await (rawParams as Promise<Record<string, string>>)
+        : ((rawParams as Record<string, string> | undefined) ?? {});
+
+    return handler(request, {
+      params: resolvedParams,
+      session,
+      siteId: dbSiteId,
+      siteSlug,
+    });
   };
 }
 
