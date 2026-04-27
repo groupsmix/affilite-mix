@@ -10,7 +10,7 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";
 
 /** 60 click-tracking requests per minute per IP */
-const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
+const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000, failPolicy: "open" as const };
 
 /**
  * Shared handler for click tracking (used by both GET and POST).

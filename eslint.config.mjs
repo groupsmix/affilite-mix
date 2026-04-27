@@ -55,6 +55,16 @@ const eslintConfig = [
           ],
         },
       ],
+      // A-010: Direct access to the service-role env var outside the gateway
+      // is forbidden so the key never leaks into non-privileged code paths.
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "SUPABASE_SERVICE_ROLE_KEY",
+          message:
+            "Access SUPABASE_SERVICE_ROLE_KEY only through the server-only gateway at `lib/server-only/service-role.ts`.",
+        },
+      ],
     },
   },
   {

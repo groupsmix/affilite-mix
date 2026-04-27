@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getAdminSession } from "@/lib/auth";
 import { getSiteRowById, updateSite, deleteSite } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -98,6 +99,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const site = await updateSite(id, updates);
+
+    // A-024: Purge Next.js ISR + KV caches when site metadata changes or is disabled.
+    revalidateTag("sites");
+    try {
+      const kv = (process.env as any).APP_CACHE_KV as any;
+      if (kv && site) {
+        await kv.delete(`site-domain:${site.domain}`).catch(() => {});
+        await kv.delete(`site-slug:${site.slug}`).catch(() => {});
+        await kv.delete(`admin-guard:site-slug:${site.slug}`).catch(() => {});
+      }
+    } catch {
+      // Ignore KV purge errors — cache will expire naturally.
+    }
+
     void recordAuditEvent({
       site_id: id,
       actor: session.email ?? "admin",
@@ -134,6 +149,18 @@ export async function DELETE(
   const { id } = await params;
 
   try {
+    // A-024: Purge caches before deletion so stale site data doesn't persist.
+    revalidateTag("sites");
+    try {
+      const kv = (process.env as any).APP_CACHE_KV as any;
+      if (kv) {
+        await kv.delete(`site-domain-miss:*`).catch(() => {});
+        await kv.delete(`admin-guard:site-slug:*`).catch(() => {});
+      }
+    } catch {
+      // Ignore KV purge errors.
+    }
+
     await deleteSite(id);
     void recordAuditEvent({
       site_id: id,

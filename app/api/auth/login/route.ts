@@ -1,7 +1,8 @@
 export const runtime = "edge";
 
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateUser, createToken, COOKIE_NAME } from "@/lib/auth";
+import { authenticateUser, createToken, COOKIE_NAME, getAdminBindingCookie } from "@/lib/auth";
+import { computeRequestBinding } from "@/lib/jwt-binding";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -13,10 +14,10 @@ import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 
 /** 5 login attempts per 15 minutes per IP */
-const LOGIN_RATE_LIMIT_IP = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
+const LOGIN_RATE_LIMIT_IP = { maxRequests: 5, windowMs: 15 * 60 * 1000, failPolicy: "closed" as const };
 
 /** 10 login attempts per 15 minutes per email (prevents brute-force from rotating IPs) */
-const LOGIN_RATE_LIMIT_EMAIL = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
+const LOGIN_RATE_LIMIT_EMAIL = { maxRequests: 10, windowMs: 15 * 60 * 1000, failPolicy: "closed" as const };
 
 export async function POST(request: NextRequest) {
   try {
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
           );
         }
         // Separate tight rate limit for TOTP brute-forcing (5 attempts per 5 mins per email)
-        const totpLimit = { maxRequests: 5, windowMs: 5 * 60 * 1000 };
+        const totpLimit = { maxRequests: 5, windowMs: 5 * 60 * 1000, failPolicy: "closed" as const };
         const totpRl = await checkRateLimit(`login-totp:${rateLimitEmail}`, totpLimit);
 
         if (!totpRl.allowed) {
@@ -156,6 +157,14 @@ export async function POST(request: NextRequest) {
       path: "/",
       maxAge: 60 * 60 * 8, // 8 hours (matches JWT expiry)
     });
+
+    // A-012: set a separate binding cookie so the JWT cannot be replayed
+    // without the corresponding binding fingerprint.
+    const binding = await computeRequestBinding(request);
+    if (binding) {
+      const bc = getAdminBindingCookie(binding);
+      response.cookies.set(bc.name, bc.value, bc.options as any);
+    }
 
     return response;
   } catch (err) {

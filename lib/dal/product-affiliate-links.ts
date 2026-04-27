@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface ProductAffiliateLinkRow {
   id: string;
@@ -18,8 +19,9 @@ const TABLE = "product_affiliate_links";
 /** List active affiliate links for a product, ordered by weight descending */
 export async function listProductAffiliateLinks(
   productId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductAffiliateLinkRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -35,8 +37,9 @@ export async function listProductAffiliateLinks(
 /** List all affiliate links for a product (including inactive) */
 export async function listAllProductAffiliateLinks(
   productId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductAffiliateLinkRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -49,14 +52,17 @@ export async function listAllProductAffiliateLinks(
 }
 
 /** Create an affiliate link for a product */
-export async function createProductAffiliateLink(input: {
-  product_id: string;
-  network: string;
-  geo?: string;
-  url: string;
-  weight?: number;
-}): Promise<ProductAffiliateLinkRow> {
-  const sb = await getTenantClient();
+export async function createProductAffiliateLink(
+  input: {
+    product_id: string;
+    network: string;
+    geo?: string;
+    url: string;
+    weight?: number;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ProductAffiliateLinkRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
 
@@ -68,8 +74,9 @@ export async function createProductAffiliateLink(input: {
 export async function updateProductAffiliateLink(
   id: string,
   input: Partial<Pick<ProductAffiliateLinkRow, "network" | "geo" | "url" | "weight" | "is_active">>,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductAffiliateLinkRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
 
@@ -78,8 +85,8 @@ export async function updateProductAffiliateLink(
 }
 
 /** Delete an affiliate link */
-export async function deleteProductAffiliateLink(id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteProductAffiliateLink(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
 
   const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;
@@ -92,8 +99,9 @@ export async function deleteProductAffiliateLink(id: string): Promise<void> {
 export async function pickBestAffiliateLink(
   productId: string,
   geo: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductAffiliateLinkRow | null> {
-  const links = await listProductAffiliateLinks(productId);
+  const links = await listProductAffiliateLinks(productId, getClient);
   if (links.length === 0) return null;
 
   const geoMatches = links.filter((l) => l.geo === geo);

@@ -1,8 +1,10 @@
+import { unstable_cache } from "next/cache";
 import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
 import type { ContentRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "content";
 
@@ -44,8 +46,8 @@ const LIST_COLUMNS =
   "id, site_id, title, slug, excerpt, featured_image, type, status, review_state, category_id, tags, author, publish_at, meta_title, meta_description, og_image, created_at, updated_at" as const;
 
 /** List content for a site with optional filters */
-export async function listContent(opts: ListContentOptions): Promise<ContentRow[]> {
-  const sb = await getTenantClient();
+export async function listContent(opts: ListContentOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<ContentRow[]> {
+  const sb = await getClient();
   const sortColumn: ContentSortColumn = opts.sortBy ?? "created_at";
   const ascending = opts.sortDirection === "asc";
 
@@ -81,8 +83,8 @@ export async function listContent(opts: ListContentOptions): Promise<ContentRow[
 }
 
 /** Get a single content item by id */
-export async function getContentById(siteId: string, id: string): Promise<ContentRow | null> {
-  const sb = await getTenantClient();
+export async function getContentById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<ContentRow | null> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -99,8 +101,9 @@ export async function getContentBySlug(
   siteId: string,
   slug: string,
   includePreview = false,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ContentRow | null> {
-  const sb = includePreview ? await getTenantClient() : getAnonClient();
+  const sb = includePreview ? await getClient() : getAnonClient();
   let query = sb.from(TABLE).select("*").eq("site_id", siteId).eq("slug", slug);
 
   if (!includePreview) {
@@ -113,11 +116,35 @@ export async function getContentBySlug(
   return rowOrNull<ContentRow>(data);
 }
 
+/**
+ * A-007: Stale-while-revalidate cached variant for public content pages.
+ * Falls back to the uncached `getContentBySlug` if skip-db is active.
+ */
+export const getContentBySlugPublic = unstable_cache(
+  async (siteId: string, slug: string): Promise<ContentRow | null> => {
+    if (shouldSkipDbCall()) return null;
+    const sb = getAnonClient();
+    const { data, error } = await sb
+      .from(TABLE)
+      .select("*")
+      .eq("site_id", siteId)
+      .eq("slug", slug)
+      .eq("status", "published")
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+    return rowOrNull<ContentRow>(data);
+  },
+  ["content-by-slug"],
+  { revalidate: 60, tags: ["content"] },
+);
+
 /** Create content */
 export async function createContent(
   input: Omit<ContentRow, "id" | "created_at" | "updated_at">,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ContentRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<ContentRow>(data, "Content");
@@ -128,8 +155,9 @@ export async function updateContent(
   siteId: string,
   id: string,
   input: Partial<Omit<ContentRow, "id" | "site_id" | "created_at" | "updated_at">>,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ContentRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   // If body is being updated, save current body as body_previous for versioning
   if (typeof input.body === "string") {
@@ -158,16 +186,16 @@ export async function updateContent(
 }
 
 /** Delete content */
-export async function deleteContent(siteId: string, id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteContent(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;
 }
 
 /** Count content items matching filters */
-export async function countContent(opts: CountContentOptions): Promise<number> {
-  const sb = await getTenantClient();
+export async function countContent(opts: CountContentOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+  const sb = await getClient();
   let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", opts.siteId);
 
   if (opts.types && opts.types.length > 0) {

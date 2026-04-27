@@ -8,6 +8,7 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import type { SiteFeatureFlagRow } from "@/types/database";
 import { assertRows, assertRow } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "site_feature_flags";
 
@@ -16,8 +17,8 @@ const TABLE = "site_feature_flags";
 /* ------------------------------------------------------------------ */
 
 /** List all feature flags for a site */
-export async function listSiteFeatureFlags(siteId: string): Promise<SiteFeatureFlagRow[]> {
-  const sb = await getTenantClient();
+export async function listSiteFeatureFlags(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteFeatureFlagRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -29,8 +30,8 @@ export async function listSiteFeatureFlags(siteId: string): Promise<SiteFeatureF
 }
 
 /** Check if a specific feature flag is enabled for a site */
-export async function isFeatureFlagEnabled(siteId: string, flagKey: string): Promise<boolean> {
-  const sb = await getTenantClient();
+export async function isFeatureFlagEnabled(siteId: string, flagKey: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<boolean> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("is_enabled")
@@ -44,8 +45,8 @@ export async function isFeatureFlagEnabled(siteId: string, flagKey: string): Pro
 }
 
 /** Get all enabled flag keys for a site (fast lookup) */
-export async function getEnabledFlagKeys(siteId: string): Promise<string[]> {
-  const sb = await getTenantClient();
+export async function getEnabledFlagKeys(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<string[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("flag_key")
@@ -61,13 +62,16 @@ export async function getEnabledFlagKeys(siteId: string): Promise<string[]> {
 /* ------------------------------------------------------------------ */
 
 /** Upsert a feature flag for a site */
-export async function upsertFeatureFlag(input: {
-  site_id: string;
-  flag_key: string;
-  is_enabled: boolean;
-  description?: string;
-}): Promise<SiteFeatureFlagRow> {
-  const sb = await getTenantClient();
+export async function upsertFeatureFlag(
+  input: {
+    site_id: string;
+    flag_key: string;
+    is_enabled: boolean;
+    description?: string;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteFeatureFlagRow> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .upsert(
@@ -90,10 +94,11 @@ export async function upsertFeatureFlag(input: {
 export async function bulkUpsertFeatureFlags(
   siteId: string,
   flags: { flag_key: string; is_enabled: boolean; description?: string }[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteFeatureFlagRow[]> {
   if (flags.length === 0) return [];
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const rows = flags.map((f) => ({
     site_id: siteId,
     flag_key: f.flag_key,
@@ -111,8 +116,8 @@ export async function bulkUpsertFeatureFlags(
 }
 
 /** Delete a feature flag */
-export async function deleteFeatureFlag(siteId: string, flagKey: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteFeatureFlag(siteId: string, flagKey: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("flag_key", flagKey);
 
   if (error) throw error;

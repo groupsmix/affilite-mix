@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface CommissionRow {
   id: string;
@@ -49,10 +50,11 @@ export async function ingestCommissions(
     event_date: string;
     raw_data?: Record<string, unknown>;
   }[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<{ inserted: number; skipped: number }> {
   if (reports.length === 0) return { inserted: 0, skipped: 0 };
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
   let inserted = 0;
   let skipped = 0;
 
@@ -80,8 +82,9 @@ export async function getCommissionStats(
   siteId: string,
   startDate: string,
   endDate: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CommissionRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(COMMISSION_TABLE)
@@ -96,17 +99,20 @@ export async function getCommissionStats(
 }
 
 /** Upsert EPC stats for a product+network */
-export async function upsertProductEpc(input: {
-  product_id: string;
-  network: string;
-  clicks_30d: number;
-  commissions_30d: number;
-  epc_30d: number;
-  clicks_7d: number;
-  commissions_7d: number;
-  epc_7d: number;
-}): Promise<ProductEpcRow> {
-  const sb = await getTenantClient();
+export async function upsertProductEpc(
+  input: {
+    product_id: string;
+    network: string;
+    clicks_30d: number;
+    commissions_30d: number;
+    epc_30d: number;
+    clicks_7d: number;
+    commissions_7d: number;
+    epc_7d: number;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ProductEpcRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(EPC_TABLE)
@@ -122,8 +128,11 @@ export async function upsertProductEpc(input: {
 }
 
 /** Get EPC stats for a product (all networks) */
-export async function getProductEpcStats(productId: string): Promise<ProductEpcRow[]> {
-  const sb = await getTenantClient();
+export async function getProductEpcStats(
+  productId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ProductEpcRow[]> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(EPC_TABLE)
@@ -141,8 +150,9 @@ export async function getProductEpcStats(productId: string): Promise<ProductEpcR
  */
 export async function getBestNetworkByEpc(
   productId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<{ network: string; epc: number } | null> {
-  const stats = await getProductEpcStats(productId);
+  const stats = await getProductEpcStats(productId, getClient);
   if (stats.length === 0) return null;
 
   // Prefer 7-day EPC if enough data, otherwise 30-day

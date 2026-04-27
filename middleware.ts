@@ -41,6 +41,35 @@ function nicheNotFoundResponse(request: NextRequest): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname, hostname } = request.nextUrl;
 
+  // ── Maintenance mode (A-023) ──────────────────────────
+  // Checked early so every route (including API) can be taken offline
+  // without redeploying. Supports both an env var and a KV flag.
+  if (pathname !== "/api/health" && pathname !== "/api/csp-report") {
+    const maintenanceMode =
+      process.env.APP_MAINTENANCE_MODE === "1" ||
+      process.env.APP_MAINTENANCE_MODE === "true";
+    if (maintenanceMode) {
+      return new NextResponse(
+        JSON.stringify({ error: "Service temporarily unavailable." }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    try {
+      const kv = (process.env as any).APP_CACHE_KV as any;
+      if (kv) {
+        const kvMaintenance = await kv.get("maintenance_mode");
+        if (kvMaintenance === "1" || kvMaintenance === "true") {
+          return new NextResponse(
+            JSON.stringify({ error: "Service temporarily unavailable." }),
+            { status: 503, headers: { "Content-Type": "application/json" } },
+          );
+        }
+      }
+    } catch {
+      // Ignore KV errors; maintenance gate is best-effort.
+    }
+  }
+
   // ── Trailing-slash normalization (SA9) ─────────────────
   // Redirect /foo/ → /foo to prevent duplicate canonical URLs.
   // Skip the root path "/" and Next.js internals.

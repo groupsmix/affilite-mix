@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface AuthorRow {
   id: string;
@@ -19,8 +20,8 @@ export interface AuthorRow {
 const TABLE = "authors";
 
 /** List authors for a site */
-export async function listAuthors(siteId: string): Promise<AuthorRow[]> {
-  const sb = await getTenantClient();
+export async function listAuthors(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AuthorRow[]> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -33,8 +34,8 @@ export async function listAuthors(siteId: string): Promise<AuthorRow[]> {
 }
 
 /** Get an author by ID (scoped to site) */
-export async function getAuthorById(siteId: string, id: string): Promise<AuthorRow | null> {
-  const sb = await getTenantClient();
+export async function getAuthorById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AuthorRow | null> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -48,8 +49,8 @@ export async function getAuthorById(siteId: string, id: string): Promise<AuthorR
 }
 
 /** Get an author by slug within a site */
-export async function getAuthorBySlug(siteId: string, slug: string): Promise<AuthorRow | null> {
-  const sb = await getTenantClient();
+export async function getAuthorBySlug(siteId: string, slug: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AuthorRow | null> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -63,17 +64,20 @@ export async function getAuthorBySlug(siteId: string, slug: string): Promise<Aut
 }
 
 /** Create an author */
-export async function createAuthor(input: {
-  site_id: string;
-  name: string;
-  slug: string;
-  bio?: string;
-  photo_url?: string;
-  credentials?: string;
-  expertise?: string[];
-  social_links?: Record<string, string>;
-}): Promise<AuthorRow> {
-  const sb = await getTenantClient();
+export async function createAuthor(
+  input: {
+    site_id: string;
+    name: string;
+    slug: string;
+    bio?: string;
+    photo_url?: string;
+    credentials?: string;
+    expertise?: string[];
+    social_links?: Record<string, string>;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AuthorRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
 
@@ -98,8 +102,9 @@ export async function updateAuthor(
       | "is_active"
     >
   >,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AuthorRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -114,8 +119,8 @@ export async function updateAuthor(
 }
 
 /** Delete an author (scoped to site) */
-export async function deleteAuthor(siteId: string, id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteAuthor(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
 
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;

@@ -25,9 +25,9 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
   return null;
 }
 
-/** GET /api/admin/feature-flags?site_id=<uuid> — list feature flags for a site */
-export async function GET(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+/** GET /api/admin/feature-flags — list feature flags for the active site */
+export async function GET(_request: NextRequest) {
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   if (session.role !== "super_admin") {
@@ -37,13 +37,10 @@ export async function GET(request: NextRequest) {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
-  const siteId = request.nextUrl.searchParams.get("site_id");
-  if (!siteId) {
-    return NextResponse.json({ error: "site_id is required" }, { status: 400 });
-  }
-
+  // A-015: Use server-derived active site id from requireAdmin() instead of
+  // trusting request query params (prevents cross-tenant enumeration).
   try {
-    const flags = await listSiteFeatureFlags(siteId);
+    const flags = await listSiteFeatureFlags(dbSiteId);
     return NextResponse.json({ flags });
   } catch (err) {
     captureException(err, { context: "[api/admin/feature-flags] GET failed:" });
@@ -52,9 +49,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** POST /api/admin/feature-flags — upsert a feature flag */
+/** POST /api/admin/feature-flags — upsert a feature flag for the active site */
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   if (session.role !== "super_admin") {
@@ -68,29 +65,33 @@ export async function POST(request: NextRequest) {
   if (bodyOrError instanceof NextResponse) return bodyOrError;
   const body = bodyOrError;
 
-  const { site_id, flag_key, is_enabled } = body as {
-    site_id?: string;
+  const { flag_key, is_enabled } = body as {
     flag_key?: string;
     is_enabled?: boolean;
   };
 
-  if (!site_id || !flag_key || is_enabled === undefined) {
+  if (!flag_key || is_enabled === undefined) {
     return NextResponse.json(
-      { error: "site_id, flag_key, and is_enabled are required" },
+      { error: "flag_key and is_enabled are required" },
       { status: 400 },
     );
   }
 
+  // A-015: Always use server-derived active site id; reject body-level site_id if present.
+  if (body.site_id && body.site_id !== dbSiteId) {
+    return NextResponse.json({ error: "Forbidden: site_id mismatch" }, { status: 403 });
+  }
+
   try {
     const flag = await upsertFeatureFlag({
-      site_id,
+      site_id: dbSiteId,
       flag_key,
       is_enabled,
       description: (body.description as string) ?? "",
     });
 
     void recordAuditEvent({
-      site_id,
+      site_id: dbSiteId,
       actor: session.email ?? "admin",
       action: is_enabled ? "enable_feature_flag" : "disable_feature_flag",
       entity_type: "feature_flag",
@@ -106,9 +107,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** PATCH /api/admin/feature-flags — bulk upsert feature flags */
+/** PATCH /api/admin/feature-flags — bulk upsert feature flags for the active site */
 export async function PATCH(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   if (session.role !== "super_admin") {
@@ -122,24 +123,28 @@ export async function PATCH(request: NextRequest) {
   if (bodyOrError instanceof NextResponse) return bodyOrError;
   const body = bodyOrError;
 
-  const { site_id, flags } = body as {
-    site_id?: string;
+  const { flags } = body as {
     flags?: { flag_key: string; is_enabled: boolean; description?: string }[];
   };
 
-  if (!site_id || !flags || !Array.isArray(flags)) {
-    return NextResponse.json({ error: "site_id and flags array are required" }, { status: 400 });
+  if (!flags || !Array.isArray(flags)) {
+    return NextResponse.json({ error: "flags array is required" }, { status: 400 });
+  }
+
+  // A-015: Always use server-derived active site id; reject body-level site_id if present.
+  if (body.site_id && body.site_id !== dbSiteId) {
+    return NextResponse.json({ error: "Forbidden: site_id mismatch" }, { status: 403 });
   }
 
   try {
-    const results = await bulkUpsertFeatureFlags(site_id, flags);
+    const results = await bulkUpsertFeatureFlags(dbSiteId, flags);
 
     void recordAuditEvent({
-      site_id,
+      site_id: dbSiteId,
       actor: session.email ?? "admin",
       action: "bulk_update_feature_flags",
       entity_type: "feature_flag",
-      entity_id: site_id,
+      entity_id: dbSiteId,
       details: { flags_count: flags.length },
     });
 
@@ -151,9 +156,9 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-/** DELETE /api/admin/feature-flags?site_id=<uuid>&flag_key=<key> — delete a flag */
+/** DELETE /api/admin/feature-flags?flag_key=<key> — delete a flag for the active site */
 export async function DELETE(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  const { error, session, dbSiteId } = await requireAdmin();
   if (error) return error;
 
   if (session.role !== "super_admin") {
@@ -163,18 +168,22 @@ export async function DELETE(request: NextRequest) {
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
 
-  const siteId = request.nextUrl.searchParams.get("site_id");
-  const flagKey = request.nextUrl.searchParams.get("flag_key");
+  // A-015: Reject cross-tenant site_id query param; use server-derived active site.
+  const querySiteId = request.nextUrl.searchParams.get("site_id");
+  if (querySiteId && querySiteId !== dbSiteId) {
+    return NextResponse.json({ error: "Forbidden: site_id mismatch" }, { status: 403 });
+  }
 
-  if (!siteId || !flagKey) {
-    return NextResponse.json({ error: "site_id and flag_key are required" }, { status: 400 });
+  const flagKey = request.nextUrl.searchParams.get("flag_key");
+  if (!flagKey) {
+    return NextResponse.json({ error: "flag_key is required" }, { status: 400 });
   }
 
   try {
-    await deleteFeatureFlag(siteId, flagKey);
+    await deleteFeatureFlag(dbSiteId, flagKey);
 
     void recordAuditEvent({
-      site_id: siteId,
+      site_id: dbSiteId,
       actor: session.email ?? "admin",
       action: "delete_feature_flag",
       entity_type: "feature_flag",

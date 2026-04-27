@@ -1,4 +1,5 @@
 import { getTenantClient } from "@/lib/supabase-server";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface NicheHealthRow {
   site_id: string;
@@ -17,8 +18,9 @@ export interface NicheHealthRow {
 export async function getNicheHealthStats(
   sevenDaysAgo: string,
   fourteenDaysAgo: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<NicheHealthRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb.rpc("get_niche_health_stats", {
     p_seven_days_ago: sevenDaysAgo,

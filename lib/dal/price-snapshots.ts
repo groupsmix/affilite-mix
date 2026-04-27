@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface PriceSnapshotRow {
   id: string;
@@ -21,8 +22,8 @@ export async function createPriceSnapshot(input: {
   price_amount: number;
   currency?: string;
   source?: string;
-}): Promise<PriceSnapshotRow> {
-  const sb = await getTenantClient();
+}, getClient: DalClientGetter = defaultDalClientGetter): Promise<PriceSnapshotRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
@@ -38,9 +39,10 @@ export async function createPriceSnapshots(
     currency?: string;
     source?: string;
   }[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<PriceSnapshotRow[]> {
   if (inputs.length === 0) return [];
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(inputs).select();
   if (error) throw error;
@@ -51,8 +53,9 @@ export async function createPriceSnapshots(
 export async function getPriceHistory(
   productId: string,
   days: number = 90,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<PriceSnapshotRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const since = new Date();
   since.setDate(since.getDate() - days);
 
@@ -68,8 +71,8 @@ export async function getPriceHistory(
 }
 
 /** Get the latest price snapshot for a product */
-export async function getLatestPrice(productId: string): Promise<PriceSnapshotRow | null> {
-  const sb = await getTenantClient();
+export async function getLatestPrice(productId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<PriceSnapshotRow | null> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -86,9 +89,10 @@ export async function getLatestPrice(productId: string): Promise<PriceSnapshotRo
 /** Get latest prices for multiple products (for batch display) */
 export async function getLatestPricesForProducts(
   productIds: string[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<Map<string, PriceSnapshotRow>> {
   if (productIds.length === 0) return new Map();
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   // Get the most recent snapshot per product using distinct on
 

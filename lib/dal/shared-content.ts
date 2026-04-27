@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRow, assertRows } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "shared_content";
 const LIST_COLUMNS = "id, content_id, source_site_id, target_site_id, created_at" as const;
@@ -17,8 +18,9 @@ export async function shareContent(
   contentId: string,
   sourceSiteId: string,
   targetSiteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SharedContentRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   // Verify the content actually belongs to the source site
   const { data: contentRow, error: contentErr } = await sb
@@ -49,8 +51,9 @@ export async function unshareContent(
   sourceSiteId: string,
   contentId: string,
   targetSiteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<void> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { error } = await sb
     .from(TABLE)
     .delete()
@@ -65,8 +68,9 @@ export async function unshareContent(
 export async function listSharedTargets(
   sourceSiteId: string,
   contentId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SharedContentRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -79,8 +83,8 @@ export async function listSharedTargets(
 }
 
 /** List content shared TO a given site (from other sites) */
-export async function listContentSharedToSite(targetSiteId: string): Promise<SharedContentRow[]> {
-  const sb = await getTenantClient();
+export async function listContentSharedToSite(targetSiteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SharedContentRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)

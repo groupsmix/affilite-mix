@@ -2,6 +2,7 @@ import { truncateIp } from "../get-client-ip";
 import { getTenantClient } from "@/lib/supabase-server";
 import { escapeLike } from "./search-utils";
 import { assertRows } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 /**
  * Audit-log reads are intentionally scoped to a single `site_id`.
@@ -61,8 +62,9 @@ export async function listAuditLogs(
   limit = 50,
   offset = 0,
   filters?: AuditLogFilters,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AuditLogEntry[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   let query = sb
     .from("audit_log")
     .select(AUDIT_COLUMNS)
@@ -101,8 +103,8 @@ export async function listAuditLogs(
 }
 
 /** Count audit-log rows matching the same filters used by `listAuditLogs`. */
-export async function countAuditLogs(siteId: string, filters?: AuditLogFilters): Promise<number> {
-  const sb = await getTenantClient();
+export async function countAuditLogs(siteId: string, filters?: AuditLogFilters, getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+  const sb = await getClient();
   let query = sb
     .from("audit_log")
     .select("*", { count: "exact", head: true })
@@ -138,8 +140,8 @@ export async function countAuditLogs(siteId: string, filters?: AuditLogFilters):
 }
 
 /** Get distinct actions for filter dropdown */
-export async function getDistinctActions(siteId: string): Promise<string[]> {
-  const sb = await getTenantClient();
+export async function getDistinctActions(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<string[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from("audit_log")
     .select("action")
@@ -152,8 +154,8 @@ export async function getDistinctActions(siteId: string): Promise<string[]> {
 }
 
 /** Get distinct entity types for filter dropdown */
-export async function getDistinctEntityTypes(siteId: string): Promise<string[]> {
-  const sb = await getTenantClient();
+export async function getDistinctEntityTypes(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<string[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from("audit_log")
     .select("entity_type")
@@ -182,6 +184,7 @@ export async function getDistinctEntityTypes(siteId: string): Promise<string[]> 
  */
 export async function resolveActorsToAdminUserIds(
   actors: readonly string[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<Record<string, string>> {
   const emails = Array.from(
     new Set(
@@ -190,7 +193,7 @@ export async function resolveActorsToAdminUserIds(
   );
   if (emails.length === 0) return {};
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb.from("admin_users").select("id, email").in("email", emails);
   if (error) throw error;
 

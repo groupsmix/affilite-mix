@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface AIDraftRow {
   id: string;
@@ -35,8 +36,8 @@ export interface ListAIDraftsOptions {
 }
 
 /** List AI drafts for a site with optional filters */
-export async function listAIDrafts(opts: ListAIDraftsOptions): Promise<AIDraftRow[]> {
-  const sb = await getTenantClient();
+export async function listAIDrafts(opts: ListAIDraftsOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<AIDraftRow[]> {
+  const sb = await getClient();
   let query = sb
     .from(TABLE)
     .select("*")
@@ -57,8 +58,8 @@ export async function listAIDrafts(opts: ListAIDraftsOptions): Promise<AIDraftRo
 }
 
 /** Get a single AI draft by id */
-export async function getAIDraftById(siteId: string, id: string): Promise<AIDraftRow | null> {
-  const sb = await getTenantClient();
+export async function getAIDraftById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AIDraftRow | null> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -73,8 +74,9 @@ export async function getAIDraftById(siteId: string, id: string): Promise<AIDraf
 /** Create a new AI draft */
 export async function createAIDraft(
   input: Omit<AIDraftRow, "id" | "created_at" | "updated_at" | "reviewed_at" | "reviewed_by">,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AIDraftRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .insert(input as never)
@@ -102,8 +104,9 @@ export async function updateAIDraft(
       | "meta_description"
     >
   >,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AIDraftRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .update(input as never)
@@ -117,8 +120,8 @@ export async function updateAIDraft(
 }
 
 /** Delete an AI draft */
-export async function deleteAIDraft(siteId: string, id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteAIDraft(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;
 }
@@ -127,8 +130,9 @@ export async function deleteAIDraft(siteId: string, id: string): Promise<void> {
 export async function countAIDrafts(
   siteId: string,
   status?: AIDraftRow["status"],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<number> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", siteId);
 
   if (status) query = query.eq("status", status);

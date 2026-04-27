@@ -6,7 +6,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 import { getClientIp } from "@/lib/get-client-ip";
 
 /** 10 health check requests per minute per IP */
-const HEALTH_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000 };
+const HEALTH_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000, failPolicy: "open" as const };
 
 /**
  * GET /api/health

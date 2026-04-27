@@ -175,7 +175,8 @@ export async function POST(request: NextRequest) {
     }
 
     const validMessages = messages.filter(isValidMessage);
-    const rejectedCount = messages.length - validMessages.length;
+    const rejectedMessages = messages.filter((m) => !isValidMessage(m));
+    const rejectedCount = rejectedMessages.length;
     if (rejectedCount > 0) {
       // F-014: structured rejection metric. We never throw on rejected
       // messages because Cloudflare Queues retries the *whole* batch on
@@ -185,6 +186,19 @@ export async function POST(request: NextRequest) {
         new Error(`[api/queue/clicks] dropped ${rejectedCount} invalid message(s)`),
         { context: "[api/queue/clicks] validation" },
       );
+      // A-006: Persist rejected messages to click_failures for reconciliation.
+      const rejectedRows = rejectedMessages.map((m) => ({
+        payload: m as unknown as Record<string, unknown>,
+        error_message: "queue consumer validation reject",
+      }));
+      // Fire-and-forget — don't fail the batch on insert error.
+      void sb.from("click_failures" as any).insert(rejectedRows).then((res: { error?: { message: string } | null }) => {
+        if (res.error) {
+          captureException(new Error(`Failed to persist rejected messages: ${res.error.message}`), {
+            context: "[api/queue/clicks] click_failures insert",
+          });
+        }
+      });
     }
 
     const rows = validMessages.map((m) => {

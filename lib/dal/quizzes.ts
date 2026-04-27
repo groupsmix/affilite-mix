@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 /** A single quiz step definition */
 export interface QuizStep {
@@ -51,8 +52,8 @@ const QUIZ_TABLE = "quizzes";
 const SUBMISSION_TABLE = "quiz_submissions";
 
 /** Get active quiz by slug */
-export async function getQuizBySlug(siteId: string, slug: string): Promise<QuizRow | null> {
-  const sb = await getTenantClient();
+export async function getQuizBySlug(siteId: string, slug: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<QuizRow | null> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(QUIZ_TABLE)
@@ -67,8 +68,8 @@ export async function getQuizBySlug(siteId: string, slug: string): Promise<QuizR
 }
 
 /** List active quizzes for a site */
-export async function listQuizzes(siteId: string): Promise<QuizRow[]> {
-  const sb = await getTenantClient();
+export async function listQuizzes(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<QuizRow[]> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(QUIZ_TABLE)
@@ -82,15 +83,18 @@ export async function listQuizzes(siteId: string): Promise<QuizRow[]> {
 }
 
 /** Create a quiz */
-export async function createQuiz(input: {
-  site_id: string;
-  slug: string;
-  title: string;
-  description?: string;
-  steps: QuizStep[];
-  result_config: QuizResultConfig;
-}): Promise<QuizRow> {
-  const sb = await getTenantClient();
+export async function createQuiz(
+  input: {
+    site_id: string;
+    slug: string;
+    title: string;
+    description?: string;
+    steps: QuizStep[];
+    result_config: QuizResultConfig;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<QuizRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(QUIZ_TABLE).insert(input).select().single();
   if (error) throw error;
@@ -98,12 +102,15 @@ export async function createQuiz(input: {
 }
 
 /** Start a quiz submission */
-export async function createQuizSubmission(input: {
-  quiz_id: string;
-  site_id: string;
-  session_id?: string;
-}): Promise<QuizSubmissionRow> {
-  const sb = await getTenantClient();
+export async function createQuizSubmission(
+  input: {
+    quiz_id: string;
+    site_id: string;
+    session_id?: string;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<QuizSubmissionRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(SUBMISSION_TABLE).insert(input).select().single();
   if (error) throw error;
@@ -120,8 +127,9 @@ export async function updateQuizSubmission(
     status?: "in_progress" | "completed" | "abandoned";
     completed_at?: string;
   },
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<QuizSubmissionRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(SUBMISSION_TABLE)
@@ -134,8 +142,8 @@ export async function updateQuizSubmission(
 }
 
 /** Get a submission by ID */
-export async function getQuizSubmission(id: string): Promise<QuizSubmissionRow | null> {
-  const sb = await getTenantClient();
+export async function getQuizSubmission(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<QuizSubmissionRow | null> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(SUBMISSION_TABLE).select("*").eq("id", id).maybeSingle();
 
