@@ -5,6 +5,7 @@ import { getSiteRowById, updateSite, deleteSite } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { requireStepUpAuth } from "@/lib/step-up-auth";
 import { parseJsonBody } from "@/lib/api-error";
 
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -140,9 +141,9 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
   }
 
-  // FIX-18 (F-030): Step-up auth disabled until the step-up flow is fully
-  // implemented (POST /api/admin/users/me/step-up + JWT claim). The route
-  // is already gated by super_admin role check above.
+  // FIX-18 (F-030): Step-up auth required for site deletion.
+  const stepUpError = requireStepUpAuth(session);
+  if (stepUpError) return stepUpError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
