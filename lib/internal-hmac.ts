@@ -158,12 +158,16 @@ export async function verifyInternalHmac(
 
 /**
  * Constant-time string comparison to prevent timing attacks.
+ * Pads the shorter input to match the longer one so that length
+ * mismatches do not leak via an early return.
  */
 export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  const aBuf = new TextEncoder().encode(a);
-  const bBuf = new TextEncoder().encode(b);
-  let result = 0;
+  const maxLen = Math.max(a.length, b.length);
+  const aPadded = a.padEnd(maxLen, "\0");
+  const bPadded = b.padEnd(maxLen, "\0");
+  const aBuf = new TextEncoder().encode(aPadded);
+  const bBuf = new TextEncoder().encode(bPadded);
+  let result = a.length ^ b.length;
   for (let i = 0; i < aBuf.length; i++) {
     result |= aBuf[i] ^ bBuf[i];
   }
