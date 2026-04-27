@@ -4,6 +4,7 @@ import { getAdminSession } from "@/lib/auth";
 import { getSiteRowById, updateSite, deleteSite } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireStepUpAuth } from "@/lib/step-up-auth";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 
@@ -142,6 +143,10 @@ export async function DELETE(
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
   }
+
+  // FIX-18 (F-030): Step-up auth required for destructive operations
+  const stepUpError = requireStepUpAuth(session);
+  if (stepUpError) return stepUpError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;

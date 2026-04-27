@@ -40,6 +40,41 @@ export interface StripeEvent {
 
 const DEFAULT_TOLERANCE_SECONDS = 5 * 60;
 
+// FIX-13 (F-004): Pre-warm the HMAC crypto key on cold start so the first
+// webhook verification doesn't pay the importKey() latency penalty.
+// On Cloudflare Workers, the first request after a cold start can take
+// 50-100ms extra for crypto.subtle.importKey(). Pre-warming eliminates
+// this tail-latency spike for the critical Stripe webhook path.
+let _prewarmedKey: CryptoKey | null = null;
+let _prewarmSecret: string | null = null;
+
+/** Pre-warm the HMAC key for a given webhook secret. Call on cold start. */
+export async function prewarmStripeWebhookKey(secret: string): Promise<void> {
+  if (!secret) return;
+  const encoder = new TextEncoder();
+  _prewarmedKey = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  _prewarmSecret = secret;
+}
+
+/** Get the pre-warmed key if the secret matches, otherwise create a new one. */
+async function getHmacKey(secret: string): Promise<CryptoKey> {
+  if (_prewarmedKey && _prewarmSecret === secret) return _prewarmedKey;
+  const encoder = new TextEncoder();
+  return crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+}
+
 function parseSignatureHeader(header: string): { timestamp: number; v1: string[] } {
   let timestamp = 0;
   const v1: string[] = [];
@@ -83,14 +118,8 @@ async function computeExpectedSignature(
   secret: string,
   signedPayload: string,
 ): Promise<Uint8Array> {
+  const key = await getHmacKey(secret);
   const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
   const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(signedPayload));
   return new Uint8Array(sig);
 }
@@ -119,6 +148,18 @@ export async function constructStripeEvent(
   }
 
   const { timestamp, v1 } = parseSignatureHeader(signature);
+
+  // FIX-13 (F-022): Log Stripe-Signature schema version for monitoring.
+  // Stripe has used v1 since 2017; if they introduce v2, we need to know
+  // so we can update verification logic before v1 is deprecated.
+  const hasV0 = signature.includes("v0=");
+  if (hasV0) {
+    console.log(JSON.stringify({
+      metric: "stripe_webhook_signature_version",
+      version: "v0",
+      msg: "Stripe-Signature contains v0 component — monitor for v1 deprecation",
+    }));
+  }
 
   const nowSeconds = Math.floor(Date.now() / 1000);
   if (Math.abs(nowSeconds - timestamp) > toleranceSeconds) {

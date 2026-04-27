@@ -133,9 +133,16 @@ export async function validateExternalUrl(
     ".vcap.me",
     ".internal",
   ];
+  // FIX-25 (F-036): Also block DNS rebinding-friendly TLDs
+  const REBINDING_TLDS = [".arpa", ".local", ".localhost", ".test", ".invalid", ".onion"];
   for (const suffix of WILDCARD_DNS) {
     if (hostname.endsWith(suffix)) {
       return { valid: false, error: `Wildcard DNS '${suffix}' is blocked` };
+    }
+  }
+  for (const tld of REBINDING_TLDS) {
+    if (hostname.endsWith(tld)) {
+      return { valid: false, error: `TLD '${tld}' is blocked (SSRF risk)` };
     }
   }
 
@@ -204,6 +211,59 @@ export async function validateExternalUrl(
  * @param options - Standard fetch options
  * @param allowPrivateIPs - Only set true for internal tooling
  */
+/**
+ * FIX-25 (F-036): Post-redirect SSRF validation.
+ *
+ * DNS rebinding attacks work by serving a legitimate IP on the first
+ * DNS lookup (passing validation) and a private IP on the second
+ * (after redirect). This wrapper validates the final URL after
+ * following redirects.
+ *
+ * Use this for high-risk fetches where the URL comes from untrusted
+ * input and the response is used in a security-sensitive context.
+ */
+export async function safeFetchWithRedirectValidation(
+  urlString: string,
+  options?: RequestInit,
+  allowPrivateIPs = false,
+): Promise<Response> {
+  const result = await validateExternalUrl(urlString, allowPrivateIPs);
+  if (!result.valid) {
+    logger.warn("SSRF blocked", { url: urlString, reason: result.error });
+    throw new Error(`SSRF guard: ${result.error}`);
+  }
+
+  const response = await fetchWithTimeout(urlString, {
+    timeoutMs: 15000,
+    redirect: "manual", // Don't auto-follow; validate each redirect
+    ...options,
+  });
+
+  // Validate redirect chain
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get("location");
+    if (location) {
+      const redirectResult = await validateExternalUrl(location, allowPrivateIPs);
+      if (!redirectResult.valid) {
+        logger.warn("SSRF blocked on redirect", { url: location, reason: redirectResult.error });
+        throw new Error(`SSRF guard on redirect: ${redirectResult.error}`);
+      }
+      // Re-fetch the redirect target with the same validation
+      return safeFetchWithRedirectValidation(location, options, allowPrivateIPs);
+    }
+  }
+
+  return response;
+}
+
+/**
+ * Wrapper around fetch() that validates the URL before making the request.
+ * Use this instead of raw fetch() when the URL may contain user input.
+ *
+ * @param urlString - The URL to fetch
+ * @param options - Standard fetch options
+ * @param allowPrivateIPs - Only set true for internal tooling
+ */
 export async function safeFetch(
   urlString: string,
   options?: RequestInit,
@@ -217,6 +277,7 @@ export async function safeFetch(
 
   return fetchWithTimeout(urlString, {
     timeoutMs: 15000, // Default 15s timeout to prevent hanging
+    redirect: "follow",
     ...options,
   });
 }

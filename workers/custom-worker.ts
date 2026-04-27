@@ -18,6 +18,7 @@
 import { default as handler } from "../.open-next/worker.js";
 import { RateLimiterDO } from "./rate-limiter-do";
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
+import { signInternalRequest } from "../lib/internal-hmac";
 
 // Minimal type stubs for Cloudflare Worker APIs (provided by the runtime)
 interface CloudflareScheduledController {
@@ -172,13 +173,17 @@ const worker = {
           (async () => {
             const dlqUrl = `${cronHost}/api/queue/clicks?dlq=true`;
             try {
+              const dlqBody = JSON.stringify({ messages: batch.messages.map((m) => m.body) });
+              // FIX-03: Sign with HMAC; keep Bearer for backward compat during migration
+              const hmacHeaders = await signInternalRequest(
+                internalToken as string,
+                dlqBody,
+                { Authorization: `Bearer ${internalToken}`, "Content-Type": "application/json" },
+              );
               const res = await fetch(dlqUrl, {
                 method: "POST",
-                headers: {
-                  Authorization: `Bearer ${internalToken}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ messages: batch.messages.map((m) => m.body) }),
+                headers: hmacHeaders,
+                body: dlqBody,
               });
 
               if (res.ok) {
@@ -241,13 +246,17 @@ const worker = {
     ctx.waitUntil(
       (async () => {
         try {
+          const queueBody = JSON.stringify({ messages: batch.messages.map((m) => m.body) });
+          // FIX-03: Sign with HMAC; keep Bearer for backward compat during migration
+          const hmacHeaders = await signInternalRequest(
+            internalToken as string,
+            queueBody,
+            { Authorization: `Bearer ${internalToken}`, "Content-Type": "application/json" },
+          );
           const res = await fetch(url, {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${internalToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ messages: batch.messages.map((m) => m.body) }),
+            headers: hmacHeaders,
+            body: queueBody,
           });
 
           if (res.ok) {

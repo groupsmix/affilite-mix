@@ -43,6 +43,11 @@ variable "zone_id" {
   description = "Cloudflare zone ID for the production hostname."
 }
 
+variable "zone_domain" {
+  type        = string
+  description = "The primary domain for the zone (e.g. affilite-mix.com). Used for health checks and DR failover."
+}
+
 # Logpush destination wiring.
 #
 # `logpush_destination_conf` carries the full Cloudflare destination
@@ -346,3 +351,93 @@ output "cache_rules_ruleset_id" {
   value       = cloudflare_ruleset.cache_rules.id
   description = "Ruleset ID for the cache-rules ruleset."
 }
+
+###############################################################################
+# FIX-19 (F-002): Tier-1 DR — DNS failover to static unavailable page.
+#
+# When the origin Worker is unreachable (total outage, misconfiguration),
+# Cloudflare's "Custom Error Pages" feature serves a branded static page
+# instead of the default 5xx error. This is the Tier-1 DR response:
+# users see a controlled message rather than a raw Cloudflare error.
+#
+# The custom error page is served from a Cloudflare Pages project
+# (`affilite-mix-unavailable`) that contains a single index.html with
+# a branded "Service Temporarily Unavailable" message. The page is
+# served with appropriate cache headers so it survives origin failures.
+#
+# Operator runbook (LIVE-02 — Tier-1 DR):
+#   1. Create a Cloudflare Pages project named `affilite-mix-unavailable`
+#      containing a single `index.html` with the branded unavailable page.
+#   2. Deploy the page: `npx wrangler pages deploy public/ --project-name=affilite-mix-unavailable`
+#   3. Enable the custom error page in the Cloudflare Dashboard:
+#      Zone → Rules → Error Pages → Add Rule for 5xx errors.
+#   4. For DNS failover, configure a Cloudflare Load Balancer with:
+#      - Primary pool: the Worker origin
+#      - Fallback pool: the static Pages project
+#      - Health check: GET /api/health expecting 200
+#
+# The Terraform resources below configure the health check and load
+# balancer. The static page must be deployed separately via wrangler.
+###############################################################################
+
+resource "cloudflare_healthcheck" "worker_origin" {
+  account_id = var.cloudflare_account_id
+  name       = "worker-origin-health"
+  address    = var.zone_domain
+  protocol   = "HTTPS"
+  port       = 443
+
+  http_config = {
+    method          = "GET"
+    path            = "/api/health"
+    expected_codes  = ["200"]
+    follow_redirects = false
+  }
+
+  header = {
+    Host = var.zone_domain
+  }
+
+  check_regions = ["WEUR", "NA"]
+  interval      = 60
+  retries       = 2
+  timeout       = 10
+}
+
+# NOTE: Cloudflare Load Balancer requires a paid plan (Pro or above).
+# Uncomment the following when the plan supports it:
+
+# resource "cloudflare_load_balancer" "dr_failover" {
+#   zone_id = cloudflare_zone.main.id
+#   name    = var.zone_domain
+#   default_pool_ids = [cloudflare_load_balancer_pool.worker_origin.id]
+#   fallback_pool_id  = cloudflare_load_balancer_pool.static_fallback.id
+#   proxied = true
+#
+#   session_affinity          = "cookie"
+#   session_affinity_ttl      = 1800
+#   session_affinity_attributes = {
+#     samesite = "Auto"
+#     secure   = true
+#   }
+# }
+#
+# resource "cloudflare_load_balancer_pool" "worker_origin" {
+#   account_id = var.cloudflare_account_id
+#   name       = "worker-origin-pool"
+#   origins {
+#     name    = "worker-origin"
+#     address = var.zone_domain
+#   }
+#   check_enabled = true
+#   check_origin   = var.zone_domain
+# }
+#
+# resource "cloudflare_load_balancer_pool" "static_fallback" {
+#   account_id = var.cloudflare_account_id
+#   name       = "static-fallback-pool"
+#   origins {
+#     name    = "static-unavailable"
+#     address = "affilite-mix-unavailable.pages.dev"
+#   }
+# }

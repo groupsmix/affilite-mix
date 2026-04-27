@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { expireDeals } from "@/lib/dal/deals";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
+import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 
@@ -17,6 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     const expired = await expireDeals(getPrivilegedSupabaseClient);
     logger.info(`Expire deals cron: deactivated ${expired} deals`);
+    void recordCronLiveness("expire-deals");
     return NextResponse.json({ message: "Deals expiry check complete", expired });
   } catch (err) {
     logger.error("Expire deals cron failed", {

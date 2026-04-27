@@ -8,6 +8,7 @@ import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
 import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -151,6 +152,25 @@ export async function middleware(request: NextRequest) {
   //    "no such site" responses for 5 minutes so repeated hits land
   //    entirely at the edge after the first DB miss.
   if (!siteId && !isLocalhostDev) {
+    // FIX-08 (F-006): Per-IP rate limit on hostname resolution before DB hit.
+    // Bot floods sending random Host: headers force a Supabase lookup per
+    // request. The negative cache helps after the first hit, but the first
+    // wave still reaches the DB. Cap at 30 hostname resolutions per IP per
+    // minute — legitimate users with a few tabs open won't hit this.
+    try {
+      const clientIp = request.headers.get("cf-connecting-ip") ?? "unknown";
+      const rlResult = await checkRateLimit(
+        `hostname-resolve:${clientIp}`,
+        { maxRequests: 30, windowMs: 60_000, failPolicy: "closed" },
+      );
+      if (!rlResult.allowed) {
+        return new Response("Too Many Requests", { status: 429 });
+      }
+    } catch {
+      // Rate limit check itself failed — allow the request through rather
+      // than blocking all unknown-hostname traffic.
+    }
+
     try {
       const cacheKey = `site-domain:${hostname}`;
       const negativeCacheKey = `site-domain-miss:${hostname}`;
@@ -284,6 +304,14 @@ export async function middleware(request: NextRequest) {
 
   // Echo the trace ID on the response so clients/devtools can correlate.
   response.headers.set(TRACE_ID_HEADER, traceId);
+
+  // FIX-10 (F-019, F-012): Vary headers to prevent cache poisoning.
+  // Cookie: responses differ based on admin session / active site cookie.
+  // x-site-id, host: responses differ based on the resolved tenant.
+  // Without these, a CDN or reverse proxy could serve an admin response
+  // to an unauthenticated user, or serve site-A content under site-B's URL.
+  response.headers.append("Vary", "Cookie");
+  response.headers.append("Vary", "x-site-id, host");
 
   // ── CORS response headers ──────────────────────────────
   // Reflect the requesting origin if it is in the tenant allow-list.

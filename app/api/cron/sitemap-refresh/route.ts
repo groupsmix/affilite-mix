@@ -8,6 +8,7 @@ import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 // and do tenant scoping per query.
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { allSiteTags } from "@/lib/cache-tags";
+import { recordCronLiveness } from "@/lib/cron-liveness";
 import { captureException } from "@/lib/sentry";
 
 /**
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  void recordCronLiveness("sitemap-refresh");
   return NextResponse.json({
     ok: true,
     revalidated,

@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { withAuthz } from "@/lib/authz";
 import { listProducts } from "@/lib/dal/products";
 import { captureException } from "@/lib/sentry";
 
 /** GET /api/admin/products/export — download all products as CSV */
-export async function GET() {
-  const guard = await requireAdmin();
-  if (guard.error) return guard.error;
-
+export const GET = withAuthz("products", "read", async (_request, { siteId, siteSlug }) => {
   try {
-  const products = await listProducts({ siteId: guard.dbSiteId });
+  const products = await listProducts({ siteId });
 
   const headers = [
     "name",
@@ -61,11 +58,11 @@ export async function GET() {
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv",
-      "Content-Disposition": `attachment; filename="products-${guard.siteSlug}-${new Date().toISOString().split("T")[0]}.csv"`,
+      "Content-Disposition": `attachment; filename="products-${siteSlug}-${new Date().toISOString().split("T")[0]}.csv"`,
     },
   });
   } catch (err) {
     captureException(err, { context: "[api/admin/products/export] GET failed:" });
     return NextResponse.json({ error: "Failed to export products" }, { status: 500 });
   }
-}
+});

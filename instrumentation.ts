@@ -38,6 +38,21 @@ export function register() {
     }
   }
 
+  // FIX-02: Warn if NODE_ENV is not production when any public-domain/cron env vars
+  // are set (indicates a misconfigured production deploy).
+  if (process.env.NODE_ENV !== "production" && !isBuild) {
+    const hasPublicDomainVars =
+      !!process.env.CRON_HOST ||
+      !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (hasPublicDomainVars) {
+      console.error(
+        "NODE_ENV is not 'production' but CRON_HOST or public-domain env vars are set. " +
+          "This likely indicates a misconfigured production deploy. " +
+          "Set NODE_ENV=production in wrangler.jsonc vars for the production environment.",
+      );
+    }
+  }
+
   // Verify KV rate-limit binding availability — log loudly in production
   // because the rate limiter falls back to per-isolate memory for the
   // KV_GRACE_MS window (default 60s, see lib/rate-limit.ts) and then fails
@@ -62,8 +77,8 @@ export function register() {
   // F-INFRA-01: Verify CLICK_QUEUE binding — log error and enter degraded
   // mode instead of crashing. When the queue is unbound, the redirect path
   // will fall through to a synchronous Supabase insert (with circuit breaker).
-  const isBuild = !!process.env.NEXT_PHASE;
-  if (process.env.NODE_ENV === "production" && !isBuild) {
+  const isBuild2 = !!process.env.NEXT_PHASE;
+  if (process.env.NODE_ENV === "production" && !isBuild2) {
     const queue =
       (globalThis as Record<string, unknown>).CLICK_QUEUE ??
       (process.env as Record<string, unknown>).CLICK_QUEUE;
