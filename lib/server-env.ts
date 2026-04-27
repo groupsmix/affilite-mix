@@ -66,6 +66,11 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
     description: "Canonical app URL for constructing absolute URLs (e.g. password reset links)",
     ownerFile: "app/api/auth/forgot-password/route.ts",
   },
+  {
+    name: "SENTRY_DSN",
+    description: "Sentry DSN for server-side error monitoring (required in production for incident response)",
+    ownerFile: "lib/sentry.ts",
+  },
 ] as const;
 
 /**
@@ -79,11 +84,6 @@ export const RECOMMENDED_SERVER_ENV: readonly RequiredEnvVar[] = [
     description:
       "Resend API key for transactional emails (password reset, newsletter confirmation)",
     ownerFile: "app/api/** (email senders)",
-  },
-  {
-    name: "SENTRY_DSN",
-    description: "Sentry DSN for server-side error monitoring",
-    ownerFile: "lib/sentry.ts",
   },
   {
     name: "TURNSTILE_SECRET_KEY",

@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { captureException } from "@/lib/sentry";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * POST /api/csp-report — CSP violation report endpoint
  * F-032: Receives CSP violation reports and forwards to Sentry for analysis
  */
+const CSP_REPORT_RATE_LIMIT = { maxRequests: 60, windowMs: 60_000 };
+
 export async function POST(request: NextRequest) {
+  // F-06: Per-IP rate limit — documented in csrf-exempt-registry as
+  // "cspReportBucket" but was not enforced at runtime. Without this,
+  // bot traffic can flood the endpoint and inflate Sentry event volume.
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`csp-report:${ip}`, CSP_REPORT_RATE_LIMIT);
+  if (!rl.allowed) {
+    return new NextResponse(null, { status: 429 });
+  }
+
   // CSP reports can be sent as JSON or multipart
   let report: Record<string, unknown> = {};
   try {
