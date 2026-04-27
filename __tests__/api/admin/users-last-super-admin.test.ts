@@ -3,8 +3,8 @@ import { NextRequest } from "next/server";
 
 // ── Mocks ────────────────────────────────────────────────────────
 
-vi.mock("@/lib/auth", () => ({
-  getAdminSession: vi.fn(),
+vi.mock("@/lib/admin-guard", () => ({
+  requireAdmin: vi.fn(),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -30,6 +30,13 @@ vi.mock("@/lib/password", () => ({
 vi.mock("@/lib/password-policy", () => ({
   validatePasswordPolicy: vi.fn().mockReturnValue({ valid: true }),
   checkBreachedPassword: vi.fn().mockResolvedValue(0),
+}));
+
+vi.mock("@/lib/api-error", () => ({
+  parseJsonBody: vi.fn().mockImplementation(async (req: Request) => {
+    const text = await req.text();
+    return JSON.parse(text);
+  }),
 }));
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -88,11 +95,14 @@ function deleteRequest(id: string): NextRequest {
 describe("admin/users last-super_admin safety guard", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    const { getAdminSession } = await import("@/lib/auth");
-    vi.mocked(getAdminSession).mockResolvedValue({
-      email: "root@test.com",
-      userId: "root-id",
-      role: "super_admin",
+    const { requireAdmin } = await import("@/lib/admin-guard");
+    vi.mocked(requireAdmin).mockResolvedValue({
+      error: null,
+      session: {
+        email: "root@test.com",
+        userId: "root-id",
+        role: "super_admin",
+      },
     });
   });
 
