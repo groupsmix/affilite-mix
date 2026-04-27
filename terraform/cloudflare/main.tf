@@ -392,7 +392,8 @@ resource "cloudflare_healthcheck" "worker_origin" {
     follow_redirects = false
     port             = 443
     header = [{
-      Host = var.zone_domain
+      header = "Host"
+      values = [var.zone_domain]
     }]
   }
 
