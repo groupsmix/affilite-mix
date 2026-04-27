@@ -4,6 +4,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { getRecentStripeEventIds } from "@/lib/dal/stripe-events";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-    const processedEventIds = await getRecentStripeEventIds(fortyEightHoursAgo);
+    const processedEventIds = await getRecentStripeEventIds(fortyEightHoursAgo, getPrivilegedSupabaseClient);
 
     const stripeEvents = stripe.events.list({
       created: { gte: Math.floor(fortyEightHoursAgo.getTime() / 1000) },

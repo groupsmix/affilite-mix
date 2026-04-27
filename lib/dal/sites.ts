@@ -4,6 +4,7 @@ import { shouldSkipDbCall } from "@/lib/db-available";
 import type { SiteRow } from "@/types/database";
 import type { Database } from "@/types/supabase";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 type SiteInsert = Database["public"]["Tables"]["sites"]["Insert"];
 type SiteUpdate = Database["public"]["Tables"]["sites"]["Update"];
@@ -42,11 +43,25 @@ export async function getAllActiveSites(): Promise<SiteRow[]> {
 }
 
 /** Get a single site by its database UUID */
-export async function getSiteRowById(id: string): Promise<SiteRow | null> {
+export async function getSiteRowById(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteRow | null> {
   if (shouldSkipDbCall()) return null;
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).select("*").eq("id", id).single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return rowOrNull<SiteRow>(data);
+}
+
+/** Get a single site by slug (uncached, accepts explicit client) */
+export async function getSiteRowBySlugWithClient(
+  slug: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteRow | null> {
+  if (shouldSkipDbCall()) return null;
+
+  const sb = await getClient();
+  const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<SiteRow>(data);
@@ -55,13 +70,7 @@ export async function getSiteRowById(id: string): Promise<SiteRow | null> {
 /** Get a single site by slug (cached) */
 export const getSiteRowBySlug = unstable_cache(
   async (slug: string): Promise<SiteRow | null> => {
-    if (shouldSkipDbCall()) return null;
-
-    const sb = await getTenantClient();
-    const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
-
-    if (error && error.code !== "PGRST116") throw error;
-    return rowOrNull<SiteRow>(data);
+    return getSiteRowBySlugWithClient(slug, getTenantClient);
   },
   ["site-by-slug"],
   { revalidate: 60, tags: ["sites"] },
@@ -92,28 +101,31 @@ export function invalidateSiteCache(): void {
 }
 
 /** Create a new site */
-export async function createSite(input: {
-  slug: string;
-  name: string;
-  domain: string;
-  language?: string;
-  direction?: "ltr" | "rtl";
-  is_active?: boolean;
-  monetization_type?: "affiliate" | "ads" | "both";
-  est_revenue_per_click?: number;
-  ad_config?: Record<string, unknown>;
-  theme?: Record<string, unknown>;
-  logo_url?: string | null;
-  favicon_url?: string | null;
-  nav_items?: { label: string; href: string; icon?: string }[];
-  footer_nav?: { label: string; href: string; icon?: string }[];
-  features?: Record<string, boolean>;
-  meta_title?: string | null;
-  meta_description?: string | null;
-  og_image_url?: string | null;
-  social_links?: Record<string, string>;
-}): Promise<SiteRow> {
-  const sb = await getTenantClient();
+export async function createSite(
+  input: {
+    slug: string;
+    name: string;
+    domain: string;
+    language?: string;
+    direction?: "ltr" | "rtl";
+    is_active?: boolean;
+    monetization_type?: "affiliate" | "ads" | "both";
+    est_revenue_per_click?: number;
+    ad_config?: Record<string, unknown>;
+    theme?: Record<string, unknown>;
+    logo_url?: string | null;
+    favicon_url?: string | null;
+    nav_items?: { label: string; href: string; icon?: string }[];
+    footer_nav?: { label: string; href: string; icon?: string }[];
+    features?: Record<string, boolean>;
+    meta_title?: string | null;
+    meta_description?: string | null;
+    og_image_url?: string | null;
+    social_links?: Record<string, string>;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteRow> {
+  const sb = await getClient();
 
   const row: SiteInsert = {
     slug: input.slug,
@@ -150,8 +162,9 @@ export async function createSite(input: {
 export async function updateSite(
   id: string,
   input: Partial<Omit<SiteRow, "id" | "slug" | "created_at" | "updated_at">>,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const updates: SiteUpdate = { ...input };
   const { data, error } = await sb.from(TABLE).update(updates).eq("id", id).select().single();
 
@@ -161,13 +174,13 @@ export async function updateSite(
 }
 
 /** Soft-delete a site (deactivate) */
-export async function deactivateSite(id: string): Promise<SiteRow> {
-  return updateSite(id, { is_active: false });
+export async function deactivateSite(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteRow> {
+  return updateSite(id, { is_active: false }, getClient);
 }
 
 /** Delete a site permanently */
-export async function deleteSite(id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteSite(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;
   invalidateSiteCache();

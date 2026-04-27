@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestCommissions } from "@/lib/dal/commissions";
+import { resolveSiteByTrackingKey } from "@/lib/dal/affiliate-tracking-keys";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
 import { safeFetch } from "@/lib/ssrf-guard";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 /**
  * GET /api/cron/commission-ingest
@@ -23,53 +26,64 @@ export async function POST(request: NextRequest) {
   // to avoid hitting Worker execution limits when traffic scales 10x.
   const results: Record<string, { inserted: number; skipped: number; error?: string }> = {};
 
+  const sb = getPrivilegedSupabaseClient();
+
   const tasks = [
     (async () => {
       if (process.env.CJ_API_KEY) {
         try {
           const reports = await fetchCjReports();
-          results.cj = await ingestCommissions(reports);
+          const { resolved, discarded } = await resolveCommissions(reports, sb);
+          const ingest = await ingestCommissions(resolved, () => sb);
+          results.cj = { ...ingest, discarded };
           logger.info("CJ commission ingest complete", results.cj);
         } catch (err) {
           results.cj = {
             inserted: 0,
             skipped: 0,
+            discarded: 0,
             error: err instanceof Error ? err.message : String(err),
           };
           logger.error("CJ commission ingest failed", { error: results.cj.error });
         }
       } else {
-        results.cj = { inserted: 0, skipped: 0, error: "CJ_API_KEY not configured" };
+        results.cj = { inserted: 0, skipped: 0, discarded: 0, error: "CJ_API_KEY not configured" };
       }
     })(),
     (async () => {
       if (process.env.ADMITAD_API_KEY) {
         try {
           const reports = await fetchAdmitadReports();
-          results.admitad = await ingestCommissions(reports);
+          const { resolved, discarded } = await resolveCommissions(reports, sb);
+          const ingest = await ingestCommissions(resolved, () => sb);
+          results.admitad = { ...ingest, discarded };
           logger.info("Admitad commission ingest complete", results.admitad);
         } catch (err) {
           results.admitad = {
             inserted: 0,
             skipped: 0,
+            discarded: 0,
             error: err instanceof Error ? err.message : String(err),
           };
           logger.error("Admitad commission ingest failed", { error: results.admitad.error });
         }
       } else {
-        results.admitad = { inserted: 0, skipped: 0, error: "ADMITAD_API_KEY not configured" };
+        results.admitad = { inserted: 0, skipped: 0, discarded: 0, error: "ADMITAD_API_KEY not configured" };
       }
     })(),
     (async () => {
       if (process.env.PARTNERSTACK_API_KEY) {
         try {
           const reports = await fetchPartnerStackReports();
-          results.partnerstack = await ingestCommissions(reports);
+          const { resolved, discarded } = await resolveCommissions(reports, sb);
+          const ingest = await ingestCommissions(resolved, () => sb);
+          results.partnerstack = { ...ingest, discarded };
           logger.info("PartnerStack commission ingest complete", results.partnerstack);
         } catch (err) {
           results.partnerstack = {
             inserted: 0,
             skipped: 0,
+            discarded: 0,
             error: err instanceof Error ? err.message : String(err),
           };
           logger.error("PartnerStack commission ingest failed", {
@@ -80,6 +94,7 @@ export async function POST(request: NextRequest) {
         results.partnerstack = {
           inserted: 0,
           skipped: 0,
+          discarded: 0,
           error: "PARTNERSTACK_API_KEY not configured",
         };
       }
@@ -96,7 +111,7 @@ export async function POST(request: NextRequest) {
 // Replace with real API calls when network credentials are configured.
 
 interface NormalizedCommission {
-  site_id: string;
+  tracking_key: string;
   product_id?: string;
   network: string;
   order_id?: string;
@@ -106,6 +121,46 @@ interface NormalizedCommission {
   sale_amount?: number;
   event_date: string;
   raw_data?: Record<string, unknown>;
+}
+
+async function resolveCommissions(
+  reports: NormalizedCommission[],
+  sb: ReturnType<typeof getPrivilegedSupabaseClient>,
+): Promise<{ resolved: { site_id: string }[]; discarded: number }> {
+  const resolved: { site_id: string; product_id?: string; network: string; order_id?: string; commission_amount: number; currency?: string; status?: string; sale_amount?: number; event_date: string; raw_data?: Record<string, unknown> }[] = [];
+  let discarded = 0;
+
+  for (const report of reports) {
+    const siteId = await resolveSiteByTrackingKey(report.network, report.tracking_key, () => sb);
+    if (siteId) {
+      resolved.push({ ...report, site_id: siteId });
+    } else {
+      discarded++;
+      logger.warn("Commission discarded: unregistered tracking key", {
+        network: report.network,
+        trackingKey: report.tracking_key,
+        orderId: report.order_id,
+      });
+      // Fire-and-forget audit log for unmapped tracking key
+      void recordAuditEvent(
+        {
+          site_id: "00000000-0000-0000-0000-000000000000",
+          actor: "commission-ingest-cron",
+          action: "commission.discarded.unregistered_tracking_key",
+          entity_type: "commission",
+          entity_id: report.order_id ?? report.tracking_key,
+          details: {
+            network: report.network,
+            tracking_key: report.tracking_key,
+            commission_amount: report.commission_amount,
+          },
+        },
+        () => sb,
+      );
+    }
+  }
+
+  return { resolved, discarded };
 }
 
 async function fetchCjReports(): Promise<NormalizedCommission[]> {
@@ -134,7 +189,7 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
 
   const data = await response.json();
   return (data.commissions || []).map((c: Record<string, unknown>) => ({
-    site_id: typeof c.shopperId === "string" ? c.shopperId : "00000000-0000-0000-0000-000000000000",
+    tracking_key: typeof c.shopperId === "string" ? c.shopperId : "",
     order_id: typeof c.actionId === "string" ? c.actionId : undefined,
     network: "cj",
     commission_amount: typeof c.pubCommissionAmountUsd === "number" ? c.pubCommissionAmountUsd : 0,
@@ -165,7 +220,7 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
 
   const data = await response.json();
   return (data.results || []).map((c: Record<string, unknown>) => ({
-    site_id: typeof c.subid === "string" ? c.subid : "00000000-0000-0000-0000-000000000000",
+    tracking_key: typeof c.subid === "string" ? c.subid : "",
     order_id: typeof c.id === "string" ? c.id : typeof c.id === "number" ? String(c.id) : undefined,
     network: "admitad",
     commission_amount: typeof c.payment === "number" ? c.payment : 0,
@@ -196,8 +251,7 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
 
   const data = await response.json();
   return (data.transactions || []).map((c: Record<string, unknown>) => ({
-    site_id:
-      typeof c.customer_key === "string" ? c.customer_key : "00000000-0000-0000-0000-000000000000",
+    tracking_key: typeof c.customer_key === "string" ? c.customer_key : "",
     order_id: typeof c.key === "string" ? c.key : undefined,
     network: "partnerstack",
     commission_amount: typeof c.amount === "number" ? c.amount : 0,

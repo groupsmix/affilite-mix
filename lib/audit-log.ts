@@ -1,4 +1,5 @@
 import { getTenantClient } from "@/lib/supabase-server";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
 
 export interface AuditEvent {
   site_id: string;
@@ -16,7 +17,10 @@ export interface AuditEvent {
  * Awaitable with a single retry on failure.
  * Callers may fire-and-forget or await for compliance-critical paths.
  */
-export async function recordAuditEvent(event: AuditEvent): Promise<void> {
+export async function recordAuditEvent(
+  event: AuditEvent,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const row = {
     site_id: event.site_id,
     actor: event.actor,
@@ -28,7 +32,7 @@ export async function recordAuditEvent(event: AuditEvent): Promise<void> {
     ip: event.ip ?? null,
   };
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { error } = await sb.from("audit_log").insert(row);
 
   if (error) {

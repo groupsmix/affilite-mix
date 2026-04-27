@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface AdminSiteMembershipRow {
   id: string;
@@ -17,8 +18,9 @@ const TABLE = "admin_site_memberships";
 export async function getAdminSiteMembership(
   adminUserId: string,
   siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdminSiteMembershipRow | null> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -35,8 +37,9 @@ export async function getAdminSiteMembership(
  */
 export async function listAdminSiteMemberships(
   adminUserId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdminSiteMembershipRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -53,8 +56,9 @@ export async function listAdminSiteMemberships(
 export async function grantAdminSiteMembership(
   adminUserId: string,
   siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdminSiteMembershipRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .upsert(
@@ -73,10 +77,12 @@ export async function grantAdminSiteMembership(
  * corresponding site slug. Used by the admin users table to render the
  * "Sites access" column without issuing one query per user.
  */
-export async function listAllAdminSiteMembershipsWithSlugs(): Promise<
+export async function listAllAdminSiteMembershipsWithSlugs(
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<
   Array<{ admin_user_id: string; site_id: string; site_slug: string }>
 > {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).select("admin_user_id, site_id, sites!inner(slug)");
 
   if (error) throw error;
@@ -102,8 +108,9 @@ export async function listAllAdminSiteMembershipsWithSlugs(): Promise<
 export async function revokeAdminSiteMembership(
   adminUserId: string,
   siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<void> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { error } = await sb
     .from(TABLE)
     .delete()

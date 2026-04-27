@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface AdminUserRow {
   id: string;
@@ -25,8 +26,8 @@ export type AdminUserPublic = Omit<
 const TABLE = "admin_users";
 
 /** Find an active admin user by email (for login) */
-export async function getAdminUserByEmail(email: string): Promise<AdminUserRow | null> {
-  const sb = await getTenantClient();
+export async function getAdminUserByEmail(email: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AdminUserRow | null> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -39,8 +40,8 @@ export async function getAdminUserByEmail(email: string): Promise<AdminUserRow |
 }
 
 /** Find an admin user by ID (excludes password_hash for safety) */
-export async function getAdminUserById(id: string): Promise<AdminUserPublic | null> {
-  const sb = await getTenantClient();
+export async function getAdminUserById(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AdminUserPublic | null> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(
@@ -54,8 +55,8 @@ export async function getAdminUserById(id: string): Promise<AdminUserPublic | nu
 }
 
 /** List all admin users (excludes password_hash for safety) */
-export async function listAdminUsers(): Promise<AdminUserPublic[]> {
-  const sb = await getTenantClient();
+export async function listAdminUsers(getClient: DalClientGetter = defaultDalClientGetter): Promise<AdminUserPublic[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(
@@ -68,13 +69,16 @@ export async function listAdminUsers(): Promise<AdminUserPublic[]> {
 }
 
 /** Create a new admin user */
-export async function createAdminUser(input: {
-  email: string;
-  password_hash: string;
-  name: string;
-  role?: "admin" | "super_admin";
-}): Promise<AdminUserRow> {
-  const sb = await getTenantClient();
+export async function createAdminUser(
+  input: {
+    email: string;
+    password_hash: string;
+    name: string;
+    role?: "admin" | "super_admin";
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AdminUserRow> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .insert({
@@ -107,8 +111,9 @@ export async function updateAdminUser(
       | "totp_locked_until"
     >
   >,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdminUserRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -122,15 +127,15 @@ export async function updateAdminUser(
 }
 
 /** Delete an admin user */
-export async function deleteAdminUser(id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteAdminUser(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;
 }
 
 /** Count admin users (to check if any exist) */
-export async function countAdminUsers(): Promise<number> {
-  const sb = await getTenantClient();
+export async function countAdminUsers(getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+  const sb = await getClient();
   const { count, error } = await sb.from(TABLE).select("*", { count: "exact", head: true });
 
   if (error) {
@@ -161,8 +166,8 @@ export async function hasAdminUsers(): Promise<boolean> {
  * the one identified by `excludingId`. Used to prevent deleting, deactivating,
  * or demoting the final active super_admin.
  */
-export async function hasAnotherActiveSuperAdmin(excludingId: string): Promise<boolean> {
-  const sb = await getTenantClient();
+export async function hasAnotherActiveSuperAdmin(excludingId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<boolean> {
+  const sb = await getClient();
   const { count, error } = await sb
     .from(TABLE)
     .select("id", { count: "exact", head: true })

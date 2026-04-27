@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         }),
       );
 
-    const created = await createPriceSnapshots(snapshots);
+    const created = await createPriceSnapshots(snapshots, getPrivilegedSupabaseClient);
     logger.info(`Price scrape: created ${created.length} snapshots`);
 
     // Cache site-origin lookups across this cron run so we don't hit the DB
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     for (const product of products) {
       if (!product.price_amount) continue;
 
-      const triggered = await findTriggeredAlerts(product.id, product.price_amount as number);
+      const triggered = await findTriggeredAlerts(product.id, product.price_amount as number, getPrivilegedSupabaseClient);
 
       for (const alert of triggered) {
         // Send email notification via Resend
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Only mark the alert triggered if the email succeeded or Resend isn't configured
-        await markAlertTriggered(alert.id);
+        await markAlertTriggered(alert.id, getPrivilegedSupabaseClient);
         alertsTriggered++;
 
         // Log the trigger

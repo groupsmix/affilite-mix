@@ -1,8 +1,10 @@
+import { unstable_cache } from "next/cache";
 import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "products";
 
@@ -56,8 +58,8 @@ export type CountProductsOptions = Omit<
 >;
 
 /** List products for a site with optional filters */
-export async function listProducts(opts: ListProductsOptions): Promise<ProductRow[]> {
-  const sb = await getTenantClient();
+export async function listProducts(opts: ListProductsOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<ProductRow[]> {
+  const sb = await getClient();
   const sortColumn: ProductSortColumn = opts.sortBy ?? "created_at";
   const ascending = opts.sortDirection === "asc";
 
@@ -100,12 +102,12 @@ export async function listProducts(opts: ListProductsOptions): Promise<ProductRo
 }
 
 /** Count products matching filters */
-export async function countProducts(opts: CountProductsOptions): Promise<number> {
+export async function countProducts(opts: CountProductsOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
   // Skip when Supabase is not configured or during next build.
   if (shouldSkipDbCall()) {
     return 0;
   }
-  const sb = await getTenantClient();
+  const sb = await getClient();
   let query = sb
     .from(TABLE)
     .select("id", { count: "exact", head: true })
@@ -141,11 +143,11 @@ export async function countProducts(opts: CountProductsOptions): Promise<number>
  * List distinct non-empty merchant values for a site. Used to populate the
  * "network" faceted filter in the products admin table.
  */
-export async function listDistinctMerchants(siteId: string): Promise<string[]> {
+export async function listDistinctMerchants(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<string[]> {
   if (shouldSkipDbCall()) {
     return [];
   }
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("merchant")
@@ -166,8 +168,8 @@ export async function listDistinctMerchants(siteId: string): Promise<string[]> {
 }
 
 /** Get a single product by id */
-export async function getProductById(siteId: string, id: string): Promise<ProductRow | null> {
-  const sb = await getTenantClient();
+export async function getProductById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<ProductRow | null> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -193,11 +195,34 @@ export async function getProductBySlug(siteId: string, slug: string): Promise<Pr
   return rowOrNull<ProductRow>(data);
 }
 
+/**
+ * A-007: Stale-while-revalidate cached variant for public product pages.
+ * Falls back to the uncached `getProductBySlug` if skip-db is active.
+ */
+export const getProductBySlugPublic = unstable_cache(
+  async (siteId: string, slug: string): Promise<ProductRow | null> => {
+    if (shouldSkipDbCall()) return null;
+    const sb = getAnonClient();
+    const { data, error } = await sb
+      .from(TABLE)
+      .select("*")
+      .eq("site_id", siteId)
+      .eq("slug", slug)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+    return rowOrNull<ProductRow>(data);
+  },
+  ["product-by-slug"],
+  { revalidate: 60, tags: ["products"] },
+);
+
 /** Create a product */
 export async function createProduct(
   input: Omit<ProductRow, "id" | "created_at" | "updated_at">,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<ProductRow>(data, "Product");
@@ -206,9 +231,10 @@ export async function createProduct(
 /** Bulk create products in a single insert (atomic) */
 export async function bulkCreateProducts(
   inputs: Omit<ProductRow, "id" | "created_at" | "updated_at">[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductRow[]> {
   if (inputs.length === 0) return [];
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).insert(inputs).select();
   if (error) throw error;
   return assertRows<ProductRow>(data);
@@ -219,8 +245,9 @@ export async function updateProduct(
   siteId: string,
   id: string,
   input: Partial<Omit<ProductRow, "id" | "site_id" | "created_at" | "updated_at">>,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .update(input)
@@ -234,8 +261,8 @@ export async function updateProduct(
 }
 
 /** Delete a product */
-export async function deleteProduct(siteId: string, id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteProduct(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;
@@ -322,9 +349,10 @@ export async function searchProducts(
 export async function listProductsByNames(
   siteId: string,
   names: string[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<Pick<ProductRow, "id" | "name" | "image_url" | "image_alt">[]> {
   if (names.length === 0) return [];
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("id, name, image_url, image_alt")

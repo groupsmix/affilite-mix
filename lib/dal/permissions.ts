@@ -7,6 +7,7 @@
 
 import { cache } from "react";
 import { getTenantClient } from "@/lib/supabase-server";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import type {
   RoleRow,
   PermissionRow,
@@ -25,8 +26,8 @@ interface AdminRoleLookup {
 /* ------------------------------------------------------------------ */
 
 /** List all roles */
-export async function listRoles(): Promise<RoleRow[]> {
-  const sb = await getTenantClient();
+export async function listRoles(getClient: DalClientGetter = defaultDalClientGetter): Promise<RoleRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb.from("roles").select("*").order("name", { ascending: true });
 
   if (error) throw error;
@@ -34,8 +35,8 @@ export async function listRoles(): Promise<RoleRow[]> {
 }
 
 /** Get a role by name */
-export async function getRoleByName(name: string): Promise<RoleRow | null> {
-  const sb = await getTenantClient();
+export async function getRoleByName(name: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<RoleRow | null> {
+  const sb = await getClient();
   const { data, error } = await sb.from("roles").select("*").eq("name", name).single();
 
   if (error && error.code !== "PGRST116") throw error;
@@ -47,8 +48,8 @@ export async function getRoleByName(name: string): Promise<RoleRow | null> {
 /* ------------------------------------------------------------------ */
 
 /** List all permissions */
-export async function listPermissions(): Promise<PermissionRow[]> {
-  const sb = await getTenantClient();
+export async function listPermissions(getClient: DalClientGetter = defaultDalClientGetter): Promise<PermissionRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from("permissions")
     .select("*")
@@ -59,8 +60,8 @@ export async function listPermissions(): Promise<PermissionRow[]> {
 }
 
 /** Get permissions for a role */
-export async function getPermissionsForRole(roleId: string): Promise<PermissionRow[]> {
-  const sb = await getTenantClient();
+export async function getPermissionsForRole(roleId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<PermissionRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from("role_permissions")
     .select("permission_id")
@@ -84,8 +85,8 @@ export async function getPermissionsForRole(roleId: string): Promise<PermissionR
 /* ------------------------------------------------------------------ */
 
 /** List all role assignments for a user */
-export async function listUserSiteRoles(userId: string): Promise<UserSiteRoleRow[]> {
-  const sb = await getTenantClient();
+export async function listUserSiteRoles(userId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<UserSiteRoleRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
     .select("*")
@@ -97,8 +98,8 @@ export async function listUserSiteRoles(userId: string): Promise<UserSiteRoleRow
 }
 
 /** List all role assignments for a site */
-export async function listSiteUserRoles(siteId: string): Promise<UserSiteRoleRow[]> {
-  const sb = await getTenantClient();
+export async function listSiteUserRoles(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<UserSiteRoleRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
     .select("*")
@@ -113,8 +114,9 @@ export async function listSiteUserRoles(siteId: string): Promise<UserSiteRoleRow
 export const getUserSiteRole = cache(async function getUserSiteRole(
   userId: string,
   siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<UserSiteRoleRow | null> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
     .select("*")
@@ -131,8 +133,8 @@ export async function assignUserSiteRole(input: {
   user_id: string;
   site_id: string;
   role_id: string;
-}): Promise<UserSiteRoleRow> {
-  const sb = await getTenantClient();
+}, getClient: DalClientGetter = defaultDalClientGetter): Promise<UserSiteRoleRow> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
     .upsert(
@@ -151,8 +153,8 @@ export async function assignUserSiteRole(input: {
 }
 
 /** Remove a user's role for a specific site */
-export async function removeUserSiteRole(userId: string, siteId: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function removeUserSiteRole(userId: string, siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb
     .from("user_site_roles")
     .delete()
@@ -180,16 +182,16 @@ export async function removeUserSiteRole(userId: string, siteId: string): Promis
  * To grant an admin access to a site, insert a user_site_roles row for them.
  */
 // 1. Check global admin_users.role for backward compatibility (cached)
-const getGlobalRole = cache(async (userId: string) => {
-  const sb = await getTenantClient();
+const getGlobalRole = cache(async (userId: string, getClient: DalClientGetter = defaultDalClientGetter) => {
+  const sb = await getClient();
   const { data, error } = await sb.from("admin_users").select("role").eq("id", userId).single();
   if (error) throw error;
   return (data as AdminRoleLookup | null)?.role;
 });
 
 // Cache permission lookups
-const getRolePermissionCheck = cache(async (roleId: string, feature: string, action: string) => {
-  const sb = await getTenantClient();
+const getRolePermissionCheck = cache(async (roleId: string, feature: string, action: string, getClient: DalClientGetter = defaultDalClientGetter) => {
+  const sb = await getClient();
   // We can do this in one join query instead of two to save a round-trip
   const { data, error } = await sb
     .from("permissions")
@@ -209,19 +211,20 @@ export async function hasPermission(
   siteId: string,
   feature: PermissionFeature,
   action: PermissionAction,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<boolean> {
-  const globalRole = await getGlobalRole(userId);
+  const globalRole = await getGlobalRole(userId, getClient);
 
   // Super admin and owner bypass all permission checks
   if (globalRole === "super_admin" || globalRole === "owner") return true;
 
   // 2. Check site-scoped role
-  const userSiteRole = await getUserSiteRole(userId, siteId);
+  const userSiteRole = await getUserSiteRole(userId, siteId, getClient);
   if (!userSiteRole) {
     // No site-scoped role assigned: deny access.
     return false;
   }
 
   // 3. Check if the assigned role has the requested permission
-  return await getRolePermissionCheck(userSiteRole.role_id, feature, action);
+  return await getRolePermissionCheck(userSiteRole.role_id, feature, action, getClient);
 }

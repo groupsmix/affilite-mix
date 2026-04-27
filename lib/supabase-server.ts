@@ -3,9 +3,10 @@ import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { SignJWT } from "jose";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { getAdminSession } from "@/lib/auth";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 
 // Environment variables are resolved lazily (inside functions) so that
 // module evaluation during `next build` does not throw when the vars
@@ -52,18 +53,37 @@ export function getServiceClient(): SupabaseClient<Database> {
   return getPrivilegedSupabaseClient();
 }
 
-export async function getTenantClient(): Promise<SupabaseClient<Database>> {
-  const h = await headers();
-  const siteId = h.get("x-site-id");
+const ACTIVE_SITE_COOKIE = "nh_active_site";
 
+export async function getTenantClient(): Promise<SupabaseClient<Database>> {
+  let siteId: string | null = null;
+
+  // A-017: In admin contexts, resolve site_id from the session cookie rather
+  // than the x-site-id header (which can be spoofed by a compromised client).
   let userId: string | null = null;
   try {
     const session = await getAdminSession();
     if (session?.userId) {
       userId = session.userId;
+      const cookieStore = await cookies();
+      const activeSlug = cookieStore.get(ACTIVE_SITE_COOKIE)?.value ?? null;
+      if (activeSlug) {
+        // Use a privileged client to resolve the slug → UUID so we don't
+        // recurse through getTenantClient().
+        const dbSite = await getSiteRowBySlugWithClient(activeSlug, async () => getPrivilegedSupabaseClient());
+        if (dbSite) {
+          siteId = dbSite.id;
+        }
+      }
     }
-  } catch (e) {
+  } catch {
     // If not in a request context where cookies work, ignore
+  }
+
+  // Public pages (no admin session): fall back to the header injected by middleware.
+  if (!siteId) {
+    const h = await headers();
+    siteId = h.get("x-site-id");
   }
 
   return getAuthenticatedClient(siteId, userId, "authenticated");
@@ -110,6 +130,28 @@ export function getAnonClient(): SupabaseClient<Database> {
   return _anonClient;
 }
 
+/* ------------------------------------------------------------------ */
+/*  A-008: JWT token cache (30-second TTL)                             */
+/* ------------------------------------------------------------------ */
+interface JwtCacheEntry {
+  token: string;
+  expiresAt: number;
+}
+const jwtTokenCache = new Map<string, JwtCacheEntry>();
+const JWT_CACHE_TTL_MS = 30_000;
+
+function getJwtCacheKey(siteId: string | null | undefined, userId: string | null | undefined, role: string): string {
+  return `${role}:${siteId ?? "_"}:${userId ?? "_"}`;
+}
+
+async function mintToken(secret: string, payload: Record<string, unknown>): Promise<string> {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(secret));
+}
+
 // `getAuthenticatedClient` was introduced in this branch to mint a custom
 // JWT signed with SUPABASE_JWT_SECRET so RLS could evaluate a scoped user
 // context instead of always bypassing via service_role.
@@ -122,15 +164,23 @@ export async function getAuthenticatedClient(
   const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   const secret = requireEnvInProduction("SUPABASE_JWT_SECRET");
 
-  const payload: any = { role };
-  if (userId) payload.sub = userId;
-  if (siteId) payload.site_id = siteId;
+  const appMetadata: Record<string, unknown> = {};
+  if (siteId) appMetadata.site_id = siteId;
 
-  const token = await new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("1h")
-    .sign(new TextEncoder().encode(secret));
+  const payload: Record<string, unknown> = { role, app_metadata: appMetadata };
+  if (userId) payload.sub = userId;
+
+  const cacheKey = getJwtCacheKey(siteId, userId, role);
+  const now = Date.now();
+  const cached = jwtTokenCache.get(cacheKey);
+
+  let token: string;
+  if (cached && cached.expiresAt > now) {
+    token = cached.token;
+  } else {
+    token = await mintToken(secret, payload);
+    jwtTokenCache.set(cacheKey, { token, expiresAt: now + JWT_CACHE_TTL_MS });
+  }
 
   return createClient<Database>(url, anonKey, {
     auth: {

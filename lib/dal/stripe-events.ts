@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 /**
  * DAL for the `stripe_events` idempotency table (audit F-001 / A-1).
@@ -121,8 +122,9 @@ export async function applyStripeEventAtomic(
 export async function recordStripeEvent(
   stripeEventId: string,
   eventType: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<boolean> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { error } = await sb.from(TABLE).insert({
     stripe_event_id: stripeEventId,
@@ -138,8 +140,8 @@ export async function recordStripeEvent(
   throw error;
 }
 
-export async function getRecentStripeEventIds(since: Date): Promise<Set<string>> {
-  const sb = await getTenantClient();
+export async function getRecentStripeEventIds(since: Date, getClient: DalClientGetter = defaultDalClientGetter): Promise<Set<string>> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)

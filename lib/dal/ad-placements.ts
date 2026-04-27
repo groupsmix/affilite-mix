@@ -1,14 +1,15 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { AdPlacementRow, AdPlacementType } from "@/types/database";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "ad_placements";
 const LIST_COLUMNS =
   "id, site_id, name, placement_type, provider, ad_code, config, is_active, priority, created_at" as const;
 
 /** List all ad placements for a site */
-export async function listAdPlacements(siteId: string): Promise<AdPlacementRow[]> {
-  const sb = await getTenantClient();
+export async function listAdPlacements(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AdPlacementRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -23,8 +24,9 @@ export async function listAdPlacements(siteId: string): Promise<AdPlacementRow[]
 export async function listActiveAdPlacements(
   siteId: string,
   placementType?: AdPlacementType,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdPlacementRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -45,8 +47,9 @@ export async function listActiveAdPlacements(
 export async function getAdPlacementById(
   siteId: string,
   id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdPlacementRow | null> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -61,8 +64,9 @@ export async function getAdPlacementById(
 /** Create an ad placement */
 export async function createAdPlacement(
   input: Omit<AdPlacementRow, "id" | "created_at">,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdPlacementRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<AdPlacementRow>(data, "AdPlacement");
@@ -73,8 +77,9 @@ export async function updateAdPlacement(
   siteId: string,
   id: string,
   input: Partial<Omit<AdPlacementRow, "id" | "site_id" | "created_at">>,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdPlacementRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .update(input)
@@ -88,8 +93,8 @@ export async function updateAdPlacement(
 }
 
 /** Delete an ad placement */
-export async function deleteAdPlacement(siteId: string, id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteAdPlacement(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;
