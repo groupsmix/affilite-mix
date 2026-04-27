@@ -77,7 +77,10 @@ vi.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
+vi.mock("next/cache", () => ({
+  revalidateTag: vi.fn(),
+  unstable_cache: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
+}));
 
 const SITE_ID = "test-site-id";
 

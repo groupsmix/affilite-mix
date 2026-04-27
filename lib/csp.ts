@@ -39,17 +39,14 @@ export function generateCspNonce(): string {
 export function buildCspHeader(nonce: string): string {
   const directives: string[] = [
     "default-src 'self'",
-    // H-10: nonce-based allow-list for scripts.  `'strict-dynamic'` lets the
-    // nonced entry-point script load additional scripts, which is required
-    // for Next.js' runtime chunks to execute.  `'unsafe-inline'` is retained
-    // as a CSP Level-2 fallback — CSP Level-3 browsers ignore it when a
-    // nonce is present.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' https://challenges.cloudflare.com`,
-    // H-10: nonce-based allow-list for inline styles.  Next.js and our
-    // ThemeProvider still emit some inline `<style>` tags; they now carry
-    // the nonce, so `'unsafe-inline'` is only kept as a Level-2 fallback
-    // (ignored by browsers that honour the nonce).
-    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
+    // A-011: Drop unsafe-inline from CSP. All inline scripts now carry the
+    // per-request nonce generated in middleware.ts.  `'strict-dynamic'` lets
+    // the nonced entry-point script load additional scripts (required for
+    // Next.js runtime chunks).  No Level-2 fallback remains.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com`,
+    // A-011: nonce-based allow-list for inline styles.  Next.js and
+    // ThemeProvider inline `<style>` tags carry the per-request nonce.
+    `style-src 'self' 'nonce-${nonce}'`,
     "font-src 'self'",
     "img-src 'self' data: blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.supabase.co https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com",
     "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com https://*.ingest.sentry.io",

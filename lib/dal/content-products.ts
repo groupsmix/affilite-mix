@@ -1,12 +1,13 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import type { ContentProductRow, ContentRow, ProductRow } from "@/types/database";
 import { assertRow, assertRows } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "content_products";
 
 /** Link a product to a content item */
-export async function linkProduct(input: ContentProductRow): Promise<ContentProductRow> {
-  const sb = await getTenantClient();
+export async function linkProduct(input: ContentProductRow, getClient: DalClientGetter = defaultDalClientGetter): Promise<ContentProductRow> {
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<ContentProductRow>(data, "ContentProduct");
@@ -17,8 +18,9 @@ export async function unlinkProduct(
   siteId: string,
   contentId: string,
   productId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<void> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   // Verify the content belongs to this site
   const { data: contentRow, error: contentErr } = await sb
@@ -43,8 +45,9 @@ export async function unlinkProduct(
 export async function getLinkedProducts(
   siteId: string,
   contentId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<(ContentProductRow & { product: ProductRow })[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   // Join through products to ensure only products belonging to this site are returned
   const { data, error } = await sb
     .from(TABLE)
@@ -63,8 +66,9 @@ export async function updateProductLink(
   contentId: string,
   productId: string,
   input: Partial<Pick<ContentProductRow, "role">>,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ContentProductRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   // Verify the content belongs to this site
   const { data: contentRow, error: contentErr } = await sb
@@ -92,8 +96,9 @@ export async function updateProductLink(
 export async function getRelatedContentForProduct(
   siteId: string,
   productId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ContentRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("content:content!inner(*)")
@@ -120,8 +125,9 @@ export async function setLinkedProducts(
   contentId: string,
   siteId: string,
   links: Omit<ContentProductRow, "content_id">[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<void> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   // @ts-ignore - The RPC is defined in migration 00057 but not yet generated in the local types
   const { error } = await sb.rpc("set_linked_products", {

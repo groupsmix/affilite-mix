@@ -9,9 +9,22 @@
  */
 
 import { recordClick, type RecordClickInput } from "@/lib/dal/affiliate-clicks";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "node:crypto";
+
+async function logClickFailure(payload: RecordClickInput, errorMessage: string): Promise<void> {
+  try {
+    const sb = getPrivilegedSupabaseClient();
+    await sb.from("click_failures").insert({
+      payload: { ...payload, _error: errorMessage } as unknown as Record<string, unknown>,
+      error_message: errorMessage,
+    });
+  } catch (err) {
+    captureException(err, { context: "click-queue.log-failure" });
+  }
+}
 
 // Minimal structural type for the Queue binding — avoids pulling in
 // @cloudflare/workers-types as a project dependency.
@@ -63,20 +76,23 @@ export async function publishClick(input: RecordClickInput): Promise<void> {
       return;
     } catch (err) {
       captureException(err, { context: "click-queue.send" });
-      // Do not fall through to direct write in production to prevent slamming Supabase
+      // Do not fall through to direct write in production to prevent slamming Supabase;
+      // instead log to click_failures for reconciliation.
       if (process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") {
+        void logClickFailure(enriched, "queue.send failed");
         return;
       }
     }
   } else {
     if (process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") {
-      logger.error("[click-queue] Queue binding missing in production. Dropping click to prevent database overload.");
+      logger.error("[click-queue] Queue binding missing in production. Logging click failure for reconciliation.");
+      void logClickFailure(enriched, "CLICK_QUEUE binding missing");
       return;
     }
   }
 
   try {
-    await recordClick(enriched);
+    await recordClick(enriched, getPrivilegedSupabaseClient);
   } catch (err) {
     captureException(err, { context: "click-queue.direct-write" });
   }

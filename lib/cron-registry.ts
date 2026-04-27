@@ -71,6 +71,13 @@ export interface CronJob {
   readonly alertOnFailure: boolean;
   /** Brief description for documentation / alert payloads. */
   readonly description: string;
+  /**
+   * A-018: Whether this job is "heavy" (long-running, high CPU, or many
+   * external API calls). Heavy jobs are split into a separate Worker so
+   * they cannot exhaust the main worker's CPU/memory budget and impact
+   * user-facing request latency.
+   */
+  readonly heavy?: boolean;
 }
 
 export const cronJobs: readonly CronJob[] = [
@@ -103,6 +110,7 @@ export const cronJobs: readonly CronJob[] = [
     csrfExempt: true,
     alertOnFailure: false,
     description: "Daily AI draft generation across active sites.",
+    heavy: true,
   },
   {
     name: "sitemap-refresh",
@@ -133,6 +141,7 @@ export const cronJobs: readonly CronJob[] = [
     csrfExempt: true,
     alertOnFailure: true,
     description: "Pull affiliate-network commission reports and ingest.",
+    heavy: true,
   },
   {
     name: "epc-recompute",
@@ -153,6 +162,7 @@ export const cronJobs: readonly CronJob[] = [
     csrfExempt: true,
     alertOnFailure: true,
     description: "Snapshot prices and fan out price-drop alert emails.",
+    heavy: true,
   },
   {
     name: "expire-deals",
@@ -231,6 +241,16 @@ export function getCronScheduleToPathMap(): Record<string, string> {
 /** All cron schedules, in registry order (matches wrangler.jsonc). */
 export function listCronSchedules(): readonly string[] {
   return cronJobs.map((j) => j.schedule);
+}
+
+/** A-018: schedules for heavy jobs (run on the dedicated heavy-crons Worker). */
+export function listHeavyCronSchedules(): readonly string[] {
+  return cronJobs.filter((j) => j.heavy).map((j) => j.schedule);
+}
+
+/** A-018: schedules for light jobs (run on the main affilite-mix Worker). */
+export function listLightCronSchedules(): readonly string[] {
+  return cronJobs.filter((j) => !j.heavy).map((j) => j.schedule);
 }
 
 /** Distinct list of every per-trigger + fallback env-var name. */

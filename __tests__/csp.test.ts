@@ -43,9 +43,9 @@ describe("buildCspHeader", () => {
     expect(header).toMatch(/script-src[^;]*'strict-dynamic'/);
   });
 
-  it("retains 'unsafe-inline' fallback (CSP Level-3 browsers ignore it when a nonce is present)", () => {
-    expect(header).toMatch(/script-src[^;]*'unsafe-inline'/);
-    expect(header).toMatch(/style-src[^;]*'unsafe-inline'/);
+  it("does not include 'unsafe-inline' (A-011: dropped in favour of a nonce-only policy)", () => {
+    expect(header).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+    expect(header).not.toMatch(/style-src[^;]*'unsafe-inline'/);
   });
 
   it("preserves previously configured third-party sources", () => {

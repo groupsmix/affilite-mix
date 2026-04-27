@@ -11,6 +11,10 @@ import { isTokenRevoked } from "@/lib/jwt-revocation";
 const COOKIE_NAME = "nh_admin_token";
 /** Cookie tracking last admin activity for idle-timeout enforcement */
 const ACTIVITY_COOKIE = "nh_admin_activity";
+/** A-012: Separate HttpOnly cookie storing the UA/IP binding fingerprint.
+ *  Even if the JWT is exfiltrated (e.g. via XSS), an attacker without
+ *  this cookie cannot replay the session from a different device. */
+const BINDING_COOKIE = "nh_admin_binding";
 /** Admin sessions expire after 30 minutes of inactivity */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const EXPIRY = "8h"; // F-005: Reduced from 24h to limit exposure
@@ -171,7 +175,23 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   // F-035: verify the token's UA/IP binding (if present) against the
   // current request. A mismatch = possible session hijack → reject.
   const req = await requestFromHeaders();
-  return verifyToken(token, req);
+  const payload = await verifyToken(token, req);
+  if (!payload) return null;
+
+  // A-012: verify the separate binding cookie matches the JWT bnd claim.
+  // This ensures an attacker who only steals the JWT (not the HttpOnly
+  // binding cookie) cannot replay the session.
+  if (payload.bnd) {
+    const bindingCookie = cookieStore.get(BINDING_COOKIE)?.value;
+    if (bindingCookie !== payload.bnd) {
+      logger.warn("Admin session rejected: binding cookie mismatch (possible token replay)", {
+        userId: payload.userId,
+      });
+      return null;
+    }
+  }
+
+  return payload;
 }
 
 /**
@@ -197,5 +217,26 @@ export function touchAdminActivity(): {
   };
 }
 
+/**
+ * Build the binding cookie to set alongside the admin JWT.
+ * Callers (e.g. login route) should set this cookie with the same
+ * policy as the main auth token.
+ */
+export function getAdminBindingCookie(
+  binding: string,
+): { name: string; value: string; options: Record<string, unknown> } {
+  return {
+    name: BINDING_COOKIE,
+    value: binding,
+    options: {
+      httpOnly: true,
+      secure: IS_SECURE_COOKIE,
+      sameSite: "strict" as const,
+      path: "/",
+      maxAge: 60 * 60 * 8, // 8 hours (matches JWT expiry)
+    },
+  };
+}
+
 /** Cookie name for admin auth */
-export { COOKIE_NAME, ACTIVITY_COOKIE };
+export { COOKIE_NAME, ACTIVITY_COOKIE, BINDING_COOKIE };

@@ -1,4 +1,5 @@
 import { getTenantClient } from "@/lib/supabase-server";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface DashboardStats {
   total_products: number;
@@ -22,8 +23,9 @@ export async function getDashboardStats(
   siteId: string,
   todayStart: string,
   sevenDaysAgo: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<DashboardStats> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb.rpc("get_dashboard_stats", {
     p_site_id: siteId,
@@ -37,7 +39,7 @@ export async function getDashboardStats(
       "[dashboard-stats] RPC unavailable, falling back to individual queries:",
       error.message,
     );
-    return fallbackDashboardStats(siteId, todayStart, sevenDaysAgo);
+    return fallbackDashboardStats(siteId, todayStart, sevenDaysAgo, getClient);
   }
 
   const stats = data as Record<string, number>;
@@ -61,8 +63,9 @@ async function fallbackDashboardStats(
   siteId: string,
   todayStart: string,
   sevenDaysAgo: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<DashboardStats> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const [
     { count: totalProducts },

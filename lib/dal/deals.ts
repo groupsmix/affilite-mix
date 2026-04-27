@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface DealRow {
   id: string;
@@ -24,8 +25,8 @@ export interface DealRow {
 const TABLE = "deals";
 
 /** List active deals for a site, sorted by discount % descending */
-export async function listActiveDeals(siteId: string, limit: number = 50): Promise<DealRow[]> {
-  const sb = await getTenantClient();
+export async function listActiveDeals(siteId: string, limit: number = 50, getClient: DalClientGetter = defaultDalClientGetter): Promise<DealRow[]> {
+  const sb = await getClient();
   const now = new Date().toISOString();
 
   const { data, error } = await sb
@@ -45,8 +46,8 @@ export async function listActiveDeals(siteId: string, limit: number = 50): Promi
 }
 
 /** List featured deals */
-export async function listFeaturedDeals(siteId: string): Promise<DealRow[]> {
-  const sb = await getTenantClient();
+export async function listFeaturedDeals(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<DealRow[]> {
+  const sb = await getClient();
   const now = new Date().toISOString();
 
   const { data, error } = await sb
@@ -65,8 +66,8 @@ export async function listFeaturedDeals(siteId: string): Promise<DealRow[]> {
 }
 
 /** Get deal by ID */
-export async function getDealById(id: string): Promise<DealRow | null> {
-  const sb = await getTenantClient();
+export async function getDealById(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<DealRow | null> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).select("*").eq("id", id).maybeSingle();
 
@@ -89,8 +90,8 @@ export async function createDeal(input: {
   starts_at?: string;
   expires_at?: string;
   is_featured?: boolean;
-}): Promise<DealRow> {
-  const sb = await getTenantClient();
+}, getClient: DalClientGetter = defaultDalClientGetter): Promise<DealRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
@@ -114,8 +115,9 @@ export async function updateDeal(
       | "is_featured"
     >
   >,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<DealRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -128,8 +130,8 @@ export async function updateDeal(
 }
 
 /** Auto-expire deals past their expiry date */
-export async function expireDeals(): Promise<number> {
-  const sb = await getTenantClient();
+export async function expireDeals(getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+  const sb = await getClient();
   const now = new Date().toISOString();
 
   const { data, error } = await sb

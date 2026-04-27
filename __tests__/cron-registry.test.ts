@@ -22,6 +22,7 @@ import {
   getCronAuthOptionsForPath,
   getCronScheduleToPathMap,
   listCronSchedules,
+  listLightCronSchedules,
   listAllCronSecretEnvVars,
 } from "@/lib/cron-registry";
 
@@ -201,11 +202,14 @@ describe("cron-registry — wrangler.jsonc consistency", () => {
     expect(wrangler.triggers?.crons).toBeInstanceOf(Array);
   });
 
-  it("wrangler triggers.crons matches the registry exactly (no drift)", () => {
+  it("wrangler triggers.crons matches the registry's light jobs exactly (no drift)", () => {
+    // A-018: Heavy crons run on the dedicated affilite-mix-heavy-crons worker
+    // and are intentionally NOT present in this Worker's wrangler.jsonc.
+    // Compare wrangler.jsonc against light schedules only.
     const wranglerCrons = wrangler.triggers?.crons ?? [];
-    const registryCrons = listCronSchedules();
-    expect(new Set(wranglerCrons)).toEqual(new Set(registryCrons));
-    expect(wranglerCrons.length).toBe(registryCrons.length);
+    const lightCrons = listLightCronSchedules();
+    expect(new Set(wranglerCrons)).toEqual(new Set(lightCrons));
+    expect(wranglerCrons.length).toBe(lightCrons.length);
   });
 });
 

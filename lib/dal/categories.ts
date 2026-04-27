@@ -2,6 +2,7 @@ import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "categories";
 
@@ -143,12 +144,12 @@ export async function listCategoriesByTaxonomy(
 }
 
 /** Get a single category by id */
-export async function getCategoryById(siteId: string, id: string): Promise<CategoryRow | null> {
+export async function getCategoryById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<CategoryRow | null> {
   if (shouldSkipDbCall()) {
     return null;
   }
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -247,8 +248,9 @@ export async function listCategoriesWithProductCount(
 /** Create a category */
 export async function createCategory(
   input: Omit<CategoryRow, "id" | "created_at">,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CategoryRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
   return assertRow<CategoryRow>(data, "Category");
@@ -259,8 +261,9 @@ export async function updateCategory(
   siteId: string,
   id: string,
   input: Partial<Pick<CategoryRow, "name" | "slug" | "description" | "taxonomy_type">>,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CategoryRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .update(input)
@@ -288,6 +291,7 @@ export async function updateCategory(
 export async function getCategoryUsageCountsBatch(
   siteId: string,
   categoryIds: readonly string[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<{
   contentCounts: Map<string, number>;
   productCounts: Map<string, number>;
@@ -308,7 +312,7 @@ export async function getCategoryUsageCountsBatch(
     return { contentCounts, productCounts };
   }
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const [contentResult, productResult] = await Promise.all([
     sb.from("content").select("category_id").eq("site_id", siteId).in("category_id", uniqueIds),
@@ -338,12 +342,13 @@ export async function getCategoryUsageCountsBatch(
 export async function getCategoryUsageCounts(
   siteId: string,
   categoryId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<{ contentCount: number; productCount: number }> {
   if (shouldSkipDbCall()) {
     return { contentCount: 0, productCount: 0 };
   }
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const [contentResult, productResult] = await Promise.all([
     sb
@@ -365,8 +370,8 @@ export async function getCategoryUsageCounts(
 }
 
 /** Delete a category */
-export async function deleteCategory(siteId: string, id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteCategory(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
   if (error) throw error;

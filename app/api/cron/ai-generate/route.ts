@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateContent } from "@/lib/ai/content-generator";
 import { createAIDraft } from "@/lib/dal/ai-drafts";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { allSites } from "@/config/sites";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";
@@ -57,22 +58,25 @@ export async function POST(request: NextRequest) {
           language: site.language,
         });
 
-        await createAIDraft({
-          site_id: dbSiteId,
-          title: result.title,
-          slug: result.slug,
-          body: result.body,
-          excerpt: result.excerpt,
-          content_type: result.contentType,
-          topic,
-          keywords: [],
-          ai_provider: result.provider,
-          ai_model: result.model,
-          status: "pending",
-          generated_at: new Date().toISOString(),
-          meta_title: result.metaTitle,
-          meta_description: result.metaDescription,
-        });
+        await createAIDraft(
+          {
+            site_id: dbSiteId,
+            title: result.title,
+            slug: result.slug,
+            body: result.body,
+            excerpt: result.excerpt,
+            content_type: result.contentType,
+            topic,
+            keywords: [],
+            ai_provider: result.provider,
+            ai_model: result.model,
+            status: "pending",
+            generated_at: new Date().toISOString(),
+            meta_title: result.metaTitle,
+            meta_description: result.metaDescription,
+          },
+          getPrivilegedSupabaseClient,
+        );
 
         siteResult.generated++;
       } catch (err) {

@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
 
 /**
  * Find related products for internal linking.
@@ -10,8 +11,9 @@ export async function getRelatedProducts(
   siteId: string,
   productId: string,
   limit: number = 6,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   // Get the source product
   const { data: source } = await sb.from("products").select("*").eq("id", productId).single();
@@ -68,8 +70,9 @@ export async function getComparisonSuggestions(
   siteId: string,
   productSlug: string,
   limit: number = 3,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<{ slug: string; title: string }[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data: source } = await sb
     .from("products")

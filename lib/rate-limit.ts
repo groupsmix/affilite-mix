@@ -44,11 +44,26 @@ interface DurableObjectNamespace {
   get(id: DurableObjectId): DurableObjectStub;
 }
 
+export type RateLimitFailPolicy = "grace" | "open" | "closed";
+
 export interface RateLimitConfig {
   /** Maximum number of requests allowed in the window */
   maxRequests: number;
   /** Window size in milliseconds */
   windowMs: number;
+  /**
+   * Per-route fail-open/closed policy when the distributed rate limiter
+   * (KV or DO) is unavailable.
+   *
+   * - "grace" (default): fall back to in-memory for KV_GRACE_MS, then fail closed.
+   *   This is the global F-3 behaviour and is safe for most public routes.
+   * - "open": always allow requests when KV is unavailable.
+   *   Use for non-critical public endpoints where availability is more important
+   *   than strict rate-limiting during an outage (e.g. click tracking, health).
+   * - "closed": immediately reject requests when KV is unavailable.
+   *   Use for security-critical routes (e.g. login, admin, checkout).
+   */
+  failPolicy?: RateLimitFailPolicy;
 }
 
 export interface RateLimitResult {
@@ -112,7 +127,30 @@ async function checkRateLimitDO(
     throw new Error(`RATE_LIMITER_DO responded ${response.status}`);
   }
 
-  return (await response.json()) as RateLimitResult;
+  const result = (await response.json()) as RateLimitResult;
+
+  // A-022: Poisoning sanity check — detect a compromised or buggy DO.
+  const isPoisoned =
+    typeof result.allowed !== "boolean" ||
+    typeof result.remaining !== "number" ||
+    typeof result.retryAfterMs !== "number" ||
+    result.remaining < -1 ||
+    result.retryAfterMs < 0 ||
+    result.retryAfterMs > config.windowMs * 10;
+
+  if (isPoisoned) {
+    captureException(
+      new Error(`RATE_LIMITER_DO returned poisoned result for key ${key}`),
+      {
+        context: "rate-limit.do-poisoned",
+        extra: { result, config },
+      },
+    );
+    // Fail closed on a poisoned DO — treat as rate-limited.
+    return { allowed: false, remaining: 0, retryAfterMs: config.windowMs };
+  }
+
+  return result;
 }
 
 // ── KV-based implementation (fallback) ──────────────────────────────
@@ -290,10 +328,13 @@ function markKvAvailable(): void {
 }
 
 /**
- * KV is unavailable (binding missing or get/put threw). In production,
- * fall back to the in-memory limiter for KV_GRACE_MS; after the grace
- * window elapses without KV recovering, fail CLOSED. In development,
- * fall back to memory indefinitely (existing behaviour).
+ * KV is unavailable (binding missing or get/put threw).
+ *
+ * Per-route policy (via `config.failPolicy`):
+ * - "closed": immediately reject.
+ * - "open": skip rate limiting, allow the request.
+ * - "grace" (default): fall back to in-memory for KV_GRACE_MS in production,
+ *   then fail closed. In development, fallback indefinitely.
  */
 function handleKvUnavailable(
   key: string,
@@ -301,8 +342,43 @@ function handleKvUnavailable(
   reason: string,
   err?: unknown,
 ): RateLimitResult {
+  const policy = config.failPolicy ?? "grace";
   const isProduction = process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 
+  if (policy === "closed") {
+    if (!kvUnavailableAlerted) {
+      kvUnavailableAlerted = true;
+      const msg = `[rate-limit] KV unavailable (${reason}) — failing CLOSED per route policy.`;
+      console.error(msg);
+      console.error(JSON.stringify({ metric: "rate_limit_kv_failclosed", reason, policy }));
+      captureException(err ?? new Error(msg), {
+        context: "rate-limit.kv-unavailable-fail-closed",
+        extra: { reason, policy },
+      });
+    }
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterMs: Math.min(getKvGraceMs(), config.windowMs),
+    };
+  }
+
+  if (policy === "open") {
+    if (!kvUnavailableAlerted) {
+      kvUnavailableAlerted = true;
+      const msg = `[rate-limit] KV unavailable (${reason}) — failing OPEN per route policy.`;
+      console.warn(msg);
+      console.error(JSON.stringify({ metric: "rate_limit_kv_failopen", reason, policy }));
+      captureException(err ?? new Error(msg), {
+        context: "rate-limit.kv-unavailable-fail-open",
+        extra: { reason, policy },
+        level: "warning" as any,
+      });
+    }
+    return { allowed: true, remaining: config.maxRequests, retryAfterMs: 0 };
+  }
+
+  // policy === "grace" (default)
   if (!isProduction && !kvFallbackWarned) {
     kvFallbackWarned = true;
     console.warn(

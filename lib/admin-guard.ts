@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAdminSession, AdminPayload } from "@/lib/auth";
 import { getActiveSiteSlug } from "@/lib/active-site";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteById } from "@/config/sites";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
@@ -11,7 +13,7 @@ type AdminResult =
   | { error: null; session: AdminPayload; dbSiteId: string; siteSlug: string };
 
 /** 100 admin API requests per minute per user session (3.30) */
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
+const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000, failPolicy: "closed" as const };
 
 /**
  * Assert that the authenticated session has the required role.
@@ -76,18 +78,51 @@ export async function requireAdmin(): Promise<AdminResult> {
     };
   }
 
-  // Validate the cookie value against known site configs to reject forged values
-  const siteConfig = getSiteById(siteSlug);
-  if (!siteConfig) {
-    return {
-      error: NextResponse.json({ error: "Invalid site" }, { status: 400 }),
-      session: null,
-      dbSiteId: null,
-      siteSlug: null,
-    };
+  // A-003: DB registry is authoritative. Try KV cache → DB lookup first,
+  // then fall back to static config for seed/known sites.
+  let dbSiteId: string | null = null;
+  const kvCacheKey = `admin-guard:site-slug:${siteSlug}`;
+
+  try {
+    const kv = (process.env as any).APP_CACHE_KV as any;
+    if (kv) {
+      const cached = await kv.get(kvCacheKey, "json");
+      if (cached && typeof cached.id === "string") {
+        dbSiteId = cached.id;
+      }
+    }
+  } catch {
+    // Ignore KV errors
   }
 
-  const dbSiteId = await resolveDbSiteId(siteSlug);
+  if (!dbSiteId) {
+    const dbSite = await getSiteRowBySlugWithClient(siteSlug, getPrivilegedSupabaseClient);
+    if (dbSite) {
+      dbSiteId = dbSite.id;
+      try {
+        const kv = (process.env as any).APP_CACHE_KV as any;
+        if (kv) {
+          await kv.put(kvCacheKey, JSON.stringify({ id: dbSiteId }), { expirationTtl: 300 });
+        }
+      } catch {
+        // Ignore KV write errors
+      }
+    }
+  }
+
+  if (!dbSiteId) {
+    // Fall back to static config for seed/known sites
+    const siteConfig = getSiteById(siteSlug);
+    if (!siteConfig) {
+      return {
+        error: NextResponse.json({ error: "Invalid site" }, { status: 400 }),
+        session: null,
+        dbSiteId: null,
+        siteSlug: null,
+      };
+    }
+    dbSiteId = await resolveDbSiteId(siteSlug);
+  }
 
   // Enforce membership: non-super_admin users must have a membership row
   // for the active site. A forged or manually changed cookie is not enough.
@@ -114,9 +149,11 @@ export async function requireSuperAdmin(): Promise<AdminResult> {
   const result = await requireAdmin();
   if (result.error) return result;
 
-  const forbidden = assertRole(result.session, "super_admin");
+  // Narrow the union: error is null, so session is AdminPayload
+  const okResult = result as Extract<AdminResult, { error: null }>;
+  const forbidden = assertRole(okResult.session, "super_admin");
   if (forbidden) {
     return { error: forbidden, session: null, dbSiteId: null, siteSlug: null };
   }
-  return result;
+  return okResult;
 }
