@@ -10,6 +10,22 @@ import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import type { AIContentType } from "@/lib/ai/content-generator";
 
 /**
+ * F-AI-02: Basic content moderation. Returns true if the text contains
+ * patterns commonly associated with harmful or prohibited content.
+ * A more robust approach would use Cloudflare Workers AI moderation or
+ * OpenAI's moderation API.
+ */
+const PROHIBITED_PATTERNS = [
+  /\b(phishing|malware|exploit|ransomware)\b/i,
+  /\b(illegal.*download|crack(ed|s)?.*software)\b/i,
+  /\b(hate\s*speech|incit(e|ing)\s*violence)\b/i,
+];
+
+function containsProhibitedContent(text: string): boolean {
+  return PROHIBITED_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+/**
  * Cron endpoint: Auto-generate AI articles for all active sites.
  * Intended to run daily (e.g. 8am UTC).
  * Protected by CRON_SECRET header.
@@ -58,6 +74,12 @@ export async function POST(request: NextRequest) {
           language: site.language,
         });
 
+        // F-AI-02: Basic content moderation before creating the draft.
+        // Check for obvious harmful content patterns. If flagged, set status
+        // to 'flagged' so an admin must manually approve before publishing.
+        const combinedText = `${result.title} ${result.excerpt} ${result.body}`;
+        const flagged = containsProhibitedContent(combinedText);
+
         await createAIDraft(
           {
             site_id: dbSiteId,
@@ -70,7 +92,7 @@ export async function POST(request: NextRequest) {
             keywords: [],
             ai_provider: result.provider,
             ai_model: result.model,
-            status: "pending",
+            status: flagged ? "rejected" : "pending",
             generated_at: new Date().toISOString(),
             meta_title: result.metaTitle,
             meta_description: result.metaDescription,

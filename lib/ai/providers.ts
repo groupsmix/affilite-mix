@@ -111,13 +111,16 @@ class GeminiProvider implements AIProvider {
 
   async generate(prompt: string, systemPrompt?: string): Promise<string> {
     const cfg = getProviderConfig();
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${cfg.geminiApiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
 
     const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
     const res = await fetchWithTimeout(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": cfg.geminiApiKey!,
+      },
       body: JSON.stringify({
         contents: [{ parts: [{ text: fullPrompt }] }],
         generationConfig: { maxOutputTokens: 4096 },

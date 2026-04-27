@@ -57,7 +57,7 @@ variable "alert_mechanisms" {
 
 variable "alerts_enabled" {
   type        = bool
-  default     = false
+  default     = true
   description = "Whether the SLO burn-rate notification policies should be enabled. Requires alert_mechanisms to contain at least one destination."
 }
 

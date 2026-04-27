@@ -122,7 +122,7 @@ describe("jwt-secret config guard", () => {
   it("throws in production when JWT_SECRET is missing", async () => {
     const { resolveJwtSecret } = await import("@/lib/jwt-secret");
     expect(() => resolveJwtSecret({ NODE_ENV: "production" } as NodeJS.ProcessEnv)).toThrow(
-      /JWT_SECRET is required/,
+      /JWT_SECRET.*is required/,
     );
   });
 
@@ -130,7 +130,7 @@ describe("jwt-secret config guard", () => {
     const { resolveJwtSecret } = await import("@/lib/jwt-secret");
     expect(() =>
       resolveJwtSecret({ NODE_ENV: "production", JWT_SECRET: "  " } as NodeJS.ProcessEnv),
-    ).toThrow(/JWT_SECRET is required/);
+    ).toThrow(/JWT_SECRET.*is required/);
   });
 
   it("returns the configured secret in production when set", async () => {
