@@ -207,11 +207,19 @@ export function sanitizeHtml(html: string): string {
 
   const chunks: string[] = [];
 
+  // Track depth inside disallowed tags so their text content is also dropped.
+  // Without this, a payload like `<style>body{background:url(javascript:...)}</style>`
+  // would leak its CSS body as plain text even though the <style> wrapper is stripped.
+  let suppressDepth = 0;
+
   const parser = new Parser(
     {
       onopentag(name, attribs) {
         const raw = name.toLowerCase();
-        if (!ALLOWED_TAGS.has(raw)) return;
+        if (!ALLOWED_TAGS.has(raw)) {
+          if (!VOID_TAGS.has(raw)) suppressDepth++;
+          return;
+        }
 
         // Remap h1 → h2 so user content doesn't break page heading hierarchy
         const tag = HEADING_REMAP[raw] ?? raw;
@@ -225,12 +233,17 @@ export function sanitizeHtml(html: string): string {
       },
 
       ontext(text) {
+        if (suppressDepth > 0) return;
         chunks.push(text);
       },
 
       onclosetag(name) {
         const raw = name.toLowerCase();
-        if (!ALLOWED_TAGS.has(raw) || VOID_TAGS.has(raw)) return;
+        if (!ALLOWED_TAGS.has(raw)) {
+          if (!VOID_TAGS.has(raw) && suppressDepth > 0) suppressDepth--;
+          return;
+        }
+        if (VOID_TAGS.has(raw)) return;
         const tag = HEADING_REMAP[raw] ?? raw;
         chunks.push(`</${tag}>`);
       },
