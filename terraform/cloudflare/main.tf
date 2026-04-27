@@ -391,10 +391,9 @@ resource "cloudflare_healthcheck" "worker_origin" {
     expected_codes   = ["200"]
     follow_redirects = false
     port             = 443
-    header = [{
-      header = "Host"
-      values = [var.zone_domain]
-    }]
+    header = {
+      Host = [var.zone_domain]
+    }
   }
 
   check_regions = ["WEUR", "NA"]
