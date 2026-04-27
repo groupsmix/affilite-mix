@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     const auditDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
     // Try the transactional RPC first
+    // @ts-ignore - The RPC is defined in migration but not yet generated in the local types
     const { data: rpcResult, error: rpcError } = await sb.rpc("purge_retention", {
       p_table: "audit_log",
       p_cutoff: auditDate.toISOString(),

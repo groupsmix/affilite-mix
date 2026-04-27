@@ -47,7 +47,7 @@ export function requireStepUpAuth(
   }
 
   const windowMs = options?.windowMs ?? STEP_UP_WINDOW_MS;
-  const stepUpAt = (session as Record<string, unknown>)[STEP_UP_CLAIM];
+  const stepUpAt = (session as unknown as Record<string, unknown>)[STEP_UP_CLAIM];
 
   if (!stepUpAt || typeof stepUpAt !== "number") {
     return NextResponse.json(
