@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, errors as joseErrors } from "jose";
 import { cookies, headers } from "next/headers";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword, hashPassword } from "@/lib/password";
@@ -143,17 +143,20 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   let payload: Record<string, unknown> | null = null;
 
   // F-AUTH-03: Try the current key first, then fall back to the previous key
-  // during rotation grace window.
+  // during rotation grace window. Only fall back for JOSE-specific errors
+  // (signature mismatch, expired, etc.); unexpected errors should propagate.
   try {
     const result = await jwtVerify(token, getSecretKey(), jwtOpts);
     payload = result.payload as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    if (!(err instanceof joseErrors.JOSEError)) throw err;
     const prevKey = getPreviousSecretKey();
     if (prevKey) {
       try {
         const result = await jwtVerify(token, prevKey, jwtOpts);
         payload = result.payload as Record<string, unknown>;
-      } catch {
+      } catch (prevErr) {
+        if (!(prevErr instanceof joseErrors.JOSEError)) throw prevErr;
         return null;
       }
     } else {
