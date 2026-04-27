@@ -7,19 +7,29 @@
 
 import { getJwtSecret } from "@/lib/jwt-secret";
 
-async function hmacSign(data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
+async function getHmacKey(usage: KeyUsage[]): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
     "raw",
-    encoder.encode(getJwtSecret()),
+    new TextEncoder().encode(getJwtSecret()),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"],
+    usage,
   );
-  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+}
+
+async function hmacSign(data: string): Promise<string> {
+  const key = await getHmacKey(["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(data));
   return Array.from(new Uint8Array(sig))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+/** Constant-time signature verification via Web Crypto. */
+async function hmacVerify(data: string, hexSig: string): Promise<boolean> {
+  const sigBytes = new Uint8Array((hexSig.match(/.{2}/g) ?? []).map((h) => parseInt(h, 16)));
+  const key = await getHmacKey(["verify"]);
+  return crypto.subtle.verify("HMAC", key, sigBytes, new TextEncoder().encode(data));
 }
 
 /**
@@ -53,8 +63,7 @@ export async function verifyCookieValue(
     const payload = decoded.slice(0, lastDot);
     const sig = decoded.slice(lastDot + 1);
 
-    const expectedSig = await hmacSign(payload);
-    if (sig !== expectedSig) return null;
+    if (!(await hmacVerify(payload, sig))) return null;
 
     const parts = payload.split("|");
     if (parts.length < 3) return null;

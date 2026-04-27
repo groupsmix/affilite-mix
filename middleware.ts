@@ -65,8 +65,8 @@ export async function middleware(request: NextRequest) {
         if (kv) {
           const kvMaintenance = await kv.get("maintenance_mode");
           _maintenanceCacheValue = kvMaintenance === "1" || kvMaintenance === "true";
-          _maintenanceCacheExpiry = Date.now() + 30_000;
         }
+        _maintenanceCacheExpiry = Date.now() + 30_000;
       }
       if (_maintenanceCacheValue) {
         return new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
