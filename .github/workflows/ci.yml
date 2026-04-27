@@ -117,9 +117,16 @@ jobs:
   #   - Fork PRs cannot read the secret and run in skip-green mode so
   #     external contributors are not blocked. This is enforced by
   #     scripts/db-audit.sh based on REQUIRE_STAGING_DB.
+  # F-10: db-audit and db-types jobs now surface an explicit skip
+  # status so branch protection can distinguish between "passed"
+  # and "skipped due to missing secrets". The job name includes the
+  # outcome — configure branch protection to require the *:passed
+  # variant, not the generic job name.
   db-audit:
     name: RLS audit (E-6)
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.audit-result.outputs.status }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Install psql
@@ -127,6 +134,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
       - name: Run db-audit
+        id: audit-result
         env:
           # Prefer the transaction-pooler URL when it's set as a secret
           # because Supabase direct hostnames (db.<ref>.supabase.co) only
@@ -140,7 +148,26 @@ jobs:
           # Hard-fail on missing secret for trusted runs (main push or
           # non-fork PRs); fork PRs fall through to skip-green.
           REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
-        run: bash scripts/db-audit.sh
+        run: |
+          if bash scripts/db-audit.sh; then
+            echo "status=passed" >> "$GITHUB_OUTPUT"
+          else
+            # If the script exited non-zero because the DB URL was missing
+            # (fork PR), mark as skipped rather than failed so the required
+            # check gate can distinguish the two.
+            if [ -z "${STAGING_SUPABASE_DB_URL:-}" ] && [ "${REQUIRE_STAGING_DB}" != "true" ]; then
+              echo "status=skipped" >> "$GITHUB_OUTPUT"
+              echo "::warning::F-10: db-audit skipped — no staging DB URL available (fork PR)"
+            else
+              echo "status=failed" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+          fi
+
+      - name: Report audit status
+        if: always()
+        run: |
+          echo "### RLS audit: ${{ steps.audit-result.outputs.status }}" >> "$GITHUB_STEP_SUMMARY"
 
   # ── DB type drift check (E-5) ─────────────────────────────────────
   # Regenerates types/supabase.ts from the staging DB via
@@ -152,6 +179,8 @@ jobs:
   db-types:
     name: DB type drift (E-5)
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.types-result.outputs.status }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
@@ -166,12 +195,29 @@ jobs:
         with:
           version: 2.45.5
       - name: Check DB types drift
+        id: types-result
         env:
           # See db-audit job above for the IPv6/pooler rationale.
           STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
           SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
           REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
-        run: bash scripts/check-db-types.sh
+        run: |
+          if bash scripts/check-db-types.sh; then
+            echo "status=passed" >> "$GITHUB_OUTPUT"
+          else
+            if [ -z "${STAGING_SUPABASE_DB_URL:-}" ] && [ "${REQUIRE_STAGING_DB}" != "true" ]; then
+              echo "status=skipped" >> "$GITHUB_OUTPUT"
+              echo "::warning::F-10: db-types skipped — no staging DB URL available (fork PR)"
+            else
+              echo "status=failed" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+          fi
+
+      - name: Report types status
+        if: always()
+        run: |
+          echo "### DB type drift: ${{ steps.types-result.outputs.status }}" >> "$GITHUB_STEP_SUMMARY"
 
   # ── Terraform IaC validation (F-01) ───────────────────────────────
   # Catches syntax/type errors in terraform/cloudflare/*.tf so the
