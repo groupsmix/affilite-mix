@@ -1,41 +1,42 @@
-﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { NextRequest, NextResponse } from "next/server";
 import { reorderPages } from "@/lib/dal/pages";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { withAuthz } from "@/lib/authz";
 
 /**
  * PUT /api/admin/pages/reorder
  * Body: { pages: [{ id, sort_order }] }
  */
-export async function PUT(request: NextRequest) {
-  const { error, session, dbSiteId } = await requireAdmin();
-  if (error) return error;
+export const PUT = withAuthz(
+  "settings",
+  "edit",
+  async (request: NextRequest, { session, siteId }) => {
+    try {
+      const bodyOrError = await parseJsonBody(request);
+      if (bodyOrError instanceof NextResponse) return bodyOrError;
+      const body = bodyOrError;
 
-  try {
-    const bodyOrError = await parseJsonBody(request);
-    if (bodyOrError instanceof NextResponse) return bodyOrError;
-    const body = bodyOrError;
+      if (!Array.isArray(body.pages)) {
+        return NextResponse.json({ error: "pages array is required" }, { status: 400 });
+      }
 
-    if (!Array.isArray(body.pages)) {
-      return NextResponse.json({ error: "pages array is required" }, { status: 400 });
+      await reorderPages(siteId, body.pages);
+
+      void recordAuditEvent({
+        site_id: siteId,
+        actor: session.email ?? session.userId ?? "admin",
+        action: "reorder",
+        entity_type: "page",
+        entity_id: "bulk",
+        details: { count: body.pages.length },
+      });
+
+      return NextResponse.json({ ok: true });
+    } catch (err) {
+      captureException(err, { context: "[api/admin/pages] reorder failed:" });
+      return NextResponse.json({ error: "Failed to reorder pages" }, { status: 500 });
     }
-
-    await reorderPages(dbSiteId, body.pages);
-
-    void recordAuditEvent({
-      site_id: dbSiteId,
-      actor: session.email ?? session.userId ?? "admin",
-      action: "reorder",
-      entity_type: "page",
-      entity_id: "bulk",
-      details: { count: body.pages.length },
-    });
-
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    captureException(err, { context: "[api/admin/pages] reorder failed:" });
-    return NextResponse.json({ error: "Failed to reorder pages" }, { status: 500 });
-  }
-}
+  },
+);
