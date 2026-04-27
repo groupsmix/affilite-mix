@@ -64,8 +64,15 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_site_action
   ON audit_log(site_id, action, created_at DESC);
 
 -- Scheduled jobs: listing with status filter
-CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_site_status
-  ON scheduled_jobs(site_id, status, scheduled_for);
+-- LIVE-05: guard against fresh DBs that don't yet have the table at
+-- replay time. Index is created later by the canonical scheduled_jobs
+-- migration anyway.
+DO $$ BEGIN
+  IF to_regclass('public.scheduled_jobs') IS NOT NULL THEN
+    CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_site_status
+      ON scheduled_jobs(site_id, status, scheduled_for);
+  END IF;
+END $$;
 
 -- Products: listing with category filter
 CREATE INDEX IF NOT EXISTS idx_products_site_status_category

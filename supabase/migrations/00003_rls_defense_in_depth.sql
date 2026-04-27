@@ -7,12 +7,16 @@
 -- accidental misconfiguration (e.g., if someone switches to a regular
 -- authenticated client instead of the service role).
 --
--- Run this file in the Supabase SQL Editor after deploying the base schema.
+-- LIVE-05 fix: every CREATE POLICY block is now guarded by
+-- `to_regclass(...) IS NOT NULL`, so a fresh database that does not yet
+-- have a particular table at migration replay time will simply skip the
+-- policy instead of erroring out with "relation does not exist". The
+-- guard is no-op on production where the tables already exist.
 -- ═══════════════════════════════════════════════════════
 
 -- Service role can manage all rows in categories (scoped by site_id in DAL)
 DO $$ BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('public.categories') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'service_full_access_categories' AND tablename = 'categories'
   ) THEN
     CREATE POLICY "service_full_access_categories"
@@ -23,7 +27,7 @@ END $$;
 
 -- Service role can manage all rows in products
 DO $$ BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('public.products') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'service_full_access_products' AND tablename = 'products'
   ) THEN
     CREATE POLICY "service_full_access_products"
@@ -34,7 +38,7 @@ END $$;
 
 -- Service role can manage all rows in content
 DO $$ BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('public.content') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'service_full_access_content' AND tablename = 'content'
   ) THEN
     CREATE POLICY "service_full_access_content"
@@ -45,7 +49,7 @@ END $$;
 
 -- Service role can manage content_products join table
 DO $$ BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('public.content_products') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'service_full_access_content_products' AND tablename = 'content_products'
   ) THEN
     CREATE POLICY "service_full_access_content_products"
@@ -56,7 +60,7 @@ END $$;
 
 -- Service role can read/manage clicks
 DO $$ BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('public.affiliate_clicks') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'service_full_access_clicks' AND tablename = 'affiliate_clicks'
   ) THEN
     CREATE POLICY "service_full_access_clicks"
@@ -67,7 +71,7 @@ END $$;
 
 -- Service role can manage newsletter subscribers
 DO $$ BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('public.newsletter_subscribers') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'service_full_access_newsletter' AND tablename = 'newsletter_subscribers'
   ) THEN
     CREATE POLICY "service_full_access_newsletter"
@@ -77,8 +81,11 @@ DO $$ BEGIN
 END $$;
 
 -- Service role can manage scheduled jobs
+-- (table is created in a later migration; the to_regclass guard makes
+-- this block tolerant of a fresh DB that hasn't reached that migration
+-- yet during replay.)
 DO $$ BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('public.scheduled_jobs') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'service_full_access_scheduled_jobs' AND tablename = 'scheduled_jobs'
   ) THEN
     CREATE POLICY "service_full_access_scheduled_jobs"
