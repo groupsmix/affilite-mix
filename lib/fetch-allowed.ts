@@ -95,10 +95,7 @@ export class DisallowedHostnameError extends Error {
  * @param options - Standard RequestInit options.
  * @throws DisallowedHostnameError if the hostname is not allowed.
  */
-export async function fetchAllowed(
-  url: string,
-  options?: RequestInit,
-): Promise<Response> {
+export async function fetchAllowed(url: string, options?: RequestInit): Promise<Response> {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -132,10 +129,18 @@ export async function fetchAllowedWithTimeout(
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Combine the caller's signal (if any) with our timeout signal so that
+  // either source can abort the request. Without this, a caller-provided
+  // AbortSignal would be silently dropped and a fetch could continue
+  // running after the parent request context was cancelled.
+  const signal = options?.signal
+    ? AbortSignal.any([options.signal, controller.signal])
+    : controller.signal;
+
   try {
     return await fetchAllowed(url, {
       ...options,
-      signal: controller.signal,
+      signal,
     });
   } finally {
     clearTimeout(id);

@@ -207,17 +207,20 @@ export async function DELETE(request: NextRequest) {
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Only super_admin can delete users. Run this *before* the step-up check so
+  // a regular admin gets the standard 403 "Insufficient permissions" response
+  // and we don't leak the existence of the step-up gate to unauthorized
+  // callers (matches the ordering used by PATCH and admin/sites DELETE).
+  if (session.role !== "super_admin") {
+    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+  }
+
   // FIX-18 (F-030): Step-up auth required for user deletion
   const stepUpError = requireStepUpAuth(session);
   if (stepUpError) return stepUpError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
-
-  // Only super_admin can delete users
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
-  }
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
