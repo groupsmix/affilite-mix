@@ -5,6 +5,7 @@ import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { allSites } from "@/config/sites";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";
+import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import type { AIContentType } from "@/lib/ai/content-generator";
@@ -117,6 +118,7 @@ export async function POST(request: NextRequest) {
   const totalGenerated = results.reduce((sum, r) => sum + r.generated, 0);
   const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
 
+  void recordCronLiveness("ai-generate");
   return NextResponse.json({
     ok: true,
     summary: `Generated ${totalGenerated} drafts across ${results.length} sites (${totalErrors} errors)`,

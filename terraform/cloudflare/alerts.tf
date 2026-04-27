@@ -71,6 +71,53 @@ locals {
   )
 }
 
+# ── FIX-01: Notification destinations ────────────────────────────────
+# Provision these ahead of time so flipping alerts_enabled = true is
+# a one-line tfvars change. At least one destination must exist before
+# enabling alerts (enforced by the lifecycle precondition below).
+
+resource "cloudflare_notification_policy_emails" "oncall_email" {
+  count       = var.alert_email_address != "" ? 1 : 0
+  account_id  = var.cloudflare_account_id
+  name        = "On-call email"
+  emails      = [var.alert_email_address]
+}
+
+resource "cloudflare_notification_policy_webhooks" "slack_webhook" {
+  count       = var.alert_slack_webhook_url != "" ? 1 : 0
+  account_id  = var.cloudflare_account_id
+  name        = "Slack webhook"
+  url         = var.alert_slack_webhook_url
+}
+
+variable "alert_email_address" {
+  type        = string
+  default     = ""
+  description = "Email address for on-call notifications. Leave empty to skip the email destination."
+}
+
+variable "alert_slack_webhook_url" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Slack incoming webhook URL for alert notifications. Leave empty to skip the Slack destination."
+}
+
+# Automatically wire provisioned destinations into the mechanisms map.
+locals {
+  computed_alert_mechanisms = {
+    email = concat(
+      var.alert_mechanisms.email,
+      cloudflare_notification_policy_emails.oncall_email[*].id != null ? [{ id = cloudflare_notification_policy_emails.oncall_email[0].id }] : [],
+    )
+    pagerduty = var.alert_mechanisms.pagerduty
+    webhooks = concat(
+      var.alert_mechanisms.webhooks,
+      cloudflare_notification_policy_webhooks.slack_webhook[*].id != null ? [{ id = cloudflare_notification_policy_webhooks.slack_webhook[0].id }] : [],
+    )
+  }
+}
+
 resource "cloudflare_notification_policy" "worker_5xx_alert" {
   account_id  = var.cloudflare_account_id
   name        = "Affilite-Mix Worker 5xx Burn Rate Alert"
@@ -83,7 +130,7 @@ resource "cloudflare_notification_policy" "worker_5xx_alert" {
     environment = ["production"]
   }
 
-  mechanisms = var.alert_mechanisms
+  mechanisms = local.computed_alert_mechanisms
 
   lifecycle {
     precondition {
@@ -105,7 +152,7 @@ resource "cloudflare_notification_policy" "worker_cpu_time_alert" {
     environment = ["production"]
   }
 
-  mechanisms = var.alert_mechanisms
+  mechanisms = local.computed_alert_mechanisms
 
   lifecycle {
     precondition {

@@ -95,6 +95,27 @@ const eslintConfig = [
       "no-restricted-imports": "off",
     },
   },
+  {
+    // FIX-06/17 (F-008): Forbid direct getAdminSession() in admin API routes.
+    // Admin routes must use requireAdmin() or withAuthz() which enforce
+    // rate limiting, site validation, and membership checks.
+    files: ["app/api/admin/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/auth",
+              importNames: ["getAdminSession"],
+              message:
+                "Use requireAdmin() from @/lib/admin-guard or withAuthz() from @/lib/authz instead of getAdminSession(). Direct usage bypasses rate limiting, site validation, and membership checks. (F-008)",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;

@@ -8,6 +8,7 @@ import { apiError, rateLimitHeaders } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";
+import { signInternalRequest, computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 
 /** 60 click-tracking requests per minute per IP */
 const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000, failPolicy: "open" as const };
@@ -38,14 +39,36 @@ async function handleClick(request: NextRequest) {
     }
 
     // Validate product exists for this site and resolve affiliate URL
-    // F-011: Use KV cache to avoid synchronous DB read on every click
+    // FIX-14 (F-024): HMAC integrity check for KV-cached affiliate URLs.
+    // A compromised or corrupted KV could silently redirect clicks to
+    // attacker-controlled URLs. We sign the cached payload with HMAC
+    // using the INTERNAL_API_TOKEN so tampering is detectable.
     const cacheKey = `product-url:${siteId}:${productSlug}`;
-    let cachedData: { name: string; url: string } | null = null;
+    let cachedData: { name: string; url: string; _hmac?: string } | null = null;
+    let cacheHmacValid = false;
 
     try {
       const kv = (process.env as any).APP_CACHE_KV as any;
       if (kv) {
         cachedData = await kv.get(cacheKey, "json");
+        // Verify HMAC if present
+        if (cachedData?._hmac) {
+          const internalToken = process.env.INTERNAL_API_TOKEN ?? "";
+          const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
+          // FIX-14: Use a fixed timestamp/nonce for cache entries — we only care
+          // about HMAC integrity, not replay/timestamp protection (cached data
+          // is not a live request).
+          const expectedHmac = await computeHmac(internalToken, "cache", "cache", bodyForHmac);
+          cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
+          if (!cacheHmacValid) {
+            console.error(JSON.stringify({
+              metric: "affiliate_cache_hmac_mismatch",
+              cacheKey,
+              msg: "KV-cached affiliate URL failed HMAC check — possible cache poisoning",
+            }));
+            cachedData = null; // treat as cache miss, re-fetch from DB
+          }
+        }
       }
     } catch (e) {
       // Ignore KV errors and fallback to DB
@@ -57,6 +80,15 @@ async function handleClick(request: NextRequest) {
         return apiError(404, "Product not found or has no affiliate URL");
       }
       cachedData = { name: product.name, url: product.affiliate_url };
+
+      // FIX-14: Sign the cached payload with HMAC for integrity verification
+      const internalToken = process.env.INTERNAL_API_TOKEN ?? "";
+      const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
+      try {
+        cachedData._hmac = await computeHmac(internalToken, "cache", "cache", bodyForHmac);
+      } catch {
+        // HMAC signing failed — cache without integrity check (graceful degradation)
+      }
 
       // Update cache asynchronously
       try {

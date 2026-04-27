@@ -254,10 +254,16 @@ export type PermissionFeature =
   | "themes"
   | "modules"
   | "scheduling"
-  | "publishing";
+  | "publishing"
+  | "feature-flags"
+  | "ads"
+  | "pages"
+  | "privacy"
+  | "upload";
 
 export type PermissionAction =
   | "view"
+  | "read"
   | "create"
   | "edit"
   | "publish"

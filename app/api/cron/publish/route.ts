@@ -15,6 +15,7 @@ import { pingSitemapIndexers } from "@/lib/sitemap-ping";
 import type { ContentRow, ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 import { contentTag, productsTag } from "@/lib/cache-tags";
+import { recordCronLiveness, checkCronLiveness } from "@/lib/cron-liveness";
 
 /**
  * POST /api/cron/publish â€” Publish scheduled content & products, archive expired items.
@@ -155,6 +156,10 @@ export async function POST(request: NextRequest) {
       }
     }
   }
+
+  // FIX-16 (F-023): Record liveness for this cron job and check all others
+  void recordCronLiveness("publish");
+  void checkCronLiveness();
 
   return NextResponse.json(results);
 }

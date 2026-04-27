@@ -9,7 +9,7 @@ import { withAuthz } from "@/lib/authz";
 /**
  * GET /api/admin/pages  — list all pages for the current site
  */
-export const GET = withAuthz("settings", "view", async (_request, { siteId }) => {
+export const GET = withAuthz("pages", "read", async (_request, { siteId }) => {
   try {
     const pages = await listPages(siteId);
     return NextResponse.json(pages);
@@ -24,7 +24,7 @@ export const GET = withAuthz("settings", "view", async (_request, { siteId }) =>
  * Body: { slug, title, body, is_published?, sort_order? }
  */
 export const POST = withAuthz(
-  "settings",
+  "pages",
   "create",
   async (request: NextRequest, { session, siteId }) => {
     try {

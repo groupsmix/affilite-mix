@@ -7,6 +7,7 @@ import { parseJsonBody } from "@/lib/api-error";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -51,6 +52,17 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.json({ ok: true, site: { id: site.id, name: site.name } });
+
+  // FIX-34 (F-017): Audit log for site context switch
+  void recordAuditEvent({
+    site_id: siteId,
+    actor: session.email ?? session.userId ?? "admin",
+    action: "select_site",
+    entity_type: "site",
+    entity_id: siteId,
+    details: { siteName: site.name },
+  });
+
   response.cookies.set(ACTIVE_SITE_COOKIE, site.id, {
     httpOnly: true,
     secure: IS_SECURE_COOKIE,

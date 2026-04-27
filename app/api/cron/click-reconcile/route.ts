@@ -4,6 +4,7 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
+import { recordCronLiveness } from "@/lib/cron-liveness";
 
 /**
  * GET /api/cron/click-reconcile
@@ -62,9 +63,10 @@ export async function POST(request: NextRequest) {
       logger.error(msg);
     }
 
+    void recordCronLiveness("click-reconcile");
     return NextResponse.json({
       ok: true,
-      successes,
+      total,
       failures,
       lossRate,
       alarmed: failures >= FAILURE_ALERT_THRESHOLD || (total > 100 && lossRate > 0.05),

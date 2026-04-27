@@ -20,6 +20,36 @@ import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
+// FIX-04 (F-001, F-011): Branded type for the privileged client.
+// Callers receive a PrivilegedSupabaseClient instead of a plain
+// SupabaseClient, making it obvious at the call site that RLS is
+// bypassed. The brand is nominal-only — it does not change runtime
+// behaviour, but it prevents accidental assignment to a variable
+// typed as the tenant-scoped client.
+declare const _privilegedBrand: unique symbol;
+export type PrivilegedSupabaseClient = SupabaseClient<Database> & {
+  readonly [_privilegedBrand]: true;
+};
+
+/**
+ * FIX-04: Audit log for privileged client usage. Each call site is
+ * logged once per isolate so operators can verify that only approved
+ * callers are using the service-role key.
+ */
+const seenCallers = new Set<string>();
+function logPrivilegedUsage(caller: string): void {
+  if (!seenCallers.has(caller)) {
+    seenCallers.add(caller);
+    console.log(
+      JSON.stringify({
+        metric: "privileged_client_usage",
+        caller,
+        msg: `Privileged Supabase client used by ${caller}`,
+      }),
+    );
+  }
+}
+
 let _privilegedClient: SupabaseClient<Database> | null = null;
 
 /**
@@ -34,8 +64,9 @@ let _privilegedClient: SupabaseClient<Database> | null = null;
  * The client is memoised per isolate; it does not hold mutable session
  * state (`persistSession: false`).
  */
-export function getPrivilegedSupabaseClient(): SupabaseClient<Database> {
-  if (_privilegedClient) return _privilegedClient;
+export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabaseClient {
+  if (caller) logPrivilegedUsage(caller);
+  if (_privilegedClient) return _privilegedClient as PrivilegedSupabaseClient;
 
   const url = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL");
   const key = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY");
@@ -56,7 +87,7 @@ export function getPrivilegedSupabaseClient(): SupabaseClient<Database> {
     },
   });
 
-  return _privilegedClient;
+  return _privilegedClient as PrivilegedSupabaseClient;
 }
 
 /**
