@@ -388,9 +388,9 @@ resource "cloudflare_healthcheck" "worker_origin" {
   port       = 443
 
   http_config = {
-    method          = "GET"
-    path            = "/api/health"
-    expected_codes  = ["200"]
+    method           = "GET"
+    path             = "/api/health"
+    expected_codes   = ["200"]
     follow_redirects = false
   }
 

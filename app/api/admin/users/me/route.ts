@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import { updateAdminUser } from "@/lib/dal/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
@@ -7,7 +7,8 @@ import { captureException } from "@/lib/sentry";
 
 /** PATCH /api/admin/users/me — update own profile (name only) */
 export async function PATCH(request: Request) {
-  const session = await getAdminSession();
+  const { error, session } = await requireAdmin();
+  if (error) return error;
   if (!session || !session.userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

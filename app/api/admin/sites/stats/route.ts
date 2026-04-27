@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { listSites } from "@/lib/dal/sites";
@@ -37,10 +37,9 @@ export interface SiteStatsResponse {
  *   ?days=7  — lookback window for click data (default 7, min 1, max 365)
  */
 export async function GET(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const rlKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
   const rl = await checkRateLimit(rlKey, ADMIN_RATE_LIMIT);

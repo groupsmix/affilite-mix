@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { generateTotpSecret, verifyTotpToken } from "@/lib/totp";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -12,7 +12,8 @@ import QRCode from "qrcode";
  * Returns the secret and a data-URL QR code for the authenticator app.
  */
 export async function POST(request: Request) {
-  const session = await getAdminSession();
+  const { error, session } = await requireAdmin();
+  if (error) return error;
   if (!session || !session.userId || !session.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -67,7 +68,8 @@ export async function POST(request: Request) {
  * Requires the user to provide a valid token from their authenticator app.
  */
 export async function PUT(request: Request) {
-  const session = await getAdminSession();
+  const { error, session } = await requireAdmin();
+  if (error) return error;
   if (!session || !session.userId || !session.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -126,7 +128,8 @@ export async function PUT(request: Request) {
  * DELETE /api/admin/users/me/totp — disable 2FA.
  */
 export async function DELETE(request: Request) {
-  const session = await getAdminSession();
+  const { error, session } = await requireAdmin();
+  if (error) return error;
   if (!session || !session.userId || !session.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -77,17 +77,17 @@ locals {
 # enabling alerts (enforced by the lifecycle precondition below).
 
 resource "cloudflare_notification_policy_emails" "oncall_email" {
-  count       = var.alert_email_address != "" ? 1 : 0
-  account_id  = var.cloudflare_account_id
-  name        = "On-call email"
-  emails      = [var.alert_email_address]
+  count      = var.alert_email_address != "" ? 1 : 0
+  account_id = var.cloudflare_account_id
+  name       = "On-call email"
+  emails     = [var.alert_email_address]
 }
 
 resource "cloudflare_notification_policy_webhooks" "slack_webhook" {
-  count       = var.alert_slack_webhook_url != "" ? 1 : 0
-  account_id  = var.cloudflare_account_id
-  name        = "Slack webhook"
-  url         = var.alert_slack_webhook_url
+  count      = var.alert_slack_webhook_url != "" ? 1 : 0
+  account_id = var.cloudflare_account_id
+  name       = "Slack webhook"
+  url        = var.alert_slack_webhook_url
 }
 
 variable "alert_email_address" {
