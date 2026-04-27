@@ -205,8 +205,11 @@ describe("HTML sanitization integration", () => {
   it("strips script tags from content body", () => {
     const dirty = '<p>Hello</p><script>alert("xss")</script><p>World</p>';
     const clean = sanitizeHtml(dirty);
-    expect(clean).toBe('<p>Hello</p>alert("xss")<p>World</p>');
+    // Tag and its text content must both be stripped — leaking the body
+    // would still execute payloads like <style>{background:url(javascript:…)}</style>.
+    expect(clean).toBe("<p>Hello</p><p>World</p>");
     expect(clean).not.toContain("<script>");
+    expect(clean).not.toContain('alert("xss")');
   });
 
   it("strips event handlers from HTML attributes", () => {
