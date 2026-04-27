@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     void recordCronLiveness("click-reconcile");
     return NextResponse.json({
       ok: true,
-      total,
+      successes,
       failures,
       lossRate,
       alarmed: failures >= FAILURE_ALERT_THRESHOLD || (total > 100 && lossRate > 0.05),
