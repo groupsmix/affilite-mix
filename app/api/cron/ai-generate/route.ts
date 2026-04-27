@@ -76,7 +76,8 @@ export async function POST(request: NextRequest) {
 
         // F-AI-02: Basic content moderation before creating the draft.
         // Check for obvious harmful content patterns. If flagged, set status
-        // to 'flagged' so an admin must manually approve before publishing.
+        // to 'rejected' (the existing AIDraftRow type doesn't have a 'flagged'
+        // status). An admin can filter rejected drafts and manually approve.
         const combinedText = `${result.title} ${result.excerpt} ${result.body}`;
         const flagged = containsProhibitedContent(combinedText);
 

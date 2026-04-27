@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     if (fetchError) throw fetchError;
 
     let archivedCount = 0;
+    let archiveSucceeded = false;
     if (auditRows && auditRows.length > 0) {
       // Attempt R2 archive export
       try {
@@ -75,15 +76,16 @@ export async function POST(request: NextRequest) {
           const archiveKey = `audit-log-archive/${yearMonth}/${now.toISOString()}.jsonl`;
           await r2.put(archiveKey, jsonl);
           archivedCount = auditRows.length;
+          archiveSucceeded = true;
           logger.info("Audit log archived to R2", { key: archiveKey, count: archivedCount });
         } else {
           logger.warn(
-            "AUDIT_ARCHIVE_R2 binding not available — audit log rows will be deleted without archival. " +
-              "Configure the R2 binding in wrangler.jsonc to enable archival.",
+            "AUDIT_ARCHIVE_R2 binding not available — skipping audit log deletion until R2 is configured. " +
+              "Rows will be retried on the next cron run.",
           );
         }
       } catch (archiveErr) {
-        logger.error("Failed to archive audit log to R2, proceeding with deletion", {
+        logger.error("Failed to archive audit log to R2 — skipping deletion to prevent data loss", {
           error: archiveErr instanceof Error ? archiveErr.message : String(archiveErr),
         });
         captureException(archiveErr, {
@@ -92,15 +94,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Only delete rows that were successfully fetched (and potentially archived).
-    // This prevents deleting more rows than were archived when >10k qualify.
-    if (auditRows && auditRows.length > 0) {
+    // Only delete rows after successful archival to prevent compliance data loss.
+    // If archival failed or R2 is unavailable, rows are retained and retried next run.
+    let deletedCount = 0;
+    if (archiveSucceeded && auditRows && auditRows.length > 0) {
       const ids = auditRows.map((row) => row.id);
       const { error: auditError } = await sb.from("audit_log").delete().in("id", ids);
 
       if (auditError) throw auditError;
+      deletedCount = ids.length;
     }
-    results.audit_log = { success: true, archived: archivedCount, deleted: auditRows?.length ?? 0 };
+    results.audit_log = { success: true, archived: archivedCount, deleted: deletedCount };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     results.audit_log = { success: false, error: msg };
