@@ -381,21 +381,19 @@ output "cache_rules_ruleset_id" {
 ###############################################################################
 
 resource "cloudflare_healthcheck" "worker_origin" {
-  account_id = var.cloudflare_account_id
-  name       = "worker-origin-health"
-  address    = var.zone_domain
-  protocol   = "HTTPS"
-  port       = 443
+  zone_id = var.zone_id
+  name    = "worker-origin-health"
+  address = var.zone_domain
 
   http_config = {
     method           = "GET"
     path             = "/api/health"
     expected_codes   = ["200"]
     follow_redirects = false
-  }
-
-  header = {
-    Host = var.zone_domain
+    port             = 443
+    header = [{
+      Host = var.zone_domain
+    }]
   }
 
   check_regions = ["WEUR", "NA"]
