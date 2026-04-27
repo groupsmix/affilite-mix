@@ -225,6 +225,24 @@ function readBucketEnv(): BucketEnv {
       "R2 buckets not configured. Set R2_BUCKET_NAME (or R2_PRIVATE_BUCKET + R2_PUBLIC_BUCKET) and R2_PUBLIC_URL.",
     );
   }
+
+  // F-09: In production, the private staging bucket and public serving
+  // bucket MUST be distinct. Using the same bucket defeats the
+  // upload-validation model — unvalidated uploads would be reachable
+  // via the public URL immediately.
+  if (
+    process.env.NODE_ENV === "production" &&
+    privateBucket === publicBucket &&
+    !process.env.R2_PRIVATE_BUCKET &&
+    !process.env.R2_PUBLIC_BUCKET
+  ) {
+    throw new Error(
+      "R2 bucket isolation error: R2_PRIVATE_BUCKET and R2_PUBLIC_BUCKET resolve to the same " +
+        `name ("${privateBucket}"). In production, set distinct R2_PRIVATE_BUCKET and ` +
+        "R2_PUBLIC_BUCKET so unvalidated uploads are not publicly reachable.",
+    );
+  }
+
   return { accountId, accessKeyId, secretAccessKey, privateBucket, publicBucket, publicUrlBase };
 }
 
