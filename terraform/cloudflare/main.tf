@@ -69,7 +69,7 @@ variable "logpush_destination_conf" {
 }
 
 variable "logpush_enabled" {
-  type        = bool
+  type = bool
   # F-OBS-01: Keep default false to avoid breaking terraform apply without
   # logpush_destination_conf. Set to true in tfvars once the destination is provisioned.
   default     = false

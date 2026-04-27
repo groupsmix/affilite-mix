@@ -56,7 +56,7 @@ variable "alert_mechanisms" {
 }
 
 variable "alerts_enabled" {
-  type        = bool
+  type = bool
   # F-OBS-01: Keep default false to avoid breaking terraform apply without
   # destinations. Set to true in tfvars once alert_mechanisms are provisioned.
   default     = false
