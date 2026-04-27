@@ -507,6 +507,15 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...CRON_DEFAULTS,
+    path: "/api/cron/click-reconcile",
+    methods: ["POST"],
+    requestSchema: null,
+    responseSchema: "{ success_count: number; failure_count: number; alert: boolean }",
+    sensitiveFields: [],
+    notes: "A-006: Reconciles click tracking volume vs failures and alerts on threshold breach.",
+  },
+  {
+    ...CRON_DEFAULTS,
     path: "/api/cron/commission-ingest",
     methods: ["POST"],
     requestSchema: null,

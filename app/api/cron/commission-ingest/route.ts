@@ -3,7 +3,6 @@ import { ingestCommissions } from "@/lib/dal/commissions";
 import { resolveSiteByTrackingKey } from "@/lib/dal/affiliate-tracking-keys";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
-import { safeFetch } from "@/lib/ssrf-guard";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
@@ -24,7 +23,10 @@ export async function POST(request: NextRequest) {
 
   // F-019 & F-026 (Scale Risk): Process network ingestions concurrently using Promise.allSettled
   // to avoid hitting Worker execution limits when traffic scales 10x.
-  const results: Record<string, { inserted: number; skipped: number; error?: string }> = {};
+  const results: Record<
+    string,
+    { inserted: number; skipped: number; discarded: number; error?: string }
+  > = {};
 
   const sb = getPrivilegedSupabaseClient();
 
@@ -68,7 +70,12 @@ export async function POST(request: NextRequest) {
           logger.error("Admitad commission ingest failed", { error: results.admitad.error });
         }
       } else {
-        results.admitad = { inserted: 0, skipped: 0, discarded: 0, error: "ADMITAD_API_KEY not configured" };
+        results.admitad = {
+          inserted: 0,
+          skipped: 0,
+          discarded: 0,
+          error: "ADMITAD_API_KEY not configured",
+        };
       }
     })(),
     (async () => {
@@ -123,11 +130,24 @@ interface NormalizedCommission {
   raw_data?: Record<string, unknown>;
 }
 
+type ResolvedCommission = {
+  site_id: string;
+  product_id?: string;
+  network: string;
+  order_id?: string;
+  commission_amount: number;
+  currency?: string;
+  status?: string;
+  sale_amount?: number;
+  event_date: string;
+  raw_data?: Record<string, unknown>;
+};
+
 async function resolveCommissions(
   reports: NormalizedCommission[],
   sb: ReturnType<typeof getPrivilegedSupabaseClient>,
-): Promise<{ resolved: { site_id: string }[]; discarded: number }> {
-  const resolved: { site_id: string; product_id?: string; network: string; order_id?: string; commission_amount: number; currency?: string; status?: string; sale_amount?: number; event_date: string; raw_data?: Record<string, unknown> }[] = [];
+): Promise<{ resolved: ResolvedCommission[]; discarded: number }> {
+  const resolved: ResolvedCommission[] = [];
   let discarded = 0;
 
   for (const report of reports) {

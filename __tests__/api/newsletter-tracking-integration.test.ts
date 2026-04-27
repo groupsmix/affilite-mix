@@ -275,6 +275,7 @@ describe("GET /api/track/click (integration)", () => {
         affiliate_url: "https://amazon.com/dp/test",
         content_slug: "review-page",
       }),
+      expect.any(Function),
     );
   });
 
