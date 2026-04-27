@@ -23,6 +23,11 @@ vi.mock("@/lib/admin-guard", () => ({
   assertRole: vi.fn().mockReturnValue(null),
 }));
 
+// Mock RBAC — withAuthz() calls hasPermission() before invoking handlers.
+vi.mock("@/lib/dal/permissions", () => ({
+  hasPermission: vi.fn().mockResolvedValue(true),
+}));
+
 // Mock DAL modules
 const mockListCategories = vi.fn();
 const mockCreateCategory = vi.fn();
@@ -85,7 +90,7 @@ describe("GET /api/admin/categories (integration)", () => {
   it("returns 401 when not authenticated", async () => {
     mockRequireAdmin.mockResolvedValue(UNAUTH_RESULT);
     const { GET } = await import("@/app/api/admin/categories/route");
-    const res = await GET();
+    const res = await GET(makeCategoryRequest("GET"));
 
     expect(res.status).toBe(401);
   });
@@ -98,7 +103,7 @@ describe("GET /api/admin/categories (integration)", () => {
     mockListCategories.mockResolvedValue(mockCategories);
 
     const { GET } = await import("@/app/api/admin/categories/route");
-    const res = await GET();
+    const res = await GET(makeCategoryRequest("GET"));
 
     expect(res.status).toBe(200);
     const body = await res.json();
