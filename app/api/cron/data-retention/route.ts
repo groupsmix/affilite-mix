@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
   }
 
   const sb = getPrivilegedSupabaseClient();
-  const results: Record<string, { success: boolean; error?: string; archived?: number }> = {};
+  const results: Record<
+    string,
+    { success: boolean; error?: string; archived?: number; deleted?: number }
+  > = {};
   const now = new Date();
 
   // F-DATA-01: Extended affiliate_clicks retention to 365 days to avoid
