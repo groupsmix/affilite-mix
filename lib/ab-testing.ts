@@ -60,14 +60,16 @@ function fnv1aHash(str: string): number {
  * Get or assign a variant for a visitor in an experiment.
  * Checks for existing assignment first, creates one if needed.
  */
+import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
+
 export async function getVariantAssignment(
   experimentId: string,
   visitorId: string,
   variants: Variant[],
   siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<string> {
-  const { getTenantClient } = await import("@/lib/supabase-server");
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   // Check existing assignment
 
@@ -101,16 +103,18 @@ export async function getVariantAssignment(
 /**
  * Log an experiment event (view, click, conversion).
  */
-export async function logExperimentEvent(input: {
-  experiment_id: string;
-  visitor_id: string;
-  variant_id: string;
-  site_id: string;
-  event_type: "view" | "click" | "conversion";
-  metadata?: Record<string, unknown>;
-}): Promise<void> {
-  const { getTenantClient } = await import("@/lib/supabase-server");
-  const sb = await getTenantClient();
+export async function logExperimentEvent(
+  input: {
+    experiment_id: string;
+    visitor_id: string;
+    variant_id: string;
+    site_id: string;
+    event_type: "view" | "click" | "conversion";
+    metadata?: Record<string, unknown>;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
+  const sb = await getClient();
 
   await (sb.from as any)("experiment_events").insert(input).select().single();
 }

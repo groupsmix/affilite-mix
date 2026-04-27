@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 // ── Wrist Shots ──────────────────────────────────────────────
 
@@ -20,15 +21,18 @@ export interface WristShotRow {
 const WRIST_SHOTS_TABLE = "wrist_shots";
 
 /** Submit a wrist shot (goes to moderation queue) */
-export async function createWristShot(input: {
-  site_id: string;
-  product_id?: string;
-  user_email: string;
-  user_name: string;
-  image_url: string;
-  caption?: string;
-}): Promise<WristShotRow> {
-  const sb = await getTenantClient();
+export async function createWristShot(
+  input: {
+    site_id: string;
+    product_id?: string;
+    user_email: string;
+    user_name: string;
+    image_url: string;
+    caption?: string;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<WristShotRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(WRIST_SHOTS_TABLE).insert(input).select().single();
   if (error) throw error;
@@ -39,8 +43,9 @@ export async function createWristShot(input: {
 export async function listApprovedWristShots(
   productId: string,
   limit: number = 20,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<WristShotRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(WRIST_SHOTS_TABLE)
@@ -55,8 +60,8 @@ export async function listApprovedWristShots(
 }
 
 /** List pending wrist shots for moderation */
-export async function listPendingWristShots(siteId: string): Promise<WristShotRow[]> {
-  const sb = await getTenantClient();
+export async function listPendingWristShots(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<WristShotRow[]> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(WRIST_SHOTS_TABLE)
@@ -73,8 +78,9 @@ export async function listPendingWristShots(siteId: string): Promise<WristShotRo
 export async function moderateWristShot(
   id: string,
   status: "approved" | "rejected",
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<WristShotRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(WRIST_SHOTS_TABLE)
@@ -111,16 +117,19 @@ export interface CommentRow {
 const COMMENTS_TABLE = "comments";
 
 /** Post a comment (goes to moderation queue) */
-export async function createComment(input: {
-  site_id: string;
-  target_type: "product" | "content";
-  target_id: string;
-  parent_id?: string;
-  user_email: string;
-  user_name: string;
-  body: string;
-}): Promise<CommentRow> {
-  const sb = await getTenantClient();
+export async function createComment(
+  input: {
+    site_id: string;
+    target_type: "product" | "content";
+    target_id: string;
+    parent_id?: string;
+    user_email: string;
+    user_name: string;
+    body: string;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<CommentRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(COMMENTS_TABLE).insert(input).select().single();
   if (error) throw error;
@@ -131,8 +140,9 @@ export async function createComment(input: {
 export async function listApprovedComments(
   targetType: "product" | "content",
   targetId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CommentRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
@@ -147,8 +157,8 @@ export async function listApprovedComments(
 }
 
 /** List pending comments for moderation */
-export async function listPendingComments(siteId: string): Promise<CommentRow[]> {
-  const sb = await getTenantClient();
+export async function listPendingComments(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<CommentRow[]> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
@@ -165,8 +175,9 @@ export async function listPendingComments(siteId: string): Promise<CommentRow[]>
 export async function moderateComment(
   id: string,
   status: "approved" | "rejected" | "spam",
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CommentRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
@@ -184,8 +195,8 @@ export async function moderateComment(
 }
 
 /** Get comment by ID */
-export async function getCommentById(id: string): Promise<CommentRow | null> {
-  const sb = await getTenantClient();
+export async function getCommentById(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<CommentRow | null> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(COMMENTS_TABLE).select("*").eq("id", id).maybeSingle();
 

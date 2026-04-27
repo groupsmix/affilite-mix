@@ -149,7 +149,20 @@ jobs:
       - name: terraform fmt -check
         run: terraform -chdir=terraform/cloudflare fmt -check -recursive
       - name: terraform init (no backend)
-        run: terraform -chdir=terraform/cloudflare init -backend=false
+        # Retry to absorb transient 502/timeout errors when the provider
+        # registry / GitHub releases CDN flakes during plugin download.
+        # Pure infra flake — code is unchanged on retry.
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if terraform -chdir=terraform/cloudflare init -backend=false -input=false; then
+              exit 0
+            fi
+            echo "terraform init failed (attempt ${attempt}); retrying after backoff..." >&2
+            sleep $((attempt * 15))
+          done
+          echo "terraform init failed after 3 attempts" >&2
+          exit 1
       - name: terraform validate
         run: terraform -chdir=terraform/cloudflare validate
 

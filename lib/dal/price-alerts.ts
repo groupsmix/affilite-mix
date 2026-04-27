@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface PriceAlertRow {
   id: string;
@@ -17,14 +18,17 @@ export interface PriceAlertRow {
 const TABLE = "price_alerts";
 
 /** Subscribe to a price-drop alert */
-export async function createPriceAlert(input: {
-  product_id: string;
-  site_id: string;
-  email: string;
-  target_price: number;
-  currency?: string;
-}): Promise<PriceAlertRow> {
-  const sb = await getTenantClient();
+export async function createPriceAlert(
+  input: {
+    product_id: string;
+    site_id: string;
+    email: string;
+    target_price: number;
+    currency?: string;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<PriceAlertRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
@@ -35,8 +39,9 @@ export async function createPriceAlert(input: {
 export async function getPriceAlert(
   productId: string,
   email: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<PriceAlertRow | null> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -51,8 +56,8 @@ export async function getPriceAlert(
 }
 
 /** List all active alerts for an email */
-export async function listAlertsByEmail(email: string, siteId: string): Promise<PriceAlertRow[]> {
-  const sb = await getTenantClient();
+export async function listAlertsByEmail(email: string, siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<PriceAlertRow[]> {
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -70,8 +75,9 @@ export async function listAlertsByEmail(email: string, siteId: string): Promise<
 export async function findTriggeredAlerts(
   productId: string,
   currentPrice: number,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<PriceAlertRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -85,8 +91,8 @@ export async function findTriggeredAlerts(
 }
 
 /** Mark an alert as triggered */
-export async function markAlertTriggered(id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function markAlertTriggered(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
 
   const { error } = await sb
     .from(TABLE)
@@ -96,16 +102,16 @@ export async function markAlertTriggered(id: string): Promise<void> {
 }
 
 /** Unsubscribe from an alert */
-export async function deactivatePriceAlert(id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deactivatePriceAlert(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
 
   const { error } = await sb.from(TABLE).update({ is_active: false }).eq("id", id);
   if (error) throw error;
 }
 
 /** Unsubscribe all alerts for an email */
-export async function deactivateAllAlerts(email: string, siteId: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deactivateAllAlerts(email: string, siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
 
   const { error } = await sb
     .from(TABLE)

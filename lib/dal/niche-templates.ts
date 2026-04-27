@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "niche_templates";
 const LIST_COLUMNS =
@@ -24,8 +25,8 @@ export interface NicheTemplateRow {
 }
 
 /** List all niche templates */
-export async function listNicheTemplates(): Promise<NicheTemplateRow[]> {
-  const sb = await getTenantClient();
+export async function listNicheTemplates(getClient: DalClientGetter = defaultDalClientGetter): Promise<NicheTemplateRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -37,8 +38,8 @@ export async function listNicheTemplates(): Promise<NicheTemplateRow[]> {
 }
 
 /** Get a single template by slug */
-export async function getNicheTemplateBySlug(slug: string): Promise<NicheTemplateRow | null> {
-  const sb = await getTenantClient();
+export async function getNicheTemplateBySlug(slug: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<NicheTemplateRow | null> {
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
 
   if (error && error.code !== "PGRST116") throw error;
@@ -48,8 +49,9 @@ export async function getNicheTemplateBySlug(slug: string): Promise<NicheTemplat
 /** Create a new niche template */
 export async function createNicheTemplate(
   input: Omit<NicheTemplateRow, "id" | "created_at" | "updated_at" | "is_builtin">,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<NicheTemplateRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
 
   if (error) throw error;
@@ -60,8 +62,9 @@ export async function createNicheTemplate(
 export async function updateNicheTemplate(
   id: string,
   input: Partial<Omit<NicheTemplateRow, "id" | "created_at" | "updated_at" | "is_builtin">>,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<NicheTemplateRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .update({ ...input, updated_at: new Date().toISOString() })
@@ -74,8 +77,8 @@ export async function updateNicheTemplate(
 }
 
 /** Delete a niche template (only non-builtin) */
-export async function deleteNicheTemplate(id: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteNicheTemplate(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("id", id).eq("is_builtin", false);
 
   if (error) throw error;

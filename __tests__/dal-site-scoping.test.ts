@@ -108,7 +108,10 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 // Stubs for things DAL functions don't need during site-scoping checks.
-vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
+vi.mock("next/cache", () => ({
+  revalidateTag: vi.fn(),
+  unstable_cache: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
+}));
 
 // ── Assertions ───────────────────────────────────────────────────
 

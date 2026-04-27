@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         clicks_7d: c7,
         commissions_7d: totalComm7d,
         epc_7d: c7 > 0 ? totalComm7d / c7 : 0,
-      });
+      }, getPrivilegedSupabaseClient);
 
       updated++;
     }

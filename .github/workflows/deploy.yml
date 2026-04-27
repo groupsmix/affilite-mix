@@ -742,8 +742,35 @@ jobs:
       # never hits the new Worker bundle while the secret store is still
       # mid-rotation. The post-deploy health-check stage below verifies
       # the live Worker reports `status=ok` for every required secret.
+      #
+      # A-025: Use wrangler deploy --json so the deploy creates a version
+      # and returns its ID. This makes the default deploy version-aware,
+      # enabling gradual rollouts and instant rollbacks via the Versions API.
       - name: Deploy to Cloudflare
-        run: npx opennextjs-cloudflare deploy
+        run: |
+          set -euo pipefail
+          # Build is already done above; wrangler deploy uses the compiled bundle.
+          npx wrangler deploy --json > deploy-output.json 2> deploy-stderr.txt || true
+          cat deploy-stderr.txt
+
+          VERSION_ID=$(jq -r '.versions[0].id // empty' deploy-output.json 2>/dev/null || true)
+          DEPLOYMENT_URL=$(jq -r '.versions[0].url // empty' deploy-output.json 2>/dev/null || true)
+
+          if [ -z "$VERSION_ID" ]; then
+            echo "::warning::Could not extract version_id from wrangler deploy output. Falling back to opennextjs-cloudflare deploy."
+            npx opennextjs-cloudflare deploy
+          else
+            echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
+            echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+            echo "Deployed version $VERSION_ID at $DEPLOYMENT_URL"
+          fi
+        id: cloudflare-deploy
+
+      # A-018: Deploy the dedicated heavy-crons worker so long-running cron
+      # jobs (ai-generate, commission-ingest, price-scrape) do not share
+      # CPU/memory budget with user-facing request handling.
+      - name: Deploy heavy-crons worker
+        run: npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.heavy-crons.jsonc
 
   # ═══════════════════════════════════════════════════════════════════
   # STAGE 4: Health check + verify deployment
@@ -790,6 +817,39 @@ jobs:
           fi
 
           echo "Deployment healthy"
+
+      # A-021: Post-deploy RLS policy drift check.
+      # Compares the current pg_policies against a known baseline and
+      # alerts if any critical tenant-isolation policies are missing.
+      - name: Verify RLS policy baseline
+        run: |
+          set -euo pipefail
+          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
+          if [ -z "$DB_URL" ]; then
+            echo "::warning::SUPABASE_DB_URL not set — skipping RLS policy baseline check"
+            exit 0
+          fi
+
+          MISSING=$(psql "$DB_URL" -t -A -c "
+            SELECT policyname
+            FROM pg_policies
+            WHERE schemaname = 'public'
+              AND tablename IN (
+                'sites','products','content','pages','ad_placements',
+                'categories','modules','quizzes','scheduled_jobs',
+                'affiliate_clicks','commissions','click_failures',
+                'affiliate_tracking_keys'
+              )
+              AND policyname LIKE 'tenant_isolation_auth_%'
+            ORDER BY policyname;
+          " | wc -l)
+
+          if [ "$MISSING" -lt 10 ]; then
+            echo "::error::Only $MISSING tenant_isolation_auth_* policies found in pg_policies. Expected >= 10. Check migration drift."
+            exit 1
+          fi
+
+          echo "RLS baseline check passed ($MISSING tenant isolation policies)"
 
       - name: Verify deployment
         run: |

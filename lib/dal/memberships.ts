@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface MembershipRow {
   id: string;
@@ -29,8 +30,8 @@ export async function createMembership(input: {
   stripe_subscription_id?: string;
   current_period_start?: string;
   current_period_end?: string;
-}): Promise<MembershipRow> {
-  const sb = await getTenantClient();
+}, getClient: DalClientGetter = defaultDalClientGetter): Promise<MembershipRow> {
+  const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;
@@ -41,8 +42,9 @@ export async function createMembership(input: {
 export async function getActiveMembership(
   email: string,
   siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<MembershipRow | null> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -59,8 +61,9 @@ export async function getActiveMembership(
 /** Get membership by Stripe subscription ID */
 export async function getMembershipByStripeSubscription(
   subscriptionId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<MembershipRow | null> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -87,8 +90,9 @@ export async function updateMembership(
       | "email"
     >
   >,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<MembershipRow> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   const { data, error } = await sb
     .from(TABLE)
@@ -102,8 +106,8 @@ export async function updateMembership(
 }
 
 /** List all members for a site */
-export async function listMembers(siteId: string, status?: string): Promise<MembershipRow[]> {
-  const sb = await getTenantClient();
+export async function listMembers(siteId: string, status?: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<MembershipRow[]> {
+  const sb = await getClient();
 
   let query = sb
     .from(TABLE)
@@ -121,8 +125,8 @@ export async function listMembers(siteId: string, status?: string): Promise<Memb
 }
 
 /** Get member count for a site */
-export async function getMemberCount(siteId: string): Promise<number> {
-  const sb = await getTenantClient();
+export async function getMemberCount(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+  const sb = await getClient();
 
   const { count, error } = await sb
     .from(TABLE)

@@ -1,6 +1,7 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 import { assertRows, hasNumberProp } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "ad_impressions";
 
@@ -11,8 +12,9 @@ export async function recordAdImpression(
   pagePath: string,
   contentId?: string,
   cpmRevenueCents = 0,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<void> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
 
   // Use database-level atomic function for maximum safety under concurrency
   // This is more reliable than application-level upsert because it's a single
@@ -36,8 +38,9 @@ export async function getAdImpressionStats(
   siteId: string,
   startDate: string,
   endDate?: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<{ ad_placement_id: string; total_impressions: number }[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   let query = sb
     .from(TABLE)
     .select("ad_placement_id, impression_count")

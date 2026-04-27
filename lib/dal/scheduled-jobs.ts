@@ -1,5 +1,6 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "scheduled_jobs";
 const LIST_COLUMNS =
@@ -36,8 +37,9 @@ export async function listScheduledJobs(
   siteId: string,
   status?: ScheduledJobRow["status"],
   limit = 50,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ScheduledJobRow[]> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
@@ -53,8 +55,8 @@ export async function listScheduledJobs(
 }
 
 /** Create a scheduled job */
-export async function createScheduledJob(input: CreateScheduledJobInput): Promise<ScheduledJobRow> {
-  const sb = await getTenantClient();
+export async function createScheduledJob(input: CreateScheduledJobInput, getClient: DalClientGetter = defaultDalClientGetter): Promise<ScheduledJobRow> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .insert({
@@ -72,8 +74,8 @@ export async function createScheduledJob(input: CreateScheduledJobInput): Promis
 }
 
 /** Cancel a scheduled job */
-export async function cancelScheduledJob(siteId: string, jobId: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function cancelScheduledJob(siteId: string, jobId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb
     .from(TABLE)
     .update({ status: "cancelled" })
@@ -88,8 +90,9 @@ export async function cancelScheduledJob(siteId: string, jobId: string): Promise
 export async function getScheduledJobById(
   siteId: string,
   jobId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ScheduledJobRow | null> {
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")

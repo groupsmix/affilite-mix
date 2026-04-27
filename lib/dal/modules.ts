@@ -9,6 +9,7 @@
 import { getTenantClient } from "@/lib/supabase-server";
 import type { SiteModuleRow } from "@/types/database";
 import { assertRows, assertRow } from "./type-guards";
+import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "site_modules";
 
@@ -17,8 +18,8 @@ const TABLE = "site_modules";
 /* ------------------------------------------------------------------ */
 
 /** List all module records for a site */
-export async function listSiteModules(siteId: string): Promise<SiteModuleRow[]> {
-  const sb = await getTenantClient();
+export async function listSiteModules(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteModuleRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -30,8 +31,8 @@ export async function listSiteModules(siteId: string): Promise<SiteModuleRow[]> 
 }
 
 /** List only enabled modules for a site */
-export async function listEnabledModules(siteId: string): Promise<SiteModuleRow[]> {
-  const sb = await getTenantClient();
+export async function listEnabledModules(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteModuleRow[]> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("*")
@@ -44,8 +45,8 @@ export async function listEnabledModules(siteId: string): Promise<SiteModuleRow[
 }
 
 /** Check if a specific module is enabled for a site */
-export async function isModuleEnabled(siteId: string, moduleKey: string): Promise<boolean> {
-  const sb = await getTenantClient();
+export async function isModuleEnabled(siteId: string, moduleKey: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<boolean> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select("is_enabled")
@@ -63,13 +64,16 @@ export async function isModuleEnabled(siteId: string, moduleKey: string): Promis
 /* ------------------------------------------------------------------ */
 
 /** Upsert a module record for a site (enable/disable + config) */
-export async function upsertSiteModule(input: {
-  site_id: string;
-  module_key: string;
-  is_enabled: boolean;
-  config?: Record<string, unknown>;
-}): Promise<SiteModuleRow> {
-  const sb = await getTenantClient();
+export async function upsertSiteModule(
+  input: {
+    site_id: string;
+    module_key: string;
+    is_enabled: boolean;
+    config?: Record<string, unknown>;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteModuleRow> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .upsert(
@@ -92,10 +96,11 @@ export async function upsertSiteModule(input: {
 export async function bulkUpsertSiteModules(
   siteId: string,
   modules: { module_key: string; is_enabled: boolean; config?: Record<string, unknown> }[],
+  getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteModuleRow[]> {
   if (modules.length === 0) return [];
 
-  const sb = await getTenantClient();
+  const sb = await getClient();
   const rows = modules.map((m) => ({
     site_id: siteId,
     module_key: m.module_key,
@@ -113,8 +118,8 @@ export async function bulkUpsertSiteModules(
 }
 
 /** Delete a module record for a site */
-export async function deleteSiteModule(siteId: string, moduleKey: string): Promise<void> {
-  const sb = await getTenantClient();
+export async function deleteSiteModule(siteId: string, moduleKey: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+  const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("module_key", moduleKey);
 
   if (error) throw error;
