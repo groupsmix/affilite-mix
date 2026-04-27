@@ -89,9 +89,11 @@ resource "cloudflare_notification_policy" "worker_5xx_alert" {
     environment = ["production"]
   }
 
-  email_integration     = var.alert_mechanisms.email
-  pagerduty_integration = var.alert_mechanisms.pagerduty
-  webhooks_integration  = var.alert_mechanisms.webhooks
+  mechanisms = {
+    email     = var.alert_mechanisms.email
+    pagerduty = var.alert_mechanisms.pagerduty
+    webhooks  = var.alert_mechanisms.webhooks
+  }
 
   lifecycle {
     precondition {
@@ -113,9 +115,11 @@ resource "cloudflare_notification_policy" "worker_cpu_time_alert" {
     environment = ["production"]
   }
 
-  email_integration     = var.alert_mechanisms.email
-  pagerduty_integration = var.alert_mechanisms.pagerduty
-  webhooks_integration  = var.alert_mechanisms.webhooks
+  mechanisms = {
+    email     = var.alert_mechanisms.email
+    pagerduty = var.alert_mechanisms.pagerduty
+    webhooks  = var.alert_mechanisms.webhooks
+  }
 
   lifecycle {
     precondition {
