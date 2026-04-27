@@ -76,9 +76,34 @@ function emit(
   }
 }
 
+/**
+ * F-OBS-02: PII field deny-list. These fields are unconditionally redacted
+ * from log output to prevent accidental PII leakage.
+ */
+const DENIED_LOG_FIELDS = new Set([
+  "email",
+  "password",
+  "secret",
+  "token",
+  "cookie",
+  "authorization",
+  "body",
+  "password_hash",
+  "totp_secret",
+  "reset_token",
+  "api_key",
+  "apikey",
+  "access_token",
+  "refresh_token",
+]);
+
 function jsonReplacer(key: string, value: unknown): unknown {
   if (value instanceof Error) {
     return { message: value.message, name: value.name, stack: value.stack };
+  }
+  // F-OBS-02: Redact denied PII fields
+  if (DENIED_LOG_FIELDS.has(key.toLowerCase())) {
+    return "[REDACTED]";
   }
   // F-026: Tighten IP truncation logic to catch all common IP keys
   if (/^(?:req_)?ip(?:_address)?$|peer(?:_ip)?|^client_ip$/i.test(key)) {

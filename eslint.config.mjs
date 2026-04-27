@@ -68,6 +68,26 @@ const eslintConfig = [
     },
   },
   {
+    // F-ARCH-02: Enforce DAL site-scoping — raw .from("table") calls on
+    // supabase clients outside the DAL layer are forbidden.
+    // The selector matches: <expr>.from(<stringLiteral>) which catches
+    // sb.from("table"), supabase.from("table"), etc.
+    files: ["app/**/*.ts", "app/**/*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector:
+            "CallExpression[callee.property.name='from'] > Literal:first-child",
+          message:
+            "Prefer tenantQuery() from @/lib/dal/tenant-query over raw .from(). " +
+            "If this is Array.from() or a privileged context (cron/queue/webhook), " +
+            "add an eslint-disable comment.",
+        },
+      ],
+    },
+  },
+  {
     // The legacy thin wrapper is allowed to keep a single import of the
     // privileged gateway until it is fully removed.
     files: ["lib/supabase-server.ts"],

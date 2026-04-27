@@ -14,12 +14,31 @@ import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 
 /** 5 login attempts per 15 minutes per IP */
-const LOGIN_RATE_LIMIT_IP = { maxRequests: 5, windowMs: 15 * 60 * 1000, failPolicy: "closed" as const };
+const LOGIN_RATE_LIMIT_IP = {
+  maxRequests: 5,
+  windowMs: 15 * 60 * 1000,
+  failPolicy: "closed" as const,
+};
 
 /** 10 login attempts per 15 minutes per email (prevents brute-force from rotating IPs) */
-const LOGIN_RATE_LIMIT_EMAIL = { maxRequests: 10, windowMs: 15 * 60 * 1000, failPolicy: "closed" as const };
+const LOGIN_RATE_LIMIT_EMAIL = {
+  maxRequests: 10,
+  windowMs: 15 * 60 * 1000,
+  failPolicy: "closed" as const,
+};
 
 export async function POST(request: NextRequest) {
+  // F-FE-01: Fail fast if critical env vars are missing in edge runtime.
+  // Checked at request time (not module load) to avoid build-time failures.
+  // Only enforced in production — dev/test uses a random fallback via lib/jwt-secret.ts.
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.JWT_SECRET &&
+    !process.env.JWT_SECRET_CURRENT
+  ) {
+    return apiError(500, "Server configuration error: JWT signing key not available");
+  }
+
   try {
     const ip = getClientIp(request);
     const rl = await checkRateLimit(`login:${ip}`, LOGIN_RATE_LIMIT_IP);
@@ -105,7 +124,11 @@ export async function POST(request: NextRequest) {
           );
         }
         // Separate tight rate limit for TOTP brute-forcing (5 attempts per 5 mins per email)
-        const totpLimit = { maxRequests: 5, windowMs: 5 * 60 * 1000, failPolicy: "closed" as const };
+        const totpLimit = {
+          maxRequests: 5,
+          windowMs: 5 * 60 * 1000,
+          failPolicy: "closed" as const,
+        };
         const totpRl = await checkRateLimit(`login-totp:${rateLimitEmail}`, totpLimit);
 
         if (!totpRl.allowed) {

@@ -209,10 +209,15 @@ export async function DELETE(request: NextRequest) {
       site_id,
     });
 
+    // F-COMPLIANCE-01: Return retention disclosure alongside erasure results.
     return NextResponse.json({
       ok: true,
       message: "User data erased successfully",
       results,
+      deleted: ["newsletter_subscribers", "comments", "wrist_shots", "quiz_submissions"],
+      anonymised: ["memberships"],
+      retained: ["affiliate_clicks", "audit_log"],
+      retention_basis: "GDPR Art. 17(3)(e) — retention for legal/financial claims",
     });
   } catch (err) {
     captureException(err, { context: "[api/admin/privacy] unexpected error" });

@@ -6,6 +6,8 @@ import { logger } from "@/lib/logger";
 import { constructStripeEvent } from "@/lib/stripe-webhook";
 
 export async function POST(request: NextRequest) {
+  // F-FE-01: Fail fast if critical env vars are missing in edge runtime.
+  // Checked at request time (not module load) to avoid build-time failures.
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   const stripeKey = process.env.STRIPE_SECRET_KEY;
 

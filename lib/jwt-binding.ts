@@ -64,21 +64,24 @@ export async function computeRequestBinding(request: Request): Promise<string | 
 /**
  * Check a token's binding claim against the current request.
  *
- * Returns `true` when:
- *  - the token carries no binding claim (legacy tokens or refresh-issued
- *    tokens without a request), or
- *  - the claim matches the request's computed binding.
+ * F-AUTH-02: Returns `false` when the token has no `bnd` claim and the route
+ * demands binding (requireBinding=true). Legacy tokens without binding are
+ * rejected when binding is required. When requireBinding is false (default),
+ * missing binding is accepted for backwards compatibility.
  *
- * Returns `false` only when a binding claim is present and differs from
+ * Returns `false` when a binding claim is present and differs from
  * the current request — i.e. the token is being replayed from a different
  * device or network.
  */
 export async function verifyRequestBinding(
   tokenBinding: string | undefined,
   request: Request | undefined,
+  requireBinding: boolean = false,
 ): Promise<boolean> {
-  if (!tokenBinding) return true;
-  if (!request) return true;
+  if (!tokenBinding) {
+    return !requireBinding;
+  }
+  if (!request) return !requireBinding;
 
   const expected = await computeRequestBinding(request);
   if (expected === null) return true;
