@@ -51,7 +51,7 @@ describe("internal-auth config guard", () => {
     delete process.env.INTERNAL_API_TOKEN;
 
     const mod = await import("@/lib/internal-auth");
-    expect(() => mod.getInternalToken()).toThrow(/INTERNAL_API_TOKEN is required/);
+    expect(() => mod.getInternalToken()).toThrow(/INTERNAL_API_TOKEN_INTERNAL is required/);
     vi.unstubAllEnvs();
   });
 
@@ -71,7 +71,7 @@ describe("internal-auth config guard", () => {
     process.env.INTERNAL_API_TOKEN = "   ";
 
     const mod = await import("@/lib/internal-auth");
-    expect(() => mod.getInternalToken()).toThrow(/INTERNAL_API_TOKEN is required/);
+    expect(() => mod.getInternalToken()).toThrow(/INTERNAL_API_TOKEN_INTERNAL is required/);
     vi.unstubAllEnvs();
   });
 

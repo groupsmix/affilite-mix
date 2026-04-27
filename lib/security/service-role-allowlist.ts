@@ -47,6 +47,29 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   "app/api/cron/data-retention/route.ts",
   "app/api/cron/epc-recompute/route.ts",
   "app/api/cron/price-scrape/route.ts",
+  "app/api/cron/ai-generate/route.ts",
+  "app/api/cron/click-reconcile/route.ts",
+  "app/api/cron/commission-ingest/route.ts",
+  "app/api/cron/expire-deals/route.ts",
+  "app/api/cron/stripe-sync/route.ts",
+
+  // Admin guard runs before any tenant context is established and
+  // needs to look up admin sessions / memberships across sites. The
+  // function is invoked from inside `requireAdmin`, which is itself
+  // the gate for cookie-authenticated admin routes.
+  "lib/admin-guard.ts",
+
+  // Click ingestion queue worker writes to `affiliate_clicks` from
+  // the Cloudflare Queue handler. Queue messages have no cookies and
+  // carry their own per-message `site_id`; the queue endpoint
+  // (`app/api/queue/clicks/route.ts`) is gated by INTERNAL_API_TOKEN.
+  "lib/click-queue.ts",
+
+  // Default DAL client getter — provides the privileged client only
+  // when callers explicitly opt in by passing it (or rely on the
+  // default in cron / internal contexts already on this allow-list).
+  // Tenant-scoped routes always pass `getTenantClient` instead.
+  "lib/dal/dal-client.ts",
 
   // LIVE-10 / F-024: applyStripeEventAtomic calls the
   // apply_stripe_membership_event RPC, which is GRANTed only to
