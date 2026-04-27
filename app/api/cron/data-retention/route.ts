@@ -16,7 +16,7 @@ import { logger } from "@/lib/logger";
  * Purges old data to comply with GDPR Art. 5(1)(e):
  * - affiliate_clicks: older than 90 days
  * - audit_log: older than 365 days
- * - stripe_events: older than 30 days
+ * - stripe_events: older than 90 days
  */
 export async function POST(request: NextRequest) {
   if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/data-retention"))) {
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const stripeDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const stripeDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     const { error: stripeError } = await sb
       .from("stripe_events")
       .delete()
