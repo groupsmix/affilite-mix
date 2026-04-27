@@ -34,7 +34,6 @@ import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 export type AuthenticatedRouteHandler = (
   request: NextRequest,
   context: {
-    params: Record<string, string>;
     session: AdminPayload;
     /** Server-derived active site id (from the validated cookie). */
     siteId: string;
@@ -44,19 +43,22 @@ export type AuthenticatedRouteHandler = (
 ) => Promise<NextResponse> | NextResponse;
 
 /**
- * Guard a route by feature+action against the **server-derived** active
- * site. Use this in place of any handler that previously read
- * `request.nextUrl.searchParams.get("site_id")` for authorization.
+ * Guard a non-dynamic route (no `[param]` segments) by feature+action
+ * against the **server-derived** active site. Use this in place of any
+ * handler that previously read `request.nextUrl.searchParams.get("site_id")`
+ * for authorization.
+ *
+ * For dynamic routes (e.g. `app/api/admin/foo/[id]/route.ts`) keep using
+ * `requireAdmin()` + `authorizeResource()` so the route signature stays
+ * exactly `(request, { params: Promise<{ id: string }> })` — Next 15's
+ * route validator rejects any other shape for the second argument.
  */
 export function withAuthz(
   feature: PermissionFeature,
   action: PermissionAction,
   handler: AuthenticatedRouteHandler,
 ) {
-  return async (
-    request: NextRequest,
-    context?: { params?: Record<string, string> | Promise<Record<string, string>> },
-  ) => {
+  return async (request: NextRequest) => {
     const auth = await requireAdmin();
     if (auth.error) return auth.error;
     const { session, dbSiteId, siteSlug } = auth;
@@ -70,14 +72,7 @@ export function withAuthz(
       return apiError(403, "Forbidden");
     }
 
-    const rawParams = context?.params;
-    const resolvedParams: Record<string, string> =
-      rawParams && typeof (rawParams as Promise<unknown>).then === "function"
-        ? await (rawParams as Promise<Record<string, string>>)
-        : ((rawParams as Record<string, string> | undefined) ?? {});
-
     return handler(request, {
-      params: resolvedParams,
       session,
       siteId: dbSiteId,
       siteSlug,
