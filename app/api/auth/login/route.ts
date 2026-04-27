@@ -1,17 +1,5 @@
 export const runtime = "edge";
 
-// F-FE-01: Fail fast if critical env vars are missing in edge runtime
-if (
-  typeof process !== "undefined" &&
-  process.env?.NODE_ENV === "production" &&
-  !process.env.JWT_SECRET &&
-  !process.env.JWT_SECRET_CURRENT
-) {
-  throw new Error(
-    "JWT_SECRET (or JWT_SECRET_CURRENT) missing for edge runtime — /api/auth/login cannot sign tokens",
-  );
-}
-
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser, createToken, COOKIE_NAME, getAdminBindingCookie } from "@/lib/auth";
 import { computeRequestBinding } from "@/lib/jwt-binding";
@@ -40,6 +28,17 @@ const LOGIN_RATE_LIMIT_EMAIL = {
 };
 
 export async function POST(request: NextRequest) {
+  // F-FE-01: Fail fast if critical env vars are missing in edge runtime.
+  // Checked at request time (not module load) to avoid build-time failures.
+  // Only enforced in production — dev/test uses a random fallback via lib/jwt-secret.ts.
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.JWT_SECRET &&
+    !process.env.JWT_SECRET_CURRENT
+  ) {
+    return apiError(500, "Server configuration error: JWT signing key not available");
+  }
+
   try {
     const ip = getClientIp(request);
     const rl = await checkRateLimit(`login:${ip}`, LOGIN_RATE_LIMIT_IP);
