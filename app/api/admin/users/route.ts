@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
 import {
   listAdminUsers,
   createAdminUser,
@@ -30,10 +30,9 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 
 /** GET /api/admin/users — list all admin users (super_admin only) */
 export async function GET() {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (session.role !== "super_admin") {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
@@ -53,10 +52,9 @@ export async function GET() {
 
 /** POST /api/admin/users — create a new admin user */
 export async function POST(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Only super_admin can create users
   if (session.role !== "super_admin") {
@@ -123,10 +121,9 @@ export async function POST(request: NextRequest) {
 
 /** PATCH /api/admin/users — update an admin user */
 export async function PATCH(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Only super_admin can update users
   if (session.role !== "super_admin") {
@@ -201,10 +198,9 @@ export async function PATCH(request: NextRequest) {
 
 /** DELETE /api/admin/users — delete an admin user */
 export async function DELETE(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
