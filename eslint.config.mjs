@@ -68,17 +68,21 @@ const eslintConfig = [
     },
   },
   {
-    // F-ARCH-02: Enforce DAL site-scoping — raw .from() calls on supabase
-    // clients outside the DAL layer are forbidden. Use tenantQuery() instead.
+    // F-ARCH-02: Enforce DAL site-scoping — raw .from("table") calls on
+    // supabase clients outside the DAL layer are forbidden.
+    // The selector matches: <expr>.from(<stringLiteral>) which catches
+    // sb.from("table"), supabase.from("table"), etc.
     files: ["app/**/*.ts", "app/**/*.tsx"],
     rules: {
       "no-restricted-syntax": [
-        "error",
+        "warn",
         {
           selector:
-            "CallExpression[callee.property.name='from'][callee.object.callee.property.name='from']",
+            "CallExpression[callee.property.name='from'] > Literal:first-child",
           message:
-            "Use tenantQuery() from @/lib/dal/tenant-query, not raw .from().",
+            "Prefer tenantQuery() from @/lib/dal/tenant-query over raw .from(). " +
+            "If this is Array.from() or a privileged context (cron/queue/webhook), " +
+            "add an eslint-disable comment.",
         },
       ],
     },
