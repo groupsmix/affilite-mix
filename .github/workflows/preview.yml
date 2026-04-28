@@ -208,7 +208,7 @@ jobs:
 
       - name: Comment preview URL on PR
         if: steps.deploy.outputs.preview_url
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v9
         with:
           script: |
             const previewUrl = '${{ steps.deploy.outputs.preview_url }}';
@@ -336,7 +336,7 @@ jobs:
 
       - name: Comment cleanup status on PR
         if: always()
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v9
         with:
           script: |
             const worker = '${{ steps.delete.outputs.worker_name }}';
