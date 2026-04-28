@@ -13,18 +13,45 @@ type AdminResult =
   | { error: null; session: AdminPayload; dbSiteId: string; siteSlug: string };
 
 /** 100 admin API requests per minute per user session (3.30) */
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000, failPolicy: "closed" as const, graceMs: 5000 };
+const ADMIN_RATE_LIMIT = {
+  maxRequests: 100,
+  windowMs: 60 * 1000,
+  failPolicy: "closed" as const,
+  graceMs: 5000,
+};
+
+/**
+ * G-45: Build the canonical 401 response for admin routes.
+ *
+ * Both unauthenticated and unauthorised callers receive the same opaque
+ * `Unauthorized` body and `WWW-Authenticate: Bearer` challenge so an
+ * unauthenticated probe cannot distinguish:
+ *   - a route that does not exist                  (404)
+ *   - a route that requires a different role       (was 403)
+ *   - a route the caller has no membership for     (was 403)
+ *   - a route the caller is simply not signed into (401)
+ *
+ * Using a single status + body removes the route-existence side channel.
+ */
+export function unauthorizedResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "Unauthorized" },
+    { status: 401, headers: { "WWW-Authenticate": "Bearer" } },
+  );
+}
 
 /**
  * Assert that the authenticated session has the required role.
- * Returns a 403 NextResponse if the role is insufficient, or null if OK.
+ * Returns a 401 NextResponse (with `WWW-Authenticate: Bearer`) if the role
+ * is insufficient, or null if OK. See `unauthorizedResponse` for why we
+ * return 401 here rather than 403.
  */
 export function assertRole(
   session: AdminPayload,
   requiredRole: "admin" | "super_admin",
 ): NextResponse | null {
   if (requiredRole === "super_admin" && session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
+    return unauthorizedResponse();
   }
   return null;
 }
@@ -42,7 +69,7 @@ export async function requireAdmin(): Promise<AdminResult> {
   const session = await getAdminSession();
   if (!session) {
     return {
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      error: unauthorizedResponse(),
       session: null,
       dbSiteId: null,
       siteSlug: null,
@@ -126,11 +153,13 @@ export async function requireAdmin(): Promise<AdminResult> {
 
   // Enforce membership: non-super_admin users must have a membership row
   // for the active site. A forged or manually changed cookie is not enough.
+  // G-45: respond with a generic 401 (not 403) so route existence cannot
+  // be probed by toggling the active-site cookie.
   if (session.role !== "super_admin" && session.userId) {
     const membership = await getAdminSiteMembership(session.userId, dbSiteId);
     if (!membership) {
       return {
-        error: NextResponse.json({ error: "You do not have access to this site" }, { status: 403 }),
+        error: unauthorizedResponse(),
         session: null,
         dbSiteId: null,
         siteSlug: null,
@@ -143,7 +172,8 @@ export async function requireAdmin(): Promise<AdminResult> {
 
 /**
  * Convenience wrapper: calls requireAdmin() then asserts super_admin role.
- * Returns the same AdminResult shape — with a 403 error if the role is insufficient.
+ * Returns the same AdminResult shape — with a 401 error (Bearer challenge)
+ * if the role is insufficient. See `unauthorizedResponse` for rationale.
  */
 export async function requireSuperAdmin(): Promise<AdminResult> {
   const result = await requireAdmin();

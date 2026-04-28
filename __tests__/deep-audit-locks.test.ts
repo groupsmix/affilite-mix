@@ -197,18 +197,20 @@ describe("Deep audit regression locks (F-001 .. F-016)", () => {
     });
   });
 
-  describe("F-010 — GET /api/admin/users requires super_admin", () => {
+  describe("F-010 / G-45 — GET /api/admin/users requires super_admin (via assertRole)", () => {
     const src = readRepoFile("app/api/admin/users/route.ts");
     const exec = stripTsComments(src);
 
-    it("GET handler 403s when session.role !== 'super_admin'", () => {
+    it("GET handler enforces super_admin via assertRole (returns 401 + Bearer)", () => {
       // Find the GET function block
       const getStart = exec.indexOf("export async function GET");
       expect(getStart).toBeGreaterThan(-1);
-      // First 1000 chars of the GET function should contain the super_admin check
+      // The GET handler must invoke assertRole(session, "super_admin").
+      // The role mismatch path itself lives in lib/admin-guard.ts and
+      // returns a 401 + WWW-Authenticate: Bearer (G-45) — no longer a 403.
       const getBlock = exec.slice(getStart, getStart + 1500);
-      expect(getBlock).toMatch(/session\.role\s*!==\s*"super_admin"/);
-      expect(getBlock).toMatch(/status:\s*403/);
+      expect(getBlock).toMatch(/assertRole\s*\(\s*session\s*,\s*"super_admin"\s*\)/);
+      expect(getBlock).not.toMatch(/status:\s*403/);
     });
   });
 
