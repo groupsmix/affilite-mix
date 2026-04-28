@@ -57,5 +57,5 @@ CREATE INDEX IF NOT EXISTS idx_product_epc_product
 ALTER TABLE commissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_epc_stats ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "service_role_commissions" ON commissions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "service_role_product_epc" ON product_epc_stats FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_commissions" ON commissions FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_product_epc" ON product_epc_stats FOR ALL TO service_role USING (true) WITH CHECK (true);
