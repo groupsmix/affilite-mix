@@ -19,7 +19,9 @@
  * Expected intervals are derived from the cron schedule in the registry.
  * A job is considered "missed" if it hasn't reported within
  * (expected interval × 2 + 10 minutes), giving a generous buffer for
- * natural scheduling jitter.
+ * natural scheduling jitter. In practice this means the alarm fires
+ * after two consecutive runs are skipped (G-52). Per-job cadence and
+ * threshold are documented in `docs/cron-liveness.md`.
  */
 
 import { cronJobs, type CronJob } from "@/lib/cron-registry";
@@ -42,7 +44,7 @@ export function parseCronIntervalSeconds(schedule: string): number {
   const parts = schedule.split(" ");
   if (parts.length !== 5) return 3600; // default 1h if unparseable
 
-  const [minute, hour, , , ] = parts;
+  const [minute, hour, , ,] = parts;
 
   // Every N minutes: */N * * * *
   if (minute.startsWith("*/")) {
@@ -121,14 +123,16 @@ export async function checkCronLiveness(): Promise<void> {
           expectedIntervalSec,
         });
         // Structured log for Logpush/Sentry alerting
-        console.error(JSON.stringify({
-          metric: "cron_liveness_miss",
-          job: job.name,
-          schedule: job.schedule,
-          last_run_ago_sec: Math.round(elapsed),
-          expected_interval_sec: expectedIntervalSec,
-          msg,
-        }));
+        console.error(
+          JSON.stringify({
+            metric: "cron_liveness_miss",
+            job: job.name,
+            schedule: job.schedule,
+            last_run_ago_sec: Math.round(elapsed),
+            expected_interval_sec: expectedIntervalSec,
+            msg,
+          }),
+        );
       }
     } catch {
       // Non-critical
@@ -139,7 +143,11 @@ export async function checkCronLiveness(): Promise<void> {
 /** Read the APP_CACHE_KV binding. */
 function readKV(): KVNamespace | undefined {
   const fromGlobal = (globalThis as Record<string, unknown>).APP_CACHE_KV;
-  if (fromGlobal !== undefined && typeof fromGlobal === "object" && "get" in (fromGlobal as object)) {
+  if (
+    fromGlobal !== undefined &&
+    typeof fromGlobal === "object" &&
+    "get" in (fromGlobal as object)
+  ) {
     return fromGlobal as unknown as KVNamespace;
   }
   try {
@@ -154,7 +162,9 @@ function readKV(): KVNamespace | undefined {
 }
 
 // Inline to avoid circular import
-function readKVBinding(): KVNamespace | undefined { return readKV(); }
+function readKVBinding(): KVNamespace | undefined {
+  return readKV();
+}
 
 /** Test helper: reset liveness check throttle. */
 export function __resetLivenessCheckForTests(): void {
