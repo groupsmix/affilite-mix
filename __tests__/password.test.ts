@@ -40,8 +40,9 @@ describe("verifyPassword", () => {
   });
 
   it("flags needsRehash=true for a bcrypt hash stored with fewer rounds", async () => {
-    // Hash at the previous cost factor (10) and verify against the bumped one (12).
-    const lowRoundHash = await bcrypt.hash("legacy-cost", 10);
+    // Hash below the current BCRYPT_ROUNDS (G-50 set it to 10) so this still
+    // exercises the "upgrade on next login" path.
+    const lowRoundHash = await bcrypt.hash("legacy-cost", 8);
     const result = await verifyPassword("legacy-cost", lowRoundHash);
     expect(result.valid).toBe(true);
     expect(result.needsRehash).toBe(true);

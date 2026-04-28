@@ -30,7 +30,10 @@ const EXPIRY = "8h"; // F-005: Reduced from 24h to limit exposure
  * password; it exists purely to produce a bcrypt-verification workload of
  * the same order of magnitude as a normal login.
  */
-const DUMMY_PASSWORD_HASH = "$2b$12$TeQV2VccuCYpmsfgIaWx1eQsGCyowOfMyZClxCXbjNAjhUaQMwcBm";
+// G-50: cost-10 bcrypt hash of a random throwaway string. Kept in sync with
+// BCRYPT_ROUNDS in lib/password.ts so dummy-hash verify work matches real
+// login work (timing equalization).
+const DUMMY_PASSWORD_HASH = "$2b$10$FIQMYsgSk2SAqMvHOeYvCeFGj1FfTGeQC3aghyI97o73Xda0uV4x2";
 
 function getSecretKey() {
   return new TextEncoder().encode(getJwtSecret());
