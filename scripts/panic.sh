@@ -164,11 +164,25 @@ if [[ -z "$CLOUDFLARE_ZONE_ID" ]]; then
 elif [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
   echo "  SKIP: CLOUDFLARE_API_TOKEN is unset; purge the zone manually in the dashboard"
 else
-  run "curl -fsS -X POST \
-    'https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache' \
-    -H 'Authorization: Bearer \$CLOUDFLARE_API_TOKEN' \
-    -H 'Content-Type: application/json' \
-    --data '{\"purge_everything\":true}'"
+  # Do NOT build this curl as a single string passed to `run`/`eval`:
+  # earlier revisions quoted the Bearer header as
+  # `-H 'Authorization: Bearer \$CLOUDFLARE_API_TOKEN'`, which sent the
+  # *literal string* `$CLOUDFLARE_API_TOKEN` instead of the token value
+  # (single quotes suppress expansion; the backslash kept the `$` intact
+  # through the outer double-quote pass). Invoke curl directly with an
+  # argv array so the token is expanded exactly once, by bash, before
+  # curl ever sees it — and keep the token out of the dry-run echo.
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "  DRY: curl -fsS -X POST https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache -H 'Authorization: Bearer <CLOUDFLARE_API_TOKEN>' ..."
+  else
+    echo "  RUN: curl -X POST .../purge_cache"
+    curl -fsS -X POST \
+      "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+      -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+      -H "Content-Type: application/json" \
+      --data '{"purge_everything":true}' \
+      || echo "  WARN: cache purge failed — retry manually in the Cloudflare dashboard"
+  fi
 fi
 
 echo ""
