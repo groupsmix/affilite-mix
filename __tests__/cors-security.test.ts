@@ -13,7 +13,7 @@
  * middleware.ts correctly enforces CORS policies.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 
 // Mock the middleware CORS logic for unit testing
 // In a real setup, these would be integration tests against the running app
@@ -145,29 +145,27 @@ describe("CORS Security", () => {
   });
 
   describe("Development mode behavior", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
     it("should allow localhost origins in development", () => {
-      const isDev = process.env.NODE_ENV === "development";
+      vi.stubEnv("NODE_ENV", "development");
+      const localhostOrigins = ["http://localhost:3000", "http://localhost:3001"];
 
-      if (isDev) {
-        const localhostOrigins = ["http://localhost:3000", "http://localhost:3001"];
-
-        const allowedOrigins = getAllowedOriginsMock();
-        for (const origin of localhostOrigins) {
-          expect(allowedOrigins).toContain(origin);
-        }
+      const allowedOrigins = getAllowedOriginsMock();
+      for (const origin of localhostOrigins) {
+        expect(allowedOrigins).toContain(origin);
       }
     });
 
     it("should NOT allow localhost origins in production", () => {
-      const isProd = process.env.NODE_ENV === "production";
+      vi.stubEnv("NODE_ENV", "production");
+      const localhostOrigins = ["http://localhost:3000", "http://localhost:3001"];
 
-      if (isProd) {
-        const localhostOrigins = ["http://localhost:3000", "http://localhost:3001"];
-
-        const allowedOrigins = getAllowedOriginsMock();
-        for (const origin of localhostOrigins) {
-          expect(allowedOrigins).not.toContain(origin);
-        }
+      const allowedOrigins = getAllowedOriginsMock();
+      for (const origin of localhostOrigins) {
+        expect(allowedOrigins).not.toContain(origin);
       }
     });
   });

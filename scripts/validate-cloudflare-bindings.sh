@@ -76,12 +76,22 @@ if ! grep -q '"binding".*"NEXT_INC_CACHE_R2_BUCKET"' "$WRANGLER_FILE"; then
     FAILURES+=("NEXT_INC_CACHE_R2_BUCKET R2 binding missing from wrangler.jsonc")
 fi
 
-# Check KV namespace IDs are not empty placeholders
+# Check KV namespace IDs are not empty placeholders. In wrangler.jsonc
+# the "binding" name and "id" are on separate lines, so a single-line
+# grep won't match — use awk to inspect each binding block.
 echo "  Checking KV namespace IDs are configured..."
-if grep -q 'RATE_LIMIT_KV.*"id":\s*""' "$WRANGLER_FILE"; then
+check_kv_id_empty() {
+    local name="$1"
+    awk -v name="$name" '
+      $0 ~ "\"binding\"[[:space:]]*:[[:space:]]*\""name"\"" { found=1; next }
+      found && /"id"[[:space:]]*:[[:space:]]*"[[:space:]]*"/ { print "EMPTY"; exit }
+      found && /"id"[[:space:]]*:/ { exit }
+    ' "$WRANGLER_FILE"
+}
+if [ "$(check_kv_id_empty RATE_LIMIT_KV)" = "EMPTY" ]; then
     FAILURES+=("RATE_LIMIT_KV namespace ID is empty - must be provisioned before deploy")
 fi
-if grep -q 'APP_CACHE_KV.*"id":\s*""' "$WRANGLER_FILE"; then
+if [ "$(check_kv_id_empty APP_CACHE_KV)" = "EMPTY" ]; then
     FAILURES+=("APP_CACHE_KV namespace ID is empty - must be provisioned before deploy")
 fi
 
