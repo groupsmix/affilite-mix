@@ -70,7 +70,7 @@ const nextConfig: NextConfig = {
             "style-src 'self'",
             "img-src 'self' data: blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.supabase.co https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com",
             "font-src 'self' https://fonts.gstatic.com",
-            "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com https://*.ingest.sentry.io",
+            "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.ingest.sentry.io",
             "object-src 'none'",
             "base-uri 'self'",
             "form-action 'self'",
