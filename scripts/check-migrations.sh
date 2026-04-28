@@ -27,30 +27,6 @@ if [ ! -d "$MIGRATIONS_DIR" ]; then
   exit 2
 fi
 
-# Historical migrations that pre-date the E-1 hardening migration
-# (00055_harden_remaining_rls.sql).  These are left untouched so the
-# migration history remains append-only; the hardening migration
-# drops and recreates each policy with a service_role scope.
-LEGACY_FILES=(
-  "00046_price_snapshots_and_alerts.sql"
-  "00047_quiz_funnel.sql"
-  "00048_commissions_and_epc.sql"
-  "00049_deals.sql"
-  "00050_community_ugc.sql"
-  "00051_memberships.sql"
-  "00052_ab_testing_and_review_state.sql"
-)
-
-is_legacy() {
-  local base="$1"
-  for legacy in "${LEGACY_FILES[@]}"; do
-    if [ "$base" = "$legacy" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
-
 PATTERN="FOR[[:space:]]+ALL[[:space:]]+USING[[:space:]]*\([[:space:]]*true[[:space:]]*\)"
 
 # Strip single-line SQL comments (-- …) before matching so comment
@@ -72,9 +48,6 @@ while IFS= read -r -d '' file; do
     *-down.sql) continue ;;
   esac
   if strip_sql_comments "$file" | grep -qE "$PATTERN"; then
-    if is_legacy "$base"; then
-      continue
-    fi
     echo "::error file=$file::Migration contains 'FOR ALL USING (true)'. Scope the policy to a specific role (e.g. service_role) instead." >&2
     strip_sql_comments "$file" | grep -nE "$PATTERN" >&2 || true
     violations=$((violations + 1))
