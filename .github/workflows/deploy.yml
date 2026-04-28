@@ -159,14 +159,25 @@ jobs:
             MISSING_BINDINGS="$MISSING_BINDINGS NEXT_INC_CACHE_R2_BUCKET"
           fi
 
-          # Check KV namespace IDs are configured (not empty placeholders)
+          # Check KV namespace IDs are configured (not empty placeholders).
+          # In wrangler.jsonc the `binding` and `id` fields live on
+          # separate lines, so a single-line grep can never match.
+          # Use awk to scan each binding block for an empty id.
           echo "Checking KV namespace IDs are configured..."
-          if grep -E 'RATE_LIMIT_KV.*"id":\s*"[^"]*"' wrangler.jsonc | grep -q 'id":\s*""'; then
+          check_kv_id_empty() {
+            local name="$1"
+            awk -v name="$name" '
+              $0 ~ "\"binding\"[[:space:]]*:[[:space:]]*\""name"\"" { found=1; next }
+              found && /"id"[[:space:]]*:[[:space:]]*"[[:space:]]*"/ { print "EMPTY"; exit }
+              found && /"id"[[:space:]]*:/ { exit }
+            ' wrangler.jsonc
+          }
+          if [ "$(check_kv_id_empty RATE_LIMIT_KV)" = "EMPTY" ]; then
             echo "::error::RATE_LIMIT_KV namespace ID is empty"
             echo "::error::Run: npx wrangler kv:namespace create RATE_LIMIT_KV"
             exit 1
           fi
-          if grep -E 'APP_CACHE_KV.*"id":\s*"[^"]*"' wrangler.jsonc | grep -q 'id":\s*""'; then
+          if [ "$(check_kv_id_empty APP_CACHE_KV)" = "EMPTY" ]; then
             echo "::error::APP_CACHE_KV namespace ID is empty"
             echo "::error::Run: npx wrangler kv:namespace create APP_CACHE_KV"
             exit 1
