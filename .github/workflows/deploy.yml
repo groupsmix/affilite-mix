@@ -129,11 +129,9 @@ jobs:
           fi
 
           # APP_CACHE_KV is required for middleware/domain resolution
-          if ! grep -q '"binding".*"APP_CACHE_KV"' wrangler.jsonc; then
-            echo "::error::APP_CACHE_KV binding is missing from wrangler.jsonc"
-            echo "::error::APP_CACHE_KV is required for middleware/domain resolution"
-            exit 1
-          fi
+          # (already checked above and added to MISSING_BINDINGS if absent;
+          # the aggregate report at the end of this step will surface it
+          # alongside any other missing bindings).
 
           # Check Durable Object bindings
           echo "Checking Durable Object bindings..."
