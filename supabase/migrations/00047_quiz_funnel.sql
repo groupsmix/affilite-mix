@@ -77,7 +77,7 @@ ALTER TABLE quiz_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE drip_campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE drip_enrollments ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "service_role_quizzes" ON quizzes FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "service_role_quiz_submissions" ON quiz_submissions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "service_role_drip_campaigns" ON drip_campaigns FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "service_role_drip_enrollments" ON drip_enrollments FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_quizzes" ON quizzes FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_quiz_submissions" ON quiz_submissions FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_drip_campaigns" ON drip_campaigns FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_drip_enrollments" ON drip_enrollments FOR ALL TO service_role USING (true) WITH CHECK (true);
