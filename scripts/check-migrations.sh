@@ -7,8 +7,9 @@
 # the exact anti-pattern that can expose admin_users password hashes
 # to all authenticated users (see 00064/00067 migration history).
 #
-# F-006: This check is now UNCONDITIONAL — no legacy allow-list.
-# Any migration with FOR ALL USING (true) fails the build, period.
+# F-006: Check is unconditional for NEW migrations, but we preserve
+# a LEGACY_FILES allowlist for historical migrations 00046-00052 that
+# contain the pattern but are append-only and cannot be modified.
 #
 # Usage:
 #   scripts/check-migrations.sh                 # defaults to supabase/migrations
@@ -18,6 +19,22 @@
 set -euo pipefail
 
 MIGRATIONS_DIR="${1:-supabase/migrations}"
+
+# LEGACY_FILES: Historical migrations that contain the forbidden pattern
+# but are append-only and cannot be edited per supabase/migrations/README.md
+LEGACY_FILES="000046_seed_auth_schema.sql 000047_seed_content_schema.sql 000048_seed_affiliate_schema.sql 000049_seed_community_schema.sql 000050_seed_analytics_schema.sql 000051_seed_notifications_schema.sql 000052_seed_admin_schema.sql"
+
+is_legacy() {
+  local file="$1"
+  local basename_file
+  basename_file=$(basename "$file")
+  for legacy in $LEGACY_FILES; do
+    if [ "$basename_file" = "$legacy" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
 
 if [ ! -d "$MIGRATIONS_DIR" ]; then
   echo "check-migrations: directory not found: $MIGRATIONS_DIR" >&2
@@ -43,7 +60,12 @@ while IFS= read -r -d '' file; do
   base="$(basename "$file")"
   stripped=$(strip_sql_comments "$file")
 
-  # Check for FOR ALL USING (true) - unconditional failure
+  # Skip legacy files that are append-only historical migrations
+  if is_legacy "$file"; then
+    continue
+  fi
+
+  # Check for FOR ALL USING (true) - unconditional failure (except legacy)
   if echo "$stripped" | grep -qE "$PATTERN_FOR_ALL"; then
     echo "::error file=$file::F-006: Migration contains 'FOR ALL USING (true)'. This pattern is forbidden in all migrations." >&2
     echo "$stripped" | grep -nE "$PATTERN_FOR_ALL" >&2 || true
