@@ -19,10 +19,16 @@ const read = (p: string) => readFileSync(join(repoRoot, p), "utf8");
 describe("Audit-3 regression locks", () => {
   // ── F-001 — License / visibility / package metadata alignment ────────
   describe("F-001 license posture", () => {
-    it("LICENSE declares proprietary, not MIT", () => {
+    it("LICENSE declares source-available + all-rights-reserved, not MIT (G-49)", () => {
       const license = read("LICENSE");
-      expect(license).toMatch(/Proprietary/i);
+      // G-49: the title was reworded from "Proprietary" to
+      // "Source-Available — All Rights Reserved (No License Granted)" to
+      // remove the ambiguity that public GitHub visibility implies any
+      // open-source grant. Lock the new wording so a refactor can't
+      // accidentally restore the old, easily-misread title.
+      expect(license).toMatch(/Source-Available/i);
       expect(license).toMatch(/All Rights Reserved/i);
+      expect(license).toMatch(/no license[\s\S]{0,120}is granted/i);
       // Must not still be the gitleaks MIT header that PR #298 inherited.
       expect(license).not.toMatch(/Copyright \(c\) 2019 Zachary Rice/);
       expect(license).not.toMatch(/Permission is hereby granted, free of charge/);
@@ -30,7 +36,7 @@ describe("Audit-3 regression locks", () => {
 
     it("README license section matches the LICENSE file", () => {
       const readme = read("README.md");
-      expect(readme).toMatch(/proprietary/i);
+      expect(readme).toMatch(/source-available/i);
       expect(readme).toMatch(/all-rights-reserved|all rights reserved/i);
       // No stale claim that the source is MIT-licensed.
       expect(readme.toLowerCase()).not.toMatch(/mit licen[sc]e/);
@@ -265,9 +271,17 @@ describe("Audit-3 regression locks", () => {
   // ── F-008 — CORS does not auto-trust runtime hostnames ───────────────
   describe("F-008 verified-only CORS allow-list", () => {
     const mw = read("middleware.ts");
+    // G-47: getAllowedOrigins moved to lib/security/allowed-origins.ts so
+    // CSRF-exempt route handlers (e.g. /api/vitals) can reuse the same
+    // trust model. The middleware imports it; the assertions below now
+    // pin the helper's source location and its parameter name.
+    const allowedOrigins = read("lib/security/allowed-origins.ts");
 
-    it("getAllowedOrigins parameter is renamed to verifiedHostname", () => {
-      expect(mw).toMatch(/function getAllowedOrigins\(verifiedHostname\?\: string\)/);
+    it("getAllowedOrigins lives in lib/security and takes a verifiedHostname param", () => {
+      expect(allowedOrigins).toMatch(
+        /export function getAllowedOrigins\(verifiedHostname\?\: string\)/,
+      );
+      expect(mw).toMatch(/import \{ getAllowedOrigins \} from "@\/lib\/security\/allowed-origins"/);
     });
 
     it("OPTIONS preflight only trusts hostnames in static config", () => {

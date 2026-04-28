@@ -133,14 +133,18 @@ export default async function ComparisonPage({ params }: ComparisonPageProps) {
 
       {/* Product images + CTA */}
       <div className="mt-8 grid grid-cols-2 gap-8">
-        {[productA, productB].map((product) => (
+        {[productA, productB].map((product, idx) => (
           <div key={product.id} className="text-center">
             {product.image_url && (
+              // G-48: first image is the LCP candidate, the rest defer.
               <Image
                 src={product.image_url}
                 alt={product.image_alt || product.name}
                 width={192}
                 height={192}
+                sizes="192px"
+                priority={idx === 0}
+                loading={idx === 0 ? "eager" : "lazy"}
                 className="mx-auto h-48 w-48 rounded-lg object-cover"
               />
             )}
