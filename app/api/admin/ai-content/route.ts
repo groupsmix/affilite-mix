@@ -10,6 +10,12 @@ import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
 import { withAuthz } from "@/lib/authz";
 import type { AIContentType } from "@/lib/ai/content-generator";
+import {
+  checkAIGenerationQuota,
+  recordAIGenerationUsage,
+  computePromptHash,
+  enrichWithGovernance,
+} from "@/lib/ai/governance";
 
 const VALID_CONTENT_TYPES = new Set(["article", "review", "comparison", "guide"]);
 const VALID_STATUSES = new Set(["pending", "approved", "rejected", "published"]);
@@ -63,9 +69,26 @@ export const POST = withAuthz(
       );
     }
 
+    // F-010: Check AI generation quota
+    const quotaCheck = await checkAIGenerationQuota(siteId, session.userId ?? "unknown");
+    if (!quotaCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: "Daily AI generation quota exceeded",
+          quota: {
+            remaining: 0,
+            reset_at: quotaCheck.resetAt.toISOString(),
+          },
+        },
+        { status: 429 },
+      );
+    }
+
     try {
       const site = getSiteById(siteSlug);
-      const result = await generateContent({
+
+      // F-010: Build prompt for provenance tracking
+      const promptInput = {
         siteId: siteSlug,
         siteName: site?.name ?? siteSlug,
         niche: site?.brand.niche ?? "",
@@ -73,9 +96,26 @@ export const POST = withAuthz(
         topic,
         keywords,
         language: site?.language,
-      });
+      };
 
-      const draft = await createAIDraft({
+      const result = await generateContent(promptInput);
+
+      // F-010: Compute prompt hash for provenance
+      const promptHash = computePromptHash(JSON.stringify(promptInput));
+
+      // F-010: Record usage for quota and cost tracking
+      await recordAIGenerationUsage(
+        siteId,
+        session.userId ?? "unknown",
+        contentType,
+        result.provider,
+        result.model,
+        undefined, // prompt tokens not available from all providers
+        undefined, // completion tokens not available from all providers
+      );
+
+      // F-010: Enrich draft with governance metadata
+      const baseDraft = {
         site_id: siteId,
         title: result.title,
         slug: result.slug,
@@ -86,11 +126,22 @@ export const POST = withAuthz(
         keywords,
         ai_provider: result.provider,
         ai_model: result.model,
-        status: "pending",
+        status: "pending" as const,
         generated_at: new Date().toISOString(),
         meta_title: result.metaTitle,
         meta_description: result.metaDescription,
+      };
+
+      const enrichedDraft = enrichWithGovernance(baseDraft, {
+        provider: result.provider,
+        model: result.model,
+        promptHash,
+        promptPreview: JSON.stringify(promptInput),
+        estimatedCost: 0, // Will be updated by recordAIGenerationUsage
+        adminUserId: session.userId ?? "unknown",
       });
+
+      const draft = await createAIDraft(enrichedDraft as typeof baseDraft);
 
       void recordAuditEvent({
         site_id: siteId,

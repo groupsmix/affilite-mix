@@ -7,7 +7,16 @@ import { getClientIp } from "@/lib/get-client-ip";
  * POST /api/csp-report — CSP violation report endpoint
  * F-032: Receives CSP violation reports and forwards to Sentry for analysis
  */
-const CSP_REPORT_RATE_LIMIT = { maxRequests: 60, windowMs: 60_000 };
+// F-API-02: Rate limit CSP reports (100/min/IP) with failPolicy: "open" —
+// if KV is unavailable, accept reports rather than lose security telemetry.
+const CSP_REPORT_RATE_LIMIT = {
+  maxRequests: 100,
+  windowMs: 60_000,
+  failPolicy: "open" as const,
+};
+
+/** F-005/F-006: 64KB body size cap as documented in csrf-exempt-registry */
+const CSP_REPORT_MAX_BODY_BYTES = 64 * 1024;
 
 export async function POST(request: NextRequest) {
   // F-06: Per-IP rate limit — documented in csrf-exempt-registry as
@@ -19,17 +28,44 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, { status: 429 });
   }
 
-  // CSP reports can be sent as JSON or multipart
+  // F-005/F-006: Enforce 64KB body size cap and parse CSP report
   let report: Record<string, unknown> = {};
   try {
-    const contentType = request.headers.get("content-type") ?? "";
-    if (contentType.includes("application/csp-report")) {
-      report = await request.json();
-    } else if (contentType.includes("application/json")) {
-      report = await request.json();
-    } else {
-      // Try JSON anyway
-      report = await request.json();
+    // Check Content-Length first for early rejection
+    const contentLength = request.headers.get("content-length");
+    if (contentLength) {
+      const length = parseInt(contentLength, 10);
+      if (!isNaN(length) && length > CSP_REPORT_MAX_BODY_BYTES) {
+        return new NextResponse(null, { status: 413 }); // Payload Too Large
+      }
+    }
+
+    // Read body with streaming size enforcement
+    const reader = request.body?.getReader();
+    if (reader) {
+      const chunks: Uint8Array[] = [];
+      let totalLength = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        totalLength += value.length;
+        if (totalLength > CSP_REPORT_MAX_BODY_BYTES) {
+          reader.cancel();
+          return new NextResponse(null, { status: 413 });
+        }
+        chunks.push(value);
+      }
+
+      // Concatenate and parse
+      const body = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        body.set(chunk, offset);
+        offset += chunk.length;
+      }
+      const text = new TextDecoder().decode(body);
+      report = JSON.parse(text) as Record<string, unknown>;
     }
   } catch {
     return NextResponse.json({ ok: false }, { status: 400 });
