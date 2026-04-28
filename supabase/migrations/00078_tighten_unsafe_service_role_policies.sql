@@ -33,7 +33,12 @@ DECLARE
     'service_role_memberships:memberships',
     'service_role_experiments:experiments',
     'service_role_exp_assignments:experiment_assignments',
-    'service_role_exp_events:experiment_events'
+    'service_role_exp_events:experiment_events',
+    -- 00033 already retightened these to `auth.role() = 'service_role'`,
+    -- but staging drifted back to the loose `USING (true)` shape. Restate
+    -- the hardened form here so db-audit (E-6) [C] passes.
+    'ai_drafts_service_all:ai_drafts',
+    'affiliate_networks_service_all:affiliate_networks'
   ];
   pair text;
   pol_name text;
@@ -50,4 +55,17 @@ BEGIN
       );
     END IF;
   END LOOP;
+END $$;
+
+-- ── web_vitals: drop residual anon INSERT policy (db-audit [B]) ──────
+-- 00038 already dropped this on fresh-DB replays, but staging still
+-- carries the legacy `Allow anonymous inserts` policy from 00023.
+-- Re-assert the drop + REVOKE here so the audit passes everywhere.
+-- All telemetry writes already go through the service role.
+DO $$
+BEGIN
+  IF to_regclass('public.web_vitals') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Allow anonymous inserts" ON web_vitals';
+    EXECUTE 'REVOKE INSERT ON web_vitals FROM anon';
+  END IF;
 END $$;
