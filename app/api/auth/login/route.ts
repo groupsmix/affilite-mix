@@ -13,9 +13,13 @@ import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 
-/** 5 login attempts per 15 minutes per IP */
+/**
+ * G-50: 3 login attempts per 15 minutes per IP.
+ * Tightened from 5/15min after dropping bcrypt to cost-10, so the per-IP
+ * guess budget stays roughly equivalent to the old cost-12 setup.
+ */
 const LOGIN_RATE_LIMIT_IP = {
-  maxRequests: 5,
+  maxRequests: 3,
   windowMs: 15 * 60 * 1000,
   failPolicy: "closed" as const,
 };
