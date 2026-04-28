@@ -15,12 +15,7 @@ import { parseJsonBody } from "@/lib/api-error";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
 
 /** 100 admin API requests per minute per user session (3.30) */
-// F-015: User management routes use failPolicy: "closed" for security.
-const ADMIN_RATE_LIMIT = {
-  maxRequests: 100,
-  windowMs: 60 * 1000,
-  failPolicy: "closed" as const,
-};
+const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
 async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
   const key = `admin:${email ?? userId ?? "unknown"}`;

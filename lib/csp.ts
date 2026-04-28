@@ -46,12 +46,7 @@ export function buildCspHeader(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com`,
     // A-011: nonce-based allow-list for inline styles.  Next.js and
     // ThemeProvider inline `<style>` tags carry the per-request nonce.
-    // F-017: CSP Level 1 fallback - 'unsafe-inline' is ignored by CSP Level 2+
-    // browsers when nonce is present, but provides compatibility for older browsers.
-    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
-    // F-CD-02: Allow inline style="..." attributes (React components use them).
-    // This is separate from style-src; CSP Level 3 browsers use this directive.
-    `style-src-attr 'unsafe-inline'`,
+    `style-src 'self' 'nonce-${nonce}'`,
     "font-src 'self'",
     "img-src 'self' data: blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.supabase.co https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com",
     "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com https://*.ingest.sentry.io",
@@ -66,21 +61,6 @@ export function buildCspHeader(nonce: string): string {
     "report-uri /api/csp-report",
   ];
   return directives.join("; ");
-}
-
-/**
- * F-017: Build a fallback CSP for very old browsers (IE11, old Safari).
- * This is used as a meta tag fallback when headers aren't supported.
- * Much more permissive but still blocks the worst attacks (XSS, clickjacking).
- */
-export function buildLegacyCspMetaTag(): string {
-  return [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
-    "frame-ancestors 'none'",
-  ].join("; ");
 }
 
 /** Header name shared between middleware and server components. */

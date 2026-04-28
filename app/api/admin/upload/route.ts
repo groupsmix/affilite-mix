@@ -36,7 +36,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
  *   • The presign response carries `X-Content-Type-Options: nosniff`
  *     and `Cache-Control: no-store` so the JSON itself is not cached.
  */
-export const POST = withAuthz("upload", "create", async (request, { session, siteId }) => {
+export const POST = withAuthz("upload", "create", async (request) => {
 
   if (!isR2Configured()) {
     return NextResponse.json(
@@ -77,10 +77,10 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
   try {
     const presigned = await getUploadUrl(contentType, fileSize, { originalName });
 
-    // FIX-34 (F-SEC-04): Audit log for upload presign request
+    // FIX-34 (F-017): Audit log for upload presign request
     void recordAuditEvent({
-      site_id: siteId,
-      actor: session.email ?? session.userId ?? "admin",
+      site_id: "00000000-0000-0000-0000-000000000000",
+      actor: "admin-upload",
       action: "upload_presign",
       entity_type: "upload",
       entity_id: presigned.stagingKey,
