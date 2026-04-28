@@ -56,5 +56,5 @@ CREATE INDEX IF NOT EXISTS idx_comments_pending
 ALTER TABLE wrist_shots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "service_role_wrist_shots" ON wrist_shots FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "service_role_comments" ON comments FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_wrist_shots" ON wrist_shots FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_role_comments" ON comments FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
