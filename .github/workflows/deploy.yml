@@ -289,6 +289,19 @@ jobs:
             exit 1
           fi
 
+          # F-008: Verify staging_marker table exists and confirms this is a staging database
+          echo "Verifying staging database marker..."
+          staging_marker=$(psql "$_STAGING_DB_URL" -tAc "SELECT is_staging FROM staging_marker LIMIT 1" 2>/dev/null || echo "MISSING")
+          if [ "$staging_marker" != "t" ]; then
+            echo "::error::F-008: Refusing to reset database without staging_marker.is_staging = true"
+            echo "::error::The database at STAGING_SUPABASE_DB_URL does not have the staging_marker table"
+            echo "::error::or is_staging is not set to true. Create it with:"
+            echo "   CREATE TABLE staging_marker (is_staging boolean PRIMARY KEY);"
+            echo "   INSERT INTO staging_marker VALUES (true);"
+            exit 1
+          fi
+          echo "Staging marker verified ✓"
+
           echo "Running fresh staging DB migration apply..."
 
           # Drop and recreate the public schema (equivalent to supabase db reset).
@@ -299,6 +312,12 @@ jobs:
             -c "GRANT ALL ON SCHEMA public TO public;"
 
           echo "Staging database reset complete"
+
+          # F-008: Recreate staging_marker table after schema reset (it was dropped)
+          psql "$_STAGING_DB_URL" -v ON_ERROR_STOP=1 \
+            -c "CREATE TABLE IF NOT EXISTS staging_marker (is_staging boolean PRIMARY KEY);" \
+            -c "INSERT INTO staging_marker VALUES (true) ON CONFLICT DO NOTHING;"
+          echo "Staging marker recreated ✓"
 
           # Apply all migrations in order
           echo "Applying migrations to clean database..."

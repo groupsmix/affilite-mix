@@ -11,10 +11,9 @@
  *   2. The `affiliate_networks` table (column: `tracking_domain`)
  *   3. A hardcoded fallback of common affiliate network domains
  *
- * During the transition period, validation is "warn-only" — invalid domains
- * are logged but not rejected. Set AFFILIATE_DOMAIN_ENFORCEMENT=strict to
- * enforce rejection. This lets operators audit existing data before
- * breaking legitimate writes.
+ * F-005: Default enforcement is now "strict" — invalid domains are rejected.
+ * Set AFFILIATE_DOMAIN_ENFORCEMENT=warn to temporarily allow invalid domains
+ * during migration audits (not recommended for production).
  */
 
 import { logger } from "@/lib/logger";
@@ -173,12 +172,12 @@ export interface DomainValidationResult {
  * Returns `{ allowed: true }` if the domain is permitted, or
  * `{ allowed: false, reason }` if not.
  *
- * In "warn" enforcement mode (default), invalid domains are logged
- * but the write is still allowed. In "strict" mode, invalid domains
- * are rejected.
+ * In "strict" enforcement mode (default), invalid domains are rejected.
+ * In "warn" mode, invalid domains are logged but the write is still allowed.
  */
 export function validateAffiliateDomain(url: string): DomainValidationResult {
-  const enforcement = process.env.AFFILIATE_DOMAIN_ENFORCEMENT ?? "warn";
+  // F-005: Default to strict enforcement
+  const enforcement = process.env.AFFILIATE_DOMAIN_ENFORCEMENT ?? "strict";
 
   let hostname: string;
   try {

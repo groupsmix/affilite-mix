@@ -18,9 +18,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // F-015: Security-critical route uses failPolicy: "closed".
   const rl = await checkRateLimit(`admin:totp-enroll:${session.userId}`, {
     maxRequests: 5,
     windowMs: 15 * 60 * 1000,
+    failPolicy: "closed",
   });
   if (!rl.allowed) {
     return NextResponse.json(
@@ -74,9 +76,11 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // F-015: Security-critical route uses failPolicy: "closed".
   const rl = await checkRateLimit(`admin:totp-verify:${session.userId}`, {
     maxRequests: 10,
     windowMs: 15 * 60 * 1000,
+    failPolicy: "closed",
   });
   if (!rl.allowed) {
     return NextResponse.json(
@@ -134,9 +138,11 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // F-015: Security-critical route uses failPolicy: "closed".
   const rl = await checkRateLimit(`admin:totp-disable:${session.userId}`, {
     maxRequests: 10,
     windowMs: 15 * 60 * 1000,
+    failPolicy: "closed",
   });
   if (!rl.allowed) {
     return NextResponse.json(
