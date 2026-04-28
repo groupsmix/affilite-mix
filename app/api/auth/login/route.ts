@@ -1,4 +1,6 @@
-export const runtime = "edge";
+// F-CD-01: Removed runtime = "edge" — bcryptjs pulls Node APIs (crypto, setImmediate)
+// that emit build warnings in Edge Runtime. Running on the default nodejs_compat
+// Worker runtime eliminates the warnings and is safer for production login path.
 
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser, createToken, COOKIE_NAME, getAdminBindingCookie } from "@/lib/auth";

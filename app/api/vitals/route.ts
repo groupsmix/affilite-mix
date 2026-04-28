@@ -3,7 +3,10 @@ import { getTenantClient } from "@/lib/supabase-server";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
-import { parseJsonBody } from "@/lib/api-error";
+import { parseJsonBodyWithLimit } from "@/lib/api-error";
+
+/** F-005/F-006: 4KB body size cap as documented in csrf-exempt-registry */
+const VITALS_MAX_BODY_BYTES = 4 * 1024;
 
 const VALID_METRIC_NAMES = new Set(["CLS", "FCP", "FID", "INP", "LCP", "TTFB"]);
 
@@ -29,7 +32,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const bodyOrError = await parseJsonBody(request);
+    // F-005/F-006: Enforce 4KB body size cap
+    const bodyOrError = await parseJsonBodyWithLimit(request, VITALS_MAX_BODY_BYTES);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
     const body = bodyOrError;
 
