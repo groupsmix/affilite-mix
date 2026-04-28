@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { requireAdmin } from "@/lib/admin-guard";
+import { requireAdmin, assertRole } from "@/lib/admin-guard";
 import { getSiteRowById, updateSite, deleteSite } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -46,9 +46,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
@@ -137,9 +137,9 @@ export async function DELETE(
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
 
   // FIX-18 (F-030): Step-up auth required for site deletion.
   const stepUpError = requireStepUpAuth(session);

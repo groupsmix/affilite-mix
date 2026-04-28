@@ -30,7 +30,16 @@ function timingSafeCompare(a: string, b: string): boolean {
   const bufA = encoder.encode(a);
   const bufB = encoder.encode(b);
   if (bufA.byteLength !== bufB.byteLength) {
-    // Compare bufA with itself to maintain constant-time behavior
+    // G-43: Do NOT "simplify" this branch.
+    //
+    // Returning early on a length mismatch would already leak length, but
+    // we additionally walk bufA against itself so the work performed in
+    // the mismatched-length branch is structurally similar to the equal-
+    // length branch below — the JIT cannot prove this loop is dead while
+    // `result` is observed via `void result`. Removing the loop, dropping
+    // the `void` (so the compiler treats `result` as unused), or replacing
+    // it with a bare `return false` would let the optimiser collapse the
+    // branch and reintroduce a timing side-channel.
     let result = 0;
     for (let i = 0; i < bufA.byteLength; i++) {
       result |= bufA[i] ^ bufA[i];

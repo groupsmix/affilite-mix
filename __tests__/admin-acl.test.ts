@@ -81,11 +81,14 @@ describe("Admin ACL — requireAdmin()", () => {
     membershipRows = {};
   });
 
-  it("rejects unauthenticated requests (no session)", async () => {
+  it("rejects unauthenticated requests (no session) with 401 + Bearer challenge", async () => {
     const { requireAdmin } = await import("@/lib/admin-guard");
     const result = await requireAdmin();
 
     expect(result.error).not.toBeNull();
+    expect(result.error!.status).toBe(401);
+    // G-45: WWW-Authenticate: Bearer challenge on every 401 admin response.
+    expect(result.error!.headers.get("WWW-Authenticate")).toBe("Bearer");
     const body = await result.error!.json();
     expect(body.error).toBe("Unauthorized");
   });
@@ -113,7 +116,7 @@ describe("Admin ACL — requireAdmin()", () => {
     expect(body.error).toBe("Invalid site");
   });
 
-  it("tenant-A admin CANNOT access tenant-B", async () => {
+  it("tenant-A admin CANNOT access tenant-B (responds with 401 + Bearer)", async () => {
     mockSession = { email: "admin@a.com", userId: "user-a", role: "admin" };
     // user-a has membership for site A only
     membershipRows["user-a"] = new Set([SITE_A_ID]);
@@ -124,9 +127,12 @@ describe("Admin ACL — requireAdmin()", () => {
     const result = await requireAdmin();
 
     expect(result.error).not.toBeNull();
+    // G-45: cross-tenant probes get the same opaque 401 + Bearer challenge
+    // as unauthenticated callers, so route existence cannot be inferred.
+    expect(result.error!.status).toBe(401);
+    expect(result.error!.headers.get("WWW-Authenticate")).toBe("Bearer");
     const body = await result.error!.json();
-    expect(result.error!.status).toBe(403);
-    expect(body.error).toBe("You do not have access to this site");
+    expect(body.error).toBe("Unauthorized");
   });
 
   it("tenant-A admin CAN access tenant-A", async () => {
@@ -177,7 +183,7 @@ describe("Admin ACL — requireSuperAdmin()", () => {
     membershipRows = {};
   });
 
-  it("rejects non-super_admin users", async () => {
+  it("rejects non-super_admin users with 401 + Bearer challenge", async () => {
     mockSession = { email: "admin@a.com", userId: "user-a", role: "admin" };
     membershipRows["user-a"] = new Set([SITE_A_ID]);
     mockCookieStore.set("nh_active_site", "watch-tools");
@@ -186,7 +192,9 @@ describe("Admin ACL — requireSuperAdmin()", () => {
     const result = await requireSuperAdmin();
 
     expect(result.error).not.toBeNull();
-    expect(result.error!.status).toBe(403);
+    // G-45: insufficient role returns the same 401 + Bearer as unauth.
+    expect(result.error!.status).toBe(401);
+    expect(result.error!.headers.get("WWW-Authenticate")).toBe("Bearer");
   });
 
   it("allows super_admin users", async () => {
@@ -211,11 +219,12 @@ describe("Admin ACL — assertRole()", () => {
     expect(result).toBeNull();
   });
 
-  it("returns 403 when admin tries to assert super_admin", async () => {
+  it("returns 401 + Bearer when admin tries to assert super_admin (G-45)", async () => {
     const { assertRole } = await import("@/lib/admin-guard");
     const result = assertRole({ email: "a@b.com", userId: "u1", role: "admin" }, "super_admin");
     expect(result).not.toBeNull();
-    expect(result!.status).toBe(403);
+    expect(result!.status).toBe(401);
+    expect(result!.headers.get("WWW-Authenticate")).toBe("Bearer");
   });
 
   it("allows admin role when admin is required", async () => {
