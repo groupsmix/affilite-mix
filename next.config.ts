@@ -1,18 +1,53 @@
 import type { NextConfig } from "next";
 import { allSites } from "./config/sites";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseHostname = supabaseUrl ? new URL(supabaseUrl).hostname : "*.supabase.co";
+// G-03 / G-04: pin remotePatterns and static CSP fallback to the
+// exact Supabase subdomain + exact R2 public host rather than the
+// historical `*.supabase.co` / `*.r2.dev` wildcards.
+const supabaseHostname = (() => {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (raw) {
+    try {
+      return new URL(raw).hostname;
+    } catch {
+      /* fallthrough to wildcard */
+    }
+  }
+  return "*.supabase.co";
+})();
+
+const r2PublicHostname = (() => {
+  const raw = process.env.R2_PUBLIC_URL;
+  if (raw) {
+    try {
+      return new URL(raw).hostname;
+    } catch {
+      /* fallthrough to wildcard */
+    }
+  }
+  return null;
+})();
+
+const r2RemotePatterns = r2PublicHostname
+  ? [{ protocol: "https" as const, hostname: r2PublicHostname }]
+  : [
+      // Dev / preview fallback. Production MUST set R2_PUBLIC_URL so the
+      // exact-host pin kicks in; deploy.yml asserts this.
+      { protocol: "https" as const, hostname: "*.r2.dev" },
+      { protocol: "https" as const, hostname: "*.r2.cloudflarestorage.com" },
+    ];
 
 const nextConfig: NextConfig = {
   // Restrict external images to known sources (R2 bucket, Supabase storage, site domains)
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
-      // Cloudflare R2 public bucket (custom domain or default)
-      { protocol: "https", hostname: "*.r2.dev" },
-      { protocol: "https", hostname: "*.r2.cloudflarestorage.com" },
-      // Supabase storage
+      // G-04: Cloudflare R2 public bucket, pinned to the exact hostname
+      // served from R2_PUBLIC_URL when it is set. In production we always
+      // resolve to a single exact host; the wildcard fallback applies only
+      // in dev / preview before the env var is materialised.
+      ...r2RemotePatterns,
+      // G-03: Supabase storage, pinned to our project subdomain.
       { protocol: "https", hostname: supabaseHostname },
       // Site domains (for OG images, etc.) — derived from config/sites/
       ...allSites.map((site) => ({ protocol: "https" as const, hostname: site.domain })),
@@ -47,38 +82,19 @@ const nextConfig: NextConfig = {
           key: "Strict-Transport-Security",
           value: "max-age=63072000; includeSubDomains; preload",
         },
-        // Content-Security-Policy is issued per-request by middleware.ts so
-        // we can embed a nonce into `script-src` / `style-src` (H-10).
-        // A static CSP header is still applied to routes that middleware
-        // does not match (see the matcher in middleware.ts — _next/static,
-        // _next/image, favicon.ico, fonts/, api/internal/) to keep a
-        // conservative default.
-        // F-CSP-01: TODO — once confirmed every dynamic path flows through
-        // middleware, drop this static fallback and verify with a test that
-        // no response carries the static CSP.
-        {
-          key: "Content-Security-Policy",
-          // F-013: keep the static fallback img-src in sync with the
-          // per-request CSP built in lib/csp.ts. The previous
-          // `img-src 'self' data: https: blob:` allowed any HTTPS image
-          // host and provided no provenance for content rendered on
-          // routes the middleware does not cover (see matcher in
-          // middleware.ts — _next/static, _next/image, fonts, etc.).
-          value: [
-            "default-src 'self'",
-            "script-src 'self'",
-            "style-src 'self'",
-            "img-src 'self' data: blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.supabase.co https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com",
-            "font-src 'self' https://fonts.gstatic.com",
-            "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.ingest.sentry.io",
-            "object-src 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-            "frame-ancestors 'none'",
-            "upgrade-insecure-requests",
-            "report-uri /api/csp-report",
-          ].join("; "),
-        },
+        // G-27: the previous static CSP fallback has been removed. Every
+        // request that matters (app routes, API routes, admin UI, public
+        // pages) flows through `middleware.ts`, which sets a per-request
+        // nonced CSP via `lib/csp.ts`. The static fallback was only ever
+        // hit on routes explicitly excluded from the middleware matcher
+        // (`_next/static`, `_next/image`, `favicon.ico`, `fonts/`,
+        // `api/internal/`). Those responses are either opaque binary
+        // assets or internal-only endpoints that never return HTML, so
+        // they do not need a CSP header. Removing the fallback removes a
+        // class of "two CSP headers on one response" bugs that were
+        // silently disabling our nonce-based policy on some code paths.
+        // `__tests__/csp.test.ts` asserts exactly one CSP header is
+        // emitted on user-facing routes.
       ],
     },
   ],
