@@ -75,6 +75,47 @@ jobs:
           fi
           echo "All admin routes import an approved authz wrapper."
 
+      - name: Admin route DAL usage audit (PRIORITY 1)
+        run: |
+          # PRIORITY 1: Verify admin routes using DAL/service-role have proper authz.
+          # This complements the above import check with actual usage validation.
+          set -euo pipefail
+          if [ -x "scripts/check-admin-authz.sh" ]; then
+            bash scripts/check-admin-authz.sh || exit 1
+          else
+            echo "Admin authz check script not found, skipping..."
+          fi
+
+      - name: CORS security tests (PRIORITY 2)
+        run: |
+          # PRIORITY 2: CORS must only allow known safe origins.
+          # Hostile host/origin combinations should be rejected.
+          set -euo pipefail
+          if [ -f "__tests__/cors-security.test.ts" ]; then
+            echo "Running CORS security tests..."
+            npm test -- __tests__/cors-security.test.ts
+          else
+            echo "CORS security test file not found - verify middleware.ts CORS handling"
+          fi
+
+      - name: R2 bucket isolation validation (PRIORITY 4)
+        run: |
+          # PRIORITY 4: In production, private staging and public buckets
+          # MUST be distinct. Same bucket defeats upload validation.
+          set -euo pipefail
+          if [ -f ".env.example" ]; then
+            PRIVATE_BUCKET=$(grep -E "^R2_PRIVATE_BUCKET=" .env.example 2>/dev/null || echo "")
+            PUBLIC_BUCKET=$(grep -E "^R2_PUBLIC_BUCKET=" .env.example 2>/dev/null || echo "")
+            FALLBACK_BUCKET=$(grep -E "^R2_BUCKET_NAME=" .env.example 2>/dev/null || echo "")
+
+            # If using R2_BUCKET_NAME without separate PRIVATE/PUBLIC buckets
+            if [ -n "$FALLBACK_BUCKET" ] && [ -z "$PRIVATE_BUCKET" ] && [ -z "$PUBLIC_BUCKET" ]; then
+              echo "::warning::R2_BUCKET_NAME is set but R2_PRIVATE_BUCKET/R2_PUBLIC_BUCKET are not."
+              echo "::warning::Production requires distinct buckets for staging/promotion isolation."
+              echo "::warning::See lib/r2.ts (F-09) for runtime enforcement details."
+            fi
+          fi
+
       - name: Verify Stripe uses Restricted API Keys (F-033)
         run: |
           # FIX-15 (F-033): Stripe legacy sk_live_ / sk_test_ keys grant full account
