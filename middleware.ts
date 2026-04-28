@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSiteByDomain, allSites } from "@/config/sites";
+import { getSiteByDomain } from "@/config/sites";
 import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
@@ -8,6 +8,7 @@ import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
 import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
+import { getAllowedOrigins } from "@/lib/security/allowed-origins";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const CSP_HEADER = "Content-Security-Policy";
@@ -159,10 +160,11 @@ export async function middleware(request: NextRequest) {
     // minute — legitimate users with a few tabs open won't hit this.
     try {
       const clientIp = request.headers.get("cf-connecting-ip") ?? "unknown";
-      const rlResult = await checkRateLimit(
-        `hostname-resolve:${clientIp}`,
-        { maxRequests: 30, windowMs: 60_000, failPolicy: "closed" },
-      );
+      const rlResult = await checkRateLimit(`hostname-resolve:${clientIp}`, {
+        maxRequests: 30,
+        windowMs: 60_000,
+        failPolicy: "closed",
+      });
       if (!rlResult.allowed) {
         return new Response("Too Many Requests", { status: 429 });
       }
@@ -338,43 +340,6 @@ export async function middleware(request: NextRequest) {
   // to support concurrent POST requests and prevent token exposure in response headers.
 
   return response;
-}
-
-/**
- * Build the CORS allow-list for cross-origin API requests.
- *
- * F-008: previously we appended `https://${requestHostname}` to the
- * allow-list to support custom domains resolved via DB. That meant any
- * hostname that happened to route to the Worker was implicitly trusted
- * for the duration of the request — runtime host trust rather than
- * verifiable persisted trust.
- *
- * Now we trust only:
- *   - Domains and aliases listed in static `allSites` config.
- *   - `verifiedHostname` — passed by the caller ONLY after the DB
- *     site-row lookup confirmed the hostname is registered on an
- *     active row in `sites`. The middleware passes this when CORS is
- *     evaluated *after* successful resolution.
- *   - localhost ports in development.
- */
-function getAllowedOrigins(verifiedHostname?: string): string[] {
-  const origins: string[] = [];
-  for (const site of allSites) {
-    origins.push(`https://${site.domain}`);
-    if (site.aliases) {
-      for (const alias of site.aliases) {
-        origins.push(`https://${alias}`);
-      }
-    }
-  }
-  if (verifiedHostname) {
-    origins.push(`https://${verifiedHostname}`);
-  }
-  if (process.env.NODE_ENV === "development") {
-    origins.push("http://localhost:3000");
-    origins.push("http://localhost:3001");
-  }
-  return origins;
 }
 
 export const config = {

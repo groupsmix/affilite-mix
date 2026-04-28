@@ -206,11 +206,14 @@ export function QuizFunnel({ slug, title, description, steps, gateEmail }: QuizF
                   {i + 1}
                 </div>
                 {product.image_url && (
+                  // G-48: quiz results render after user interaction, never LCP.
                   <Image
                     src={product.image_url}
                     alt={product.name}
                     width={80}
                     height={80}
+                    sizes="80px"
+                    loading="lazy"
                     className="h-20 w-20 rounded-md object-cover"
                   />
                 )}

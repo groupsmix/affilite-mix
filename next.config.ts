@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
       // Site domains (for OG images, etc.) — derived from config/sites/
       ...allSites.map((site) => ({ protocol: "https" as const, hostname: site.domain })),
       // Common affiliate product image CDNs
+      // G-48 (LCP): m.media-amazon.com / images-na.ssl-images-amazon.com are
+      // third-party origins outside our control — slow TTFB hurts LCP and we
+      // cannot apply long-cache headers. Long-term plan: copy product images
+      // to our R2 bucket on ingest and serve them via Image Resizing.
+      // Short-term mitigation lives in the consuming components (non-LCP
+      // slots use priority={false} + loading="lazy"; see G-48 comments in
+      // app/(public)/components/product-card.tsx etc.).
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "m.media-amazon.com" },
       { protocol: "https", hostname: "images-na.ssl-images-amazon.com" },

@@ -56,6 +56,7 @@ export function ContentCard({
               blurDataURL={shimmerPlaceholder(400, 176)}
               className="h-44 w-full object-cover"
               priority={priority}
+              loading={priority ? "eager" : "lazy"}
               onError={() => setImgError(true)}
             />
           )}
