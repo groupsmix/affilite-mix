@@ -1,14 +1,22 @@
-Proprietary — All Rights Reserved
+Source-Available — All Rights Reserved (No License Granted)
 Copyright (c) 2025 Erosqa / groupsmix contributors
 
 This source repository is published in read-only form for the
 convenience of the project's contributors, deployment automation,
-and authorised reviewers. It is NOT open-source software.
+and authorised reviewers. It is **NOT open-source software** and
+**no license** — express or implied — **is granted** by virtue of
+the source being publicly visible on a code-hosting service.
 
-No license — express or implied — is granted to use, copy, modify,
+In particular, the publication of this source on github.com (or any
+other public mirror) MUST NOT be interpreted as a grant of any of
+the rights normally associated with open-source or "free software"
+licences. None of the OSI- or FSF-approved freedoms (use, study,
+modify, redistribute) are conveyed.
+
+All rights are expressly reserved by the copyright holders. No
+license — express or implied — is granted to use, copy, modify,
 merge, publish, distribute, sublicense, or sell copies of this
-software or any portion of it. All rights are expressly reserved
-by the copyright holders.
+software or any portion of it.
 
 Notwithstanding the above, the following narrowly-scoped permissions
 are granted to anyone who has lawfully obtained access to this
@@ -23,9 +31,10 @@ repository:
 
 Any other use — including but not limited to running the project
 in production, redistributing the source or binaries, hosting a
-fork as a service, or training machine-learning models on the
-contents of this repository — requires a separate written
-agreement with the copyright holders.
+fork as a service, providing the software (or any derivative)
+to third parties on a SaaS or managed-service basis, or training
+machine-learning models on the contents of this repository —
+requires a separate written agreement with the copyright holders.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
