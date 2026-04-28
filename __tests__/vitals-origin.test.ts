@@ -43,13 +43,33 @@ describe("isOriginAllowed (G-47 vitals origin guard)", () => {
   it("ignores an unverified Host header (no static or DB registration)", () => {
     // Even if the request claims to come from an unknown host, the
     // attacker origin must not be added to the allow-list — the host
-    // is not in `allSites`, so `getSiteByDomain` returns undefined and
-    // verifiedHostname is dropped.
+    // is not in `allSites`, `siteId` is absent, so verifiedHostname is
+    // dropped.
     expect(isOriginAllowed("https://attacker.invalid", "attacker.invalid")).toBe(false);
   });
 
   it("strips the port from the Host header before lookup", () => {
     expect(isOriginAllowed(knownOrigin, `${knownSite.domain}:443`)).toBe(true);
+  });
+
+  it("trusts a DB-registered custom domain when siteId is supplied", () => {
+    // Wildcard / dashboard-managed custom domains are not in static
+    // `allSites` config — middleware resolves them via the `sites` DB
+    // row and injects `x-site-id`. When the route forwards that header
+    // as `siteId`, the custom-domain Origin must be accepted.
+    const customDomain = "coffee.wristnerd.xyz";
+    const customOrigin = `https://${customDomain}`;
+    expect(isOriginAllowed(customOrigin, customDomain)).toBe(false);
+    expect(isOriginAllowed(customOrigin, customDomain, "site-id-123")).toBe(true);
+  });
+
+  it("still rejects an unknown origin even when siteId is supplied", () => {
+    // `siteId` only upgrades the Host header to trusted — it does NOT
+    // widen the allow-list to arbitrary origins. A mismatched Origin
+    // must still 403.
+    expect(isOriginAllowed("https://evil.example.com", "coffee.wristnerd.xyz", "site-id-123")).toBe(
+      false,
+    );
   });
 });
 

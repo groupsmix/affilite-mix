@@ -41,18 +41,30 @@ export function getAllowedOrigins(verifiedHostname?: string): string[] {
 }
 
 /**
- * Validate the `Origin` header against the static-config allow-list.
+ * Validate the `Origin` header against the allow-list.
  *
  * Used by CSRF-exempt public POST endpoints (e.g. `/api/vitals`) to make
- * sure beacons cannot be cross-fired from arbitrary origins. We deliberately
- * do NOT trust the request's `Host` header here unless it matches a
- * statically configured site — DB-resolved custom domains must be verified
- * by the caller (passing `verifiedHostname`) before being added to the
- * allow-list.
+ * sure beacons cannot be cross-fired from arbitrary origins.
+ *
+ * Trust model for the request hostname:
+ *   - If the hostname is registered in static `allSites` config → trusted.
+ *   - If the request carries an `x-site-id` header (or equivalent siteId
+ *     argument) → the middleware has already resolved the hostname via the
+ *     `sites` DB row (see `middleware.ts`), so we can trust the host too.
+ *     Without this, DB-registered custom domains (wildcard subdomains,
+ *     dashboard-managed custom domains) would falsely 403.
+ *   - Otherwise the host is NOT added to the allow-list. An arbitrary
+ *     `Host` header cannot upgrade an unknown origin to trusted.
  */
-export function isOriginAllowed(origin: string | null | undefined, host: string | null): boolean {
+export function isOriginAllowed(
+  origin: string | null | undefined,
+  host: string | null,
+  siteId?: string | null,
+): boolean {
   if (!origin) return false;
   const hostname = (host ?? "").split(":")[0];
-  const verifiedHostname = hostname && getSiteByDomain(hostname) ? hostname : undefined;
+  const isStaticallyConfigured = Boolean(hostname && getSiteByDomain(hostname));
+  const isMiddlewareVerified = Boolean(hostname && siteId);
+  const verifiedHostname = isStaticallyConfigured || isMiddlewareVerified ? hostname : undefined;
   return getAllowedOrigins(verifiedHostname).includes(origin);
 }
