@@ -68,7 +68,8 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
   },
   {
     name: "SENTRY_DSN",
-    description: "Sentry DSN for server-side error monitoring (required in production for incident response)",
+    description:
+      "Sentry DSN for server-side error monitoring (required in production for incident response)",
     ownerFile: "lib/sentry.ts",
   },
 ] as const;
@@ -130,6 +131,14 @@ export function collectMissingEnv(envs: readonly RequiredEnvVar[]): RequiredEnvV
 export const FEATURE_CONDITIONAL_ENV: readonly {
   /** Env var that activates the feature. */
   readonly flag: string;
+  /**
+   * When set, the flag must equal this exact value to activate the
+   * requirement. When omitted, any non-empty flag value activates it.
+   * Use this for flags whose only meaningful "on" state is a specific
+   * value (e.g. `NODE_ENV === "production"`), so dev/test environments
+   * are not incorrectly treated as having the feature enabled.
+   */
+  readonly flagEquals?: string;
   /** Env vars that become required when the flag is truthy. */
   readonly requires: readonly RequiredEnvVar[];
 }[] = [
@@ -153,7 +162,84 @@ export const FEATURE_CONDITIONAL_ENV: readonly {
       },
     ],
   },
+  // PRIORITY 3: Feature-aware env validation for email sending
+  {
+    flag: "NEWSLETTER_ENABLED",
+    requires: [
+      {
+        name: "RESEND_API_KEY",
+        description: "Resend API key (required when newsletter is enabled)",
+        ownerFile: "app/api/newsletter/**",
+      },
+    ],
+  },
+  // Require Sentry DSN in production for observability (PRIORITY 5).
+  // `flagEquals` ensures this fires only when NODE_ENV is exactly
+  // "production" — not in development or test environments.
+  {
+    flag: "NODE_ENV",
+    flagEquals: "production",
+    requires: [
+      {
+        name: "SENTRY_DSN",
+        description:
+          "Sentry DSN (required in production for error monitoring and incident response)",
+        ownerFile: "lib/sentry.ts",
+      },
+    ],
+  },
 ] as const;
+
+/**
+ * Extended feature condition check for production observability.
+ * In production (NODE_ENV=production), if OTEL_ENDPOINT is set,
+ * OTEL_AUTH_TOKEN must also be configured.
+ */
+export function validateObservabilityEnv(): { missing: string[] } {
+  const missing: string[] = [];
+
+  // In production, if observability endpoint is configured, require auth token
+  if (process.env.NODE_ENV === "production") {
+    const otelEndpoint = process.env.OTEL_ENDPOINT;
+    const otelAuthToken = process.env.OTEL_AUTH_TOKEN;
+
+    if (otelEndpoint && otelEndpoint.trim().length > 0 && !otelAuthToken) {
+      missing.push("OTEL_AUTH_TOKEN (required when OTEL_ENDPOINT is set in production)");
+    }
+
+    // Log shipping requires the R2 bucket and worker to be configured
+    const logShipperEnabled = process.env.LOG_SHIPPER_ENABLED === "true";
+    if (logShipperEnabled) {
+      // This check happens at deploy time via CI validation
+      // Just document the requirement here
+    }
+  }
+
+  return { missing };
+}
+
+/**
+ * Get a formatted message for feature-specific missing env vars.
+ * Includes the feature name and how to fix the issue.
+ */
+export function formatFeatureEnvMessage(
+  feature: string,
+  missing: readonly RequiredEnvVar[],
+): string {
+  return [
+    "",
+    "=".repeat(60),
+    `Missing environment variables for feature: ${feature}`,
+    "=".repeat(60),
+    ...missing.map(
+      ({ name, description, ownerFile }) => `  - ${name}: ${description} (used by ${ownerFile})`,
+    ),
+    "",
+    `To enable ${feature}, configure the above environment variables.`,
+    "=".repeat(60),
+    "",
+  ].join("\n");
+}
 
 /** Run the full audit of required + recommended server env vars. */
 export function validateServerEnv(): {
@@ -161,13 +247,26 @@ export function validateServerEnv(): {
   missingRecommended: RequiredEnvVar[];
 } {
   const missing = collectMissingEnv(REQUIRED_SERVER_ENV);
+  const seenNames = new Set(missing.map((e) => e.name));
 
-  // F-07: feature-conditional hard requirements
-  for (const { flag, requires } of FEATURE_CONDITIONAL_ENV) {
+  // F-07: feature-conditional hard requirements. A feature conditional
+  // may reference a variable that is already in REQUIRED_SERVER_ENV
+  // (e.g. SENTRY_DSN required in production); we de-duplicate by name
+  // so the feature conditional cannot double-count the same variable.
+  for (const { flag, flagEquals, requires } of FEATURE_CONDITIONAL_ENV) {
     const flagValue = process.env[flag];
-    if (flagValue && flagValue.trim().length > 0) {
+    const isActive =
+      flagEquals !== undefined
+        ? flagValue === flagEquals
+        : !!(flagValue && flagValue.trim().length > 0);
+    if (isActive) {
       const featureMissing = collectMissingEnv(requires);
-      missing.push(...featureMissing);
+      for (const entry of featureMissing) {
+        if (!seenNames.has(entry.name)) {
+          missing.push(entry);
+          seenNames.add(entry.name);
+        }
+      }
     }
   }
 

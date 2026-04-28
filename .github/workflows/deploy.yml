@@ -108,6 +108,89 @@ jobs:
 
       - run: npm ci
 
+      # ── Validate Cloudflare Worker bindings (PRIORITY 0) ───────────
+      # F-007: Production deploy must hard-fail if required Cloudflare
+      # bindings are missing. Without these, the Worker will not start.
+      - name: Validate Cloudflare Worker bindings
+        run: |
+          set -euo pipefail
+
+          echo "=== Validating required Cloudflare Worker bindings ==="
+
+          MISSING_BINDINGS=""
+
+          # Check wrangler.jsonc contains required KV namespace bindings
+          echo "Checking KV namespace bindings..."
+          if ! grep -q '"binding".*"RATE_LIMIT_KV"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS RATE_LIMIT_KV"
+          fi
+          if ! grep -q '"binding".*"APP_CACHE_KV"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS APP_CACHE_KV"
+          fi
+
+          # APP_CACHE_KV is required for middleware/domain resolution
+          # (already checked above and added to MISSING_BINDINGS if absent;
+          # the aggregate report at the end of this step will surface it
+          # alongside any other missing bindings).
+
+          # Check Durable Object bindings
+          echo "Checking Durable Object bindings..."
+          if ! grep -q '"name".*"RATE_LIMITER_DO"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS RATE_LIMITER_DO"
+          fi
+
+          # Check Queue producer bindings
+          echo "Checking Queue bindings..."
+          if ! grep -q '"binding".*"CLICK_QUEUE"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS CLICK_QUEUE"
+          fi
+
+          # CLICK_QUEUE_DLQ is required when CLICK_QUEUE is configured
+          if grep -q '"binding".*"CLICK_QUEUE"' wrangler.jsonc; then
+            if ! grep -q 'click-tracking-dlq\|CLICK_QUEUE_DLQ' wrangler.jsonc; then
+              echo "::warning::CLICK_QUEUE is configured but no dead-letter queue (dlq) found"
+              echo "::warning::Consider adding a DLQ binding for failed message handling"
+            fi
+          fi
+
+          # Check R2 bucket bindings
+          echo "Checking R2 bucket bindings..."
+          if ! grep -q '"binding".*"NEXT_INC_CACHE_R2_BUCKET"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS NEXT_INC_CACHE_R2_BUCKET"
+          fi
+
+          # Check KV namespace IDs are configured (not empty placeholders).
+          # In wrangler.jsonc the `binding` and `id` fields live on
+          # separate lines, so a single-line grep can never match.
+          # Use awk to scan each binding block for an empty id.
+          echo "Checking KV namespace IDs are configured..."
+          check_kv_id_empty() {
+            local name="$1"
+            awk -v name="$name" '
+              $0 ~ "\"binding\"[[:space:]]*:[[:space:]]*\""name"\"" { found=1; next }
+              found && /"id"[[:space:]]*:[[:space:]]*"[[:space:]]*"/ { print "EMPTY"; exit }
+              found && /"id"[[:space:]]*:/ { exit }
+            ' wrangler.jsonc
+          }
+          if [ "$(check_kv_id_empty RATE_LIMIT_KV)" = "EMPTY" ]; then
+            echo "::error::RATE_LIMIT_KV namespace ID is empty"
+            echo "::error::Run: npx wrangler kv:namespace create RATE_LIMIT_KV"
+            exit 1
+          fi
+          if [ "$(check_kv_id_empty APP_CACHE_KV)" = "EMPTY" ]; then
+            echo "::error::APP_CACHE_KV namespace ID is empty"
+            echo "::error::Run: npx wrangler kv:namespace create APP_CACHE_KV"
+            exit 1
+          fi
+
+          if [ -n "$MISSING_BINDINGS" ]; then
+            echo "::error::Missing required Cloudflare bindings:$MISSING_BINDINGS"
+            echo "::error::Add missing bindings to wrangler.jsonc before deploying"
+            exit 1
+          fi
+
+          echo "All required Cloudflare bindings are configured"
+
       # ── Validate required Cloudflare Worker secrets ────────────────
       - name: Validate required Cloudflare Worker secrets
         env:
