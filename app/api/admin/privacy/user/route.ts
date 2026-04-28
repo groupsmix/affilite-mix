@@ -4,6 +4,7 @@ import { getTenantClient } from "@/lib/supabase-server";
 import { apiError, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
+import { unauthorizedResponse } from "@/lib/admin-guard";
 
 /**
  * DELETE /api/admin/privacy/user — GDPR Right to be Forgotten (RTBF)
@@ -23,8 +24,10 @@ import { logger } from "@/lib/logger";
  */
 
 export const GET = withAuthz("privacy", "read", async (request, { session }) => {
+  // G-45: standardised 401 + Bearer challenge instead of a descriptive 403,
+  // so route existence / role gating cannot be probed.
   if (session.role !== "super_admin") {
-    return apiError(403, "Only super admins can perform data exports");
+    return unauthorizedResponse();
   }
 
   const { searchParams } = request.nextUrl;
@@ -98,8 +101,10 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
 
 export const DELETE = withAuthz("privacy", "delete", async (request, { session }) => {
   // F-021: Only super_admin can perform data erasure (security-critical operation)
+  // G-45: standardised 401 + Bearer challenge instead of a descriptive 403,
+  // so route existence / role gating cannot be probed.
   if (session.role !== "super_admin") {
-    return apiError(403, "Only super admins can perform data erasure");
+    return unauthorizedResponse();
   }
 
   const bodyOrError = await parseJsonBody(request);
