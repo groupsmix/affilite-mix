@@ -3,9 +3,16 @@ import { NextRequest } from "next/server";
 
 // ── Mocks ────────────────────────────────────────────────────────
 
-vi.mock("@/lib/admin-guard", () => ({
-  requireAdmin: vi.fn(),
-}));
+vi.mock("@/lib/admin-guard", async (importOriginal) => {
+  // Keep the real assertRole/unauthorizedResponse helpers (G-45) so the
+  // route returns the standardised 401 + Bearer when the role is wrong;
+  // mock only the requireAdmin gate so these tests can drive sessions.
+  const actual = await importOriginal<typeof import("@/lib/admin-guard")>();
+  return {
+    ...actual,
+    requireAdmin: vi.fn(),
+  };
+});
 
 // FIX-18 step-up auth is enforced on PATCH/DELETE; bypass it for these tests
 // so we can exercise the last-super_admin guard in isolation. Step-up

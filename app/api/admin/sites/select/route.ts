@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { requireAdmin, unauthorizedResponse } from "@/lib/admin-guard";
 import { getSiteById } from "@/config/sites";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -42,11 +42,13 @@ export async function POST(request: NextRequest) {
 
   // Enforce membership: non-super_admin users must have a membership row
   // for the target site. super_admin can still switch globally.
+  // G-45: standardised 401 + Bearer challenge instead of 403 so a probe
+  // cannot enumerate which sites the caller is or isn't a member of.
   if (session.role !== "super_admin" && session.userId) {
     const dbSiteId = await resolveDbSiteId(siteId);
     const membership = await getAdminSiteMembership(session.userId, dbSiteId);
     if (!membership) {
-      return NextResponse.json({ error: "You do not have access to this site" }, { status: 403 });
+      return unauthorizedResponse();
     }
   }
 

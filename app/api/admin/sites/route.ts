@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { requireAdmin, assertRole } from "@/lib/admin-guard";
 import { allSites } from "@/config/sites";
 import { listSites, createSite, updateSite, deleteSite } from "@/lib/dal/sites";
 import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
@@ -115,9 +115,9 @@ export async function POST(request: NextRequest) {
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
@@ -192,9 +192,9 @@ export async function PATCH(request: NextRequest) {
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
@@ -265,9 +265,9 @@ export async function DELETE(request: NextRequest) {
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden: super_admin role required" }, { status: 403 });
-  }
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;

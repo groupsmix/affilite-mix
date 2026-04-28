@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { requireAdmin, assertRole } from "@/lib/admin-guard";
 import {
   listAdminUsers,
   createAdminUser,
@@ -35,9 +35,9 @@ export async function GET() {
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
-  }
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Only super_admin can create users
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
-  }
+  // Only super_admin can create users.
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
 
   const rlError = await enforceRateLimit(session.email, session.userId);
   if (rlError) return rlError;
@@ -126,10 +126,10 @@ export async function PATCH(request: NextRequest) {
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Only super_admin can update users
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
-  }
+  // Only super_admin can update users.
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
 
   // FIX-18 (F-030): Step-up auth required for role changes and user updates
   const stepUpError = requireStepUpAuth(session);
@@ -208,12 +208,11 @@ export async function DELETE(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Only super_admin can delete users. Run this *before* the step-up check so
-  // a regular admin gets the standard 403 "Insufficient permissions" response
-  // and we don't leak the existence of the step-up gate to unauthorized
-  // callers (matches the ordering used by PATCH and admin/sites DELETE).
-  if (session.role !== "super_admin") {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
-  }
+  // we don't leak the existence of the step-up gate to unauthorized callers
+  // (matches the ordering used by PATCH and admin/sites DELETE).
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
 
   // FIX-18 (F-030): Step-up auth required for user deletion
   const stepUpError = requireStepUpAuth(session);

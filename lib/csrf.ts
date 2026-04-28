@@ -30,10 +30,28 @@ function timingSafeCompare(a: string, b: string): boolean {
   const bufA = encoder.encode(a);
   const bufB = encoder.encode(b);
   if (bufA.byteLength !== bufB.byteLength) {
-    // Compare bufA with itself to maintain constant-time behavior
+    // G-43: Do NOT "simplify" this branch.
+    //
+    // Returning early on a length mismatch would already leak length, but
+    // we additionally walk bufA against bufB (with modular indexing on the
+    // shorter buffer) so the work performed in the mismatched-length
+    // branch is data-dependent and structurally similar to the equal-
+    // length branch below. Earlier revisions did `bufA[i] ^ bufA[i]`,
+    // which is algebraically 0 and which an optimising JIT could prove
+    // dead (collapsing the loop and reintroducing a timing side-channel
+    // even with `void result` observing the sink). Using `bufB[i % len]`
+    // produces values the compiler cannot fold away.
+    //
+    // The walk length is capped at `max(bufA, bufB)` so the loop body
+    // count is independent of which side was longer. Removing the loop,
+    // dropping the `void`, or replacing the body with a constant would
+    // let the optimiser collapse the branch.
+    const longer = bufA.byteLength > bufB.byteLength ? bufA.byteLength : bufB.byteLength;
+    const lenB = bufB.byteLength || 1;
+    const lenA = bufA.byteLength || 1;
     let result = 0;
-    for (let i = 0; i < bufA.byteLength; i++) {
-      result |= bufA[i] ^ bufA[i];
+    for (let i = 0; i < longer; i++) {
+      result |= bufA[i % lenA] ^ bufB[i % lenB];
     }
     void result;
     return false;

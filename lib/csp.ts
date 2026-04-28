@@ -49,7 +49,7 @@ export function buildCspHeader(nonce: string): string {
     `style-src 'self' 'nonce-${nonce}'`,
     "font-src 'self'",
     "img-src 'self' data: blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.supabase.co https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com",
-    "connect-src 'self' https://*.supabase.co https://api.coingecko.com https://challenges.cloudflare.com https://*.ingest.sentry.io",
+    "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.ingest.sentry.io",
     "frame-src https://challenges.cloudflare.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
