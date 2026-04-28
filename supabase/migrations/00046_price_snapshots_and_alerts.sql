@@ -50,7 +50,7 @@ ALTER TABLE price_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "service_role_price_snapshots" ON price_snapshots
-  FOR ALL USING (true) WITH CHECK (true);
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 CREATE POLICY "service_role_price_alerts" ON price_alerts
-  FOR ALL USING (true) WITH CHECK (true);
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
