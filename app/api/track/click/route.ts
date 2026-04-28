@@ -11,15 +11,7 @@ import { runAfterResponse } from "@/lib/wait-until";
 import { signInternalRequest, computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 
 /** 60 click-tracking requests per minute per IP */
-// F-API-01: failPolicy: "closed" — if KV/DO is unavailable, reject clicks rather than
-// allowing unbounded click-spamming. The cost of dropped clicks (recoverable via replay)
-// is lower than the cost of fraud-induced affiliate network bans.
-const CLICK_RATE_LIMIT = {
-  maxRequests: 60,
-  windowMs: 60 * 1000,
-  failPolicy: "closed" as const,
-  graceMs: 60_000, // 60s grace window before failing closed
-};
+const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000, failPolicy: "open" as const };
 
 /**
  * Shared handler for click tracking (used by both GET and POST).
