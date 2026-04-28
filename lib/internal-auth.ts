@@ -79,46 +79,7 @@ export function getInternalTokenFor(purpose: InternalTokenPurpose): string {
 }
 
 /**
- * F-SEC-06: Key separation for different cryptographic purposes.
- *
- * INTERNAL_HMAC_SIGNING_KEY - Used for HMAC request signing between
- * Cloudflare Queue/Cron and API routes. Compromise allows request
- * forgery but not cache poisoning.
- *
- * CACHE_INTEGRITY_KEY - Used for HMAC-signing cached affiliate URLs.
- * Compromise allows cache poisoning but not request forgery.
- *
- * Backward compatibility: if the new purpose-specific keys are not set,
- * falls back to INTERNAL_API_TOKEN (the legacy monolithic secret).
- *
- * Production: Set both keys to independent random 32+ byte secrets.
- */
-export type KeyPurpose = "hmac_signing" | "cache_integrity";
-
-const KEY_PURPOSE_ENV_MAP: Record<KeyPurpose, string> = {
-  hmac_signing: "INTERNAL_HMAC_SIGNING_KEY",
-  cache_integrity: "CACHE_INTEGRITY_KEY",
-};
-
-/**
- * Get the appropriate secret key for a cryptographic purpose.
- * Implements F-SEC-06 key separation with backward compatibility.
- */
-export function getPurposeKey(purpose: KeyPurpose): string {
-  const envName = KEY_PURPOSE_ENV_MAP[purpose];
-  const purposeValue = process.env[envName];
-  const fallbackValue = process.env.INTERNAL_API_TOKEN;
-  const isBuild = !!process.env.NEXT_PHASE;
-  const isProd = process.env.NODE_ENV === "production";
-
-  // Prefer purpose-specific key; fall back to legacy token.
-  const value = purposeValue?.trim() || fallbackValue?.trim() || "";
-  return validateToken(value, isProd, isBuild, envName);
-}
-
-/**
- * @deprecated Use getInternalTokenFor() with a specific purpose or
- * getPurposeKey() for cryptographic operations.
+ * @deprecated Use getInternalTokenFor() with a specific purpose.
  * Returns the legacy monolithic internal API token for backward compat.
  */
 export function getInternalToken(): string {

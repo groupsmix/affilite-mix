@@ -47,41 +47,6 @@ All SQL migrations are numbered sequentially. Apply them in order against your S
 | `00038_harden_public_insert_policies.sql`             | Drops any residual anon INSERT policies on `ad_impressions` / `web_vitals` (`public_insert_ad_impressions`, `web_vitals_anon_insert`, `Allow anonymous inserts`, `ad_impressions_public_insert`, `Public can insert ad impressions`); REVOKEs INSERT from `anon` on both. All telemetry writes already use the service role.                                                                         |
 | `00039_drop_legacy_public_select_policies.sql`        | Second-pass cleanup for any historical public SELECT policy names not already removed by 00035 (e.g. `Public read active products`, `public_select_sites`, `public_read_published_pages`). Idempotent DROP POLICY IF EXISTS + REVOKE SELECT.                                                                                                                                                         |
 | `00040_add_missing_service_role_policies.sql`         | Defense-in-depth: adds explicit `*_service_all` policies to 10 tables that had RLS enabled with zero policies (`admin_users`, `sites`, `site_modules`, `site_feature_flags`, `roles`, `permissions`, `role_permissions`, `user_site_roles`, `integration_providers`, `site_integrations`). Zero runtime effect (service_role already bypasses RLS); aligns prod with `docs/public-rls-inventory.md`. |
-| `00041_critical_schema_reconciliation.sql`              | Critical schema reconciliation: adds missing columns (author, review_state to content), fixes inconsistent nullability, adds missing defaults, and aligns RLS policies across all tables. |
-| `00042_atomic_impression_function.sql`                | Creates `record_ad_impression_atomic()` RPC for thread-safe impression counting with upsert logic. |
-| `00043_authors_and_affiliate_links.sql`               | Adds `authors` table and `product_affiliate_links` table for multi-author support and per-product affiliate URL management. |
-| `00044_monetization_modules.sql`                        | Adds monetization module configuration columns to `site_modules` for paywall and subscription features. |
-| `00045_admin_totp_2fa.sql`                              | Adds `totp_secret`, `totp_enabled_at`, `totp_verified_at` columns to `admin_users` for TOTP-based 2FA. |
-| `00046_price_snapshots_and_alerts.sql`                | Adds `price_snapshots` and `price_change_alerts` tables for price tracking and notification features. |
-| `00047_quiz_funnel.sql`                                 | Adds `quiz_funnels`, `quiz_questions`, and `quiz_answers` tables for interactive quiz lead generation. |
-| `00048_commissions_and_epc.sql`                         | Adds `affiliate_commissions` and `affiliate_epc_history` tables for commission tracking and EPC calculations. |
-| `00049_deals.sql`                                       | Adds `deals` table for time-bound promotional offers with automatic expiration. |
-| `00050_community_ugc.sql`                               | Adds `community_posts`, `community_comments`, and `community_votes` tables for user-generated content features. |
-| `00051_memberships.sql`                                 | Adds `memberships` table for site-level subscription and access control management. |
-| `00052_ab_testing_and_review_state.sql`               | Adds A/B testing support (`content_variants`, `ab_test_results`) and formalizes `review_state` column on content. |
-| `00053_newsletter_unique_constraint.sql`                | Adds unique constraint on `(site_id, email)` to `newsletter_subscribers` to prevent duplicate subscriptions. |
-| `00054_stripe_events.sql`                             | Adds `stripe_events` table for webhook idempotency tracking (F-001). |
-| `00055_harden_remaining_rls.sql`                      | Hardens RLS on remaining tables: removes permissive policies from `admin_users`, adds explicit deny policies. |
-| `00056_click_id_idempotency.sql`                        | Adds `click_id` unique constraint to `affiliate_clicks` for click deduplication. |
-| `00057_transactional_rpcs.sql`                          | Adds transactional RPC functions for atomic multi-table operations. |
-| `00059_pg_trgm_indexes.sql`                             | Adds `pg_trgm` GIN indexes for text search optimization on content and products. |
-| `00060_fix_reorder_pages_search_path.sql`             | Fixes search_path security in `reorder_pages` RPC function (SECURITY DEFINER). |
-| `00061_drop_custom_css.sql`                           | Removes `custom_css` column from `sites` (superseded by theme system). |
-| `00062_totp_lockout.sql`                                | Adds `totp_failed_attempts` and `totp_locked_until` to `admin_users` for brute-force protection. |
-| `00064_tenant_isolation_rls.sql`                        | Introduces `tenant_isolation_auth_*` policies for cross-site access control (superseded by 00067). |
-| `00065_add_actor_user_id.sql`                           | Adds `actor_user_id` column to `audit_log` for tracking which admin performed an action. |
-| `00066_review_indexes_for_query_patterns.sql`         | Adds composite indexes optimized for common dashboard and public query patterns. |
-| `00067_harden_tenant_isolation_rls.sql`               | **CRITICAL**: Hardens 00064 by removing `IS NULL` fallback; enforces strict `site_id` match in JWT. |
-| `00068_enforce_scheduled_jobs_rls.sql`                | Hardens RLS on `scheduled_jobs` with service-role-only policies and explicit authenticated deny. |
-| `00069_site_id_indexes_for_rls.sql`                   | Adds composite indexes on `(site_id, status, ...)` for RLS performance optimization. |
-| `00070_atomic_stripe_event_apply.sql`                 | Creates `apply_stripe_membership_event()` RPC for atomic webhook processing (F-001 / LIVE-10). |
-| `00071_create_scheduled_jobs.sql`                     | Adds helper function for creating scheduled jobs with validation. |
-| `00072_affiliate_tracking_keys.sql`                   | Adds `tracking_key` column to `product_affiliate_links` for sub-affiliate tracking. |
-| `00073_current_request_site_ids.sql`                  | Adds `current_request_site_id()` SQL function for RLS policy site resolution. |
-| `00074_reintroduce_public_rls.sql`                    | Re-adds hardened public SELECT policies for read-only public access (supersedes 00035). |
-| `00075_drop_legacy_public_select_policies.sql`        | Second-pass cleanup of legacy public policy names (companion to 00074). |
-| `00076_deals_site_id_index.sql`                       | Adds `site_id` index and RLS policies to `deals` table for proper tenant isolation. |
-| `00077_purge_retention_function.sql`                  | Adds `purge_expired_data()` RPC for GDPR/data retention policy enforcement. |
 
 ## How to Apply
 
@@ -106,11 +71,10 @@ All migrations use `IF NOT EXISTS` / `CREATE OR REPLACE` guards where possible, 
 
 ## Adding New Migrations
 
-1. Create a new file with the next sequential number: `00078_description.sql`
+1. Create a new file with the next sequential number: `00032_description.sql`
 2. Use `IF NOT EXISTS` guards where possible for idempotency
-3. Add the migration to the table above (maintain order: 00041-00077 are already documented)
+3. Add the migration to the table above
 4. Test against a development database before applying to production
-5. Run `npm test` to verify no migration order conflicts exist
 
 ## Keeping schema.sql and types/supabase.ts in sync
 
