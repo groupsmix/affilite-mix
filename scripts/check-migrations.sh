@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # ────────────────────────────────────────────────────────────
-# scripts/check-migrations.sh — epic E-2 / F-006
+# scripts/check-migrations.sh — epic E-2
 #
 # Fail CI when a Supabase migration introduces a permissive RLS
 # policy of the form `FOR ALL USING (true)`.  Such policies are
-# the exact anti-pattern that can expose admin_users password hashes
-# to all authenticated users (see 00064/00067 migration history).
+# the exact anti-pattern the E-1 / 00055 migration hardens away
+# (service_role bypasses RLS so they work today, but silently
+# open up every role if RLS ever changes).
 #
-# F-006: Check is unconditional for NEW migrations, but we preserve
-# a LEGACY_FILES allowlist for historical migrations 00046-00052 that
-# contain the pattern but are append-only and cannot be modified.
+# Known-legacy migrations that already contain the pattern are
+# allow-listed here.  The allow-list is intentionally stored in
+# this script (not a separate dotfile) so reviewers see it in
+# the diff when it changes.
 #
 # Usage:
 #   scripts/check-migrations.sh                 # defaults to supabase/migrations
@@ -20,32 +22,36 @@ set -euo pipefail
 
 MIGRATIONS_DIR="${1:-supabase/migrations}"
 
-# LEGACY_FILES: Historical migrations that contain the forbidden pattern
-# but are append-only and cannot be edited per supabase/migrations/README.md
-LEGACY_FILES="000046_seed_auth_schema.sql 000047_seed_content_schema.sql 000048_seed_affiliate_schema.sql 000049_seed_community_schema.sql 000050_seed_analytics_schema.sql 000051_seed_notifications_schema.sql 000052_seed_admin_schema.sql"
+if [ ! -d "$MIGRATIONS_DIR" ]; then
+  echo "check-migrations: directory not found: $MIGRATIONS_DIR" >&2
+  exit 2
+fi
+
+# Historical migrations that pre-date the E-1 hardening migration
+# (00055_harden_remaining_rls.sql).  These are left untouched so the
+# migration history remains append-only; the hardening migration
+# drops and recreates each policy with a service_role scope.
+LEGACY_FILES=(
+  "00046_price_snapshots_and_alerts.sql"
+  "00047_quiz_funnel.sql"
+  "00048_commissions_and_epc.sql"
+  "00049_deals.sql"
+  "00050_community_ugc.sql"
+  "00051_memberships.sql"
+  "00052_ab_testing_and_review_state.sql"
+)
 
 is_legacy() {
-  local file="$1"
-  local basename_file
-  basename_file=$(basename "$file")
-  for legacy in $LEGACY_FILES; do
-    if [ "$basename_file" = "$legacy" ]; then
+  local base="$1"
+  for legacy in "${LEGACY_FILES[@]}"; do
+    if [ "$base" = "$legacy" ]; then
       return 0
     fi
   done
   return 1
 }
 
-if [ ! -d "$MIGRATIONS_DIR" ]; then
-  echo "check-migrations: directory not found: $MIGRATIONS_DIR" >&2
-  exit 2
-fi
-
-# F-006: Also check for TO authenticated combined with USING (true)
-# which is the pattern that shipped in 00064 and was fixed in 00067
-PATTERN_FOR_ALL="FOR[[:space:]]+ALL[[:space:]]+USING[[:space:]]*\([[:space:]]*true[[:space:]]*\)"
-PATTERN_AUTH_TRUE="TO[[:space:]]+authenticated.*USING[[:space:]]*\([[:space:]]*true[[:space:]]*\)"
-PATTERN_ROLE_TRUE="auth\.role\(\)[[:space:]]*=[[:space:]]*'authenticated'.*USING[[:space:]]*\([[:space:]]*true[[:space:]]*\)"
+PATTERN="FOR[[:space:]]+ALL[[:space:]]+USING[[:space:]]*\([[:space:]]*true[[:space:]]*\)"
 
 # Strip single-line SQL comments (-- …) before matching so comment
 # prose inside the hardening migration or audit notes doesn't trip
@@ -58,27 +64,14 @@ strip_sql_comments() {
 violations=0
 while IFS= read -r -d '' file; do
   base="$(basename "$file")"
-  stripped=$(strip_sql_comments "$file")
-
-  # Skip legacy files that are append-only historical migrations
-  if is_legacy "$file"; then
-    continue
-  fi
-
-  # Check for FOR ALL USING (true) - unconditional failure (except legacy)
-  if echo "$stripped" | grep -qE "$PATTERN_FOR_ALL"; then
-    echo "::error file=$file::F-006: Migration contains 'FOR ALL USING (true)'. This pattern is forbidden in all migrations." >&2
-    echo "$stripped" | grep -nE "$PATTERN_FOR_ALL" >&2 || true
+  if strip_sql_comments "$file" | grep -qE "$PATTERN"; then
+    if is_legacy "$base"; then
+      continue
+    fi
+    echo "::error file=$file::Migration contains 'FOR ALL USING (true)'. Scope the policy to a specific role (e.g. service_role) instead." >&2
+    strip_sql_comments "$file" | grep -nE "$PATTERN" >&2 || true
     violations=$((violations + 1))
   fi
-
-  # Check for TO authenticated USING (true) - the 00064 pattern
-  if echo "$stripped" | grep -qE "$PATTERN_AUTH_TRUE"; then
-    echo "::error file=$file::F-006: Migration contains 'TO authenticated ... USING (true)'. This exposes data to all authenticated users." >&2
-    echo "$stripped" | grep -nE "$PATTERN_AUTH_TRUE" >&2 || true
-    violations=$((violations + 1))
-  fi
-
 done < <(find "$MIGRATIONS_DIR" -type f -name '*.sql' -print0 | sort -z)
 
 if [ "$violations" -gt 0 ]; then

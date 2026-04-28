@@ -362,7 +362,6 @@ export interface AiDraftRow {
   topic: string;
   keywords: string[];
   ai_provider: string;
-  ai_model: string;
   status: AiDraftStatus;
   generated_at: string;
   reviewed_at: string | null;

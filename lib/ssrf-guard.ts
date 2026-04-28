@@ -7,62 +7,14 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
  * server fetch internal resources (metadata endpoints, cloud instance IPs,
  * internal APIs, etc.).
  *
- * F-012: SSRF guard now compatible with Cloudflare Workers edge runtime.
- * Uses Cloudflare's DNS-over-HTTPS API instead of Node.js dns module.
+ * F-036: SSRF guard for URLs
  */
 
 import { logger } from "./logger";
+import dns from "node:dns";
+import { promisify } from "node:util";
 
-// F-012: Detect if we're running on Cloudflare Workers (edge runtime)
-const isEdgeRuntime = typeof process === "undefined" || process.version === undefined;
-
-/**
- * F-012: DNS resolution compatible with Cloudflare Workers.
- * Uses Cloudflare's DNS-over-HTTPS API instead of Node.js dns.
- */
-async function lookupHostname(hostname: string): Promise<string | null> {
-  // Skip DNS for IP literals
-  if (hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)) {
-    return hostname;
-  }
-
-  // IPv6 literal check
-  if (hostname.includes(":")) {
-    return hostname; // IPv6 literals don't need resolution
-  }
-
-  try {
-    // Use Cloudflare's DNS-over-HTTPS API
-    const response = await fetchWithTimeout(
-      `https://1.1.1.1/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
-      {
-        headers: {
-          "Accept": "application/dns-json",
-        },
-      },
-      5000, // 5 second timeout for DNS lookup
-    );
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json() as {
-      Answer?: Array<{ type: number; data: string }>;
-    };
-
-    // Type 1 = A record
-    const aRecord = data.Answer?.find((r) => r.type === 1);
-    if (aRecord) {
-      return aRecord.data;
-    }
-
-    return null;
-  } catch (err) {
-    logger.warn("SSRF guard: DNS lookup failed", { hostname, error: String(err) });
-    return null;
-  }
-}
+const lookupAsync = promisify(dns.lookup);
 
 // Blocked hostnames / IP ranges
 const BLOCKED_HOSTS = new Set([
@@ -262,37 +214,31 @@ export async function validateExternalUrl(
     }
   }
 
-  // F-012: Domain-to-IP resolution with rebinding check
-  // Uses Cloudflare DNS-over-HTTPS instead of Node.js dns module
-  // Skip DNS resolution for IP literals (already checked above)
-  if (
-    !hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/) &&
-    !ipv6MappedToIPv4(hostname)
-  ) {
-    const resolvedIP = await lookupHostname(hostname);
+  // Domain-to-IP resolution with rebinding check (lightweight approach)
+  // For user-supplied URLs, we resolve and validate; fail-closed on errors
+  try {
+    // Skip DNS resolution for IP literals (already checked above)
+    if (
+      !hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/) &&
+      !ipv6MappedToIPv4(hostname)
+    ) {
+      const { address } = await lookupAsync(hostname);
 
-    if (resolvedIP) {
       // Check if the resolved IP is in blocked ranges
-      const ipMatch = resolvedIP.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+      const ipMatch = address.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
       if (ipMatch) {
         const ip = ipMatch.slice(1).join(".");
         for (const cidr of BLOCKED_IP_RANGES) {
           if (ipInRange(ip, cidr)) {
-            return { valid: false, error: `Resolved IP range '${cidr}' is blocked (SSRF risk)` };
+            return { valid: false, error: `Resolved IP range \'${cidr}\' is blocked (SSRF risk)` };
           }
         }
       }
-    } else {
-      // F-012: On edge runtime, if DNS fails, we continue without blocking
-      // because the actual request will be made from Cloudflare's network.
-      // In nodejs runtime, we block (fail-closed).
-      if (!isEdgeRuntime) {
-        logger.warn("SSRF guard: DNS resolution failed for hostname", { hostname });
-        return { valid: false, error: "DNS resolution failed — blocked" };
-      }
-      // Edge: log but allow (Cloudflare's network provides additional protection)
-      logger.debug("SSRF guard: DNS resolution skipped on edge runtime", { hostname });
     }
+  } catch (err) {
+    // If resolution fails, log and block (fail-closed)
+    logger.warn("SSRF guard: DNS resolution failed for hostname", { hostname, error: String(err) });
+    return { valid: false, error: "DNS resolution failed — blocked" };
   }
 
   return { valid: true };
