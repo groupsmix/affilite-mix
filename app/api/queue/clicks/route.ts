@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getInternalToken } from "@/lib/internal-auth";
-import { verifyInternalHmac } from "@/lib/internal-hmac";
+import { verifyInternalHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { captureException } from "@/lib/sentry";
 
 /**
@@ -125,10 +125,11 @@ export async function POST(request: NextRequest) {
 
   if (!hmacResult.valid) {
     // Fallback: legacy Bearer token (permissive mode only)
+    // F-011: Use timing-safe comparison to prevent timing attacks
     if (migrationMode === "permissive") {
       const authHeader = request.headers.get("authorization") ?? "";
       const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : "";
-      if (bearer !== expected) {
+      if (!timingSafeEqual(bearer, expected)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     } else {

@@ -9,6 +9,7 @@ import { apiError, rateLimitHeaders } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";
+import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 
 /** 60 outbound redirects per minute per IP */
 const REDIRECT_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -55,6 +56,42 @@ export async function GET(
 
     if (!destinationUrl) {
       return apiError(404, "No affiliate link available for this product");
+    }
+
+    // F-004: Validate scheme (http: or https: only) and domain allow-list
+    try {
+      const url = new URL(destinationUrl);
+      const allowedSchemes = new Set(["http:", "https:"]);
+
+      // Reject non-http(s) schemes (data:, javascript:, file:, etc.)
+      if (!allowedSchemes.has(url.protocol)) {
+        captureException(new Error("Invalid URL scheme in affiliate redirect"), {
+          context: "[r/shortcode] F-004 scheme validation",
+          extra: { shortcode, destinationUrl, scheme: url.protocol },
+        });
+        return apiError(400, "Invalid affiliate link: only HTTP/HTTPS allowed");
+      }
+
+      // F-004 + F-005: Validate domain is on affiliate allow-list
+      const domainCheck = validateAffiliateDomain(destinationUrl);
+      if (!domainCheck.allowed) {
+        captureException(new Error("Disallowed affiliate domain"), {
+          context: "[r/shortcode] F-004 domain allow-list",
+          extra: { shortcode, destinationUrl, reason: domainCheck.reason },
+        });
+        return apiError(403, "Affiliate domain not allowed");
+      }
+
+      // F-012: Enforce HTTPS in production (warn in dev)
+      if (url.protocol !== "https:" && process.env.NODE_ENV === "production") {
+        captureException(new Error("Non-HTTPS affiliate URL rejected"), {
+          context: "[r/shortcode] F-012 HTTPS enforcement",
+          extra: { shortcode, destinationUrl },
+        });
+        return apiError(400, "Invalid affiliate link: HTTPS required");
+      }
+    } catch {
+      return apiError(400, "Invalid affiliate URL");
     }
 
     // Record click (fire-and-forget via waitUntil)

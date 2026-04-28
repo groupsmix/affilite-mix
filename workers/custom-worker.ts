@@ -19,6 +19,8 @@ import { default as handler } from "../.open-next/worker.js";
 import { RateLimiterDO } from "./rate-limiter-do";
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
 import { signInternalRequest } from "../lib/internal-hmac";
+// F-013: Sentry error monitoring for Cloudflare Workers
+import { withSentry } from "@sentry/cloudflare";
 
 // Minimal type stubs for Cloudflare Worker APIs (provided by the runtime)
 interface CloudflareScheduledController {
@@ -274,7 +276,21 @@ const worker = {
   },
 };
 
-export default worker;
+// F-013: Wrap the worker with Sentry for error monitoring on all handlers
+// (fetch, scheduled, queue). This catches errors in middleware, cron jobs,
+// and queue consumers that would otherwise be invisible.
+const sentryWrappedWorker = withSentry(
+  (env: Record<string, unknown>) => ({
+    dsn: env.SENTRY_DSN as string | undefined,
+    // Sample 10% of transactions for performance monitoring
+    tracesSampleRate: 0.1,
+    // Enable debug logging in development
+    debug: (env.NODE_ENV as string | undefined) === "development",
+  }),
+  worker,
+);
+
+export default sentryWrappedWorker;
 
 // Re-export Durable Object classes required by OpenNext's caching layer
 // @ts-expect-error -- `.open-next/worker.js` is generated at build time

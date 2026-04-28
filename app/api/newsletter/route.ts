@@ -150,6 +150,14 @@ export async function POST(request: Request) {
     const confirmUrl = `${baseUrl}/newsletter/confirm?token=${confirmationToken}`;
     const resendKey = process.env.RESEND_API_KEY;
 
+    // F-009: Fail closed in production if mail provider is not configured
+    if (!resendKey && process.env.NODE_ENV === "production") {
+      captureException(new Error("RESEND_API_KEY not configured in production"), {
+        context: "[api/newsletter] Mail provider misconfiguration",
+      });
+      return apiError(503, "Newsletter service unavailable");
+    }
+
     if (resendKey) {
       const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${site.domain}`;
       const res = await fetch("https://api.resend.com/emails", {
@@ -180,6 +188,7 @@ export async function POST(request: Request) {
         // Don't fail the request — subscriber is saved, they can retry
       }
     } else {
+      // Dev/test only: log the confirmation link when mail provider is unavailable
       console.warn("[api/newsletter] RESEND_API_KEY not set. Confirmation link:", confirmUrl);
     }
 

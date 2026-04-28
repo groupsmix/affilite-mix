@@ -43,6 +43,65 @@ export async function parseJsonBody(
   }
 }
 
+/**
+ * Safely parse the JSON body of a request with a maximum size limit.
+ * F-005/F-006: Enforces body size caps on CSRF-exempt and public routes.
+ *
+ * @param request - The incoming request
+ * @param maxBytes - Maximum allowed body size in bytes (default 64KB)
+ * @returns Parsed body, or a 413/400 NextResponse on failure
+ */
+export async function parseJsonBodyWithLimit(
+  request: Request,
+  maxBytes: number = 64 * 1024, // Default 64KB
+): Promise<Record<string, unknown> | NextResponse> {
+  // Check Content-Length header if present
+  const contentLength = request.headers.get("content-length");
+  if (contentLength) {
+    const length = parseInt(contentLength, 10);
+    if (!isNaN(length) && length > maxBytes) {
+      return apiError(413, "Payload Too Large", { maxBytes, received: length });
+    }
+  }
+
+  // Read body with size enforcement
+  try {
+    const reader = request.body?.getReader();
+    if (!reader) {
+      // No body - try to parse as empty JSON
+      return {};
+    }
+
+    const chunks: Uint8Array[] = [];
+    let totalLength = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      totalLength += value.length;
+      if (totalLength > maxBytes) {
+        reader.cancel();
+        return apiError(413, "Payload Too Large", { maxBytes, received: totalLength });
+      }
+      chunks.push(value);
+    }
+
+    // Concatenate chunks
+    const body = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      body.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    const text = new TextDecoder().decode(body);
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return apiError(400, "Invalid JSON body");
+  }
+}
+
 export function rateLimitHeaders(
   config: RateLimitConfig,
   result: RateLimitResult,

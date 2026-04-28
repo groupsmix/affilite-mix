@@ -72,19 +72,42 @@ const eslintConfig = [
     // supabase clients outside the DAL layer are forbidden.
     // The selector matches: <expr>.from(<stringLiteral>) which catches
     // sb.from("table"), supabase.from("table"), etc.
+    // F-CD-03: Promoted to "error" — privileged contexts are whitelisted below.
     files: ["app/**/*.ts", "app/**/*.tsx"],
     rules: {
       "no-restricted-syntax": [
-        "warn",
+        "error",
         {
           selector:
             "CallExpression[callee.property.name='from'] > Literal:first-child",
           message:
             "Prefer tenantQuery() from @/lib/dal/tenant-query over raw .from(). " +
             "If this is Array.from() or a privileged context (cron/queue/webhook), " +
-            "add an eslint-disable comment.",
+            "add an eslint-disable comment with justification.",
         },
       ],
+    },
+  },
+  {
+    // F-CD-03: Privileged contexts are exempt — these routes run in isolated
+    // security contexts (cron/queue/webhook) where service-role access is
+    // explicitly required and tenant scoping is handled via code review.
+    files: [
+      "app/api/cron/**/*.ts",
+      "app/api/queue/**/*.ts",
+      "app/api/webhook/**/*.ts",
+      "app/api/membership/webhook/**/*.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": "off",
+    },
+  },
+  {
+    // F-CD-03: DAL layer is exempt — it implements the tenant scoping
+    // that the no-restricted-syntax rule is designed to enforce.
+    files: ["lib/dal/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": "off",
     },
   },
   {
