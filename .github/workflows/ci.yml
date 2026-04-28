@@ -188,7 +188,7 @@ jobs:
           SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
           # Hard-fail on missing secret for trusted runs (main push or
           # non-fork PRs); fork PRs fall through to skip-green.
-          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
+          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && 'true' || 'false' }}
         run: |
           if bash scripts/db-audit.sh; then
             echo "status=passed" >> "$GITHUB_OUTPUT"
@@ -241,7 +241,7 @@ jobs:
           # See db-audit job above for the IPv6/pooler rationale.
           STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
           SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
-          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
+          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && 'true' || 'false' }}
         run: |
           if bash scripts/check-db-types.sh; then
             echo "status=passed" >> "$GITHUB_OUTPUT"
