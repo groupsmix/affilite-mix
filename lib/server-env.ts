@@ -68,7 +68,8 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
   },
   {
     name: "SENTRY_DSN",
-    description: "Sentry DSN for server-side error monitoring (required in production for incident response)",
+    description:
+      "Sentry DSN for server-side error monitoring (required in production for incident response)",
     ownerFile: "lib/sentry.ts",
   },
 ] as const;
@@ -170,7 +171,8 @@ export const FEATURE_CONDITIONAL_ENV: readonly {
     requires: [
       {
         name: "SENTRY_DSN",
-        description: "Sentry DSN (required in production for error monitoring and incident response)",
+        description:
+          "Sentry DSN (required in production for error monitoring and incident response)",
         ownerFile: "lib/sentry.ts",
       },
     ],
@@ -219,8 +221,7 @@ export function formatFeatureEnvMessage(
     `Missing environment variables for feature: ${feature}`,
     "=".repeat(60),
     ...missing.map(
-      ({ name, description, ownerFile }) =>
-        `  - ${name}: ${description} (used by ${ownerFile})`,
+      ({ name, description, ownerFile }) => `  - ${name}: ${description} (used by ${ownerFile})`,
     ),
     "",
     `To enable ${feature}, configure the above environment variables.`,
@@ -235,13 +236,22 @@ export function validateServerEnv(): {
   missingRecommended: RequiredEnvVar[];
 } {
   const missing = collectMissingEnv(REQUIRED_SERVER_ENV);
+  const seenNames = new Set(missing.map((e) => e.name));
 
-  // F-07: feature-conditional hard requirements
+  // F-07: feature-conditional hard requirements. A feature conditional
+  // may reference a variable that is already in REQUIRED_SERVER_ENV
+  // (e.g. SENTRY_DSN required in production); we de-duplicate by name
+  // so the feature conditional cannot double-count the same variable.
   for (const { flag, requires } of FEATURE_CONDITIONAL_ENV) {
     const flagValue = process.env[flag];
     if (flagValue && flagValue.trim().length > 0) {
       const featureMissing = collectMissingEnv(requires);
-      missing.push(...featureMissing);
+      for (const entry of featureMissing) {
+        if (!seenNames.has(entry.name)) {
+          missing.push(entry);
+          seenNames.add(entry.name);
+        }
+      }
     }
   }
 
