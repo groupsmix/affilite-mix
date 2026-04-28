@@ -88,11 +88,13 @@ describe("CORS Security", () => {
       // Access-Control-Allow-Credentials should only be set when
       // the origin is in the allow-list (never wildcard)
       const allowedOrigin = "https://legitimate-site.com";
-      const response = handlePreflight(createMockRequest({
-        method: "OPTIONS",
-        origin: allowedOrigin,
-        path: "/api/admin/...",
-      }));
+      const response = handlePreflight(
+        createMockRequest({
+          method: "OPTIONS",
+          origin: allowedOrigin,
+          path: "/api/admin/...",
+        }),
+      );
 
       expect(response.headers.get("Access-Control-Allow-Credentials")).toBe("true");
       expect(response.headers.get("Access-Control-Allow-Origin")).toBe(allowedOrigin);
@@ -100,11 +102,13 @@ describe("CORS Security", () => {
 
     it("should NOT set credentials for unknown origins", () => {
       const unknownOrigin = "https://attacker-site.com";
-      const response = handlePreflight(createMockRequest({
-        method: "OPTIONS",
-        origin: unknownOrigin,
-        path: "/api/admin/...",
-      }));
+      const response = handlePreflight(
+        createMockRequest({
+          method: "OPTIONS",
+          origin: unknownOrigin,
+          path: "/api/admin/...",
+        }),
+      );
 
       // Should be 403, not 200 with wrong origin
       expect(response.status).toBe(403);
@@ -145,10 +149,7 @@ describe("CORS Security", () => {
       const isDev = process.env.NODE_ENV === "development";
 
       if (isDev) {
-        const localhostOrigins = [
-          "http://localhost:3000",
-          "http://localhost:3001",
-        ];
+        const localhostOrigins = ["http://localhost:3000", "http://localhost:3001"];
 
         const allowedOrigins = getAllowedOriginsMock();
         for (const origin of localhostOrigins) {
@@ -161,10 +162,7 @@ describe("CORS Security", () => {
       const isProd = process.env.NODE_ENV === "production";
 
       if (isProd) {
-        const localhostOrigins = [
-          "http://localhost:3000",
-          "http://localhost:3001",
-        ];
+        const localhostOrigins = ["http://localhost:3000", "http://localhost:3001"];
 
         const allowedOrigins = getAllowedOriginsMock();
         for (const origin of localhostOrigins) {
@@ -202,18 +200,25 @@ function createMockRequest(config: MockRequest) {
   };
 }
 
-function getAllowedOriginsMock(verifiedHostname?: string): string[] {
-  // Static configured sites
-  const origins = [
-    "https://ai-compared.com",
-    "https://cryptoranked.com",
-    "https://wristnerd.xyz",
-    "https://arabictools.wristnerd.xyz",
-    "https://crypto.wristnerd.xyz",
-  ];
+const STATIC_CONFIGURED_ORIGINS = [
+  "https://ai-compared.com",
+  "https://cryptoranked.com",
+  "https://wristnerd.xyz",
+  "https://arabictools.wristnerd.xyz",
+  "https://crypto.wristnerd.xyz",
+  "https://legitimate-site.com",
+];
 
-  if (verifiedHostname) {
-    origins.push(`https://${verifiedHostname}`);
+// Hostnames that the mock treats as DB-verified custom domains. Any
+// hostname passed to getAllowedOriginsMock that is NOT in this set is
+// considered unverified and must not be added to the allow-list.
+const VERIFIED_DB_HOSTS = new Set<string>(["custom-domain.example.com"]);
+
+function getAllowedOriginsMock(hostname?: string): string[] {
+  const origins = [...STATIC_CONFIGURED_ORIGINS];
+
+  if (hostname && VERIFIED_DB_HOSTS.has(hostname)) {
+    origins.push(`https://${hostname}`);
   }
 
   // Only in development
@@ -225,34 +230,51 @@ function getAllowedOriginsMock(verifiedHostname?: string): string[] {
   return origins;
 }
 
-function handlePreflight(request: { method: string; headers: { get: (name: string) => string | null }; nextUrl: { pathname: string } }) {
+type BuiltRequest = ReturnType<typeof createMockRequest>;
+type MockResponse = { status: number; headers: Map<string, string> };
+
+function handlePreflight(request: BuiltRequest): MockResponse {
   const requestOrigin = request.headers.get("origin") ?? "";
-  const isStaticConfigured = true; // Simplified for testing
-  const allowedOrigins = getAllowedOriginsMock(isStaticConfigured ? request.nextUrl.pathname : undefined);
+  const allowedOrigins = getAllowedOriginsMock();
   const matchedOrigin =
     requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";
 
+  // Every CORS response must vary on Origin so CDNs/caches don't leak
+  // one tenant's Access-Control-Allow-Origin into another tenant's cache.
+  const headers = new Map<string, string>([["Vary", "Origin"]]);
+
   if (!matchedOrigin) {
-    return { status: 403 };
+    return { status: 403, headers };
   }
 
-  return {
-    status: 204,
-    headers: new Map([
-      ["Access-Control-Allow-Origin", matchedOrigin],
-      ["Access-Control-Allow-Credentials", "true"],
-    ]),
-  };
+  headers.set("Access-Control-Allow-Origin", matchedOrigin);
+  headers.set("Access-Control-Allow-Credentials", "true");
+  return { status: 204, headers };
 }
 
-function handleRequest(request: MockRequest) {
-  // Simplified mock - in reality this would call the actual middleware
-  const origin = request.origin || "";
+function handleRequest(request: BuiltRequest): MockResponse {
+  const origin = request.headers.get("origin") ?? "";
+  const host = request.headers.get("host") ?? "";
   const allowedOrigins = getAllowedOriginsMock();
+  const headers = new Map<string, string>([["Vary", "Origin"]]);
 
   if (origin && !allowedOrigins.includes(origin)) {
-    return { status: 403 };
+    return { status: 403, headers };
   }
 
-  return { status: 200 };
+  // Host/Origin mismatch: if the Origin's hostname doesn't align with
+  // the Host header, reject credentialed requests to avoid CSRF.
+  if (origin && host) {
+    let originHost: string | undefined;
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      originHost = undefined;
+    }
+    if (originHost && originHost !== host) {
+      return { status: 403, headers };
+    }
+  }
+
+  return { status: 200, headers };
 }
