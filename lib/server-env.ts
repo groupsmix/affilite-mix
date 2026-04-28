@@ -131,6 +131,14 @@ export function collectMissingEnv(envs: readonly RequiredEnvVar[]): RequiredEnvV
 export const FEATURE_CONDITIONAL_ENV: readonly {
   /** Env var that activates the feature. */
   readonly flag: string;
+  /**
+   * When set, the flag must equal this exact value to activate the
+   * requirement. When omitted, any non-empty flag value activates it.
+   * Use this for flags whose only meaningful "on" state is a specific
+   * value (e.g. `NODE_ENV === "production"`), so dev/test environments
+   * are not incorrectly treated as having the feature enabled.
+   */
+  readonly flagEquals?: string;
   /** Env vars that become required when the flag is truthy. */
   readonly requires: readonly RequiredEnvVar[];
 }[] = [
@@ -165,9 +173,12 @@ export const FEATURE_CONDITIONAL_ENV: readonly {
       },
     ],
   },
-  // Require Sentry DSN in production for observability (PRIORITY 5)
+  // Require Sentry DSN in production for observability (PRIORITY 5).
+  // `flagEquals` ensures this fires only when NODE_ENV is exactly
+  // "production" — not in development or test environments.
   {
     flag: "NODE_ENV",
+    flagEquals: "production",
     requires: [
       {
         name: "SENTRY_DSN",
@@ -242,9 +253,13 @@ export function validateServerEnv(): {
   // may reference a variable that is already in REQUIRED_SERVER_ENV
   // (e.g. SENTRY_DSN required in production); we de-duplicate by name
   // so the feature conditional cannot double-count the same variable.
-  for (const { flag, requires } of FEATURE_CONDITIONAL_ENV) {
+  for (const { flag, flagEquals, requires } of FEATURE_CONDITIONAL_ENV) {
     const flagValue = process.env[flag];
-    if (flagValue && flagValue.trim().length > 0) {
+    const isActive =
+      flagEquals !== undefined
+        ? flagValue === flagEquals
+        : !!(flagValue && flagValue.trim().length > 0);
+    if (isActive) {
       const featureMissing = collectMissingEnv(requires);
       for (const entry of featureMissing) {
         if (!seenNames.has(entry.name)) {

@@ -96,7 +96,7 @@ while IFS= read -r -d '' file; do
         fi
     fi
 
-done < <(find "$ADMIN_API_DIR" -name "route.ts" -o -name "route.tsx" -print0 2>/dev/null)
+done < <(find "$ADMIN_API_DIR" \( -name "route.ts" -o -name "route.tsx" \) -print0 2>/dev/null)
 
 echo ""
 echo "=== Results ==="
