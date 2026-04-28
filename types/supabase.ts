@@ -777,7 +777,6 @@ export interface Database {
           content_id: string | null;
           page_path: string;
           impression_date: string;
-          count: number;
           impression_count: number;
           cpm_revenue_cents: number;
           last_seen_at: string;
@@ -790,7 +789,6 @@ export interface Database {
           content_id?: string | null;
           page_path: string;
           impression_date: string;
-          count?: number;
           impression_count?: number;
           cpm_revenue_cents?: number;
           last_seen_at?: string;
@@ -803,7 +801,6 @@ export interface Database {
           content_id?: string | null;
           page_path?: string;
           impression_date?: string;
-          count?: number;
           impression_count?: number;
           cpm_revenue_cents?: number;
           last_seen_at?: string;
