@@ -219,8 +219,8 @@ function getAllowedOriginsMock(hostname?: string): string[] {
     origins.push(`https://${hostname}`);
   }
 
-  // Only in development
-  if (process.env.NODE_ENV !== "production") {
+  // Only in development (must match middleware.ts getAllowedOrigins)
+  if (process.env.NODE_ENV === "development") {
     origins.push("http://localhost:3000");
     origins.push("http://localhost:3001");
   }
