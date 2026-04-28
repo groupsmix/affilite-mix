@@ -48,21 +48,20 @@ export async function checkAIGenerationQuota(
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const { data, error } = await sb
+  const { count, error } = await sb
     .from("ai_generation_usage")
-    .select("count")
+    .select("id", { count: "exact", head: true })
     .eq("site_id", siteId)
     .gte("created_at", today.toISOString())
-    .lt("created_at", tomorrow.toISOString())
-    .single();
+    .lt("created_at", tomorrow.toISOString());
 
-  if (error && error.code !== "PGRST116") {
+  if (error) {
     captureException(error, { context: "[ai/governance] check quota failed" });
-    // Fail open - allow generation if we can't check quota
-    return { allowed: true, remaining: DEFAULT_DAILY_QUOTA, resetAt: tomorrow };
+    // Fail closed - deny generation if we can't check quota
+    return { allowed: false, remaining: 0, resetAt: tomorrow };
   }
 
-  const usage = (data?.count as number) ?? 0;
+  const usage = count ?? 0;
 
   // Get site-specific quota (or default)
   const { data: configData } = await sb

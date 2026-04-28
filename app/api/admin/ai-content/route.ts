@@ -132,7 +132,8 @@ export const POST = withAuthz(
         meta_description: result.metaDescription,
       };
 
-      const enrichedDraft = enrichWithGovernance(baseDraft, {
+      // Store governance metadata for audit purposes (not saved to ai_drafts table)
+      const _governanceMeta = enrichWithGovernance(baseDraft, {
         provider: result.provider,
         model: result.model,
         promptHash,
@@ -141,7 +142,8 @@ export const POST = withAuthz(
         adminUserId: session.userId ?? "unknown",
       });
 
-      const draft = await createAIDraft(enrichedDraft as typeof baseDraft);
+      // Pass baseDraft (without governance metadata) - those fields don't exist in ai_drafts table
+      const draft = await createAIDraft(baseDraft);
 
       void recordAuditEvent({
         site_id: siteId,
