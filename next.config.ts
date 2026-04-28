@@ -33,7 +33,8 @@ const nextConfig: NextConfig = {
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         {
           key: "Permissions-Policy",
-          value: "camera=(), microphone=(), geolocation=()",
+          // G-51: include `interest-cohort=()` to opt out of FLoC / Topics.
+          value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
         },
         {
           key: "Strict-Transport-Security",
