@@ -12,6 +12,7 @@ import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
 import { withAuthz } from "@/lib/authz";
+import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 
 export const GET = withAuthz("content", "view", async (request: NextRequest, { siteId }) => {
   const { searchParams } = request.nextUrl;
@@ -71,6 +72,14 @@ export const POST = withAuthz(
     }
 
     const data = parsed.data;
+    // G-01: validate URL-typed fields before persistence.
+    const urlErr = validateAdminUrlFields({
+      featured_image: data.featured_image,
+      og_image: data.og_image,
+    });
+    if (urlErr) {
+      return NextResponse.json({ error: urlErr.error }, { status: 400 });
+    }
     try {
       const content = await createContent({
         site_id: siteId,
@@ -134,6 +143,14 @@ export const PATCH = withAuthz(
     const { id, ...updates } = parsed.data;
     if (typeof updates.body === "string") {
       updates.body = sanitizeHtml(updates.body);
+    }
+    // G-01: validate URL-typed fields on edit.
+    const editUrlFields: Record<string, string | null | undefined> = {};
+    if (updates.featured_image !== undefined) editUrlFields.featured_image = updates.featured_image;
+    if (updates.og_image !== undefined) editUrlFields.og_image = updates.og_image;
+    const editUrlErr = validateAdminUrlFields(editUrlFields);
+    if (editUrlErr) {
+      return NextResponse.json({ error: editUrlErr.error }, { status: 400 });
     }
     try {
       const content = await updateContent(

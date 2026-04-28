@@ -34,6 +34,11 @@ on:
         required: true
         type: number
         default: 10
+      smoke_host:
+        description: "Host to smoke-test after promotion (e.g. wristnerd.xyz). Leave blank to skip."
+        required: false
+        type: string
+        default: ""
 
 # Read-only by default. The deploy job opts into `deployments: write`
 # (and any other extra scopes) at the job level.
@@ -84,6 +89,42 @@ jobs:
             "${{ inputs.version_id }}@${{ inputs.percentage }}%" \
             --yes \
             --message "Gradual rollout to ${{ inputs.percentage }}% (run ${{ github.run_id }})"
+
+      - name: Post-deploy smoke (G-10)
+        if: ${{ inputs.smoke_host != '' }}
+        run: |
+          # G-10: after ramping traffic to the new version, probe the
+          # golden paths to catch catastrophic regressions before they
+          # spread to 100%. Hard-fails the workflow if any path does
+          # not return the expected status code, which (combined with
+          # wrangler's `--yes` flag not being able to roll back in this
+          # job) surfaces the failure in the timeline for manual
+          # rollback via a second run of this workflow at percentage=0
+          # of the bad version_id and 100% of the previous one.
+          set -euo pipefail
+          HOST="${{ inputs.smoke_host }}"
+          echo "Smoking https://${HOST}..."
+          declare -A expect=(
+            ["/"]="200"
+            ["/api/health"]="200"
+            ["/sitemap.xml"]="200"
+            ["/robots.txt"]="200"
+            ["/admin/login"]="200"
+          )
+          FAILED=0
+          for path in "${!expect[@]}"; do
+            want="${expect[$path]}"
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "https://${HOST}${path}" || echo "000")
+            echo "  ${path} → ${code} (expect ${want})"
+            if [ "$code" != "$want" ]; then
+              echo "::error::Smoke check failed: ${path} returned ${code}, expected ${want}"
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" = "1" ]; then
+            exit 1
+          fi
+          echo "All smoke checks passed."
 
       - name: Summary
         run: |

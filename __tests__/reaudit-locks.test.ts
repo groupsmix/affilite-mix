@@ -153,19 +153,26 @@ describe("re-audit lock — R-007 withAuthz reads site from server context only"
   });
 });
 
-describe("re-audit lock — R-009 static CSP fallback rejects unsafe-inline", () => {
+describe("re-audit lock — R-009 / G-27 static CSP fallback removed", () => {
   const cfg = readRepoFile("next.config.ts");
 
-  it("script-src does not include 'unsafe-inline'", () => {
-    const m = cfg.match(/"script-src[^"]*"/);
-    expect(m, "script-src directive missing").not.toBeNull();
-    expect(m![0]).not.toMatch(/unsafe-inline/);
+  it("next.config.ts does not declare a Content-Security-Policy header", () => {
+    // G-27 (Apr 2026 audit): the static CSP fallback has been dropped
+    // in favour of the per-request nonced policy from middleware.ts.
+    // The previous R-009 test asserted the static fallback did not
+    // include `'unsafe-inline'`; that fallback no longer exists, so
+    // we instead assert the key cannot reappear.
+    expect(cfg).not.toMatch(/"Content-Security-Policy"/);
   });
 
-  it("style-src does not include 'unsafe-inline'", () => {
-    const m = cfg.match(/"style-src[^"]*"/);
-    expect(m, "style-src directive missing").not.toBeNull();
-    expect(m![0]).not.toMatch(/unsafe-inline/);
+  it("buildCspHeader in lib/csp.ts is the sole source of CSP", () => {
+    const csp = readRepoFile("lib", "csp.ts");
+    const code = stripComments(csp);
+    expect(code).toMatch(/buildCspHeader/);
+    // `'unsafe-inline'` must not appear as a CSP source literal in
+    // executable code. Prose comments may reference the term when
+    // explaining the policy history, so we strip comments first.
+    expect(code).not.toMatch(/'unsafe-inline'/);
   });
 });
 

@@ -7,6 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
 import { parseJsonBody } from "@/lib/api-error";
+import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
@@ -94,6 +95,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+  }
+
+  // G-01: SSRF-aware validation of any URL fields being persisted.
+  const urlFields: Record<string, string | null | undefined> = {};
+  for (const k of ["logo_url", "favicon_url", "og_image_url"] as const) {
+    if (updates[k] !== undefined) urlFields[k] = updates[k] as string | null;
+  }
+  const urlErr = validateAdminUrlFields(urlFields);
+  if (urlErr) {
+    return NextResponse.json({ error: urlErr.error }, { status: 400 });
   }
 
   try {

@@ -7,6 +7,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -142,6 +143,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // G-01: validate URL-typed fields before persisting a new site row.
+  const createUrlErr = validateAdminUrlFields({
+    logo_url: body.logo_url as string | null | undefined,
+    favicon_url: body.favicon_url as string | null | undefined,
+    og_image_url: body.og_image_url as string | null | undefined,
+  });
+  if (createUrlErr) {
+    return NextResponse.json({ error: createUrlErr.error }, { status: 400 });
+  }
+
   try {
     const site = await createSite({
       slug,
@@ -239,6 +250,16 @@ export async function PATCH(request: NextRequest) {
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+  }
+
+  // G-01: validate any URL-typed fields being updated.
+  const urlFields: Record<string, string | null | undefined> = {};
+  for (const k of ["logo_url", "favicon_url", "og_image_url"] as const) {
+    if (updates[k] !== undefined) urlFields[k] = updates[k] as string | null;
+  }
+  const updateUrlErr = validateAdminUrlFields(urlFields);
+  if (updateUrlErr) {
+    return NextResponse.json({ error: updateUrlErr.error }, { status: 400 });
   }
 
   try {

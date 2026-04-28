@@ -121,24 +121,48 @@ done
 # ──────────────────────────────────────────────────────────────
 # 3. Validate R2 bucket isolation (production safety)
 # ──────────────────────────────────────────────────────────────
+#
+# G-09 (Apr 2026 audit): previously this block grep'd `.env.example`
+# for `R2_PRIVATE_BUCKET=` / `R2_PUBLIC_BUCKET=` and warned if the
+# placeholder values were empty. That grep was always "looking in the
+# wrong place" — `.env.example` ships with empty values by design, so
+# the check produced the same warning on every deploy regardless of
+# whether production was actually configured correctly. We now use
+# `jq` on `wrangler.jsonc` to inspect the `r2_buckets` array directly.
+# The Worker cannot deploy with a bucket binding that doesn't exist,
+# and distinct private/public buckets are enforced at runtime in
+# `lib/r2.ts`, but catching the "same bucket_name in both bindings"
+# case at CI time saves a production round-trip.
 echo ""
 echo "Checking R2 bucket isolation..."
 
-# In production, R2_PRIVATE_BUCKET and R2_PUBLIC_BUCKET must differ
-# This is validated at runtime in lib/r2.ts, but we also check here
-if grep -q 'NODE_ENV.*production' "$WRANGLER_FILE" 2>/dev/null; then
-    # Check if env.example or env validation enforces bucket separation
-    ENV_FILE="$REPO_ROOT/.env.example"
-    if [ -f "$ENV_FILE" ]; then
-        PRIVATE_BUCKET=$(grep -E "^R2_PRIVATE_BUCKET=" "$ENV_FILE" 2>/dev/null || echo "")
-        PUBLIC_BUCKET=$(grep -E "^R2_PUBLIC_BUCKET=" "$ENV_FILE" 2>/dev/null || echo "")
-        FALLBACK_BUCKET=$(grep -E "^R2_BUCKET_NAME=" "$ENV_FILE" 2>/dev/null || echo "")
+if ! command -v jq >/dev/null 2>&1; then
+    echo "  WARNING: jq not installed, skipping wrangler.jsonc R2 isolation check"
+else
+    # wrangler.jsonc permits JSONC comments; strip them before `jq`.
+    # Use sed to drop `//...` line comments (but not `http://` URLs by
+    # only matching ` //` or `^//`).
+    WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' "$WRANGLER_FILE")
 
-        # If R2_BUCKET_NAME is used without distinct PRIVATE/PUBLIC, that's a warning
-        if [ -n "$FALLBACK_BUCKET" ] && [ -z "$PRIVATE_BUCKET" ] && [ -z "$PUBLIC_BUCKET" ]; then
-            echo "  WARNING: R2_BUCKET_NAME is set but R2_PRIVATE_BUCKET/R2_PUBLIC_BUCKET are not."
-            echo "  WARNING: Production requires distinct buckets for staging/promotion isolation."
-        fi
+    R2_PUBLIC=$(echo "$WRANGLER_JSON" | jq -r '
+      [ (.env.production.r2_buckets // .r2_buckets // [])[]
+        | select(.binding == "R2_PUBLIC_BUCKET" or .binding == "NEXT_INC_CACHE_R2_BUCKET")
+        | .bucket_name ]
+      | .[0] // ""
+    ' 2>/dev/null || echo "")
+    R2_PRIVATE=$(echo "$WRANGLER_JSON" | jq -r '
+      [ (.env.production.r2_buckets // .r2_buckets // [])[]
+        | select(.binding == "R2_PRIVATE_BUCKET")
+        | .bucket_name ]
+      | .[0] // ""
+    ' 2>/dev/null || echo "")
+
+    if [ -n "$R2_PUBLIC" ] && [ -n "$R2_PRIVATE" ] && [ "$R2_PUBLIC" = "$R2_PRIVATE" ]; then
+        FAILURES+=("R2_PUBLIC_BUCKET and R2_PRIVATE_BUCKET in wrangler.jsonc point at the same bucket ('$R2_PUBLIC') — unvalidated uploads would be publicly reachable")
+    fi
+
+    if [ -z "$R2_PUBLIC" ]; then
+        echo "  WARNING: no R2 public bucket binding found in wrangler.jsonc (checked R2_PUBLIC_BUCKET / NEXT_INC_CACHE_R2_BUCKET)"
     fi
 fi
 

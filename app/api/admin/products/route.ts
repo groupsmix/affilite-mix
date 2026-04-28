@@ -8,6 +8,7 @@ import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
 import { withAuthz } from "@/lib/authz";
+import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 
 export const GET = withAuthz("products", "view", async (request: NextRequest, { siteId }) => {
   const { searchParams } = request.nextUrl;
@@ -45,6 +46,14 @@ export const POST = withAuthz(
     }
 
     const data = parsed.data;
+    // G-01: validate URL-typed fields before persistence.
+    const urlErr = validateAdminUrlFields({
+      affiliate_url: data.affiliate_url,
+      image_url: data.image_url,
+    });
+    if (urlErr) {
+      return NextResponse.json({ error: urlErr.error }, { status: 400 });
+    }
     try {
       const product = await createProduct({
         site_id: siteId,
@@ -101,6 +110,14 @@ export const PATCH = withAuthz(
     }
 
     const { id, ...updates } = parsed.data;
+    // G-01: validate URL fields on edit too (not just create).
+    const urlErr = validateAdminUrlFields({
+      ...(updates.affiliate_url !== undefined && { affiliate_url: updates.affiliate_url }),
+      ...(updates.image_url !== undefined && { image_url: updates.image_url }),
+    });
+    if (urlErr) {
+      return NextResponse.json({ error: urlErr.error }, { status: 400 });
+    }
     try {
       const product = await updateProduct(siteId, id, updates);
       void revalidateTag(productsTag(siteId));

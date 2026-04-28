@@ -98,22 +98,43 @@ jobs:
             echo "CORS security test file not found - verify middleware.ts CORS handling"
           fi
 
-      - name: R2 bucket isolation validation (PRIORITY 4)
+      - name: R2 bucket isolation validation (G-09)
         run: |
-          # PRIORITY 4: In production, private staging and public buckets
-          # MUST be distinct. Same bucket defeats upload validation.
+          # G-09: inspect the actual Worker config (`wrangler.jsonc`),
+          # not `.env.example`. The latter ships with empty values by
+          # design, so grep-ing it was always a no-op. This check fails
+          # if the public and private R2 bucket bindings point at the
+          # same `bucket_name`, which would make unvalidated uploads
+          # publicly reachable.
           set -euo pipefail
-          if [ -f ".env.example" ]; then
-            PRIVATE_BUCKET=$(grep -E "^R2_PRIVATE_BUCKET=" .env.example 2>/dev/null || echo "")
-            PUBLIC_BUCKET=$(grep -E "^R2_PUBLIC_BUCKET=" .env.example 2>/dev/null || echo "")
-            FALLBACK_BUCKET=$(grep -E "^R2_BUCKET_NAME=" .env.example 2>/dev/null || echo "")
-
-            # If using R2_BUCKET_NAME without separate PRIVATE/PUBLIC buckets
-            if [ -n "$FALLBACK_BUCKET" ] && [ -z "$PRIVATE_BUCKET" ] && [ -z "$PUBLIC_BUCKET" ]; then
-              echo "::warning::R2_BUCKET_NAME is set but R2_PRIVATE_BUCKET/R2_PUBLIC_BUCKET are not."
-              echo "::warning::Production requires distinct buckets for staging/promotion isolation."
-              echo "::warning::See lib/r2.ts (F-09) for runtime enforcement details."
-            fi
+          if [ ! -f wrangler.jsonc ]; then
+            echo "wrangler.jsonc not found, skipping R2 isolation check"
+            exit 0
+          fi
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "::warning::jq not installed — skipping R2 isolation check"
+            exit 0
+          fi
+          # Strip JSONC line comments so `jq` can parse the file.
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc)
+          R2_PUBLIC=$(echo "$WRANGLER_JSON" | jq -r '
+            [ (.env.production.r2_buckets // .r2_buckets // [])[]
+              | select(.binding == "R2_PUBLIC_BUCKET" or .binding == "NEXT_INC_CACHE_R2_BUCKET")
+              | .bucket_name ]
+            | .[0] // ""
+          ')
+          R2_PRIVATE=$(echo "$WRANGLER_JSON" | jq -r '
+            [ (.env.production.r2_buckets // .r2_buckets // [])[]
+              | select(.binding == "R2_PRIVATE_BUCKET")
+              | .bucket_name ]
+            | .[0] // ""
+          ')
+          echo "R2_PUBLIC_BUCKET=$R2_PUBLIC"
+          echo "R2_PRIVATE_BUCKET=$R2_PRIVATE"
+          if [ -n "$R2_PUBLIC" ] && [ -n "$R2_PRIVATE" ] && [ "$R2_PUBLIC" = "$R2_PRIVATE" ]; then
+            echo "::error::R2_PUBLIC_BUCKET and R2_PRIVATE_BUCKET point at the same bucket ('$R2_PUBLIC')."
+            echo "::error::Production must isolate public and private buckets so unvalidated uploads are not publicly reachable."
+            exit 1
           fi
 
       - name: Verify Stripe uses Restricted API Keys (F-033)
