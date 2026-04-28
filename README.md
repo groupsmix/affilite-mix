@@ -269,10 +269,14 @@ Contributions are welcome for internal collaborators.
 
 ## License
 
-This is proprietary, all-rights-reserved software. See [`LICENSE`](./LICENSE)
-for the full grant — narrowly-scoped permissions are given for reading the
-source for evaluation, security research with prior consent, and contributing
-through pull requests; every other use requires a separate written agreement.
+This is **source-available, all-rights-reserved** software — _no license
+is granted_ by virtue of the source being publicly visible. See
+[`LICENSE`](./LICENSE) for the full statement: narrowly-scoped permissions
+are given for reading the source for evaluation, security research with
+prior consent, and contributing through pull requests; every other use
+(including running in production, redistributing the source or binaries,
+hosting a fork as a service, or training ML models on the contents)
+requires a separate written agreement with the copyright holders.
 
 Note for reviewers: GitHub repository visibility is a separate setting from
 the source license. If this repo is currently visible publicly on github.com

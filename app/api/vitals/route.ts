@@ -4,6 +4,7 @@ import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
+import { isOriginAllowed } from "@/lib/security/allowed-origins";
 
 const VALID_METRIC_NAMES = new Set(["CLS", "FCP", "FID", "INP", "LCP", "TTFB"]);
 
@@ -20,6 +21,16 @@ const VITALS_RATE_LIMIT = { maxRequests: 120, windowMs: 60 * 1000 };
 
 export async function POST(request: NextRequest) {
   try {
+    // G-47: enforce Origin allow-list on this CSRF-exempt beacon endpoint.
+    // The middleware skips CSRF token validation for /api/vitals (see
+    // lib/security/csrf-exempt-registry.ts) because sendBeacon() cannot
+    // attach custom headers, so we instead require the request's Origin
+    // to match a configured tenant domain.
+    const origin = request.headers.get("origin");
+    if (!isOriginAllowed(origin, request.headers.get("host"))) {
+      return NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
+    }
+
     const ip = getClientIp(request);
     const rl = await checkRateLimit(`vitals:${ip}`, VITALS_RATE_LIMIT);
     if (!rl.allowed) {

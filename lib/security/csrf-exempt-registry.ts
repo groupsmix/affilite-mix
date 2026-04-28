@@ -100,6 +100,7 @@ export const CSRF_EXEMPT_ROUTES: readonly CsrfExemptRoute[] = [
     path: "/api/vitals",
     reason: "Public sendBeacon() endpoint for web vitals; cannot carry custom headers.",
     compensatingControls: [
+      "Origin header validation against the per-site allow-list (G-47, lib/security/allowed-origins.ts).",
       "Schema validation on the vitals payload; only known metric names accepted.",
       "Per-IP rate-limit (lib/rate-limit vitalsBucket).",
       "Body size capped at 4 KB to prevent bandwidth abuse.",

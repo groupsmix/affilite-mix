@@ -121,6 +121,7 @@ export function ProductCard({
               blurDataURL={shimmerPlaceholder(320, 160)}
               className="h-40 w-full object-contain"
               priority={priority}
+              loading={priority ? "eager" : "lazy"}
               onError={() => setImgError(true)}
             />
           )}
