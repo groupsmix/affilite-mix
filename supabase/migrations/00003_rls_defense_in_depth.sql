@@ -113,6 +113,13 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at  timestamptz DEFAULT now()
 );
 
+-- Reconcile column shape: 00001 created audit_log with (user_id, entity);
+-- the CREATE TABLE IF NOT EXISTS above is a no-op there, so the indexes
+-- below would fail on a fresh-DB replay without these ALTERs.
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS actor       text NOT NULL DEFAULT 'admin';
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS entity_type text NOT NULL DEFAULT '';
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS ip          text DEFAULT '';
+
 CREATE INDEX IF NOT EXISTS idx_audit_log_site ON audit_log(site_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor);
 
