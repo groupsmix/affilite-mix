@@ -25,9 +25,13 @@ export async function POST(request: NextRequest) {
     // The middleware skips CSRF token validation for /api/vitals (see
     // lib/security/csrf-exempt-registry.ts) because sendBeacon() cannot
     // attach custom headers, so we instead require the request's Origin
-    // to match a configured tenant domain.
+    // to match a configured tenant domain. We pass the x-site-id header
+    // that middleware injects after DB-verifying the hostname — without
+    // this, DB-registered custom domains (wildcard/dashboard-managed)
+    // would falsely 403 since they aren't in static `allSites` config.
     const origin = request.headers.get("origin");
-    if (!isOriginAllowed(origin, request.headers.get("host"))) {
+    const siteId = request.headers.get("x-site-id");
+    if (!isOriginAllowed(origin, request.headers.get("host"), siteId)) {
       return NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
     }
 
