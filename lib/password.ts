@@ -1,17 +1,26 @@
 /**
  * Password hashing using bcrypt (via bcryptjs for Cloudflare Workers compatibility).
  *
- * New passwords are hashed with bcrypt (cost factor 12). Legacy hashes are
+ * New passwords are hashed with bcrypt (cost factor 10). Legacy hashes are
  * still verified for backwards compatibility, but verifyPassword signals when
  * a rehash is needed so callers can upgrade hashes on next successful login:
  *
  *   - PBKDF2-SHA256 hashes in the legacy "salt:hash" format, and
  *   - bcrypt hashes that were stored with fewer rounds than BCRYPT_ROUNDS.
+ *
+ * G-50: Cost-factor trade-off on Cloudflare Workers.
+ *   Pure-JS bcryptjs at cost 12 takes ~800-1100ms per verify on a Worker
+ *   isolate, which both eats the 30s CPU budget under burst and acts as a
+ *   self-DoS amplifier. We run at cost 10 (~200-300ms) and compensate with
+ *   a tighter per-IP rate limit (see app/api/auth/login/route.ts). OWASP
+ *   treats cost 10 as the acceptable floor for bcrypt; stronger brute-force
+ *   resistance comes from Turnstile + per-email + per-IP throttling, not
+ *   from burning Worker CPU on each attempt.
  */
 
 import bcrypt from "bcryptjs";
 
-const BCRYPT_ROUNDS = 12;
+const BCRYPT_ROUNDS = 10;
 
 // ── Legacy PBKDF2 helpers (read-only, for migrating existing hashes) ────
 
