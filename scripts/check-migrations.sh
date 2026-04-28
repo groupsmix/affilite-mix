@@ -64,6 +64,13 @@ strip_sql_comments() {
 violations=0
 while IFS= read -r -d '' file; do
   base="$(basename "$file")"
+  # Skip down-migrations: they intentionally restore the prior (often
+  # unsafe) state when reverting, so they are expected to contain the
+  # same patterns the corresponding up-migration removed. Down-migrations
+  # are not auto-applied — they only run when someone explicitly reverts.
+  case "$base" in
+    *-down.sql) continue ;;
+  esac
   if strip_sql_comments "$file" | grep -qE "$PATTERN"; then
     if is_legacy "$base"; then
       continue
