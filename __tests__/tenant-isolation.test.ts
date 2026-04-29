@@ -10,6 +10,32 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Mock the Supabase server module so the DAL never touches a real network.
+// Each chain-style method is a no-op that returns the chain itself; awaiting
+// the chain resolves to `{ data: null, error: { code: "PGRST116" } }` which
+// the DAL helpers treat as "row not found" and translate to `null`.
+vi.mock("@/lib/supabase-server", () => {
+  const notFoundResult = { data: null, error: { code: "PGRST116" }, count: 0 };
+  const chain: unknown = new Proxy(function noop() {}, {
+    get(_target, prop: string | symbol) {
+      if (prop === "then") {
+        return (resolve: (v: unknown) => void) => resolve(notFoundResult);
+      }
+      if (typeof prop === "symbol") return undefined;
+      return () => chain;
+    },
+  });
+  const client = {
+    from: () => chain,
+    rpc: () => chain,
+  };
+  return {
+    getAnonClient: () => client,
+    getTenantClient: async () => client,
+    getServiceClient: () => client,
+  };
+});
+
 // Fixture site IDs — these represent two completely separate tenants
 const SITE_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const SITE_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
@@ -42,9 +68,8 @@ describe("Tenant Isolation", () => {
 
   describe("Service-role allowlist is enforced", () => {
     it("allowlist contains only audited paths", async () => {
-      const { SERVICE_ROLE_IMPORT_ALLOWLIST } = await import(
-        "@/lib/security/service-role-allowlist"
-      );
+      const { SERVICE_ROLE_IMPORT_ALLOWLIST } =
+        await import("@/lib/security/service-role-allowlist");
 
       // Every entry should be a known, audited path
       expect(SERVICE_ROLE_IMPORT_ALLOWLIST.length).toBeGreaterThan(0);
@@ -92,9 +117,7 @@ describe("Tenant Isolation", () => {
 
   describe("Newsletter token hashing", () => {
     it("stores hashed tokens, not raw tokens", async () => {
-      const { hashNewsletterToken, verifyNewsletterToken } = await import(
-        "@/lib/newsletter-token"
-      );
+      const { hashNewsletterToken, verifyNewsletterToken } = await import("@/lib/newsletter-token");
 
       const rawToken = "test-confirmation-token-12345";
       const hash = await hashNewsletterToken(rawToken);
