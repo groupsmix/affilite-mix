@@ -78,16 +78,34 @@ async function signTimestamp(ts: number): Promise<string> {
   return `${ts}.${bytesToHex(sig)}`;
 }
 
-/** Verify a signed timestamp. Returns the timestamp or null if invalid. */
+/** Verify a signed timestamp. Returns the timestamp or null if invalid.
+ *
+ * P1-8: In production, legacy unsigned cookies (no dot separator) are
+ * rejected outright. Accepting them previously meant an attacker could
+ * forge an activity timestamp by writing a plain numeric cookie value.
+ */
 async function verifySignedTimestamp(value: string): Promise<number | null> {
   const dot = value.indexOf(".");
   if (dot === -1) {
-    // Legacy unsigned cookie — accept but treat as the raw timestamp
+    // P1-8: Legacy unsigned cookie — reject in production so forged
+    // timestamps cannot extend sessions.
+    if (process.env.NODE_ENV === "production") {
+      logger.warn("Activity cookie rejected: unsigned legacy format in production");
+      return null;
+    }
+    // Dev/test: accept plain timestamps for convenience
     const ts = Number(value);
     return Number.isFinite(ts) ? ts : null;
   }
   const ts = Number(value.slice(0, dot));
   if (!Number.isFinite(ts)) return null;
+
+  // P1-8: Reject future timestamps (clock skew > 60s is suspicious)
+  if (ts > Date.now() + 60_000) {
+    logger.warn("Activity cookie rejected: timestamp is in the future", { ts });
+    return null;
+  }
+
   const expected = await signTimestamp(ts);
   if (!constantTimeEqual(expected, value)) return null;
   return ts;
@@ -237,15 +255,30 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
 
   const adminPayload = payload as unknown as AdminPayload;
 
+  // P0-1: In production, require the bnd claim on all tokens. Legacy/unbound
+  // tokens are rejected so a stolen JWT without binding cannot be replayed.
+  // In dev/test, binding is still optional for convenience.
+  const requireBinding = process.env.NODE_ENV === "production";
+
   if (adminPayload.bnd) {
     // G-16: pass role so super_admin verification uses /32 binding
-    const ok = await verifyRequestBinding(adminPayload.bnd, request, false, adminPayload.role);
+    const ok = await verifyRequestBinding(
+      adminPayload.bnd,
+      request,
+      requireBinding,
+      adminPayload.role,
+    );
     if (!ok) {
       logger.warn("Admin token rejected: UA/IP binding mismatch", {
         userId: adminPayload.userId,
       });
       return null;
     }
+  } else if (requireBinding) {
+    logger.warn("Admin token rejected: missing bnd claim in production", {
+      userId: adminPayload.userId,
+    });
+    return null;
   }
 
   return adminPayload;
@@ -267,8 +300,10 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
 
-  // G-15: Server-side idle timeout — the activity cookie is HMAC-signed
+  // G-15 / P1-8: Server-side idle timeout — the activity cookie is HMAC-signed
   // so clients cannot forge timestamps to extend their session.
+  // In production, a missing activity cookie is treated as expired (not as
+  // "no idle check") to prevent degradation to pure JWT-lifetime auth.
   const lastActivity = cookieStore.get(ACTIVITY_COOKIE)?.value;
   if (lastActivity) {
     const ts = await verifySignedTimestamp(lastActivity);
@@ -278,6 +313,12 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
     }
     const elapsed = Date.now() - ts;
     if (elapsed > IDLE_TIMEOUT_MS) return null;
+  } else if (process.env.NODE_ENV === "production") {
+    // P1-8: Missing activity cookie in production — treat as expired.
+    // This prevents sessions from degrading to JWT-lifetime-only auth
+    // when the activity cookie is stripped or never set (legacy tokens).
+    logger.warn("Admin session rejected: missing activity cookie in production");
+    return null;
   }
 
   // F-035: verify the token's UA/IP binding (if present) against the
