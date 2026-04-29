@@ -8,56 +8,33 @@ import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { hashNewsletterToken } from "@/lib/newsletter-token";
+import { escapeAttribute, escapeHtml, safeHexColor, safeHref } from "@/lib/email-templates/escape";
 import { logger } from "@/lib/logger";
 
-// ---------------------------------------------------------------------------
-// N-02: HTML-escape helper to prevent XSS via site-controlled values
-// ---------------------------------------------------------------------------
-
-/** Escape HTML special characters to prevent injection in email templates. */
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-/** Validate that a string looks like a safe hex color token. */
-function isSafeColor(color: string): boolean {
-  return /^#[0-9a-fA-F]{3,8}$/.test(color);
-}
-
-/** Validate that a URL is an HTTPS URL on an expected domain. */
-function isSafeUrl(url: string, expectedDomain: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "https:" && parsed.hostname === expectedDomain;
-  } catch {
-    return false;
-  }
-}
-
-/** Build a branded HTML email for newsletter confirmation */
+/**
+ * Build a branded HTML email for newsletter confirmation.
+ *
+ * T-08: every interpolated value is either HTML-escaped or, in the case
+ * of `confirmUrl`, validated through `safeHref()` so a compromised
+ * admin / DB-poisoning vector can't smuggle a `javascript:` link or
+ * style-injection into the rendered message. The accent colour is
+ * funnelled through `safeHexColor()` for the same reason.
+ */
 function buildConfirmationEmail(
   siteName: string,
   confirmUrl: string,
   domain: string,
   accentColor: string,
-): string {
-  // N-02: HTML-escape all text-node interpolations
+): string | null {
+  const year = new Date().getFullYear();
   const safeName = escapeHtml(siteName);
   const safeDomain = escapeHtml(domain);
-
-  // N-02: Validate URL against strict hostname allowlist
-  const safeUrl = isSafeUrl(confirmUrl, domain) ? confirmUrl : "";
-  const escapedUrl = escapeHtml(safeUrl);
-
-  // N-02: Validate color against safe hex allowlist
-  const safeColor = isSafeColor(accentColor) ? accentColor : "#10B981";
-
-  const year = new Date().getFullYear();
+  const safeColor = safeHexColor(accentColor, "#10B981");
+  const safeUrlValue = safeHref(confirmUrl, [domain]);
+  // safeHref returning null is treated as a hard failure by the caller.
+  if (safeUrlValue === null) return null;
+  const safeUrlAttr = escapeAttribute(safeUrlValue);
+  const safeUrlText = escapeHtml(safeUrlValue);
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -73,11 +50,11 @@ function buildConfirmationEmail(
           <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">Thanks for subscribing to <strong>${safeName}</strong>! Please confirm your email address by clicking the button below.</p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
             <tr><td style="background-color:${safeColor};border-radius:8px;">
-              <a href="${escapedUrl}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">Confirm my subscription</a>
+              <a href="${safeUrlAttr}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">Confirm my subscription</a>
             </td></tr>
           </table>
           <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">Or copy and paste this link:</p>
-          <p style="margin:0 0 24px;font-size:13px;color:#6b7280;word-break:break-all;">${escapedUrl}</p>
+          <p style="margin:0 0 24px;font-size:13px;color:#6b7280;word-break:break-all;">${safeUrlText}</p>
           <p style="margin:0;font-size:13px;color:#9ca3af;">If you did not sign up, you can safely ignore this email.</p>
         </td></tr>
         <tr><td style="padding:16px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
@@ -95,7 +72,8 @@ export async function POST(request: Request) {
   try {
     // N-01: Fail closed when email provider is not configured in production
     const resendKey = process.env.RESEND_API_KEY;
-    if (!resendKey && process.env.NODE_ENV === "production") {
+    const isProd = process.env.NODE_ENV === "production";
+    if (!resendKey && isProd) {
       logger.error(
         "[api/newsletter] RESEND_API_KEY not configured in production — rejecting signup",
       );
@@ -203,11 +181,53 @@ export async function POST(request: Request) {
       }
     }
 
-    // Send confirmation email
+    // Send confirmation email.
+    //
+    // T-07 (consolidated launch audit): in production we MUST NOT continue
+    // silently when the email provider is missing — the confirmation URL
+    // contains a bearer-style token that bypasses the double-opt-in
+    // guarantee, so writing it to logs would equal handing it to anyone
+    // with log-read access.
     const baseUrl = `https://${site.domain}`;
     const confirmUrl = `${baseUrl}/newsletter/confirm?token=${confirmationToken}`;
 
-    if (resendKey) {
+    // T-08: fail closed if safeHref rejects the confirmation URL
+    const emailHtml = buildConfirmationEmail(
+      site.name,
+      confirmUrl,
+      site.domain,
+      (site.theme as any)?.accentColor ?? "#10B981",
+    );
+
+    if (emailHtml === null) {
+      logger.error("[newsletter] buildConfirmationEmail returned null — safeHref rejected URL", {
+        siteId: site.id,
+      });
+      captureException(
+        new Error("buildConfirmationEmail: safeHref rejected confirmation URL"),
+        { context: "[api/newsletter] confirmation URL failed safeHref validation" },
+      );
+      return apiError(503, "Newsletter email is temporarily unavailable. Please try again later.");
+    }
+
+    if (!resendKey) {
+      if (isProd) {
+        // Fail closed: subscriber row is still pending so a retry once
+        // the provider is restored will re-send. We do NOT log the token.
+        logger.error("[newsletter] RESEND_API_KEY missing in production", {
+          siteId: site.id,
+        });
+        return apiError(
+          503,
+          "Newsletter email is temporarily unavailable. Please try again later.",
+        );
+      }
+      // Non-production: surface that the email could not be sent without
+      // exposing the confirmation token in logs.
+      logger.warn("[newsletter] email provider unavailable (dev)", {
+        siteId: site.id,
+      });
+    } else {
       const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${site.domain}`;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -219,29 +239,22 @@ export async function POST(request: Request) {
           from: fromEmail,
           to: [email],
           subject: `Confirm your subscription to ${site.name}`,
-          html: buildConfirmationEmail(
-            site.name,
-            confirmUrl,
-            site.domain,
-            // F-050: Use site theme accent color for newsletter HTML email
-            (site.theme as any)?.accentColor ?? "#10B981",
-          ),
+          html: emailHtml,
           text: `Thanks for subscribing to ${site.name}!\n\nPlease confirm your email by visiting the link below:\n${confirmUrl}\n\nIf you did not sign up, you can safely ignore this email.\n\n© ${new Date().getFullYear()} ${site.name} — ${site.domain}`,
         }),
       });
       if (!res.ok) {
-        const errBody = await res.text();
-        captureException(new Error(errBody), {
+        // Capture the provider's response status WITHOUT echoing the
+        // request body — that body contains the confirmation URL and
+        // therefore the bearer-style token.
+        await res.text().catch(() => "");
+        captureException(new Error(`Resend returned ${res.status}`), {
           context: "[api/newsletter] Failed to send confirmation email via Resend",
         });
-        // N-01: Return 503 on email send failure instead of silently succeeding
-        return apiError(503, "Failed to send confirmation email. Please try again later.");
+        if (isProd) {
+          return apiError(503, "Newsletter email could not be delivered. Please try again later.");
+        }
       }
-    } else {
-      // N-01: In non-production, log a safe reference — NEVER log the actual token
-      logger.warn("[api/newsletter] RESEND_API_KEY not set; confirmation email not sent", {
-        email_hash: await hashNewsletterToken(email),
-      });
     }
 
     return NextResponse.json({

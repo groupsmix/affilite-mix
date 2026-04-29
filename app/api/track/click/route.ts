@@ -8,8 +8,9 @@ import { apiError, rateLimitHeaders } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";
-import { signInternalRequest, computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
+import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
+import { logger } from "@/lib/logger";
 
 /**
  * 60 click-tracking requests per minute per IP.
@@ -172,26 +173,49 @@ async function handleClick(request: NextRequest) {
       return apiError(400, "Malformed affiliate URL");
     }
 
-    // P0-4: Enforce destination-host allowlist at redirect time. The
-    // allowlist is already used at product write time (lib/validation.ts)
-    // but a compromised DB row or stale cache could still redirect to an
-    // attacker-controlled URL. This is the last line of defense.
+    // T-09: enforce the affiliate-domain allowlist at *redirect* time as
+    // well as at write time. The write-time check (lib/validation.ts)
+    // runs when an admin saves a product, but cached/pre-existing
+    // affiliate URLs and any future write-time bypass would otherwise
+    // turn this redirect into an open affiliate redirector. Behaviour
+    // matches AFFILIATE_DOMAIN_ENFORCEMENT:
+    //   - "strict"  -> reject the redirect with a 400.
+    //   - any other -> log a structured warning and continue, so we can
+    //                  audit the existing affiliate_url corpus before
+    //                  flipping the kill-switch.
     const domainCheck = validateAffiliateDomain(destinationUrl);
     if (!domainCheck.allowed) {
+      logger.error("[track/click] rejected affiliate destination off allow-list", {
+        siteId,
+        productSlug,
+        domain: domainCheck.domain,
+        reason: domainCheck.reason,
+      });
+      // Structured metric for alerting / dashboards.
       console.error(
         JSON.stringify({
-          metric: "blocked_unapproved_affiliate_redirect",
-          url: destinationUrl,
+          metric: "affiliate_destination_rejected",
+          site_id: siteId,
+          product_slug: productSlug,
+          domain: domainCheck.domain,
           reason: domainCheck.reason,
-          siteId,
-          productSlug,
         }),
       );
-      captureException(new Error(`Blocked unapproved affiliate redirect: ${urlObj.hostname}`), {
-        context: "[api/track/click] unapproved redirect host",
-        extra: { url: destinationUrl, reason: domainCheck.reason },
-      });
-      return apiError(400, "Affiliate URL domain is not approved");
+      return apiError(400, "Affiliate destination is not allowed");
+    }
+    if (domainCheck.reason) {
+      // `allowed: true` with a `reason` means warn-mode tolerated an
+      // off-list domain. Emit a structured warning so the corpus can
+      // be audited before AFFILIATE_DOMAIN_ENFORCEMENT=strict ships.
+      console.warn(
+        JSON.stringify({
+          metric: "affiliate_destination_warn",
+          site_id: siteId,
+          product_slug: productSlug,
+          domain: domainCheck.domain,
+          reason: domainCheck.reason,
+        }),
+      );
     }
 
     // Publish to the click queue (falls back to direct DB write if no binding)
