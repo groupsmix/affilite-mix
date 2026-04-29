@@ -80,10 +80,13 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
  * the app.
  */
 export const RECOMMENDED_SERVER_ENV: readonly RequiredEnvVar[] = [
+  // N-01 / E-01: RESEND_API_KEY moved to FEATURE_CONDITIONAL_ENV — required
+  // when NEWSLETTER_ENABLED=1 (production). Kept here as recommended for
+  // dev/test environments where newsletter may not be enabled.
   {
     name: "RESEND_API_KEY",
     description:
-      "Resend API key for transactional emails (password reset, newsletter confirmation)",
+      "Resend API key for transactional emails (password reset, newsletter confirmation). Required in production when NEWSLETTER_ENABLED=1.",
     ownerFile: "app/api/** (email senders)",
   },
   {
@@ -185,6 +188,19 @@ export const FEATURE_CONDITIONAL_ENV: readonly {
         description:
           "Sentry DSN (required in production for error monitoring and incident response)",
         ownerFile: "lib/sentry.ts",
+      },
+    ],
+  },
+  // R-01 / E-01: Require strict affiliate domain enforcement in production.
+  // Without this, the click redirect endpoint is an open redirector.
+  {
+    flag: "NODE_ENV",
+    flagEquals: "production",
+    requires: [
+      {
+        name: "AFFILIATE_DOMAIN_ENFORCEMENT",
+        description: "Must be 'strict' in production to prevent open affiliate redirector (R-01)",
+        ownerFile: "app/api/track/click/route.ts",
       },
     ],
   },

@@ -18,12 +18,12 @@
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 
-/** Hardcoded fallback of trusted hostnames used by the application. */
-const DEFAULT_ALLOWED_HOSTNAMES = new Set([
-  // Internal / same-origin
-  "localhost",
-  "127.0.0.1",
-  "[::1]",
+/**
+ * SS-01: Production-safe trusted hostnames. localhost/private defaults are
+ * excluded in production to prevent SSRF if this helper is ever reused
+ * with user-controlled URLs.
+ */
+const PRODUCTION_ALLOWED_HOSTNAMES = new Set([
   // Cloudflare APIs
   "api.cloudflare.com",
   "api.stripe.com",
@@ -39,6 +39,18 @@ const DEFAULT_ALLOWED_HOSTNAMES = new Set([
   // Analytics / tracking (if used)
   "api.mixpanel.com",
   "api.segment.io",
+]);
+
+/**
+ * SS-01: Development-only hostnames. These are only included when
+ * NODE_ENV !== "production" to prevent SSRF via localhost/private IPs.
+ */
+const DEV_ONLY_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/** Hardcoded fallback of trusted hostnames used by the application. */
+const DEFAULT_ALLOWED_HOSTNAMES = new Set([
+  ...PRODUCTION_ALLOWED_HOSTNAMES,
+  ...(process.env.NODE_ENV === "production" ? [] : DEV_ONLY_HOSTNAMES),
 ]);
 
 let cachedAllowed: Set<string> | null = null;
