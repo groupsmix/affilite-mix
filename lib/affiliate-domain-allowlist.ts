@@ -178,7 +178,13 @@ export interface DomainValidationResult {
  * are rejected.
  */
 export function validateAffiliateDomain(url: string): DomainValidationResult {
-  const enforcement = process.env.AFFILIATE_DOMAIN_ENFORCEMENT ?? "warn";
+  // FRESH-02: default to "strict" in production so an unapproved domain
+  // is rejected rather than logged-and-allowed. Operators can set
+  // AFFILIATE_DOMAIN_ENFORCEMENT=warn during a data-audit window, but
+  // "warn" must be an explicit production opt-in — not the default.
+  const enforcement =
+    process.env.AFFILIATE_DOMAIN_ENFORCEMENT ??
+    (process.env.NODE_ENV === "production" ? "strict" : "warn");
 
   let hostname: string;
   try {

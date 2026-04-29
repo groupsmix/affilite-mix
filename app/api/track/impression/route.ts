@@ -7,6 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
 import { runAfterResponse } from "@/lib/wait-until";
+import { isOriginAllowed } from "@/lib/security/allowed-origins";
 
 /** 120 ad impression requests per minute per IP */
 const IMPRESSION_RATE_LIMIT = { maxRequests: 120, windowMs: 60 * 1000 };
@@ -14,6 +15,17 @@ const IMPRESSION_RATE_LIMIT = { maxRequests: 120, windowMs: 60 * 1000 };
 /** POST /api/track/impression — record an ad impression from the public site */
 export async function POST(request: NextRequest) {
   try {
+    // FRESH-04: enforce Origin allow-list on this CSRF-exempt beacon endpoint.
+    // The CSRF-exempt registry documents this as a compensating control; the
+    // middleware cannot attach a CSRF token to sendBeacon() calls, so we
+    // validate the request Origin against the per-site allow-list instead.
+    // Pattern mirrors /api/vitals (G-47 / isOriginAllowed).
+    const origin = request.headers.get("origin");
+    const siteId = request.headers.get("x-site-id");
+    if (!isOriginAllowed(origin, request.headers.get("host"), siteId)) {
+      return NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
+    }
+
     const ip = getClientIp(request);
     const rl = await checkRateLimit(`ad-impression:${ip}`, IMPRESSION_RATE_LIMIT);
     if (!rl.allowed) {

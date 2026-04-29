@@ -4,7 +4,7 @@ import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
-import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
+import { buildCspHeader, generateCspNonce, NONCE_HEADER, buildReportToHeader } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
 import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
@@ -476,6 +476,8 @@ export async function middleware(request: NextRequest) {
   if (cspHeaderValue) {
     // Actual browser enforcement is driven by the *response* header.
     response.headers.set(CSP_HEADER, cspHeaderValue);
+    // F-024: Set the Report-To header for CSP Level 3 modern browser reporting.
+    response.headers.set("Report-To", buildReportToHeader());
   }
 
   // Removed CSRF token rotation on state-changing requests

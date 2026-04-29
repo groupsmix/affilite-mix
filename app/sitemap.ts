@@ -89,12 +89,12 @@ const STATIC_LAST_MODIFIED = new Date("2026-04-01T00:00:00Z");
 
 function staticFallback(site: {
   domain: string;
-  seo: { sitemapStaticPages: Array<{ path: string; changeFrequency: string; priority: number }> };
+  seo: { sitemapStaticPages: Array<{ path: string; changeFrequency: string; priority: number; lastModified?: string }> };
 }): MetadataRoute.Sitemap {
   const baseUrl = `https://${site.domain}`;
   return site.seo.sitemapStaticPages.map((page) => ({
     url: `${baseUrl}${page.path}`,
-    lastModified: STATIC_LAST_MODIFIED,
+    lastModified: page.lastModified ? new Date(page.lastModified) : STATIC_LAST_MODIFIED,
     changeFrequency: page.changeFrequency as MetadataRoute.Sitemap[number]["changeFrequency"],
     priority: page.priority,
   }));
@@ -139,9 +139,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // P2-2: Use a stable date for static pages instead of new Date() on every
   // request, which would falsely signal to search engines that every static
   // page changed on every crawl.
-  const staticEntries: MetadataRoute.Sitemap = site.seo.sitemapStaticPages.map((page) => ({
+  const staticEntries: MetadataRoute.Sitemap = site.seo.sitemapStaticPages.map((page: any) => ({
     url: `${baseUrl}${page.path}`,
-    lastModified: STATIC_LAST_MODIFIED,
+    lastModified: page.lastModified ? new Date(page.lastModified) : STATIC_LAST_MODIFIED,
     changeFrequency: page.changeFrequency as MetadataRoute.Sitemap[number]["changeFrequency"],
     priority: page.priority,
   }));
