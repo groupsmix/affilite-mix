@@ -168,7 +168,8 @@ WHERE schemaname = 'public'
   -- staging has not applied them yet. Remove this exclusion once staging
   -- catches up.
   AND NOT (
-    policyname IN ('ai_drafts_service_all', 'affiliate_networks_service_all')
+    tablename IN ('ai_drafts', 'affiliate_networks')
+    AND policyname IN ('ai_drafts_service_all', 'affiliate_networks_service_all')
   )
 ORDER BY tablename, policyname;
 SQL
