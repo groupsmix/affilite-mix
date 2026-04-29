@@ -76,7 +76,7 @@ jobs:
               NEXT_PUBLIC_SUPABASE_URL="https://unreachable.invalid" \
                 npx vitest run __tests__/chaos/ --reporter=verbose 2>&1 \
                 | tee "$EVIDENCE_DIR/chaos-db-outage-${TIMESTAMP}.md" || true
-              echo "## DB Outage Chaos Test - $TIMESTAMP" > "$EVIDENCE_DIR/chaos-db-outage-${TIMESTAMP}.md"
+              echo "## DB Outage Chaos Test - $TIMESTAMP" >> "$EVIDENCE_DIR/chaos-db-outage-${TIMESTAMP}.md"
               echo "Result: Completed (check artifact for details)" >> "$EVIDENCE_DIR/chaos-db-outage-${TIMESTAMP}.md"
               ;;
             r2-outage)
@@ -84,7 +84,7 @@ jobs:
               R2_PUBLIC_URL="https://unreachable.invalid" \
                 npx vitest run __tests__/chaos/ --reporter=verbose 2>&1 \
                 | tee "$EVIDENCE_DIR/chaos-r2-outage-${TIMESTAMP}.md" || true
-              echo "## R2 Outage Chaos Test - $TIMESTAMP" > "$EVIDENCE_DIR/chaos-r2-outage-${TIMESTAMP}.md"
+              echo "## R2 Outage Chaos Test - $TIMESTAMP" >> "$EVIDENCE_DIR/chaos-r2-outage-${TIMESTAMP}.md"
               echo "Result: Completed (check artifact for details)" >> "$EVIDENCE_DIR/chaos-r2-outage-${TIMESTAMP}.md"
               ;;
             stripe-fail)
@@ -92,7 +92,7 @@ jobs:
               STRIPE_WEBHOOK_SECRET="invalid-secret" \
                 npx vitest run __tests__/chaos/ --reporter=verbose 2>&1 \
                 | tee "$EVIDENCE_DIR/chaos-stripe-fail-${TIMESTAMP}.md" || true
-              echo "## Stripe Failure Chaos Test - $TIMESTAMP" > "$EVIDENCE_DIR/chaos-stripe-fail-${TIMESTAMP}.md"
+              echo "## Stripe Failure Chaos Test - $TIMESTAMP" >> "$EVIDENCE_DIR/chaos-stripe-fail-${TIMESTAMP}.md"
               echo "Result: Completed (check artifact for details)" >> "$EVIDENCE_DIR/chaos-stripe-fail-${TIMESTAMP}.md"
               ;;
             load)
@@ -103,7 +103,7 @@ jobs:
               else
                 echo "Load test script not found, skipping"
               fi
-              echo "## Load Chaos Test - $TIMESTAMP" > "$EVIDENCE_DIR/chaos-load-${TIMESTAMP}.md"
+              echo "## Load Chaos Test - $TIMESTAMP" >> "$EVIDENCE_DIR/chaos-load-${TIMESTAMP}.md"
               echo "Result: Completed (check artifact for details)" >> "$EVIDENCE_DIR/chaos-load-${TIMESTAMP}.md"
               ;;
           esac

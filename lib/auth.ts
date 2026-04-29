@@ -39,24 +39,47 @@ const DUMMY_PASSWORD_HASH = "$2b$10$FIQMYsgSk2SAqMvHOeYvCeFGj1FfTGeQC3aghyI97o73
 // G-15: HMAC-signed activity timestamps
 // ---------------------------------------------------------------------------
 
-/** Sign a timestamp with HMAC-SHA256 using the JWT secret as key. */
-function signTimestamp(ts: number): string {
-  // Synchronous HMAC via a simple hash: ts.hex(hmac)
-  // We use the JWT secret as key material for convenience.
-  const secret = getJwtSecret();
-  const data = `activity:${ts}:${secret}`;
-  // Simple hash — not crypto-grade but sufficient for tamper detection on
-  // an HttpOnly/Secure cookie that only travels server-to-server.
-  let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    hash = ((hash << 5) - hash + data.charCodeAt(i)) | 0;
+const HMAC_ENCODER = new TextEncoder();
+
+/** Import the JWT secret as an HMAC-SHA256 key. */
+async function getActivityHmacKey(): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    HMAC_ENCODER.encode(getJwtSecret()),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+function bytesToHex(bytes: ArrayBuffer): string {
+  const view = new Uint8Array(bytes);
+  let out = "";
+  for (let i = 0; i < view.length; i++) {
+    out += view[i].toString(16).padStart(2, "0");
   }
-  const hex = (hash >>> 0).toString(16).padStart(8, "0");
-  return `${ts}.${hex}`;
+  return out;
+}
+
+/** Constant-time string comparison for hex MAC values of equal length. */
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/** Sign a timestamp with HMAC-SHA256 using the JWT secret as key. */
+async function signTimestamp(ts: number): Promise<string> {
+  const key = await getActivityHmacKey();
+  const sig = await crypto.subtle.sign("HMAC", key, HMAC_ENCODER.encode(`activity:${ts}`));
+  return `${ts}.${bytesToHex(sig)}`;
 }
 
 /** Verify a signed timestamp. Returns the timestamp or null if invalid. */
-function verifySignedTimestamp(value: string): number | null {
+async function verifySignedTimestamp(value: string): Promise<number | null> {
   const dot = value.indexOf(".");
   if (dot === -1) {
     // Legacy unsigned cookie — accept but treat as the raw timestamp
@@ -65,8 +88,8 @@ function verifySignedTimestamp(value: string): number | null {
   }
   const ts = Number(value.slice(0, dot));
   if (!Number.isFinite(ts)) return null;
-  const expected = signTimestamp(ts);
-  if (expected !== value) return null;
+  const expected = await signTimestamp(ts);
+  if (!constantTimeEqual(expected, value)) return null;
   return ts;
 }
 
@@ -248,7 +271,7 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   // so clients cannot forge timestamps to extend their session.
   const lastActivity = cookieStore.get(ACTIVITY_COOKIE)?.value;
   if (lastActivity) {
-    const ts = verifySignedTimestamp(lastActivity);
+    const ts = await verifySignedTimestamp(lastActivity);
     if (ts === null) {
       logger.warn("Admin session rejected: activity cookie signature invalid (possible tampering)");
       return null;
@@ -283,15 +306,15 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
  * Touch the admin activity timestamp.
  * Call this in admin API routes so the idle-timeout cookie stays fresh.
  */
-export function touchAdminActivity(): {
+export async function touchAdminActivity(): Promise<{
   name: string;
   value: string;
   options: Record<string, unknown>;
-} {
+}> {
   return {
     name: ACTIVITY_COOKIE,
     // G-15: HMAC-signed timestamp prevents client-side forgery
-    value: signTimestamp(Date.now()),
+    value: await signTimestamp(Date.now()),
     options: {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
