@@ -31,12 +31,20 @@
 # ── Runtime Worker secrets (set via `wrangler secret put`) ──
 #   - SUPABASE_SERVICE_ROLE_KEY
 #   - JWT_SECRET (generate: openssl rand -hex 64)
-#   - CRON_SECRET (generate: openssl rand -hex 32)
+#   - CRON_SECRET (generate: openssl rand -hex 32) — shared fallback, dev/staging only
 #   - CRON_HOST (e.g. https://wristnerd.xyz)
 #   - INTERNAL_API_TOKEN (generate: openssl rand -hex 64)
 #   - RESEND_API_KEY, SENTRY_DSN, TURNSTILE_SECRET_KEY (optional)
 #   - Stripe: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID_INSIDER, STRIPE_PRICE_ID_PRO (optional — required for paid memberships)
-#   - Stripe cron: CRON_STRIPE_SYNC_SECRET (optional per-trigger secret for /api/cron/stripe-sync)
+#   - Per-trigger cron secrets — REQUIRED in production (NEW-001):
+#       CRON_PUBLISH_SECRET, CRON_STRIPE_SYNC_SECRET, CRON_AI_SECRET,
+#       CRON_SITEMAP_SECRET, CRON_RETENTION_SECRET, CRON_COMMISSION_SECRET,
+#       CRON_EPC_SECRET, CRON_PRICE_SECRET, CRON_DEALS_SECRET
+#     (single source of truth: `lib/cron-registry.ts -> cronJobs`).
+#     `verifyCronAuth` rejects requests in production when only the
+#     shared CRON_SECRET fallback is configured, so the deploy below
+#     uploads every per-trigger secret to BOTH `affilite-mix` and
+#     `affilite-mix-heavy-crons` workers.
 #   - AI keys: CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COHERE_API_KEY (optional)
 #   - Affiliate: CJ_API_KEY, CJ_PUBLISHER_ID, PARTNERSTACK_API_KEY, ADMITAD_API_KEY, ADMITAD_PUBLISHER_ID (optional)
 #   - R2: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL (optional)
@@ -205,6 +213,22 @@ jobs:
           _INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
           _CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           _CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # NEW-001: Per-trigger cron secrets. Required in production —
+          # `verifyCronAuth` rejects the shared CRON_SECRET fallback
+          # unless CRON_ALLOW_SHARED_FALLBACK_IN_PROD=1 is set, and
+          # `instrumentation.ts` throws on missing required env. Keep
+          # this list in lockstep with `lib/cron-registry.ts -> cronJobs`;
+          # `__tests__/cron-registry.test.ts` enforces that every
+          # registered job's secret env var appears here.
+          _CRON_PUBLISH_SECRET: ${{ secrets.CRON_PUBLISH_SECRET }}
+          _CRON_STRIPE_SYNC_SECRET: ${{ secrets.CRON_STRIPE_SYNC_SECRET }}
+          _CRON_AI_SECRET: ${{ secrets.CRON_AI_SECRET }}
+          _CRON_SITEMAP_SECRET: ${{ secrets.CRON_SITEMAP_SECRET }}
+          _CRON_RETENTION_SECRET: ${{ secrets.CRON_RETENTION_SECRET }}
+          _CRON_COMMISSION_SECRET: ${{ secrets.CRON_COMMISSION_SECRET }}
+          _CRON_EPC_SECRET: ${{ secrets.CRON_EPC_SECRET }}
+          _CRON_PRICE_SECRET: ${{ secrets.CRON_PRICE_SECRET }}
+          _CRON_DEALS_SECRET: ${{ secrets.CRON_DEALS_SECRET }}
         run: |
           set -euo pipefail
           MISSING=""
@@ -221,6 +245,16 @@ jobs:
             _INTERNAL_API_TOKEN
             _CLOUDFLARE_API_TOKEN
             _CLOUDFLARE_ACCOUNT_ID
+            # NEW-001: per-trigger cron secrets (one per cronJobs entry)
+            _CRON_PUBLISH_SECRET
+            _CRON_STRIPE_SYNC_SECRET
+            _CRON_AI_SECRET
+            _CRON_SITEMAP_SECRET
+            _CRON_RETENTION_SECRET
+            _CRON_COMMISSION_SECRET
+            _CRON_EPC_SECRET
+            _CRON_PRICE_SECRET
+            _CRON_DEALS_SECRET
           )
 
           # Map env var names to their user-facing secret names
@@ -236,6 +270,15 @@ jobs:
             [_INTERNAL_API_TOKEN]=INTERNAL_API_TOKEN
             [_CLOUDFLARE_API_TOKEN]=CLOUDFLARE_API_TOKEN
             [_CLOUDFLARE_ACCOUNT_ID]=CLOUDFLARE_ACCOUNT_ID
+            [_CRON_PUBLISH_SECRET]=CRON_PUBLISH_SECRET
+            [_CRON_STRIPE_SYNC_SECRET]=CRON_STRIPE_SYNC_SECRET
+            [_CRON_AI_SECRET]=CRON_AI_SECRET
+            [_CRON_SITEMAP_SECRET]=CRON_SITEMAP_SECRET
+            [_CRON_RETENTION_SECRET]=CRON_RETENTION_SECRET
+            [_CRON_COMMISSION_SECRET]=CRON_COMMISSION_SECRET
+            [_CRON_EPC_SECRET]=CRON_EPC_SECRET
+            [_CRON_PRICE_SECRET]=CRON_PRICE_SECRET
+            [_CRON_DEALS_SECRET]=CRON_DEALS_SECRET
           )
 
           for key in "${REQUIRED[@]}"; do
@@ -848,6 +891,20 @@ jobs:
           [ -z "$_SB_ANON_KEY" ]        && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_ANON_KEY"
           [ -z "$_CRON_HOST" ]          && MISSING="$MISSING CRON_HOST"
           [ -z "$_INTERNAL_TOKEN" ]     && MISSING="$MISSING INTERNAL_API_TOKEN"
+          # NEW-001: Per-trigger cron secrets are required in production —
+          # `verifyCronAuth` rejects requests authed via the shared
+          # CRON_SECRET fallback unless CRON_ALLOW_SHARED_FALLBACK_IN_PROD=1
+          # is set, and `instrumentation.ts` throws on missing required env.
+          # Keep this list aligned with `lib/cron-registry.ts -> cronJobs`.
+          [ -z "$_CRON_PUBLISH" ]       && MISSING="$MISSING CRON_PUBLISH_SECRET"
+          [ -z "$_CRON_STRIPE" ]        && MISSING="$MISSING CRON_STRIPE_SYNC_SECRET"
+          [ -z "$_CRON_AI" ]            && MISSING="$MISSING CRON_AI_SECRET"
+          [ -z "$_CRON_SITEMAP" ]       && MISSING="$MISSING CRON_SITEMAP_SECRET"
+          [ -z "$_CRON_RETENTION" ]     && MISSING="$MISSING CRON_RETENTION_SECRET"
+          [ -z "$_CRON_COMMISSION" ]    && MISSING="$MISSING CRON_COMMISSION_SECRET"
+          [ -z "$_CRON_EPC" ]           && MISSING="$MISSING CRON_EPC_SECRET"
+          [ -z "$_CRON_PRICE" ]         && MISSING="$MISSING CRON_PRICE_SECRET"
+          [ -z "$_CRON_DEALS" ]         && MISSING="$MISSING CRON_DEALS_SECRET"
 
           if [ -n "$MISSING" ]; then
             echo "::error::Required secrets are missing:$MISSING"
@@ -863,6 +920,21 @@ jobs:
           echo "$_SB_ANON_KEY"        | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix > /dev/null 2>&1
           echo "$_CRON_HOST"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST --name affilite-mix > /dev/null 2>&1
           echo "$_INTERNAL_TOKEN"     | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN --name affilite-mix > /dev/null 2>&1
+
+          # NEW-001: Per-trigger cron secrets. One per cronJobs entry in
+          # `lib/cron-registry.ts`. The registry test asserts that every
+          # job's secretEnvVar appears here as a `wrangler secret put`
+          # line so adding a new cron without wiring its secret fails CI.
+          echo "Setting per-trigger cron secrets on main worker (NEW-001)..."
+          echo "$_CRON_PUBLISH"       | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PUBLISH_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_STRIPE"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_STRIPE_SYNC_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_AI"            | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AI_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_SITEMAP"       | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SITEMAP_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_RETENTION"     | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_RETENTION_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_COMMISSION"    | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_COMMISSION_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_EPC"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_EPC_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_PRICE"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PRICE_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_DEALS"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_DEALS_SECRET --name affilite-mix > /dev/null 2>&1
 
           echo "Setting optional Worker secrets (skipped if not configured)..."
           [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix > /dev/null 2>&1       || true
@@ -888,7 +960,8 @@ jobs:
           [ -n "$_STRIPE_WH" ]        && echo "$_STRIPE_WH"        | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_WEBHOOK_SECRET --name affilite-mix > /dev/null 2>&1   || true
           [ -n "$_STRIPE_INSIDER" ]   && echo "$_STRIPE_INSIDER"   | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_PRICE_ID_INSIDER --name affilite-mix > /dev/null 2>&1 || true
           [ -n "$_STRIPE_PRO" ]       && echo "$_STRIPE_PRO"       | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_PRICE_ID_PRO --name affilite-mix > /dev/null 2>&1     || true
-          [ -n "$_CRON_STRIPE" ]      && echo "$_CRON_STRIPE"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_STRIPE_SYNC_SECRET --name affilite-mix > /dev/null 2>&1 || true
+          # CRON_STRIPE_SYNC_SECRET is now uploaded unconditionally above as
+          # part of the NEW-001 per-trigger cron secret rollout.
 
           echo "Setting optional R2 image storage secrets..."
           [ -n "$_R2_ACCOUNT" ]       && echo "$_R2_ACCOUNT"       | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_ACCOUNT_ID --name affilite-mix > /dev/null 2>&1          || true
@@ -924,7 +997,19 @@ jobs:
           _STRIPE_WH: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           _STRIPE_INSIDER: ${{ secrets.STRIPE_PRICE_ID_INSIDER }}
           _STRIPE_PRO: ${{ secrets.STRIPE_PRICE_ID_PRO }}
+          # NEW-001: Per-trigger cron secrets, one per `cronJobs` entry in
+          # `lib/cron-registry.ts`. Required in production; the validate
+          # step above and `__tests__/cron-registry.test.ts` enforce that
+          # this list stays in sync with the registry.
+          _CRON_PUBLISH: ${{ secrets.CRON_PUBLISH_SECRET }}
           _CRON_STRIPE: ${{ secrets.CRON_STRIPE_SYNC_SECRET }}
+          _CRON_AI: ${{ secrets.CRON_AI_SECRET }}
+          _CRON_SITEMAP: ${{ secrets.CRON_SITEMAP_SECRET }}
+          _CRON_RETENTION: ${{ secrets.CRON_RETENTION_SECRET }}
+          _CRON_COMMISSION: ${{ secrets.CRON_COMMISSION_SECRET }}
+          _CRON_EPC: ${{ secrets.CRON_EPC_SECRET }}
+          _CRON_PRICE: ${{ secrets.CRON_PRICE_SECRET }}
+          _CRON_DEALS: ${{ secrets.CRON_DEALS_SECRET }}
           _R2_ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
           _R2_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -960,6 +1045,50 @@ jobs:
             echo "Deployed version $VERSION_ID at $DEPLOYMENT_URL"
           fi
         id: cloudflare-deploy
+
+      # NEW-001: The heavy-crons dispatcher worker reads the per-trigger
+      # secret env vars (and CRON_HOST + CRON_SECRET as a fallback) at
+      # cron-trigger time to authenticate its outbound POST to the main
+      # worker. Without these uploaded to `affilite-mix-heavy-crons`, the
+      # dispatcher falls through to "No secret configured — skipping
+      # dispatch" and the heavy crons (ai-generate / commission-ingest /
+      # price-scrape) silently never run. We push the full per-trigger
+      # set (not just the heavy ones) so the surface stays symmetric with
+      # the main worker and a future re-flagging of `heavy: true` on a
+      # job does not require a separate deploy change.
+      - name: Set heavy-crons Worker secrets
+        env:
+          _CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          _CRON_HOST: ${{ secrets.CRON_HOST }}
+          _CRON_PUBLISH: ${{ secrets.CRON_PUBLISH_SECRET }}
+          _CRON_STRIPE: ${{ secrets.CRON_STRIPE_SYNC_SECRET }}
+          _CRON_AI: ${{ secrets.CRON_AI_SECRET }}
+          _CRON_SITEMAP: ${{ secrets.CRON_SITEMAP_SECRET }}
+          _CRON_RETENTION: ${{ secrets.CRON_RETENTION_SECRET }}
+          _CRON_COMMISSION: ${{ secrets.CRON_COMMISSION_SECRET }}
+          _CRON_EPC: ${{ secrets.CRON_EPC_SECRET }}
+          _CRON_PRICE: ${{ secrets.CRON_PRICE_SECRET }}
+          _CRON_DEALS: ${{ secrets.CRON_DEALS_SECRET }}
+        run: |
+          set -euo pipefail
+
+          # Required for the dispatcher to know where to POST and to
+          # auth via fallback if a per-trigger secret is somehow unset.
+          echo "$_CRON_HOST"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST           --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_SECRET"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SECRET         --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+
+          echo "Setting per-trigger cron secrets on heavy-crons worker (NEW-001)..."
+          echo "$_CRON_PUBLISH"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PUBLISH_SECRET     --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_STRIPE"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_STRIPE_SYNC_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_AI"             | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AI_SECRET          --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_SITEMAP"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SITEMAP_SECRET     --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_RETENTION"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_RETENTION_SECRET   --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_COMMISSION"     | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_COMMISSION_SECRET  --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_EPC"            | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_EPC_SECRET         --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_PRICE"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PRICE_SECRET       --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_DEALS"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_DEALS_SECRET       --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+
+          echo "heavy-crons worker secrets configured"
 
       # A-018: Deploy the dedicated heavy-crons worker so long-running cron
       # jobs (ai-generate, commission-ingest, price-scrape) do not share
