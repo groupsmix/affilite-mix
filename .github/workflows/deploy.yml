@@ -1004,6 +1004,7 @@ jobs:
             JWT_SECRET
             CRON_SECRET
             INTERNAL_API_TOKEN
+            APP_URL
             STRIPE_SECRET_KEY
             STRIPE_WEBHOOK_SECRET
             SENTRY_DSN

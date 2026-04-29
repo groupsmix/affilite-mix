@@ -51,6 +51,14 @@ describe("G-01 — admin URL guard", () => {
     const r = validateAdminUrl("https://[::1]/");
     expect(r.valid).toBe(false);
   });
+  it("rejects IPv4-mapped IPv6 loopback (::ffff:127.0.0.1)", () => {
+    const r = validateAdminUrl("https://[::ffff:127.0.0.1]/");
+    expect(r.valid).toBe(false);
+  });
+  it("rejects IPv4-mapped IPv6 metadata endpoint (::ffff:169.254.169.254)", () => {
+    const r = validateAdminUrl("https://[::ffff:169.254.169.254]/");
+    expect(r.valid).toBe(false);
+  });
   it("rejects wildcard DNS (nip.io)", () => {
     const r = validateAdminUrl("https://127-0-0-1.nip.io/x");
     expect(r.valid).toBe(false);
