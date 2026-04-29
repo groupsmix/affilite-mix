@@ -35,6 +35,8 @@ jobs:
         run: npm audit --audit-level=high
       - name: Migration policy lint (E-2)
         run: bash scripts/check-migrations.sh
+      - name: Env-var documentation guard (G-13)
+        run: bash scripts/check-env-docs.sh
       - run: npm run lint
       - run: npm test
       - run: npm run typecheck:all
