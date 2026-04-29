@@ -21,7 +21,11 @@ import { signInternalRequest, computeHmac, timingSafeEqual } from "@/lib/interna
  * request-time overhead identical for healthy KV while closing the
  * attribution-poisoning window during KV outages.
  */
-const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000, failPolicy: "grace" as const };
+const CLICK_RATE_LIMIT = {
+  maxRequests: 60,
+  windowMs: 60 * 1000,
+  failPolicy: "grace" as const,
+};
 
 /**
  * Shared handler for click tracking (used by both GET and POST).
