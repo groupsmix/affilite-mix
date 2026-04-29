@@ -101,6 +101,8 @@ fi
 echo ""
 echo "Checking required Worker secrets..."
 
+# Canonical list of production secrets. Keep in sync with
+# .github/workflows/deploy.yml (REQUIRED_SECRETS array, ~line 999).
 REQUIRED_SECRETS=(
     "SUPABASE_SERVICE_ROLE_KEY"
     "SUPABASE_JWT_SECRET"
@@ -110,6 +112,9 @@ REQUIRED_SECRETS=(
     "CRON_SECRET"
     "INTERNAL_API_TOKEN"
     "APP_URL"
+    "STRIPE_SECRET_KEY"
+    "STRIPE_WEBHOOK_SECRET"
+    "SENTRY_DSN"
 )
 
 for secret in "${REQUIRED_SECRETS[@]}"; do
