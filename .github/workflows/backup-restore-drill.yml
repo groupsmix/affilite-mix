@@ -34,7 +34,14 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        # G-CI-03 / audit S-14: pin to the major version that production
+        # runs (Postgres 17) so the restore drill exercises the same
+        # planner / DDL behaviour as prod. The exact prod minor is
+        # 17.6.1.084 (see `database.version` in the management API);
+        # the public `postgres:17` image tracks the latest 17.x. When
+        # prod's minor is bumped during a maintenance window, update
+        # this pin in the same PR that triggers the upgrade.
+        image: postgres:17
         env:
           POSTGRES_PASSWORD: drill
           POSTGRES_USER: drill
