@@ -138,7 +138,10 @@ export function getAnonClient(): SupabaseClient<Database> {
           console.error("[getAnonClient] DB fetch failed (timeout or network):", error);
           return new Response(JSON.stringify({ error: "Service Unavailable", data: null }), {
             status: 503,
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+            },
           });
         }
       },

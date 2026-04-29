@@ -78,7 +78,8 @@ async function innerMiddleware(request: NextRequest) {
         const kv = getAppCacheKV();
         if (kv) {
           const kvMaintenance = await kv.get("maintenance_mode");
-          _maintenanceCacheValue = kvMaintenance === "1" || kvMaintenance === "true";
+          _maintenanceCacheValue =
+            kvMaintenance?.toLowerCase() === "1" || kvMaintenance?.toLowerCase() === "true";
         }
         _maintenanceCacheExpiry = Date.now() + 30_000;
       }
