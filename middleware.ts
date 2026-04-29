@@ -118,19 +118,38 @@ export async function middleware(request: NextRequest) {
   // was minted during the previous request.
   if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const requestOrigin = request.headers.get("origin") ?? "";
-    // G-33: only static-config sites can extend the preflight allow-list.
-    // The DB site-row lookup runs later in the request flow, so at this
-    // stage we have not yet verified DB-registered custom domains —
-    // building a `VerifiedSiteRef` from `getSiteByDomain` ensures we
-    // never trust an arbitrary `Host` header at preflight time.
+    // P1-10: Resolve site identity for preflight requests from both static
+    // config AND cached DB entries. Previously only static-config sites were
+    // checked, so custom-domain preflights would always 403 until the site
+    // was resolved in the main flow (which doesn't run for OPTIONS).
     const preflightStaticSite = getSiteByDomain(hostname);
-    const preflightVerifiedSite: VerifiedSiteRef | null = preflightStaticSite
+    let preflightVerifiedSite: VerifiedSiteRef | null = preflightStaticSite
       ? {
           slug: preflightStaticSite.id,
           domain: preflightStaticSite.domain,
           aliases: preflightStaticSite.aliases,
         }
       : null;
+
+    // P1-10: For custom domains not in static config, check the KV cache
+    // so verified custom domains can preflight without a fresh DB lookup.
+    if (!preflightVerifiedSite) {
+      try {
+        const kv = (process.env as any).APP_CACHE_KV as any;
+        if (kv) {
+          const cachedRow = (await kv.get(`site-domain:${hostname}`, "json")) as {
+            slug?: string;
+            is_active?: boolean;
+          } | null;
+          if (cachedRow?.slug && cachedRow?.is_active) {
+            preflightVerifiedSite = { slug: cachedRow.slug, domain: hostname };
+          }
+        }
+      } catch {
+        // KV errors during preflight are non-fatal — fall through to static-only
+      }
+    }
+
     const allowedOrigins = getAllowedOrigins(preflightVerifiedSite);
     const matchedOrigin =
       requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";

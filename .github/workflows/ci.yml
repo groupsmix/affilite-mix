@@ -101,6 +101,39 @@ jobs:
           echo "Running CORS security tests..."
           npm test -- __tests__/cors-security.test.ts
 
+      - name: Internal API routes auth enforcement (P1-7)
+        run: |
+          set -euo pipefail
+          echo "Scanning app/api/internal/**/route.ts for auth mechanisms..."
+          VIOLATIONS=""
+          for file in $(find app/api/internal -name 'route.ts' -o -name 'route.tsx' 2>/dev/null); do
+            if ! grep -qE 'requireInternalAuth|getInternalToken|verifyInternalHmac|INTERNAL_HEADER|getInternalTokenFor' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Internal API routes missing auth (requireInternalAuth/getInternalToken/verifyInternalHmac/INTERNAL_HEADER):$VIOLATIONS"
+            exit 1
+          fi
+          echo "All internal API routes import an approved auth mechanism."
+
+      - name: Service-role import scan (P1-6)
+        run: |
+          set -euo pipefail
+          # Scan non-exempt API routes for privileged client imports.
+          # Allowed: cron, internal, membership/webhook, admin routes.
+          VIOLATIONS=""
+          for file in $(find app/api -name 'route.ts' -o -name 'route.tsx' | grep -v 'app/api/cron/' | grep -v 'app/api/internal/' | grep -v 'app/api/membership/webhook/' | grep -v 'app/api/admin/' | grep -v 'app/api/queue/'); do
+            if grep -qE 'getPrivilegedSupabaseClient|getServiceClient|service-role' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Non-exempt API routes importing service-role client (bypasses RLS):$VIOLATIONS"
+            exit 1
+          fi
+          echo "No unauthorized service-role imports in public API routes."
+
       - name: R2 bucket isolation validation (G-09)
         run: |
           # G-09: inspect the actual Worker config (`wrangler.jsonc`),
@@ -150,6 +183,24 @@ jobs:
             echo "::warning::Legacy Stripe key prefix (sk_live_/sk_test_) found in .env.example — migrate to Restricted API Keys (rk_live_/rk_test_)."
           fi
           echo "Stripe API key prefix check passed."
+
+      - name: Lockfile integrity check (P2-7)
+        run: |
+          # P2-7: Ensure package-lock.json is in sync with package.json.
+          # npm ci already validates this, but an explicit check gives a
+          # clearer error message when the lockfile has drifted.
+          set -euo pipefail
+          if ! npm ci --dry-run 2>&1 | head -5; then
+            echo "::error::package-lock.json is out of sync with package.json. Run 'npm install' and commit the lockfile."
+            exit 1
+          fi
+          echo "Lockfile integrity verified."
+
+      - name: Generate SBOM (P2-7)
+        run: |
+          # P2-7: Generate Software Bill of Materials for the release.
+          npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json --spec-version 1.5 || echo "::warning::SBOM generation failed (non-blocking)"
+        continue-on-error: true
 
       - name: Wrangler dry-run check (F-035)
         # `wrangler.jsonc` references `.open-next/assets` and

@@ -145,6 +145,23 @@ export const FEATURE_CONDITIONAL_ENV: readonly {
   /** Env vars that become required when the flag is truthy. */
   readonly requires: readonly RequiredEnvVar[];
 }[] = [
+  // P1-5: ENABLE_TURNSTILE flag gates Turnstile verification.
+  {
+    flag: "ENABLE_TURNSTILE",
+    requires: [
+      {
+        name: "TURNSTILE_SECRET_KEY",
+        description: "Turnstile server-side secret (required when ENABLE_TURNSTILE is set)",
+        ownerFile: "lib/turnstile.ts",
+      },
+      {
+        name: "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
+        description: "Turnstile client-side site key (required when ENABLE_TURNSTILE is set)",
+        ownerFile: "components/turnstile.tsx",
+      },
+    ],
+  },
+  // Legacy: keep the old flag for backwards compatibility
   {
     flag: "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
     requires: [
