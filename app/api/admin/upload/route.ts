@@ -36,8 +36,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
  *   • The presign response carries `X-Content-Type-Options: nosniff`
  *     and `Cache-Control: no-store` so the JSON itself is not cached.
  */
-export const POST = withAuthz("upload", "create", async (request) => {
-
+export const POST = withAuthz("upload", "create", async (request, { siteId }) => {
   if (!isR2Configured()) {
     return NextResponse.json(
       {
@@ -64,7 +63,12 @@ export const POST = withAuthz("upload", "create", async (request) => {
       { status: 400 },
     );
   }
-  if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || !Number.isInteger(fileSize) || fileSize <= 0) {
+  if (
+    typeof fileSize !== "number" ||
+    !Number.isFinite(fileSize) ||
+    !Number.isInteger(fileSize) ||
+    fileSize <= 0
+  ) {
     return NextResponse.json({ error: "fileSize must be a positive integer" }, { status: 400 });
   }
   if (fileSize > R2_MAX_UPLOAD_BYTES) {
@@ -75,7 +79,11 @@ export const POST = withAuthz("upload", "create", async (request) => {
   }
 
   try {
-    const presigned = await getUploadUrl(contentType, fileSize, { originalName });
+    // Thread siteId so per-tenant pessimistic R2-storage accounting
+    // (G-42) actually fires for admin uploads. Without this, the
+    // recordUsage() call inside getUploadUrl is a no-op and the
+    // `r2_storage_bytes` counter never advances.
+    const presigned = await getUploadUrl(contentType, fileSize, { originalName, siteId });
 
     // FIX-34 (F-017): Audit log for upload presign request
     void recordAuditEvent({

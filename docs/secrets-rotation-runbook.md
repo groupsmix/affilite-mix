@@ -4,6 +4,20 @@ This document describes how to rotate each secret used by Affilite-Mix, the expe
 
 ---
 
+## How rotation reaches the running Worker (`wrangler` rollout)
+
+Cloudflare Workers read secrets at request time, not at deploy time, so a `wrangler secret put` call updates the **secret store** instantly but does **not** force a redeploy. New isolates spin up with the new value, but isolates that already exist keep serving traffic with whatever they captured the first time they read the env.
+
+Two mechanisms make sure a rotation actually reaches every isolate:
+
+1. **`wrangler deploy` rollout (recommended).** A deploy invalidates every existing isolate, so the next request mints a fresh isolate that reads the rotated secret from `process.env`. This is the only way to guarantee 100% propagation in seconds. Every rotation procedure below ends with a redeploy step for this reason — do not skip it on the assumption that `wrangler secret put` is enough on its own.
+
+2. **5-minute TTL on memoised clients (G-30).** The privileged Supabase client gateway in `lib/server-only/service-role.ts` caps its per-isolate cache at 5 minutes. After the TTL expires, the next call re-reads `process.env` and mints a fresh client. The cache is also invalidated immediately if the URL or key in `process.env` differs from the values used to mint the cached client, so a rotation combined with a `wrangler deploy` rollout takes effect on the next request. This is the safety net for any isolate that survives a rotation when the redeploy is delayed; it is **not** a substitute for the rollout.
+
+**Operational rule of thumb:** always pair `wrangler secret put` with a `wrangler deploy` (or trigger the GitHub Actions deploy workflow) within the same change window. The TTL exists to make a missed rollout self-heal within ≤ 5 minutes; relying on it as the primary rotation mechanism leaves a 5-minute window where some isolates serve traffic with the old key.
+
+---
+
 ## Overview
 
 | Secret                                                                                           | Location                 | Rotation Frequency           | Impact of Rotation                                        |
@@ -25,9 +39,76 @@ This document describes how to rotate each secret used by Affilite-Mix, the expe
 
 ## Rotation Procedures
 
-### 1. `JWT_SECRET`
+### 1. `JWT_SECRET` (admin session signing key)
 
-**Impact:** All active admin sessions become invalid immediately. Admins must log in again.
+The admin auth layer (`lib/auth.ts` + `lib/jwt-secret.ts`, F-AUTH-03) supports a **dual-key rotation** so that rotating the JWT signing key does **not** force every admin to re-authenticate. Three env vars participate:
+
+- `JWT_SECRET_CURRENT` — the key used to **sign** new tokens. Verified first on every request. Takes precedence over `JWT_SECRET` when set.
+- `JWT_SECRET` — legacy single-key fallback. Used to sign + verify when `JWT_SECRET_CURRENT` is unset.
+- `JWT_SECRET_PREVIOUS` — the old key, kept for the rotation grace window. **Verification only**; never used to sign. The `verifyToken` flow tries the current key first, then falls back to this on a JOSE error.
+
+Tokens TTL is 8 hours (`EXPIRY = "8h"` in `lib/auth.ts`), so a 24-hour grace window comfortably covers all in-flight sessions.
+
+#### 1a. Preferred procedure — zero-downtime dual-key rotation
+
+**Impact:** No user-visible session loss. Existing tokens stay valid until they expire naturally (≤ 8 h). New logins are signed with the new key.
+
+**Steps:**
+
+1. **Rehearse the rotation locally first** — see [Tabletop rehearsal / dry-run](#tabletop-rehearsal--dry-run) below. Do not skip this step on a real prod rotation.
+
+2. Generate the new key:
+
+   ```bash
+   NEW_JWT_SECRET=$(openssl rand -hex 64)
+   echo "New key length: ${#NEW_JWT_SECRET}"   # must be 128 hex chars
+   ```
+
+3. Capture the **current** signing key as the new `JWT_SECRET_PREVIOUS`. If the previous rotation already populated `JWT_SECRET_CURRENT`, copy that value; otherwise copy `JWT_SECRET`. Store this securely — you will need to remove it after the grace window closes.
+
+4. Update Worker secrets in this exact order (the verifier reads `JWT_SECRET_PREVIOUS` first, so configure it before promoting `JWT_SECRET_CURRENT`):
+
+   ```bash
+   echo "$OLD_SIGNING_KEY"  | wrangler secret put JWT_SECRET_PREVIOUS --name affilite-mix
+   echo "$NEW_JWT_SECRET"   | wrangler secret put JWT_SECRET_CURRENT  --name affilite-mix
+   ```
+
+5. Update both `JWT_SECRET_CURRENT` and `JWT_SECRET_PREVIOUS` in GitHub Secrets so future deploys propagate the same pair.
+
+6. **Trigger a `wrangler deploy` rollout** (push to `main` or run the deploy workflow manually). See [How rotation reaches the running Worker](#how-rotation-reaches-the-running-wrangler-rollout) — `wrangler secret put` alone does not force isolates to re-read. The 5-minute TTL on the cached secret in `lib/jwt-secret.ts` (`SECRET_CACHE_TTL_MS`) self-heals any isolates the rollout missed, but a deploy is the only way to guarantee immediate propagation.
+
+7. **Verify the rotation took effect** before closing the grace window:
+   - Issue a fresh login. The resulting token's `kid` header (first 8 hex chars of `SHA-256(JWT_SECRET_CURRENT)`) must match the new key, not the old one. Decode with `npx jose decode <token>` or any JWT inspector.
+   - Confirm an existing pre-rotation session (e.g. an admin who logged in before step 6) still works. If it 401s, the grace-window fallback is mis-wired — roll back via step "Rollback during grace window" before continuing.
+   - Tail Workers logs and confirm no `Token rejected: explicitly revoked` or `JOSEError: signature verification failed` spike.
+
+8. **Wait at least 24 hours** (token TTL 8 h × 3 for safety). All tokens signed with the old key will have expired naturally by then.
+
+9. Remove `JWT_SECRET_PREVIOUS`:
+
+   ```bash
+   wrangler secret delete JWT_SECRET_PREVIOUS --name affilite-mix
+   ```
+
+   Also delete the `JWT_SECRET_PREVIOUS` entry from GitHub Secrets. Keep `JWT_SECRET_CURRENT` set — the next rotation will repeat from step 2.
+
+10. Record the rotation in `docs/pre-launch.md` rotation log (date + actor).
+
+**Rollback during grace window:** If the new key breaks logins (e.g. corrupted secret put, length mismatch), the old key is still active via `JWT_SECRET_PREVIOUS`. Swap them back:
+
+```bash
+# Restore the old key as the signing key, and demote the broken new key
+# to PREVIOUS so any tokens it managed to sign keep verifying until
+# they expire.
+echo "$OLD_SIGNING_KEY"  | wrangler secret put JWT_SECRET_CURRENT  --name affilite-mix
+echo "$NEW_JWT_SECRET"   | wrangler secret put JWT_SECRET_PREVIOUS --name affilite-mix
+```
+
+…then redeploy. **Do not** delete `JWT_SECRET_PREVIOUS` until the rollback verification (login + existing-session check) is green.
+
+#### 1b. Emergency (forced-logout) rotation
+
+Use this only when the current key may have leaked and must be invalidated immediately. **All active admin sessions become invalid; admins must log in again.**
 
 **Steps:**
 
@@ -35,15 +116,89 @@ This document describes how to rotate each secret used by Affilite-Mix, the expe
    ```bash
    openssl rand -hex 64
    ```
-2. Update the secret in Cloudflare Workers:
+2. Update the Worker secret directly (single-key path; do not set `JWT_SECRET_PREVIOUS`):
    ```bash
    wrangler secret put JWT_SECRET
+   wrangler secret delete JWT_SECRET_PREVIOUS --name affilite-mix 2>/dev/null || true
+   wrangler secret delete JWT_SECRET_CURRENT  --name affilite-mix 2>/dev/null || true
    ```
-3. Update the value in GitHub Secrets (Settings > Secrets and variables > Actions).
+3. Update the value in GitHub Secrets (Settings > Secrets and variables > Actions). Remove `JWT_SECRET_CURRENT` / `JWT_SECRET_PREVIOUS` if they were set.
 4. Trigger a new deployment (push to `main` or manually re-run the deploy workflow).
 5. Notify admin users that they will need to log in again.
 
-**Rollback:** If the new secret causes issues, re-set the old `JWT_SECRET` value via `wrangler secret put JWT_SECRET` and redeploy.
+For the routine 90-day rotation always prefer **1a**; reserve 1b for compromise scenarios.
+
+#### Tabletop rehearsal / dry-run
+
+Before applying a dual-key rotation in production, rehearse it locally to confirm the candidate new key is well-formed and that the same dual-key verify flow used by `lib/auth.ts` accepts both the old and new keys. The dry-run never touches Worker state — it mints two test tokens (one under the old key, one under the new key) and exercises the verifier against the candidate `JWT_SECRET_CURRENT` / `JWT_SECRET_PREVIOUS` pair.
+
+```bash
+# 1. Capture the values that production currently has wired. For a true
+# rehearsal these should mirror prod; for a smoke test any non-empty
+# value will do.
+export OLD_JWT_SECRET="<current production JWT_SECRET or JWT_SECRET_CURRENT>"
+export NEW_JWT_SECRET="$(openssl rand -hex 64)"
+
+# 2. Verify the candidate is the expected length (128 hex chars = 64 bytes).
+test "${#NEW_JWT_SECRET}" -eq 128 || { echo "candidate JWT secret has wrong length"; exit 1; }
+
+# 3. Exercise the same dual-key verify flow that lib/auth.ts uses
+# (try current key → fall back to previous key on JOSEError). This
+# confirms a token signed under the OLD key still validates after
+# JWT_SECRET_CURRENT is rotated to the NEW key — i.e. the grace window
+# behaves as documented. Run from the repo root.
+node --input-type=module -e '
+  import("jose").then(async ({ SignJWT, jwtVerify, errors: joseErrors }) => {
+    const OLD = process.env.OLD_JWT_SECRET;
+    const NEW = process.env.NEW_JWT_SECRET;
+    if (!OLD || !NEW) { console.error("OLD_JWT_SECRET / NEW_JWT_SECRET must be set"); process.exit(2); }
+    if (OLD === NEW) { console.error("DRY-RUN FAILED: candidate equals current key"); process.exit(1); }
+
+    const oldKey = new TextEncoder().encode(OLD);
+    const newKey = new TextEncoder().encode(NEW);
+
+    const sign = (key) => new SignJWT({ role: "admin" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("8h")
+      .setAudience("affilite-mix-admin")
+      .setIssuer("affilite-mix-auth")
+      .sign(key);
+
+    const oldToken = await sign(oldKey);   // simulates an in-flight session
+    const newToken = await sign(newKey);   // simulates a fresh post-rotation login
+
+    // Verifier mirrors lib/auth.ts:verifyToken — current key first,
+    // previous key as a JOSEError-only fallback.
+    const verifyDualKey = async (token) => {
+      const opts = { audience: "affilite-mix-admin", issuer: "affilite-mix-auth" };
+      try {
+        await jwtVerify(token, newKey, opts);              // current = NEW
+        return "current";
+      } catch (err) {
+        if (!(err instanceof joseErrors.JOSEError)) throw err;
+        await jwtVerify(token, oldKey, opts);              // previous = OLD
+        return "previous";
+      }
+    };
+
+    const newResult = await verifyDualKey(newToken).catch(() => null);
+    const oldResult = await verifyDualKey(oldToken).catch(() => null);
+    if (newResult !== "current") { console.error("DRY-RUN FAILED: new-key token did not verify under JWT_SECRET_CURRENT"); process.exit(1); }
+    if (oldResult !== "previous") { console.error("DRY-RUN FAILED: old-key token did not verify under JWT_SECRET_PREVIOUS — grace window broken"); process.exit(1); }
+
+    // Negative control: a token signed under an unrelated key must be rejected.
+    const bogusKey = new TextEncoder().encode("not-a-real-secret");
+    const bogusToken = await sign(bogusKey);
+    const bogusResult = await verifyDualKey(bogusToken).catch(() => null);
+    if (bogusResult !== null) { console.error("DRY-RUN FAILED: bogus-key token unexpectedly verified"); process.exit(1); }
+
+    console.log("DRY-RUN OK: new-key token verified via JWT_SECRET_CURRENT, old-key token verified via JWT_SECRET_PREVIOUS, bogus-key token rejected");
+  });
+'
+```
+
+A clean `DRY-RUN OK` line is the prerequisite for proceeding to step 2 of [1a](#1a-preferred-procedure--zero-downtime-dual-key-rotation). If any assertion fails, the candidate pair is broken and must not be deployed. Re-run the dry-run after each change to the candidate values.
 
 ---
 
@@ -61,7 +216,8 @@ This document describes how to rotate each secret used by Affilite-Mix, the expe
    wrangler secret put SUPABASE_SERVICE_ROLE_KEY
    ```
 5. Update in GitHub Secrets.
-6. Redeploy.
+6. **Trigger a `wrangler deploy` rollout** (or push to `main` to fire `.github/workflows/deploy.yml`). See the [How rotation reaches the running Worker](#how-rotation-reaches-the-running-wrangler-rollout) section above — `wrangler secret put` alone does not force existing isolates to re-read the new key. The privileged client gateway will self-heal within 5 minutes via its TTL (G-30), but a deploy is the only way to guarantee immediate propagation.
+7. Verify `/api/health` returns `200 OK` and check Workers logs for any `service-role-key` auth failures during the rollout window.
 
 **Warning:** The old key is invalidated immediately by Supabase. Plan for a brief outage window or use a blue/green deployment strategy.
 

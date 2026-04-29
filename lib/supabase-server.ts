@@ -70,7 +70,9 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
       if (activeSlug) {
         // Use a privileged client to resolve the slug → UUID so we don't
         // recurse through getTenantClient().
-        const dbSite = await getSiteRowBySlugWithClient(activeSlug, async () => getPrivilegedSupabaseClient());
+        const dbSite = await getSiteRowBySlugWithClient(activeSlug, async () =>
+          getPrivilegedSupabaseClient(),
+        );
         if (dbSite) {
           siteId = dbSite.id;
         }
@@ -131,20 +133,27 @@ export function getAnonClient(): SupabaseClient<Database> {
 }
 
 /* ------------------------------------------------------------------ */
-/*  A-008: JWT token cache (30-second TTL)                             */
+/*  G-32: JWT token cache removed                                      */
+/*                                                                     */
+/*  Previously this module memoised the per-user JWT for 30 s (A-008)  */
+/*  to avoid re-signing on every request. The cache key was            */
+/*  (role, siteId, userId) — it carried no notion of the user's        */
+/*  current role/permission state, so a user demoted in the DB (e.g.   */
+/*  super_admin → admin, or admin → deactivated) kept their elevated   */
+/*  token for up to 30 s after the change. RLS evaluates the JWT, so   */
+/*  during that window the demoted user could still write through      */
+/*  policies that should already deny them.                            */
+/*                                                                     */
+/*  Mitigation: drop the cache and mint a fresh JWT per call.          */
+/*  HS256 signing with `jose` is sub-millisecond — the perf cost is    */
+/*  negligible compared with the round-trip to PostgREST that follows. */
+/*  If we ever need to reintroduce caching, the cache key MUST include */
+/*  an `auth_version` token bumped on every role / is_active change so */
+/*  invalidation happens synchronously with the privilege change       */
+/*  rather than waiting for the TTL to expire.                         */
 /* ------------------------------------------------------------------ */
-interface JwtCacheEntry {
-  token: string;
-  expiresAt: number;
-}
-const jwtTokenCache = new Map<string, JwtCacheEntry>();
-const JWT_CACHE_TTL_MS = 30_000;
 
-function getJwtCacheKey(siteId: string | null | undefined, userId: string | null | undefined, role: string): string {
-  return `${role}:${siteId ?? "_"}:${userId ?? "_"}`;
-}
-
-async function mintToken(secret: string, payload: Record<string, unknown>): Promise<string> {
+async function mintSupabaseJwt(secret: string, payload: Record<string, unknown>): Promise<string> {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -170,17 +179,7 @@ export async function getAuthenticatedClient(
   const payload: Record<string, unknown> = { role, app_metadata: appMetadata };
   if (userId) payload.sub = userId;
 
-  const cacheKey = getJwtCacheKey(siteId, userId, role);
-  const now = Date.now();
-  const cached = jwtTokenCache.get(cacheKey);
-
-  let token: string;
-  if (cached && cached.expiresAt > now) {
-    token = cached.token;
-  } else {
-    token = await mintToken(secret, payload);
-    jwtTokenCache.set(cacheKey, { token, expiresAt: now + JWT_CACHE_TTL_MS });
-  }
+  const token = await mintSupabaseJwt(secret, payload);
 
   return createClient<Database>(url, anonKey, {
     auth: {
