@@ -39,6 +39,8 @@ jobs:
         run: bash scripts/check-env-docs.sh
       - run: npm run lint
       - run: npm test
+      - name: Vitest coverage threshold (G-37)
+        run: npm run test:coverage
       - run: npm run typecheck:all
       - run: npm run build
         env:
