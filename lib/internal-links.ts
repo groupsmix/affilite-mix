@@ -47,10 +47,7 @@ export function injectProductLinks(
     for (const pos of positionsToReplace) {
       const linkUrl = getTrackingUrl(product.slug, "inline", product.affiliate_url, hasConsent);
       const link = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer nofollow" class="font-medium hover:underline" style="color:var(--color-accent-text, #10B981)">${pos.matchedText}</a>`;
-      result =
-        result.slice(0, pos.start) +
-        link +
-        result.slice(pos.start + pos.matchedText.length);
+      result = result.slice(0, pos.start) + link + result.slice(pos.start + pos.matchedText.length);
     }
   }
 
@@ -63,9 +60,7 @@ interface MatchPosition {
 }
 
 /** Split the HTML into segments that are outside <a> tags */
-function splitAroundAnchors(
-  html: string,
-): { text: string; offset: number; isAnchor: boolean }[] {
+function splitAroundAnchors(html: string): { text: string; offset: number; isAnchor: boolean }[] {
   const anchorPattern = /<a\b[^>]*>[\s\S]*?<\/a>/gi;
   const segments: { text: string; offset: number; isAnchor: boolean }[] = [];
   let lastIndex = 0;
@@ -125,10 +120,7 @@ function findAllMatches(
   fullHtml: string,
 ): MatchPosition[] {
   const positions: MatchPosition[] = [];
-  const pattern = new RegExp(
-    `(?<=>|^)([^<]*?)\\b(${escapedName})\\b`,
-    "gi",
-  );
+  const pattern = new RegExp(`(?<=>|^)([^<]*?)\\b(${escapedName})\\b`, "gi");
 
   for (const seg of segments) {
     if (seg.isAnchor) continue;

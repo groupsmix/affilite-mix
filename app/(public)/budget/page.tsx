@@ -8,7 +8,8 @@ const CONFIG = {
   prefix: "budget",
   label: "Shop by Budget",
   taxonomyType: "budget" as const,
-  description: "Find the perfect watch gift at every price point. Browse our curated collections by budget range.",
+  description:
+    "Find the perfect watch gift at every price point. Browse our curated collections by budget range.",
 };
 
 export const revalidate = 60;

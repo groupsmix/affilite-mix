@@ -100,7 +100,8 @@ export function getJwtSecret(): string {
  */
 export function getJwtSecretPrevious(): string | null {
   const now = Date.now();
-  if (cachedPrevious !== undefined && now - cachedPreviousAt < SECRET_CACHE_TTL_MS) return cachedPrevious;
+  if (cachedPrevious !== undefined && now - cachedPreviousAt < SECRET_CACHE_TTL_MS)
+    return cachedPrevious;
   cachedPrevious = resolveJwtSecretPrevious();
   cachedPreviousAt = now;
   return cachedPrevious;
@@ -119,7 +120,10 @@ export async function getJwtKid(): Promise<string> {
   const data = encoder.encode(secret);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.slice(0, 4).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return hashArray
+    .slice(0, 4)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /** Test-only helper to reset the memoized secret between test cases. */

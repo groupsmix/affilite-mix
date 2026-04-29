@@ -36,7 +36,10 @@ export interface ListAIDraftsOptions {
 }
 
 /** List AI drafts for a site with optional filters */
-export async function listAIDrafts(opts: ListAIDraftsOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<AIDraftRow[]> {
+export async function listAIDrafts(
+  opts: ListAIDraftsOptions,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AIDraftRow[]> {
   const sb = await getClient();
   let query = sb
     .from(TABLE)
@@ -58,7 +61,11 @@ export async function listAIDrafts(opts: ListAIDraftsOptions, getClient: DalClie
 }
 
 /** Get a single AI draft by id */
-export async function getAIDraftById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AIDraftRow | null> {
+export async function getAIDraftById(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AIDraftRow | null> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -120,7 +127,11 @@ export async function updateAIDraft(
 }
 
 /** Delete an AI draft */
-export async function deleteAIDraft(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteAIDraft(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;

@@ -128,7 +128,10 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     // Build-time fallback: when NEXT_PHASE is "phase-production-build",
     // return the first registered site so `npm run build` can succeed
     // even without NEXT_PUBLIC_DEFAULT_SITE set.
-    if (process.env.NODE_ENV === "production" && process.env.NEXT_PHASE === "phase-production-build") {
+    if (
+      process.env.NODE_ENV === "production" &&
+      process.env.NEXT_PHASE === "phase-production-build"
+    ) {
       const firstSite = allSites[0];
       if (firstSite) {
         console.warn(

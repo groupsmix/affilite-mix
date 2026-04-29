@@ -175,11 +175,10 @@ const worker = {
             try {
               const dlqBody = JSON.stringify({ messages: batch.messages.map((m) => m.body) });
               // FIX-03: Sign with HMAC; keep Bearer for backward compat during migration
-              const hmacHeaders = await signInternalRequest(
-                internalToken as string,
-                dlqBody,
-                { Authorization: `Bearer ${internalToken}`, "Content-Type": "application/json" },
-              );
+              const hmacHeaders = await signInternalRequest(internalToken as string, dlqBody, {
+                Authorization: `Bearer ${internalToken}`,
+                "Content-Type": "application/json",
+              });
               const res = await fetch(dlqUrl, {
                 method: "POST",
                 headers: hmacHeaders,
@@ -248,11 +247,10 @@ const worker = {
         try {
           const queueBody = JSON.stringify({ messages: batch.messages.map((m) => m.body) });
           // FIX-03: Sign with HMAC; keep Bearer for backward compat during migration
-          const hmacHeaders = await signInternalRequest(
-            internalToken as string,
-            queueBody,
-            { Authorization: `Bearer ${internalToken}`, "Content-Type": "application/json" },
-          );
+          const hmacHeaders = await signInternalRequest(internalToken as string, queueBody, {
+            Authorization: `Bearer ${internalToken}`,
+            "Content-Type": "application/json",
+          });
           const res = await fetch(url, {
             method: "POST",
             headers: hmacHeaders,

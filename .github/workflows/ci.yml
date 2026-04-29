@@ -37,7 +37,10 @@ jobs:
         run: bash scripts/check-migrations.sh
       - name: Env-var documentation guard (G-13)
         run: bash scripts/check-env-docs.sh
-      - run: npm run lint
+      - name: Format check
+        run: npm run format:check
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
       - run: npm test
       - name: Vitest coverage threshold (G-37)
         run: npm run test:coverage

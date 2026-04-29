@@ -89,7 +89,14 @@ const STATIC_LAST_MODIFIED = new Date("2026-04-01T00:00:00Z");
 
 function staticFallback(site: {
   domain: string;
-  seo: { sitemapStaticPages: Array<{ path: string; changeFrequency: string; priority: number; lastModified?: string }> };
+  seo: {
+    sitemapStaticPages: Array<{
+      path: string;
+      changeFrequency: string;
+      priority: number;
+      lastModified?: string;
+    }>;
+  };
 }): MetadataRoute.Sitemap {
   const baseUrl = `https://${site.domain}`;
   return site.seo.sitemapStaticPages.map((page) => ({

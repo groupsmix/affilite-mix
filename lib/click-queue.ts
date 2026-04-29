@@ -80,14 +80,22 @@ export async function publishClick(input: RecordClickInput): Promise<void> {
       captureException(err, { context: "click-queue.send" });
       // Do not fall through to direct write in production to prevent slamming Supabase;
       // instead log to click_failures for reconciliation.
-      if (process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") {
+      if (
+        process.env.NODE_ENV === "production" ||
+        (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers")
+      ) {
         void logClickFailure(enriched, "queue.send failed");
         return;
       }
     }
   } else {
-    if (process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") {
-      logger.error("[click-queue] Queue binding missing in production. Logging click failure for reconciliation.");
+    if (
+      process.env.NODE_ENV === "production" ||
+      (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers")
+    ) {
+      logger.error(
+        "[click-queue] Queue binding missing in production. Logging click failure for reconciliation.",
+      );
       void logClickFailure(enriched, "CLICK_QUEUE binding missing");
       return;
     }

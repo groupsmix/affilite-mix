@@ -16,13 +16,16 @@ export interface PriceSnapshotRow {
 const TABLE = "price_snapshots";
 
 /** Record a price snapshot */
-export async function createPriceSnapshot(input: {
-  product_id: string;
-  site_id: string;
-  price_amount: number;
-  currency?: string;
-  source?: string;
-}, getClient: DalClientGetter = defaultDalClientGetter): Promise<PriceSnapshotRow> {
+export async function createPriceSnapshot(
+  input: {
+    product_id: string;
+    site_id: string;
+    price_amount: number;
+    currency?: string;
+    source?: string;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<PriceSnapshotRow> {
   const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
@@ -71,7 +74,10 @@ export async function getPriceHistory(
 }
 
 /** Get the latest price snapshot for a product */
-export async function getLatestPrice(productId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<PriceSnapshotRow | null> {
+export async function getLatestPrice(
+  productId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<PriceSnapshotRow | null> {
   const sb = await getClient();
 
   const { data, error } = await sb

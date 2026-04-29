@@ -44,16 +44,10 @@ async function main() {
   const accent = await ask("New accent color hex: ");
 
   if (primary) {
-    content = content.replace(
-      /primary:\s*"#[0-9a-fA-F]+"/,
-      `primary: "${primary}"`,
-    );
+    content = content.replace(/primary:\s*"#[0-9a-fA-F]+"/, `primary: "${primary}"`);
   }
   if (accent) {
-    content = content.replace(
-      /accent:\s*"#[0-9a-fA-F]+"/,
-      `accent: "${accent}"`,
-    );
+    content = content.replace(/accent:\s*"#[0-9a-fA-F]+"/, `accent: "${accent}"`);
   }
 
   // Fonts
@@ -71,10 +65,7 @@ async function main() {
       content = content.replace(/homepage:\s*"[^"]*"/, `homepage: "${homepage}"`);
     } else {
       // Add homepage field after fonts line
-      content = content.replace(
-        /(fonts:\s*"[^"]*",?)/,
-        `$1\n  homepage: "${homepage}",`,
-      );
+      content = content.replace(/(fonts:\s*"[^"]*",?)/, `$1\n  homepage: "${homepage}",`);
     }
   }
 

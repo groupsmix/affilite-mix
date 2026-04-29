@@ -15,7 +15,9 @@ import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 /* ------------------------------------------------------------------ */
 
 /** List all integration providers */
-export async function listIntegrationProviders(getClient: DalClientGetter = defaultDalClientGetter): Promise<IntegrationProviderRow[]> {
+export async function listIntegrationProviders(
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<IntegrationProviderRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("integration_providers")
@@ -27,7 +29,10 @@ export async function listIntegrationProviders(getClient: DalClientGetter = defa
 }
 
 /** List integration providers by category */
-export async function listProvidersByCategory(category: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<IntegrationProviderRow[]> {
+export async function listProvidersByCategory(
+  category: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<IntegrationProviderRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("integration_providers")
@@ -40,7 +45,10 @@ export async function listProvidersByCategory(category: string, getClient: DalCl
 }
 
 /** Get a provider by key */
-export async function getProviderByKey(key: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<IntegrationProviderRow | null> {
+export async function getProviderByKey(
+  key: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<IntegrationProviderRow | null> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("integration_providers")
@@ -57,7 +65,10 @@ export async function getProviderByKey(key: string, getClient: DalClientGetter =
 /* ------------------------------------------------------------------ */
 
 /** List all integrations for a site */
-export async function listSiteIntegrations(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteIntegrationRow[]> {
+export async function listSiteIntegrations(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteIntegrationRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("site_integrations")
@@ -70,7 +81,10 @@ export async function listSiteIntegrations(siteId: string, getClient: DalClientG
 }
 
 /** List only enabled integrations for a site */
-export async function listEnabledIntegrations(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteIntegrationRow[]> {
+export async function listEnabledIntegrations(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteIntegrationRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("site_integrations")
@@ -156,7 +170,11 @@ export async function bulkUpsertSiteIntegrations(
 }
 
 /** Delete a site integration */
-export async function deleteSiteIntegration(siteId: string, providerKey: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteSiteIntegration(
+  siteId: string,
+  providerKey: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb
     .from("site_integrations")

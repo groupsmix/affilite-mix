@@ -26,7 +26,9 @@ interface AdminRoleLookup {
 /* ------------------------------------------------------------------ */
 
 /** List all roles */
-export async function listRoles(getClient: DalClientGetter = defaultDalClientGetter): Promise<RoleRow[]> {
+export async function listRoles(
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<RoleRow[]> {
   const sb = await getClient();
   const { data, error } = await sb.from("roles").select("*").order("name", { ascending: true });
 
@@ -35,7 +37,10 @@ export async function listRoles(getClient: DalClientGetter = defaultDalClientGet
 }
 
 /** Get a role by name */
-export async function getRoleByName(name: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<RoleRow | null> {
+export async function getRoleByName(
+  name: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<RoleRow | null> {
   const sb = await getClient();
   const { data, error } = await sb.from("roles").select("*").eq("name", name).single();
 
@@ -48,7 +53,9 @@ export async function getRoleByName(name: string, getClient: DalClientGetter = d
 /* ------------------------------------------------------------------ */
 
 /** List all permissions */
-export async function listPermissions(getClient: DalClientGetter = defaultDalClientGetter): Promise<PermissionRow[]> {
+export async function listPermissions(
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<PermissionRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("permissions")
@@ -60,7 +67,10 @@ export async function listPermissions(getClient: DalClientGetter = defaultDalCli
 }
 
 /** Get permissions for a role */
-export async function getPermissionsForRole(roleId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<PermissionRow[]> {
+export async function getPermissionsForRole(
+  roleId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<PermissionRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("role_permissions")
@@ -85,7 +95,10 @@ export async function getPermissionsForRole(roleId: string, getClient: DalClient
 /* ------------------------------------------------------------------ */
 
 /** List all role assignments for a user */
-export async function listUserSiteRoles(userId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<UserSiteRoleRow[]> {
+export async function listUserSiteRoles(
+  userId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<UserSiteRoleRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
@@ -98,7 +111,10 @@ export async function listUserSiteRoles(userId: string, getClient: DalClientGett
 }
 
 /** List all role assignments for a site */
-export async function listSiteUserRoles(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<UserSiteRoleRow[]> {
+export async function listSiteUserRoles(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<UserSiteRoleRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
@@ -129,11 +145,14 @@ export const getUserSiteRole = cache(async function getUserSiteRole(
 });
 
 /** Assign a role to a user for a specific site (upsert) */
-export async function assignUserSiteRole(input: {
-  user_id: string;
-  site_id: string;
-  role_id: string;
-}, getClient: DalClientGetter = defaultDalClientGetter): Promise<UserSiteRoleRow> {
+export async function assignUserSiteRole(
+  input: {
+    user_id: string;
+    site_id: string;
+    role_id: string;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<UserSiteRoleRow> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
@@ -153,7 +172,11 @@ export async function assignUserSiteRole(input: {
 }
 
 /** Remove a user's role for a specific site */
-export async function removeUserSiteRole(userId: string, siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function removeUserSiteRole(
+  userId: string,
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb
     .from("user_site_roles")
@@ -182,29 +205,38 @@ export async function removeUserSiteRole(userId: string, siteId: string, getClie
  * To grant an admin access to a site, insert a user_site_roles row for them.
  */
 // 1. Check global admin_users.role for backward compatibility (cached)
-const getGlobalRole = cache(async (userId: string, getClient: DalClientGetter = defaultDalClientGetter) => {
-  const sb = await getClient();
-  const { data, error } = await sb.from("admin_users").select("role").eq("id", userId).single();
-  if (error) throw error;
-  return (data as AdminRoleLookup | null)?.role;
-});
+const getGlobalRole = cache(
+  async (userId: string, getClient: DalClientGetter = defaultDalClientGetter) => {
+    const sb = await getClient();
+    const { data, error } = await sb.from("admin_users").select("role").eq("id", userId).single();
+    if (error) throw error;
+    return (data as AdminRoleLookup | null)?.role;
+  },
+);
 
 // Cache permission lookups
-const getRolePermissionCheck = cache(async (roleId: string, feature: string, action: string, getClient: DalClientGetter = defaultDalClientGetter) => {
-  const sb = await getClient();
-  // We can do this in one join query instead of two to save a round-trip
-  const { data, error } = await sb
-    .from("permissions")
-    .select("id, role_permissions!inner(role_id)")
-    .eq("feature", feature)
-    .eq("action", action)
-    .eq("role_permissions.role_id", roleId)
-    .single();
+const getRolePermissionCheck = cache(
+  async (
+    roleId: string,
+    feature: string,
+    action: string,
+    getClient: DalClientGetter = defaultDalClientGetter,
+  ) => {
+    const sb = await getClient();
+    // We can do this in one join query instead of two to save a round-trip
+    const { data, error } = await sb
+      .from("permissions")
+      .select("id, role_permissions!inner(role_id)")
+      .eq("feature", feature)
+      .eq("action", action)
+      .eq("role_permissions.role_id", roleId)
+      .single();
 
-  if (error && error.code === "PGRST116") return false;
-  if (error) throw error;
-  return Boolean(data);
-});
+    if (error && error.code === "PGRST116") return false;
+    if (error) throw error;
+    return Boolean(data);
+  },
+);
 
 export async function hasPermission(
   userId: string,

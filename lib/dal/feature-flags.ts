@@ -17,7 +17,10 @@ const TABLE = "site_feature_flags";
 /* ------------------------------------------------------------------ */
 
 /** List all feature flags for a site */
-export async function listSiteFeatureFlags(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteFeatureFlagRow[]> {
+export async function listSiteFeatureFlags(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteFeatureFlagRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -30,7 +33,11 @@ export async function listSiteFeatureFlags(siteId: string, getClient: DalClientG
 }
 
 /** Check if a specific feature flag is enabled for a site */
-export async function isFeatureFlagEnabled(siteId: string, flagKey: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<boolean> {
+export async function isFeatureFlagEnabled(
+  siteId: string,
+  flagKey: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<boolean> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -45,7 +52,10 @@ export async function isFeatureFlagEnabled(siteId: string, flagKey: string, getC
 }
 
 /** Get all enabled flag keys for a site (fast lookup) */
-export async function getEnabledFlagKeys(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<string[]> {
+export async function getEnabledFlagKeys(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<string[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -116,7 +126,11 @@ export async function bulkUpsertFeatureFlags(
 }
 
 /** Delete a feature flag */
-export async function deleteFeatureFlag(siteId: string, flagKey: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteFeatureFlag(
+  siteId: string,
+  flagKey: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("flag_key", flagKey);
 
