@@ -44,12 +44,14 @@ export async function POST(request: NextRequest) {
     for (const link of links as { product_id: string; network: string; url: string }[]) {
       // Count clicks (30d and 7d) — match via affiliate_url from the link
       const { count: clicks30d } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
         .select("*", { count: "exact", head: true })
         .eq("affiliate_url", link.url)
         .gte("created_at", thirtyDaysAgo);
 
       const { count: clicks7d } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
         .select("*", { count: "exact", head: true })
         .eq("affiliate_url", link.url)
@@ -83,16 +85,19 @@ export async function POST(request: NextRequest) {
       const c30 = clicks30d || 0;
       const c7 = clicks7d || 0;
 
-      await upsertProductEpc({
-        product_id: link.product_id,
-        network: link.network,
-        clicks_30d: c30,
-        commissions_30d: totalComm30d,
-        epc_30d: c30 > 0 ? totalComm30d / c30 : 0,
-        clicks_7d: c7,
-        commissions_7d: totalComm7d,
-        epc_7d: c7 > 0 ? totalComm7d / c7 : 0,
-      }, getPrivilegedSupabaseClient);
+      await upsertProductEpc(
+        {
+          product_id: link.product_id,
+          network: link.network,
+          clicks_30d: c30,
+          commissions_30d: totalComm30d,
+          epc_30d: c30 > 0 ? totalComm30d / c30 : 0,
+          clicks_7d: c7,
+          commissions_7d: totalComm7d,
+          epc_7d: c7 > 0 ? totalComm7d / c7 : 0,
+        },
+        getPrivilegedSupabaseClient,
+      );
 
       updated++;
     }

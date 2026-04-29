@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
   const dbStart = Date.now();
   try {
     const supabase = await getTenantClient();
+    // eslint-disable-next-line no-restricted-syntax -- Audited: health check uses privileged client (read-only liveness probe)
     const { error } = await supabase.from("sites").select("id").limit(1);
     const latencyMs = Date.now() - dbStart;
 

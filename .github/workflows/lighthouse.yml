@@ -40,6 +40,15 @@ env:
   # is only read from env (never from request data) and is not set in
   # production deploys.
   ALLOW_LOCALHOST_FALLBACK_IN_PROD: "1"
+  # E-01 / R-01: server-env now treats AFFILIATE_DOMAIN_ENFORCEMENT as a
+  # production-required variable (validateServerEnv throws at instrumentation
+  # time when NODE_ENV=production and this is missing). `next start` boots
+  # under NODE_ENV=production, so omitting it makes every Lighthouse navigation
+  # hit a process-crash 500. We pin "strict" here because that is the value
+  # used in real production deploys; no real affiliate URLs are exercised by
+  # the homepage Lighthouse run, so the strict allowlist has no behavioural
+  # impact on the audit and matches prod parity.
+  AFFILIATE_DOMAIN_ENFORCEMENT: strict
 
 jobs:
   lighthouse:

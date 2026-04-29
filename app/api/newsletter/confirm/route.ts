@@ -5,6 +5,7 @@ import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { hashNewsletterToken } from "@/lib/newsletter-token";
 
 /** 10 confirm requests per minute per IP */
 const CONFIRM_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000 };
@@ -12,6 +13,10 @@ const CONFIRM_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000 };
 /**
  * GET /api/newsletter/confirm?token=<uuid>
  * Confirms a newsletter subscription via the double opt-in token.
+ *
+ * B-02: Tokens are stored as SHA-256 hashes. We hash the incoming token
+ * and compare against the stored hash, so a database leak never exposes
+ * raw confirmation tokens.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -35,12 +40,16 @@ export async function GET(request: NextRequest) {
     const siteId = await resolveDbSiteId(site.id);
     const sb = await getTenantClient();
 
-    // Find the subscriber by confirmation token, scoped to the current site
+    // B-02: Hash the raw token to match the stored hash
+    const tokenHash = await hashNewsletterToken(token);
+
+    // Find the subscriber by hashed confirmation token, scoped to the current site
     const { data: subscriber, error: fetchError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
       .select("id, status, confirmed_at")
       .eq("site_id", siteId)
-      .eq("confirmation_token", token)
+      .eq("confirmation_token", tokenHash)
       .single();
 
     if (fetchError || !subscriber) {
@@ -56,6 +65,7 @@ export async function GET(request: NextRequest) {
 
     // Activate the subscription
     const { error: updateError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
       .update({
         status: "active",
