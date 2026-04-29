@@ -26,7 +26,20 @@ env:
   # to finish booting; an obviously-fake DSN keeps the audit local.
   SENTRY_DSN: https://placeholder@placeholder.ingest.sentry.io/0
   SUPABASE_JWT_SECRET: ci-test-supabase-jwt-secret
-  APP_URL: http://localhost:3000
+  APP_URL: http://localhost:9222
+  # `next start` forces NODE_ENV=production, which disables the normal
+  # localhost → NEXT_PUBLIC_DEFAULT_SITE resolution in config/sites and
+  # the corresponding `isLocalhostDev` bypass in middleware.ts. Without
+  # the opt-in below, Lighthouse's very first request to
+  # http://localhost:9222/ falls into the unknown-hostname path, which
+  # runs a Supabase-backed rate-limit check with failPolicy="closed";
+  # since Supabase is a placeholder in CI, the check errors and the
+  # middleware returns 429 before any page can render. Setting this
+  # flag makes middleware treat `localhost` the same way it would in
+  # dev — skip the DB lookup, serve the default site. Safe: the flag
+  # is only read from env (never from request data) and is not set in
+  # production deploys.
+  ALLOW_LOCALHOST_FALLBACK_IN_PROD: "1"
 
 jobs:
   lighthouse:

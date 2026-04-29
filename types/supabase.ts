@@ -46,6 +46,29 @@ export interface Database {
         Insert: Record<string, any>;
         Update: Record<string, any>;
       };
+      affiliate_tracking_keys: {
+        Row: {
+          site_id: string;
+          network: string;
+          tracking_key: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          site_id: string;
+          network: string;
+          tracking_key: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          site_id?: string;
+          network?: string;
+          tracking_key?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       sites: {
         Row: {
           id: string;
