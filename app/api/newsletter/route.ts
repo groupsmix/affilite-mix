@@ -188,8 +188,8 @@ export async function POST(request: Request) {
       const unsubscribeToken = crypto.randomUUID();
       const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
 
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       const { error: insertError } = await sb.from("newsletter_subscribers").insert({
-        // eslint-disable-line no-restricted-syntax
         site_id: site.id,
         email,
         status: "pending",
