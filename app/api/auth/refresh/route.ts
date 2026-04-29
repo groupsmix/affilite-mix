@@ -10,6 +10,7 @@ import { computeRequestBinding } from "@/lib/jwt-binding";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { isOriginAllowed } from "@/lib/security/allowed-origins";
 
 /** 10 refresh requests per minute per session */
 const REFRESH_RATE_LIMIT = {
@@ -33,6 +34,12 @@ export async function POST(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // F-API-06: Add Origin check as defence-in-depth against CSRF, even though
+  // SameSite=Strict is also enforced by the browser.
+  if (!isOriginAllowed(request)) {
+    return NextResponse.json({ error: "Forbidden: cross-origin request" }, { status: 403 });
   }
 
   const rlKey = `auth-refresh:${session.email ?? session.userId ?? "unknown"}`;

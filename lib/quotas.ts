@@ -223,6 +223,10 @@ interface CounterShape {
   count: number;
 }
 
+// F-API-07: Track consecutive KV failures to fail-closed on sustained outage.
+let kvConsecutiveFailures = 0;
+const KV_FAILURE_THRESHOLD = 3;
+
 async function readCounter(
   siteId: string,
   resource: QuotaResource,
@@ -233,12 +237,17 @@ async function readCounter(
   try {
     const key = kvKey(siteId, resource, window);
     const data = (await kv.get(key, "json")) as CounterShape | null;
+    kvConsecutiveFailures = 0;
     return data?.count ?? 0;
   } catch (err) {
+    kvConsecutiveFailures++;
     captureException(err, {
       context: "quotas.readCounter",
-      extra: { siteId, resource, window },
+      extra: { siteId, resource, window, consecutiveFailures: kvConsecutiveFailures },
     });
+    if (kvConsecutiveFailures >= KV_FAILURE_THRESHOLD) {
+      throw new Error(`KV unreachable for ${kvConsecutiveFailures} consecutive calls — failing closed.`);
+    }
     return 0;
   }
 }
@@ -285,19 +294,33 @@ export async function checkQuota(
   const meta = RESOURCE_META[resource];
   const limit = resolveTenantQuotas(siteId)[resource];
   const wKey = windowKey(meta.window);
-  const usage = await readCounter(siteId, resource, wKey);
-  const projected = usage + increment;
-  const allowed = limit === undefined || projected <= limit;
-  return {
-    allowed,
-    resource,
-    limit,
-    usage,
-    increment,
-    remaining: limit === undefined ? Number.POSITIVE_INFINITY : Math.max(0, limit - projected),
-    window: meta.window,
-    windowKey: wKey,
-  };
+  try {
+    const usage = await readCounter(siteId, resource, wKey);
+    const projected = usage + increment;
+    const allowed = limit === undefined || projected <= limit;
+    return {
+      allowed,
+      resource,
+      limit,
+      usage,
+      increment,
+      remaining: limit === undefined ? Number.POSITIVE_INFINITY : Math.max(0, limit - projected),
+      window: meta.window,
+      windowKey: wKey,
+    };
+  } catch (err) {
+    // F-API-07: Fail closed when KV is persistently unreachable
+    return {
+      allowed: false,
+      resource,
+      limit,
+      usage: Number.POSITIVE_INFINITY,
+      increment,
+      remaining: 0,
+      window: meta.window,
+      windowKey: wKey,
+    };
+  }
 }
 
 /**
