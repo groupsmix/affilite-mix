@@ -326,11 +326,18 @@ describe("POST /api/track/click (integration)", () => {
     });
 
     const { POST } = await import("@/app/api/track/click/route");
-    const url = new URL("http://localhost:3000/api/track/click");
+    // FRESH-03: sendBeacon-style POST requires a valid Origin matching a
+    // verified site (static config OR DB-resolved x-site-id).
+    const url = new URL("https://aicompared.site/api/track/click");
     url.searchParams.set("p", "beacon-product");
     const req = new NextRequest(url.toString(), {
       method: "POST",
-      headers: { "x-forwarded-for": "127.0.0.1", "x-site-id": "test-site" },
+      headers: {
+        "x-forwarded-for": "127.0.0.1",
+        "x-site-id": "ai-compared",
+        host: "aicompared.site",
+        origin: "https://aicompared.site",
+      },
     });
     const res = await POST(req);
 

@@ -25,6 +25,7 @@ vi.mock("@/lib/csp", () => ({
   buildCspHeader: () => "default-src 'self'",
   generateCspNonce: () => "nonce",
   NONCE_HEADER: "x-csp-nonce",
+  buildReportToHeader: () => "",
 }));
 
 vi.mock("@/lib/cookie-utils", () => ({ IS_SECURE_COOKIE: false }));

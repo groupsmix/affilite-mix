@@ -34,7 +34,14 @@ export const HMAC_HEADERS = {
   signature: "x-internal-signature",
 } as const;
 
-/** In-memory nonce cache for replay detection within an isolate. */
+/**
+ * In-memory nonce cache for replay detection.
+ * FRESH-08 (caveat): This is a per-isolate map. In a distributed
+ * Cloudflare Workers deployment with multiple active isolates, a replayed
+ * request could bypass this check if it lands on a different isolate
+ * before the timestamp skew window expires. True global replay protection
+ * requires a Durable Object or KV backing store.
+ */
 const seenNonces = new Map<string, number>();
 const NONCE_TTL_MS = MAX_TIMESTAMP_SKEW_MS + 60_000; // slightly longer than skew window
 
