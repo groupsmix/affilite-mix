@@ -178,3 +178,22 @@ applying 00067:
 Rollback: `00067_harden_tenant_isolation_rls-down.sql` restores the
 00064 behaviour. Use only as a last-resort emergency revert and re-apply
 00067 immediately afterwards.
+
+## Migrations 00080 — 00084 — Deep-audit follow-ups
+
+This batch implements the code-side items of the deep audit
+(see `docs/supabase-audit-followup.md` for the full runbook).
+
+| Migration                                     | Audit ref | Purpose                                                                                                                                               |
+| --------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `00080_stripe_events_created_at.sql`          | S-06 (P0) | Restore `stripe_events.created_at`; backfill from `received_at`; add btree index. Resolves the schema drift between the webhook processor and the DB. |
+| `00081_rls_initplan_optimisation.sql`         | S-07 (P1) | Walks `pg_policies` and rewrites every public-schema policy using `auth.<x>()` / `current_request_site_id*()` to wrap calls in `(select …)`.          |
+| `00082_lock_security_definer_search_path.sql` | S-08 (P1) | Pins `search_path` on every `public` function and locks SECURITY DEFINER functions to `service_role` only.                                            |
+| `00083_lock_migrations_applied_rls.sql`       | S-09 (P1) | Drops the open authenticated policy on `_migrations_applied`; restricts to service_role.                                                              |
+| `00084_extend_retention_purge.sql`            | S-10 (P1) | Extends `purge_retention()` to cover `newsletter_subscribers`, `quiz_submissions`, `comments`, `web_vitals`. See `docs/ropa.md` for the windows.      |
+
+Each migration ships an idempotent up-file (`DROP POLICY IF EXISTS` /
+`ADD COLUMN IF NOT EXISTS` / `CREATE OR REPLACE FUNCTION`) and a
+matching down-file. A dedicated CI gate
+(`scripts/check-migrations.sh`, extended in this batch) prevents future
+migrations from regressing the patterns these files enforce.

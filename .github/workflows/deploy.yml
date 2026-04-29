@@ -554,7 +554,33 @@ jobs:
             fi
           done
 
+          # G-T-01: stripe_events must carry the columns referenced by the
+          # webhook processor and the data-retention cron. Audit S-06 hit
+          # the failure mode where `created_at` was missing in production
+          # while code was already querying it.
+          STRIPE_COLS="stripe_event_id event_type received_at created_at"
+          for col in $STRIPE_COLS; do
+            if ! psql "$DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='stripe_events' AND column_name='$col';" | grep -q 1; then
+              echo "::error::Missing column on stripe_events: $col (G-T-01 / audit S-06). Migration 00080 should add it; check the migrate-production stage."
+              exit 1
+            fi
+          done
+
           echo "Post-migration schema verification passed"
+
+      # ── G-MD-01: production migration ledger gate ──────────────────
+      # Hard-fails the deploy if the production `_migrations_applied`
+      # ledger is behind the newest migration file in the repo. Without
+      # this gate, a bug that silently skipped the migrate-production
+      # stage (e.g. an env-condition mistake) could ship code expecting
+      # an unmigrated schema.
+      - name: Migration ledger gate (G-MD-01)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+        run: |
+          set -euo pipefail
+          bash scripts/check-migration-ledger.sh
 
   # ═══════════════════════════════════════════════════════════════════
   # STAGE 3: Build and deploy application
