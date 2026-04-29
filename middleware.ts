@@ -14,6 +14,7 @@ import {
   getNegativeCacheTtlSeconds,
   recordUnknownHostKvAccess,
 } from "@/lib/security/unknown-host-guard";
+import { getAppCacheKV } from "@/lib/runtime-env";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -74,7 +75,7 @@ export async function middleware(request: NextRequest) {
     }
     try {
       if (_maintenanceCacheExpiry < Date.now()) {
-        const kv = (process.env as any).APP_CACHE_KV as any;
+        const kv = getAppCacheKV();
         if (kv) {
           const kvMaintenance = await kv.get("maintenance_mode");
           _maintenanceCacheValue = kvMaintenance === "1" || kvMaintenance === "true";
@@ -135,7 +136,7 @@ export async function middleware(request: NextRequest) {
     // so verified custom domains can preflight without a fresh DB lookup.
     if (!preflightVerifiedSite) {
       try {
-        const kv = (process.env as any).APP_CACHE_KV as any;
+        const kv = getAppCacheKV();
         if (kv) {
           const cachedRow = (await kv.get(`site-domain:${hostname}`, "json")) as {
             slug?: string;
@@ -274,7 +275,7 @@ export async function middleware(request: NextRequest) {
       let isNegativeCached = false;
       let priorMissCount = 0;
       try {
-        const kv = (process.env as any).APP_CACHE_KV as any;
+        const kv = getAppCacheKV();
         if (kv) {
           // Check negative cache first — short-circuits the DB lookup
           // entirely for hostnames we've already seen as unknown.
@@ -311,7 +312,7 @@ export async function middleware(request: NextRequest) {
         const nextMissCount = priorMissCount + 1;
         const ttlSeconds = getNegativeCacheTtlSeconds(nextMissCount);
         try {
-          const kv = (process.env as any).APP_CACHE_KV as any;
+          const kv = getAppCacheKV();
           if (kv)
             await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
               expirationTtl: ttlSeconds,
@@ -323,7 +324,7 @@ export async function middleware(request: NextRequest) {
       const row = cachedRow || (await getSiteRowByDomain(hostname));
       if (row && !cachedRow) {
         try {
-          const kv = (process.env as any).APP_CACHE_KV as any;
+          const kv = getAppCacheKV();
           if (kv) await kv.put(cacheKey, JSON.stringify(row), { expirationTtl: 60 });
         } catch (e) {}
       }
@@ -343,7 +344,7 @@ export async function middleware(request: NextRequest) {
         const nextMissCount = priorMissCount + 1;
         const ttlSeconds = getNegativeCacheTtlSeconds(nextMissCount);
         try {
-          const kv = (process.env as any).APP_CACHE_KV as any;
+          const kv = getAppCacheKV();
           if (kv)
             await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
               expirationTtl: ttlSeconds,
