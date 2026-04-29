@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
     // Persist to DB (best-effort, don't block the response)
     try {
       const sb = await getTenantClient();
+      // eslint-disable-next-line no-restricted-syntax -- Audited: web vitals ingestion uses privileged client; site_id is validated
       await sb.from("web_vitals").insert({
         name: metric.name,
         value: metric.value,

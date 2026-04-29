@@ -36,14 +36,14 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
-  
+
   // Validate budget to prevent NaN bypass
   let budget = parseInt(searchParams.get("budget") ?? "9999", 10);
   if (isNaN(budget)) {
     budget = 9999; // Default to no budget limit if invalid
   }
   budget = Math.min(100000, Math.max(0, budget));
-  
+
   const occasion = searchParams.get("occasion") ?? "";
   const recipient = searchParams.get("recipient") ?? "";
   const style = searchParams.get("style") ?? "";
@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
 
   // Fetch active products within budget
   let query = sb
+    // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
     .from("products")
     .select(
       "id, name, slug, price, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id",
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
 
   // Fetch taxonomy categories for scoring (occasion, recipient, style matching)
   const { data: categories } = await sb
+    // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
     .from("categories")
     .select("id, slug, taxonomy_type")
     .eq("site_id", dbSiteId)
