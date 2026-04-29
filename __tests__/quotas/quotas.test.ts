@@ -190,9 +190,15 @@ describe("lib/quotas — per-tenant ceilings", () => {
     expect(ok.remaining).toBe(200);
   });
 
-  it("recordUsage clamps the counter at zero on over-credit", async () => {
+  it("recordUsage clamps the counter at zero on over-credit and emits a Sentry breadcrumb", async () => {
     const { binding } = makeMockKV();
     vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const captureMessage = vi.fn();
+    vi.doMock("@/lib/sentry", async (importOriginal) => {
+      const actual = (await importOriginal()) as Record<string, unknown>;
+      return { ...actual, captureMessage };
+    });
 
     const { recordUsage, getUsageSnapshot } = await import("@/lib/quotas");
 
@@ -203,20 +209,54 @@ describe("lib/quotas — per-tenant ceilings", () => {
 
     const snap = await getUsageSnapshot("site-x");
     expect(snap.usage.r2_storage_bytes).toBe(0);
+    expect(captureMessage).toHaveBeenCalledTimes(1);
+    expect(captureMessage).toHaveBeenCalledWith(
+      expect.stringContaining("over-credit clamped to zero"),
+      "warning",
+    );
   });
 
-  it("recordUsage is a no-op for zero or non-finite amounts", async () => {
+  it("recordUsage is a no-op for zero amounts (no KV write, no breadcrumb)", async () => {
     const { kv, binding } = makeMockKV();
     vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const captureMessage = vi.fn();
+    vi.doMock("@/lib/sentry", async (importOriginal) => {
+      const actual = (await importOriginal()) as Record<string, unknown>;
+      return { ...actual, captureMessage };
+    });
 
     const { recordUsage, getUsageSnapshot } = await import("@/lib/quotas");
 
     await recordUsage("site-x", "ai_tokens", 0);
-    await recordUsage("site-x", "ai_tokens", Number.NaN);
-    await recordUsage("site-x", "ai_tokens", Number.POSITIVE_INFINITY);
 
     expect(Object.keys(kv)).toHaveLength(0);
+    expect(captureMessage).not.toHaveBeenCalled();
     const snap = await getUsageSnapshot("site-x");
     expect(snap.usage.ai_tokens).toBe(0);
+  });
+
+  it("recordUsage warns and short-circuits on non-finite amounts", async () => {
+    const { kv, binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const captureMessage = vi.fn();
+    vi.doMock("@/lib/sentry", async (importOriginal) => {
+      const actual = (await importOriginal()) as Record<string, unknown>;
+      return { ...actual, captureMessage };
+    });
+
+    const { recordUsage } = await import("@/lib/quotas");
+
+    await recordUsage("site-x", "ai_tokens", Number.NaN);
+    await recordUsage("site-x", "ai_tokens", Number.POSITIVE_INFINITY);
+    await recordUsage("site-x", "ai_tokens", Number.NEGATIVE_INFINITY);
+
+    expect(Object.keys(kv)).toHaveLength(0);
+    expect(captureMessage).toHaveBeenCalledTimes(3);
+    expect(captureMessage).toHaveBeenLastCalledWith(
+      expect.stringContaining("non-finite amount"),
+      "warning",
+    );
   });
 });
