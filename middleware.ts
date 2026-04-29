@@ -238,6 +238,20 @@ export async function middleware(request: NextRequest) {
       } catch (e) {}
 
       if (isNegativeCached) {
+        // G-34: each repeat hit on the negative cache bumps the miss
+        // counter and extends the TTL via the ramp helper. Without
+        // this the entry would expire after the floor TTL even for a
+        // host that has been hammered for hours, and the ramp
+        // (300 → 600 → 1200 → 2400 → 3600s) would never activate.
+        const nextMissCount = priorMissCount + 1;
+        const ttlSeconds = getNegativeCacheTtlSeconds(nextMissCount);
+        try {
+          const kv = (process.env as any).APP_CACHE_KV as any;
+          if (kv)
+            await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
+              expirationTtl: ttlSeconds,
+            });
+        } catch (e) {}
         return nicheNotFoundResponse(request);
       }
 
@@ -253,11 +267,9 @@ export async function middleware(request: NextRequest) {
       } else if (row && !row.is_active) {
         return nicheNotFoundResponse(request);
       } else if (!row) {
-        // G-34: ramp the negative-cache TTL on each subsequent miss.
-        // First miss = 5 min, doubling up to a 1-hour ceiling for
-        // hosts that keep showing up in random-Host: floods. 5 minutes
-        // is short enough that legitimate domain onboarding still
-        // propagates promptly on the *first* attempt.
+        // G-34: first miss writes the floor TTL; subsequent misses
+        // are handled by the negative-cache-hit branch above, which
+        // ramps the TTL toward the 1-hour ceiling.
         const nextMissCount = priorMissCount + 1;
         const ttlSeconds = getNegativeCacheTtlSeconds(nextMissCount);
         try {

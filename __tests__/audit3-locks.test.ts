@@ -277,6 +277,22 @@ describe("Audit-3 regression locks", () => {
       expect(mw).toMatch(/JSON\.stringify\(\{\s*m:\s*nextMissCount\s*\}\)/);
     });
 
+    it("G-34: negative-cache hit also ramps the TTL (not just first miss)", () => {
+      // Regression lock for the bug where `priorMissCount` was only
+      // ever set on a cache hit but the cache-hit branch returned the
+      // 404 immediately without re-writing the KV entry. The result
+      // was that `nextMissCount` stayed pinned at 1 and the TTL never
+      // climbed above the floor. The hit branch must now also write
+      // an incremented miss count back to KV with the ramped TTL.
+      const hitBranch = mw.match(
+        /if \(isNegativeCached\) \{[\s\S]*?nicheNotFoundResponse[\s\S]*?\}/,
+      );
+      expect(hitBranch).toBeTruthy();
+      expect(hitBranch![0]).toMatch(/getNegativeCacheTtlSeconds\(/);
+      expect(hitBranch![0]).toMatch(/kv\.put\(\s*negativeCacheKey/);
+      expect(hitBranch![0]).toMatch(/JSON\.stringify\(\{\s*m:\s*nextMissCount\s*\}\)/);
+    });
+
     it("G-34: ramp helper caps at 1 hour and starts at 5 minutes", () => {
       expect(guard).toMatch(/NEGATIVE_CACHE_TTL_FLOOR_SECONDS\s*=\s*300/);
       expect(guard).toMatch(/NEGATIVE_CACHE_TTL_CEILING_SECONDS\s*=\s*3600/);
