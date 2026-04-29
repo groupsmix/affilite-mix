@@ -10,7 +10,6 @@
 -- Drop the existing non-partial index
 DROP INDEX IF EXISTS idx_affiliate_clicks_click_id;
 
--- Recreate as a partial unique index (only non-NULL click_id values)
-CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_affiliate_clicks_click_id
+CREATE UNIQUE INDEX IF NOT EXISTS idx_affiliate_clicks_click_id
   ON public.affiliate_clicks(click_id)
   WHERE click_id IS NOT NULL;
