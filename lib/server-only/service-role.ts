@@ -50,7 +50,23 @@ function logPrivilegedUsage(caller: string): void {
   }
 }
 
+/**
+ * G-30: TTL cap on the per-isolate memoisation of the privileged client.
+ *
+ * `wrangler secret put` updates a Worker secret without forcing a redeploy,
+ * so a long-running isolate that has already created a Supabase client will
+ * keep using the old key indefinitely. Capping the cache at 5 minutes means
+ * any isolate that survives the rotation re-reads `process.env` on the next
+ * request after the TTL expires and picks up the new key without operator
+ * intervention. Operators can still trigger an immediate rollout via
+ * `wrangler deploy` — see docs/secrets-rotation-runbook.md.
+ */
+const PRIVILEGED_CLIENT_TTL_MS = 5 * 60 * 1000;
+
 let _privilegedClient: SupabaseClient<Database> | null = null;
+let _privilegedClientCreatedAt = 0;
+let _cachedUrl: string | null = null;
+let _cachedKey: string | null = null;
 
 /**
  * Returns a Supabase client authenticated with `SUPABASE_SERVICE_ROLE_KEY`.
@@ -61,15 +77,28 @@ let _privilegedClient: SupabaseClient<Database> | null = null;
  * `getTenantClient()` from `lib/server-only/supabase.ts`, which mints a
  * scoped JWT and lets RLS act as a defence-in-depth layer.
  *
- * The client is memoised per isolate; it does not hold mutable session
- * state (`persistSession: false`).
+ * The client is memoised per isolate with a 5-minute TTL so that a
+ * `SUPABASE_SERVICE_ROLE_KEY` rotation propagates to long-lived isolates
+ * within one TTL window without requiring an explicit redeploy. The cache
+ * is also invalidated immediately if the URL or key in `process.env`
+ * differs from the values used to mint the cached client, so a rotation
+ * combined with a `wrangler deploy` rollout takes effect on the next
+ * request. The client itself does not hold mutable session state
+ * (`persistSession: false`).
  */
 export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabaseClient {
   if (caller) logPrivilegedUsage(caller);
-  if (_privilegedClient) return _privilegedClient as PrivilegedSupabaseClient;
 
   const url = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL");
   const key = requireEnvInProduction("SUPABASE_SERVICE_ROLE_KEY");
+
+  const now = Date.now();
+  const isExpired = now - _privilegedClientCreatedAt >= PRIVILEGED_CLIENT_TTL_MS;
+  const envChanged = url !== _cachedUrl || key !== _cachedKey;
+
+  if (_privilegedClient && !isExpired && !envChanged) {
+    return _privilegedClient as PrivilegedSupabaseClient;
+  }
 
   _privilegedClient = createClient<Database>(url, key, {
     auth: {
@@ -86,6 +115,9 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
       },
     },
   });
+  _privilegedClientCreatedAt = now;
+  _cachedUrl = url;
+  _cachedKey = key;
 
   return _privilegedClient as PrivilegedSupabaseClient;
 }
@@ -100,4 +132,7 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
  */
 export function __resetPrivilegedSupabaseClientForTests(): void {
   _privilegedClient = null;
+  _privilegedClientCreatedAt = 0;
+  _cachedUrl = null;
+  _cachedKey = null;
 }

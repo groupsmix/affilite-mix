@@ -81,8 +81,23 @@ describe("getAllowedOrigins shape", () => {
     }
   });
 
-  it("includes a verified hostname when explicitly trusted by the caller", () => {
-    const origins = getAllowedOrigins("custom-tenant.example.com");
+  it("includes a verified site domain (and aliases) when supplied by the caller", () => {
+    // G-33: signature now takes a `VerifiedSiteRef`, not a raw hostname,
+    // so callers can only extend the allow-list with a site they have
+    // already verified via static config OR a DB row lookup.
+    const origins = getAllowedOrigins({
+      slug: "custom-tenant",
+      domain: "custom-tenant.example.com",
+      aliases: ["www.custom-tenant.example.com"],
+    });
     expect(origins).toContain("https://custom-tenant.example.com");
+    expect(origins).toContain("https://www.custom-tenant.example.com");
+  });
+
+  it("does not extend the allow-list when no verified site is passed", () => {
+    const origins = getAllowedOrigins(null);
+    for (const site of allSites) {
+      expect(origins).toContain(`https://${site.domain}`);
+    }
   });
 });
