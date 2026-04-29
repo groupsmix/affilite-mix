@@ -10,6 +10,7 @@
  * registry.
  */
 import { describe, it, expect } from "vitest";
+import { validateServerEnv } from "@/lib/server-env";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -232,6 +233,97 @@ describe("cron-registry — middleware CSRF exemption", () => {
     const middlewareSrc = readRepoFile("middleware.ts");
     expect(middlewareSrc).toMatch(/CRON_PATH_PREFIX/);
     expect(middlewareSrc).toMatch(/startsWith\(\s*CRON_PATH_PREFIX\s*\)/);
+  });
+});
+
+describe("cron-registry — deploy.yml secret upload coverage (NEW-001)", () => {
+  // The Set Worker secrets / Set heavy-crons Worker secrets steps in
+  // deploy.yml are the only place per-trigger cron secrets actually
+  // reach the running Workers. If a secret is added to the registry
+  // but not to deploy.yml, the production Worker either crashes on
+  // boot (instrumentation.ts checks REQUIRED_SERVER_ENV which is now
+  // derived from cronJobs) or silently 401s every cron request
+  // (verifyCronAuth rejects the shared CRON_SECRET fallback in prod).
+  // This guard fails CI before either failure mode reaches production.
+  const deployYml = readRepoFile(".github/workflows/deploy.yml");
+
+  it("validates every per-trigger secret in the Set Worker secrets MISSING check", () => {
+    for (const job of cronJobs) {
+      // The validation block uses bash variables of the shape
+      // `[ -z "$_FOO" ] && MISSING="$MISSING <SECRET_NAME>"`. We
+      // assert the secret name appears as a MISSING-list entry so a
+      // missing GitHub Actions secret fails the deploy fast.
+      const re = new RegExp(`MISSING=\\"\\$MISSING ${job.secretEnvVar}\\"`);
+      expect(deployYml).toMatch(re);
+    }
+  });
+
+  it("uploads every per-trigger secret to the affilite-mix worker", () => {
+    for (const job of cronJobs) {
+      const re = new RegExp(
+        `wrangler@\\$\\{WRANGLER_VERSION\\} secret put ${job.secretEnvVar}\\b[^\\n]*--name affilite-mix\\b`,
+      );
+      expect(deployYml).toMatch(re);
+    }
+  });
+
+  it("uploads every per-trigger secret to the affilite-mix-heavy-crons worker", () => {
+    // The heavy-crons dispatcher reads job.secretEnvVar from its own
+    // env, so missing secrets there silently skip dispatch — the
+    // heavy crons (ai-generate / commission-ingest / price-scrape)
+    // never run at all. We push the full set to keep parity with the
+    // main worker so re-flagging `heavy: true` on a job is a
+    // registry-only change.
+    for (const job of cronJobs) {
+      const re = new RegExp(
+        `wrangler@\\$\\{WRANGLER_VERSION\\} secret put ${job.secretEnvVar}\\b[^\\n]*--name "?affilite-mix-heavy-crons"?`,
+      );
+      expect(deployYml).toMatch(re);
+    }
+  });
+
+  it("uploads CRON_HOST and the shared CRON_SECRET fallback to heavy-crons", () => {
+    // The heavy-crons worker needs CRON_HOST to know where to POST
+    // and the shared CRON_SECRET as a fallback if a per-trigger
+    // secret is somehow unset.
+    expect(deployYml).toMatch(
+      /wrangler@\$\{WRANGLER_VERSION\} secret put CRON_HOST\b[^\n]*--name "?affilite-mix-heavy-crons"?/,
+    );
+    expect(deployYml).toMatch(
+      /wrangler@\$\{WRANGLER_VERSION\} secret put CRON_SECRET\b[^\n]*--name "?affilite-mix-heavy-crons"?/,
+    );
+  });
+});
+
+describe("cron-registry — server-env production conditional (NEW-001)", () => {
+  // server-env.ts derives its production cron-secret requirements
+  // directly from cronJobs. Missing values throw at boot via
+  // instrumentation.ts. This guard locks that wiring so a future
+  // refactor cannot quietly drop the registry import.
+  it("every per-trigger secret is reported missing when prod env is bare", () => {
+    const env = process.env as Record<string, string | undefined>;
+    const originalNodeEnv = env.NODE_ENV;
+    const originalSecrets = new Map<string, string | undefined>();
+    for (const job of cronJobs) {
+      originalSecrets.set(job.secretEnvVar, env[job.secretEnvVar]);
+    }
+    try {
+      for (const job of cronJobs) {
+        delete env[job.secretEnvVar];
+      }
+      env.NODE_ENV = "production";
+      const { missing } = validateServerEnv();
+      const missingNames = new Set(missing.map((m) => m.name));
+      for (const job of cronJobs) {
+        expect(missingNames.has(job.secretEnvVar)).toBe(true);
+      }
+    } finally {
+      env.NODE_ENV = originalNodeEnv;
+      for (const [name, value] of originalSecrets) {
+        if (value === undefined) delete env[name];
+        else env[name] = value;
+      }
+    }
   });
 });
 

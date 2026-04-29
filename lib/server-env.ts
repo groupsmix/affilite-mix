@@ -12,6 +12,8 @@
  * are tracked as "recommended" and only warned about.
  */
 
+import { cronJobs } from "./cron-registry";
+
 export interface RequiredEnvVar {
   /** Environment variable name. */
   readonly name: string;
@@ -241,28 +243,23 @@ export const FEATURE_CONDITIONAL_ENV: readonly {
       },
     ],
   },
-  // CR-02: Per-trigger cron secrets in production.
-  // The shared CRON_SECRET fallback must not be the only secret in production.
+  // CR-02: Per-trigger cron secrets in production. Derived from
+  // `cronJobs` so that registering a new cron job in `cron-registry.ts`
+  // automatically makes its per-trigger secret hard-required in
+  // production. This closes the registry-vs-server-env drift surfaced
+  // by NEW-001: the previous hard-coded list only enforced PUBLISH /
+  // STRIPE_SYNC / RETENTION, leaving AI / SITEMAP / COMMISSION / EPC /
+  // PRICE / DEALS to silently fall through to the shared CRON_SECRET
+  // fallback (which `verifyCronAuth` rejects in production unless
+  // CRON_ALLOW_SHARED_FALLBACK_IN_PROD=1 is set).
   {
     flag: "NODE_ENV",
     flagEquals: "production",
-    requires: [
-      {
-        name: "CRON_PUBLISH_SECRET",
-        description: "Per-trigger cron secret for publish job (CR-02)",
-        ownerFile: "lib/cron-registry.ts",
-      },
-      {
-        name: "CRON_STRIPE_SYNC_SECRET",
-        description: "Per-trigger cron secret for Stripe sync job (CR-02)",
-        ownerFile: "lib/cron-registry.ts",
-      },
-      {
-        name: "CRON_RETENTION_SECRET",
-        description: "Per-trigger cron secret for data retention job (CR-02)",
-        ownerFile: "lib/cron-registry.ts",
-      },
-    ],
+    requires: cronJobs.map((job) => ({
+      name: job.secretEnvVar,
+      description: `Per-trigger cron secret for ${job.name} job (CR-02)`,
+      ownerFile: "lib/cron-registry.ts",
+    })),
   },
   // CF-03: Dedicated secrets for click-cache HMAC and GDPR hashing
   {
