@@ -250,13 +250,13 @@ describe("Audit-3 regression locks", () => {
     });
   });
 
-  // ── F-007 — Negative cache for unknown hostnames ─────────────────────
-  describe("F-007 unknown-host negative cache", () => {
+  // ── F-007 / G-34 — Negative cache for unknown hostnames ──────────────
+  describe("F-007 / G-34 unknown-host negative cache", () => {
     const mw = read("middleware.ts");
+    const guard = read("lib/security/unknown-host-guard.ts");
 
     it("middleware writes a negative-cache entry for unknown hostnames", () => {
       expect(mw).toMatch(/site-domain-miss:/);
-      expect(mw).toMatch(/expirationTtl:\s*300/);
     });
 
     it("middleware short-circuits on negative-cache hit before DB lookup", () => {
@@ -265,6 +265,71 @@ describe("Audit-3 regression locks", () => {
       const idxDb = mw.indexOf("getSiteRowByDomain(hostname)");
       expect(idxNegative).toBeGreaterThan(0);
       expect(idxDb).toBeGreaterThan(idxNegative);
+    });
+
+    it("G-34: TTL ramps via getNegativeCacheTtlSeconds, not a flat 300s", () => {
+      // The flat `expirationTtl: 300` literal must be gone — the TTL
+      // is now derived from the ramp helper so repeat-offender hosts
+      // climb toward the 1-hour ceiling.
+      expect(mw).toMatch(/getNegativeCacheTtlSeconds\(/);
+      expect(mw).not.toMatch(/expirationTtl:\s*300\b/);
+      // The KV value is now JSON-encoded with a miss counter.
+      expect(mw).toMatch(/JSON\.stringify\(\{\s*m:\s*nextMissCount\s*\}\)/);
+    });
+
+    it("G-34: negative-cache hit also ramps the TTL (not just first miss)", () => {
+      // Regression lock for the bug where `priorMissCount` was only
+      // ever set on a cache hit but the cache-hit branch returned the
+      // 404 immediately without re-writing the KV entry. The result
+      // was that `nextMissCount` stayed pinned at 1 and the TTL never
+      // climbed above the floor. The hit branch must now also write
+      // an incremented miss count back to KV with the ramped TTL.
+      const hitBranch = mw.match(
+        /if \(isNegativeCached\) \{[\s\S]*?nicheNotFoundResponse[\s\S]*?\}/,
+      );
+      expect(hitBranch).toBeTruthy();
+      expect(hitBranch![0]).toMatch(/getNegativeCacheTtlSeconds\(/);
+      expect(hitBranch![0]).toMatch(/kv\.put\(\s*negativeCacheKey/);
+      expect(hitBranch![0]).toMatch(/JSON\.stringify\(\{\s*m:\s*nextMissCount\s*\}\)/);
+    });
+
+    it("G-34: ramp helper caps at 1 hour and starts at 5 minutes", () => {
+      expect(guard).toMatch(/NEGATIVE_CACHE_TTL_FLOOR_SECONDS\s*=\s*300/);
+      expect(guard).toMatch(/NEGATIVE_CACHE_TTL_CEILING_SECONDS\s*=\s*3600/);
+    });
+
+    it("G-34: middleware enforces a worker-wide unknown-host LRU cap", () => {
+      // Cap enforcement runs *before* the KV negative-cache read so the
+      // KV namespace itself is shielded from a distributed unique-host
+      // flood. Pin both the import and the call-site location.
+      expect(mw).toMatch(
+        /import \{[\s\S]*?recordUnknownHostKvAccess[\s\S]*?\} from "@\/lib\/security\/unknown-host-guard"/,
+      );
+      const idxGuard = mw.indexOf("recordUnknownHostKvAccess(hostname)");
+      const idxNegative = mw.indexOf("site-domain-miss:");
+      expect(idxGuard).toBeGreaterThan(0);
+      expect(idxNegative).toBeGreaterThan(idxGuard);
+    });
+
+    it("G-34: LRU cap is configured at 100 unique hosts per 1s window", () => {
+      expect(guard).toMatch(/MAX_UNIQUE_HOSTS\s*=\s*100/);
+      expect(guard).toMatch(/WINDOW_MS\s*=\s*1000/);
+    });
+  });
+
+  // ── G-35 — Maintenance response is never cached ──────────────────────
+  describe("G-35 maintenance response Cache-Control", () => {
+    const mw = read("middleware.ts");
+
+    it("both maintenance 503 branches set Cache-Control: no-store", () => {
+      // The env-var branch and the KV-flag branch each return a 503;
+      // every one of them must mark the response as no-store so a CDN
+      // or browser does not pin a stale maintenance page after the
+      // operator has flipped the flag back off.
+      const matches = mw.match(/Cache-Control"?\s*:\s*"no-store"/g) ?? [];
+      expect(matches.length).toBeGreaterThanOrEqual(2);
+      const pragmas = mw.match(/Pragma"?\s*:\s*"no-cache"/g) ?? [];
+      expect(pragmas.length).toBeGreaterThanOrEqual(2);
     });
   });
 
