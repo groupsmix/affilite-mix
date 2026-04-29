@@ -53,8 +53,10 @@ jobs:
       - name: Verify no dev fallback secrets in production (F-018, F-021)
         run: |
           # Ensure wrangler.jsonc production vars don't contain dev fallback tokens.
-          # The dev fallback token is documented in lib/internal-auth.ts.
-          DEV_TOKEN="__dev_only_insecure_internal_token__"
+          # The dev fallback token is defined in lib/internal-auth.ts as
+          # DEV_FALLBACK_INTERNAL_TOKEN = "__dev_only_change_me__"
+          # NEW-007: previously this check used the wrong string; now matches source.
+          DEV_TOKEN="__dev_only_change_me__"
           if grep -q "$DEV_TOKEN" wrangler.jsonc; then
             echo "::error::Dev fallback INTERNAL_API_TOKEN found in wrangler.jsonc — remove it before deploying to production."
             exit 1

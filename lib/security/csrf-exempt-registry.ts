@@ -89,9 +89,10 @@ export const CSRF_EXEMPT_ROUTES: readonly CsrfExemptRoute[] = [
     path: "/api/track/click",
     reason: "Public sendBeacon() endpoint cannot send custom request headers.",
     compensatingControls: [
-      "Origin header validation against the per-site allow-list before persisting.",
-      "Per-IP + per-site rate-limit (lib/rate-limit clickBucket).",
-      "Schema validation on click payload (URL parsed, length-bounded).",
+      "POST (sendBeacon) handler enforces Origin header validation against the per-site allow-list (isOriginAllowed — FRESH-03). GET (top-level link navigation) has no Origin by browser design and is intentionally permitted.",
+      "Affiliate-domain allow-list validated at redirect time via validateAffiliateDomain() (T-09 / R-01) — rejects off-list destinations regardless of HTTP method.",
+      "Per-IP rate-limit (lib/rate-limit clickBucket).",
+      "KV-cached affiliate URL integrity verified with HMAC-SHA256 before redirect (P0-3 / CF-03).",
       "Click-id de-duplication via Postgres ON CONFLICT (click_id) DO NOTHING.",
     ],
     owner: "@groupsmix/engineering",

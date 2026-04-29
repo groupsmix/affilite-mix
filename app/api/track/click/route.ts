@@ -11,6 +11,7 @@ import { runAfterResponse } from "@/lib/wait-until";
 import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
+import { isOriginAllowed } from "@/lib/security/allowed-origins";
 
 /**
  * 60 click-tracking requests per minute per IP.
@@ -35,12 +36,14 @@ const CLICK_RATE_LIMIT = {
  */
 async function handleClick(request: NextRequest) {
   try {
-    // P0-3: In production, hard-fail EARLY if INTERNAL_API_TOKEN is missing.
+    // P0-3: In production, hard-fail EARLY if CLICK_CACHE_HMAC_KEY is missing.
     // Without it, HMAC signing cannot work and cached payloads would be
     // unsigned -- a cache poisoning vector. This check MUST run before any
     // cache reads or HMAC operations.
-    if (process.env.NODE_ENV === "production" && !process.env.INTERNAL_API_TOKEN) {
-      captureException(new Error("INTERNAL_API_TOKEN missing in production click route"), {
+    // NEW-005: Use dedicated CLICK_CACHE_HMAC_KEY, decoupled from INTERNAL_API_TOKEN.
+    const hmacKey = process.env.CLICK_CACHE_HMAC_KEY;
+    if (process.env.NODE_ENV === "production" && !hmacKey) {
+      captureException(new Error("CLICK_CACHE_HMAC_KEY missing in production click route"), {
         context: "[api/track/click] missing signing secret",
       });
       return apiError(503, "Service temporarily unavailable");
@@ -93,12 +96,11 @@ async function handleClick(request: NextRequest) {
         if (cachedData?._hmac) {
           // CF-03: Use dedicated CLICK_CACHE_HMAC_KEY so rotating
           // INTERNAL_API_TOKEN does not cause a cache stampede on Supabase.
-          const hmacKey = process.env.CLICK_CACHE_HMAC_KEY || process.env.INTERNAL_API_TOKEN || "";
           const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
           // FIX-14: Use a fixed timestamp/nonce for cache entries — we only care
           // about HMAC integrity, not replay/timestamp protection (cached data
           // is not a live request).
-          const expectedHmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
+          const expectedHmac = await computeHmac(hmacKey || "", "cache", "cache", bodyForHmac);
           cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
           if (!cacheHmacValid) {
             console.error(
@@ -125,11 +127,10 @@ async function handleClick(request: NextRequest) {
 
       // P0-3 / CF-03: Sign the cached payload with dedicated HMAC key.
       // In production, unsigned payloads are NEVER cached to prevent cache poisoning.
-      const hmacKeyForSign = process.env.CLICK_CACHE_HMAC_KEY || process.env.INTERNAL_API_TOKEN || "";
       const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
       let hmacSigned = false;
       try {
-        cachedData._hmac = await computeHmac(hmacKeyForSign, "cache", "cache", bodyForHmac);
+        cachedData._hmac = await computeHmac(hmacKey || "", "cache", "cache", bodyForHmac);
         hmacSigned = true;
       } catch (hmacErr) {
         // P0-3: HMAC signing failed — do NOT cache unsigned payloads.
@@ -241,7 +242,20 @@ export async function GET(request: NextRequest) {
   return handleClick(request);
 }
 
-/** POST handler — navigator.sendBeacon() always sends POST */
+/**
+ * POST handler — navigator.sendBeacon() always sends POST.
+ *
+ * FRESH-03: POST (sendBeacon) requests always carry an Origin header, so
+ * we can enforce the per-site allow-list here as the compensating control
+ * documented in lib/security/csrf-exempt-registry.ts. GET requests are
+ * top-level link navigation — they have no Origin and we intentionally
+ * allow them (the primary click-redirect use-case).
+ */
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  const siteId = request.headers.get("x-site-id");
+  if (!isOriginAllowed(origin, request.headers.get("host"), siteId)) {
+    return new NextResponse("Forbidden origin", { status: 403 });
+  }
   return handleClick(request);
 }
