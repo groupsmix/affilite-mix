@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- Migration 00084 (audit S-10): extend public.purge_retention()
+-- Migration 00085 (audit S-10): extend public.purge_retention()
 --                              for full GDPR Art. 5(1)(e) coverage
 -- ═══════════════════════════════════════════════════════════════════
 --
@@ -82,13 +82,13 @@ BEGIN
   GET DIAGNOSTICS audit_count = ROW_COUNT;
 
   -- stripe_events.received_at is the canonical timestamp; created_at
-  -- (added in 00080) carries the same value via backfill but
+  -- (added in 00081) carries the same value via backfill but
   -- received_at is what the table was originally indexed on.
   DELETE FROM public.stripe_events
   WHERE  received_at < now() - make_interval(days => STRIPE_EVENTS_DAYS);
   GET DIAGNOSTICS stripe_count = ROW_COUNT;
 
-  -- New windows added in 00084 ─────────────────────────────────────
+  -- New windows added in 00085 ─────────────────────────────────────
 
   -- Unconfirmed double-opt-in rows. Status is 'pending' until the
   -- user clicks the confirmation email; if 30 days pass the consent

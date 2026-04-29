@@ -647,7 +647,7 @@ jobs:
           STRIPE_COLS="stripe_event_id event_type received_at created_at"
           for col in $STRIPE_COLS; do
             if ! psql "$DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='stripe_events' AND column_name='$col';" | grep -q 1; then
-              echo "::error::Missing column on stripe_events: $col (G-T-01 / audit S-06). Migration 00080 should add it; check the migrate-production stage."
+              echo "::error::Missing column on stripe_events: $col (G-T-01 / audit S-06). Migration 00081 should add it; check the migrate-production stage."
               exit 1
             fi
           done

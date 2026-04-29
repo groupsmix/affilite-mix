@@ -1,4 +1,4 @@
--- Down migration for 00084_extend_retention_purge.sql
+-- Down migration for 00085_extend_retention_purge.sql
 -- Restores the 00077 three-table form. Only the down path; the up
 -- path is a `CREATE OR REPLACE` so re-applying 00077 would overwrite
 -- this anyway.

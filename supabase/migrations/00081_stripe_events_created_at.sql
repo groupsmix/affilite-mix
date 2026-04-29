@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- Migration 00080 (audit S-06): add `created_at` to public.stripe_events
+-- Migration 00081 (audit S-06): add `created_at` to public.stripe_events
 -- ═══════════════════════════════════════════════════════════════════
 --
 -- Background
@@ -23,7 +23,7 @@
 -- Idempotent: ADD COLUMN IF NOT EXISTS, COALESCE-safe backfill,
 -- CREATE INDEX IF NOT EXISTS.
 --
--- Rollback: see 00080_stripe_events_created_at-down.sql.
+-- Rollback: see 00081_stripe_events_created_at-down.sql.
 
 ALTER TABLE public.stripe_events
   ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();

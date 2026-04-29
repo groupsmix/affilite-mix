@@ -10,7 +10,7 @@ Status tracking for the audit items raised on 2026-04-29 against the
 | ------------------------------------------------- | ---------------------------------- | ---------------------------------- |
 | Postgres                                          | 17.6.1.104                         | 17.6.1.084                         |
 | Newest applied migration                          | (no `_migrations_applied`)         | `00065_add_actor_user_id.sql`      |
-| Newest migration in repo (this branch)            | `00084_extend_retention_purge.sql` | `00084_extend_retention_purge.sql` |
+| Newest migration in repo (this branch)            | `00085_extend_retention_purge.sql` | `00085_extend_retention_purge.sql` |
 | `pitr_enabled`                                    | false                              | false                              |
 | `ssl-enforcement.database`                        | false                              | false                              |
 | `dbAllowedCidrs`                                  | `0.0.0.0/0`                        | `0.0.0.0/0`                        |
@@ -31,16 +31,16 @@ Legend: ✅ done in this PR · 🟡 partly · ⚠️ blocked on user/operator ac
 
 | Item | Severity    | Status | What changed                                                                                                                                                                                         |
 | ---- | ----------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S-01 | P0 critical | ⚠️     | Apply migrations 66 → 84 to prod via the existing `migrate-production` job. Triggered by merging this PR; new migrations 80–84 ship the audit fixes. Ledger gate (G-MD-01) added.                    |
+| S-01 | P0 critical | ⚠️     | Apply migrations 66 → 85 to prod via the existing `migrate-production` job. Triggered by merging this PR; new migrations 81–85 ship the audit fixes. Ledger gate (G-MD-01) added.                    |
 | S-02 | P0 critical | ⚠️     | PITR — must be enabled via management API or dashboard; cannot be done from CI. Recommended call: `PATCH /v1/projects/{ref}/pitr` on both projects. Tracked.                                         |
 | S-03 | P0 critical | ⚠️     | `disable_signup=true, external_email_enabled=false`. Verified no `auth.signUp` references in app code; safe to flip via management API after merge. Tracked.                                         |
 | S-04 | P0 critical | ⚠️     | CIDR + SSL + DB password rotation. Needs a concrete egress whitelist (Cloudflare Workers don't have a static egress IP); tracked in PR description.                                                  |
 | S-05 | P0 critical | ⚠️     | TOTP enrollment + second super_admin must be done by a human; cannot be delegated to CI. Tracked.                                                                                                    |
-| S-06 | High        | ✅     | `00080_stripe_events_created_at.sql` adds the column, backfills from `received_at`, adds an index. CI gate (G-T-01) asserts the schema. Deploy verify step also greps `pg_attribute`.                |
-| S-07 | High        | ✅     | `00081_rls_initplan_optimisation.sql` rewrites every public-schema policy to wrap `auth.<x>()` / `current_request_site_id*()` calls in `(select …)`.                                                 |
-| S-08 | High        | ✅     | `00082_lock_security_definer_search_path.sql` pins `search_path` on every public function and locks SECURITY DEFINER funcs to `service_role` only.                                                   |
-| S-09 | High        | ✅     | `00083_lock_migrations_applied_rls.sql` drops the open authenticated policy on `_migrations_applied` and restricts to service_role.                                                                  |
-| S-10 | High        | ✅     | `00084_extend_retention_purge.sql` covers `newsletter_subscribers` / `quiz_submissions` / `comments` / `web_vitals`. `docs/ropa.md` documents the windows.                                           |
+| S-06 | High        | ✅     | `00081_stripe_events_created_at.sql` adds the column, backfills from `received_at`, adds an index. CI gate (G-T-01) asserts the schema. Deploy verify step also greps `pg_attribute`.                |
+| S-07 | High        | ✅     | `00082_rls_initplan_optimisation.sql` rewrites every public-schema policy to wrap `auth.<x>()` / `current_request_site_id*()` calls in `(select …)`.                                                 |
+| S-08 | High        | ✅     | `00083_lock_security_definer_search_path.sql` pins `search_path` on every public function and locks SECURITY DEFINER funcs to `service_role` only.                                                   |
+| S-09 | High        | ✅     | `00084_lock_migrations_applied_rls.sql` drops the open authenticated policy on `_migrations_applied` and restricts to service_role.                                                                  |
+| S-10 | High        | ✅     | `00085_extend_retention_purge.sql` covers `newsletter_subscribers` / `quiz_submissions` / `comments` / `web_vitals`. `docs/ropa.md` documents the windows.                                           |
 | S-11 | Medium      | ⏭     | Drop unused indexes + collapse multiple-permissive policies. Deferred — advisor output differs across staging/prod and the safe set should be reviewed manually before deletion.                     |
 | S-12 | Medium      | ⚠️     | pgaudit requires a Supabase support ticket. Moving extensions out of `public` is a separate, high-blast-radius migration; left untouched in this PR.                                                 |
 | S-13 | Low         | ⏭     | `stripe_events_processed` doesn't exist in either DB — the idempotency table is `stripe_events` itself, already on a 90-day TTL via `purge_retention()`. No-op; documented here for the audit trail. |

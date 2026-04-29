@@ -3,13 +3,13 @@
  *
  * The deep audit (S-06) hit the failure mode where production code
  * referenced `stripe_events.created_at` while the column did not
- * exist on the live DB — only a migration (00080) restored it.
+ * exist on the live DB — only a migration (00081) restored it.
  *
  * This test runs in plain `vitest` (no DB) by parsing the migration
  * SQL files in-tree. It guarantees that:
  *
  *   1. A migration adds `stripe_events.created_at` (i.e. nobody
- *      accidentally deletes 00080 in a future squash / rebase).
+ *      accidentally deletes 00081 in a future squash / rebase).
  *   2. The column type is `timestamptz` (or `timestamp with time
  *      zone`) and NOT NULL with a default — anything else regresses
  *      the retention purge guarantees.
@@ -59,7 +59,7 @@ describe("stripe_events schema (audit S-06 / G-T-01)", () => {
     expect(
       hits.length,
       "Expected at least one migration to ADD COLUMN created_at to stripe_events. " +
-        "If you removed 00080_stripe_events_created_at.sql, replace it with an " +
+        "If you removed 00081_stripe_events_created_at.sql, replace it with an " +
         "equivalent migration before merging.",
     ).toBeGreaterThan(0);
   });

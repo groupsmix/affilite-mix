@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- Migration 00081 (audit S-07): wrap auth.<x>() / current_request_site_id()
+-- Migration 00082 (audit S-07): wrap auth.<x>() / current_request_site_id()
 --                               in `(select …)` to fix initplan re-evaluation
 -- ═══════════════════════════════════════════════════════════════════
 --
@@ -42,7 +42,7 @@
 -- which reintroduce a bare `auth.<x>()` / `current_request_site_id()`
 -- inside CREATE POLICY, so this hardening doesn't regress.
 --
--- Rollback: see 00081_rls_initplan_optimisation-down.sql, which
+-- Rollback: see 00082_rls_initplan_optimisation-down.sql, which
 -- unwraps the subselects. Only run that if Postgres' planner
 -- regresses on the wrapped form (it shouldn't) — the wrapped form is
 -- the documented best-practice.

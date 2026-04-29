@@ -1,4 +1,4 @@
--- Down migration for 00081_rls_initplan_optimisation.sql
+-- Down migration for 00082_rls_initplan_optimisation.sql
 --
 -- Unwraps `(select auth.<x>())` and `(select current_request_site_id*())`
 -- back to the bare form. Only intended for the unlikely case that the

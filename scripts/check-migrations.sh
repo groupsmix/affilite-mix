@@ -14,7 +14,7 @@
 #             `current_request_site_id*()` *outside* a `(select …)`
 #             wrapper. Postgres re-evaluates these per row when not
 #             wrapped, regressing the auth_rls_initplan optimisation
-#             that 00081 enforced.
+#             that 00082 enforced.
 #
 #   G-CI-02 : a `CREATE FUNCTION ... SECURITY DEFINER` block in
 #             the public schema that does not declare
@@ -26,7 +26,7 @@
 # prior (often unsafe) state when reverting and are not auto-applied.
 #
 # Migrations 00064 / 00067 are exempted from the initplan rule because
-# they pre-date 00081's hardening; 00081 itself rewrites everything
+# they pre-date 00082's hardening; 00082 itself rewrites everything
 # they emit.
 #
 # Usage:
@@ -45,10 +45,10 @@ fi
 
 # Migrations that pre-date the audit hardening and should NOT be
 # rechecked by the initplan / search_path rules. The bare patterns in
-# these files are fixed by their own up-migrations or by 00081 / 00082.
-INITPLAN_LEGACY_RE='^(00064_tenant_isolation_rls|00067_harden_tenant_isolation_rls|00073_current_request_site_ids|00074_reintroduce_public_rls|00075_drop_legacy_public_select_policies|00076_deals_site_id_index|00078_tighten_unsafe_service_role_policies|00079_fix_service_role_policies_and_anon_insert|00081_rls_initplan_optimisation)\.sql$'
+# these files are fixed by their own up-migrations or by 00082 / 00083.
+INITPLAN_LEGACY_RE='^(00064_tenant_isolation_rls|00067_harden_tenant_isolation_rls|00073_current_request_site_ids|00074_reintroduce_public_rls|00075_drop_legacy_public_select_policies|00076_deals_site_id_index|00078_tighten_unsafe_service_role_policies|00079_fix_service_role_policies_and_anon_insert|00082_rls_initplan_optimisation)\.sql$'
 
-SECDEF_LEGACY_RE='^(00006_analytics_rpc|00026_reorder_pages_rpc|00027_dashboard_stats_rpc|00057_transactional_rpcs|00060_fix_reorder_pages_search_path|00070_atomic_stripe_event_apply|00077_purge_retention_function|00082_lock_security_definer_search_path|00084_extend_retention_purge)\.sql$'
+SECDEF_LEGACY_RE='^(00006_analytics_rpc|00026_reorder_pages_rpc|00027_dashboard_stats_rpc|00057_transactional_rpcs|00060_fix_reorder_pages_search_path|00070_atomic_stripe_event_apply|00077_purge_retention_function|00083_lock_security_definer_search_path|00085_extend_retention_purge)\.sql$'
 
 # E-2 pattern.
 USING_TRUE_RE="FOR[[:space:]]+ALL[[:space:]]+USING[[:space:]]*\([[:space:]]*true[[:space:]]*\)"
@@ -103,14 +103,14 @@ while IFS= read -r -d '' file; do
       if echo "$policy_blocks" \
            | perl -ne 'exit 1 if /(?<!select )\bauth\.\w+\(\)/i; END{exit 0}' \
            ; then : ; else
-        echo "::error file=$file::Migration creates a policy with a bare auth.<x>() call. Wrap as (select auth.<x>()) — see audit follow-up G-CI-01 / migration 00081." >&2
+        echo "::error file=$file::Migration creates a policy with a bare auth.<x>() call. Wrap as (select auth.<x>()) — see audit follow-up G-CI-01 / migration 00082." >&2
         violations=$((violations + 1))
       fi
 
       if echo "$policy_blocks" \
            | perl -ne 'exit 1 if /(?<!select )\bcurrent_request_site_ids?\(\)/i; END{exit 0}' \
            ; then : ; else
-        echo "::error file=$file::Migration creates a policy with a bare current_request_site_id() call. Wrap as (select current_request_site_id()) — see audit follow-up G-CI-01 / migration 00081." >&2
+        echo "::error file=$file::Migration creates a policy with a bare current_request_site_id() call. Wrap as (select current_request_site_id()) — see audit follow-up G-CI-01 / migration 00082." >&2
         violations=$((violations + 1))
       fi
     fi

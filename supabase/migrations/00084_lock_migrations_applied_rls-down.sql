@@ -1,4 +1,4 @@
--- Down migration for 00083_lock_migrations_applied_rls.sql
+-- Down migration for 00084_lock_migrations_applied_rls.sql
 -- Restores the wide-open authenticated policy that 00064 originally
 -- emitted. Only run as a last-resort revert; this re-introduces the
 -- ledger-poisoning vector flagged in audit item S-09.

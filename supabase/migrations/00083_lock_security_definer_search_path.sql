@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- Migration 00082 (audit S-08): lock down SECURITY DEFINER and
+-- Migration 00083 (audit S-08): lock down SECURITY DEFINER and
 --                              advisor-flagged functions in `public`
 -- ═══════════════════════════════════════════════════════════════════
 --
@@ -49,7 +49,7 @@
 -- `supabase/migrations/*.sql` that does not also declare
 -- `SET search_path = …`.
 --
--- Rollback: see 00082-down.sql, which removes the `search_path` pin
+-- Rollback: see 00083-down.sql, which removes the `search_path` pin
 -- and restores PUBLIC EXECUTE. Re-introduces the advisor warnings
 -- and the privesc primitive — only run as a last resort.
 
