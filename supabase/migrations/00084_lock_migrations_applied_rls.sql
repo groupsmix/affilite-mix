@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- Migration 00083 (audit S-09): lock down public._migrations_applied
+-- Migration 00084 (audit S-09): lock down public._migrations_applied
 -- ═══════════════════════════════════════════════════════════════════
 --
 -- Background

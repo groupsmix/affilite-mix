@@ -41,7 +41,7 @@ _To be designated by the data controller._
 
 ## Automated Retention (purge_retention)
 
-The SECURITY DEFINER function `public.purge_retention()` (migration 00084) runs daily via the `/api/cron/data-retention` Cloudflare Worker
+The SECURITY DEFINER function `public.purge_retention()` (migration 00085) runs daily via the `/api/cron/data-retention` Cloudflare Worker
 and executes the following deletes inside a single transaction:
 
 | Table                    | Predicate                                                                    | Window |

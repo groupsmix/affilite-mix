@@ -1,4 +1,4 @@
--- Down migration for 00082_lock_security_definer_search_path.sql
+-- Down migration for 00083_lock_security_definer_search_path.sql
 --
 -- Reverts the search_path pin and restores PUBLIC EXECUTE on every
 -- SECURITY DEFINER function in the public schema. This re-opens the
