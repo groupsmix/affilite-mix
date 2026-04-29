@@ -120,8 +120,23 @@ export function buildCspHeader(nonce: string): string {
     "frame-ancestors 'none'",
     "upgrade-insecure-requests",
     "report-uri /api/csp-report",
+    // F-024: report-uri is deprecated in CSP Level 3; modern browsers
+    // use the Report-To HTTP header and the report-to CSP directive.
+    "report-to default",
   ];
   return directives.join("; ");
+}
+
+/**
+ * Build the Report-To header value for CSP reporting.
+ * F-024: required by modern browsers instead of report-uri.
+ */
+export function buildReportToHeader(): string {
+  return JSON.stringify({
+    group: "default",
+    max_age: 31536000,
+    endpoints: [{ url: "/api/csp-report" }],
+  });
 }
 
 /** Header name shared between middleware and server components. */

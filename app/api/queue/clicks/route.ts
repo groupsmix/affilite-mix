@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
-import { getInternalToken } from "@/lib/internal-auth";
+import { getInternalTokenFor } from "@/lib/internal-auth";
 import { verifyInternalHmac } from "@/lib/internal-hmac";
 import { captureException } from "@/lib/sentry";
 
@@ -118,7 +118,11 @@ function isValidMessage(
 export async function POST(request: NextRequest) {
   let expected: string;
   try {
-    expected = getInternalToken();
+    // A-019 / NEW-003: Use the purpose-specific click-queue token so a
+    // leaked INTERNAL_API_TOKEN cannot forge queue ingestion calls.
+    // Falls back to the monolithic INTERNAL_API_TOKEN when
+    // INTERNAL_API_TOKEN_CLICK_QUEUE is not configured (transition window).
+    expected = getInternalTokenFor("click_queue");
   } catch {
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
