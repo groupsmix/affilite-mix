@@ -72,6 +72,12 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
       "Sentry DSN for server-side error monitoring (required in production for incident response)",
     ownerFile: "lib/sentry.ts",
   },
+  // B-01: TOTP encryption key for encrypting 2FA shared secrets at rest
+  {
+    name: "TOTP_ENCRYPTION_KEY",
+    description: "Encryption key for TOTP shared secrets at rest (B-01)",
+    ownerFile: "lib/totp-encryption.ts",
+  },
 ] as const;
 
 /**
@@ -218,6 +224,62 @@ export const FEATURE_CONDITIONAL_ENV: readonly {
         name: "AFFILIATE_DOMAIN_ENFORCEMENT",
         description: "Must be 'strict' in production to prevent open affiliate redirector (R-01)",
         ownerFile: "app/api/track/click/route.ts",
+      },
+    ],
+  },
+  // CR-01: Require HMAC strict mode in production. Legacy bearer fallback
+  // must be disabled so a leaked token cannot forge queue ingestion.
+  {
+    flag: "NODE_ENV",
+    flagEquals: "production",
+    requires: [
+      {
+        name: "INTERNAL_HMAC_MIGRATION_MODE",
+        description:
+          "Must be 'strict' in production — disables legacy bearer fallback for internal endpoints (CR-01)",
+        ownerFile: "lib/internal-hmac.ts",
+      },
+    ],
+  },
+  // CR-02: Per-trigger cron secrets in production.
+  // The shared CRON_SECRET fallback must not be the only secret in production.
+  {
+    flag: "NODE_ENV",
+    flagEquals: "production",
+    requires: [
+      {
+        name: "CRON_PUBLISH_SECRET",
+        description: "Per-trigger cron secret for publish job (CR-02)",
+        ownerFile: "lib/cron-registry.ts",
+      },
+      {
+        name: "CRON_STRIPE_SYNC_SECRET",
+        description: "Per-trigger cron secret for Stripe sync job (CR-02)",
+        ownerFile: "lib/cron-registry.ts",
+      },
+      {
+        name: "CRON_RETENTION_SECRET",
+        description: "Per-trigger cron secret for data retention job (CR-02)",
+        ownerFile: "lib/cron-registry.ts",
+      },
+    ],
+  },
+  // CF-03: Dedicated secrets for click-cache HMAC and GDPR hashing
+  {
+    flag: "NODE_ENV",
+    flagEquals: "production",
+    requires: [
+      {
+        name: "CLICK_CACHE_HMAC_KEY",
+        description:
+          "Dedicated HMAC key for click-cache integrity (CF-03). Rotation does not trigger cache stampede.",
+        ownerFile: "app/api/track/click/route.ts",
+      },
+      {
+        name: "GDPR_HASH_SECRET",
+        description:
+          "Dedicated secret for GDPR-compliant PII hashing (CF-03). Decouples privacy hashing from auth.",
+        ownerFile: "lib/analytics/epc.ts",
       },
     ],
   },

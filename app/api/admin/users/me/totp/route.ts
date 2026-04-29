@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { generateTotpSecret, verifyTotpToken } from "@/lib/totp";
+import { encryptTotpSecret, decryptTotpSecret } from "@/lib/totp-encryption";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
@@ -47,9 +48,12 @@ export async function POST(request: Request) {
     // Generate a new TOTP secret
     const { secret, uri } = generateTotpSecret(session.email);
 
-    // Store the secret (not yet enabled — user must verify first)
+    // B-01: Encrypt the TOTP secret before storing
+    const encryptedSecret = await encryptTotpSecret(secret);
+
+    // Store the encrypted secret (not yet enabled — user must verify first)
     await updateAdminUser(session.userId, {
-      totp_secret: secret,
+      totp_secret: encryptedSecret,
     });
 
     // Generate QR code as data URL
@@ -110,7 +114,9 @@ export async function PUT(request: Request) {
       );
     }
 
-    const isValid = verifyTotpToken(user.totp_secret, token);
+    // B-01: Decrypt the stored TOTP secret before verification
+    const decryptedSecret = await decryptTotpSecret(user.totp_secret);
+    const isValid = verifyTotpToken(decryptedSecret, token);
     if (!isValid) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
@@ -172,7 +178,9 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "2FA is not enabled" }, { status: 400 });
     }
 
-    const isValid = verifyTotpToken(user.totp_secret, token);
+    // B-01: Decrypt the stored TOTP secret before verification
+    const decryptedSecret = await decryptTotpSecret(user.totp_secret);
+    const isValid = verifyTotpToken(decryptedSecret, token);
     if (!isValid) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }

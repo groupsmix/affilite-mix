@@ -91,12 +91,14 @@ async function handleClick(request: NextRequest) {
           cachedData = null; // treat as cache miss
         }
         if (cachedData?._hmac) {
-          const internalToken = process.env.INTERNAL_API_TOKEN ?? "";
+          // CF-03: Use dedicated CLICK_CACHE_HMAC_KEY so rotating
+          // INTERNAL_API_TOKEN does not cause a cache stampede on Supabase.
+          const hmacKey = process.env.CLICK_CACHE_HMAC_KEY || process.env.INTERNAL_API_TOKEN || "";
           const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
           // FIX-14: Use a fixed timestamp/nonce for cache entries — we only care
           // about HMAC integrity, not replay/timestamp protection (cached data
           // is not a live request).
-          const expectedHmac = await computeHmac(internalToken, "cache", "cache", bodyForHmac);
+          const expectedHmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
           cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
           if (!cacheHmacValid) {
             console.error(
@@ -121,14 +123,13 @@ async function handleClick(request: NextRequest) {
       }
       cachedData = { name: product.name, url: product.affiliate_url };
 
-      // P0-3: Sign the cached payload with HMAC for integrity verification.
-      // In production, INTERNAL_API_TOKEN is required — unsigned payloads
-      // are NEVER cached to prevent cache poisoning attacks.
-      const internalToken = process.env.INTERNAL_API_TOKEN ?? "";
+      // P0-3 / CF-03: Sign the cached payload with dedicated HMAC key.
+      // In production, unsigned payloads are NEVER cached to prevent cache poisoning.
+      const hmacKeyForSign = process.env.CLICK_CACHE_HMAC_KEY || process.env.INTERNAL_API_TOKEN || "";
       const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
       let hmacSigned = false;
       try {
-        cachedData._hmac = await computeHmac(internalToken, "cache", "cache", bodyForHmac);
+        cachedData._hmac = await computeHmac(hmacKeyForSign, "cache", "cache", bodyForHmac);
         hmacSigned = true;
       } catch (hmacErr) {
         // P0-3: HMAC signing failed — do NOT cache unsigned payloads.
@@ -173,16 +174,10 @@ async function handleClick(request: NextRequest) {
       return apiError(400, "Malformed affiliate URL");
     }
 
-    // T-09: enforce the affiliate-domain allowlist at *redirect* time as
-    // well as at write time. The write-time check (lib/validation.ts)
-    // runs when an admin saves a product, but cached/pre-existing
-    // affiliate URLs and any future write-time bypass would otherwise
-    // turn this redirect into an open affiliate redirector. Behaviour
-    // matches AFFILIATE_DOMAIN_ENFORCEMENT:
+    // T-09 / R-01: enforce the affiliate-domain allowlist at *redirect* time
+    // as well as at write time. Behaviour matches AFFILIATE_DOMAIN_ENFORCEMENT:
     //   - "strict"  -> reject the redirect with a 400.
-    //   - any other -> log a structured warning and continue, so we can
-    //                  audit the existing affiliate_url corpus before
-    //                  flipping the kill-switch.
+    //   - any other -> log a structured warning and continue.
     const domainCheck = validateAffiliateDomain(destinationUrl);
     if (!domainCheck.allowed) {
       logger.error("[track/click] rejected affiliate destination off allow-list", {
@@ -201,6 +196,10 @@ async function handleClick(request: NextRequest) {
           reason: domainCheck.reason,
         }),
       );
+      captureException(new Error(`Blocked unapproved affiliate redirect: ${urlObj.hostname}`), {
+        context: "[api/track/click] unapproved redirect host",
+        extra: { url: destinationUrl, reason: domainCheck.reason },
+      });
       return apiError(400, "Affiliate destination is not allowed");
     }
     if (domainCheck.reason) {
