@@ -65,7 +65,9 @@ function getClickQueue(): CloudflareQueue<ClickQueueMessage> | undefined {
  * clicks are best-effort analytics.
  */
 export async function publishClick(input: RecordClickInput): Promise<void> {
-  const clickId = input.click_id ?? randomUUID();
+  // F-BIZ-01: Ensure click_id is strictly server-generated at the edge.
+  // We ignore any client-supplied click_id to prevent replay/suppression attacks.
+  const clickId = randomUUID();
   const enriched: RecordClickInput = { ...input, click_id: clickId };
   const queue = getClickQueue();
   const payload: ClickQueueMessage = { ...enriched, ts: Date.now() };

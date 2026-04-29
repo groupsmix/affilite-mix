@@ -73,7 +73,9 @@ async function handleClick(request: NextRequest) {
     // A compromised or corrupted KV could silently redirect clicks to
     // attacker-controlled URLs. We sign the cached payload with HMAC
     // using the INTERNAL_API_TOKEN so tampering is detectable.
-    const cacheKey = `product-url:${siteId}:${productSlug}`;
+    // F-API-09: Use a delimiter (\x1F) that cannot appear in a valid slug or UUID
+    // to prevent cache key collisions across tenants.
+    const cacheKey = `product-url\x1F${siteId}\x1F${productSlug}`;
     let cachedData: { name: string; url: string; _hmac?: string } | null = null;
     let cacheHmacValid = false;
 
@@ -218,6 +220,18 @@ async function handleClick(request: NextRequest) {
       );
     }
 
+    // F-DB-03: Strip query strings and fragments from referrer for privacy
+    // to avoid capturing PII, session tokens, or sensitive search terms.
+    let sanitizedReferrer = request.headers.get("referer") || undefined;
+    if (sanitizedReferrer) {
+      try {
+        const refUrl = new URL(sanitizedReferrer);
+        sanitizedReferrer = `${refUrl.origin}${refUrl.pathname}`.slice(0, 2048);
+      } catch {
+        sanitizedReferrer = sanitizedReferrer.slice(0, 2048);
+      }
+    }
+
     // Publish to the click queue (falls back to direct DB write if no binding)
     void runAfterResponse(
       publishClick({
@@ -225,7 +239,7 @@ async function handleClick(request: NextRequest) {
         product_name: cachedData.name,
         affiliate_url: destinationUrl,
         content_slug: searchParams.get("t") ?? "",
-        referrer: request.headers.get("referer") ?? undefined,
+        referrer: sanitizedReferrer,
       }),
       { context: "[api/track/click] publishClick" },
     );

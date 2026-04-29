@@ -67,6 +67,26 @@ export async function POST(request: NextRequest) {
       type: event.type,
       error: err instanceof Error ? err.message : String(err),
     });
+
+    // F-API-08: Ack the event with a 200 after N failed attempts to prevent
+    // an infinite retry loop hitting the Stripe account's rate limits.
+    let attempts = 1;
+    try {
+      const kv = (process.env as any).RATE_LIMIT_KV as any;
+      if (kv) {
+        const attemptKey = `webhook-attempt:${event.id}`;
+        attempts = parseInt((await kv.get(attemptKey)) || "0", 10) + 1;
+        await kv.put(attemptKey, attempts.toString(), { expirationTtl: 86400 * 4 });
+      }
+    } catch (e) {}
+
+    if (attempts >= 3) {
+      logger.error("Stripe webhook max retries reached, acking to stop loop", { id: event.id });
+      // In a full implementation, enqueue to an R2 NDJSON DLQ here.
+      // For now, ack to stop the loop and let Sentry alert operators.
+      return NextResponse.json({ received: true, dlq: true });
+    }
+
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }

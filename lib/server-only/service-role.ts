@@ -119,7 +119,100 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
   _cachedUrl = url;
   _cachedKey = key;
 
-  return _privilegedClient as PrivilegedSupabaseClient;
+  return new Proxy(_privilegedClient, {
+    get(t, p, r) {
+      if (p === "from") {
+        return (table: string) => wrapTable(t.from(table));
+      }
+      return Reflect.get(t, p, r);
+    },
+  }) as PrivilegedSupabaseClient;
+}
+
+/**
+ * F-API-01: Proxy wrapper for PostgREST query builders to enforce
+ * tenant isolation on the privileged service-role client.
+ * Requires `.eq('site_id', ...)` or `.unsafeNoSiteFilter()` before
+ * executing the query.
+ */
+function wrapTable(builder: any): any {
+  let siteFilterApplied = false;
+
+  const handler: ProxyHandler<any> = {
+    get(t, p) {
+      if (p === "eq") {
+        return (col: string, val: any) => {
+          if (col === "site_id") {
+            siteFilterApplied = true;
+          }
+          return new Proxy(t.eq(col, val), handler);
+        };
+      }
+      if (p === "unsafeNoSiteFilter") {
+        return () => {
+          siteFilterApplied = true;
+          return new Proxy(t, handler);
+        };
+      }
+
+      const v = t[p];
+      if (typeof v === "function") {
+        // PostgREST chainable methods that we also need to proxy
+        if (
+          [
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "like",
+            "ilike",
+            "is",
+            "in",
+            "contains",
+            "containedBy",
+            "rangeGt",
+            "rangeGte",
+            "rangeLt",
+            "rangeLte",
+            "rangeAdjacent",
+            "overlaps",
+            "textSearch",
+            "match",
+            "not",
+            "or",
+            "filter",
+            "order",
+            "limit",
+            "range",
+            "abortSignal",
+            "single",
+            "maybeSingle",
+            "csv",
+            "returns",
+          ].includes(String(p))
+        ) {
+          return (...args: any[]) => new Proxy(v.apply(t, args), handler);
+        }
+
+        // Terminal methods that execute the query
+        if (["select", "insert", "update", "delete", "upsert"].includes(String(p))) {
+          return (...args: any[]) => {
+            if (!siteFilterApplied) {
+              throw new Error(`[F-API-01] Privileged ${String(p)} called without site_id filter or unsafeNoSiteFilter() opt-out.`);
+            }
+            return v.apply(t, args);
+          };
+        }
+        
+        // Return standard then/catch unproxied
+        return v.bind(t);
+      }
+      return v;
+    },
+  };
+
+  return new Proxy(builder, handler);
 }
 
 /**

@@ -74,6 +74,28 @@ const nextConfig: NextConfig = {
         // emitted on user-facing routes.
       ],
     },
+    {
+      // F-FE-01: Static CSP fallback for internal APIs that bypass middleware.
+      // If a misconfigured proxy ever serves these JSON responses as HTML,
+      // this prevents XSS.
+      source: "/api/internal/(.*)",
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: "default-src 'none'; frame-ancestors 'none'",
+        },
+      ],
+    },
+    {
+      // F-FE-01: Static CSP fallback for image optimization endpoint
+      source: "/_next/image",
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: "default-src 'none'; frame-ancestors 'none'",
+        },
+      ],
+    },
   ],
 };
 
