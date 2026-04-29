@@ -189,11 +189,14 @@ jobs:
           # P2-7: Ensure package-lock.json is in sync with package.json.
           # npm ci already validates this, but an explicit check gives a
           # clearer error message when the lockfile has drifted.
+          # Note: avoid piping npm ci output through head with pipefail,
+          # as head closing the pipe early triggers SIGPIPE failures.
           set -euo pipefail
-          if ! npm ci --dry-run 2>&1 | head -5; then
+          npm ci --dry-run > /tmp/lockfile-check.log 2>&1 || {
             echo "::error::package-lock.json is out of sync with package.json. Run 'npm install' and commit the lockfile."
+            cat /tmp/lockfile-check.log
             exit 1
-          fi
+          }
           echo "Lockfile integrity verified."
 
       - name: Generate SBOM (P2-7)

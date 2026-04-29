@@ -50,19 +50,27 @@ describe("P0-1: Auth binding lifecycle", () => {
   });
 
   it("verifyToken rejects tokens without bnd in production", async () => {
-    // Create a token in dev (no bnd) first, then verify in production mode
+    // Set the JWT secret explicitly BEFORE creating the token so both
+    // creation and verification use the same key. The test must prove
+    // rejection is due to the missing bnd claim, not a key mismatch.
+    const sharedSecret = "shared-test-jwt-secret-for-binding-test-at-least-32-chars";
+    vi.stubEnv("JWT_SECRET", sharedSecret);
+    vi.stubEnv("NODE_ENV", "test");
+    vi.resetModules();
+
     const { createToken } = await import("@/lib/auth");
     const payload = { email: "admin@test.com", userId: "u-1", role: "admin" as const };
     const token = await createToken(payload); // no request = no bnd
 
-    // Switch to production and re-import for verification
+    // Switch to production and re-import for verification with the SAME secret
     vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("JWT_SECRET", "test-secret-for-ci-at-least-32-chars-long");
+    vi.stubEnv("JWT_SECRET", sharedSecret);
     vi.resetModules();
 
     const { verifyToken: verifyProd } = await import("@/lib/auth");
     const decoded = await verifyProd(token);
 
+    // Should be null because production requires bnd claim
     expect(decoded).toBeNull();
   });
 
