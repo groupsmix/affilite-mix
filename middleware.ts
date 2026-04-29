@@ -10,6 +10,10 @@ import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
 import { getAllowedOrigins } from "@/lib/security/allowed-origins";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  getNegativeCacheTtlSeconds,
+  recordUnknownHostKvAccess,
+} from "@/lib/security/unknown-host-guard";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -58,7 +62,14 @@ export async function middleware(request: NextRequest) {
     if (maintenanceMode) {
       return new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
         status: 503,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // G-35: never let a CDN, browser, or shared proxy cache the
+          // maintenance response — once the operator flips the flag
+          // back off, the next request must hit the worker again.
+          "Cache-Control": "no-store",
+          Pragma: "no-cache",
+        },
       });
     }
     try {
@@ -73,7 +84,12 @@ export async function middleware(request: NextRequest) {
       if (_maintenanceCacheValue) {
         return new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
           status: 503,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            // G-35: same no-store guarantee as the env-var branch above.
+            "Cache-Control": "no-store",
+            Pragma: "no-cache",
+          },
         });
       }
     } catch {
@@ -173,19 +189,48 @@ export async function middleware(request: NextRequest) {
       // than blocking all unknown-hostname traffic.
     }
 
+    // G-34: worker-wide LRU cap on the number of *distinct* unknown
+    // hostnames we'll let touch KV in any rolling 1s window. The per-IP
+    // limit above stops any single source; this stops the cumulative
+    // effect of a distributed flood from forcing one KV read per random
+    // Host: header. When the cap is exceeded we behave as if we'd
+    // negative-cached the host: the request gets the same 404 the
+    // legitimate "unknown niche" path returns, without paying the KV or
+    // DB cost.
+    const guardResult = recordUnknownHostKvAccess(hostname);
+    if (!guardResult.allowed) {
+      return nicheNotFoundResponse(request);
+    }
+
     try {
       const cacheKey = `site-domain:${hostname}`;
       const negativeCacheKey = `site-domain-miss:${hostname}`;
       let cachedRow: { id?: string; slug?: string; is_active?: boolean } | null = null;
       let isNegativeCached = false;
+      let priorMissCount = 0;
       try {
         const kv = (process.env as any).APP_CACHE_KV as any;
         if (kv) {
           // Check negative cache first — short-circuits the DB lookup
           // entirely for hostnames we've already seen as unknown.
+          // G-34: the value is now `{m: number}` JSON so we can ramp
+          // the TTL on each subsequent miss.  Also accept the legacy
+          // "1" sentinel for entries written by previous deploys.
           const negative = await kv.get(negativeCacheKey);
           if (negative === "1") {
             isNegativeCached = true;
+            priorMissCount = 1;
+          } else if (negative) {
+            try {
+              const parsed = JSON.parse(negative) as { m?: number };
+              if (parsed && typeof parsed.m === "number" && parsed.m > 0) {
+                isNegativeCached = true;
+                priorMissCount = parsed.m;
+              }
+            } catch {
+              // Corrupt entry — treat as a fresh miss so the next
+              // write replaces it with a well-formed value.
+            }
           } else {
             cachedRow = await kv.get(cacheKey, "json");
           }
@@ -208,13 +253,19 @@ export async function middleware(request: NextRequest) {
       } else if (row && !row.is_active) {
         return nicheNotFoundResponse(request);
       } else if (!row) {
-        // Negative-cache the unknown hostname for 5 minutes so a flood
-        // of bot traffic with random Host headers does not hammer the
-        // DB. 5 minutes is short enough that legitimate domain
-        // onboarding still propagates promptly.
+        // G-34: ramp the negative-cache TTL on each subsequent miss.
+        // First miss = 5 min, doubling up to a 1-hour ceiling for
+        // hosts that keep showing up in random-Host: floods. 5 minutes
+        // is short enough that legitimate domain onboarding still
+        // propagates promptly on the *first* attempt.
+        const nextMissCount = priorMissCount + 1;
+        const ttlSeconds = getNegativeCacheTtlSeconds(nextMissCount);
         try {
           const kv = (process.env as any).APP_CACHE_KV as any;
-          if (kv) await kv.put(negativeCacheKey, "1", { expirationTtl: 300 });
+          if (kv)
+            await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
+              expirationTtl: ttlSeconds,
+            });
         } catch (e) {}
       }
     } catch (err) {
