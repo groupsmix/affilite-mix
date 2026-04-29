@@ -1,0 +1,169 @@
+/**
+ * Per-tenant quota primitive tests (G-42).
+ *
+ * Exercises `lib/quotas.ts` against an in-memory KV mock so the module
+ * can be tested without a Cloudflare Worker runtime.
+ */
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+interface MockKVEntry {
+  value: string;
+  ttl?: number;
+}
+
+function makeMockKV(): { kv: Record<string, MockKVEntry>; binding: unknown } {
+  const kv: Record<string, MockKVEntry> = {};
+  const binding = {
+    async get(key: string, type?: string) {
+      const entry = kv[key];
+      if (!entry) return null;
+      if (type === "json") {
+        try {
+          return JSON.parse(entry.value);
+        } catch {
+          return null;
+        }
+      }
+      return entry.value;
+    },
+    async put(key: string, value: string, opts?: { expirationTtl?: number }) {
+      kv[key] = { value, ttl: opts?.expirationTtl };
+    },
+  };
+  return { kv, binding };
+}
+
+describe("lib/quotas — per-tenant ceilings", () => {
+  let savedEnv: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    vi.resetModules();
+    savedEnv = {
+      QUOTA_DEFAULT_AI_TOKENS_PER_MONTH: process.env.QUOTA_DEFAULT_AI_TOKENS_PER_MONTH,
+      QUOTA_DEFAULT_AI_REQUESTS_PER_DAY: process.env.QUOTA_DEFAULT_AI_REQUESTS_PER_DAY,
+      QUOTA_DEFAULT_R2_STORAGE_BYTES: process.env.QUOTA_DEFAULT_R2_STORAGE_BYTES,
+    };
+    delete process.env.QUOTA_DEFAULT_AI_TOKENS_PER_MONTH;
+    delete process.env.QUOTA_DEFAULT_AI_REQUESTS_PER_DAY;
+    delete process.env.QUOTA_DEFAULT_R2_STORAGE_BYTES;
+  });
+
+  afterEach(() => {
+    for (const [k, v] of Object.entries(savedEnv)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("returns unlimited when no overrides or env defaults are configured", async () => {
+    const { binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const { checkQuota } = await import("@/lib/quotas");
+    const result = await checkQuota("site-x", "ai_tokens", 1_000_000);
+    expect(result.allowed).toBe(true);
+    expect(result.limit).toBeUndefined();
+    expect(result.remaining).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("uses the env default when no site override is set", async () => {
+    process.env.QUOTA_DEFAULT_AI_REQUESTS_PER_DAY = "5";
+    const { binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const { checkQuota, recordUsage } = await import("@/lib/quotas");
+
+    // Burn 4 of the 5 daily requests.
+    for (let i = 0; i < 4; i++) await recordUsage("site-x", "ai_requests", 1);
+
+    const ok = await checkQuota("site-x", "ai_requests", 1);
+    expect(ok.allowed).toBe(true);
+    expect(ok.limit).toBe(5);
+    expect(ok.remaining).toBe(0);
+
+    await recordUsage("site-x", "ai_requests", 1);
+
+    const blocked = await checkQuota("site-x", "ai_requests", 1);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.remaining).toBe(0);
+  });
+
+  it("assertQuota throws QuotaExceededError when over the ceiling", async () => {
+    process.env.QUOTA_DEFAULT_AI_TOKENS_PER_MONTH = "100";
+    const { binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const { assertQuota, QuotaExceededError, recordUsage } = await import("@/lib/quotas");
+
+    await recordUsage("site-x", "ai_tokens", 80);
+    await expect(assertQuota("site-x", "ai_tokens", 50)).rejects.toBeInstanceOf(QuotaExceededError);
+  });
+
+  it("fails OPEN when KV is unavailable so accounting outages don't brick callers", async () => {
+    process.env.QUOTA_DEFAULT_AI_REQUESTS_PER_DAY = "1";
+    // No KV binding stubbed — getKVNamespace returns undefined.
+
+    const { checkQuota } = await import("@/lib/quotas");
+    const result = await checkQuota("site-x", "ai_requests", 1);
+    // Counter reads as 0 when KV is missing, so allowed.
+    expect(result.allowed).toBe(true);
+    expect(result.usage).toBe(0);
+  });
+
+  it("uses month/day/cumulative window keys per resource", async () => {
+    process.env.QUOTA_DEFAULT_AI_TOKENS_PER_MONTH = "1000";
+    process.env.QUOTA_DEFAULT_AI_REQUESTS_PER_DAY = "1000";
+    process.env.QUOTA_DEFAULT_R2_STORAGE_BYTES = "1000";
+    const { binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const { checkQuota } = await import("@/lib/quotas");
+    const monthly = await checkQuota("s", "ai_tokens", 1);
+    const daily = await checkQuota("s", "ai_requests", 1);
+    const cumulative = await checkQuota("s", "r2_storage_bytes", 1);
+
+    expect(monthly.window).toBe("month");
+    expect(monthly.windowKey).toMatch(/^\d{4}-\d{2}$/);
+    expect(daily.window).toBe("day");
+    expect(daily.windowKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(cumulative.window).toBe("cumulative");
+    expect(cumulative.windowKey).toBe("cumulative");
+  });
+
+  it("estimateTokens approximates 4 chars per token", async () => {
+    const { estimateTokens, costToMicroUsd } = await import("@/lib/quotas");
+    expect(estimateTokens("")).toBe(0);
+    expect(estimateTokens("abcd")).toBe(1);
+    expect(estimateTokens("abcde")).toBe(2);
+    expect(costToMicroUsd(0.000123)).toBe(123);
+    expect(costToMicroUsd(-1)).toBe(0);
+  });
+
+  it("getUsageSnapshot returns counters for every resource", async () => {
+    process.env.QUOTA_DEFAULT_AI_TOKENS_PER_MONTH = "10";
+    const { binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const { getUsageSnapshot, recordUsage } = await import("@/lib/quotas");
+    await recordUsage("site-x", "ai_tokens", 7);
+    await recordUsage("site-x", "r2_storage_bytes", 12345);
+
+    const snap = await getUsageSnapshot("site-x");
+    expect(snap.usage.ai_tokens).toBe(7);
+    expect(snap.usage.r2_storage_bytes).toBe(12345);
+    expect(snap.usage.ai_requests).toBe(0);
+    expect(snap.limits.ai_tokens).toBe(10);
+    expect(snap.limits.r2_storage_bytes).toBeUndefined();
+  });
+
+  it("rejects negative or non-finite increments", async () => {
+    const { binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const { checkQuota } = await import("@/lib/quotas");
+    await expect(checkQuota("s", "ai_tokens", -1)).rejects.toThrow();
+    await expect(checkQuota("s", "ai_tokens", Number.NaN)).rejects.toThrow();
+  });
+});
