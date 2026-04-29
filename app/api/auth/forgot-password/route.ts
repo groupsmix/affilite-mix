@@ -69,10 +69,13 @@ export async function POST(request: Request) {
     // links on its own host. APP_URL is only honoured as a local-dev
     // override since dev typically serves all tenants behind a single
     // localhost host.
+    // Use `||` (not `??`) so an empty-string APP_URL in a developer's
+    // .env also falls through to the site-domain fallback — otherwise we
+    // would emit a relative `/admin/reset-password?...` URL in email.
     const baseUrl =
       process.env.NODE_ENV === "production"
         ? `https://${site.domain}`
-        : (process.env.APP_URL ?? `https://${site.domain}`);
+        : process.env.APP_URL || `https://${site.domain}`;
 
     // Generate reset token with 1-hour expiry.
     // The raw token is sent to the user via email; only its SHA-256 hash is

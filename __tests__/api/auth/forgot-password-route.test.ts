@@ -146,6 +146,22 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     expect(htmlBody).not.toContain("canonical.example.com");
   });
 
+  it("falls back to site.domain in dev when APP_URL is set to an empty string", async () => {
+    // `APP_URL=` in a developer's .env must not produce a relative reset
+    // URL. Using `||` (rather than `??`) ensures the empty string falls
+    // through to the site-domain fallback.
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("APP_URL", "");
+
+    const res = await POST(makeRequest({ email: "admin@test.com" }));
+
+    expect(res.status).toBe(200);
+    const textBody = capturedResendBody!.text as string;
+    expect(textBody).toContain("https://test.example.com/admin/reset-password?token=");
+    // The link must be absolute, never relative.
+    expect(textBody).not.toMatch(/[\s\n]\/admin\/reset-password\?/);
+  });
+
   it("still issues a reset link in production when APP_URL is missing (uses site.domain)", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_URL", "");
