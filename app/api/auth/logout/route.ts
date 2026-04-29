@@ -54,7 +54,7 @@ export async function POST() {
   // alone would inherit a footgun. Clear all auth-adjacent cookies on
   // logout as a single rule.
   response.cookies.set(CSRF_COOKIE, "", {
-    httpOnly: false, // matches the issuance posture (client must read it back)
+    httpOnly: true, // matches the issuance posture (httpOnly: true, see app/api/auth/csrf/route.ts)
     secure: IS_SECURE_COOKIE,
     sameSite: "strict",
     path: "/",
