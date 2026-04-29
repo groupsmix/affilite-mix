@@ -193,7 +193,8 @@ export async function POST(request: NextRequest) {
 
     // A-012: set a separate binding cookie so the JWT cannot be replayed
     // without the corresponding binding fingerprint.
-    const binding = await computeRequestBinding(request);
+    // Pass authResult.role so super_admin gets /32 binding (matching createToken).
+    const binding = await computeRequestBinding(request, authResult.role);
     if (binding) {
       const bc = getAdminBindingCookie(binding);
       response.cookies.set(
