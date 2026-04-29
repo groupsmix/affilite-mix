@@ -76,9 +76,19 @@ AI calls — comment moderation runs through the rule-based pipeline in
   retention requires the logpush job tracked in
   `terraform/cloudflare/main.tf`.
 
+- **Per-tenant ceilings (G-42)** — `lib/quotas.ts` adds per-site
+  primitives for `ai_tokens` (monthly), `ai_cost_micro_usd` (monthly),
+  and `ai_requests` (daily). `generateWithFallback` enforces both the
+  pre-flight assertion and the post-call accounting for any caller
+  that supplies `siteId`. Resolved cost is derived from each provider
+  class's `pricing` field, so the price card lives in one place.
+  See `docs/per-tenant-quotas.md` for configuration and the operator
+  runbook.
+
 > **Open follow-up:** there is no dedicated `ai_usage_log` table or
-> spend-report script in the repository today. Per-tenant spend
-> attribution is a known gap and is tracked in
+> spend-report script in the repository today. The per-tenant
+> primitives expose `getUsageSnapshot()` against `RATE_LIMIT_KV` for
+> ad-hoc inspection; long-term durable spend logs are tracked in
 > `docs/deep-audit-followup.md`.
 
 ## Affiliate Disclosure (#83)
