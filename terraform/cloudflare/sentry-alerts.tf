@@ -6,6 +6,10 @@
 # 3. High 5xx Burn Rate for Admin Panel
 # 4. Click Tracking Failures
 # 5. KV Rate Limit Fail-Open Alert
+# 6. P2-5: DLQ depth > 0 alert
+# 7. P2-6: Cron heartbeat missed alert
+# 8. P2-4: Log shipper health alert
+# 9. P2-8: AI cost threshold alert
 
 # To apply these rules, you would use the official Sentry Terraform provider.
 # Example:

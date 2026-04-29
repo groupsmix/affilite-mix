@@ -108,8 +108,18 @@ export const POST = withAuthz("upload", "create", async (request, { siteId }) =>
     res.headers.set("X-Content-Type-Options", "nosniff");
     return res;
   } catch (err) {
+    // P1-3: Log raw error details to Sentry only. Return a stable
+    // user-facing message so internal R2/S3 details are never leaked.
     captureException(err, { context: "[api/admin/upload] POST failed:" });
-    const message = err instanceof Error ? err.message : "Upload failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Upload URL could not be created. Please retry or contact support." },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      },
+    );
   }
 });

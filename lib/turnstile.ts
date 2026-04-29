@@ -23,12 +23,24 @@ export async function verifyTurnstile(
   token: string | null | undefined,
   ip?: string,
 ): Promise<TurnstileResult> {
+  // P1-5: Gate all verification on ENABLE_TURNSTILE so the feature is
+  // explicitly opt-in. When not enabled, skip verification entirely.
+  const enableTurnstile =
+    process.env.ENABLE_TURNSTILE === "true" || process.env.ENABLE_TURNSTILE === "1";
+
+  if (!enableTurnstile) {
+    return { success: true };
+  }
+
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
 
-  // Skip verification in dev when key is not configured
+  // When Turnstile is enabled but key is missing, fail in production
   if (!secretKey) {
     if (process.env.NODE_ENV === "production") {
-      return { success: false, error: "Turnstile is not configured" };
+      return {
+        success: false,
+        error: "Turnstile is enabled but TURNSTILE_SECRET_KEY is not configured",
+      };
     }
     return { success: true };
   }

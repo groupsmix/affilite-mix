@@ -80,15 +80,21 @@ async function writeLastGoodSitemap(
  * forbids returning an empty sitemap because it tells search engines
  * every URL has been removed, which destroys organic traffic.
  */
+/**
+ * P2-2: Stable last-modified date for static pages. Using new Date() on every
+ * request signals to search engines that pages changed when they did not,
+ * wasting crawl budget and sending misleading freshness signals.
+ */
+const STATIC_LAST_MODIFIED = new Date("2026-04-01T00:00:00Z");
+
 function staticFallback(site: {
   domain: string;
   seo: { sitemapStaticPages: Array<{ path: string; changeFrequency: string; priority: number }> };
 }): MetadataRoute.Sitemap {
   const baseUrl = `https://${site.domain}`;
-  const now = new Date();
   return site.seo.sitemapStaticPages.map((page) => ({
     url: `${baseUrl}${page.path}`,
-    lastModified: now,
+    lastModified: STATIC_LAST_MODIFIED,
     changeFrequency: page.changeFrequency as MetadataRoute.Sitemap[number]["changeFrequency"],
     priority: page.priority,
   }));
@@ -130,9 +136,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const baseUrl = `https://${site.domain}`;
 
+  // P2-2: Use a stable date for static pages instead of new Date() on every
+  // request, which would falsely signal to search engines that every static
+  // page changed on every crawl.
   const staticEntries: MetadataRoute.Sitemap = site.seo.sitemapStaticPages.map((page) => ({
     url: `${baseUrl}${page.path}`,
-    lastModified: new Date(),
+    lastModified: STATIC_LAST_MODIFIED,
     changeFrequency: page.changeFrequency as MetadataRoute.Sitemap[number]["changeFrequency"],
     priority: page.priority,
   }));
@@ -157,7 +166,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
       const categoryEntries: MetadataRoute.Sitemap = categories.map((cat) => ({
         url: `${baseUrl}/category/${cat.slug}`,
-        lastModified: new Date(),
+        // P2-2: categories don't carry updated_at; use stable constant
+        lastModified: STATIC_LAST_MODIFIED,
         changeFrequency: "weekly" as const,
         priority: 0.6,
       }));
