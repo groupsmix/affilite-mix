@@ -64,7 +64,10 @@ async function sha256Hex(input: string): Promise<string> {
  * fingerprint material is available (missing UA + unknown IP) — callers
  * should not include a binding claim in that case.
  */
-export async function computeRequestBinding(request: Request, role?: string): Promise<string | null> {
+export async function computeRequestBinding(
+  request: Request,
+  role?: string,
+): Promise<string | null> {
   const ua = (request.headers.get(USER_AGENT_HEADER) ?? "").trim();
   const ip = ipFingerprint(getClientIp(request), role);
 
@@ -84,6 +87,16 @@ export async function computeRequestBinding(request: Request, role?: string): Pr
  * Returns `false` when a binding claim is present and differs from
  * the current request — i.e. the token is being replayed from a different
  * device or network.
+ *
+ * P0-BIND: When the token has a binding claim but the current request
+ * produces no fingerprint material (no UA and unknown IP), the function
+ * fails **closed** in production (`requireBinding=true`). A previous
+ * revision returned `true` in this case, which allowed a stolen token
+ * to be replayed by any client that stripped its UA and arrived without
+ * a trusted source IP (e.g. any path that bypasses the Cloudflare edge
+ * and therefore lacks `cf-connecting-ip`). The binding check is
+ * defense-in-depth, so we must not silently pass it through when we
+ * cannot compare.
  */
 export async function verifyRequestBinding(
   tokenBinding: string | undefined,
@@ -97,7 +110,14 @@ export async function verifyRequestBinding(
   if (!request) return !requireBinding;
 
   const expected = await computeRequestBinding(request, role);
-  if (expected === null) return true;
+  if (expected === null) {
+    // Token carries a binding but we cannot recompute one from the current
+    // request. Treat this the same as a hard mismatch when binding is
+    // required; in legacy/dev mode (requireBinding=false), preserve the
+    // previous lenient behaviour so background flows that genuinely have
+    // no fingerprint material keep working.
+    return !requireBinding;
+  }
 
   return expected === tokenBinding;
 }

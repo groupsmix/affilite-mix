@@ -94,4 +94,26 @@ describe("F-035 JWT UA/IP binding", () => {
   it("verifyRequestBinding: accepts when request is absent (background jobs)", async () => {
     expect(await verifyRequestBinding("deadbeef", undefined)).toBe(true);
   });
+
+  // P0-BIND: regression — a token with a binding claim must NOT be accepted
+  // in production when the current request produces no fingerprint material.
+  // Previously `verifyRequestBinding` returned true in this case, which let
+  // a stolen token be replayed by any client that stripped its UA and
+  // arrived without a trusted source IP (e.g. direct-to-origin hits that
+  // bypass Cloudflare and therefore have no cf-connecting-ip).
+  it("verifyRequestBinding: rejects unrecomputable binding when required (P0-BIND)", async () => {
+    // Token carries a binding, but the replay request has no UA and no IP.
+    const noFingerprintRequest = makeRequest({});
+    expect(await computeRequestBinding(noFingerprintRequest)).toBeNull();
+
+    // requireBinding=true (production posture): must fail closed.
+    expect(await verifyRequestBinding("deadbeef", noFingerprintRequest, true)).toBe(false);
+  });
+
+  it("verifyRequestBinding: lenient in dev when binding not required (P0-BIND)", async () => {
+    // Same scenario but with requireBinding=false keeps the previous
+    // permissive behaviour so dev flows without headers still work.
+    const noFingerprintRequest = makeRequest({});
+    expect(await verifyRequestBinding("deadbeef", noFingerprintRequest, false)).toBe(true);
+  });
 });
