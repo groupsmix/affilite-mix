@@ -19,19 +19,31 @@ import { getClientIp } from "@/lib/get-client-ip";
 
 const USER_AGENT_HEADER = "user-agent";
 
-function ipFingerprint(ip: string): string {
+/**
+ * G-16: role-aware IP fingerprinting.
+ *
+ * - `super_admin`: exact IP (/32 for IPv4, /128 for IPv6) — tightest
+ *   possible binding for the most privileged role.
+ * - All other roles: /24 for IPv4, /48 for IPv6 — tolerates NAT shifts
+ *   while still detecting cross-network replay.
+ */
+function ipFingerprint(ip: string, role?: string): string {
   if (!ip || ip === "unknown") return "unknown";
 
-  // IPv4: keep the first three octets (/24) and zero the last.
+  const strict = role === "super_admin";
+
+  // IPv4
   const v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (v4) {
+    if (strict) return `${v4[1]}.${v4[2]}.${v4[3]}.${v4[4]}/32`;
     return `${v4[1]}.${v4[2]}.${v4[3]}.0/24`;
   }
 
-  // IPv6: keep the routing prefix (/48) — first three 16-bit groups.
+  // IPv6: keep the routing prefix (/48 or full /128 for super_admin).
   // Node's URL-style addresses may include brackets; strip them.
   const normalized = ip.replace(/^\[|\]$/g, "");
   const segments = normalized.split(":").filter((s) => s.length > 0);
+  if (strict) return normalized + "/128";
   if (segments.length >= 3) {
     return `${segments[0]}:${segments[1]}:${segments[2]}::/48`;
   }
@@ -52,9 +64,9 @@ async function sha256Hex(input: string): Promise<string> {
  * fingerprint material is available (missing UA + unknown IP) — callers
  * should not include a binding claim in that case.
  */
-export async function computeRequestBinding(request: Request): Promise<string | null> {
+export async function computeRequestBinding(request: Request, role?: string): Promise<string | null> {
   const ua = (request.headers.get(USER_AGENT_HEADER) ?? "").trim();
-  const ip = ipFingerprint(getClientIp(request));
+  const ip = ipFingerprint(getClientIp(request), role);
 
   if (!ua && ip === "unknown") return null;
 
@@ -77,13 +89,14 @@ export async function verifyRequestBinding(
   tokenBinding: string | undefined,
   request: Request | undefined,
   requireBinding: boolean = false,
+  role?: string,
 ): Promise<boolean> {
   if (!tokenBinding) {
     return !requireBinding;
   }
   if (!request) return !requireBinding;
 
-  const expected = await computeRequestBinding(request);
+  const expected = await computeRequestBinding(request, role);
   if (expected === null) return true;
 
   return expected === tokenBinding;
