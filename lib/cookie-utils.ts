@@ -1,12 +1,27 @@
 /**
- * Whether cookies should be marked as Secure (HTTPS-only).
- * F-029: In Cloudflare Workers, process.env.NODE_ENV might not always reliably
- * equal "production". We ensure we also check navigator.userAgent.
- * True in production, false in local development.
+ * F-029: In Cloudflare Workers, NODE_ENV must be set to "production" for the
+ * deployed worker. If we ever observe Workers' user-agent at runtime without
+ * NODE_ENV === "production", that's a deploy misconfiguration — surface it
+ * loudly rather than silently coercing IS_SECURE_COOKIE to true. This is the
+ * inverted "this should never happen in dev" guard recommended by the audit.
  */
-export const IS_SECURE_COOKIE =
-  process.env.NODE_ENV === "production" ||
-  (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers");
+if (
+  process.env.NODE_ENV !== "production" &&
+  typeof navigator !== "undefined" &&
+  navigator.userAgent === "Cloudflare-Workers"
+) {
+  throw new Error(
+    "Detected Cloudflare-Workers runtime but NODE_ENV is not 'production'. " +
+      "Set NODE_ENV=production in the worker environment so secure cookies " +
+      "are emitted correctly.",
+  );
+}
+
+/**
+ * Whether cookies should be marked as Secure (HTTPS-only).
+ * Driven solely by NODE_ENV: true in production, false everywhere else.
+ */
+export const IS_SECURE_COOKIE = process.env.NODE_ENV === "production";
 
 /**
  * Safe cookie parsing utility.

@@ -2,8 +2,10 @@
  * Route-level test: POST /api/auth/forgot-password
  *
  * Exercises the actual route handler with mocked dependencies to verify:
- * 1. Reset link uses canonical APP_URL (not request origin)
- * 2. No DB write occurs when APP_URL is missing
+ * 1. Reset link uses the active tenant's site domain (G-22), not the
+ *    request origin and not a global APP_URL.
+ * 2. The link is built from site.domain even when APP_URL is missing in
+ *    production.
  * 3. Email is sent via Resend with the correct reset URL
  * 4. Rate limiting is enforced
  * 5. Unknown emails still return 200 (enumeration protection)
@@ -115,7 +117,9 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("constructs reset link using APP_URL, not request origin", async () => {
+  it("constructs reset link using the active tenant's site domain in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+
     const res = await POST(makeRequest({ email: "admin@test.com" }));
 
     expect(res.status).toBe(200);
@@ -124,29 +128,35 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     const textBody = capturedResendBody!.text as string;
     const htmlBody = capturedResendBody!.html as string;
 
-    // The reset link MUST use the canonical APP_URL
-    expect(textBody).toContain("https://canonical.example.com/admin/reset-password?token=");
-    expect(htmlBody).toContain("https://canonical.example.com/admin/reset-password?token=");
+    // The reset link MUST use the tenant's own site domain so a user on
+    // tenant A is never directed at tenant B (G-22).
+    expect(textBody).toContain("https://test.example.com/admin/reset-password?token=");
+    expect(htmlBody).toContain("https://test.example.com/admin/reset-password?token=");
 
-    // The reset link MUST NOT use the request origin
+    // The reset link MUST NOT fall back to the request origin or a global
+    // APP_URL in production.
     expect(textBody).not.toContain("evil-origin.example.com");
     expect(htmlBody).not.toContain("evil-origin.example.com");
+    expect(textBody).not.toContain("canonical.example.com");
+    expect(htmlBody).not.toContain("canonical.example.com");
   });
 
-  it("does NOT write a reset token to DB when APP_URL is missing", async () => {
+  it("still issues a reset link in production when APP_URL is missing (uses site.domain)", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_URL", "");
     delete process.env.APP_URL;
 
     const res = await POST(makeRequest({ email: "admin@test.com" }));
 
     expect(res.status).toBe(200);
-    // The Supabase update should never have been called
-    expect(mockUpdate).not.toHaveBeenCalled();
-    // captureException should have been called for the missing APP_URL
-    expect(mockedCaptureException).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "APP_URL environment variable is not configured" }),
-      expect.any(Object),
-    );
+    // DB write should still happen — we no longer require APP_URL because
+    // the tenant's site domain is the canonical source for reset links.
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    // No captureException should have fired for a missing APP_URL.
+    expect(mockedCaptureException).not.toHaveBeenCalled();
+    // Link still uses the tenant's site domain.
+    const textBody = capturedResendBody!.text as string;
+    expect(textBody).toContain("https://test.example.com/admin/reset-password?token=");
   });
 
   it("returns 200 for unknown email (enumeration protection)", async () => {
