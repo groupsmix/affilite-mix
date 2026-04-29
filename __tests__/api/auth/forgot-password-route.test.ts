@@ -35,10 +35,14 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(),
 }));
 
+import { getCurrentSite } from "@/lib/site-context";
+
 vi.mock("@/lib/site-context", () => ({
   getCurrentSite: vi.fn().mockResolvedValue({
     name: "Test Site",
     domain: "test.example.com",
+    language: "en",
+    direction: "ltr",
   }),
 }));
 
@@ -55,6 +59,7 @@ import { hashResetToken } from "@/lib/reset-token";
 const mockedGetAdminUserByEmail = vi.mocked(getAdminUserByEmail);
 const mockedCheckRateLimit = vi.mocked(checkRateLimit);
 const mockedCaptureException = vi.mocked(captureException);
+const mockedGetCurrentSite = vi.mocked(getCurrentSite);
 
 function makeRequest(body: Record<string, unknown>): Request {
   return new Request("https://evil-origin.example.com/api/auth/forgot-password", {
@@ -197,6 +202,32 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     expect(capturedResendBody!.to).toEqual(["admin@test.com"]);
     expect(capturedResendBody!.subject).toBe("Password Reset Request");
     expect(capturedResendBody!.from).toContain("test.example.com");
+  });
+
+  it("sends an Arabic, RTL-marked email when the active site is Arabic-language (G-24)", async () => {
+    mockedGetCurrentSite.mockResolvedValueOnce({
+      name: "موقع تجريبي",
+      domain: "ar.example.com",
+      language: "ar",
+      direction: "rtl",
+      // Cast: the route only reads name/domain/language/direction; other
+      // SiteDefinition fields are not required for this test.
+    } as any);
+
+    const res = await POST(makeRequest({ email: "admin@test.com" }));
+
+    expect(res.status).toBe(200);
+    expect(capturedResendBody).not.toBeNull();
+    expect(capturedResendBody!.subject).toBe("طلب إعادة تعيين كلمة المرور");
+    const html = capturedResendBody!.html as string;
+    const text = capturedResendBody!.text as string;
+    // RTL markup is on both the html element and the body wrapper.
+    expect(html).toContain('<html lang="ar" dir="rtl">');
+    expect(html).toContain("إعادة تعيين كلمة المرور");
+    // English copy must not leak into the Arabic email.
+    expect(html).not.toContain("Reset your password");
+    expect(html).not.toContain(">Reset Password</a>");
+    expect(text).toContain("لقد طلبتَ إعادة تعيين كلمة المرور");
   });
 
   it("persists only the SHA-256 hash of the reset token, not the raw value", async () => {
