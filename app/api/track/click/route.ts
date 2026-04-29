@@ -10,7 +10,17 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";
 import { signInternalRequest, computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 
-/** 60 click-tracking requests per minute per IP */
+/**
+ * 60 click-tracking requests per minute per IP.
+ *
+ * G-17 (Apr 2026 audit): failPolicy was previously "open" — when KV was
+ * unavailable we would silently skip rate limiting, letting an attacker
+ * poison attribution by looping a single browser through the endpoint
+ * thousands of times. We now use "grace", which falls back to the
+ * in-memory limiter for KV_GRACE_MS before giving up. This keeps
+ * request-time overhead identical for healthy KV while closing the
+ * attribution-poisoning window during KV outages.
+ */
 const CLICK_RATE_LIMIT = {
   maxRequests: 60,
   windowMs: 60 * 1000,

@@ -3,10 +3,10 @@ import { withAuthz } from "@/lib/authz";
 import { createProduct, bulkCreateProducts } from "@/lib/dal/products";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { validateAdminUrl } from "@/lib/admin-url-guard";
 
 /** POST /api/admin/products/import — bulk import products from CSV */
 export const POST = withAuthz("products", "create", async (request, { session, siteId }) => {
-
   // Audit U-7: bound the request body and the row count so an admin
   // (or an XSS-against-admin) can't OOM the worker by uploading a 1 GB
   // CSV. The Worker request limit is 100 MB, but our use case is well
@@ -94,12 +94,15 @@ export const POST = withAuthz("products", "create", async (request, { session, s
         fieldErrors.push("slug must be lowercase alphanumeric with hyphens (e.g. my-product)");
       }
 
-      if (row.affiliate_url && !/^https?:\/\/.+/.test(row.affiliate_url)) {
-        fieldErrors.push("affiliate_url must be a valid HTTP(S) URL");
+      // G-01: full SSRF-aware URL validation (https only, no literal
+      // private / metadata IPs, no wildcard DNS).
+      if (row.affiliate_url) {
+        const r = validateAdminUrl(row.affiliate_url);
+        if (!r.valid) fieldErrors.push(`affiliate_url: ${r.error}`);
       }
-
-      if (row.image_url && !/^https?:\/\/.+/.test(row.image_url)) {
-        fieldErrors.push("image_url must be a valid HTTP(S) URL");
+      if (row.image_url) {
+        const r = validateAdminUrl(row.image_url);
+        if (!r.valid) fieldErrors.push(`image_url: ${r.error}`);
       }
 
       const parsedPriceAmount = row.price_amount ? parseFloat(row.price_amount) : null;

@@ -350,17 +350,17 @@ describe("Audit-3 regression locks", () => {
     });
   });
 
-  // ── F-013 — img-src CSP narrowed in static fallback ──────────────────
-  describe("F-013 narrow image CSP", () => {
+  // ── F-013 / G-27 — static CSP fallback dropped ────────────────────
+  describe("F-013 / G-27 — no static CSP fallback", () => {
     const cfg = read("next.config.ts");
-    it("static CSP fallback img-src does not allow `https:` wildcard", () => {
-      // Find the img-src line in the static CSP literal.
-      const m = cfg.match(/"img-src[^"]+"/);
-      expect(m).toBeTruthy();
-      const imgSrc = m![0];
-      // Must not contain the bare `https:` token (whitespace-bounded)
-      // which would re-allow any HTTPS image host.
-      expect(imgSrc).not.toMatch(/\shttps:\s/);
+    it("next.config.ts no longer emits a Content-Security-Policy header", () => {
+      // G-27 (Apr 2026 audit): the static CSP fallback was dropped in
+      // favour of the per-request nonced policy from middleware.ts.
+      // The previous test was F-013 which asserted the static fallback
+      // did not allow `https:` wildcard; that fallback no longer
+      // exists, so we instead assert it cannot silently come back.
+      expect(cfg).not.toMatch(/"Content-Security-Policy"/);
+      expect(cfg).toMatch(/G-27/);
     });
   });
 

@@ -10,6 +10,15 @@
  * `'unsafe-inline'` which we keep as a CSP Level-2 fallback; CSP Level-3
  * browsers ignore `'unsafe-inline'` whenever a nonce or hash source is
  * present, so strict enforcement kicks in automatically.
+ *
+ * G-03 / G-04 (Apr 2026 audit): previously we allowed `https://*.supabase.co`
+ * and `https://*.r2.dev` — wildcards that would have let an attacker who
+ * compromised any other Supabase project or any other R2 bucket inject
+ * content into our pages. We now derive the exact Supabase subdomain from
+ * `NEXT_PUBLIC_SUPABASE_URL` and the exact R2 public host from
+ * `R2_PUBLIC_URL`. The old wildcards remain only as a fallback when those
+ * env vars are missing (dev + test); production always resolves to exact
+ * origins because both env vars are set via `wrangler secret`.
  */
 
 /**
@@ -28,6 +37,36 @@ export function generateCspNonce(): string {
   return btoa(binary);
 }
 
+function hostnameFromEnv(name: string): string | null {
+  const raw = process.env[name];
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compute the exact allowed CSP origins for Supabase and R2 based on
+ * env vars. Exported so `next.config.ts` and tests can use the same
+ * resolution logic. Falls back to the historical wildcards when the
+ * env var is missing so dev / preview / test do not break; production
+ * always resolves to exact origins because both env vars are set via
+ * `wrangler secret` and checked in deploy.yml.
+ */
+export function getCspExternalHosts(): {
+  supabase: string;
+  r2: string;
+} {
+  const supabaseHost = hostnameFromEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const r2Host = hostnameFromEnv("R2_PUBLIC_URL");
+  return {
+    supabase: supabaseHost ? `https://${supabaseHost}` : "https://*.supabase.co",
+    r2: r2Host ? `https://${r2Host}` : "https://*.r2.dev https://*.r2.cloudflarestorage.com",
+  };
+}
+
 /**
  * Build the Content-Security-Policy header value, embedding the given nonce
  * into `script-src` and `style-src`.
@@ -37,6 +76,7 @@ export function generateCspNonce(): string {
  * browser actually enforces the policy).
  */
 export function buildCspHeader(nonce: string): string {
+  const { supabase, r2 } = getCspExternalHosts();
   const directives: string[] = [
     "default-src 'self'",
     // A-011: Drop unsafe-inline from CSP. All inline scripts now carry the
@@ -48,8 +88,8 @@ export function buildCspHeader(nonce: string): string {
     // ThemeProvider inline `<style>` tags carry the per-request nonce.
     `style-src 'self' 'nonce-${nonce}'`,
     "font-src 'self'",
-    "img-src 'self' data: blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.supabase.co https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com",
-    "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://*.ingest.sentry.io",
+    `img-src 'self' data: blob: ${r2} ${supabase} https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com`,
+    `connect-src 'self' ${supabase} https://challenges.cloudflare.com https://*.ingest.sentry.io`,
     "frame-src https://challenges.cloudflare.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",

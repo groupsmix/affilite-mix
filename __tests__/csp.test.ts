@@ -50,7 +50,13 @@ describe("buildCspHeader", () => {
 
   it("preserves previously configured third-party sources", () => {
     expect(header).toContain("https://challenges.cloudflare.com");
-    expect(header).toContain("https://*.supabase.co");
+    // G-03 (Apr 2026 audit): the Supabase source is now an exact
+    // hostname derived from NEXT_PUBLIC_SUPABASE_URL rather than the
+    // `*.supabase.co` wildcard. Tests don't set that env var by
+    // default, so the build falls back to a placeholder host — we
+    // just assert the Supabase project host appears somewhere in the
+    // connect-src directive.
+    expect(header).toMatch(/connect-src[^;]*supabase/);
     expect(header).toContain("https://*.ingest.sentry.io");
   });
 

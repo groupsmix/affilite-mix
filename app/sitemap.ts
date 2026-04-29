@@ -5,18 +5,127 @@ import { listCategories } from "@/lib/dal/categories";
 import { listPublishedPages } from "@/lib/dal/pages";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 
 const MAX_CONTENT_URLS = 5_000;
 
+/**
+ * KV key used to persist the last-good sitemap per site domain so the
+ * route can fail-open when the DB is unavailable. We serialize dates
+ * back to ISO strings when reading the cache, then revive them on
+ * parse (MetadataRoute.Sitemap accepts ISO strings transparently).
+ */
+const LAST_GOOD_TTL_SECONDS = 24 * 60 * 60; // 24h
+
+function lastGoodKey(siteDomain: string): string {
+  return `sitemap:last-good:${siteDomain}`;
+}
+
+function getKv(): KVNamespace | null {
+  try {
+    const kv = (process.env as unknown as { APP_CACHE_KV?: KVNamespace }).APP_CACHE_KV;
+    return kv ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function readLastGoodSitemap(siteDomain: string): Promise<MetadataRoute.Sitemap | null> {
+  const kv = getKv();
+  if (!kv) return null;
+  try {
+    const raw = await kv.get(lastGoodKey(siteDomain), "text");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed as MetadataRoute.Sitemap;
+  } catch (err) {
+    logger.warn("Sitemap: failed to read last-good cache", {
+      domain: siteDomain,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+async function writeLastGoodSitemap(
+  siteDomain: string,
+  sitemap: MetadataRoute.Sitemap,
+): Promise<void> {
+  const kv = getKv();
+  if (!kv) return;
+  // Only cache non-trivial responses; caching an empty array would
+  // defeat the fail-open guarantee on the next request.
+  if (sitemap.length === 0) return;
+  try {
+    await kv.put(lastGoodKey(siteDomain), JSON.stringify(sitemap), {
+      expirationTtl: LAST_GOOD_TTL_SECONDS,
+    });
+  } catch (err) {
+    logger.warn("Sitemap: failed to write last-good cache", {
+      domain: siteDomain,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * Build a minimal "static-only" sitemap from the site config. Used as
+ * the last-resort fallback when:
+ *   1. Getting the site context succeeds but
+ *   2. The DB is unavailable AND
+ *   3. No last-good cache is present.
+ * Even in that case we still return at least the static marketing
+ * pages rather than an empty `<urlset>` — the audit (G-07) explicitly
+ * forbids returning an empty sitemap because it tells search engines
+ * every URL has been removed, which destroys organic traffic.
+ */
+function staticFallback(site: {
+  domain: string;
+  seo: { sitemapStaticPages: Array<{ path: string; changeFrequency: string; priority: number }> };
+}): MetadataRoute.Sitemap {
+  const baseUrl = `https://${site.domain}`;
+  const now = new Date();
+  return site.seo.sitemapStaticPages.map((page) => ({
+    url: `${baseUrl}${page.path}`,
+    lastModified: now,
+    changeFrequency: page.changeFrequency as MetadataRoute.Sitemap[number]["changeFrequency"],
+    priority: page.priority,
+  }));
+}
+
+/**
+ * G-07: sitemap fail-open.
+ *
+ * The previous implementation returned `[]` whenever `getCurrentSite()`
+ * threw. Next.js serialises an empty sitemap array to
+ * `<urlset xmlns="..."></urlset>` which search engines treat as a
+ * deliberate "remove every URL" instruction. Under a sustained DB
+ * outage that would deindex the site.
+ *
+ * The new behaviour:
+ *   1. Try to build the full sitemap (static + dynamic entries).
+ *      Cache the result in KV under `sitemap:last-good:<domain>`.
+ *   2. If the dynamic fetch fails, return static pages + the last-
+ *      good cached dynamic entries (if available). Never return [].
+ *   3. If `getCurrentSite()` itself fails (no site context), throw so
+ *      Next.js emits a 5xx instead of a soft-200 empty sitemap —
+ *      Googlebot retries 5xx after a short delay; empty sitemaps are
+ *      believed immediately.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let site;
+  let site: Awaited<ReturnType<typeof getCurrentSite>>;
   try {
     site = await getCurrentSite();
   } catch (err) {
-    logger.warn("Sitemap: failed to resolve site, returning empty sitemap", {
+    // G-07: never return an empty sitemap. Surface the failure as an
+    // exception so Next.js serves a 5xx (retryable) instead of a
+    // valid-but-empty `<urlset>` (deindex signal).
+    logger.error("Sitemap: getCurrentSite() failed, forcing 5xx", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return [];
+    captureException(err, { context: "sitemap.getCurrentSite" });
+    throw err;
   }
 
   const baseUrl = `https://${site.domain}`;
@@ -29,6 +138,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   let dynamicEntries: MetadataRoute.Sitemap = [];
+  let dynamicFetchSucceeded = false;
 
   if (!shouldSkipDbCall()) {
     try {
@@ -65,12 +175,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
 
       dynamicEntries = [...contentEntries, ...categoryEntries, ...pageEntries];
+      dynamicFetchSucceeded = true;
     } catch (err) {
-      logger.warn("Sitemap: failed to fetch dynamic entries, returning static pages only", {
+      logger.error("Sitemap: dynamic entries fetch failed, falling back to last-good", {
+        domain: site.domain,
         error: err instanceof Error ? err.message : String(err),
       });
+      captureException(err, { context: "sitemap.dynamicEntries" });
     }
   }
 
-  return [...staticEntries, ...dynamicEntries];
+  const result = [...staticEntries, ...dynamicEntries];
+
+  if (dynamicFetchSucceeded) {
+    // Fresh data — refresh the cache so the next outage has
+    // something recent to fall back on.
+    await writeLastGoodSitemap(site.domain, result);
+    return result;
+  }
+
+  // Dynamic fetch failed (or was skipped). Try the last-good cache.
+  const cached = await readLastGoodSitemap(site.domain);
+  if (cached && cached.length > 0) {
+    logger.warn("Sitemap: serving last-good cached entries", {
+      domain: site.domain,
+      cachedCount: cached.length,
+    });
+    return cached;
+  }
+
+  // No cache available — return at least the static entries. This is
+  // the last-resort fallback; it is intentionally non-empty even if
+  // the DB has never been reachable from this isolate.
+  if (result.length > 0) return result;
+  return staticFallback(site);
 }
