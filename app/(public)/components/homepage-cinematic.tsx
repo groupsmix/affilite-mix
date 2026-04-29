@@ -194,13 +194,17 @@ export function CinematicHomepage({
               </h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredProducts.map((product, i) => (
+              {featuredProducts.map((product) => (
+                // G-48: the hero above is a 90vh text + gradient section
+                // with no image, so featured product cards sit well
+                // below the fold and are never the LCP. Keep them
+                // lazy-loaded to avoid wasting bytes on boot.
                 <ProductCard
                   key={product.id}
                   product={product}
                   sourceType="homepage"
                   ctaLabel={ctaLabel}
-                  priority={i === 0}
+                  priority={false}
                 />
               ))}
             </div>
@@ -228,13 +232,10 @@ export function CinematicHomepage({
               </Link>
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {recentContent.map((content, i) => (
-                <ContentCard
-                  key={content.id}
-                  content={content}
-                  locale={locale}
-                  priority={i === 0}
-                />
+              {recentContent.map((content) => (
+                // G-48: this section renders after the featured-products
+                // grid, far below the fold. Never an LCP candidate.
+                <ContentCard key={content.id} content={content} locale={locale} priority={false} />
               ))}
             </div>
           </div>

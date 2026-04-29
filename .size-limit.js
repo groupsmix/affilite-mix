@@ -26,6 +26,12 @@
 // `chunks/app/(public)/...`. The literal parens are special in
 // micromatch and must be backslash-escaped in JS string form, hence
 // the doubled backslashes below.
+//
+// A final "Other app routes" bucket uses a negated extglob so any
+// chunks that don't land under `(public)/` or `admin/` (e.g. a future
+// `(marketing)/` route group, or the existing `api/` and `r/` trees)
+// still face a budget. Without it, new route groups would silently
+// escape every named bucket and consume bytes against no ceiling.
 module.exports = [
   {
     name: "Public app routes",
@@ -43,6 +49,12 @@ module.exports = [
     name: "Shared chunks (framework, vendor, polyfills)",
     path: [".next/static/chunks/*.js", ".next/static/chunks/app/*.js"],
     limit: "850 kB",
+    running: false,
+  },
+  {
+    name: "Other app routes (drift catch-all)",
+    path: ".next/static/chunks/app/!(\\(public\\)|admin)/**/*.js",
+    limit: "100 kB",
     running: false,
   },
   {

@@ -25,6 +25,8 @@ env:
   # Sentry project, but the variable must be non-empty for `next start`
   # to finish booting; an obviously-fake DSN keeps the audit local.
   SENTRY_DSN: https://placeholder@placeholder.ingest.sentry.io/0
+  SUPABASE_JWT_SECRET: ci-test-supabase-jwt-secret
+  APP_URL: http://localhost:3000
 
 jobs:
   lighthouse:
