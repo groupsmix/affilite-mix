@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   // F-API-06: Add Origin check as defence-in-depth against CSRF, even though
   // SameSite=Strict is also enforced by the browser.
-  if (!isOriginAllowed(request)) {
+  if (!isOriginAllowed(request.headers.get("origin"), request.headers.get("host"), request.headers.get("x-site-id"))) {
     return NextResponse.json({ error: "Forbidden: cross-origin request" }, { status: 403 });
   }
 
