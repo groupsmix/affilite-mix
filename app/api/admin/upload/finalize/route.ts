@@ -3,7 +3,13 @@ import { withAuthz } from "@/lib/authz";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
-import { deleteStagingObject, fetchStagingBytes, promoteToPublicBucket } from "@/lib/r2";
+import {
+  deleteStagingObject,
+  fetchStagingBytes,
+  headStagingObject,
+  promoteToPublicBucket,
+} from "@/lib/r2";
+import { recordUsage } from "@/lib/quotas";
 import { logger } from "@/lib/logger";
 
 /**
@@ -25,7 +31,6 @@ import { logger } from "@/lib/logger";
  *     the audit log fired before the upload completed (#U-9).
  */
 export const POST = withAuthz("upload", "create", async (request, { session, siteId }) => {
-
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;
 
@@ -49,6 +54,16 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
   try {
     const bytes = await fetchStagingBytes(stagingKey, 32);
     if (!isMagicByteMatch(expectedType, bytes)) {
+      // Reconcile the per-tenant `r2_storage_bytes` counter (G-42) BEFORE
+      // we delete the staging object: presign pessimistically charged the
+      // tenant for these bytes, but the upload failed validation and
+      // never reaches the public bucket — so credit the bytes back.
+      // HEAD failures are non-fatal: skip the credit rather than guess.
+      const size = await headStagingObject(stagingKey).catch(() => null);
+      if (size !== null && size > 0 && siteId) {
+        await recordUsage(siteId, "r2_storage_bytes", -size);
+      }
+
       // Delete the bad upload before returning so it can never become
       // visible — even if the admin UI never retries.
       await deleteStagingObject(stagingKey).catch((err) => {

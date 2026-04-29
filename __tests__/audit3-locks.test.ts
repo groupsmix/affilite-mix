@@ -342,21 +342,48 @@ describe("Audit-3 regression locks", () => {
     // pin the helper's source location and its parameter name.
     const allowedOrigins = read("lib/security/allowed-origins.ts");
 
-    it("getAllowedOrigins lives in lib/security and takes a verifiedHostname param", () => {
+    it("getAllowedOrigins lives in lib/security and takes a VerifiedSiteRef param (G-33)", () => {
+      // G-33: signature must REQUIRE a verified site reference (not a raw
+      // hostname) so an unverified `Host` header cannot extend the
+      // allow-list. The lock pins both the parameter shape and the
+      // import path in middleware.
       expect(allowedOrigins).toMatch(
-        /export function getAllowedOrigins\(verifiedHostname\?\: string\)/,
+        /export function getAllowedOrigins\(verifiedSite\?\: VerifiedSiteRef \| null\)/,
       );
-      expect(mw).toMatch(/import \{ getAllowedOrigins \} from "@\/lib\/security\/allowed-origins"/);
+      expect(allowedOrigins).toMatch(
+        /export interface VerifiedSiteRef \{[\s\S]*?slug: string;[\s\S]*?domain: string;/,
+      );
+      expect(mw).toMatch(
+        /import \{ getAllowedOrigins, type VerifiedSiteRef \} from "@\/lib\/security\/allowed-origins"/,
+      );
     });
 
-    it("OPTIONS preflight only trusts hostnames in static config", () => {
-      // The preflight branch must guard the host with `getSiteByDomain`.
+    it("OPTIONS preflight only trusts hostnames in static config (G-33)", () => {
+      // The preflight branch must guard the host with `getSiteByDomain`
+      // and pass a `VerifiedSiteRef` (not a raw hostname) into
+      // `getAllowedOrigins`. DB-managed custom domains have not been
+      // resolved yet at preflight time, so they cannot be trusted.
       const optionsBlock = mw.match(
         /request\.method === "OPTIONS"[\s\S]*?getAllowedOrigins\([^)]+\)/,
       );
       expect(optionsBlock).toBeTruthy();
       expect(optionsBlock![0]).toMatch(/getSiteByDomain\(hostname\)/);
-      expect(optionsBlock![0]).toMatch(/isStaticConfigured\s*\?\s*hostname\s*:\s*undefined/);
+      // No raw hostname is passed to getAllowedOrigins at preflight.
+      expect(optionsBlock![0]).not.toMatch(/getAllowedOrigins\(\s*hostname\s*\)/);
+      expect(optionsBlock![0]).toMatch(/getAllowedOrigins\(\s*preflightVerifiedSite\s*\)/);
+    });
+
+    it("CSRF / response CORS branches pass the verified site, never raw hostname (G-33)", () => {
+      // None of the call sites in middleware should pass a bare
+      // `hostname` argument to `getAllowedOrigins` — only the typed
+      // `verifiedSite` reference built from a static-config or DB-row
+      // lookup is acceptable.
+      expect(mw).not.toMatch(/getAllowedOrigins\(\s*hostname\s*\)/);
+      const calls = mw.match(/getAllowedOrigins\([^)]*\)/g) ?? [];
+      expect(calls.length).toBeGreaterThan(0);
+      for (const call of calls) {
+        expect(call).toMatch(/(verifiedSite|preflightVerifiedSite)/);
+      }
     });
   });
 

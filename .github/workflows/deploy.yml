@@ -405,6 +405,92 @@ jobs:
 
           echo "Database reset smoke test PASSED"
 
+      # ── G-31: Staging Worker integration smoke (validate runtime drift) ──
+      #
+      # The DB smoke above only validates that migrations apply cleanly
+      # against staging Postgres. It does not catch runtime drift in the
+      # OpenNext + Cloudflare Workers bundling pipeline — e.g. a bumped
+      # compatibility_date that no longer accepts a flag, an OpenNext
+      # transform that rejects a new Next.js feature, a missing binding
+      # in wrangler.jsonc, or a worker bundle that exceeds the size
+      # limit. Those failures only surface during the production
+      # `wrangler deploy` step, where a rollback is far more expensive.
+      #
+      # This step exercises the full bundle-and-validate path against a
+      # staging-shaped wrangler config so any runtime drift fails fast,
+      # before the migrate-production stage touches the production DB.
+      # `wrangler deploy --dry-run` performs all server-side validation
+      # (account, bindings, compatibility flags) without uploading the
+      # bundle, so it is safe to run on every push without affecting
+      # any live Worker.
+      - name: Staging Worker integration smoke (opennextjs-cloudflare build + wrangler dry-run)
+        if: github.ref == 'refs/heads/main'
+        env:
+          # Use staging Supabase values when available so the build does
+          # not bake production URLs/keys into a smoke artefact. Falls
+          # back to the production NEXT_PUBLIC_* (which are public anyway)
+          # if staging isn't configured yet, so this step does not block
+          # repos that haven't provisioned staging infra.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_DEFAULT_SITE: ${{ secrets.NEXT_PUBLIC_DEFAULT_SITE }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIEW_WORKER_NAME: affilite-mix-staging-smoke
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::Staging Worker smoke requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to be set."
+            echo "::error::wrangler dry-run still talks to the Cloudflare API to validate bindings and the account."
+            exit 1
+          fi
+
+          echo "── Generating staging-scoped wrangler config ──"
+          # Reuse the preview wrangler generator: it strips production-only
+          # bits (routes, custom_domains, triggers.crons, self-reference
+          # service binding) so the dry-run is portable to a staging
+          # worker name and does not collide with the live worker's
+          # routes.
+          node scripts/generate-preview-wrangler.cjs
+
+          echo "── Inlining placeholder KV namespace ids for dry-run validation ──"
+          # The committed wrangler.jsonc leaves KV namespace ids empty so
+          # each environment can inject its own; the deploy job calls
+          # `npx wrangler kv namespace create` to populate them. The
+          # smoke does not need real namespaces — we just need the
+          # config to parse and pass schema validation. Substitute a
+          # documented dummy id (32 hex chars) so wrangler accepts it.
+          DUMMY_KV_ID="00000000000000000000000000000000"
+          node -e "
+            const fs = require('fs');
+            const cfg = JSON.parse(fs.readFileSync('wrangler.preview.json', 'utf8'));
+            for (const ns of cfg.kv_namespaces || []) {
+              if (!ns.id || ns.id.trim() === '') ns.id = '${DUMMY_KV_ID}';
+            }
+            fs.writeFileSync('wrangler.preview.json', JSON.stringify(cfg, null, 2));
+          "
+
+          echo "── Building OpenNext bundle for staging smoke ──"
+          npx @opennextjs/cloudflare build --config wrangler.preview.json
+
+          echo "── Validating Worker bundle via wrangler deploy --dry-run ──"
+          # --dry-run performs server-side validation (account, bindings,
+          # compatibility flags, bundle size) but does not upload the
+          # Worker. Output is written to /tmp/staging-smoke so the
+          # generated bundle can be inspected from the runner logs on
+          # failure. Tail consumers are not required for dry-run; the
+          # production rollout reattaches them after the live Tail
+          # Worker is provisioned.
+          npx --yes wrangler@${WRANGLER_VERSION} deploy \
+            --dry-run \
+            --outdir /tmp/staging-smoke \
+            --config wrangler.preview.json
+
+          echo "Staging Worker integration smoke PASSED"
+
   # ═══════════════════════════════════════════════════════════════════
   # STAGE 2: Snapshot production DB + apply migrations
   # ═══════════════════════════════════════════════════════════════════

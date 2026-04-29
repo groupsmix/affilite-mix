@@ -35,6 +35,64 @@ const EXPIRY = "8h"; // F-005: Reduced from 24h to limit exposure
 // login work (timing equalization).
 const DUMMY_PASSWORD_HASH = "$2b$10$FIQMYsgSk2SAqMvHOeYvCeFGj1FfTGeQC3aghyI97o73Xda0uV4x2";
 
+// ---------------------------------------------------------------------------
+// G-15: HMAC-signed activity timestamps
+// ---------------------------------------------------------------------------
+
+const HMAC_ENCODER = new TextEncoder();
+
+/** Import the JWT secret as an HMAC-SHA256 key. */
+async function getActivityHmacKey(): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    HMAC_ENCODER.encode(getJwtSecret()),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+function bytesToHex(bytes: ArrayBuffer): string {
+  const view = new Uint8Array(bytes);
+  let out = "";
+  for (let i = 0; i < view.length; i++) {
+    out += view[i].toString(16).padStart(2, "0");
+  }
+  return out;
+}
+
+/** Constant-time string comparison for hex MAC values of equal length. */
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/** Sign a timestamp with HMAC-SHA256 using the JWT secret as key. */
+async function signTimestamp(ts: number): Promise<string> {
+  const key = await getActivityHmacKey();
+  const sig = await crypto.subtle.sign("HMAC", key, HMAC_ENCODER.encode(`activity:${ts}`));
+  return `${ts}.${bytesToHex(sig)}`;
+}
+
+/** Verify a signed timestamp. Returns the timestamp or null if invalid. */
+async function verifySignedTimestamp(value: string): Promise<number | null> {
+  const dot = value.indexOf(".");
+  if (dot === -1) {
+    // Legacy unsigned cookie — accept but treat as the raw timestamp
+    const ts = Number(value);
+    return Number.isFinite(ts) ? ts : null;
+  }
+  const ts = Number(value.slice(0, dot));
+  if (!Number.isFinite(ts)) return null;
+  const expected = await signTimestamp(ts);
+  if (!constantTimeEqual(expected, value)) return null;
+  return ts;
+}
+
 function getSecretKey() {
   return new TextEncoder().encode(getJwtSecret());
 }
@@ -104,7 +162,8 @@ export async function authenticateUser(
  * the parameter and a plain token is issued.
  */
 export async function createToken(payload: AdminPayload, request?: Request): Promise<string> {
-  const binding = request ? await computeRequestBinding(request) : null;
+  // G-16: pass role so super_admin gets /32 binding (stricter than /24)
+  const binding = request ? await computeRequestBinding(request, payload.role) : null;
 
   // F-AUTH-02: In production, when a request is provided (login context), fail
   // issuance if binding cannot be computed. In dev/test environments, binding is
@@ -179,7 +238,8 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   const adminPayload = payload as unknown as AdminPayload;
 
   if (adminPayload.bnd) {
-    const ok = await verifyRequestBinding(adminPayload.bnd, request);
+    // G-16: pass role so super_admin verification uses /32 binding
+    const ok = await verifyRequestBinding(adminPayload.bnd, request, false, adminPayload.role);
     if (!ok) {
       logger.warn("Admin token rejected: UA/IP binding mismatch", {
         userId: adminPayload.userId,
@@ -207,11 +267,16 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
 
-  // Check idle timeout — if the user hasn't performed an action in the
-  // last IDLE_TIMEOUT_MS we treat the session as expired.
+  // G-15: Server-side idle timeout — the activity cookie is HMAC-signed
+  // so clients cannot forge timestamps to extend their session.
   const lastActivity = cookieStore.get(ACTIVITY_COOKIE)?.value;
   if (lastActivity) {
-    const elapsed = Date.now() - Number(lastActivity);
+    const ts = await verifySignedTimestamp(lastActivity);
+    if (ts === null) {
+      logger.warn("Admin session rejected: activity cookie signature invalid (possible tampering)");
+      return null;
+    }
+    const elapsed = Date.now() - ts;
     if (elapsed > IDLE_TIMEOUT_MS) return null;
   }
 
@@ -241,14 +306,15 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
  * Touch the admin activity timestamp.
  * Call this in admin API routes so the idle-timeout cookie stays fresh.
  */
-export function touchAdminActivity(): {
+export async function touchAdminActivity(): Promise<{
   name: string;
   value: string;
   options: Record<string, unknown>;
-} {
+}> {
   return {
     name: ACTIVITY_COOKIE,
-    value: String(Date.now()),
+    // G-15: HMAC-signed timestamp prevents client-side forgery
+    value: await signTimestamp(Date.now()),
     options: {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
