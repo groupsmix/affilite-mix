@@ -23,7 +23,13 @@ name: affilite-mix-supabase
 
 services:
   db:
-    image: supabase/postgres:15.1.1.78
+    # G-CI-03 / audit S-14: track production's Postgres major (17). The
+    # exact prod minor is 17.6.1.084 (per management API); the local
+    # docker-compose intentionally floats to the latest 17.x patch tag
+    # `supabase/postgres:17` so contributors don't have to bump this
+    # file every time Supabase ships a security release. When the
+    # prod minor changes, document the diff in `docs/local-supabase.md`.
+    image: supabase/postgres:17
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
