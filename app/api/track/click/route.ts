@@ -34,6 +34,17 @@ const CLICK_RATE_LIMIT = {
  */
 async function handleClick(request: NextRequest) {
   try {
+    // P0-3: In production, hard-fail EARLY if INTERNAL_API_TOKEN is missing.
+    // Without it, HMAC signing cannot work and cached payloads would be
+    // unsigned -- a cache poisoning vector. This check MUST run before any
+    // cache reads or HMAC operations.
+    if (process.env.NODE_ENV === "production" && !process.env.INTERNAL_API_TOKEN) {
+      captureException(new Error("INTERNAL_API_TOKEN missing in production click route"), {
+        context: "[api/track/click] missing signing secret",
+      });
+      return apiError(503, "Service temporarily unavailable");
+    }
+
     const ip = getClientIp(request);
     const rl = await checkRateLimit(`click:${ip}`, CLICK_RATE_LIMIT);
     if (!rl.allowed) {
@@ -148,16 +159,6 @@ async function handleClick(request: NextRequest) {
     }
 
     const destinationUrl = cachedData.url;
-
-    // P0-3: In production, hard-fail if INTERNAL_API_TOKEN is missing.
-    // Without it, HMAC signing cannot work and cached payloads would be
-    // unsigned — a cache poisoning vector.
-    if (process.env.NODE_ENV === "production" && !process.env.INTERNAL_API_TOKEN) {
-      captureException(new Error("INTERNAL_API_TOKEN missing in production click route"), {
-        context: "[api/track/click] missing signing secret",
-      });
-      return apiError(503, "Service temporarily unavailable");
-    }
 
     // F-029: Scheme validation to prevent javascript:/data: SSRF/XSS vectors
     const allowedSchemes = ["http:", "https:"];
