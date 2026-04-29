@@ -23,6 +23,11 @@ permissions:
 jobs:
   sbom:
     runs-on: ubuntu-latest
+    env:
+      SBOM_R2_ACCOUNT_ID: ${{ secrets.SBOM_R2_ACCOUNT_ID }}
+      SBOM_R2_BUCKET: ${{ secrets.SBOM_R2_BUCKET }}
+      SBOM_R2_ACCESS_KEY_ID: ${{ secrets.SBOM_R2_ACCESS_KEY_ID }}
+      SBOM_R2_SECRET_ACCESS_KEY: ${{ secrets.SBOM_R2_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -85,10 +90,6 @@ jobs:
       - name: Archive SBOMs to R2 (long-term retention)
         if: ${{ env.SBOM_R2_ACCESS_KEY_ID != '' && env.SBOM_R2_SECRET_ACCESS_KEY != '' && env.SBOM_R2_ACCOUNT_ID != '' && env.SBOM_R2_BUCKET != '' }}
         env:
-          SBOM_R2_ACCOUNT_ID: ${{ secrets.SBOM_R2_ACCOUNT_ID }}
-          SBOM_R2_BUCKET: ${{ secrets.SBOM_R2_BUCKET }}
-          SBOM_R2_ACCESS_KEY_ID: ${{ secrets.SBOM_R2_ACCESS_KEY_ID }}
-          SBOM_R2_SECRET_ACCESS_KEY: ${{ secrets.SBOM_R2_SECRET_ACCESS_KEY }}
           AWS_ACCESS_KEY_ID: ${{ secrets.SBOM_R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.SBOM_R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
@@ -125,11 +126,6 @@ jobs:
 
       - name: Warn when R2 archive secrets are missing
         if: ${{ env.SBOM_R2_ACCESS_KEY_ID == '' || env.SBOM_R2_SECRET_ACCESS_KEY == '' || env.SBOM_R2_ACCOUNT_ID == '' || env.SBOM_R2_BUCKET == '' }}
-        env:
-          SBOM_R2_ACCOUNT_ID: ${{ secrets.SBOM_R2_ACCOUNT_ID }}
-          SBOM_R2_BUCKET: ${{ secrets.SBOM_R2_BUCKET }}
-          SBOM_R2_ACCESS_KEY_ID: ${{ secrets.SBOM_R2_ACCESS_KEY_ID }}
-          SBOM_R2_SECRET_ACCESS_KEY: ${{ secrets.SBOM_R2_SECRET_ACCESS_KEY }}
         run: |
           echo "::warning title=SBOM long-term retention disabled::SBOM_R2_* secrets not configured; this run is only retained for 400 days via actions/upload-artifact. Configure long-term R2 storage per docs/sbom-retention.md to satisfy G-41."
 
