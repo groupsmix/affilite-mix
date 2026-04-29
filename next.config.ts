@@ -34,15 +34,12 @@ const nextConfig: NextConfig = {
       ...(supabaseHostname ? [{ protocol: "https" as const, hostname: supabaseHostname }] : []),
       // Site domains (for OG images, etc.) — derived from config/sites/
       ...allSites.map((site) => ({ protocol: "https" as const, hostname: site.domain })),
-      // Common affiliate product image CDNs.
-      // P2-1 / G-48: Transitional third-party image CDNs.
-      // TODO(P2-1): Remove these once the R2 image migration is complete
-      // and all product image_url rows point at the R2 public bucket.
-      // Track progress in the R2 ingest migration ticket.
-      { protocol: "https", hostname: "images.unsplash.com" }, // TODO: migrate to R2
-      { protocol: "https", hostname: "m.media-amazon.com" }, // TODO: migrate to R2
-      { protocol: "https", hostname: "images-na.ssl-images-amazon.com" }, // TODO: migrate to R2
-      { protocol: "https", hostname: "www.google.com" }, // TODO: migrate to R2
+      // F-01: Restrict to exact known image CDNs. Ingest/proxy third-party
+      // images into R2 with size validation instead of allowing arbitrary hosts.
+      // G-48 (follow-up): Amazon CDN hostnames stay until R2 ingest migration
+      // rewrites existing product image_url rows.
+      { protocol: "https", hostname: "m.media-amazon.com" },
+      { protocol: "https", hostname: "images-na.ssl-images-amazon.com" },
     ],
   },
   // Cloudflare Pages deployment via @opennextjs/cloudflare
