@@ -30,6 +30,8 @@
  *     before the object is ever visible at R2_PUBLIC_URL.
  */
 
+import { assertQuota, recordUsage } from "@/lib/quotas";
+
 // ── Lightweight AWS Signature V4 presigner ────────────────────────────
 
 const encoder = new TextEncoder();
@@ -290,7 +292,20 @@ export interface PresignedUploadResult {
 export async function getUploadUrl(
   contentType: string,
   contentLength: number,
-  options: { originalName?: string | null } = {},
+  options: {
+    originalName?: string | null;
+    /**
+     * Tenant the upload is charged to (G-42). When provided, the call
+     * is gated by the per-tenant `r2_storage_bytes` ceiling defined in
+     * `lib/quotas.ts` and `docs/per-tenant-quotas.md`. The presign is
+     * rejected with a `QuotaExceededError` BEFORE the URL is minted, so
+     * the client never receives an upload target it cannot fill.
+     *
+     * Optional so existing internal callers (admin scripts, fixtures)
+     * keep working unchanged.
+     */
+    siteId?: string;
+  } = {},
 ): Promise<PresignedUploadResult> {
   const env = readBucketEnv();
 
@@ -303,6 +318,19 @@ export async function getUploadUrl(
   }
   if (contentLength > R2_MAX_UPLOAD_BYTES) {
     throw new Error(`Upload exceeds the ${R2_MAX_UPLOAD_BYTES / (1024 * 1024)}MB limit`);
+  }
+
+  // Per-tenant storage ceiling (G-42). The check is best-effort — if KV
+  // is unreachable, `lib/quotas.ts` fails open. We record the bytes
+  // BEFORE issuing the presign, even though the upload may never
+  // complete: pessimistic accounting keeps the counter conservative
+  // and matches how billing already works in `wait-until.ts` flows.
+  // A finalize step in `/api/admin/upload/finalize` is the right place
+  // to reconcile counters against actual upload completion in a
+  // follow-up; the primitive is already exposed.
+  if (options.siteId) {
+    await assertQuota(options.siteId, "r2_storage_bytes", contentLength);
+    void recordUsage(options.siteId, "r2_storage_bytes", contentLength);
   }
 
   const stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;

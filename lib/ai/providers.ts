@@ -8,6 +8,13 @@
 
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { assembleSystemPrompt, sanitizePrompt } from "./prompt-sanitization";
+import {
+  assertQuota,
+  costToMicroUsd,
+  estimateTokens,
+  recordUsage,
+  QuotaExceededError,
+} from "@/lib/quotas";
 
 export interface AIProvider {
   name: string;
@@ -15,6 +22,15 @@ export interface AIProvider {
   model: string;
   generate(prompt: string, systemPrompt?: string): Promise<string>;
   isAvailable(): boolean;
+  /**
+   * Cost in micro-USD per 1k input/output tokens. Used by the
+   * per-tenant quota tracker (G-42, `lib/quotas.ts`). Provider classes
+   * carry this metadata so the price table lives in one place.
+   *
+   * Set to 0 for providers that don't bill per-token (Cloudflare AI on
+   * Workers Free is effectively free at our scale).
+   */
+  pricing: { inputMicroUsdPer1k: number; outputMicroUsdPer1k: number };
 }
 
 interface ProviderConfig {
@@ -57,6 +73,10 @@ function isProviderFlagEnabled(flagName: string): boolean {
 class CloudflareAIProvider implements AIProvider {
   name = "Cloudflare AI";
   model = "@cf/meta/llama-3.1-8b-instruct";
+  // Cloudflare Workers AI is included in the Workers plan; we attribute
+  // a token cost of zero so the per-tenant cost ceiling tracks only
+  // metered upstream calls (Gemini / Groq / Cohere).
+  pricing = { inputMicroUsdPer1k: 0, outputMicroUsdPer1k: 0 };
 
   isAvailable(): boolean {
     const cfg = getProviderConfig();
@@ -104,6 +124,9 @@ class CloudflareAIProvider implements AIProvider {
 class GeminiProvider implements AIProvider {
   name = "Google Gemini";
   model = "gemini-1.5-flash";
+  // gemini-1.5-flash list price (≤128k context) — keep in sync with
+  // https://ai.google.dev/gemini-api/docs/pricing.
+  pricing = { inputMicroUsdPer1k: 75, outputMicroUsdPer1k: 300 };
 
   isAvailable(): boolean {
     return Boolean(getProviderConfig().geminiApiKey) && isProviderFlagEnabled("AI_ENABLE_GEMINI");
@@ -149,6 +172,8 @@ class GeminiProvider implements AIProvider {
 class GroqProvider implements AIProvider {
   name = "Groq";
   model = "llama-3.1-8b-instant";
+  // Groq llama-3.1-8b-instant list price; see https://groq.com/pricing/.
+  pricing = { inputMicroUsdPer1k: 50, outputMicroUsdPer1k: 80 };
 
   isAvailable(): boolean {
     return Boolean(getProviderConfig().groqApiKey) && isProviderFlagEnabled("AI_ENABLE_GROQ");
@@ -199,6 +224,8 @@ class GroqProvider implements AIProvider {
 class CohereProvider implements AIProvider {
   name = "Cohere";
   model = "command-r";
+  // Cohere command-r list price; see https://cohere.com/pricing.
+  pricing = { inputMicroUsdPer1k: 150, outputMicroUsdPer1k: 600 };
 
   isAvailable(): boolean {
     return Boolean(getProviderConfig().cohereApiKey) && isProviderFlagEnabled("AI_ENABLE_COHERE");
@@ -255,6 +282,25 @@ const ALL_PROVIDERS: AIProvider[] = [
 ];
 
 /**
+ * Optional generation context. When `siteId` is provided, the per-tenant
+ * quota primitives (`lib/quotas.ts`, audit G-42) gate the call:
+ *
+ *   1. Pre-flight: reject when `ai_requests` for today or the estimated
+ *      `ai_tokens` for this month would push the tenant over its ceiling.
+ *      Throws `QuotaExceededError`.
+ *   2. Post-flight: record the actual prompt + completion token counts
+ *      and the resolved cost (in micro-USD). Recording is fire-and-forget
+ *      so a KV write failure never breaks the generation path.
+ *
+ * When `siteId` is omitted (legacy callers, internal tooling), no quota
+ * accounting happens — preserves existing behaviour.
+ */
+export interface GenerateOptions {
+  /** Tenant whose quota the call should be charged against. */
+  siteId?: string;
+}
+
+/**
  * Try each provider in order until one succeeds.
  * Throws if all providers fail.
  *
@@ -264,13 +310,32 @@ const ALL_PROVIDERS: AIProvider[] = [
  * length cap, control-token strip, and hardening preamble are
  * applied to every provider regardless of which one wins the chain.
  * See `lib/ai/prompt-sanitization.ts`.
+ *
+ * Per-tenant quotas (G-42): when `options.siteId` is supplied, the
+ * call is gated by `lib/quotas.ts` and may throw `QuotaExceededError`
+ * before any provider is contacted.
  */
 export async function generateWithFallback(
   prompt: string,
   systemPrompt?: string,
+  options: GenerateOptions = {},
 ): Promise<{ text: string; provider: string; model: string }> {
   const safePrompt = sanitizePrompt(prompt);
   const safeSystemPrompt = assembleSystemPrompt(systemPrompt);
+
+  const inputTokenEstimate = estimateTokens(safePrompt) + estimateTokens(safeSystemPrompt ?? "");
+
+  if (options.siteId) {
+    // Pre-flight ceilings. Throw QuotaExceededError so callers can render
+    // a friendly 429 / admin notice. We deliberately check both counters
+    // up-front: a single AI call can blow the daily request limit OR the
+    // monthly token limit, and we want callers to see the more specific
+    // signal first.
+    await assertQuota(options.siteId, "ai_requests", 1);
+    if (inputTokenEstimate > 0) {
+      await assertQuota(options.siteId, "ai_tokens", inputTokenEstimate);
+    }
+  }
 
   const errors: string[] = [];
 
@@ -282,8 +347,34 @@ export async function generateWithFallback(
 
     try {
       const text = await provider.generate(safePrompt, safeSystemPrompt);
+      if (options.siteId) {
+        // Fire-and-forget usage accounting. We record the *actual* output
+        // tokens (estimated from the response) plus the input estimate,
+        // along with a USD cost derived from the resolved provider's
+        // price card. recordUsage swallows KV failures.
+        const outputTokenEstimate = estimateTokens(text);
+        const totalTokens = inputTokenEstimate + outputTokenEstimate;
+        const microUsd =
+          Math.ceil((inputTokenEstimate * provider.pricing.inputMicroUsdPer1k) / 1000) +
+          Math.ceil((outputTokenEstimate * provider.pricing.outputMicroUsdPer1k) / 1000);
+        // We deliberately swallow this — accounting must never
+        // resurface as a generation error.
+        void Promise.allSettled([
+          recordUsage(options.siteId, "ai_requests", 1),
+          totalTokens > 0
+            ? recordUsage(options.siteId, "ai_tokens", totalTokens)
+            : Promise.resolve(),
+          microUsd > 0
+            ? recordUsage(options.siteId, "ai_cost_micro_usd", costToMicroUsd(microUsd / 1_000_000))
+            : Promise.resolve(),
+        ]);
+      }
       return { text, provider: provider.name, model: provider.model };
     } catch (err) {
+      // QuotaExceededError must propagate immediately — we don't want to
+      // try the next provider when the limit, not the upstream, is the
+      // problem.
+      if (err instanceof QuotaExceededError) throw err;
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${provider.name}: ${msg}`);
     }
