@@ -135,12 +135,19 @@ function parseResponse(
 
 /**
  * Generate a single piece of content using the AI fallback chain.
+ *
+ * Per-tenant quota gating (G-42): the call is charged against
+ * `input.siteId` so AI tokens / requests / cost are attributed to the
+ * correct tenant. See `lib/quotas.ts` for the resource taxonomy and
+ * `docs/per-tenant-quotas.md` for the operator-facing contract.
  */
 export async function generateContent(input: GenerateContentInput): Promise<GeneratedContent> {
   const systemPrompt = SYSTEM_PROMPTS[input.contentType];
   const prompt = buildPrompt(input);
 
-  const { text, provider, model } = await generateWithFallback(prompt, systemPrompt);
+  const { text, provider, model } = await generateWithFallback(prompt, systemPrompt, {
+    siteId: input.siteId,
+  });
   const parsed = parseResponse(text, input.contentType);
 
   return { ...parsed, provider, model };
@@ -148,11 +155,16 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
 
 /**
  * Generate multiple topic suggestions for a given niche.
+ *
+ * `siteId` is optional so existing callers (admin scripts) keep working;
+ * when provided the call is gated by the per-tenant quota primitives
+ * documented in `docs/per-tenant-quotas.md`.
  */
 export async function generateTopicSuggestions(
   niche: string,
   contentType: AIContentType,
   count: number = 5,
+  siteId?: string,
 ): Promise<{ topics: string[]; provider: string }> {
   const prompt = `Suggest ${count} compelling ${contentType} topics for a website about "${niche}".
 Each topic should be:
@@ -162,7 +174,7 @@ Each topic should be:
 
 Output each topic on its own line, numbered 1-${count}. No other text.`;
 
-  const { text, provider } = await generateWithFallback(prompt);
+  const { text, provider } = await generateWithFallback(prompt, undefined, { siteId });
 
   const topics = text
     .split("\n")
