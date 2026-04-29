@@ -1,41 +1,24 @@
 import type { NextConfig } from "next";
 import { allSites } from "./config/sites";
 
-// G-03 / G-04: pin remotePatterns and static CSP fallback to the
-// exact Supabase subdomain + exact R2 public host rather than the
-// historical `*.supabase.co` / `*.r2.dev` wildcards.
-const supabaseHostname = (() => {
-  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (raw) {
-    try {
-      return new URL(raw).hostname;
-    } catch {
-      /* fallthrough to wildcard */
-    }
+// G-03 / G-04: pin remotePatterns to the exact Supabase subdomain + exact
+// R2 public host rather than the historical `*.supabase.co` / `*.r2.dev`
+// wildcards. If an env var is missing the corresponding pattern is simply
+// omitted — no wildcard string ever ships in the bundle. Production
+// always resolves to exact hosts because both env vars are set via
+// `wrangler secret` and asserted by deploy.yml.
+function hostnameFromEnv(name: string): string | null {
+  const raw = process.env[name];
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname;
+  } catch {
+    return null;
   }
-  return "*.supabase.co";
-})();
+}
 
-const r2PublicHostname = (() => {
-  const raw = process.env.R2_PUBLIC_URL;
-  if (raw) {
-    try {
-      return new URL(raw).hostname;
-    } catch {
-      /* fallthrough to wildcard */
-    }
-  }
-  return null;
-})();
-
-const r2RemotePatterns = r2PublicHostname
-  ? [{ protocol: "https" as const, hostname: r2PublicHostname }]
-  : [
-      // Dev / preview fallback. Production MUST set R2_PUBLIC_URL so the
-      // exact-host pin kicks in; deploy.yml asserts this.
-      { protocol: "https" as const, hostname: "*.r2.dev" },
-      { protocol: "https" as const, hostname: "*.r2.cloudflarestorage.com" },
-    ];
+const supabaseHostname = hostnameFromEnv("NEXT_PUBLIC_SUPABASE_URL");
+const r2PublicHostname = hostnameFromEnv("R2_PUBLIC_URL");
 
 const nextConfig: NextConfig = {
   // Restrict external images to known sources (R2 bucket, Supabase storage, site domains)
@@ -43,22 +26,20 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
       // G-04: Cloudflare R2 public bucket, pinned to the exact hostname
-      // served from R2_PUBLIC_URL when it is set. In production we always
-      // resolve to a single exact host; the wildcard fallback applies only
-      // in dev / preview before the env var is materialised.
-      ...r2RemotePatterns,
-      // G-03: Supabase storage, pinned to our project subdomain.
-      { protocol: "https", hostname: supabaseHostname },
+      // served from R2_PUBLIC_URL. Omitted when the env var is unset
+      // (local dev without R2 configured).
+      ...(r2PublicHostname ? [{ protocol: "https" as const, hostname: r2PublicHostname }] : []),
+      // G-03: Supabase storage, pinned to our project subdomain. Omitted
+      // when NEXT_PUBLIC_SUPABASE_URL is unset.
+      ...(supabaseHostname ? [{ protocol: "https" as const, hostname: supabaseHostname }] : []),
       // Site domains (for OG images, etc.) — derived from config/sites/
       ...allSites.map((site) => ({ protocol: "https" as const, hostname: site.domain })),
-      // Common affiliate product image CDNs
-      // G-48 (LCP): m.media-amazon.com / images-na.ssl-images-amazon.com are
-      // third-party origins outside our control — slow TTFB hurts LCP and we
-      // cannot apply long-cache headers. Long-term plan: copy product images
-      // to our R2 bucket on ingest and serve them via Image Resizing.
-      // Short-term mitigation lives in the consuming components (non-LCP
-      // slots use priority={false} + loading="lazy"; see G-48 comments in
-      // app/(public)/components/product-card.tsx etc.).
+      // Common affiliate product image CDNs.
+      // G-48 (follow-up): m.media-amazon.com / images-na.ssl-images-amazon.com
+      // stay here until the R2 ingest migration rewrites existing
+      // product image_url rows to the R2 public bucket. Removing them
+      // earlier would break next/image on any product still pointing
+      // at an Amazon CDN URL.
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "m.media-amazon.com" },
       { protocol: "https", hostname: "images-na.ssl-images-amazon.com" },
