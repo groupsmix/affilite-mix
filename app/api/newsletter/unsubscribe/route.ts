@@ -5,6 +5,7 @@ import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { hashNewsletterToken } from "@/lib/newsletter-token";
 
 /** 10 unsubscribe requests per 15 minutes per IP */
 const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
@@ -45,10 +46,14 @@ export async function GET(request: NextRequest) {
     // Previously the UPDATE was fire-and-forget on eq("unsubscribe_token", token),
     // so a random/stale token would silently redirect to /newsletter/unsubscribed
     // even though nothing was actually unsubscribed.
+    // B-02: Hash the incoming token before lookup — DB stores SHA-256 hashes
+    const tokenHash = await hashNewsletterToken(token);
+
     const { data, error } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
       .update({ status: "unsubscribed" })
-      .eq("unsubscribe_token", token)
+      .eq("unsubscribe_token", tokenHash)
       .select("id");
 
     if (error) {
@@ -115,11 +120,12 @@ export async function POST(request: NextRequest) {
     const sb = await getTenantClient();
 
     const { data, error } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
       .update({ status: "unsubscribed" })
       .eq("site_id", siteId)
       .eq("email", email)
-      .eq("unsubscribe_token", unsubscribeToken)
+      .eq("unsubscribe_token", await hashNewsletterToken(unsubscribeToken))
       .select("id");
 
     if (error) {

@@ -23,7 +23,7 @@ EXIT_CODE=0
 # fires on new violations.
 LEGACY_ALLOWLIST=(
   "00026_reorder_pages_rpc.sql"       # Fixed by 00060_fix_reorder_pages_search_path.sql
-  "00077_purge_retention_function.sql" # Fixed by 00081_fix_purge_retention_search_path.sql
+  "00077_purge_retention_function.sql" # Fixed by 00085_extend_retention_purge.sql + 00086_extend_purge_retention_experiment_ad.sql
 )
 
 is_allowlisted() {
