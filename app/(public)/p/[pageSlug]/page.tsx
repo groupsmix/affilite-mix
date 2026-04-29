@@ -2,7 +2,6 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getPageBySlug } from "@/lib/dal/pages";
 import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
@@ -106,8 +105,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       }
     }
 
-    const siteId = await resolveDbSiteId(site.id);
-    const page = await getPageBySlug(siteId, pageSlug);
+    // site.id is already the DB UUID after getCurrentSite() (see
+    // lib/site-context.ts:153 and :164); use it directly rather than
+    // re-resolving by slug.
+    const page = await getPageBySlug(site.id, pageSlug);
     if (!page || !page.is_published) return {};
 
     const url = `https://${site.domain}/p/${pageSlug}`;
@@ -352,14 +353,10 @@ export default async function CustomPage({ params }: PageProps) {
 
   const site = await getCurrentSite();
 
-  let siteId: string;
-  try {
-    siteId = await resolveDbSiteId(site.id);
-  } catch {
-    notFound();
-  }
-
-  const page = await getPageBySlug(siteId, pageSlug);
+  // site.id is already the DB UUID after getCurrentSite() (see
+  // lib/site-context.ts:153 and :164); use it directly rather than
+  // re-resolving by slug.
+  const page = await getPageBySlug(site.id, pageSlug);
   if (!page || !page.is_published) {
     notFound();
   }
