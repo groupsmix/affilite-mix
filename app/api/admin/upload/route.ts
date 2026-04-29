@@ -85,8 +85,11 @@ export const POST = withAuthz("upload", "create", async (request, { siteId }) =>
     // `r2_storage_bytes` counter never advances.
     const presigned = await getUploadUrl(contentType, fileSize, { originalName, siteId });
 
-    // FIX-34 (F-017): Audit log for upload presign request
-    // A-03: Use real siteId from auth context instead of hardcoded zero UUID
+    // FIX-34 (F-017): Audit log for upload presign request.
+    // T-03: use the real tenant `siteId` resolved by withAuthz instead of
+    // the placeholder zero-UUID — without this, every upload presign
+    // event was attributed to a non-existent site and the per-tenant
+    // audit query ignored them entirely.
     void recordAuditEvent({
       site_id: siteId,
       actor: "admin-upload",
