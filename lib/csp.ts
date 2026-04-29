@@ -61,9 +61,16 @@ export function getCspExternalHosts(): {
 } {
   const supabaseHost = hostnameFromEnv("NEXT_PUBLIC_SUPABASE_URL");
   const r2Host = hostnameFromEnv("R2_PUBLIC_URL");
+  const isDev = process.env.NODE_ENV === "development";
   return {
     supabase: supabaseHost ? `https://${supabaseHost}` : "https://*.supabase.co",
-    r2: r2Host ? `https://${r2Host}` : "https://*.r2.dev https://*.r2.cloudflarestorage.com",
+    // G-04: Only fall back to wildcard R2 hosts in development. In production,
+    // R2_PUBLIC_URL must be set so CSP pins to the exact bucket hostname.
+    r2: r2Host
+      ? `https://${r2Host}`
+      : isDev
+        ? "https://*.r2.dev https://*.r2.cloudflarestorage.com"
+        : "",
   };
 }
 

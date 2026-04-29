@@ -10,6 +10,26 @@ export default defineConfig({
       SUPABASE_SERVICE_ROLE_KEY: "placeholder",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder",
     },
+    // G-37: Coverage thresholds — enforced by `npm run test:coverage` in CI.
+    // Start with a modest baseline and ratchet up as coverage improves.
+    coverage: {
+      provider: "v8",
+      include: ["lib/**/*.ts", "lib/**/*.tsx", "app/**/*.ts", "app/**/*.tsx"],
+      exclude: [
+        "**/*.d.ts",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "e2e/**",
+        "node_modules/**",
+        "scripts/**",
+      ],
+      thresholds: {
+        statements: 30,
+        branches: 25,
+        functions: 25,
+        lines: 30,
+      },
+    },
   },
   // Override tsconfig's `jsx: "preserve"` so tests (and any `.tsx` module they
   // import transitively) are transformed by Vite's oxc loader instead of

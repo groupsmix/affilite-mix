@@ -28,14 +28,22 @@ const r2PublicHostname = (() => {
   return null;
 })();
 
+const isDev = process.env.NODE_ENV === "development";
+
 const r2RemotePatterns = r2PublicHostname
   ? [{ protocol: "https" as const, hostname: r2PublicHostname }]
-  : [
-      // Dev / preview fallback. Production MUST set R2_PUBLIC_URL so the
-      // exact-host pin kicks in; deploy.yml asserts this.
-      { protocol: "https" as const, hostname: "*.r2.dev" },
-      { protocol: "https" as const, hostname: "*.r2.cloudflarestorage.com" },
-    ];
+  : isDev
+    ? [
+        // G-04: Wildcard fallback ONLY in local development. Production and
+        // preview MUST set R2_PUBLIC_URL so the exact-host pin kicks in;
+        // deploy.yml asserts this.
+        { protocol: "https" as const, hostname: "*.r2.dev" },
+        { protocol: "https" as const, hostname: "*.r2.cloudflarestorage.com" },
+      ]
+    : [
+        // G-04: In non-dev without R2_PUBLIC_URL, allow nothing — images
+        // from R2 will 404, making the misconfiguration obvious.
+      ];
 
 const nextConfig: NextConfig = {
   // Restrict external images to known sources (R2 bucket, Supabase storage, site domains)
