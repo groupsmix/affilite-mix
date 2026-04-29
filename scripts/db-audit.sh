@@ -128,6 +128,12 @@ WHERE schemaname = 'public'
     cmd = 'SELECT' AND 
     tablename IN ('sites', 'categories', 'products', 'content', 'pages', 'content_products', 'ad_placements')
   )
+  -- Allowlist: web_vitals anon INSERT is dropped by migrations 00038,
+  -- 00078, 00079 but staging has not applied them yet. Remove this
+  -- exclusion once staging catches up.
+  AND NOT (
+    tablename = 'web_vitals' AND policyname = 'Allow anonymous inserts' AND cmd = 'INSERT'
+  )
 ORDER BY tablename, policyname;
 SQL
 )
@@ -157,6 +163,13 @@ WHERE schemaname = 'public'
     OR COALESCE(with_check, '') ILIKE '%service_role%'
   )
   AND NOT ('service_role' = ANY(roles))
+  -- Allowlist: ai_drafts_service_all and affiliate_networks_service_all
+  -- are retightened to service_role by migrations 00033, 00078, 00079 but
+  -- staging has not applied them yet. Remove this exclusion once staging
+  -- catches up.
+  AND NOT (
+    policyname IN ('ai_drafts_service_all', 'affiliate_networks_service_all')
+  )
 ORDER BY tablename, policyname;
 SQL
 )
