@@ -68,8 +68,10 @@ jobs:
       - run: npm ci
 
       - name: Validate percentage input
+        env:
+          PERCENTAGE: ${{ inputs.percentage }}
         run: |
-          pct="${{ inputs.percentage }}"
+          pct="$PERCENTAGE"
           if ! [[ "$pct" =~ ^[0-9]+$ ]] || [ "$pct" -lt 0 ] || [ "$pct" -gt 100 ]; then
             echo "::error::percentage must be an integer 0-100 (got: $pct)"
             exit 1
@@ -83,15 +85,21 @@ jobs:
           fi
 
       - name: Ramp version ${{ inputs.version_id }} to ${{ inputs.percentage }}%
+        env:
+          VERSION_ID: ${{ inputs.version_id }}
+          PERCENTAGE: ${{ inputs.percentage }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
           npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
-            "${{ inputs.version_id }}@${{ inputs.percentage }}%" \
+            "${VERSION_ID}@${PERCENTAGE}%" \
             --yes \
-            --message "Gradual rollout to ${{ inputs.percentage }}% (run ${{ github.run_id }})"
+            --message "Gradual rollout to ${PERCENTAGE}% (run ${GITHUB_RUN_ID})"
 
       - name: Post-deploy smoke (G-10)
         if: ${{ inputs.smoke_host != '' }}
+        env:
+          SMOKE_HOST: ${{ inputs.smoke_host }}
         run: |
           # G-10: after ramping traffic to the new version, probe the
           # golden paths to catch catastrophic regressions before they
@@ -101,8 +109,12 @@ jobs:
           # job) surfaces the failure in the timeline for manual
           # rollback via a second run of this workflow at percentage=0
           # of the bad version_id and 100% of the previous one.
+          #
+          # SMOKE_HOST is passed via env (not direct ${{ inputs }}
+          # interpolation) to avoid script injection — see GitHub's
+          # security hardening guide.
           set -euo pipefail
-          HOST="${{ inputs.smoke_host }}"
+          HOST="$SMOKE_HOST"
           echo "Smoking https://${HOST}..."
           declare -A expect=(
             ["/"]="200"
