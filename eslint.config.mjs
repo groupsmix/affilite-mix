@@ -68,21 +68,23 @@ const eslintConfig = [
     },
   },
   {
-    // F-ARCH-02: Enforce DAL site-scoping — raw .from("table") calls on
-    // supabase clients outside the DAL layer are forbidden.
+    // F-ARCH-02 / A-05: Enforce DAL site-scoping — raw .from("table") calls
+    // on supabase clients outside the DAL layer are forbidden. Promoted from
+    // "warn" to "error" per audit finding A-05: DAL helpers exist and the
+    // newsletter route was already using raw sb.from() in a public API route.
     // The selector matches: <expr>.from(<stringLiteral>) which catches
     // sb.from("table"), supabase.from("table"), etc.
     files: ["app/**/*.ts", "app/**/*.tsx"],
     rules: {
       "no-restricted-syntax": [
-        "warn",
+        "error",
         {
           selector:
             "CallExpression[callee.property.name='from'] > Literal:first-child",
           message:
             "Prefer tenantQuery() from @/lib/dal/tenant-query over raw .from(). " +
             "If this is Array.from() or a privileged context (cron/queue/webhook), " +
-            "add an eslint-disable comment.",
+            "add an eslint-disable comment with audit justification.",
         },
       ],
     },

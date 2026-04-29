@@ -7,6 +7,37 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
+import { hashNewsletterToken } from "@/lib/newsletter-token";
+import { logger } from "@/lib/logger";
+
+// ---------------------------------------------------------------------------
+// N-02: HTML-escape helper to prevent XSS via site-controlled values
+// ---------------------------------------------------------------------------
+
+/** Escape HTML special characters to prevent injection in email templates. */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Validate that a string looks like a safe hex color token. */
+function isSafeColor(color: string): boolean {
+  return /^#[0-9a-fA-F]{3,8}$/.test(color);
+}
+
+/** Validate that a URL is an HTTPS URL on an expected domain. */
+function isSafeUrl(url: string, expectedDomain: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === expectedDomain;
+  } catch {
+    return false;
+  }
+}
 
 /** Build a branded HTML email for newsletter confirmation */
 function buildConfirmationEmail(
@@ -15,6 +46,17 @@ function buildConfirmationEmail(
   domain: string,
   accentColor: string,
 ): string {
+  // N-02: HTML-escape all text-node interpolations
+  const safeName = escapeHtml(siteName);
+  const safeDomain = escapeHtml(domain);
+
+  // N-02: Validate URL against strict hostname allowlist
+  const safeUrl = isSafeUrl(confirmUrl, domain) ? confirmUrl : "";
+  const escapedUrl = escapeHtml(safeUrl);
+
+  // N-02: Validate color against safe hex allowlist
+  const safeColor = isSafeColor(accentColor) ? accentColor : "#10B981";
+
   const year = new Date().getFullYear();
   return `<!DOCTYPE html>
 <html lang="en">
@@ -23,23 +65,23 @@ function buildConfirmationEmail(
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-        <tr><td style="background-color:${accentColor};padding:24px 32px;text-align:center;">
-          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${siteName}</h1>
+        <tr><td style="background-color:${safeColor};padding:24px 32px;text-align:center;">
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${safeName}</h1>
         </td></tr>
         <tr><td style="padding:32px;">
           <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">Confirm your subscription</h2>
-          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">Thanks for subscribing to <strong>${siteName}</strong>! Please confirm your email address by clicking the button below.</p>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">Thanks for subscribing to <strong>${safeName}</strong>! Please confirm your email address by clicking the button below.</p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
-            <tr><td style="background-color:${accentColor};border-radius:8px;">
-              <a href="${confirmUrl}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">Confirm my subscription</a>
+            <tr><td style="background-color:${safeColor};border-radius:8px;">
+              <a href="${escapedUrl}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">Confirm my subscription</a>
             </td></tr>
           </table>
           <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">Or copy and paste this link:</p>
-          <p style="margin:0 0 24px;font-size:13px;color:#6b7280;word-break:break-all;">${confirmUrl}</p>
+          <p style="margin:0 0 24px;font-size:13px;color:#6b7280;word-break:break-all;">${escapedUrl}</p>
           <p style="margin:0;font-size:13px;color:#9ca3af;">If you did not sign up, you can safely ignore this email.</p>
         </td></tr>
         <tr><td style="padding:16px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-          <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${year} ${siteName} &mdash; ${domain}</p>
+          <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${year} ${safeName} &mdash; ${safeDomain}</p>
         </td></tr>
       </table>
     </td></tr>
@@ -51,6 +93,15 @@ function buildConfirmationEmail(
 /** POST /api/newsletter — Subscribe to the site newsletter (double opt-in) */
 export async function POST(request: Request) {
   try {
+    // N-01: Fail closed when email provider is not configured in production
+    const resendKey = process.env.RESEND_API_KEY;
+    if (!resendKey && process.env.NODE_ENV === "production") {
+      logger.error(
+        "[api/newsletter] RESEND_API_KEY not configured in production — rejecting signup",
+      );
+      return apiError(503, "Newsletter email is temporarily unavailable");
+    }
+
     // Rate limit: 5 signups per IP per 15 minutes
     const ip = getClientIp(request);
 
@@ -96,27 +147,32 @@ export async function POST(request: Request) {
 
     // Check if subscriber already exists
     const { data: existing } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
       .select("id, status, confirmed_at")
       .eq("site_id", site.id)
       .eq("email", email)
       .single();
 
+    // B-02: Generate raw token for email, store only the SHA-256 hash
     const confirmationToken = crypto.randomUUID();
+    const confirmationTokenHash = await hashNewsletterToken(confirmationToken);
 
     if (existing) {
       if (existing.status === "active" && existing.confirmed_at) {
         // Already confirmed — return success silently
         return NextResponse.json({ ok: true, message: "You are already subscribed." });
       }
-      // Re-send confirmation: update token and reset status to pending
+      // Re-send confirmation: update token hash and reset status to pending
       const unsubscribeToken = crypto.randomUUID();
+      const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
       const { error: updateError } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
         .from("newsletter_subscribers")
         .update({
           status: "pending",
-          confirmation_token: confirmationToken,
-          unsubscribe_token: unsubscribeToken,
+          confirmation_token: confirmationTokenHash,
+          unsubscribe_token: unsubscribeTokenHash,
           confirmed_at: null,
         })
         .eq("id", existing.id);
@@ -130,12 +186,15 @@ export async function POST(request: Request) {
     } else {
       // Insert new subscriber with pending status
       const unsubscribeToken = crypto.randomUUID();
+      const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
+
       const { error: insertError } = await sb.from("newsletter_subscribers").insert({
+        // eslint-disable-line no-restricted-syntax
         site_id: site.id,
         email,
         status: "pending",
-        confirmation_token: confirmationToken,
-        unsubscribe_token: unsubscribeToken,
+        confirmation_token: confirmationTokenHash,
+        unsubscribe_token: unsubscribeTokenHash,
       });
 
       if (insertError) {
@@ -145,10 +204,8 @@ export async function POST(request: Request) {
     }
 
     // Send confirmation email
-    // Uses RESEND_API_KEY if available; otherwise logs the confirmation link
     const baseUrl = `https://${site.domain}`;
     const confirmUrl = `${baseUrl}/newsletter/confirm?token=${confirmationToken}`;
-    const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {
       const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${site.domain}`;
@@ -177,10 +234,14 @@ export async function POST(request: Request) {
         captureException(new Error(errBody), {
           context: "[api/newsletter] Failed to send confirmation email via Resend",
         });
-        // Don't fail the request — subscriber is saved, they can retry
+        // N-01: Return 503 on email send failure instead of silently succeeding
+        return apiError(503, "Failed to send confirmation email. Please try again later.");
       }
     } else {
-      console.warn("[api/newsletter] RESEND_API_KEY not set. Confirmation link:", confirmUrl);
+      // N-01: In non-production, log a safe reference — NEVER log the actual token
+      logger.warn("[api/newsletter] RESEND_API_KEY not set; confirmation email not sent", {
+        email_hash: await hashNewsletterToken(email),
+      });
     }
 
     return NextResponse.json({

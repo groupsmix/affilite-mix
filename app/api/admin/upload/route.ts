@@ -86,8 +86,9 @@ export const POST = withAuthz("upload", "create", async (request, { siteId }) =>
     const presigned = await getUploadUrl(contentType, fileSize, { originalName, siteId });
 
     // FIX-34 (F-017): Audit log for upload presign request
+    // A-03: Use real siteId from auth context instead of hardcoded zero UUID
     void recordAuditEvent({
-      site_id: "00000000-0000-0000-0000-000000000000",
+      site_id: siteId,
       actor: "admin-upload",
       action: "upload_presign",
       entity_type: "upload",
