@@ -946,6 +946,115 @@ jobs:
             echo "::warning::CRON_HOST not set — skipping site reachability check"
           fi
 
+      # G-11: runtime drift gates. Migration drift is already enforced
+      # above (the Verify production schema step). These three checks
+      # compare the live Worker's bindings, secrets, and cron schedules
+      # against what `wrangler.jsonc` declares, so a hand-rolled
+      # `wrangler` invocation that bypasses CI cannot silently leave
+      # production in a different state from the checked-in config.
+      - name: Runtime drift — Worker bindings
+        continue-on-error: true
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping binding drift check"
+            exit 0
+          fi
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc)
+          DECL=$(echo "$WRANGLER_JSON" | jq -r '
+            [
+              (.kv_namespaces // [])[] | .binding,
+              (.r2_buckets // [])[] | .binding,
+              (.queues.producers // [])[] | .binding,
+              (.durable_objects.bindings // [])[] | .name
+            ] | sort | unique | .[]
+          ')
+          LIVE=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/bindings" \
+            | jq -r '(.result // [])[] | (.name // .binding // empty)' | sort -u)
+          MISSING=$(comm -23 <(echo "$DECL") <(echo "$LIVE"))
+          if [ -n "$MISSING" ]; then
+            echo "::error::Bindings declared in wrangler.jsonc but missing from live Worker:"
+            echo "$MISSING" | sed 's/^/  - /'
+            exit 1
+          fi
+          echo "All declared Worker bindings present on the live Worker."
+
+      - name: Runtime drift — Worker secrets
+        continue-on-error: true
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping secret drift check"
+            exit 0
+          fi
+          # Canonical list of production secrets. Keep in sync with
+          # wrangler.jsonc / scripts/validate-cloudflare-bindings.sh.
+          REQUIRED_SECRETS=(
+            SUPABASE_SERVICE_ROLE_KEY
+            SUPABASE_JWT_SECRET
+            NEXT_PUBLIC_SUPABASE_URL
+            NEXT_PUBLIC_SUPABASE_ANON_KEY
+            JWT_SECRET
+            CRON_SECRET
+            INTERNAL_API_TOKEN
+            STRIPE_SECRET_KEY
+            STRIPE_WEBHOOK_SECRET
+            SENTRY_DSN
+          )
+          LIVE_SECRETS=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/secrets" \
+            | jq -r '(.result // [])[].name' | sort -u)
+          MISSING=""
+          for s in "${REQUIRED_SECRETS[@]}"; do
+            if ! echo "$LIVE_SECRETS" | grep -qx "$s"; then
+              MISSING="${MISSING}${s} "
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::Required Worker secrets missing on the live Worker: $MISSING"
+            echo "Set them with: wrangler secret put <NAME>"
+            exit 1
+          fi
+          echo "All canonical Worker secrets present on the live Worker."
+
+      - name: Runtime drift — Cron schedules
+        continue-on-error: true
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping cron drift check"
+            exit 0
+          fi
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc)
+          DECL=$(echo "$WRANGLER_JSON" | jq -r '(.triggers.crons // [])[]' | sort -u)
+          LIVE=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/schedules" \
+            | jq -r '(.schedules // [])[].cron' | sort -u)
+          MISSING=$(comm -23 <(echo "$DECL") <(echo "$LIVE"))
+          EXTRA=$(comm -13 <(echo "$DECL") <(echo "$LIVE"))
+          if [ -n "$MISSING" ] || [ -n "$EXTRA" ]; then
+            if [ -n "$MISSING" ]; then
+              echo "::error::Cron schedules declared in wrangler.jsonc but not live:"
+              echo "$MISSING" | sed 's/^/  - /'
+            fi
+            if [ -n "$EXTRA" ]; then
+              echo "::warning::Cron schedules live but not declared in wrangler.jsonc:"
+              echo "$EXTRA" | sed 's/^/  - /'
+            fi
+            if [ -n "$MISSING" ]; then exit 1; fi
+          fi
+          echo "Live cron schedules match wrangler.jsonc."
+
       - name: Traffic promotion note
         run: |
           echo "### Deployment Summary" >> "$GITHUB_STEP_SUMMARY"
