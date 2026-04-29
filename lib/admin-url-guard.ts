@@ -52,6 +52,8 @@ const BLOCKED_HOSTS = new Set([
   "0.0.0.0",
   "::",
   "::1",
+  "::ffff:7f00:1", // IPv6-mapped 127.0.0.1
+  "::ffff:a9fe:a9fe", // IPv6-mapped 169.254.169.254 (AWS/GCP/Azure metadata)
   "metadata.google.internal",
   "metadata.internal",
   "metadata.azure.com",
@@ -90,10 +92,37 @@ function ipv4IsPrivate(ip: string): boolean {
   return PRIVATE_IPV4_RANGES.some(([base, mask]) => (n & mask) === base);
 }
 
+/**
+ * If the hostname is an IPv6-mapped IPv4 address (::ffff:a.b.c.d or
+ * ::ffff:AABB:CCDD), return the dotted-quad IPv4 equivalent; otherwise
+ * return null. Mirrors the helper in lib/ssrf-guard.ts so admin writes
+ * catch IPv4 SSRF targets cloaked as IPv6 literals.
+ */
+function ipv6MappedToIPv4(hostname: string): string | null {
+  const dotted = hostname.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+  if (dotted) return dotted[1];
+
+  const hex = hostname.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (hex) {
+    const high = parseInt(hex[1], 16);
+    const low = parseInt(hex[2], 16);
+    return [(high >> 8) & 0xff, high & 0xff, (low >> 8) & 0xff, low & 0xff].join(".");
+  }
+
+  return null;
+}
+
 function ipv6IsPrivateOrReserved(raw: string): boolean {
   const h = raw.replace(/^\[|\]$/g, "").toLowerCase();
   if (!h.includes(":")) return false;
   if (h === "::" || h === "::1") return true;
+
+  // IPv4-mapped IPv6 (::ffff:a.b.c.d / ::ffff:AABB:CCDD): defer to the
+  // IPv4 private-range check on the embedded address. Without this the
+  // first-hextet regex below rejects the empty head and waves through
+  // ::ffff:127.0.0.1, ::ffff:169.254.169.254, etc.
+  const mappedV4 = ipv6MappedToIPv4(h);
+  if (mappedV4 !== null && ipv4IsPrivate(mappedV4)) return true;
 
   // fc00::/7 and fe80::/10
   const firstColon = h.indexOf(":");
