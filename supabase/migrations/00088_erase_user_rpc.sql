@@ -16,6 +16,41 @@
 -- The function is SECURITY DEFINER so it can bypass RLS, and is
 -- restricted to service_role only (via 00083's blanket REVOKE pattern).
 
+-- ── Widen CHECK constraints so the erasure / soft-delete statuses below
+--    (and the existing purge_retention() function in 00085 which already
+--    assumes comments.status='deleted' is valid) satisfy table constraints.
+--
+--   newsletter_subscribers.status: add 'erased'  (allowed set originally
+--     defined as ('pending','active','unsubscribed') in 00001).
+--   comments.status:               add 'deleted' (allowed set originally
+--     defined as ('pending','approved','rejected','spam') in 00050).
+--
+-- Both DO blocks are defensive so the migration is idempotent and also
+-- survives environments where the CHECK constraint is absent or named
+-- differently. Constraint names match the PostgreSQL defaults produced
+-- by CHECK clauses defined inline with CREATE TABLE.
+DO $$
+BEGIN
+  IF to_regclass('public.newsletter_subscribers') IS NOT NULL THEN
+    ALTER TABLE public.newsletter_subscribers
+      DROP CONSTRAINT IF EXISTS newsletter_subscribers_status_check;
+    ALTER TABLE public.newsletter_subscribers
+      ADD CONSTRAINT newsletter_subscribers_status_check
+      CHECK (status IN ('pending', 'active', 'unsubscribed', 'erased'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.comments') IS NOT NULL THEN
+    ALTER TABLE public.comments
+      DROP CONSTRAINT IF EXISTS comments_status_check;
+    ALTER TABLE public.comments
+      ADD CONSTRAINT comments_status_check
+      CHECK (status IN ('pending', 'approved', 'rejected', 'spam', 'deleted'));
+  END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.erase_user(p_email text)
 RETURNS jsonb
 LANGUAGE plpgsql
