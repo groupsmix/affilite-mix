@@ -25,11 +25,14 @@ export default defineConfig({
         "node_modules/**",
         "scripts/**",
       ],
+      // T-01: Raised from 14-18% baseline toward 60% target.
+      // Current measured coverage is ~20/17/15/20. Ratchet up as coverage
+      // improves; do not lower without documenting why.
       thresholds: {
-        statements: 18,
+        statements: 19,
         branches: 16,
         functions: 14,
-        lines: 18,
+        lines: 19,
       },
     },
   },

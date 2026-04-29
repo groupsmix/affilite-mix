@@ -21,7 +21,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 3. If GitHub Security Advisories are not available to you, contact the
    repository's listed maintainers directly via the `Maintainer` contact
    on the GitHub organization profile (https://github.com/groupsmix).
-   The repo intentionally does not publish a generic `security@…`
+   The repo intentionally does not publish a generic `security@...`
    alias in source control because it would otherwise become a stale
    placeholder; route reports through the contact methods above so they
    reach a real on-call human.
@@ -89,12 +89,16 @@ The application enforces strict CSP headers:
 - XSS protection via sanitization library
 - CAPTCHA verification on public submission endpoints
 
-### Authentication
+### Authentication & Session Lifetime (B-04)
 
-- JWT-based authentication with IP-binding
-- 30-minute idle timeout
-- 12-hour absolute session age
-- TOTP 2FA support for admin accounts
+- JWT-based admin authentication (HS256, `jose` library)
+- **Absolute session expiry**: 8 hours (`EXPIRY` in `lib/auth.ts`)
+- **Idle timeout**: 30 minutes (`IDLE_TIMEOUT_MS` in `lib/auth.ts`), enforced via HMAC-signed activity cookie
+- **IP/UA binding**: Tokens carry a `bnd` claim hashing User-Agent + IP/24 (or /32 for super_admin). Replay from a different device/network is rejected.
+- **Binding cookie**: Separate `nh_admin_binding` HttpOnly cookie must match the JWT `bnd` claim
+- **TOTP 2FA**: Required for `super_admin` role; optional for `admin`. TOTP secrets encrypted at rest (AES-256-GCM via `TOTP_ENCRYPTION_KEY`).
+- **Token revocation**: JTI-based revocation list checked on every session read
+- **Logout**: Clears JWT, binding, activity, active-site, and CSRF cookies
 
 ### API Security
 

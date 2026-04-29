@@ -18,6 +18,7 @@ import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
+import { decryptTotpSecret } from "@/lib/totp-encryption";
 
 /**
  * G-50: 3 login attempts per 15 minutes per IP.
@@ -152,7 +153,8 @@ export async function POST(request: NextRequest) {
           typeof totp_token !== "string" ||
           totp_token.length !== 6 ||
           !user.totp_secret ||
-          !verifyTotpToken(user.totp_secret, totp_token)
+          // B-01: Decrypt TOTP secret before verification
+          !verifyTotpToken(await decryptTotpSecret(user.totp_secret), totp_token)
         ) {
           // Increment failed attempts and lock if >= 10
           const attempts = (user.totp_failed_attempts || 0) + 1;
