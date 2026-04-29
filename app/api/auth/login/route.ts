@@ -1,7 +1,13 @@
 export const runtime = "edge";
 
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateUser, createToken, COOKIE_NAME, getAdminBindingCookie } from "@/lib/auth";
+import {
+  authenticateUser,
+  createToken,
+  COOKIE_NAME,
+  getAdminBindingCookie,
+  touchAdminActivity,
+} from "@/lib/auth";
 import { computeRequestBinding } from "@/lib/jwt-binding";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -190,8 +196,21 @@ export async function POST(request: NextRequest) {
     const binding = await computeRequestBinding(request);
     if (binding) {
       const bc = getAdminBindingCookie(binding);
-      response.cookies.set(bc.name, bc.value, bc.options as any);
+      response.cookies.set(
+        bc.name,
+        bc.value,
+        bc.options as Parameters<NextResponse["cookies"]["set"]>[2],
+      );
     }
+
+    // P0-1: Write the activity cookie at login so idle-timeout enforcement
+    // has an initial timestamp from the very first request.
+    const activity = await touchAdminActivity();
+    response.cookies.set(
+      activity.name,
+      activity.value,
+      activity.options as Parameters<NextResponse["cookies"]["set"]>[2],
+    );
 
     return response;
   } catch (err) {

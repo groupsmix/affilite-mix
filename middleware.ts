@@ -208,11 +208,31 @@ export async function middleware(request: NextRequest) {
         failPolicy: "closed",
       });
       if (!rlResult.allowed) {
-        return new Response("Too Many Requests", { status: 429 });
+        return new NextResponse("Too Many Requests", {
+          status: 429,
+          headers: {
+            "Cache-Control": "no-store, max-age=0",
+            Pragma: "no-cache",
+            "Retry-After": String(Math.ceil(rlResult.retryAfterMs / 1000) || 60),
+          },
+        });
       }
-    } catch {
-      // Rate limit check itself failed — allow the request through rather
-      // than blocking all unknown-hostname traffic.
+    } catch (rlErr) {
+      // P0-2: Rate limit check itself failed — fail CLOSED. Under a KV/DO
+      // outage or hostile Host-header flood, do NOT fall through to DB lookup.
+      captureException(rlErr, {
+        context: "middleware.hostname-resolve-rate-limit-failed",
+        extra: { hostname },
+      });
+      return new NextResponse(JSON.stringify({ error: "Rate limit unavailable" }), {
+        status: 503,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store, max-age=0",
+          Pragma: "no-cache",
+          "Retry-After": "30",
+        },
+      });
     }
 
     // G-34: worker-wide LRU cap on the number of *distinct* unknown
@@ -319,7 +339,9 @@ export async function middleware(request: NextRequest) {
         extra: { hostname, traceId },
       });
 
-      // Serve a branded temporary unavailable response rather than a confusing 404
+      // P1-1: Serve a branded temporary unavailable response rather than a
+      // confusing 404. All middleware-generated 5xx responses MUST set
+      // Cache-Control: no-store so CDNs/browsers never cache error pages.
       return new NextResponse(
         JSON.stringify({
           error: "Service Temporarily Unavailable",
@@ -328,7 +350,11 @@ export async function middleware(request: NextRequest) {
         }),
         {
           status: 503,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store, max-age=0",
+            Pragma: "no-cache",
+          },
         },
       );
     }

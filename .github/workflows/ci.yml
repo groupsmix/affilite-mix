@@ -81,26 +81,25 @@ jobs:
 
       - name: Admin route DAL usage audit (PRIORITY 1)
         run: |
-          # PRIORITY 1: Verify admin routes using DAL/service-role have proper authz.
-          # This complements the above import check with actual usage validation.
+          # P1-11: Fail closed when scripts/tools are missing — never skip
+          # security-critical checks silently.
           set -euo pipefail
-          if [ -x "scripts/check-admin-authz.sh" ]; then
-            bash scripts/check-admin-authz.sh || exit 1
-          else
-            echo "Admin authz check script not found, skipping..."
+          if [ ! -f "scripts/check-admin-authz.sh" ]; then
+            echo "::error::scripts/check-admin-authz.sh is missing — admin authz audit cannot run. This is a required check."
+            exit 1
           fi
+          bash scripts/check-admin-authz.sh || exit 1
 
       - name: CORS security tests (PRIORITY 2)
         run: |
-          # PRIORITY 2: CORS must only allow known safe origins.
-          # Hostile host/origin combinations should be rejected.
+          # P1-11: Fail closed when test files are missing.
           set -euo pipefail
-          if [ -f "__tests__/cors-security.test.ts" ]; then
-            echo "Running CORS security tests..."
-            npm test -- __tests__/cors-security.test.ts
-          else
-            echo "CORS security test file not found - verify middleware.ts CORS handling"
+          if [ ! -f "__tests__/cors-security.test.ts" ]; then
+            echo "::error::__tests__/cors-security.test.ts is missing — CORS security tests cannot run. This is a required check."
+            exit 1
           fi
+          echo "Running CORS security tests..."
+          npm test -- __tests__/cors-security.test.ts
 
       - name: R2 bucket isolation validation (G-09)
         run: |
@@ -116,8 +115,8 @@ jobs:
             exit 0
           fi
           if ! command -v jq >/dev/null 2>&1; then
-            echo "::warning::jq not installed — skipping R2 isolation check"
-            exit 0
+            echo "::error::jq is required for R2 isolation check but is not installed"
+            exit 1
           fi
           # Strip JSONC line comments so `jq` can parse the file.
           WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc)
