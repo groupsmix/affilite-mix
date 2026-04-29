@@ -7,8 +7,14 @@ import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 
-/** 30 gift-finder requests per minute per IP */
-const GIFT_FINDER_RATE_LIMIT = { maxRequests: 30, windowMs: 60 * 1000 };
+/** 30 gift-finder requests per minute per IP
+ * P0-5: failPolicy: "closed" — AI endpoints incur provider costs per call.
+ */
+const GIFT_FINDER_RATE_LIMIT = {
+  maxRequests: 30,
+  windowMs: 60 * 1000,
+  failPolicy: "closed" as const,
+};
 
 /**
  * GET /api/gift-finder?budget=500&occasion=birthday&recipient=husband&style=classic

@@ -23,9 +23,11 @@ export async function POST(request: Request) {
     const ip = getClientIp(request);
 
     // Rate limit: 3 requests per IP per 15 minutes
+    // P0-5: failPolicy: "closed" — never skip rate limiting on auth routes.
     const rl = await checkRateLimit(`forgot-password:${ip}`, {
       maxRequests: 3,
       windowMs: 15 * 60 * 1000,
+      failPolicy: "closed" as const,
     });
     if (!rl.allowed) {
       return NextResponse.json(

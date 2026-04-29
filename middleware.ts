@@ -14,6 +14,7 @@ import {
   getNegativeCacheTtlSeconds,
   recordUnknownHostKvAccess,
 } from "@/lib/security/unknown-host-guard";
+import { getAppCacheKV } from "@/lib/runtime-env";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -74,7 +75,7 @@ export async function middleware(request: NextRequest) {
     }
     try {
       if (_maintenanceCacheExpiry < Date.now()) {
-        const kv = (process.env as any).APP_CACHE_KV as any;
+        const kv = getAppCacheKV();
         if (kv) {
           const kvMaintenance = await kv.get("maintenance_mode");
           _maintenanceCacheValue = kvMaintenance === "1" || kvMaintenance === "true";
@@ -118,19 +119,38 @@ export async function middleware(request: NextRequest) {
   // was minted during the previous request.
   if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const requestOrigin = request.headers.get("origin") ?? "";
-    // G-33: only static-config sites can extend the preflight allow-list.
-    // The DB site-row lookup runs later in the request flow, so at this
-    // stage we have not yet verified DB-registered custom domains —
-    // building a `VerifiedSiteRef` from `getSiteByDomain` ensures we
-    // never trust an arbitrary `Host` header at preflight time.
+    // P1-10: Resolve site identity for preflight requests from both static
+    // config AND cached DB entries. Previously only static-config sites were
+    // checked, so custom-domain preflights would always 403 until the site
+    // was resolved in the main flow (which doesn't run for OPTIONS).
     const preflightStaticSite = getSiteByDomain(hostname);
-    const preflightVerifiedSite: VerifiedSiteRef | null = preflightStaticSite
+    let preflightVerifiedSite: VerifiedSiteRef | null = preflightStaticSite
       ? {
           slug: preflightStaticSite.id,
           domain: preflightStaticSite.domain,
           aliases: preflightStaticSite.aliases,
         }
       : null;
+
+    // P1-10: For custom domains not in static config, check the KV cache
+    // so verified custom domains can preflight without a fresh DB lookup.
+    if (!preflightVerifiedSite) {
+      try {
+        const kv = getAppCacheKV();
+        if (kv) {
+          const cachedRow = (await kv.get(`site-domain:${hostname}`, "json")) as {
+            slug?: string;
+            is_active?: boolean;
+          } | null;
+          if (cachedRow?.slug && cachedRow?.is_active) {
+            preflightVerifiedSite = { slug: cachedRow.slug, domain: hostname };
+          }
+        }
+      } catch {
+        // KV errors during preflight are non-fatal — fall through to static-only
+      }
+    }
+
     const allowedOrigins = getAllowedOrigins(preflightVerifiedSite);
     const matchedOrigin =
       requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";
@@ -208,11 +228,31 @@ export async function middleware(request: NextRequest) {
         failPolicy: "closed",
       });
       if (!rlResult.allowed) {
-        return new Response("Too Many Requests", { status: 429 });
+        return new NextResponse("Too Many Requests", {
+          status: 429,
+          headers: {
+            "Cache-Control": "no-store, max-age=0",
+            Pragma: "no-cache",
+            "Retry-After": String(Math.ceil(rlResult.retryAfterMs / 1000) || 60),
+          },
+        });
       }
-    } catch {
-      // Rate limit check itself failed — allow the request through rather
-      // than blocking all unknown-hostname traffic.
+    } catch (rlErr) {
+      // P0-2: Rate limit check itself failed — fail CLOSED. Under a KV/DO
+      // outage or hostile Host-header flood, do NOT fall through to DB lookup.
+      captureException(rlErr, {
+        context: "middleware.hostname-resolve-rate-limit-failed",
+        extra: { hostname },
+      });
+      return new NextResponse(JSON.stringify({ error: "Rate limit unavailable" }), {
+        status: 503,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store, max-age=0",
+          Pragma: "no-cache",
+          "Retry-After": "30",
+        },
+      });
     }
 
     // G-34: worker-wide LRU cap on the number of *distinct* unknown
@@ -235,7 +275,7 @@ export async function middleware(request: NextRequest) {
       let isNegativeCached = false;
       let priorMissCount = 0;
       try {
-        const kv = (process.env as any).APP_CACHE_KV as any;
+        const kv = getAppCacheKV();
         if (kv) {
           // Check negative cache first — short-circuits the DB lookup
           // entirely for hostnames we've already seen as unknown.
@@ -272,7 +312,7 @@ export async function middleware(request: NextRequest) {
         const nextMissCount = priorMissCount + 1;
         const ttlSeconds = getNegativeCacheTtlSeconds(nextMissCount);
         try {
-          const kv = (process.env as any).APP_CACHE_KV as any;
+          const kv = getAppCacheKV();
           if (kv)
             await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
               expirationTtl: ttlSeconds,
@@ -284,7 +324,7 @@ export async function middleware(request: NextRequest) {
       const row = cachedRow || (await getSiteRowByDomain(hostname));
       if (row && !cachedRow) {
         try {
-          const kv = (process.env as any).APP_CACHE_KV as any;
+          const kv = getAppCacheKV();
           if (kv) await kv.put(cacheKey, JSON.stringify(row), { expirationTtl: 60 });
         } catch (e) {}
       }
@@ -304,7 +344,7 @@ export async function middleware(request: NextRequest) {
         const nextMissCount = priorMissCount + 1;
         const ttlSeconds = getNegativeCacheTtlSeconds(nextMissCount);
         try {
-          const kv = (process.env as any).APP_CACHE_KV as any;
+          const kv = getAppCacheKV();
           if (kv)
             await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
               expirationTtl: ttlSeconds,
@@ -319,7 +359,9 @@ export async function middleware(request: NextRequest) {
         extra: { hostname, traceId },
       });
 
-      // Serve a branded temporary unavailable response rather than a confusing 404
+      // P1-1: Serve a branded temporary unavailable response rather than a
+      // confusing 404. All middleware-generated 5xx responses MUST set
+      // Cache-Control: no-store so CDNs/browsers never cache error pages.
       return new NextResponse(
         JSON.stringify({
           error: "Service Temporarily Unavailable",
@@ -328,7 +370,11 @@ export async function middleware(request: NextRequest) {
         }),
         {
           status: 503,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store, max-age=0",
+            Pragma: "no-cache",
+          },
         },
       );
     }

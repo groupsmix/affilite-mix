@@ -16,13 +16,18 @@ This document describes every Cloudflare resource, binding, secret, and zone set
 
 ## Account & Zone
 
-| Item       | Value                              |
-| ---------- | ---------------------------------- |
-| Account ID | `0dadac330461be7f3e6fce8cb6611ba4` |
-| Zone       | `wristnerd.xyz`                    |
-| Zone ID    | `a3fc8a7a314e9b6ab61362f7aacee29c` |
-| Plan       | Free                               |
-| Worker     | `affilite-mix`                     |
+> **P2-3**: Account ID, Zone ID, and other operational identifiers have been
+> moved to private runbooks and GitHub Actions secrets. Storing them in a
+> public repo allowed an attacker to target specific Cloudflare resources.
+> See the private ops runbook for the full identifier table.
+
+| Item       | Value                                                       |
+| ---------- | ----------------------------------------------------------- |
+| Account ID | _(stored in GitHub Actions secret `CLOUDFLARE_ACCOUNT_ID`)_ |
+| Zone       | `wristnerd.xyz`                                             |
+| Zone ID    | _(stored in GitHub Actions secret `CLOUDFLARE_ZONE_ID`)_    |
+| Plan       | Free                                                        |
+| Worker     | `affilite-mix`                                              |
 
 ---
 

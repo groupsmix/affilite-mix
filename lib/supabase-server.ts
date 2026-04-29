@@ -60,6 +60,7 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
 
   // A-017: In admin contexts, resolve site_id from the session cookie rather
   // than the x-site-id header (which can be spoofed by a compromised client).
+  // P1-9: Verify server-side membership before honoring nh_active_site.
   let userId: string | null = null;
   try {
     const session = await getAdminSession();
@@ -70,11 +71,25 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
       if (activeSlug) {
         // Use a privileged client to resolve the slug → UUID so we don't
         // recurse through getTenantClient().
-        const dbSite = await getSiteRowBySlugWithClient(activeSlug, async () =>
-          getPrivilegedSupabaseClient(),
-        );
+        const priv = getPrivilegedSupabaseClient();
+        const dbSite = await getSiteRowBySlugWithClient(activeSlug, async () => priv);
         if (dbSite) {
-          siteId = dbSite.id;
+          // P1-9: Verify the admin user actually has membership on this site.
+          // super_admin users bypass the membership check (they have access to all sites).
+          if (session.role === "super_admin") {
+            siteId = dbSite.id;
+          } else {
+            const { data: membership } = await priv
+              .from("admin_site_memberships")
+              .select("id")
+              .eq("admin_user_id", session.userId)
+              .eq("site_id", dbSite.id)
+              .single();
+            if (membership) {
+              siteId = dbSite.id;
+            }
+            // If no membership, siteId stays null — falls back to x-site-id header
+          }
         }
       }
     }

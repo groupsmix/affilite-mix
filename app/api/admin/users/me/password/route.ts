@@ -20,9 +20,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // P0-5: failPolicy: "closed" on password change.
   const rl = await checkRateLimit(`admin:pw:${session.userId}`, {
     maxRequests: 5,
     windowMs: 15 * 60 * 1000,
+    failPolicy: "closed" as const,
   });
   if (!rl.allowed) {
     return NextResponse.json(

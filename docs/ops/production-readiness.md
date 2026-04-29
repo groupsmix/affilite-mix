@@ -11,13 +11,13 @@ This document provides a concrete production readiness checklist that matches th
 
 The following bindings MUST be provisioned in `wrangler.jsonc` before deployment:
 
-| Binding | Type | Purpose | Location |
-|---------|------|---------|----------|
-| `RATE_LIMIT_KV` | KV Namespace | Distributed rate limiting | wrangler.jsonc |
-| `APP_CACHE_KV` | KV Namespace | Domain resolution cache, maintenance mode | wrangler.jsonc, middleware.ts |
-| `RATE_LIMITER_DO` | Durable Object | Atomic distributed rate limiting | wrangler.jsonc |
-| `CLICK_QUEUE` | Queue Producer | Affiliate click tracking queue | wrangler.jsonc |
-| `NEXT_INC_CACHE_R2_BUCKET` | R2 Bucket | Incremental cache for OpenNext | wrangler.jsonc |
+| Binding                    | Type           | Purpose                                   | Location                      |
+| -------------------------- | -------------- | ----------------------------------------- | ----------------------------- |
+| `RATE_LIMIT_KV`            | KV Namespace   | Distributed rate limiting                 | wrangler.jsonc                |
+| `APP_CACHE_KV`             | KV Namespace   | Domain resolution cache, maintenance mode | wrangler.jsonc, middleware.ts |
+| `RATE_LIMITER_DO`          | Durable Object | Atomic distributed rate limiting          | wrangler.jsonc                |
+| `CLICK_QUEUE`              | Queue Producer | Affiliate click tracking queue            | wrangler.jsonc                |
+| `NEXT_INC_CACHE_R2_BUCKET` | R2 Bucket      | Incremental cache for OpenNext            | wrangler.jsonc                |
 
 ### KV Namespace Setup
 
@@ -57,34 +57,34 @@ The following secrets MUST be configured in GitHub → Settings → Secrets and 
 
 ### Build-time Secrets (used during CI)
 
-| Secret | Required | Purpose |
-|--------|----------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL (inlined at build time) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (inlined at build time) |
-| `SUPABASE_DB_URL` or `SUPABASE_DB_POOLER_URL` | Yes | Database URL for migrations (IPv4-reachable) |
-| `CLOUDFLARE_API_TOKEN` | Yes | Scoped API token (NOT global key) |
-| `CLOUDFLARE_ACCOUNT_ID` | Yes | Cloudflare account ID |
-| `STAGING_SUPABASE_DB_URL` | Yes | Staging DB for pre-deploy validation |
+| Secret                                        | Required | Purpose                                      |
+| --------------------------------------------- | -------- | -------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`                    | Yes      | Supabase project URL (inlined at build time) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`               | Yes      | Supabase anon key (inlined at build time)    |
+| `SUPABASE_DB_URL` or `SUPABASE_DB_POOLER_URL` | Yes      | Database URL for migrations (IPv4-reachable) |
+| `CLOUDFLARE_API_TOKEN`                        | Yes      | Scoped API token (NOT global key)            |
+| `CLOUDFLARE_ACCOUNT_ID`                       | Yes      | Cloudflare account ID                        |
+| `STAGING_SUPABASE_DB_URL`                     | Yes      | Staging DB for pre-deploy validation         |
 
 ### Runtime Worker Secrets (set via `wrangler secret put`)
 
-| Secret | Required | Purpose |
-|--------|----------|---------|
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service role key (bypasses RLS) |
-| `SUPABASE_JWT_SECRET` | Yes | Supabase JWT signing secret |
-| `JWT_SECRET` | Yes | Admin session signing |
-| `CRON_SECRET` | Yes | Cron authentication |
-| `INTERNAL_API_TOKEN` | Yes | Service-to-service auth |
-| `APP_URL` | Yes | Canonical URL for emails |
+| Secret                      | Required | Purpose                         |
+| --------------------------- | -------- | ------------------------------- |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes      | Service role key (bypasses RLS) |
+| `SUPABASE_JWT_SECRET`       | Yes      | Supabase JWT signing secret     |
+| `JWT_SECRET`                | Yes      | Admin session signing           |
+| `CRON_SECRET`               | Yes      | Cron authentication             |
+| `INTERNAL_API_TOKEN`        | Yes      | Service-to-service auth         |
+| `APP_URL`                   | Yes      | Canonical URL for emails        |
 
 ### Optional but Recommended
 
-| Secret | Required When | Purpose |
-|--------|---------------|---------|
-| `SENTRY_DSN` | Production (always) | Error monitoring |
-| `RESEND_API_KEY` | Newsletter enabled | Email sending |
-| `TURNSTILE_SECRET_KEY` | Turnstile enabled | Captcha verification |
-| `STRIPE_SECRET_KEY` | Memberships enabled | Payment processing |
+| Secret                  | Required When       | Purpose              |
+| ----------------------- | ------------------- | -------------------- |
+| `SENTRY_DSN`            | Production (always) | Error monitoring     |
+| `RESEND_API_KEY`        | Newsletter enabled  | Email sending        |
+| `TURNSTILE_SECRET_KEY`  | Turnstile enabled   | Captcha verification |
+| `STRIPE_SECRET_KEY`     | Memberships enabled | Payment processing   |
 | `STRIPE_WEBHOOK_SECRET` | Memberships enabled | Webhook verification |
 
 ---
@@ -100,6 +100,7 @@ The following secrets MUST be configured in GitHub → Settings → Secrets and 
 ### CI Validation
 
 The `db-audit` job in CI validates:
+
 - RLS is enabled on critical tables
 - No unexpected public grants
 - Audit log table has required columns (actor, entity_type, ip)
@@ -118,32 +119,32 @@ Configure the following alerts in Cloudflare Dashboard:
 
 ### Worker Alerts
 
-| Alert | Trigger | Action |
-|-------|---------|--------|
+| Alert               | Trigger        | Action                    |
+| ------------------- | -------------- | ------------------------- |
 | Worker errors spike | >10 errors/min | Check Sentry, review logs |
-| Worker CPU time | >80% avg | Review heavy cron jobs |
-| Worker memory | >90% usage | Profile memory usage |
+| Worker CPU time     | >80% avg       | Review heavy cron jobs    |
+| Worker memory       | >90% usage     | Profile memory usage      |
 
 ### Queue Alerts
 
-| Alert | Trigger | Action |
-|-------|---------|--------|
-| DLQ messages | >0 in DLQ | Review failed message processing |
-| Queue depth | >1000 backlog | Scale consumer workers |
+| Alert        | Trigger       | Action                           |
+| ------------ | ------------- | -------------------------------- |
+| DLQ messages | >0 in DLQ     | Review failed message processing |
+| Queue depth  | >1000 backlog | Scale consumer workers           |
 
 ### Cron Job Alerts
 
-| Alert | Trigger | Action |
-|-------|---------|--------|
-| Cron failure | Any cron returns non-200 | Check cron route handlers |
-| Health endpoint | Returns non-200 | Worker is unhealthy |
+| Alert           | Trigger                  | Action                    |
+| --------------- | ------------------------ | ------------------------- |
+| Cron failure    | Any cron returns non-200 | Check cron route handlers |
+| Health endpoint | Returns non-200          | Worker is unhealthy       |
 
 ### Sentry Alerts
 
-| Alert | Trigger | Action |
-|-------|---------|--------|
-| Error spike | >5 errors in 5 min | Page on-call |
-| P95 latency | >2s | Profile slow endpoints |
+| Alert       | Trigger            | Action                 |
+| ----------- | ------------------ | ---------------------- |
+| Error spike | >5 errors in 5 min | Page on-call           |
+| P95 latency | >2s                | Profile slow endpoints |
 
 ---
 
@@ -317,6 +318,53 @@ These items cannot be verified from the repo alone and must be checked manually 
 2. Verify all required secrets are set via `wrangler secret list`
 3. Check KV bindings are configured
 4. Check Supabase connectivity
+
+---
+
+## P2-4: Log Shipping
+
+- [ ] `LOG_SHIPPER_ENABLED` repo variable set to `true` in production
+- [ ] Tail consumer (`affilite-mix-log-shipper`) deployed and healthy
+- [ ] R2 bucket `affilite-mix-logs` exists with retention policy
+- [ ] Deploy gate: deploy workflow fails if `LOG_SHIPPER_ENABLED=false` in production
+
+## P2-5: DLQ Operations
+
+- [ ] Alert on DLQ depth > 0 wired (Cloudflare Dashboard or Sentry)
+- [ ] Runbook: `docs/runbooks/click-dlq.md` — owner assigned
+- [ ] Replay is idempotent (`scripts/drain-dlq.ts --dry-run`)
+- [ ] Dashboard for queue lag, failure rate, drain success rate
+
+## P2-6: Cron Heartbeat & Drift Detection
+
+- [ ] Heartbeat table: each cron writes a `last_run_at` timestamp on success
+- [ ] Alert on stale heartbeat (> 2x expected interval)
+- [ ] Both workers (`affilite-mix` and `affilite-mix-heavy-crons`) deployed together
+- [ ] Rollback includes both workers
+- [ ] Secret/env parity between workers documented
+
+## P2-8: AI Safety & Cost Controls
+
+- [ ] Provider-level cost caps configured via `QUOTA_DEFAULT_AI_COST_MICRO_USD_PER_MONTH`
+- [ ] Prompt injection tests in `__tests__/ai/prompt-sanitization.test.ts`
+- [ ] Model + version + prompt template ID logged on every AI call
+- [ ] Eval fixtures for recommendation quality and safety
+- [ ] Rate limit with `failPolicy: "closed"` on `/api/gift-finder`
+
+## P2-9: Release Evidence Bundle
+
+Each release MUST archive:
+
+- [ ] CI run output (lint, test, typecheck, build)
+- [ ] Deploy artifact digest (SHA256)
+- [ ] Branch protection export (via `scripts/github-rulesets-snapshot.sh`)
+- [ ] SBOM (generated by CI, `sbom.json`)
+- [ ] npm audit output
+- [ ] Secret scan results (`docs/gitleaks-report.json`)
+- [ ] Backup/restore drill result and timestamp
+- [ ] Production config snapshot
+
+Map controls to SOC 2 CC / ISO 27001 Annex A per `docs/compliance-readiness.md`.
 
 ---
 

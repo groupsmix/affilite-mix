@@ -81,26 +81,58 @@ jobs:
 
       - name: Admin route DAL usage audit (PRIORITY 1)
         run: |
-          # PRIORITY 1: Verify admin routes using DAL/service-role have proper authz.
-          # This complements the above import check with actual usage validation.
+          # P1-11: Fail closed when scripts/tools are missing — never skip
+          # security-critical checks silently.
           set -euo pipefail
-          if [ -x "scripts/check-admin-authz.sh" ]; then
-            bash scripts/check-admin-authz.sh || exit 1
-          else
-            echo "Admin authz check script not found, skipping..."
+          if [ ! -f "scripts/check-admin-authz.sh" ]; then
+            echo "::error::scripts/check-admin-authz.sh is missing — admin authz audit cannot run. This is a required check."
+            exit 1
           fi
+          bash scripts/check-admin-authz.sh || exit 1
 
       - name: CORS security tests (PRIORITY 2)
         run: |
-          # PRIORITY 2: CORS must only allow known safe origins.
-          # Hostile host/origin combinations should be rejected.
+          # P1-11: Fail closed when test files are missing.
           set -euo pipefail
-          if [ -f "__tests__/cors-security.test.ts" ]; then
-            echo "Running CORS security tests..."
-            npm test -- __tests__/cors-security.test.ts
-          else
-            echo "CORS security test file not found - verify middleware.ts CORS handling"
+          if [ ! -f "__tests__/cors-security.test.ts" ]; then
+            echo "::error::__tests__/cors-security.test.ts is missing — CORS security tests cannot run. This is a required check."
+            exit 1
           fi
+          echo "Running CORS security tests..."
+          npm test -- __tests__/cors-security.test.ts
+
+      - name: Internal API routes auth enforcement (P1-7)
+        run: |
+          set -euo pipefail
+          echo "Scanning app/api/internal/**/route.ts for auth mechanisms..."
+          VIOLATIONS=""
+          for file in $(find app/api/internal -name 'route.ts' -o -name 'route.tsx' 2>/dev/null); do
+            if ! grep -qE 'requireInternalAuth|getInternalToken|verifyInternalHmac|INTERNAL_HEADER|getInternalTokenFor' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Internal API routes missing auth (requireInternalAuth/getInternalToken/verifyInternalHmac/INTERNAL_HEADER):$VIOLATIONS"
+            exit 1
+          fi
+          echo "All internal API routes import an approved auth mechanism."
+
+      - name: Service-role import scan (P1-6)
+        run: |
+          set -euo pipefail
+          # Scan non-exempt API routes for privileged client imports.
+          # Allowed: cron, internal, membership/webhook, admin routes.
+          VIOLATIONS=""
+          for file in $(find app/api -name 'route.ts' -o -name 'route.tsx' | grep -v 'app/api/cron/' | grep -v 'app/api/internal/' | grep -v 'app/api/membership/webhook/' | grep -v 'app/api/admin/' | grep -v 'app/api/queue/'); do
+            if grep -qE 'getPrivilegedSupabaseClient|getServiceClient|service-role' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Non-exempt API routes importing service-role client (bypasses RLS):$VIOLATIONS"
+            exit 1
+          fi
+          echo "No unauthorized service-role imports in public API routes."
 
       - name: R2 bucket isolation validation (G-09)
         run: |
@@ -116,8 +148,8 @@ jobs:
             exit 0
           fi
           if ! command -v jq >/dev/null 2>&1; then
-            echo "::warning::jq not installed — skipping R2 isolation check"
-            exit 0
+            echo "::error::jq is required for R2 isolation check but is not installed"
+            exit 1
           fi
           # Strip JSONC line comments so `jq` can parse the file.
           WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc)
@@ -151,6 +183,27 @@ jobs:
             echo "::warning::Legacy Stripe key prefix (sk_live_/sk_test_) found in .env.example — migrate to Restricted API Keys (rk_live_/rk_test_)."
           fi
           echo "Stripe API key prefix check passed."
+
+      - name: Lockfile integrity check (P2-7)
+        run: |
+          # P2-7: Ensure package-lock.json is in sync with package.json.
+          # npm ci already validates this, but an explicit check gives a
+          # clearer error message when the lockfile has drifted.
+          # Note: avoid piping npm ci output through head with pipefail,
+          # as head closing the pipe early triggers SIGPIPE failures.
+          set -euo pipefail
+          npm ci --dry-run > /tmp/lockfile-check.log 2>&1 || {
+            echo "::error::package-lock.json is out of sync with package.json. Run 'npm install' and commit the lockfile."
+            cat /tmp/lockfile-check.log
+            exit 1
+          }
+          echo "Lockfile integrity verified."
+
+      - name: Generate SBOM (P2-7)
+        run: |
+          # P2-7: Generate Software Bill of Materials for the release.
+          npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json --spec-version 1.5 || echo "::warning::SBOM generation failed (non-blocking)"
+        continue-on-error: true
 
       - name: Wrangler dry-run check (F-035)
         # `wrangler.jsonc` references `.open-next/assets` and

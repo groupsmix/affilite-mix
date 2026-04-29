@@ -9,6 +9,7 @@ import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";
 import { signInternalRequest, computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
+import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 
 /**
  * 60 click-tracking requests per minute per IP.
@@ -33,6 +34,17 @@ const CLICK_RATE_LIMIT = {
  */
 async function handleClick(request: NextRequest) {
   try {
+    // P0-3: In production, hard-fail EARLY if INTERNAL_API_TOKEN is missing.
+    // Without it, HMAC signing cannot work and cached payloads would be
+    // unsigned -- a cache poisoning vector. This check MUST run before any
+    // cache reads or HMAC operations.
+    if (process.env.NODE_ENV === "production" && !process.env.INTERNAL_API_TOKEN) {
+      captureException(new Error("INTERNAL_API_TOKEN missing in production click route"), {
+        context: "[api/track/click] missing signing secret",
+      });
+      return apiError(503, "Service temporarily unavailable");
+    }
+
     const ip = getClientIp(request);
     const rl = await checkRateLimit(`click:${ip}`, CLICK_RATE_LIMIT);
     if (!rl.allowed) {
@@ -65,7 +77,18 @@ async function handleClick(request: NextRequest) {
       const kv = (process.env as any).APP_CACHE_KV as any;
       if (kv) {
         cachedData = await kv.get(cacheKey, "json");
-        // Verify HMAC if present
+        // P0-3: Verify HMAC on cached data. In production, reject unsigned
+        // cached payloads (missing _hmac) to prevent cache poisoning.
+        if (cachedData && !cachedData._hmac && process.env.NODE_ENV === "production") {
+          console.error(
+            JSON.stringify({
+              metric: "affiliate_cache_unsigned_rejected",
+              cacheKey,
+              msg: "Unsigned cached affiliate payload rejected in production",
+            }),
+          );
+          cachedData = null; // treat as cache miss
+        }
         if (cachedData?._hmac) {
           const internalToken = process.env.INTERNAL_API_TOKEN ?? "";
           const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
@@ -97,38 +120,78 @@ async function handleClick(request: NextRequest) {
       }
       cachedData = { name: product.name, url: product.affiliate_url };
 
-      // FIX-14: Sign the cached payload with HMAC for integrity verification
+      // P0-3: Sign the cached payload with HMAC for integrity verification.
+      // In production, INTERNAL_API_TOKEN is required — unsigned payloads
+      // are NEVER cached to prevent cache poisoning attacks.
       const internalToken = process.env.INTERNAL_API_TOKEN ?? "";
       const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
+      let hmacSigned = false;
       try {
         cachedData._hmac = await computeHmac(internalToken, "cache", "cache", bodyForHmac);
-      } catch {
-        // HMAC signing failed — cache without integrity check (graceful degradation)
+        hmacSigned = true;
+      } catch (hmacErr) {
+        // P0-3: HMAC signing failed — do NOT cache unsigned payloads.
+        console.error(
+          JSON.stringify({
+            metric: "affiliate_cache_hmac_sign_failed",
+            cacheKey,
+            msg: "Failed to sign affiliate cache payload — skipping cache write",
+          }),
+        );
+        captureException(hmacErr, {
+          context: "[api/track/click] HMAC signing failed",
+          extra: { cacheKey },
+        });
       }
 
-      // Update cache asynchronously
-      try {
-        const kv = (process.env as any).APP_CACHE_KV as any;
-        if (kv) {
-          void runAfterResponse(
-            kv.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 3600 }),
-            { context: "[api/track/click] cache product URL" },
-          );
-        }
-      } catch (e) {}
+      // P0-3: Only cache signed payloads — never persist unsigned data.
+      if (hmacSigned) {
+        try {
+          const kv = (process.env as any).APP_CACHE_KV as any;
+          if (kv) {
+            void runAfterResponse(
+              kv.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 3600 }),
+              { context: "[api/track/click] cache product URL" },
+            );
+          }
+        } catch (e) {}
+      }
     }
 
     const destinationUrl = cachedData.url;
 
     // F-029: Scheme validation to prevent javascript:/data: SSRF/XSS vectors
     const allowedSchemes = ["http:", "https:"];
+    let urlObj: URL;
     try {
-      const urlObj = new URL(destinationUrl);
+      urlObj = new URL(destinationUrl);
       if (!allowedSchemes.includes(urlObj.protocol)) {
         return apiError(400, "Invalid affiliate URL scheme");
       }
     } catch {
       return apiError(400, "Malformed affiliate URL");
+    }
+
+    // P0-4: Enforce destination-host allowlist at redirect time. The
+    // allowlist is already used at product write time (lib/validation.ts)
+    // but a compromised DB row or stale cache could still redirect to an
+    // attacker-controlled URL. This is the last line of defense.
+    const domainCheck = validateAffiliateDomain(destinationUrl);
+    if (!domainCheck.allowed) {
+      console.error(
+        JSON.stringify({
+          metric: "blocked_unapproved_affiliate_redirect",
+          url: destinationUrl,
+          reason: domainCheck.reason,
+          siteId,
+          productSlug,
+        }),
+      );
+      captureException(new Error(`Blocked unapproved affiliate redirect: ${urlObj.hostname}`), {
+        context: "[api/track/click] unapproved redirect host",
+        extra: { url: destinationUrl, reason: domainCheck.reason },
+      });
+      return apiError(400, "Affiliate URL domain is not approved");
     }
 
     // Publish to the click queue (falls back to direct DB write if no binding)

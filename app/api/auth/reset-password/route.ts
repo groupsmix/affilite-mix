@@ -24,9 +24,11 @@ export async function POST(request: Request) {
     const ip = getClientIp(request);
 
     // Rate limit: 5 attempts per IP per 15 minutes
+    // P0-5: failPolicy: "closed" — never skip rate limiting on auth routes.
     const rl = await checkRateLimit(`reset-password:${ip}`, {
       maxRequests: 5,
       windowMs: 15 * 60 * 1000,
+      failPolicy: "closed" as const,
     });
     if (!rl.allowed) {
       return NextResponse.json(
