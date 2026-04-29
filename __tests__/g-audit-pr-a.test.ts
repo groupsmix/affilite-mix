@@ -162,14 +162,38 @@ describe("G-03 / G-04 — CSP + remotePatterns pin to exact hosts when env is se
     expect(csp).not.toMatch(/\*\.r2\.dev/);
   });
 
-  it("getCspExternalHosts falls back to wildcards only when env is unset", () => {
+  it("getCspExternalHosts returns null (no wildcard fallback) when env is unset", () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     delete process.env.R2_PUBLIC_URL;
     const hosts = getCspExternalHosts();
-    expect(hosts.supabase).toBe("https://*.supabase.co");
-    // G-04: in non-development mode, R2 wildcard fallback is intentionally
-    // suppressed — R2_PUBLIC_URL must be set for production CSP.
-    expect(hosts.r2).toBe("");
+    expect(hosts.supabase).toBeNull();
+    expect(hosts.r2).toBeNull();
+  });
+
+  it("buildCspHeader never emits a wildcard supabase/r2 source (even when env unset)", () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.R2_PUBLIC_URL;
+    const csp = buildCspHeader("test-nonce");
+    expect(csp).not.toMatch(/\*\.supabase\.co/);
+    expect(csp).not.toMatch(/\*\.r2\.dev/);
+    expect(csp).not.toMatch(/\*\.r2\.cloudflarestorage\.com/);
+  });
+});
+
+describe("G-48 — priority={true} is reserved for LCP slots", () => {
+  const cinematic = read("app/(public)/components/homepage-cinematic.tsx");
+  const minimal = read("app/(public)/components/homepage-minimal.tsx");
+
+  it("homepage-cinematic.tsx does not mark product/content cards priority={true}", () => {
+    // Hero is a 90vh text + gradient section with no image — nothing
+    // below it is above-the-fold on any realistic viewport.
+    expect(cinematic).not.toMatch(/priority=\{i === 0\}/);
+    expect(cinematic).toMatch(/priority=\{false\}/);
+  });
+
+  it("homepage-minimal.tsx does not mark product/content cards priority={true}", () => {
+    expect(minimal).not.toMatch(/priority=\{i === 0\}/);
+    expect(minimal).toMatch(/priority=\{false\}/);
   });
 });
 

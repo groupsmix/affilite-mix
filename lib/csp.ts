@@ -16,9 +16,9 @@
  * compromised any other Supabase project or any other R2 bucket inject
  * content into our pages. We now derive the exact Supabase subdomain from
  * `NEXT_PUBLIC_SUPABASE_URL` and the exact R2 public host from
- * `R2_PUBLIC_URL`. The old wildcards remain only as a fallback when those
- * env vars are missing (dev + test); production always resolves to exact
- * origins because both env vars are set via `wrangler secret`.
+ * `R2_PUBLIC_URL`. If either env var is missing (local dev/test without a
+ * configured project) the corresponding origin is simply omitted from the
+ * CSP. No wildcard string ever ships in the bundle.
  */
 
 /**
@@ -50,27 +50,20 @@ function hostnameFromEnv(name: string): string | null {
 /**
  * Compute the exact allowed CSP origins for Supabase and R2 based on
  * env vars. Exported so `next.config.ts` and tests can use the same
- * resolution logic. Falls back to the historical wildcards when the
- * env var is missing so dev / preview / test do not break; production
- * always resolves to exact origins because both env vars are set via
- * `wrangler secret` and checked in deploy.yml.
+ * resolution logic. Returns `null` when the env var is missing — callers
+ * must omit the origin from the emitted directive rather than substitute
+ * a wildcard. Production always resolves to exact origins because both
+ * env vars are set via `wrangler secret` and checked in deploy.yml.
  */
 export function getCspExternalHosts(): {
-  supabase: string;
-  r2: string;
+  supabase: string | null;
+  r2: string | null;
 } {
   const supabaseHost = hostnameFromEnv("NEXT_PUBLIC_SUPABASE_URL");
   const r2Host = hostnameFromEnv("R2_PUBLIC_URL");
-  const isDev = process.env.NODE_ENV === "development";
   return {
-    supabase: supabaseHost ? `https://${supabaseHost}` : "https://*.supabase.co",
-    // G-04: Only fall back to wildcard R2 hosts in development. In production,
-    // R2_PUBLIC_URL must be set so CSP pins to the exact bucket hostname.
-    r2: r2Host
-      ? `https://${r2Host}`
-      : isDev
-        ? "https://*.r2.dev https://*.r2.cloudflarestorage.com"
-        : "",
+    supabase: supabaseHost ? `https://${supabaseHost}` : null,
+    r2: r2Host ? `https://${r2Host}` : null,
   };
 }
 
@@ -84,6 +77,27 @@ export function getCspExternalHosts(): {
  */
 export function buildCspHeader(nonce: string): string {
   const { supabase, r2 } = getCspExternalHosts();
+  // G-03 / G-04: build img-src and connect-src from the resolved host
+  // list rather than interpolating wildcard-bearing strings. Supabase
+  // and R2 origins are only included when their env var resolved to a
+  // real hostname; no wildcard fallback ever ships.
+  // G-48 (follow-up): third-party image CDNs (e.g. Amazon's media
+  // CDNs) stay in img-src until the R2 ingest migration lands — see
+  // the tracking issue.
+  const imgSources = ["'self'", "data:", "blob:"];
+  if (r2) imgSources.push(r2);
+  if (supabase) imgSources.push(supabase);
+  imgSources.push(
+    "https://images.unsplash.com",
+    "https://m.media-amazon.com",
+    "https://images-na.ssl-images-amazon.com",
+    "https://www.google.com",
+  );
+
+  const connectSources = ["'self'"];
+  if (supabase) connectSources.push(supabase);
+  connectSources.push("https://challenges.cloudflare.com", "https://*.ingest.sentry.io");
+
   const directives: string[] = [
     "default-src 'self'",
     // A-011: Drop unsafe-inline from CSP. All inline scripts now carry the
@@ -95,8 +109,8 @@ export function buildCspHeader(nonce: string): string {
     // ThemeProvider inline `<style>` tags carry the per-request nonce.
     `style-src 'self' 'nonce-${nonce}'`,
     "font-src 'self'",
-    `img-src 'self' data: blob: ${r2} ${supabase} https://images.unsplash.com https://m.media-amazon.com https://images-na.ssl-images-amazon.com https://www.google.com`,
-    `connect-src 'self' ${supabase} https://challenges.cloudflare.com https://*.ingest.sentry.io`,
+    `img-src ${imgSources.join(" ")}`,
+    `connect-src ${connectSources.join(" ")}`,
     "frame-src https://challenges.cloudflare.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",

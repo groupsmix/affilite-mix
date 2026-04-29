@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
 import { constructStripeEvent, prewarmStripeWebhookKey } from "@/lib/stripe-webhook";
+import { getStripeClient } from "@/lib/stripe-client";
 
 // FIX-13 (F-004): Pre-warm the HMAC crypto key on cold start so the first
 // webhook verification doesn't pay the importKey() latency penalty.
@@ -46,13 +47,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Only import the heavy Stripe SDK when processing is actually needed.
-    const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: null as any,
-      appInfo: { name: "affilite-mix" },
-      httpClient: Stripe.createFetchHttpClient(),
-    });
+    // G-18: Reuse a module-scope Stripe client across requests in the
+    // same isolate. The first call lazily imports the SDK; subsequent
+    // calls skip both the import and the constructor.
+    const stripe = await getStripeClient(stripeKey);
 
     // LIVE-10 / F-024: idempotency record + membership side effect run
     // in a single Postgres transaction inside `processStripeEvent`. A

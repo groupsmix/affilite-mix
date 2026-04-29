@@ -98,10 +98,21 @@ for the exact shapes.
 - `lib/r2.ts:getUploadUrl(contentType, contentLength, { siteId })`
   - **Pre-flight**: `assertQuota(siteId, "r2_storage_bytes", contentLength)`.
   - **Pessimistic accounting**: usage is recorded BEFORE the presign
-    URL is returned. A follow-up finalize hook in
-    `/api/admin/upload/finalize` is the right place to reconcile
-    against actual upload completion; the primitive is already
-    exposed (`recordUsage(..., -bytes)` is acceptable for credits).
+    URL is returned by `app/api/admin/upload/route.ts`, which threads
+    `siteId` through from the `withAuthz` envelope.
+  - **Reconciliation on validation failure**:
+    `app/api/admin/upload/finalize/route.ts` HEADs the staging object
+    via `headStagingObject(stagingKey)` to read its actual byte size,
+    then calls `recordUsage(siteId, "r2_storage_bytes", -size)`
+    BEFORE deleting the failed upload from staging. Successful
+    promotions to the public bucket are NOT credited — the bytes are
+    durably stored.
+  - **Clamp-at-zero**: credits clamp the counter at zero so a stray
+    over-credit (e.g. a duplicate finalize signal) cannot push usage
+    below zero and grant extra capacity. An over-credit and any
+    non-finite amount sent to `recordUsage` is reported via
+    `captureMessage(..., "warning")` so operators can spot a runaway
+    upstream.
 
 ## Failure Mode
 
