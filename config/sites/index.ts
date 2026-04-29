@@ -187,7 +187,15 @@ export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
   // Development fallback: resolve localhost / *.localhost to a site.
   // Gated on NODE_ENV !== "production" defensively so a misconfigured prod
   // env can never accidentally expose this path.
-  if (process.env.NODE_ENV !== "production") {
+  //
+  // Opt-in override for production-mode local runs (Lighthouse CI, docker
+  // smoke tests, etc.): set ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 to apply
+  // the same localhost resolution under NODE_ENV=production. The flag is
+  // checked against a literal "1" so a stray truthy value cannot enable it.
+  // Never set this in real production deployments — the Cloudflare Worker
+  // never receives hostname=localhost through the edge anyway.
+  const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
+  if (process.env.NODE_ENV !== "production" || allowLocalhostInProd) {
     // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
     if (host.endsWith(".localhost")) {
       const prefix = host.slice(0, -".localhost".length);
