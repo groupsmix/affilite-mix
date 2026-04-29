@@ -167,7 +167,9 @@ describe("G-03 / G-04 — CSP + remotePatterns pin to exact hosts when env is se
     delete process.env.R2_PUBLIC_URL;
     const hosts = getCspExternalHosts();
     expect(hosts.supabase).toBe("https://*.supabase.co");
-    expect(hosts.r2).toMatch(/\*\.r2\.dev/);
+    // G-04: in non-development mode, R2 wildcard fallback is intentionally
+    // suppressed — R2_PUBLIC_URL must be set for production CSP.
+    expect(hosts.r2).toBe("");
   });
 });
 
