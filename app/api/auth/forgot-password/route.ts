@@ -8,6 +8,7 @@ import { isValidEmail } from "@/lib/validate-email";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { hashResetToken } from "@/lib/reset-token";
+import { buildPasswordResetEmail } from "@/lib/email-templates/password-reset";
 
 /**
  * POST /api/auth/forgot-password
@@ -52,19 +53,29 @@ export async function POST(request: Request) {
       return successResponse;
     }
 
-    // Fail hard in production if APP_URL is missing — we cannot build a
-    // reset link without it, and silently swallowing this masks a deploy
-    // misconfiguration.
-    const appUrl = process.env.APP_URL;
-    if (!appUrl && process.env.NODE_ENV === "production") {
-      throw new Error("APP_URL is required for password reset");
-    }
-    if (!appUrl) {
-      captureException(new Error("APP_URL environment variable is not configured"), {
-        context: "[api/auth/forgot-password] Cannot build reset URL",
+    // Resolve the active tenant up front: the reset link must point at the
+    // tenant the user belongs to, otherwise a user on tenant A could be sent
+    // a reset link on tenant B's host (G-22).
+    const site = await getCurrentSite();
+    if (!site.domain) {
+      captureException(new Error("Active site is missing a domain"), {
+        context: "[api/auth/forgot-password] Cannot build tenant-aware reset URL",
       });
       return successResponse;
     }
+
+    // Build a tenant-aware base URL for the reset link. In production we
+    // always use the active site's own domain so each tenant gets reset
+    // links on its own host. APP_URL is only honoured as a local-dev
+    // override since dev typically serves all tenants behind a single
+    // localhost host.
+    // Use `||` (not `??`) so an empty-string APP_URL in a developer's
+    // .env also falls through to the site-domain fallback — otherwise we
+    // would emit a relative `/admin/reset-password?...` URL in email.
+    const baseUrl =
+      process.env.NODE_ENV === "production"
+        ? `https://${site.domain}`
+        : process.env.APP_URL || `https://${site.domain}`;
 
     // Generate reset token with 1-hour expiry.
     // The raw token is sent to the user via email; only its SHA-256 hash is
@@ -90,13 +101,20 @@ export async function POST(request: Request) {
       // Don't expose internal errors — still return success
       return successResponse;
     }
-    const resetUrl = `${appUrl}/admin/reset-password?token=${resetToken}`;
+    const resetUrl = `${baseUrl}/admin/reset-password?token=${resetToken}`;
     const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {
-      const site = await getCurrentSite();
       const fallbackFromEmail = `noreply@${site.domain}`;
       const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? fallbackFromEmail;
+      // Locale-aware email body so Arabic-language tenants receive
+      // translated, RTL-marked content (G-24).
+      const emailPayload = buildPasswordResetEmail({
+        resetUrl,
+        siteName: site.name,
+        language: site.language,
+        direction: site.direction,
+      });
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -106,9 +124,9 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           from: fromEmail,
           to: [email],
-          subject: "Password Reset Request",
-          html: buildResetEmail(resetUrl, site.name),
-          text: `You requested a password reset.\n\nClick the link below to reset your password:\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you did not request this, you can safely ignore this email.`,
+          subject: emailPayload.subject,
+          html: emailPayload.html,
+          text: emailPayload.text,
         }),
       });
       if (!res.ok) {
@@ -132,38 +150,4 @@ export async function POST(request: Request) {
     captureException(err, { context: "[api/auth/forgot-password] POST failed:" });
     return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
   }
-}
-
-function buildResetEmail(resetUrl: string, siteName = "Admin"): string {
-  const year = new Date().getFullYear();
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
-    <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-        <tr><td style="background-color:#111827;padding:24px 32px;text-align:center;">
-          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Password Reset</h1>
-        </td></tr>
-        <tr><td style="padding:32px;">
-          <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">Reset your password</h2>
-          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">You requested a password reset. Click the button below to choose a new password. This link expires in 1 hour.</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
-            <tr><td style="background-color:#111827;border-radius:8px;">
-              <a href="${resetUrl}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">Reset Password</a>
-            </td></tr>
-          </table>
-          <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">Or copy and paste this link:</p>
-          <p style="margin:0 0 24px;font-size:13px;color:#6b7280;word-break:break-all;">${resetUrl}</p>
-          <p style="margin:0;font-size:13px;color:#9ca3af;">If you did not request this reset, you can safely ignore this email.</p>
-        </td></tr>
-        <tr><td style="padding:16px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-          <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${year} ${siteName}</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
 }
