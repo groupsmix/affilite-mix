@@ -73,6 +73,38 @@ export interface SiteDefinition {
 
   /** Homepage template preset. Defaults to "standard". */
   homepageTemplate?: "standard" | "cinematic" | "minimal";
+
+  /**
+   * Per-tenant cost / usage ceilings (G-42).
+   *
+   * Optional per-site override of the global ceilings configured via
+   * `QUOTA_DEFAULT_*` environment variables. When unset, the global
+   * defaults apply. See `lib/quotas.ts` and `docs/per-tenant-quotas.md`.
+   */
+  quotas?: TenantQuotaOverrides;
+}
+
+/**
+ * Per-tenant ceilings. Every field is optional; an unset field inherits
+ * the corresponding global default from `QUOTA_DEFAULT_*` env vars and
+ * is treated as unlimited if neither is set.
+ *
+ * Window semantics:
+ *   - `*PerMonth` counters reset on the first of each calendar month UTC.
+ *   - `*PerDay`   counters reset at 00:00 UTC.
+ *   - `*Bytes`    counters are cumulative (storage; not reset).
+ */
+export interface TenantQuotaOverrides {
+  /** Maximum AI tokens (input + output, estimated) per calendar month. */
+  aiTokensPerMonth?: number;
+  /** Maximum estimated AI cost (USD, scaled by 1e6 micro-dollars) per month. */
+  aiCostMicroUsdPerMonth?: number;
+  /** Maximum AI generation requests per day (rate-shaping). */
+  aiRequestsPerDay?: number;
+  /** Maximum cumulative R2 storage (bytes) per tenant. */
+  r2StorageBytes?: number;
+  /** Maximum R2 egress per month (bytes). */
+  r2EgressBytesPerMonth?: number;
 }
 
 export interface FeatureFlags {
