@@ -53,10 +53,19 @@ and executes the following deletes inside a single transaction:
 | `quiz_submissions`       | `created_at < now() - interval`                                              | 365 d  |
 | `comments`               | `status = 'deleted' AND COALESCE(updated_at, created_at) < now() - interval` | 30 d   |
 | `web_vitals`             | `created_at < now() - interval`                                              | 90 d   |
+| `experiment_events`      | `created_at < now() - interval`                                              | 180 d  |
+| `ad_impressions`         | `created_at < now() - interval`                                              | 180 d  |
 
 The windows are defined as DECLAREs at the top of `purge_retention()`;
 any change MUST be mirrored in this table and reviewed by the DPO.
 
+The corresponding data categories are also covered in the table above:
+
+| Data Category     | Source                        | Purpose                            | Legal Basis                        | Recipients       | Retention                                                    | Cross-border? |
+| ----------------- | ----------------------------- | ---------------------------------- | ---------------------------------- | ---------------- | ------------------------------------------------------------ | ------------- |
+| Experiment events | Automatic (A/B test SDK)      | Product experimentation, analytics | Legitimate interest (Art. 6(1)(f)) | Supabase (EU/US) | **180 days** (hot), then hard-deleted by `purge_retention()` | Yes (US)      |
+| Ad impressions    | Automatic (impression beacon) | Ad delivery analytics, attribution | Legitimate interest (Art. 6(1)(f)) | Supabase (EU/US) | **180 days** (hot), then hard-deleted by `purge_retention()` | Yes (US)      |
+
 ## Last Updated
 
-2026-04-29 (audit follow-up S-10 / G-D-01)
+2026-04-29 (audit follow-up S-10 / G-D-01 / DB-15)

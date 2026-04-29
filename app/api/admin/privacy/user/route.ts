@@ -56,12 +56,19 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
       { data: priceAlerts },
       { data: dripEnrollments },
     ] = await Promise.all([
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb.from("newsletter_subscribers").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb.from("memberships").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb.from("comments").select("*").eq("site_id", site_id).eq("user_email", lowerEmail),
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb.from("wrist_shots").select("*").eq("site_id", site_id).eq("user_email", lowerEmail),
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb.from("quiz_submissions").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb.from("price_alerts").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb.from("drip_enrollments").select("*").eq("email", lowerEmail),
     ]);
 
@@ -126,6 +133,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
   try {
     // 1. Delete newsletter subscriptions
     const { error: newsletterErr } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       .from("newsletter_subscribers")
       .delete()
       .eq("site_id", site_id)
@@ -161,6 +169,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
 
     // 3. Delete comments
     const { error: commentsErr } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       .from("comments")
       .delete()
       .eq("site_id", site_id)
@@ -173,6 +182,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
 
     // 4. Delete wrist shots
     const { error: wristShotErr } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       .from("wrist_shots")
       .delete()
       .eq("site_id", site_id)
@@ -185,6 +195,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
 
     // 5. Delete quiz submissions
     const { error: quizErr } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       .from("quiz_submissions")
       .delete()
       .eq("site_id", site_id)

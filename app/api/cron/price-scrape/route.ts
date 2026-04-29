@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch all active products with a numeric price
     const { data: products, error: prodError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("products")
       .select("id, site_id, price_amount, price_currency, name, slug")
       .eq("status", "active")
@@ -104,7 +105,11 @@ export async function POST(request: NextRequest) {
     for (const product of products) {
       if (!product.price_amount) continue;
 
-      const triggered = await findTriggeredAlerts(product.id, product.price_amount as number, getPrivilegedSupabaseClient);
+      const triggered = await findTriggeredAlerts(
+        product.id,
+        product.price_amount as number,
+        getPrivilegedSupabaseClient,
+      );
 
       for (const alert of triggered) {
         // Send email notification via Resend

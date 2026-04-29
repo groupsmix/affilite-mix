@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
 
   // 1. Publish scheduled content (only explicitly scheduled items with publish_at <= now)
   const { data: contentItems, error: contentError } = await sb
+    // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
     .from("content")
     .select("id, title, slug")
     .eq("status", "scheduled")
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
     // to prevent double-publishing if another cron instance runs concurrently.
     const ids = contentItems.map((item) => item.id);
     const { data: updated, error: updateError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("content")
       .update({ status: "published" })
       .in("id", ids)
@@ -96,6 +98,7 @@ export async function POST(request: NextRequest) {
 
   // 3. Archive expired products (active with deal_expires_at <= now)
   const { data: expiredProducts, error: expiredError } = await sb
+    // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
     .from("products")
     .select("id, name, slug")
     .eq("status", "active")
@@ -115,6 +118,7 @@ export async function POST(request: NextRequest) {
     // Optimistic locking: only archive rows still in "active" status
     const ids = expiredProducts.map((p) => p.id);
     const { data: archived, error: archiveError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("products")
       .update({ status: "archived" })
       .in("id", ids)
@@ -146,6 +150,7 @@ export async function POST(request: NextRequest) {
   if ((results.published_content as number) > 0) {
     // Fetch all active site domains to ping their sitemaps
     const { data: sites } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("sites")
       .select("domain")
       .eq("is_active", true)

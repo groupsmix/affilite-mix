@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     const clicksDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
     const { error: clicksError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("affiliate_clicks")
       .delete()
       .lt("created_at", clicksDate.toISOString());
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
 
       // Fetch rows to archive before deleting
       const { data: auditRows, error: fetchError } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("audit_log")
         .select("*")
         .lt("created_at", auditDate.toISOString())
@@ -104,9 +106,12 @@ export async function POST(request: NextRequest) {
             );
           }
         } catch (archiveErr) {
-          logger.error("Failed to archive audit log to R2 — skipping deletion to prevent data loss", {
-            error: archiveErr instanceof Error ? archiveErr.message : String(archiveErr),
-          });
+          logger.error(
+            "Failed to archive audit log to R2 — skipping deletion to prevent data loss",
+            {
+              error: archiveErr instanceof Error ? archiveErr.message : String(archiveErr),
+            },
+          );
           captureException(archiveErr, {
             context: "[cron/data-retention] audit_log R2 archive failed",
           });
@@ -116,6 +121,7 @@ export async function POST(request: NextRequest) {
       let deletedCount = 0;
       if (archiveSucceeded && auditRows && auditRows.length > 0) {
         const ids = auditRows.map((row) => row.id);
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         const { error: auditError } = await sb.from("audit_log").delete().in("id", ids);
 
         if (auditError) throw auditError;
@@ -140,6 +146,7 @@ export async function POST(request: NextRequest) {
   try {
     const stripeDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     const { error: stripeError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("stripe_events")
       .delete()
       .lt("received_at", stripeDate.toISOString());

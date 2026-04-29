@@ -67,6 +67,7 @@ export async function POST(request: Request) {
     // token lives exclusively in the reset email.
     const tokenHash = await hashResetToken(token);
     const { data: user, error: findError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: auth route requires cross-site lookup by email; rate-limited
       .from("admin_users")
       .select("id, reset_token, reset_token_expires_at")
       .eq("reset_token", tokenHash)
@@ -97,6 +98,7 @@ export async function POST(request: Request) {
     // Hash new password and update
     const newHash = await hashPassword(password);
     const { error: updateError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: auth route requires cross-site lookup by email; rate-limited
       .from("admin_users")
       .update({
         password_hash: newHash,

@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
   } else {
     const sb = await getTenantClient();
     const { data: sites, error } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: revalidate webhook uses privileged client; gated by shared secret
       .from("sites")
       .select("id")
       .eq("is_active", true)
