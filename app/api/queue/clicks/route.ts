@@ -206,13 +206,19 @@ export async function POST(request: NextRequest) {
         error_message: "queue consumer validation reject",
       }));
       // Fire-and-forget — don't fail the batch on insert error.
-      void sb.from("click_failures" as any).insert(rejectedRows).then((res: { error?: { message: string } | null }) => {
-        if (res.error) {
-          captureException(new Error(`Failed to persist rejected messages: ${res.error.message}`), {
-            context: "[api/queue/clicks] click_failures insert",
-          });
-        }
-      });
+      void sb
+        .from("click_failures" as any)
+        .insert(rejectedRows)
+        .then((res: { error?: { message: string } | null }) => {
+          if (res.error) {
+            captureException(
+              new Error(`Failed to persist rejected messages: ${res.error.message}`),
+              {
+                context: "[api/queue/clicks] click_failures insert",
+              },
+            );
+          }
+        });
     }
 
     const rows = validMessages.map((m) => {
@@ -234,6 +240,7 @@ export async function POST(request: NextRequest) {
     // Use upsert with ignoreDuplicates so retried queue messages with the
     // same click_id are silently skipped (ON CONFLICT (click_id) DO NOTHING).
     const { error } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: queue worker uses privileged client; gated by INTERNAL_API_TOKEN
       .from("affiliate_clicks")
       .upsert(rows, { onConflict: "click_id", ignoreDuplicates: true });
     if (error) {

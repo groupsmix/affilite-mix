@@ -87,6 +87,7 @@ export async function POST(request: Request) {
 
     const sb = await getTenantClient();
     const { error: updateError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: auth route requires cross-site lookup by email; rate-limited
       .from("admin_users")
       .update({
         reset_token: resetTokenHash,

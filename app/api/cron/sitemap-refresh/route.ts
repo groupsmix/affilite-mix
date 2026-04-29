@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
 
   const sb = getPrivilegedSupabaseClient();
   const { data: sites, error } = await sb
+    // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
     .from("sites")
     .select("id")
     .eq("is_active", true)

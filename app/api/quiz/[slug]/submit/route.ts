@@ -105,6 +105,7 @@ export async function POST(
     // Fetch matching products by tags
     const sb = await getTenantClient();
     const { data: products } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
       .from("products")
       .select(
         "id, name, slug, image_url, price, price_amount, price_currency, score, affiliate_url, merchant, cta_text",

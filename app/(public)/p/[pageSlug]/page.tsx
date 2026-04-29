@@ -44,6 +44,7 @@ function parseComparisonSlug(slug: string): { slugA: string; slugB: string } | n
 async function getProducts(siteId: string, slugA: string, slugB: string) {
   const sb = await getTenantClient();
   const { data } = await sb
+    // eslint-disable-next-line no-restricted-syntax -- Audited: server component uses site-scoped getTenantClient() (RLS-enforced)
     .from("products")
     .select("*")
     .eq("site_id", siteId)

@@ -33,6 +33,7 @@ async function confirmSubscription(token: string | undefined): Promise<ConfirmRe
     const sb = await getTenantClient();
 
     const { data: subscriber, error: fetchError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: server component uses site-scoped getTenantClient() (RLS-enforced)
       .from("newsletter_subscribers")
       .select("id, status, confirmed_at")
       .eq("confirmation_token", token)
@@ -51,6 +52,7 @@ async function confirmSubscription(token: string | undefined): Promise<ConfirmRe
     }
 
     const { error: updateError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: server component uses site-scoped getTenantClient() (RLS-enforced)
       .from("newsletter_subscribers")
       .update({
         status: "active",
