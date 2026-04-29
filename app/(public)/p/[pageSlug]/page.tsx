@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCurrentSite } from "@/lib/site-context";
-import { resolveDbSiteBySlug, resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getPageBySlug } from "@/lib/dal/pages";
 import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
@@ -71,37 +71,38 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // `*-vs-*` slug whose products don't exist may still be a CMS page,
     // so fall through to the page-table lookup in that case to keep the
     // metadata aligned with what is actually rendered.
+    //
+    // `getCurrentSite()` returns site.id as the DB UUID (see
+    // lib/site-context.ts:153 and :164), so it can be passed straight
+    // to getProducts without a separate slug→UUID resolution step.
     const parsed = parseComparisonSlug(pageSlug);
     if (parsed && !shouldSkipDbCall()) {
-      const dbSite = await resolveDbSiteBySlug(site.id);
-      if (dbSite) {
-        const products = await getProducts(dbSite.id, parsed.slugA, parsed.slugB);
-        if (products) {
-          const nameA = products.productA.name;
-          const nameB = products.productB.name;
-          const title = `${nameA} vs ${nameB}`;
-          const description = `Compare ${nameA} and ${nameB} side by side. Specs, prices, pros & cons on ${site.name}.`;
-          const url = `https://${site.domain}/p/${pageSlug}`;
+      const products = await getProducts(site.id, parsed.slugA, parsed.slugB);
+      if (products) {
+        const nameA = products.productA.name;
+        const nameB = products.productB.name;
+        const title = `${nameA} vs ${nameB}`;
+        const description = `Compare ${nameA} and ${nameB} side by side. Specs, prices, pros & cons on ${site.name}.`;
+        const url = `https://${site.domain}/p/${pageSlug}`;
 
-          return {
+        return {
+          title: `${title} — ${site.name}`,
+          description,
+          alternates: { canonical: url },
+          openGraph: {
             title: `${title} — ${site.name}`,
             description,
-            alternates: { canonical: url },
-            openGraph: {
-              title: `${title} — ${site.name}`,
-              description,
-              url,
-              siteName: site.name,
-              locale: site.locale,
-              type: "article",
-            },
-            twitter: {
-              card: "summary_large_image",
-              title: `${title} — ${site.name}`,
-              description,
-            },
-          };
-        }
+            url,
+            siteName: site.name,
+            locale: site.locale,
+            type: "article",
+          },
+          twitter: {
+            card: "summary_large_image",
+            title: `${title} — ${site.name}`,
+            description,
+          },
+        };
       }
     }
 
@@ -157,10 +158,9 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
 
   if (shouldSkipDbCall()) return null;
 
-  const dbSite = await resolveDbSiteBySlug(site.id);
-  if (!dbSite) return null;
-
-  const result = await getProducts(dbSite.id, slugA, slugB);
+  // site.id is already the DB UUID after getCurrentSite() (see
+  // lib/site-context.ts:153 and :164), so query products directly.
+  const result = await getProducts(site.id, slugA, slugB);
   if (!result) return null;
 
   const { productA, productB } = result;
