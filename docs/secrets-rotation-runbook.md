@@ -4,6 +4,20 @@ This document describes how to rotate each secret used by Affilite-Mix, the expe
 
 ---
 
+## How rotation reaches the running Worker (`wrangler` rollout)
+
+Cloudflare Workers read secrets at request time, not at deploy time, so a `wrangler secret put` call updates the **secret store** instantly but does **not** force a redeploy. New isolates spin up with the new value, but isolates that already exist keep serving traffic with whatever they captured the first time they read the env.
+
+Two mechanisms make sure a rotation actually reaches every isolate:
+
+1. **`wrangler deploy` rollout (recommended).** A deploy invalidates every existing isolate, so the next request mints a fresh isolate that reads the rotated secret from `process.env`. This is the only way to guarantee 100% propagation in seconds. Every rotation procedure below ends with a redeploy step for this reason — do not skip it on the assumption that `wrangler secret put` is enough on its own.
+
+2. **5-minute TTL on memoised clients (G-30).** The privileged Supabase client gateway in `lib/server-only/service-role.ts` caps its per-isolate cache at 5 minutes. After the TTL expires, the next call re-reads `process.env` and mints a fresh client. The cache is also invalidated immediately if the URL or key in `process.env` differs from the values used to mint the cached client, so a rotation combined with a `wrangler deploy` rollout takes effect on the next request. This is the safety net for any isolate that survives a rotation when the redeploy is delayed; it is **not** a substitute for the rollout.
+
+**Operational rule of thumb:** always pair `wrangler secret put` with a `wrangler deploy` (or trigger the GitHub Actions deploy workflow) within the same change window. The TTL exists to make a missed rollout self-heal within ≤ 5 minutes; relying on it as the primary rotation mechanism leaves a 5-minute window where some isolates serve traffic with the old key.
+
+---
+
 ## Overview
 
 | Secret                                                                                           | Location                 | Rotation Frequency           | Impact of Rotation                                        |
@@ -61,7 +75,8 @@ This document describes how to rotate each secret used by Affilite-Mix, the expe
    wrangler secret put SUPABASE_SERVICE_ROLE_KEY
    ```
 5. Update in GitHub Secrets.
-6. Redeploy.
+6. **Trigger a `wrangler deploy` rollout** (or push to `main` to fire `.github/workflows/deploy.yml`). See the [How rotation reaches the running Worker](#how-rotation-reaches-the-running-wrangler-rollout) section above — `wrangler secret put` alone does not force existing isolates to re-read the new key. The privileged client gateway will self-heal within 5 minutes via its TTL (G-30), but a deploy is the only way to guarantee immediate propagation.
+7. Verify `/api/health` returns `200 OK` and check Workers logs for any `service-role-key` auth failures during the rollout window.
 
 **Warning:** The old key is invalidated immediately by Supabase. Plan for a brief outage window or use a blue/green deployment strategy.
 
