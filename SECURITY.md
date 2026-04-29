@@ -13,9 +13,19 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 ### How to Report
 
-1. **Do NOT** create a public GitHub issue for security vulnerabilities
-2. Email security vulnerabilities to: `security@[domain]`
-3. Include as much detail as possible:
+1. **Do NOT** create a public GitHub issue for security vulnerabilities.
+2. Open a private security advisory on the GitHub repository
+   ([Security → Advisories → Report a vulnerability](https://github.com/groupsmix/affilite-mix/security/advisories/new)).
+   The repository's listed maintainers will be notified privately and can
+   coordinate a fix without exposing the issue publicly.
+3. If GitHub Security Advisories are not available to you, contact the
+   repository's listed maintainers directly via the `Maintainer` contact
+   on the GitHub organization profile (https://github.com/groupsmix).
+   The repo intentionally does not publish a generic `security@…`
+   alias in source control because it would otherwise become a stale
+   placeholder; route reports through the contact methods above so they
+   reach a real on-call human.
+4. Include as much detail as possible:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact
@@ -23,7 +33,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 ### Response Timeline
 
-- **Acknowledgement**: Within 48 hours
+- **Acknowledgement**: Within 2 business days
 - **Initial Assessment**: Within 7 days
 - **Fix Timeline**: varies by severity (critical: 24-72h, high: 1-2 weeks, medium: 1 month)
 

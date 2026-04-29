@@ -26,6 +26,12 @@ import { captureException } from "@/lib/sentry";
  * batch with backoff and eventually routes it to the dead-letter queue.
  */
 
+/**
+ * T-12: per-isolate flag so the "permissive in production" warning fires
+ * once per cold start instead of on every request.
+ */
+let permissivePosturedLogged = false;
+
 interface ClickMessage {
   site_id?: string;
   product_name?: string;
@@ -119,7 +125,29 @@ export async function POST(request: NextRequest) {
 
   // FIX-03 (F-003): Prefer HMAC verification; fall back to legacy Bearer token
   // during migration. Set INTERNAL_HMAC_MIGRATION_MODE=strict to reject Bearer.
-  const migrationMode = process.env.INTERNAL_HMAC_MIGRATION_MODE ?? "permissive";
+  //
+  // T-12 (consolidated launch audit): in production we default to strict
+  // mode unless the operator has *explicitly* opted into the permissive
+  // legacy fallback by setting INTERNAL_HMAC_MIGRATION_MODE=permissive.
+  // The previous default ("permissive when unset") meant a leaked
+  // INTERNAL_API_TOKEN in production could forge queue ingestion via
+  // bearer auth even after the worker was migrated to HMAC. Operators
+  // can still flip back to permissive during a rollout window.
+  const rawMode = process.env.INTERNAL_HMAC_MIGRATION_MODE ?? "";
+  const isProd = process.env.NODE_ENV === "production";
+  const migrationMode =
+    rawMode === "permissive" ? "permissive" : isProd ? "strict" : rawMode || "permissive";
+  // Surface a one-time warning if the operator explicitly opted into
+  // permissive mode in production so the reduced posture is visible.
+  if (isProd && rawMode === "permissive" && !permissivePosturedLogged) {
+    permissivePosturedLogged = true;
+    console.warn(
+      JSON.stringify({
+        metric: "internal_hmac_permissive_in_prod",
+        msg: "INTERNAL_HMAC_MIGRATION_MODE=permissive in production — legacy bearer fallback is enabled.",
+      }),
+    );
+  }
   const bodyText = await request.text();
   const hmacResult = await verifyInternalHmac(expected, request, bodyText);
 
@@ -131,6 +159,14 @@ export async function POST(request: NextRequest) {
       if (bearer !== expected) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
+      // Track legacy bearer use so operators can confirm migration is complete.
+      console.warn(
+        JSON.stringify({
+          metric: "internal_hmac_legacy_bearer_used",
+          path: "/api/queue/clicks",
+          msg: "Legacy bearer auth accepted on internal queue endpoint",
+        }),
+      );
     } else {
       return NextResponse.json({ error: "Forbidden", reason: hmacResult.reason }, { status: 403 });
     }

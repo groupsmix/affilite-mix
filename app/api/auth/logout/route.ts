@@ -4,6 +4,7 @@ import { COOKIE_NAME } from "@/lib/auth";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { revokeToken } from "@/lib/jwt-revocation";
+import { CSRF_COOKIE } from "@/lib/csrf";
 
 export async function POST() {
   try {
@@ -41,6 +42,21 @@ export async function POST() {
     httpOnly: false, // Needs to be readable by client JS
     secure: IS_SECURE_COOKIE,
     sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+
+  // T-25: clear the CSRF double-submit cookie too. Leaving it set after
+  // logout is mostly cosmetic (the matching JWT cookie is gone, so
+  // server-side checks already fail), but a stale `__csrf` cookie is a
+  // confusing artefact that complicates incident response — and any
+  // future state-changing endpoint that relied on a present cookie
+  // alone would inherit a footgun. Clear all auth-adjacent cookies on
+  // logout as a single rule.
+  response.cookies.set(CSRF_COOKIE, "", {
+    httpOnly: true, // matches the issuance posture (httpOnly: true, see app/api/auth/csrf/route.ts)
+    secure: IS_SECURE_COOKIE,
+    sameSite: "strict",
     path: "/",
     maxAge: 0,
   });
