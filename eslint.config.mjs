@@ -118,6 +118,40 @@ const eslintConfig = [
       ],
     },
   },
+  {
+    // P1-6: Forbid service-role imports in regular API routes.
+    // Only cron, queue, webhook, and admin-approved server modules may use
+    // the privileged Supabase client. Other routes should use getTenantClient()
+    // or getAnonClient() to ensure RLS enforcement.
+    files: ["app/api/**/*.ts"],
+    ignores: [
+      "app/api/cron/**",
+      "app/api/internal/**",
+      "app/api/membership/webhook/**",
+      "app/api/admin/**",
+      "app/api/queue/**",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/server-only/service-role",
+              message:
+                "Service-role client bypasses RLS. Use getTenantClient() or getAnonClient() instead. Only cron/queue/webhook/admin modules may use the privileged client. (P1-6)",
+            },
+            {
+              name: "@/lib/supabase-server",
+              importNames: ["getServiceClient"],
+              message:
+                "Service-role client bypasses RLS. Use getTenantClient() or getAnonClient() instead. (P1-6)",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;
