@@ -166,4 +166,57 @@ describe("lib/quotas — per-tenant ceilings", () => {
     await expect(checkQuota("s", "ai_tokens", -1)).rejects.toThrow();
     await expect(checkQuota("s", "ai_tokens", Number.NaN)).rejects.toThrow();
   });
+
+  it("recordUsage credits negative amounts back to the counter", async () => {
+    process.env.QUOTA_DEFAULT_R2_STORAGE_BYTES = "1000";
+    const { binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const { checkQuota, recordUsage, getUsageSnapshot } = await import("@/lib/quotas");
+
+    // Pessimistic accounting: presign records bytes upfront.
+    await recordUsage("site-x", "r2_storage_bytes", 800);
+    let snap = await getUsageSnapshot("site-x");
+    expect(snap.usage.r2_storage_bytes).toBe(800);
+
+    // Reconciliation: upload never completed → credit the bytes back.
+    await recordUsage("site-x", "r2_storage_bytes", -800);
+    snap = await getUsageSnapshot("site-x");
+    expect(snap.usage.r2_storage_bytes).toBe(0);
+
+    // Counter is usable again after the credit.
+    const ok = await checkQuota("site-x", "r2_storage_bytes", 800);
+    expect(ok.allowed).toBe(true);
+    expect(ok.remaining).toBe(200);
+  });
+
+  it("recordUsage clamps the counter at zero on over-credit", async () => {
+    const { binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const { recordUsage, getUsageSnapshot } = await import("@/lib/quotas");
+
+    await recordUsage("site-x", "r2_storage_bytes", 100);
+    // Stray over-credit (e.g. duplicate finalize signal) must not push
+    // the counter below zero — that would silently grant extra capacity.
+    await recordUsage("site-x", "r2_storage_bytes", -250);
+
+    const snap = await getUsageSnapshot("site-x");
+    expect(snap.usage.r2_storage_bytes).toBe(0);
+  });
+
+  it("recordUsage is a no-op for zero or non-finite amounts", async () => {
+    const { kv, binding } = makeMockKV();
+    vi.stubGlobal("RATE_LIMIT_KV", binding);
+
+    const { recordUsage, getUsageSnapshot } = await import("@/lib/quotas");
+
+    await recordUsage("site-x", "ai_tokens", 0);
+    await recordUsage("site-x", "ai_tokens", Number.NaN);
+    await recordUsage("site-x", "ai_tokens", Number.POSITIVE_INFINITY);
+
+    expect(Object.keys(kv)).toHaveLength(0);
+    const snap = await getUsageSnapshot("site-x");
+    expect(snap.usage.ai_tokens).toBe(0);
+  });
 });

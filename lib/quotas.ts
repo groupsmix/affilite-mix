@@ -304,6 +304,13 @@ export async function checkQuota(
  * Record `amount` units of usage against `resource` for `siteId`. Best-effort:
  * failures are logged but never thrown, so callers can fire-and-forget after
  * the underlying side-effect (AI call / R2 upload) has already happened.
+ *
+ * `amount` may be negative to credit usage back to the counter — used by
+ * the upload-finalize / media-delete reconciliation flow described in
+ * `docs/per-tenant-quotas.md`. Crediting clamps the resulting counter at
+ * zero so a stray over-credit can't push usage below zero (which would
+ * effectively grant the tenant extra capacity beyond their ceiling).
+ * Non-finite or zero amounts are no-ops.
  */
 export async function recordUsage(
   siteId: string,
@@ -311,11 +318,12 @@ export async function recordUsage(
   amount: number,
 ): Promise<void> {
   if (!siteId) return;
-  if (!Number.isFinite(amount) || amount <= 0) return;
+  if (!Number.isFinite(amount) || amount === 0) return;
   const meta = RESOURCE_META[resource];
   const wKey = windowKey(meta.window);
   const current = await readCounter(siteId, resource, wKey);
-  await writeCounter(siteId, resource, wKey, current + amount);
+  const next = Math.max(0, current + amount);
+  await writeCounter(siteId, resource, wKey, next);
 }
 
 /**

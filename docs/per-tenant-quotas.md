@@ -102,6 +102,9 @@ for the exact shapes.
     `/api/admin/upload/finalize` is the right place to reconcile
     against actual upload completion; the primitive is already
     exposed (`recordUsage(..., -bytes)` is acceptable for credits).
+    Credits clamp the counter at zero — a stray over-credit (e.g. a
+    duplicate finalize signal) cannot push usage below zero and
+    grant extra capacity.
 
 ## Failure Mode
 
