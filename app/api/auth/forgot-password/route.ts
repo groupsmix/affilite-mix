@@ -52,19 +52,26 @@ export async function POST(request: Request) {
       return successResponse;
     }
 
-    // Fail hard in production if APP_URL is missing — we cannot build a
-    // reset link without it, and silently swallowing this masks a deploy
-    // misconfiguration.
-    const appUrl = process.env.APP_URL;
-    if (!appUrl && process.env.NODE_ENV === "production") {
-      throw new Error("APP_URL is required for password reset");
-    }
-    if (!appUrl) {
-      captureException(new Error("APP_URL environment variable is not configured"), {
-        context: "[api/auth/forgot-password] Cannot build reset URL",
+    // Resolve the active tenant up front: the reset link must point at the
+    // tenant the user belongs to, otherwise a user on tenant A could be sent
+    // a reset link on tenant B's host (G-22).
+    const site = await getCurrentSite();
+    if (!site.domain) {
+      captureException(new Error("Active site is missing a domain"), {
+        context: "[api/auth/forgot-password] Cannot build tenant-aware reset URL",
       });
       return successResponse;
     }
+
+    // Build a tenant-aware base URL for the reset link. In production we
+    // always use the active site's own domain so each tenant gets reset
+    // links on its own host. APP_URL is only honoured as a local-dev
+    // override since dev typically serves all tenants behind a single
+    // localhost host.
+    const baseUrl =
+      process.env.NODE_ENV === "production"
+        ? `https://${site.domain}`
+        : (process.env.APP_URL ?? `https://${site.domain}`);
 
     // Generate reset token with 1-hour expiry.
     // The raw token is sent to the user via email; only its SHA-256 hash is
@@ -90,11 +97,10 @@ export async function POST(request: Request) {
       // Don't expose internal errors — still return success
       return successResponse;
     }
-    const resetUrl = `${appUrl}/admin/reset-password?token=${resetToken}`;
+    const resetUrl = `${baseUrl}/admin/reset-password?token=${resetToken}`;
     const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {
-      const site = await getCurrentSite();
       const fallbackFromEmail = `noreply@${site.domain}`;
       const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? fallbackFromEmail;
       const res = await fetch("https://api.resend.com/emails", {
