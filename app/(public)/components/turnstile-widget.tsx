@@ -11,10 +11,7 @@ interface TurnstileWidgetProps {
 declare global {
   interface Window {
     turnstile?: {
-      render: (
-        container: HTMLElement,
-        options: Record<string, unknown>,
-      ) => string;
+      render: (container: HTMLElement, options: Record<string, unknown>) => string;
       remove: (widgetId: string) => void;
       reset: (widgetId: string) => void;
     };
@@ -27,11 +24,7 @@ declare global {
  * Renders invisible/managed challenge and calls onVerify with the token.
  * Only renders if NEXT_PUBLIC_TURNSTILE_SITE_KEY is set.
  */
-export default function TurnstileWidget({
-  onVerify,
-  onExpire,
-  onError,
-}: TurnstileWidgetProps) {
+export default function TurnstileWidget({ onVerify, onExpire, onError }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -59,14 +52,11 @@ export default function TurnstileWidget({
     }
 
     // Load the Turnstile script
-    const existing = document.querySelector(
-      'script[src*="challenges.cloudflare.com/turnstile"]',
-    );
+    const existing = document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]');
     if (!existing) {
       window.onTurnstileLoad = renderWidget;
       const script = document.createElement("script");
-      script.src =
-        "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad";
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad";
       script.async = true;
       script.defer = true;
       document.head.appendChild(script);

@@ -140,7 +140,10 @@ export async function recordStripeEvent(
   throw error;
 }
 
-export async function getRecentStripeEventIds(since: Date, getClient: DalClientGetter = defaultDalClientGetter): Promise<Set<string>> {
+export async function getRecentStripeEventIds(
+  since: Date,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<Set<string>> {
   const sb = await getClient();
 
   const { data, error } = await sb

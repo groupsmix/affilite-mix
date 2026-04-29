@@ -493,7 +493,7 @@ export async function middleware(request: NextRequest) {
     return await innerMiddleware(request);
   } catch (err) {
     captureException(err, { context: "middleware.unhandled_exception" });
-    
+
     // Fallback: If it's an API route, return 500 JSON.
     // Otherwise, return a soft-failed request so the Next.js app can still render
     // a basic page (e.g. not-found or an un-branded homepage).
@@ -505,10 +505,10 @@ export async function middleware(request: NextRequest) {
           headers: {
             "Cache-Control": "no-store, max-age=0",
           },
-        }
+        },
       );
     }
-    
+
     // For non-API routes, we can't easily resolve siteId if DB/KV failed.
     // Passing through without headers allows the app to render its generic fallback.
     const response = NextResponse.next();

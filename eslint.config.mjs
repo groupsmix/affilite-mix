@@ -42,7 +42,7 @@ const eslintConfig = [
               name: "@/lib/supabase-server",
               importNames: ["getServiceClient"],
               message:
-                "Use the approved server-only privileged gateway: `import { getPrivilegedSupabaseClient } from \"@/lib/server-only/service-role\"`.",
+                'Use the approved server-only privileged gateway: `import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"`.',
             },
           ],
           patterns: [
@@ -50,7 +50,7 @@ const eslintConfig = [
               group: ["**/supabase-server"],
               importNames: ["getServiceClient"],
               message:
-                "Use the approved server-only privileged gateway: `import { getPrivilegedSupabaseClient } from \"@/lib/server-only/service-role\"`.",
+                'Use the approved server-only privileged gateway: `import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"`.',
             },
           ],
         },
@@ -79,8 +79,7 @@ const eslintConfig = [
       "no-restricted-syntax": [
         "error",
         {
-          selector:
-            "CallExpression[callee.property.name='from'] > Literal:first-child",
+          selector: "CallExpression[callee.property.name='from'] > Literal:first-child",
           message:
             "Prefer tenantQuery() from @/lib/dal/tenant-query over raw .from(). " +
             "If this is Array.from() or a privileged context (cron/queue/webhook), " +

@@ -199,12 +199,14 @@ function wrapTable(builder: any): any {
         if (["select", "insert", "update", "delete", "upsert"].includes(String(p))) {
           return (...args: any[]) => {
             if (!siteFilterApplied) {
-              throw new Error(`[F-API-01] Privileged ${String(p)} called without site_id filter or unsafeNoSiteFilter() opt-out.`);
+              throw new Error(
+                `[F-API-01] Privileged ${String(p)} called without site_id filter or unsafeNoSiteFilter() opt-out.`,
+              );
             }
             return v.apply(t, args);
           };
         }
-        
+
         // Return standard then/catch unproxied
         return v.bind(t);
       }

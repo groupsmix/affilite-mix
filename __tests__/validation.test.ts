@@ -34,7 +34,10 @@ describe("validateCreateCategory", () => {
 
 describe("validateUpdateCategory", () => {
   it("accepts valid partial update", () => {
-    const result = validateUpdateCategory({ id: "550e8400-e29b-41d4-a716-446655440000", name: "New Name" });
+    const result = validateUpdateCategory({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      name: "New Name",
+    });
     expect(result.errors).toBeNull();
     expect(result.data?.name).toBe("New Name");
   });

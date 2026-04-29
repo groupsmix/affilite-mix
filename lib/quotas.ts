@@ -246,7 +246,9 @@ async function readCounter(
       extra: { siteId, resource, window, consecutiveFailures: kvConsecutiveFailures },
     });
     if (kvConsecutiveFailures >= KV_FAILURE_THRESHOLD) {
-      throw new Error(`KV unreachable for ${kvConsecutiveFailures} consecutive calls — failing closed.`);
+      throw new Error(
+        `KV unreachable for ${kvConsecutiveFailures} consecutive calls — failing closed.`,
+      );
     }
     return 0;
   }

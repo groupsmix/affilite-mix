@@ -42,9 +42,7 @@ export function register() {
   // FIX-02: Warn if NODE_ENV is not production when any public-domain/cron env vars
   // are set (indicates a misconfigured production deploy).
   if (process.env.NODE_ENV !== "production" && !isBuild) {
-    const hasPublicDomainVars =
-      !!process.env.CRON_HOST ||
-      !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const hasPublicDomainVars = !!process.env.CRON_HOST || !!process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (hasPublicDomainVars) {
       console.error(
         "NODE_ENV is not 'production' but CRON_HOST or public-domain env vars are set. " +

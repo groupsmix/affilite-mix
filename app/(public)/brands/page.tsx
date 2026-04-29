@@ -8,7 +8,8 @@ const CONFIG = {
   prefix: "brands",
   label: "Watch Brands",
   taxonomyType: "brand" as const,
-  description: "Explore our curated collection of watch brands. From heritage Swiss makers to Japanese innovators.",
+  description:
+    "Explore our curated collection of watch brands. From heritage Swiss makers to Japanese innovators.",
 };
 
 export const revalidate = 60;

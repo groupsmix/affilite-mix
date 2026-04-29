@@ -29,20 +29,34 @@ interface SiteSeed {
 }
 
 const sites: SiteSeed[] = [
-  { slug: "watch-tools", name: "Watch Tools", domain: "watchtoolshub.com", language: "en", direction: "ltr" },
-  { slug: "crypto-tools", name: "Crypto Tools", domain: "cryptotoolshub.com", language: "en", direction: "ltr" },
-  { slug: "arabic-tools", name: "Arabic Tools", domain: "arabictoolshub.com", language: "ar", direction: "rtl" },
+  {
+    slug: "watch-tools",
+    name: "Watch Tools",
+    domain: "watchtoolshub.com",
+    language: "en",
+    direction: "ltr",
+  },
+  {
+    slug: "crypto-tools",
+    name: "Crypto Tools",
+    domain: "cryptotoolshub.com",
+    language: "en",
+    direction: "ltr",
+  },
+  {
+    slug: "arabic-tools",
+    name: "Arabic Tools",
+    domain: "arabictoolshub.com",
+    language: "ar",
+    direction: "rtl",
+  },
 ];
 
 async function upsertSites(): Promise<Map<string, string>> {
   const siteIds = new Map<string, string>();
 
   for (const site of sites) {
-    const { data: existing } = await sb
-      .from("sites")
-      .select("id")
-      .eq("slug", site.slug)
-      .single();
+    const { data: existing } = await sb.from("sites").select("id").eq("slug", site.slug).single();
 
     if (existing) {
       siteIds.set(site.slug, existing.id);
@@ -76,9 +90,24 @@ async function upsertSites(): Promise<Map<string, string>> {
 
 async function seedCategories(siteIds: Map<string, string>) {
   const categories = [
-    { name: "Luxury Watches", slug: "luxury-watches", description: "Premium timepieces", taxonomy_type: "general" as const },
-    { name: "Under $200", slug: "under-200", description: "Affordable watches", taxonomy_type: "budget" as const },
-    { name: "Gift Ideas", slug: "gift-ideas", description: "Perfect for gifting", taxonomy_type: "occasion" as const },
+    {
+      name: "Luxury Watches",
+      slug: "luxury-watches",
+      description: "Premium timepieces",
+      taxonomy_type: "general" as const,
+    },
+    {
+      name: "Under $200",
+      slug: "under-200",
+      description: "Affordable watches",
+      taxonomy_type: "budget" as const,
+    },
+    {
+      name: "Gift Ideas",
+      slug: "gift-ideas",
+      description: "Perfect for gifting",
+      taxonomy_type: "occasion" as const,
+    },
   ];
 
   for (const [slug, siteId] of siteIds) {

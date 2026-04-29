@@ -147,13 +147,10 @@ async function checkRateLimitDO(
     result.retryAfterMs > config.windowMs * 10;
 
   if (isPoisoned) {
-    captureException(
-      new Error(`RATE_LIMITER_DO returned poisoned result for key ${key}`),
-      {
-        context: "rate-limit.do-poisoned",
-        extra: { result, config },
-      },
-    );
+    captureException(new Error(`RATE_LIMITER_DO returned poisoned result for key ${key}`), {
+      context: "rate-limit.do-poisoned",
+      extra: { result, config },
+    });
     // Fail closed on a poisoned DO — treat as rate-limited.
     return { allowed: false, remaining: 0, retryAfterMs: config.windowMs };
   }
@@ -351,7 +348,9 @@ function handleKvUnavailable(
   err?: unknown,
 ): RateLimitResult {
   const policy = config.failPolicy ?? "grace";
-  const isProduction = process.env.NODE_ENV === "production" || typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+  const isProduction =
+    process.env.NODE_ENV === "production" ||
+    (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers");
 
   if (policy === "closed") {
     if (!kvUnavailableAlerted) {
