@@ -2,8 +2,10 @@
  * Route-level test: POST /api/auth/forgot-password
  *
  * Exercises the actual route handler with mocked dependencies to verify:
- * 1. Reset link uses canonical APP_URL (not request origin)
- * 2. No DB write occurs when APP_URL is missing
+ * 1. Reset link uses the active tenant's site domain (G-22), not the
+ *    request origin and not a global APP_URL.
+ * 2. The link is built from site.domain even when APP_URL is missing in
+ *    production.
  * 3. Email is sent via Resend with the correct reset URL
  * 4. Rate limiting is enforced
  * 5. Unknown emails still return 200 (enumeration protection)
@@ -33,10 +35,14 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(),
 }));
 
+import { getCurrentSite } from "@/lib/site-context";
+
 vi.mock("@/lib/site-context", () => ({
   getCurrentSite: vi.fn().mockResolvedValue({
     name: "Test Site",
     domain: "test.example.com",
+    language: "en",
+    direction: "ltr",
   }),
 }));
 
@@ -53,6 +59,7 @@ import { hashResetToken } from "@/lib/reset-token";
 const mockedGetAdminUserByEmail = vi.mocked(getAdminUserByEmail);
 const mockedCheckRateLimit = vi.mocked(checkRateLimit);
 const mockedCaptureException = vi.mocked(captureException);
+const mockedGetCurrentSite = vi.mocked(getCurrentSite);
 
 function makeRequest(body: Record<string, unknown>): Request {
   return new Request("https://evil-origin.example.com/api/auth/forgot-password", {
@@ -115,7 +122,9 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("constructs reset link using APP_URL, not request origin", async () => {
+  it("constructs reset link using the active tenant's site domain in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+
     const res = await POST(makeRequest({ email: "admin@test.com" }));
 
     expect(res.status).toBe(200);
@@ -124,29 +133,51 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     const textBody = capturedResendBody!.text as string;
     const htmlBody = capturedResendBody!.html as string;
 
-    // The reset link MUST use the canonical APP_URL
-    expect(textBody).toContain("https://canonical.example.com/admin/reset-password?token=");
-    expect(htmlBody).toContain("https://canonical.example.com/admin/reset-password?token=");
+    // The reset link MUST use the tenant's own site domain so a user on
+    // tenant A is never directed at tenant B (G-22).
+    expect(textBody).toContain("https://test.example.com/admin/reset-password?token=");
+    expect(htmlBody).toContain("https://test.example.com/admin/reset-password?token=");
 
-    // The reset link MUST NOT use the request origin
+    // The reset link MUST NOT fall back to the request origin or a global
+    // APP_URL in production.
     expect(textBody).not.toContain("evil-origin.example.com");
     expect(htmlBody).not.toContain("evil-origin.example.com");
+    expect(textBody).not.toContain("canonical.example.com");
+    expect(htmlBody).not.toContain("canonical.example.com");
   });
 
-  it("does NOT write a reset token to DB when APP_URL is missing", async () => {
+  it("falls back to site.domain in dev when APP_URL is set to an empty string", async () => {
+    // `APP_URL=` in a developer's .env must not produce a relative reset
+    // URL. Using `||` (rather than `??`) ensures the empty string falls
+    // through to the site-domain fallback.
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("APP_URL", "");
+
+    const res = await POST(makeRequest({ email: "admin@test.com" }));
+
+    expect(res.status).toBe(200);
+    const textBody = capturedResendBody!.text as string;
+    expect(textBody).toContain("https://test.example.com/admin/reset-password?token=");
+    // The link must be absolute, never relative.
+    expect(textBody).not.toMatch(/[\s\n]\/admin\/reset-password\?/);
+  });
+
+  it("still issues a reset link in production when APP_URL is missing (uses site.domain)", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_URL", "");
     delete process.env.APP_URL;
 
     const res = await POST(makeRequest({ email: "admin@test.com" }));
 
     expect(res.status).toBe(200);
-    // The Supabase update should never have been called
-    expect(mockUpdate).not.toHaveBeenCalled();
-    // captureException should have been called for the missing APP_URL
-    expect(mockedCaptureException).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "APP_URL environment variable is not configured" }),
-      expect.any(Object),
-    );
+    // DB write should still happen — we no longer require APP_URL because
+    // the tenant's site domain is the canonical source for reset links.
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    // No captureException should have fired for a missing APP_URL.
+    expect(mockedCaptureException).not.toHaveBeenCalled();
+    // Link still uses the tenant's site domain.
+    const textBody = capturedResendBody!.text as string;
+    expect(textBody).toContain("https://test.example.com/admin/reset-password?token=");
   });
 
   it("returns 200 for unknown email (enumeration protection)", async () => {
@@ -187,6 +218,32 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     expect(capturedResendBody!.to).toEqual(["admin@test.com"]);
     expect(capturedResendBody!.subject).toBe("Password Reset Request");
     expect(capturedResendBody!.from).toContain("test.example.com");
+  });
+
+  it("sends an Arabic, RTL-marked email when the active site is Arabic-language (G-24)", async () => {
+    mockedGetCurrentSite.mockResolvedValueOnce({
+      name: "موقع تجريبي",
+      domain: "ar.example.com",
+      language: "ar",
+      direction: "rtl",
+      // Cast: the route only reads name/domain/language/direction; other
+      // SiteDefinition fields are not required for this test.
+    } as any);
+
+    const res = await POST(makeRequest({ email: "admin@test.com" }));
+
+    expect(res.status).toBe(200);
+    expect(capturedResendBody).not.toBeNull();
+    expect(capturedResendBody!.subject).toBe("طلب إعادة تعيين كلمة المرور");
+    const html = capturedResendBody!.html as string;
+    const text = capturedResendBody!.text as string;
+    // RTL markup is on both the html element and the body wrapper.
+    expect(html).toContain('<html lang="ar" dir="rtl">');
+    expect(html).toContain("إعادة تعيين كلمة المرور");
+    // English copy must not leak into the Arabic email.
+    expect(html).not.toContain("Reset your password");
+    expect(html).not.toContain(">Reset Password</a>");
+    expect(text).toContain("لقد طلبتَ إعادة تعيين كلمة المرور");
   });
 
   it("persists only the SHA-256 hash of the reset token, not the raw value", async () => {
