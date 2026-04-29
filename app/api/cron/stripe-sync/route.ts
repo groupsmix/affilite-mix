@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { getRecentStripeEventIds } from "@/lib/dal/stripe-events";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
+import { getStripeClient } from "@/lib/stripe-client";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
 import { recordCronLiveness } from "@/lib/cron-liveness";
@@ -18,15 +18,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
   }
 
-  const stripe = new Stripe(stripeKey, {
-    apiVersion: null as any,
-    appInfo: { name: "affilite-mix" },
-    httpClient: Stripe.createFetchHttpClient(),
-  });
+  const stripe = await getStripeClient(stripeKey);
 
   try {
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-    const processedEventIds = await getRecentStripeEventIds(fortyEightHoursAgo, getPrivilegedSupabaseClient);
+    const processedEventIds = await getRecentStripeEventIds(
+      fortyEightHoursAgo,
+      getPrivilegedSupabaseClient,
+    );
 
     const stripeEvents = stripe.events.list({
       created: { gte: Math.floor(fortyEightHoursAgo.getTime() / 1000) },
