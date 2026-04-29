@@ -20,6 +20,12 @@ env:
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
   NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+  # `instrumentation.ts` requires SENTRY_DSN to load the server-side
+  # error monitor. The variable must be non-empty for `next start` to
+  # finish booting; an obviously-fake DSN keeps the audit local.
+  SENTRY_DSN: https://placeholder@placeholder.ingest.sentry.io/0
+  SUPABASE_JWT_SECRET: ci-test-supabase-jwt-secret
+  APP_URL: http://localhost:3000
 
 jobs:
   lighthouse:
