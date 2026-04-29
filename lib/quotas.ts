@@ -32,7 +32,7 @@
  *     before issuing a presigned PUT.
  */
 
-import { captureException } from "@/lib/sentry";
+import { captureException, captureMessage } from "@/lib/sentry";
 import { getKVNamespace } from "@/lib/rate-limit";
 import { allSites } from "@/config/sites";
 import type { TenantQuotaOverrides } from "@/config/site-definition";
@@ -318,11 +318,31 @@ export async function recordUsage(
   amount: number,
 ): Promise<void> {
   if (!siteId) return;
-  if (!Number.isFinite(amount) || amount === 0) return;
+  if (amount === 0) return;
+  if (!Number.isFinite(amount)) {
+    // NaN / Infinity here is always a caller bug — surface it loudly
+    // (without throwing, since callers fire-and-forget) so it shows up
+    // in alerting instead of being silently dropped.
+    captureMessage(
+      `quotas.recordUsage received non-finite amount: ${amount} (siteId=${siteId} resource=${resource})`,
+      "warning",
+    );
+    return;
+  }
   const meta = RESOURCE_META[resource];
   const wKey = windowKey(meta.window);
   const current = await readCounter(siteId, resource, wKey);
-  const next = Math.max(0, current + amount);
+  const raw = current + amount;
+  const next = Math.max(0, raw);
+  if (raw < 0) {
+    // Over-credit (e.g. a duplicate finalize signal credited bytes
+    // that had already been credited). Counter is clamped at zero —
+    // log so operators can spot the runaway upstream.
+    captureMessage(
+      `quotas.recordUsage over-credit clamped to zero: siteId=${siteId} resource=${resource} current=${current} amount=${amount}`,
+      "warning",
+    );
+  }
   await writeCounter(siteId, resource, wKey, next);
 }
 
