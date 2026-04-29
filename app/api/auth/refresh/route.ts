@@ -56,13 +56,13 @@ export async function POST(request: NextRequest) {
     const token = await createToken(session, request);
     const response = NextResponse.json({ ok: true });
 
-    // P0-1: Align cookie maxAge with JWT expiry (8h, not 24h).
+    // P0-1 / F-SEC-03: Align cookie maxAge with JWT expiry (4h).
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
       sameSite: "strict",
       path: "/",
-      maxAge: 60 * 60 * 8, // 8 hours — matches JWT EXPIRY
+      maxAge: 60 * 60 * 4, // 4 hours — matches JWT EXPIRY
     });
 
     // P0-1: Re-issue the binding cookie so it stays in sync with the
