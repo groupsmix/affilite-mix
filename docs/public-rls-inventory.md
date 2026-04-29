@@ -1,7 +1,7 @@
 # Public RLS Policy Inventory
 
 > Originally generated as part of the tenant-binding audit (task 5.1).
-> Last updated: 2026-04-21 (post-00040: defense-in-depth service-role policies for admin_users, sites, and 8 platform-config tables)
+> Last updated: 2026-04-29 (post-00060: fix service_role scoping on ai_drafts & affiliate_networks, re-drop web_vitals anon INSERT)
 
 ## Summary
 
