@@ -8,7 +8,7 @@ import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
 import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
-import { getAllowedOrigins } from "@/lib/security/allowed-origins";
+import { getAllowedOrigins, type VerifiedSiteRef } from "@/lib/security/allowed-origins";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   getNegativeCacheTtlSeconds,
@@ -118,8 +118,20 @@ export async function middleware(request: NextRequest) {
   // was minted during the previous request.
   if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const requestOrigin = request.headers.get("origin") ?? "";
-    const isStaticConfigured = Boolean(getSiteByDomain(hostname));
-    const allowedOrigins = getAllowedOrigins(isStaticConfigured ? hostname : undefined);
+    // G-33: only static-config sites can extend the preflight allow-list.
+    // The DB site-row lookup runs later in the request flow, so at this
+    // stage we have not yet verified DB-registered custom domains —
+    // building a `VerifiedSiteRef` from `getSiteByDomain` ensures we
+    // never trust an arbitrary `Host` header at preflight time.
+    const preflightStaticSite = getSiteByDomain(hostname);
+    const preflightVerifiedSite: VerifiedSiteRef | null = preflightStaticSite
+      ? {
+          slug: preflightStaticSite.id,
+          domain: preflightStaticSite.domain,
+          aliases: preflightStaticSite.aliases,
+        }
+      : null;
+    const allowedOrigins = getAllowedOrigins(preflightVerifiedSite);
     const matchedOrigin =
       requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";
 
@@ -142,14 +154,28 @@ export async function middleware(request: NextRequest) {
 
   // ── Resolve site ──────────────────────────────────────
   // 1. Try static config lookup first (fast, no DB call)
-  let site = getSiteByDomain(hostname);
+  const site = getSiteByDomain(hostname);
   let siteId = site?.id;
+  // G-33: track the verified site (slug + domain + aliases) alongside
+  // siteId so downstream CORS / CSRF checks can pass a typed reference
+  // into `getAllowedOrigins` — never a raw hostname.
+  let verifiedSite: VerifiedSiteRef | null = site
+    ? { slug: site.id, domain: site.domain, aliases: site.aliases }
+    : null;
 
   // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
   // Skip the DB lookup for *.localhost in non-production — dev only, no DB calls.
+  //
+  // ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 extends this bypass to production-mode
+  // local runs (e.g. Lighthouse CI, which executes `next start` with
+  // NODE_ENV=production against http://localhost:9222). Without this opt-in,
+  // the unknown-host rate-limit below would 429 every request because the
+  // rate-limit store (Supabase) is unreachable in CI and the fail policy is
+  // "closed". Must be exact "1" — keep it inert on any other value.
   const hostWithoutPort = hostname.includes(":") ? hostname.split(":")[0] : hostname;
+  const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
   const isLocalhostDev =
-    process.env.NODE_ENV !== "production" &&
+    (process.env.NODE_ENV !== "production" || allowLocalhostInProd) &&
     (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost"));
 
   // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
@@ -262,8 +288,13 @@ export async function middleware(request: NextRequest) {
           if (kv) await kv.put(cacheKey, JSON.stringify(row), { expirationTtl: 60 });
         } catch (e) {}
       }
-      if (row && row.is_active) {
+      if (row && row.is_active && row.slug) {
         siteId = row.slug;
+        // G-33: the DB lookup matched on `domain = hostname`, so the
+        // request hostname IS a verified registered domain for this
+        // site. Build the verified ref from it so downstream callers
+        // can extend the allow-list safely.
+        verifiedSite = { slug: row.slug, domain: hostname };
       } else if (row && !row.is_active) {
         return nicheNotFoundResponse(request);
       } else if (!row) {
@@ -311,7 +342,8 @@ export async function middleware(request: NextRequest) {
   const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
   if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
     const origin = request.headers.get("origin") ?? "";
-    const allowedOrigins = getAllowedOrigins(hostname);
+    // G-33: pass the verified site reference, not the raw hostname.
+    const allowedOrigins = getAllowedOrigins(verifiedSite);
 
     // 1. If Origin is present, reject mismatched origins immediately
     if (origin && !allowedOrigins.includes(origin)) {
@@ -384,7 +416,8 @@ export async function middleware(request: NextRequest) {
   if (isApiRoute) {
     const requestOrigin = request.headers.get("origin") ?? "";
     if (requestOrigin) {
-      const allowedOrigins = getAllowedOrigins(hostname);
+      // G-33: pass the verified site reference, not the raw hostname.
+      const allowedOrigins = getAllowedOrigins(verifiedSite);
       if (allowedOrigins.includes(requestOrigin)) {
         response.headers.set("Access-Control-Allow-Origin", requestOrigin);
         response.headers.set("Access-Control-Allow-Credentials", "true");

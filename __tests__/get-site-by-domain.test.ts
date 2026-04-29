@@ -85,4 +85,36 @@ describe("getSiteByDomain", () => {
       expect(getSiteByDomain(site.domain)).toBe(site);
     }
   });
+
+  // ── ALLOW_LOCALHOST_FALLBACK_IN_PROD opt-in (Lighthouse CI) ─────
+  // The flag must re-enable the localhost → default-site resolution
+  // under NODE_ENV=production so CI can hit localhost without tripping
+  // the middleware's unknown-hostname rate-limit. It must NOT affect
+  // resolution of unrelated production domains.
+
+  it("resolves localhost in production when ALLOW_LOCALHOST_FALLBACK_IN_PROD=1", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_LOCALHOST_FALLBACK_IN_PROD", "1");
+    expect(getSiteByDomain("localhost")).toBe(allSites[0]);
+  });
+
+  it("honours NEXT_PUBLIC_DEFAULT_SITE for localhost in production when opted in", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_LOCALHOST_FALLBACK_IN_PROD", "1");
+    const secondSite = allSites[1];
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_SITE", secondSite.id);
+    expect(getSiteByDomain("localhost")).toBe(secondSite);
+  });
+
+  it("ignores ALLOW_LOCALHOST_FALLBACK_IN_PROD when the value is not exactly '1'", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_LOCALHOST_FALLBACK_IN_PROD", "true");
+    expect(getSiteByDomain("localhost")).toBeUndefined();
+  });
+
+  it("does NOT apply the opt-in fallback to unknown non-localhost domains", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_LOCALHOST_FALLBACK_IN_PROD", "1");
+    expect(getSiteByDomain("unknown.example.com")).toBeUndefined();
+  });
 });

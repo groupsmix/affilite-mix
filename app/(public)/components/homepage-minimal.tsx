@@ -98,13 +98,15 @@ export function MinimalHomepage({
               {site.productLabelPlural}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredProducts.map((product, i) => (
+              {featuredProducts.map((product) => (
+                // G-48: hero is text-only; the LCP is the h1 headline,
+                // not a product image. Don't fetch-priority these.
                 <ProductCard
                   key={product.id}
                   product={product}
                   sourceType="homepage"
                   ctaLabel={ctaLabel}
-                  priority={i === 0}
+                  priority={false}
                 />
               ))}
             </div>
@@ -130,13 +132,10 @@ export function MinimalHomepage({
               </Link>
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {recentContent.map((content, i) => (
-                <ContentCard
-                  key={content.id}
-                  content={content}
-                  locale={locale}
-                  priority={i === 0}
-                />
+              {recentContent.map((content) => (
+                // G-48: below the featured-products grid, far below
+                // the fold. Never an LCP candidate.
+                <ContentCard key={content.id} content={content} locale={locale} priority={false} />
               ))}
             </div>
           </section>

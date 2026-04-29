@@ -20,6 +20,26 @@ env:
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
   NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+  # `instrumentation.ts` requires SENTRY_DSN to load the server-side
+  # error monitor. We don't want to ship Lighthouse data to a real
+  # Sentry project, but the variable must be non-empty for `next start`
+  # to finish booting; an obviously-fake DSN keeps the audit local.
+  SENTRY_DSN: https://placeholder@placeholder.ingest.sentry.io/0
+  SUPABASE_JWT_SECRET: ci-test-supabase-jwt-secret
+  APP_URL: http://localhost:9222
+  # `next start` forces NODE_ENV=production, which disables the normal
+  # localhost → NEXT_PUBLIC_DEFAULT_SITE resolution in config/sites and
+  # the corresponding `isLocalhostDev` bypass in middleware.ts. Without
+  # the opt-in below, Lighthouse's very first request to
+  # http://localhost:9222/ falls into the unknown-hostname path, which
+  # runs a Supabase-backed rate-limit check with failPolicy="closed";
+  # since Supabase is a placeholder in CI, the check errors and the
+  # middleware returns 429 before any page can render. Setting this
+  # flag makes middleware treat `localhost` the same way it would in
+  # dev — skip the DB lookup, serve the default site. Safe: the flag
+  # is only read from env (never from request data) and is not set in
+  # production deploys.
+  ALLOW_LOCALHOST_FALLBACK_IN_PROD: "1"
 
 jobs:
   lighthouse:
@@ -37,11 +57,18 @@ jobs:
       - name: Build Next.js
         run: npm run build
 
-      - name: Run Lighthouse CI (non-blocking bootstrap)
-        # `next start` does not fully serve edge/middleware routes for this Cloudflare
-        # Workers app, so initial audits 404. Bootstrap non-blocking; switch to
-        # `opennextjs-cloudflare preview` or the live preview URL to enforce budgets.
-        run: npx @lhci/cli autorun || echo "LHCI failures allowed during bootstrap"
+      - name: Run Lighthouse CI (PR gate)
+        # LHCI's exit code is now load-bearing: any `error`-level
+        # assertion in `lighthouserc.cjs` (LCP ≤ 2500 ms, CLS ≤ 0.1,
+        # TBT ≤ 200 ms, perf score ≥ 0.9, a11y score ≥ 0.9) will fail
+        # the PR. This satisfies the G-36 Lighthouse gate requirement
+        # that LCP regressions must block merges.
+        #
+        # If `next start` cannot fully serve a route in this Cloudflare
+        # Workers app, switch the `startServerCommand` in lighthouserc
+        # to `opennextjs-cloudflare preview` rather than re-softening
+        # this step — silencing the gate defeats the budget.
+        run: npx @lhci/cli autorun
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 

@@ -480,6 +480,37 @@ export async function fetchStagingBytes(stagingKey: string, byteCount = 32): Pro
 }
 
 /**
+ * HEAD a staging object to read its `Content-Length`. Used by
+ * /api/admin/upload/finalize to compute the byte amount that should be
+ * credited back to the per-tenant `r2_storage_bytes` counter when an
+ * upload fails validation and is deleted from staging.
+ *
+ * Returns `null` if the object is missing or the response is missing
+ * a parseable Content-Length header — callers should treat that as
+ * "skip the credit" rather than guess.
+ */
+export async function headStagingObject(stagingKey: string): Promise<number | null> {
+  const env = readBucketEnv();
+  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
+  const signed = await signRequest({
+    method: "HEAD",
+    endpoint,
+    bucket: env.privateBucket,
+    key: stagingKey,
+    accessKeyId: env.accessKeyId,
+    secretAccessKey: env.secretAccessKey,
+    region: "auto",
+  });
+  const res = await fetch(signed.url, { method: "HEAD", headers: signed.headers });
+  if (!res.ok) return null;
+  const len = res.headers.get("content-length");
+  if (!len) return null;
+  const parsed = Number.parseInt(len, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+/**
  * Promote a validated staging object into the public bucket via R2's
  * server-side copy. Returns the canonical public URL.
  */
