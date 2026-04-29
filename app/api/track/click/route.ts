@@ -11,7 +11,11 @@ import { runAfterResponse } from "@/lib/wait-until";
 import { signInternalRequest, computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 
 /** 60 click-tracking requests per minute per IP */
-const CLICK_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000, failPolicy: "open" as const };
+const CLICK_RATE_LIMIT = {
+  maxRequests: 60,
+  windowMs: 60 * 1000,
+  failPolicy: "grace" as const,
+};
 
 /**
  * Shared handler for click tracking (used by both GET and POST).
@@ -61,11 +65,13 @@ async function handleClick(request: NextRequest) {
           const expectedHmac = await computeHmac(internalToken, "cache", "cache", bodyForHmac);
           cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
           if (!cacheHmacValid) {
-            console.error(JSON.stringify({
-              metric: "affiliate_cache_hmac_mismatch",
-              cacheKey,
-              msg: "KV-cached affiliate URL failed HMAC check — possible cache poisoning",
-            }));
+            console.error(
+              JSON.stringify({
+                metric: "affiliate_cache_hmac_mismatch",
+                cacheKey,
+                msg: "KV-cached affiliate URL failed HMAC check — possible cache poisoning",
+              }),
+            );
             cachedData = null; // treat as cache miss, re-fetch from DB
           }
         }
