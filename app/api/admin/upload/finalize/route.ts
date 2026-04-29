@@ -61,7 +61,7 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
       // HEAD failures are non-fatal: skip the credit rather than guess.
       const size = await headStagingObject(stagingKey).catch(() => null);
       if (size !== null && size > 0 && siteId) {
-        void recordUsage(siteId, "r2_storage_bytes", -size);
+        await recordUsage(siteId, "r2_storage_bytes", -size);
       }
 
       // Delete the bad upload before returning so it can never become
