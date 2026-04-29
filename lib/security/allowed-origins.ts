@@ -134,6 +134,7 @@ export function isOriginAllowed(
   siteId?: string | null,
 ): boolean {
   if (!origin) return false;
+  const canonicalOrigin = origin.toLowerCase().replace(/\/$/, "");
   const verified = buildVerifiedSiteRef(host, siteId);
-  return getAllowedOrigins(verified).includes(origin);
+  return getAllowedOrigins(verified).includes(canonicalOrigin);
 }
