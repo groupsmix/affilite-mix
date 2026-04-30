@@ -83,7 +83,13 @@ export async function POST(request: Request) {
     // Rate limit: 5 signups per IP per 15 minutes
     const ip = getClientIp(request);
 
-    const nlRateConfig = { maxRequests: 5, windowMs: 15 * 60 * 1000 };
+    // SEC-04: failPolicy "closed" prevents abuse during KV outages —
+    // newsletter signup triggers emails, so we must not skip rate limiting.
+    const nlRateConfig = {
+      maxRequests: 5,
+      windowMs: 15 * 60 * 1000,
+      failPolicy: "closed" as const,
+    };
     const rl = await checkRateLimit(`newsletter:${ip}`, nlRateConfig);
     if (!rl.allowed) {
       return apiError(429, "Too many requests. Please try again later.", undefined, {

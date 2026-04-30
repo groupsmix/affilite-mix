@@ -3,6 +3,7 @@ import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { INTERNAL_HEADER, getInternalToken } from "@/lib/internal-auth";
+import { timingSafeCompare } from "@/lib/cron-auth";
 
 /** 60 resolve-site requests per minute per IP */
 const RESOLVE_SITE_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -26,8 +27,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
 
-  // Reject requests without the internal header
-  if (request.headers.get(INTERNAL_HEADER) !== expected) {
+  // SEC-03: Reject requests without the internal header using timing-safe
+  // comparison. The previous plain `!==` leaked the token length and content
+  // via timing side-channel, allowing an attacker to brute-force the
+  // INTERNAL_API_TOKEN one byte at a time.
+  const provided = request.headers.get(INTERNAL_HEADER) ?? "";
+  const encoder = new TextEncoder();
+  if (!timingSafeCompare(encoder.encode(provided), encoder.encode(expected))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -43,6 +49,13 @@ export async function GET(request: NextRequest) {
   const domain = request.nextUrl.searchParams.get("domain");
   if (!domain) {
     return NextResponse.json({ error: "domain parameter required" }, { status: 400 });
+  }
+
+  // SEC-08: Validate domain format to prevent SQL/query injection and
+  // reject obviously invalid input early. A valid domain contains only
+  // alphanumerics, hyphens, dots, and is reasonably short.
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]{0,253}[a-zA-Z0-9]$/.test(domain)) {
+    return NextResponse.json({ error: "Invalid domain format" }, { status: 400 });
   }
 
   try {
