@@ -118,6 +118,13 @@ async function innerMiddleware(request: NextRequest) {
     }
   }
 
+  // ── GPC (Global Privacy Control) signal (A63) ───────────
+  // If the browser sends Sec-GPC: 1, attach a response header so
+  // the cookie-consent CMP can default non-essential categories to
+  // rejected without showing the banner. Required by California AG
+  // enforcement (Sephora settlement, 2023).
+  const gpcEnabled = request.headers.get("sec-gpc") === "1";
+
   // ── Trailing-slash normalization (SA9) ─────────────────
   // Redirect /foo/ → /foo to prevent duplicate canonical URLs.
   // Skip the root path "/" and Next.js internals.
@@ -480,6 +487,12 @@ async function innerMiddleware(request: NextRequest) {
   );
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
+
+  // A63: Forward GPC signal so the cookie-consent CMP can auto-reject
+  // non-essential categories for California users who enable GPC.
+  if (gpcEnabled) {
+    response.headers.set("x-gpc", "1");
+  }
 
   // AUDIT-FIX: Admin API responses must never be cached by CDN or browser
   // to prevent serving tenant-specific data to the wrong user or session.
