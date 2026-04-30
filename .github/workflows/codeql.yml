@@ -1,0 +1,57 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# CODEQL STATIC ANALYSIS (F-002)
+#
+# Runs GitHub CodeQL on every push/PR to main and weekly on schedule.
+# Catches logic vulnerabilities, injection patterns, broken access control,
+# unsafe crypto, tainted user input, and dangerous framework misuse that
+# dependency scanning and secret scanning cannot detect.
+#
+# Audit reference: F-002 — "No CodeQL/SAST job found in security workflow"
+# ═══════════════════════════════════════════════════════════════════════════
+
+name: "\U0001F50D CodeQL Analysis"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Every Monday 07:00 UTC — one hour after the security workflow so
+    # they don't compete for runner capacity.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Use the extended query suite for broader coverage including
+          # security-and-quality queries beyond the default security-only set.
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

@@ -102,8 +102,9 @@ export async function POST(request: NextRequest) {
 
   // Normalize email (trim + lowercase) so rate limits and storage are case-insensitive.
   const normalizedEmail = normalizeEmail(body.user_email);
-  const { getRateLimitEmailKey } = await import("@/lib/validate-email");
-  const rateLimitEmail = getRateLimitEmailKey(normalizedEmail);
+  const { hashEmailForRateLimit } = await import("@/lib/validate-email");
+  // F-007: Hash email before using in rate-limit key to avoid PII in operational metadata
+  const rateLimitEmail = await hashEmailForRateLimit(normalizedEmail);
 
   // Per-email rate limit: 5 comments per hour per email
   const emailRl = await checkRateLimit(`comment-email:${rateLimitEmail}`, {
