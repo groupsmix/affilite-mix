@@ -95,7 +95,7 @@ variable "required_review_count" {
   # A34#25 / A31#28: SOC2 Separation of Duties requires at least 2 reviewers
   # for production-impacting repos. A single reviewer allows an insider
   # compromise to self-approve after the first review.
-  default     = 2
+  default = 2
 }
 
 variable "break_glass_team_slug" {
@@ -106,7 +106,7 @@ variable "break_glass_team_slug" {
     Membership of this team must be audited regularly. Set to null to
     disable bypass entirely.
   EOT
-  default = null
+  default     = null
 }
 
 provider "github" {
