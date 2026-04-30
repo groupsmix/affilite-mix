@@ -12,7 +12,7 @@ import { computeRequestBinding } from "@/lib/jwt-binding";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
-import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
+import { isValidEmail, normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
@@ -87,7 +87,6 @@ export async function POST(request: NextRequest) {
     const normalized = normalizeEmail(email);
     // F-032 + F-007: Strip '+' alias tags and hash email to prevent rate-limit
     // bypass and avoid PII in operational metadata (KV keys, logs, dashboards).
-    const { hashEmailForRateLimit } = await import("@/lib/validate-email");
     const rateLimitEmail = await hashEmailForRateLimit(email);
 
     const emailRl = await checkRateLimit(`login-email:${rateLimitEmail}`, LOGIN_RATE_LIMIT_EMAIL);
