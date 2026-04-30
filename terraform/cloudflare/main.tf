@@ -108,7 +108,7 @@ variable "waf_blocked_asns" {
 }
 
 variable "waf_blocked_countries" {
-  type        = list(string)
+  type = list(string)
   # A31#10 / A36#13: Cuba (CU) added to complete the OFAC-restricted set.
   default     = ["KP", "IR", "SY", "CU"]
   description = <<-EOT
@@ -145,7 +145,7 @@ resource "cloudflare_zone_setting" "min_tls_version" {
   setting_id = "min_tls_version"
   # A31#6: Enforce TLS 1.3 minimum — eliminates TLS 1.2 downgrade attack surface.
   # All modern browsers support TLS 1.3; legacy clients on 1.2 will fail.
-  value      = "1.3"
+  value = "1.3"
 }
 
 resource "cloudflare_zone_setting" "security_level" {
