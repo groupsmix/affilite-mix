@@ -74,3 +74,25 @@ The platform routes every generative AI call through a fallback chain defined in
 - **Link:** [Cohere DPA](https://cohere.com/data-processing-agreement)
 
 > **Note:** The platform does **not** use OpenAI, Anthropic, or any image-generation provider. Comment moderation runs through the rule-based pipeline in `lib/security/` and is not an AI call. See `docs/ai-governance.md` for the full governance narrative and guardrails.
+
+## 7. EU-US Data Privacy Framework (DPF) Certification Status
+
+Per Schrems II (CJEU C-311/18) and the EU-US DPF Adequacy Decision (July 2023), US-based sub-processors should be verified at [dataprivacyframework.gov](https://www.dataprivacyframework.gov).
+
+| Sub-processor | DPF Certified? | SCCs in place? | Last verified |
+| ------------- | -------------- | -------------- | ------------- |
+| Cloudflare | Yes | Yes | 2026-04-30 |
+| Stripe | Yes | N/A (independent controller) | 2026-04-30 |
+| Sentry | Yes | Yes | 2026-04-30 |
+| Resend | **Verify** | Yes | Pending |
+| Google (Gemini) | Yes | Yes (Google Cloud DPA) | 2026-04-30 |
+| Groq | **Verify** | ToS only; custom DPA on request | Pending |
+| Cohere | **Verify** | Yes (paid plan DPA) | Pending |
+
+**Action items:**
+- [ ] Verify Resend DPF certification
+- [ ] Verify Groq DPF certification or execute custom DPA
+- [ ] Verify Cohere DPF certification or execute custom DPA
+- [ ] Schedule quarterly re-verification
+
+See also: `docs/schrems-ii-tia.md` for the full Transfer Impact Assessment.
