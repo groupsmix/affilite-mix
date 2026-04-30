@@ -470,11 +470,15 @@ export async function middleware(request: NextRequest) {
   // ── Security headers (AUDIT-FIX) ──────────────────────
   // Referrer-Policy: prevent affiliate URL leakage in referrer headers.
   // Permissions-Policy: restrict browser features not needed by the app.
+  // X-Content-Type-Options: prevent MIME-type sniffing.
+  // X-Frame-Options: prevent clickjacking (belt-and-suspenders with CSP frame-ancestors).
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
   );
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
 
   // AUDIT-FIX: Admin API responses must never be cached by CDN or browser
   // to prevent serving tenant-specific data to the wrong user or session.
