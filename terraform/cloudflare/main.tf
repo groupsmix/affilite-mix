@@ -65,10 +65,9 @@ variable "logpush_destination_conf" {
   sensitive   = true
   description = <<-EOT
     Full Cloudflare Logpush destination string for the worker_logs job.
-    Prefer R2 over S3 for the same-cloud, zero-egress path. Examples:
+    Must use the r2:// scheme to keep logs within the same Cloudflare
+    account (enforced by the validation block below). Example:
       r2://<account-id>/<bucket>?account-id=...&access-key-id=...&secret-access-key=...
-      s3://<bucket>/<prefix>?region=<region>&access-key-id=...&secret-access-key=...
-      datadog://api.datadoghq.com/api/v2/logs?header_DD-API-KEY=...&service=...
     Leave unset (null) to keep the Logpush resource disabled.
   EOT
 
