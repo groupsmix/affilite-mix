@@ -8,6 +8,7 @@ import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
+import { cronLock } from "@/lib/cron-lock";
 import type { AIContentType } from "@/lib/ai/content-generator";
 
 /**
@@ -33,45 +34,14 @@ function containsProhibitedContent(text: string): boolean {
  *
  * Generates 3 articles per site — topics are auto-selected based on niche.
  */
-/**
- * AUDIT-FIX: Cron overlap prevention. Uses KV to track whether a run is
- * already in progress. If the previous run hasn't completed within 10
- * minutes, the lock expires and a new run can start.
- */
-const AI_GENERATE_LOCK_KEY = "cron-lock:ai-generate";
-const AI_GENERATE_LOCK_TTL = 600; // 10 minutes
-
-async function acquireCronLock(): Promise<boolean> {
-  try {
-    const kv = (process.env as any).APP_CACHE_KV as any;
-    if (!kv) return true; // No KV = dev environment, skip locking
-    const existing = await kv.get(AI_GENERATE_LOCK_KEY);
-    if (existing) return false; // Already running
-    await kv.put(AI_GENERATE_LOCK_KEY, Date.now().toString(), {
-      expirationTtl: AI_GENERATE_LOCK_TTL,
-    });
-    return true;
-  } catch {
-    return true; // KV error = fail open (allow the run)
-  }
-}
-
-async function releaseCronLock(): Promise<void> {
-  try {
-    const kv = (process.env as any).APP_CACHE_KV as any;
-    if (kv) await kv.delete(AI_GENERATE_LOCK_KEY);
-  } catch {
-    // Best-effort; TTL will clean up
-  }
-}
-
 export async function POST(request: NextRequest) {
   if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/ai-generate"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // AUDIT-FIX: Prevent overlapping AI generation runs
-  const lockAcquired = await acquireCronLock();
+  const lock = cronLock("ai-generate");
+  const lockAcquired = await lock.acquire();
   if (!lockAcquired) {
     return NextResponse.json(
       { ok: false, error: "AI generation already in progress (locked)" },
@@ -160,7 +130,7 @@ export async function POST(request: NextRequest) {
   const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
 
   // Release the overlap lock before responding
-  await releaseCronLock();
+  await lock.release();
 
   void recordCronLiveness("ai-generate");
   return NextResponse.json({
