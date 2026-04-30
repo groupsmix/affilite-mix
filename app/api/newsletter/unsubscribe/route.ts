@@ -7,8 +7,13 @@ import { parseJsonBody } from "@/lib/api-error";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { hashNewsletterToken } from "@/lib/newsletter-token";
 
-/** 10 unsubscribe requests per 15 minutes per IP */
-const UNSUBSCRIBE_RATE_LIMIT = { maxRequests: 10, windowMs: 15 * 60 * 1000 };
+/** 10 unsubscribe requests per 15 minutes per IP.
+ * SEC-17: failPolicy "closed" — unsubscribe tokens are bearer secrets. */
+const UNSUBSCRIBE_RATE_LIMIT = {
+  maxRequests: 10,
+  windowMs: 15 * 60 * 1000,
+  failPolicy: "closed" as const,
+};
 
 /**
  * GET /api/newsletter/unsubscribe?token=<uuid>

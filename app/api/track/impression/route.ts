@@ -9,8 +9,13 @@ import { parseJsonBody } from "@/lib/api-error";
 import { runAfterResponse } from "@/lib/wait-until";
 import { isOriginAllowed } from "@/lib/security/allowed-origins";
 
-/** 120 ad impression requests per minute per IP */
-const IMPRESSION_RATE_LIMIT = { maxRequests: 120, windowMs: 60 * 1000 };
+/** 120 ad impression requests per minute per IP.
+ * SEC-15: failPolicy "closed" prevents impression fraud during KV outages. */
+const IMPRESSION_RATE_LIMIT = {
+  maxRequests: 120,
+  windowMs: 60 * 1000,
+  failPolicy: "closed" as const,
+};
 
 /** POST /api/track/impression — record an ad impression from the public site */
 export async function POST(request: NextRequest) {
@@ -47,6 +52,11 @@ export async function POST(request: NextRequest) {
 
     if (!ad_placement_id || typeof ad_placement_id !== "string") {
       return NextResponse.json({ error: "ad_placement_id is required" }, { status: 400 });
+    }
+
+    // SEC-18: Validate ad_placement_id is a UUID to prevent injection
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ad_placement_id)) {
+      return NextResponse.json({ error: "Invalid ad_placement_id format" }, { status: 400 });
     }
 
     // Fire-and-forget via ctx.waitUntil so the isolate is not killed before

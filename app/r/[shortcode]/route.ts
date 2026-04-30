@@ -9,6 +9,8 @@ import { apiError, rateLimitHeaders } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";
+import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
+import { logger } from "@/lib/logger";
 
 /** 60 outbound redirects per minute per IP */
 const REDIRECT_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -55,6 +57,58 @@ export async function GET(
 
     if (!destinationUrl) {
       return apiError(404, "No affiliate link available for this product");
+    }
+
+    // SEC-01: Validate URL scheme before redirecting — prevents javascript:/data:
+    // SSRF/XSS vectors if a malicious URL is stored in the database.
+    let urlObj: URL;
+    try {
+      urlObj = new URL(destinationUrl);
+      if (urlObj.protocol !== "https:" && urlObj.protocol !== "http:") {
+        logger.error("[r/shortcode] rejected redirect: invalid scheme", {
+          siteId,
+          shortcode,
+          protocol: urlObj.protocol,
+        });
+        return apiError(400, "Invalid affiliate URL scheme");
+      }
+    } catch {
+      logger.error("[r/shortcode] rejected redirect: malformed URL", {
+        siteId,
+        shortcode,
+      });
+      return apiError(400, "Malformed affiliate URL");
+    }
+
+    // SEC-02: Enforce affiliate domain allowlist at redirect time (mirrors
+    // the check in /api/track/click). Without this, a compromised DB row
+    // could redirect users to a phishing domain.
+    //
+    // Trust `domainCheck.allowed` directly: validateAffiliateDomain already
+    // applies the AFFILIATE_DOMAIN_ENFORCEMENT policy (defaulting to "strict"
+    // in production). Re-reading the env var here would diverge from that
+    // default and silently allow off-allow-list redirects when the var is
+    // unset in production.
+    const domainCheck = validateAffiliateDomain(destinationUrl);
+    if (!domainCheck.allowed) {
+      logger.error("[r/shortcode] rejected affiliate destination off allow-list", {
+        siteId,
+        shortcode,
+        domain: domainCheck.domain,
+        reason: domainCheck.reason,
+      });
+      return apiError(400, "Affiliate destination not on approved domain list");
+    }
+    if (domainCheck.reason) {
+      // `allowed: true` with a `reason` means warn-mode tolerated an
+      // off-list domain. Emit a structured warning so the corpus can
+      // be audited before AFFILIATE_DOMAIN_ENFORCEMENT=strict ships.
+      logger.warn("[r/shortcode] affiliate destination off allow-list (log-only)", {
+        siteId,
+        shortcode,
+        domain: domainCheck.domain,
+        reason: domainCheck.reason,
+      });
     }
 
     // Record click (fire-and-forget via waitUntil)
