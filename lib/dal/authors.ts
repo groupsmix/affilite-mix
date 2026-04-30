@@ -20,7 +20,10 @@ export interface AuthorRow {
 const TABLE = "authors";
 
 /** List authors for a site */
-export async function listAuthors(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AuthorRow[]> {
+export async function listAuthors(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AuthorRow[]> {
   const sb = await getClient();
 
   const { data, error } = await sb
@@ -34,7 +37,11 @@ export async function listAuthors(siteId: string, getClient: DalClientGetter = d
 }
 
 /** Get an author by ID (scoped to site) */
-export async function getAuthorById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AuthorRow | null> {
+export async function getAuthorById(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AuthorRow | null> {
   const sb = await getClient();
 
   const { data, error } = await sb
@@ -49,7 +56,11 @@ export async function getAuthorById(siteId: string, id: string, getClient: DalCl
 }
 
 /** Get an author by slug within a site */
-export async function getAuthorBySlug(siteId: string, slug: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AuthorRow | null> {
+export async function getAuthorBySlug(
+  siteId: string,
+  slug: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AuthorRow | null> {
   const sb = await getClient();
 
   const { data, error } = await sb
@@ -119,7 +130,11 @@ export async function updateAuthor(
 }
 
 /** Delete an author (scoped to site) */
-export async function deleteAuthor(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteAuthor(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
 
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);

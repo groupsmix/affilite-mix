@@ -108,10 +108,7 @@ export function withAuthzDynamic(
   action: PermissionAction,
   handler: AuthenticatedDynamicRouteHandler,
 ) {
-  return async (
-    request: NextRequest,
-    { params }: { params: Promise<Record<string, string>> },
-  ) => {
+  return async (request: NextRequest, { params }: { params: Promise<Record<string, string>> }) => {
     const auth = await requireAdmin();
     if (auth.error) return auth.error;
     const { session, dbSiteId, siteSlug } = auth;

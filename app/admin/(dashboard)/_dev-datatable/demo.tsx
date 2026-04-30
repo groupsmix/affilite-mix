@@ -91,58 +91,38 @@ const typeOptions = TYPES.map((t) => ({
 const columns: ColumnDef<DemoItem, unknown>[] = [
   {
     accessorKey: "id",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="ID" />
-    ),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="ID" />,
     cell: ({ row }) => <span className="font-mono text-xs">{row.getValue("id")}</span>,
     enableHiding: false,
   },
   {
     accessorKey: "title",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Title" />
-    ),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
     cell: ({ row }) => (
-      <span className="max-w-[300px] truncate font-medium">
-        {row.getValue("title")}
-      </span>
+      <span className="max-w-[300px] truncate font-medium">{row.getValue("title")}</span>
     ),
   },
   {
     accessorKey: "status",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
       const variant =
-        status === "published"
-          ? "default"
-          : status === "archived"
-            ? "secondary"
-            : "outline";
+        status === "published" ? "default" : status === "archived" ? "secondary" : "outline";
       return <Badge variant={variant}>{status}</Badge>;
     },
     filterFn: (row, id, value: string[]) => value.includes(row.getValue(id)),
   },
   {
     accessorKey: "type",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Type" />
-    ),
-    cell: ({ row }) => (
-      <span className="capitalize">{row.getValue("type")}</span>
-    ),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
+    cell: ({ row }) => <span className="capitalize">{row.getValue("type")}</span>,
     filterFn: (row, id, value: string[]) => value.includes(row.getValue(id)),
   },
   {
     accessorKey: "createdAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Created" />
-    ),
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.getValue("createdAt")}</span>
-    ),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
+    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("createdAt")}</span>,
   },
 ];
 

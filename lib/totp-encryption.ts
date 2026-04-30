@@ -71,11 +71,7 @@ export async function encryptTotpSecret(plaintext: string): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for AES-GCM
   const encoded = new TextEncoder().encode(plaintext);
 
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    encoded,
-  );
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
 
   // Concatenate IV + ciphertext (which includes the GCM auth tag)
   const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
@@ -115,11 +111,7 @@ export async function decryptTotpSecret(stored: string): Promise<string> {
   const ciphertext = combined.slice(12);
 
   const key = await deriveKey(rawKey);
-  const plainBytes = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    key,
-    ciphertext,
-  );
+  const plainBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
 
   return new TextDecoder().decode(plainBytes);
 }

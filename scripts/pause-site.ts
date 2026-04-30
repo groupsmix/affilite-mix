@@ -24,9 +24,7 @@ async function main() {
   const index = fs.readFileSync(indexPath, "utf-8");
 
   // Discover site files (excluding index.ts)
-  const siteFiles = fs
-    .readdirSync(sitesDir)
-    .filter((f) => f.endsWith(".ts") && f !== "index.ts");
+  const siteFiles = fs.readdirSync(sitesDir).filter((f) => f.endsWith(".ts") && f !== "index.ts");
 
   // Determine which are currently active (imported in index.ts)
   const active: string[] = [];
@@ -129,8 +127,7 @@ async function main() {
     // Add to allSites
     updated = updated.replace(
       /export const allSites: SiteDefinition\[\] = \[([^\]]+)\]/,
-      (_, inner) =>
-        `export const allSites: SiteDefinition[] = [${inner.trim()}, ${varName}]`,
+      (_, inner) => `export const allSites: SiteDefinition[] = [${inner.trim()}, ${varName}]`,
     );
 
     // Add to re-export

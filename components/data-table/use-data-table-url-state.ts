@@ -33,8 +33,7 @@ export function useDataTableUrlState({
   const urlSort = searchParams.get(sortKey) ?? "";
   const urlPage = parseInt(searchParams.get(pageKey) ?? "1", 10) || 1;
   const urlSize =
-    parseInt(searchParams.get(sizeKey) ?? String(defaultPageSize), 10) ||
-    defaultPageSize;
+    parseInt(searchParams.get(sizeKey) ?? String(defaultPageSize), 10) || defaultPageSize;
 
   const sorting: SortingState = useMemo(() => {
     if (!urlSort) return [];
@@ -178,13 +177,8 @@ export function useDataTableUrlState({
   );
 
   const onColumnFiltersChange = useCallback(
-    (
-      updater:
-        | ColumnFiltersState
-        | ((old: ColumnFiltersState) => ColumnFiltersState),
-    ) => {
-      const next =
-        typeof updater === "function" ? updater(columnFilters) : updater;
+    (updater: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState)) => {
+      const next = typeof updater === "function" ? updater(columnFilters) : updater;
       const params = buildParams({
         filters: next,
         page: { pageIndex: 0, pageSize: pagination.pageSize },
@@ -195,11 +189,8 @@ export function useDataTableUrlState({
   );
 
   const onPaginationChange = useCallback(
-    (
-      updater: PaginationState | ((old: PaginationState) => PaginationState),
-    ) => {
-      const next =
-        typeof updater === "function" ? updater(pagination) : updater;
+    (updater: PaginationState | ((old: PaginationState) => PaginationState)) => {
+      const next = typeof updater === "function" ? updater(pagination) : updater;
       const params = buildParams({ page: next });
       pushParams(params);
     },

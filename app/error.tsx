@@ -41,9 +41,7 @@ export default function RootError({
         </svg>
       </div>
 
-      <h2 className="mb-2 text-2xl font-bold text-gray-900">
-        Something went wrong
-      </h2>
+      <h2 className="mb-2 text-2xl font-bold text-gray-900">Something went wrong</h2>
       <p className="mb-8 text-sm text-gray-500">
         {process.env.NODE_ENV === "development"
           ? error.message || "An unexpected error occurred."
