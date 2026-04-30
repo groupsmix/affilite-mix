@@ -1,7 +1,7 @@
 /**
  * Infrastructure and operational controls verification.
  *
- * Covers audit risks 7, 8, 9, 10, 13, 14, 15, 20, 21, 22, 23, 24
+ * Covers audit risks 6, 7, 8, 9, 10, 14, 15, 20, 22, 23, 24
  * by verifying that the required scripts, workflows, docs, and
  * configurations exist and contain expected content.
  */
