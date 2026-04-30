@@ -22,7 +22,7 @@ contracts / DeFi. The repo is neither:
 | **Stack actually present** | Next.js 15 (App Router) + Cloudflare Workers (`@opennextjs/cloudflare`) + Supabase + R2 |
 
 Per the user instruction ("IF SOMETHING NOT MATCHING MY PROJECT YOU CAN SKIP
-IT"), A116--A118, A121--A123, A126--A134 are skipped as N/A -- no mobile
+IT"), A116--A118, A121--A123, A126--A128, A130--A134 are skipped as N/A -- no mobile
 binaries, no on-chain code.  Items with a web-side analog (A119, A120, A124,
 A125, A129, A135) were translated and audited substantively.
 
@@ -51,7 +51,7 @@ A125, A129, A135) were translated and audited substantively.
 | A125 | **PASS** w/ minor | `npm audit --omit=dev` returns 0 vulnerabilities at audited commit. Dep tree is small and contains no known data-collection SDKs (no Segment/Amplitude/FB-SDK/Branch). Cookie-consent provided by `vanilla-cookieconsent`. Apple Privacy Manifest field is N/A (no iOS bundle). |
 | A135 | **PARTIAL** | GDPR cookie consent: present (`vanilla-cookieconsent`). OFAC/Travel-Rule/MiCA/Howey: N/A (project is an affiliate content site, not a VASP / token issuer). |
 
-### 2.3 Smart-contract block (A126--A134) -- all N/A
+### 2.3 Smart-contract block (A126--A134) -- mostly N/A
 
 | ID | Verdict | Notes |
 |---|---|---|
@@ -152,7 +152,7 @@ Pass   Commit    Mobile   SmartContract  Applicable verdicts
 ## 5. Bottom line
 
 No mobile or on-chain code exists in this repo, so the bulk of the A116--A135
-checklist (A116--A118, A121--A123, A126--A134) is **non-applicable** rather than
+checklist (A116--A118, A121--A123, A126--A128, A130--A134) is **non-applicable** rather than
 failing.
 
 For every applicable web analog (open-redirect, secrets / debug / wildcard
