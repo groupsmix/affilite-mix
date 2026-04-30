@@ -73,7 +73,9 @@ resource "cloudflare_workers_kv_namespace" "app_cache_kv" {
 #   2. Enable lifecycle + object-lock on worker_logs (see below).
 #   3. Verify via: aws s3api get-bucket-lifecycle-configuration --endpoint-url ... --bucket ...
 #
-# Tracked: https://github.com/cloudflare/terraform-provider-cloudflare/issues/XXXX
+# TODO (A37#2): Track the Cloudflare provider feature request for R2 lifecycle/object-lock
+#   support at: https://github.com/cloudflare/terraform-provider-cloudflare/issues
+#   Until then, use the S3-compatible API commands above for configuration.
 resource "cloudflare_r2_bucket" "next_inc_cache" {
   account_id = var.cloudflare_account_id
   name       = "next-inc-cache"

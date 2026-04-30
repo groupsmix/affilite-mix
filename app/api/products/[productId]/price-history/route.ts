@@ -13,10 +13,10 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * Returns price history for a product.
  *
  * Security hardening (A46, A47):
+ *   - Rate limiting BEFORE UUID check to prevent DoS via garbage IDs (A46#1)
  *   - UUID format validation on productId (A46#3, A47#8)
  *   - NaN guard on `days` parameter (A46#2)
  *   - Site-scoped query via x-site-id header (A47#1)
- *   - Rate limiting to prevent enumeration DoS (A46#1)
  *   - Cache-Control headers to reduce DB load
  */
 export async function GET(
@@ -25,13 +25,9 @@ export async function GET(
 ) {
   const { productId } = await params;
 
-  // A46#3 / A47#8: Reject non-UUID productId to prevent injection and
-  // reduce noise from enumeration scans.
-  if (!UUID_RE.test(productId)) {
-    return NextResponse.json({ error: "Invalid product ID format" }, { status: 400 });
-  }
-
-  // A46#1: Rate limit public endpoint to prevent enumeration DoS.
+  // A46#1: Rate limit BEFORE UUID check to prevent enumeration DoS via
+  // garbage UUID-format strings. This ensures the rate-limit bucket fills
+  // up before any CPU is spent on validation.
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`price-history:${ip}`, {
     maxRequests: 60,
@@ -43,6 +39,12 @@ export async function GET(
       { error: "Too many requests. Try again later." },
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
     );
+  }
+
+  // A46#3 / A47#8: Reject non-UUID productId to prevent injection and
+  // reduce noise from enumeration scans.
+  if (!UUID_RE.test(productId)) {
+    return NextResponse.json({ error: "Invalid product ID format" }, { status: 400 });
   }
 
   const url = new URL(request.url);

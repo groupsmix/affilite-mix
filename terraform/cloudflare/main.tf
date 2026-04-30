@@ -71,11 +71,12 @@ variable "logpush_destination_conf" {
     Leave unset (null) to keep the Logpush resource disabled.
   EOT
 
-  # A31#2: Validate that the destination is an r2:// URI scoped to this
-  # account, preventing accidental exfiltration to a third-party S3 bucket.
+  # A31#2 / CodeRabbit fix: Validate that the destination is an r2:// URI
+  # scoped to this account (not just any r2:// bucket), preventing accidental
+  # exfiltration to a third-party R2 bucket in another account.
   validation {
-    condition     = var.logpush_destination_conf == null || can(regex("^r2://", var.logpush_destination_conf))
-    error_message = "logpush_destination_conf must use the r2:// scheme to keep logs within the same Cloudflare account. Use r2://<account-id>/<bucket>?... format."
+    condition     = var.logpush_destination_conf == null || can(regex("^r2://${var.cloudflare_account_id}/", var.logpush_destination_conf))
+    error_message = "logpush_destination_conf must use the r2:// scheme AND be scoped to this account (r2://<account-id>/<bucket>?...). Use the R2 bucket declared in storage.tf to keep logs within the same Cloudflare account."
   }
 }
 
