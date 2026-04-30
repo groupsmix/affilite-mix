@@ -98,6 +98,25 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // ── Request body size guard (AUDIT-FIX) ────────────────
+  // Reject excessively large request bodies early to prevent Worker CPU
+  // and memory exhaustion. The Content-Length header is checked before
+  // any body parsing happens. Routes that need larger payloads (e.g.
+  // CSV import) enforce their own tighter limits downstream.
+  const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
+  if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method)) {
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+      return new NextResponse(
+        JSON.stringify({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" }),
+        {
+          status: 413,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+  }
+
   // ── Trailing-slash normalization (SA9) ─────────────────
   // Redirect /foo/ → /foo to prevent duplicate canonical URLs.
   // Skip the root path "/" and Next.js internals.
@@ -447,6 +466,39 @@ export async function middleware(request: NextRequest) {
 
   // Echo the trace ID on the response so clients/devtools can correlate.
   response.headers.set(TRACE_ID_HEADER, traceId);
+
+  // ── Security headers (AUDIT-FIX) ──────────────────────
+  // Referrer-Policy: prevent affiliate URL leakage in referrer headers.
+  // Permissions-Policy: restrict browser features not needed by the app.
+  // X-Content-Type-Options: prevent MIME-type sniffing.
+  // X-Frame-Options: prevent clickjacking (belt-and-suspenders with CSP frame-ancestors).
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
+  );
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+
+  // AUDIT-FIX: Admin API responses must never be cached by CDN or browser
+  // to prevent serving tenant-specific data to the wrong user or session.
+  if (pathname.startsWith("/api/admin/")) {
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    response.headers.set("Pragma", "no-cache");
+  }
+
+  // AUDIT-FIX: Edge caching for public HTML pages. Published content
+  // pages are safe to cache at the CDN for short periods because they
+  // change infrequently (publish/unpublish triggers revalidation).
+  // API routes and admin pages are excluded. The `stale-while-revalidate`
+  // directive lets the CDN serve stale content while fetching a fresh copy,
+  // dramatically reducing TTFB for returning visitors.
+  if (!isApiRoute && !pathname.startsWith("/admin")) {
+    // Only set s-maxage if no Cache-Control was already set by Next.js ISR
+    if (!response.headers.has("Cache-Control")) {
+      response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    }
+  }
 
   // FIX-10 (F-019, F-012): Vary headers to prevent cache poisoning.
   // Cookie: responses differ based on admin session / active site cookie.
