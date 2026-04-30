@@ -4,6 +4,7 @@
  */
 
 import { generateWithFallback } from "./providers";
+import { moderateInput, moderateOutput } from "./content-moderation";
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
 
@@ -134,14 +135,50 @@ function parseResponse(
 }
 
 /**
+ * A109 audit fix: AI-generated content watermark. Prepended to every
+ * generated HTML body so downstream platforms can detect AI provenance
+ * (EU AI Act Art. 50 transparency obligation).
+ */
+export const AI_GENERATED_WATERMARK =
+  '<!-- ai-generated: true -->\n<meta name="ai-generated" content="true" />\n';
+
+/**
+ * Error thrown when content moderation rejects input or output.
+ * Callers can check `instanceof ContentModerationError` to distinguish
+ * moderation rejections from provider / quota errors.
+ */
+export class ContentModerationError extends Error {
+  constructor(
+    message: string,
+    public readonly phase: "input" | "output",
+  ) {
+    super(message);
+    this.name = "ContentModerationError";
+  }
+}
+
+/**
  * Generate a single piece of content using the AI fallback chain.
  *
  * Per-tenant quota gating (G-42): the call is charged against
  * `input.siteId` so AI tokens / requests / cost are attributed to the
  * correct tenant. See `lib/quotas.ts` for the resource taxonomy and
  * `docs/per-tenant-quotas.md` for the operator-facing contract.
+ *
+ * A107 audit fix: input moderation screens `topic` and `keywords`
+ * before the LLM call; output moderation screens the generated text
+ * for prohibited content and leaked secrets/preamble.
+ *
+ * A109 audit fix: an AI-generated watermark (`<meta name="ai-generated">`)
+ * is prepended to every generated body for EU AI Act Art. 50 compliance.
  */
 export async function generateContent(input: GenerateContentInput): Promise<GeneratedContent> {
+  // A107: Screen user-supplied input before calling the LLM.
+  const inputCheck = moderateInput(input.topic, input.keywords);
+  if (!inputCheck.passed) {
+    throw new ContentModerationError(`[ai] Input moderation failed: ${inputCheck.reason}`, "input");
+  }
+
   const systemPrompt = SYSTEM_PROMPTS[input.contentType];
   const prompt = buildPrompt(input);
 
@@ -150,7 +187,20 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
   });
   const parsed = parseResponse(text, input.contentType);
 
-  return { ...parsed, provider, model };
+  // A108: Screen model output for prohibited content and leaked secrets.
+  const combinedOutput = `${parsed.title} ${parsed.excerpt} ${parsed.body}`;
+  const outputCheck = moderateOutput(combinedOutput);
+  if (!outputCheck.passed) {
+    throw new ContentModerationError(
+      `[ai] Output moderation failed: ${outputCheck.reason}`,
+      "output",
+    );
+  }
+
+  // A109: Prepend AI-generated watermark to the body.
+  const watermarkedBody = `${AI_GENERATED_WATERMARK}${parsed.body}`;
+
+  return { ...parsed, body: watermarkedBody, provider, model };
 }
 
 /**
