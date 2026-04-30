@@ -76,7 +76,7 @@ describe("F-009: security remediation regression tests", () => {
       expect(deploy).toContain("Migrations without rollback notes");
       expect(deploy).toContain("Every migration MUST include a -- ROLLBACK:");
       // Must exit 1, not just warn
-      expect(deploy).toMatch(/Migrations without rollback notes.*\n.*exit 1/s);
+      expect(deploy).toMatch(/Migrations without rollback notes[\s\S]*?exit 1/);
     });
   });
 

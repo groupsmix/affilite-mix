@@ -34,6 +34,43 @@ function findRouteFiles(dir: string): string[] {
 /** HTTP methods that should be protected */
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
+/**
+ * Extracts the body of `export async function NAME(...) { ... }` declarations.
+ * Returns "" if the handler is not declared in this exact form (e.g. it is
+ * defined with `export const NAME = withAuthz(...)`, which is handled by
+ * the per-handler HOF regex elsewhere).
+ */
+function getAsyncHandlerBody(content: string, handler: string): string {
+  const headerRe = new RegExp(`export\\s+async\\s+function\\s+${handler}\\b\\s*\\(`);
+  const headerMatch = headerRe.exec(content);
+  if (!headerMatch) return "";
+
+  let i = headerMatch.index + headerMatch[0].length;
+  let parenDepth = 1;
+  while (i < content.length && parenDepth > 0) {
+    const ch = content[i];
+    if (ch === "(") parenDepth++;
+    else if (ch === ")") parenDepth--;
+    i++;
+  }
+  if (parenDepth !== 0) return "";
+
+  while (i < content.length && content[i] !== "{") i++;
+  if (i >= content.length) return "";
+
+  const bodyStart = i + 1;
+  let braceDepth = 1;
+  for (let j = bodyStart; j < content.length; j++) {
+    const ch = content[j];
+    if (ch === "{") braceDepth++;
+    else if (ch === "}") {
+      braceDepth--;
+      if (braceDepth === 0) return content.slice(bodyStart, j);
+    }
+  }
+  return content.slice(bodyStart);
+}
+
 describe("F-003: admin routes reject unauthenticated access", () => {
   const routeFiles = findRouteFiles(ADMIN_API_DIR);
 
@@ -60,13 +97,18 @@ describe("F-003: admin routes reject unauthenticated access", () => {
           `export\\s+const\\s+${method}\\s*=\\s*(?:withAuthz|withAuthzDynamic)\\s*\\(`,
         ).test(content);
 
-        // Pattern 2: requireAdmin() call with error check
+        // Pattern 2 / 3: requireAdmin() / requireSuperAdmin() invoked inside
+        // THIS handler's body. Scope the regex to the handler body so that
+        // a multi-handler file where only one handler calls the guard does
+        // not pass the check for the other handlers.
+        const handlerBody = getAsyncHandlerBody(content, method);
         const usesRequireAdmin =
-          /await\s+requireAdmin\s*\(/.test(content) &&
-          /if\s*\(\s*error\s*\)\s*return\s+error/.test(content);
+          handlerBody.length > 0 &&
+          /await\s+requireAdmin\s*\(/.test(handlerBody) &&
+          /if\s*\(\s*error\s*\)\s*return\s+error/.test(handlerBody);
 
-        // Pattern 3: requireSuperAdmin() for elevated routes
-        const usesRequireSuperAdmin = /await\s+requireSuperAdmin\s*\(/.test(content);
+        const usesRequireSuperAdmin =
+          handlerBody.length > 0 && /await\s+requireSuperAdmin\s*\(/.test(handlerBody);
 
         const isProtected = isHofWrapped || usesRequireAdmin || usesRequireSuperAdmin;
 
