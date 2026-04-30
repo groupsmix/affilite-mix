@@ -31,7 +31,8 @@ logpush_destination_conf = ""  # e.g. "r2://<account-id>/workers-logpush?account
 # ── WAF configuration ─────────────────────────────────────────────────
 # Source from Cloudflare analytics → Security → Events → top ASNs.
 waf_blocked_asns      = []
-waf_blocked_countries = ["KP", "IR", "SY"]
+# A31#10 / A36#13: Cuba (CU) added to complete the OFAC-restricted set.
+waf_blocked_countries = ["KP", "IR", "SY", "CU"]
 
 # ── R2 location hint ──────────────────────────────────────────────────
 r2_default_location   = "WNAM"
