@@ -51,8 +51,7 @@ jobs:
             --exclude='node_modules' \
             --exclude='__tests__' \
             --exclude='.open-next' \
-            --exclude='.next' \
-            || true
+            --exclude='.next'
 
       - name: Upload SARIF results
         if: always()

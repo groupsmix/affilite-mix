@@ -110,7 +110,11 @@ describe("F-009: security remediation regression tests", () => {
 
     for (const route of securityRoutes) {
       it(`${route} uses failPolicy: "closed"`, () => {
-        if (!fileExists(route)) return; // skip if route doesn't exist yet
+        // F-006: This is a security regression test, so a missing route must
+        // fail loudly rather than silently skip — otherwise renaming or
+        // accidentally deleting an auth route would silently lose the
+        // fail-closed control.
+        expect(fileExists(route), `expected security-critical route ${route} to exist`).toBe(true);
         const content = readFile(route);
         expect(content).toContain('failPolicy: "closed"');
       });

@@ -30,12 +30,20 @@ rules:
             await requireAdmin()
             ...
           }
-      - pattern-inside: |
-          // file: app/api/admin/**/route.ts
-          ...
+      - pattern-not: |
+          export async function $METHOD(request: ...) {
+            ...
+            await requireSuperAdmin()
+            ...
+          }
+    paths:
+      include:
+        - "app/api/admin/**/route.ts"
+        - "app/api/admin/**/route.tsx"
     message: >
-      Admin API route handler does not call `requireAdmin()`. All admin
-      routes must use an approved authz wrapper.
+      Admin API route handler does not call `requireAdmin()` /
+      `requireSuperAdmin()`. All admin routes must use an approved authz
+      wrapper.
     languages: [typescript]
     severity: ERROR
     metadata:

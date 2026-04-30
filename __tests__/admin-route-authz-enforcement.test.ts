@@ -108,6 +108,50 @@ function getExportedHandlers(content: string): string[] {
   return [...new Set(handlers)];
 }
 
+/**
+ * Extract the body of a specific async handler so per-handler regex checks
+ * are scoped to that function only (not to the whole file).
+ *
+ * Counts braces from the function's opening `{` to find the matching close.
+ * Returns the empty string if the handler is not declared as
+ * `export async function NAME(...) { ... }`.
+ */
+function getAsyncHandlerBody(content: string, handler: string): string {
+  // Find the function header; the param list may contain destructured `{}`
+  // and type-level `{}` (e.g. `{ params }: { params: Promise<{ id: string }> }`),
+  // so we cannot just regex up to the first `{`. Walk paren depth instead.
+  const headerRe = new RegExp(`export\\s+async\\s+function\\s+${handler}\\b\\s*\\(`);
+  const headerMatch = headerRe.exec(content);
+  if (!headerMatch) return "";
+
+  // Position right after the opening `(` of the param list.
+  let i = headerMatch.index + headerMatch[0].length;
+  let parenDepth = 1;
+  while (i < content.length && parenDepth > 0) {
+    const ch = content[i];
+    if (ch === "(") parenDepth++;
+    else if (ch === ")") parenDepth--;
+    i++;
+  }
+  if (parenDepth !== 0) return "";
+
+  // Skip optional return-type annotation up to the body's opening `{`.
+  while (i < content.length && content[i] !== "{") i++;
+  if (i >= content.length) return "";
+
+  const bodyStart = i + 1;
+  let braceDepth = 1;
+  for (let j = bodyStart; j < content.length; j++) {
+    const ch = content[j];
+    if (ch === "{") braceDepth++;
+    else if (ch === "}") {
+      braceDepth--;
+      if (braceDepth === 0) return content.slice(bodyStart, j);
+    }
+  }
+  return content.slice(bodyStart);
+}
+
 describe("F-01 / F-003: admin route authz enforcement", () => {
   const routeFiles = findRouteFiles(ADMIN_API_DIR);
 
@@ -137,10 +181,14 @@ describe("F-01 / F-003: admin route authz enforcement", () => {
           `export\\s+const\\s+${handler}\\s*=\\s*(?:withAuthz|withAuthzDynamic)\\s*\\(`,
         ).test(content);
 
-        // For requireAdmin pattern: the function body must call requireAdmin()
+        // For requireAdmin / requireSuperAdmin pattern: the function body of
+        // THIS handler must call one of those guards. Scope the regex to the
+        // handler's body so a multi-handler file where only one handler calls
+        // `requireAdmin()` doesn't pass the check for all of them.
+        const handlerBody = getAsyncHandlerBody(content, handler);
         const isAsyncGuarded =
-          new RegExp(`export\\s+async\\s+function\\s+${handler}\\b`).test(content) &&
-          /await\s+requireAdmin\s*\(/.test(content);
+          handlerBody.length > 0 &&
+          /await\s+(requireAdmin|requireSuperAdmin)\s*\(/.test(handlerBody);
 
         expect(
           isHofWrapped || isAsyncGuarded,
