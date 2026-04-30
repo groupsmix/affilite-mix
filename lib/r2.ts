@@ -538,11 +538,16 @@ export async function promoteToPublicBucket(
     region: "auto",
     copySource,
   });
+  // AUDIT-FIX: Set Content-Disposition to "inline" with the content type
+  // so browsers render images normally but don't execute any non-image content.
+  // The filename from the staging key is sanitized to the UUID.<ext> portion.
+  const filename = stagingKey.split("/").pop() ?? stagingKey;
   const res = await fetch(signed.url, {
     method: "PUT",
     headers: {
       ...signed.headers,
       "Content-Type": contentType,
+      "Content-Disposition": `inline; filename="${filename}"`,
     },
   });
   if (!res.ok) {

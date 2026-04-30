@@ -116,6 +116,12 @@ jobs:
 
       - run: npm ci
 
+      # AUDIT-FIX: Run npm audit before deploying to catch newly
+      # disclosed vulnerabilities that CI may not have seen if the
+      # last CI run was on a different day.
+      - name: Security audit (deploy gate)
+        run: npm audit --omit=dev --audit-level=high
+
       # ── Validate Cloudflare Worker bindings (PRIORITY 0) ───────────
       # F-007: Production deploy must hard-fail if required Cloudflare
       # bindings are missing. Without these, the Worker will not start.
@@ -442,8 +448,11 @@ jobs:
             fi
           done
           if [ -n "$MISSING_ROLLBACK" ]; then
-            echo "::warning::Migrations without rollback notes:$MISSING_ROLLBACK"
-            echo "Consider adding -- ROLLBACK: <instructions> comments to each migration"
+            echo "::error::Migrations without rollback notes:$MISSING_ROLLBACK"
+            echo "::error::Every migration MUST include a -- ROLLBACK: <instructions> comment"
+            echo "::error::describing how to revert the change (expand-contract, down migration, etc.)."
+            echo "::error::See docs/rollback-strategy.md for guidance."
+            exit 1
           fi
 
           echo "Database reset smoke test PASSED"
@@ -773,6 +782,11 @@ jobs:
           fi
           if [ "$OVERRIDE" = "true" ] && [ "$ENABLED" != "true" ]; then
             echo "::warning::F-009: LOG_SHIPPER_REQUIRED_OVERRIDE=true is bypassing the durable-log-shipping requirement. Restore LOG_SHIPPER_ENABLED=true ASAP."
+            echo "::warning::Override used by: ${{ github.actor }} at $(date -u +%Y-%m-%dT%H:%M:%SZ) in run ${{ github.run_id }}"
+            echo "::warning::This override usage is logged in the workflow run and should be linked to a change ticket."
+            # F-005: Surface override usage as a GitHub Actions annotation so it
+            # appears in the PR / commit checks summary and is auditable.
+            echo "::notice title=Log-Shipper Override Active::LOG_SHIPPER_REQUIRED_OVERRIDE=true was used by ${{ github.actor }} in workflow run ${{ github.run_id }}. Ensure a change ticket is linked and LOG_SHIPPER_ENABLED is restored promptly."
           fi
 
       - name: Deploy log-shipper Tail Worker
@@ -1204,7 +1218,8 @@ jobs:
             echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping binding drift check"
             exit 0
           fi
-          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc)
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
+            | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
           DECL=$(echo "$WRANGLER_JSON" | jq -r '
             [
               (.kv_namespaces // [])[] | .binding,
@@ -1277,7 +1292,8 @@ jobs:
             echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping cron drift check"
             exit 0
           fi
-          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc)
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
+            | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
           DECL=$(echo "$WRANGLER_JSON" | jq -r '(.triggers.crons // [])[]' | sort -u)
           LIVE=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/schedules" \

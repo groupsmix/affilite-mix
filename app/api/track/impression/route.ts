@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
     // validate the request Origin against the per-site allow-list instead.
     // Pattern mirrors /api/vitals (G-47 / isOriginAllowed).
     const origin = request.headers.get("origin");
-    const siteId = request.headers.get("x-site-id");
-    if (!isOriginAllowed(origin, request.headers.get("host"), siteId)) {
+    const siteIdHeader = request.headers.get("x-site-id");
+    if (!isOriginAllowed(origin, request.headers.get("host"), siteIdHeader)) {
       return NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
     }
 

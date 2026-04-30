@@ -6,7 +6,7 @@ import { createComment, listApprovedComments } from "@/lib/dal/community";
 import { getClientIp } from "@/lib/get-client-ip";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { sanitizeHtml } from "@/lib/sanitize-html";
-import { normalizeEmail } from "@/lib/validate-email";
+import { normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
 
 /**
  * GET /api/community/comments?target_type=product&target_id=xxx
@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
 
   // Normalize email (trim + lowercase) so rate limits and storage are case-insensitive.
   const normalizedEmail = normalizeEmail(body.user_email);
-  const { getRateLimitEmailKey } = await import("@/lib/validate-email");
-  const rateLimitEmail = getRateLimitEmailKey(normalizedEmail);
+  // F-007: Hash email before using in rate-limit key to avoid PII in operational metadata
+  const rateLimitEmail = await hashEmailForRateLimit(normalizedEmail);
 
   // Per-email rate limit: 5 comments per hour per email
   const emailRl = await checkRateLimit(`comment-email:${rateLimitEmail}`, {
