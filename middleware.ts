@@ -483,6 +483,19 @@ export async function middleware(request: NextRequest) {
     response.headers.set("Pragma", "no-cache");
   }
 
+  // AUDIT-FIX: Edge caching for public HTML pages. Published content
+  // pages are safe to cache at the CDN for short periods because they
+  // change infrequently (publish/unpublish triggers revalidation).
+  // API routes and admin pages are excluded. The `stale-while-revalidate`
+  // directive lets the CDN serve stale content while fetching a fresh copy,
+  // dramatically reducing TTFB for returning visitors.
+  if (!isApiRoute && !pathname.startsWith("/admin")) {
+    // Only set s-maxage if no Cache-Control was already set by Next.js ISR
+    if (!response.headers.has("Cache-Control")) {
+      response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    }
+  }
+
   // FIX-10 (F-019, F-012): Vary headers to prevent cache poisoning.
   // Cookie: responses differ based on admin session / active site cookie.
   // x-site-id, host: responses differ based on the resolved tenant.

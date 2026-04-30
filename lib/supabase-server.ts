@@ -50,6 +50,17 @@ let _anonClient: SupabaseClient<Database> | null = null;
  * gateway.
  */
 export function getServiceClient(): SupabaseClient<Database> {
+  // AUDIT-FIX: Emit a runtime warning in production so operators can
+  // track legacy call sites that haven't migrated to the approved gateway.
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        msg: "getServiceClient() is deprecated — use getPrivilegedSupabaseClient() from lib/server-only/service-role.ts",
+        metric: "deprecated_service_client_usage",
+      }),
+    );
+  }
   return getPrivilegedSupabaseClient();
 }
 
