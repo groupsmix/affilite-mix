@@ -3,27 +3,31 @@
 ## SLO Definitions
 
 ### 1. Public Page Availability
+
 - **Target:** 99.9% per month (43 min downtime)
 - **Measurement:** (2xx responses / total requests)
 
 ### 2. Admin API Latency (p95)
+
 - **Target:** ≤ 500ms at p95
-- **Applies to:** /api/admin/*
+- **Applies to:** /api/admin/\*
 
 ### 3. Stripe Webhook Success
+
 - **Target:** ≥ 99.5% successful processing
 
 ### 4. Public API Response
+
 - **Target:** ≤ 200ms at p95
-- **Applies to:** /api/community/*, /api/newsletter/*
+- **Applies to:** /api/community/_, /api/newsletter/_
 
 ## Error Budget Policy
 
-| Consumed | Action |
-|----------|--------|
-| 50% | Warning alert |
-| 75% | Page on-call |
-| 100% | Incident response |
+| Consumed | Action            |
+| -------- | ----------------- |
+| 50%      | Warning alert     |
+| 75%      | Page on-call      |
+| 100%     | Incident response |
 
 ## Alerting
 
@@ -35,6 +39,7 @@
 ```
 
 ## Review Schedule
+
 - Weekly: Error budget burn rate
 - Monthly: SLO performance review
 

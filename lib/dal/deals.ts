@@ -25,7 +25,11 @@ export interface DealRow {
 const TABLE = "deals";
 
 /** List active deals for a site, sorted by discount % descending */
-export async function listActiveDeals(siteId: string, limit: number = 50, getClient: DalClientGetter = defaultDalClientGetter): Promise<DealRow[]> {
+export async function listActiveDeals(
+  siteId: string,
+  limit: number = 50,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<DealRow[]> {
   const sb = await getClient();
   const now = new Date().toISOString();
 
@@ -46,7 +50,10 @@ export async function listActiveDeals(siteId: string, limit: number = 50, getCli
 }
 
 /** List featured deals */
-export async function listFeaturedDeals(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<DealRow[]> {
+export async function listFeaturedDeals(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<DealRow[]> {
   const sb = await getClient();
   const now = new Date().toISOString();
 
@@ -66,7 +73,10 @@ export async function listFeaturedDeals(siteId: string, getClient: DalClientGett
 }
 
 /** Get deal by ID */
-export async function getDealById(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<DealRow | null> {
+export async function getDealById(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<DealRow | null> {
   const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).select("*").eq("id", id).maybeSingle();
@@ -76,21 +86,24 @@ export async function getDealById(id: string, getClient: DalClientGetter = defau
 }
 
 /** Create a deal */
-export async function createDeal(input: {
-  site_id: string;
-  product_id?: string;
-  title: string;
-  description?: string;
-  discount_pct?: number;
-  original_price?: number;
-  deal_price?: number;
-  currency?: string;
-  source?: string;
-  url: string;
-  starts_at?: string;
-  expires_at?: string;
-  is_featured?: boolean;
-}, getClient: DalClientGetter = defaultDalClientGetter): Promise<DealRow> {
+export async function createDeal(
+  input: {
+    site_id: string;
+    product_id?: string;
+    title: string;
+    description?: string;
+    discount_pct?: number;
+    original_price?: number;
+    deal_price?: number;
+    currency?: string;
+    source?: string;
+    url: string;
+    starts_at?: string;
+    expires_at?: string;
+    is_featured?: boolean;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<DealRow> {
   const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
@@ -130,7 +143,9 @@ export async function updateDeal(
 }
 
 /** Auto-expire deals past their expiry date */
-export async function expireDeals(getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+export async function expireDeals(
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<number> {
   const sb = await getClient();
   const now = new Date().toISOString();
 

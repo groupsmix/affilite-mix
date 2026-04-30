@@ -16,10 +16,7 @@ export default function ContentTypeLoading() {
       {/* Content grid skeleton */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-lg border border-gray-200 bg-white p-4"
-          >
+          <div key={i} className="rounded-lg border border-gray-200 bg-white p-4">
             <div className="mb-3 h-36 w-full rounded bg-gray-200" />
             <div className="mb-2 h-5 w-3/4 rounded bg-gray-200" />
             <div className="h-4 w-full rounded bg-gray-100" />

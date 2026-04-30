@@ -15,10 +15,7 @@ interface DataTableSkeletonProps {
   rowCount?: number;
 }
 
-export function DataTableSkeleton({
-  columnCount,
-  rowCount = 10,
-}: DataTableSkeletonProps) {
+export function DataTableSkeleton({ columnCount, rowCount = 10 }: DataTableSkeletonProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">

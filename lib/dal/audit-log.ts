@@ -103,7 +103,11 @@ export async function listAuditLogs(
 }
 
 /** Count audit-log rows matching the same filters used by `listAuditLogs`. */
-export async function countAuditLogs(siteId: string, filters?: AuditLogFilters, getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+export async function countAuditLogs(
+  siteId: string,
+  filters?: AuditLogFilters,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<number> {
   const sb = await getClient();
   let query = sb
     .from("audit_log")
@@ -140,7 +144,10 @@ export async function countAuditLogs(siteId: string, filters?: AuditLogFilters, 
 }
 
 /** Get distinct actions for filter dropdown */
-export async function getDistinctActions(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<string[]> {
+export async function getDistinctActions(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<string[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("audit_log")
@@ -154,7 +161,10 @@ export async function getDistinctActions(siteId: string, getClient: DalClientGet
 }
 
 /** Get distinct entity types for filter dropdown */
-export async function getDistinctEntityTypes(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<string[]> {
+export async function getDistinctEntityTypes(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<string[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from("audit_log")

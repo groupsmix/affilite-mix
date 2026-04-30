@@ -26,7 +26,10 @@ export type AdminUserPublic = Omit<
 const TABLE = "admin_users";
 
 /** Find an active admin user by email (for login) */
-export async function getAdminUserByEmail(email: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AdminUserRow | null> {
+export async function getAdminUserByEmail(
+  email: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AdminUserRow | null> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -40,7 +43,10 @@ export async function getAdminUserByEmail(email: string, getClient: DalClientGet
 }
 
 /** Find an admin user by ID (excludes password_hash for safety) */
-export async function getAdminUserById(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AdminUserPublic | null> {
+export async function getAdminUserById(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AdminUserPublic | null> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -55,7 +61,9 @@ export async function getAdminUserById(id: string, getClient: DalClientGetter = 
 }
 
 /** List all admin users (excludes password_hash for safety) */
-export async function listAdminUsers(getClient: DalClientGetter = defaultDalClientGetter): Promise<AdminUserPublic[]> {
+export async function listAdminUsers(
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AdminUserPublic[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -127,14 +135,19 @@ export async function updateAdminUser(
 }
 
 /** Delete an admin user */
-export async function deleteAdminUser(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteAdminUser(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;
 }
 
 /** Count admin users (to check if any exist) */
-export async function countAdminUsers(getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+export async function countAdminUsers(
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<number> {
   const sb = await getClient();
   const { count, error } = await sb.from(TABLE).select("*", { count: "exact", head: true });
 
@@ -166,7 +179,10 @@ export async function hasAdminUsers(): Promise<boolean> {
  * the one identified by `excludingId`. Used to prevent deleting, deactivating,
  * or demoting the final active super_admin.
  */
-export async function hasAnotherActiveSuperAdmin(excludingId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<boolean> {
+export async function hasAnotherActiveSuperAdmin(
+  excludingId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<boolean> {
   const sb = await getClient();
   const { count, error } = await sb
     .from(TABLE)

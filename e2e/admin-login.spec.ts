@@ -60,9 +60,7 @@ test.describe("Admin Login Page", () => {
     await page.locator("text=Forgot your password?").click();
 
     await expect(page.locator("h3")).toHaveText("Reset Password");
-    await expect(
-      page.locator('input[type="email"]').nth(1),
-    ).toBeVisible();
+    await expect(page.locator('input[type="email"]').nth(1)).toBeVisible();
     await expect(page.locator("text=Send Reset Link")).toBeVisible();
   });
 
@@ -91,9 +89,9 @@ test.describe("Admin Login Page", () => {
     await page.locator("text=Send Reset Link").click();
 
     // Should show success message
-    await expect(
-      page.locator("text=If an account with that email exists"),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("text=If an account with that email exists")).toBeVisible({
+      timeout: 5_000,
+    });
     await expect(page.locator("text=Back to Login")).toBeVisible();
   });
 

@@ -8,7 +8,10 @@ const LIST_COLUMNS =
   "id, site_id, name, placement_type, provider, ad_code, config, is_active, priority, created_at" as const;
 
 /** List all ad placements for a site */
-export async function listAdPlacements(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AdPlacementRow[]> {
+export async function listAdPlacements(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AdPlacementRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -93,7 +96,11 @@ export async function updateAdPlacement(
 }
 
 /** Delete an ad placement */
-export async function deleteAdPlacement(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteAdPlacement(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 

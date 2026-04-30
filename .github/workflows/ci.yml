@@ -31,6 +31,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Prettier format check (FR-0004)
+        run: npm run format:check
       - name: Security audit
         run: npm audit --audit-level=high
       - name: Migration policy lint (E-2)
@@ -153,8 +155,9 @@ jobs:
             echo "::error::jq is required for R2 isolation check but is not installed"
             exit 1
           fi
-          # Strip JSONC line comments so `jq` can parse the file.
-          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc)
+          # Strip JSONC line comments and trailing commas so `jq` can parse the file.
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
+            | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
           R2_PUBLIC=$(echo "$WRANGLER_JSON" | jq -r '
             [ (.env.production.r2_buckets // .r2_buckets // [])[]
               | select(.binding == "R2_PUBLIC_BUCKET" or .binding == "NEXT_INC_CACHE_R2_BUCKET")

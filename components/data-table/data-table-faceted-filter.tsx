@@ -38,9 +38,7 @@ export function DataTableFacetedFilter<TData, TValue>({
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const facets = column?.getFacetedUniqueValues();
   const filterValue = column?.getFilterValue();
-  const selectedValues = new Set(
-    Array.isArray(filterValue) ? (filterValue as string[]) : [],
-  );
+  const selectedValues = new Set(Array.isArray(filterValue) ? (filterValue as string[]) : []);
 
   return (
     <Popover>
@@ -95,9 +93,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                         selectedValues.add(option.value);
                       }
                       const values = Array.from(selectedValues);
-                      column?.setFilterValue(
-                        values.length > 0 ? values : undefined,
-                      );
+                      column?.setFilterValue(values.length > 0 ? values : undefined);
                     }}
                   >
                     <div
@@ -110,9 +106,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                     >
                       <CheckIcon className="size-4" />
                     </div>
-                    {option.icon && (
-                      <option.icon className="mr-2 size-4 text-muted-foreground" />
-                    )}
+                    {option.icon && <option.icon className="mr-2 size-4 text-muted-foreground" />}
                     <span>{option.label}</span>
                     {facets?.get(option.value) != null && (
                       <span className="ml-auto flex size-4 items-center justify-center font-mono text-xs">

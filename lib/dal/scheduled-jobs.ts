@@ -55,7 +55,10 @@ export async function listScheduledJobs(
 }
 
 /** Create a scheduled job */
-export async function createScheduledJob(input: CreateScheduledJobInput, getClient: DalClientGetter = defaultDalClientGetter): Promise<ScheduledJobRow> {
+export async function createScheduledJob(
+  input: CreateScheduledJobInput,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ScheduledJobRow> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -74,7 +77,11 @@ export async function createScheduledJob(input: CreateScheduledJobInput, getClie
 }
 
 /** Cancel a scheduled job */
-export async function cancelScheduledJob(siteId: string, jobId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function cancelScheduledJob(
+  siteId: string,
+  jobId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb
     .from(TABLE)

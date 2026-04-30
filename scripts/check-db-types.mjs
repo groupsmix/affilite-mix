@@ -35,18 +35,18 @@
 //   REQUIRE_STAGING_DB=true makes a missing URL a hard error
 //   (matches scripts/db-audit.sh policy).
 
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-const TYPES_FILE = resolve(process.cwd(), 'types/supabase.ts');
+const TYPES_FILE = resolve(process.cwd(), "types/supabase.ts");
 
 function getDbUrl() {
   return (
     process.env.STAGING_SUPABASE_DB_URL ||
     process.env.SUPABASE_DB_POOLER_URL ||
     process.env.DATABASE_URL ||
-    ''
+    ""
   );
 }
 
@@ -62,22 +62,11 @@ SELECT table_name, column_name
 `.trim();
 
   const out = execFileSync(
-    'psql',
-    [
-      dbUrl,
-      '-t',
-      '-A',
-      '-F',
-      '|',
-      '--no-psqlrc',
-      '-v',
-      'ON_ERROR_STOP=1',
-      '-c',
-      sql,
-    ],
+    "psql",
+    [dbUrl, "-t", "-A", "-F", "|", "--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-c", sql],
     {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      encoding: 'utf8',
+      stdio: ["ignore", "pipe", "pipe"],
+      encoding: "utf8",
       timeout: 60_000,
       maxBuffer: 16 * 1024 * 1024,
     },
@@ -85,10 +74,10 @@ SELECT table_name, column_name
 
   /** @type {Map<string, Set<string>>} */
   const live = new Map();
-  for (const rawLine of out.split('\n')) {
+  for (const rawLine of out.split("\n")) {
     const line = rawLine.trim();
     if (!line) continue;
-    const [table, column] = line.split('|');
+    const [table, column] = line.split("|");
     if (!table || !column) continue;
     if (!live.has(table)) live.set(table, new Set());
     live.get(table).add(column);
@@ -106,13 +95,13 @@ SELECT table_name, column_name
  * `Record<…>` (permissive) or an object literal (extract field names).
  */
 function parseDeclaredTypes() {
-  const src = readFileSync(TYPES_FILE, 'utf8');
+  const src = readFileSync(TYPES_FILE, "utf8");
 
   // Find `public: {` — the outer schema. Assumes only one `public:` key
   // at top level inside `Database`, which is true for this repo.
   const publicMatch = src.match(/\n\s*public\s*:\s*\{/);
   if (!publicMatch) {
-    throw new Error('Could not locate `public: {` block in types/supabase.ts');
+    throw new Error("Could not locate `public: {` block in types/supabase.ts");
   }
   const publicBodyStart = publicMatch.index + publicMatch[0].length;
   const publicBody = sliceBalanced(src, publicBodyStart);
@@ -120,9 +109,7 @@ function parseDeclaredTypes() {
   // Inside public, find `Tables: { … }`.
   const tablesMatch = publicBody.match(/\n\s*Tables\s*:\s*\{/);
   if (!tablesMatch) {
-    throw new Error(
-      'Could not locate `Tables: {` block inside `public` in types/supabase.ts',
-    );
+    throw new Error("Could not locate `Tables: {` block inside `public` in types/supabase.ts");
   }
   const tablesBodyStart = tablesMatch.index + tablesMatch[0].length;
   const tablesBody = sliceBalanced(publicBody, tablesBodyStart);
@@ -200,8 +187,8 @@ function sliceBalanced(src, start) {
   let i = start;
   while (i < src.length) {
     const ch = src[i];
-    if (ch === '{') depth++;
-    else if (ch === '}') {
+    if (ch === "{") depth++;
+    else if (ch === "}") {
       depth--;
       if (depth === 0) return src.slice(start, i);
     }
@@ -219,11 +206,11 @@ function skipToFieldEnd(src, start) {
   let i = start;
   while (i < src.length) {
     const ch = src[i];
-    if (ch === '{' || ch === '[' || ch === '(' || ch === '<') depth++;
-    else if (ch === '}' || ch === ']' || ch === ')' || ch === '>') {
+    if (ch === "{" || ch === "[" || ch === "(" || ch === "<") depth++;
+    else if (ch === "}" || ch === "]" || ch === ")" || ch === ">") {
       if (depth === 0) return i; // outer close — bail
       depth--;
-    } else if ((ch === ';' || ch === ',') && depth === 0) {
+    } else if ((ch === ";" || ch === ",") && depth === 0) {
       return i + 1;
     }
     i++;
@@ -234,26 +221,24 @@ function skipToFieldEnd(src, start) {
 function main() {
   const dbUrl = getDbUrl();
   if (!dbUrl) {
-    if (process.env.REQUIRE_STAGING_DB === 'true') {
+    if (process.env.REQUIRE_STAGING_DB === "true") {
       console.error(
-        '::error::STAGING_SUPABASE_DB_URL (or SUPABASE_DB_POOLER_URL) is required on protected branches / non-fork PRs.',
+        "::error::STAGING_SUPABASE_DB_URL (or SUPABASE_DB_POOLER_URL) is required on protected branches / non-fork PRs.",
       );
-      console.error(
-        '::error::Add it in GitHub → Settings → Secrets and variables → Actions.',
-      );
+      console.error("::error::Add it in GitHub → Settings → Secrets and variables → Actions.");
       process.exit(1);
     }
     console.warn(
-      '⚠  No DB URL set (STAGING_SUPABASE_DB_URL, SUPABASE_DB_POOLER_URL, DATABASE_URL) — skipping DB type drift check (REQUIRE_STAGING_DB!=true).',
+      "⚠  No DB URL set (STAGING_SUPABASE_DB_URL, SUPABASE_DB_POOLER_URL, DATABASE_URL) — skipping DB type drift check (REQUIRE_STAGING_DB!=true).",
     );
     process.exit(0);
   }
 
-  console.log('▶ Fetching live schema from staging DB…');
+  console.log("▶ Fetching live schema from staging DB…");
   const live = fetchLiveSchema(dbUrl);
   console.log(`  ${live.size} public-schema tables found.`);
 
-  console.log('▶ Parsing types/supabase.ts…');
+  console.log("▶ Parsing types/supabase.ts…");
   const declared = parseDeclaredTypes();
   console.log(`  ${declared.size} tables declared.`);
 
@@ -296,29 +281,25 @@ function main() {
   }
 
   if (warnings.length) {
-    console.warn('');
-    console.warn('Warnings (non-fatal):');
+    console.warn("");
+    console.warn("Warnings (non-fatal):");
     for (const w of warnings) console.warn(`  - ${w}`);
   }
 
   if (errors.length) {
-    console.error('');
-    console.error('❌ DB type drift detected:');
+    console.error("");
+    console.error("❌ DB type drift detected:");
     for (const e of errors) console.error(`  - ${e}`);
-    console.error('');
+    console.error("");
+    console.error("   Fix: add the missing table/column to types/supabase.ts.");
     console.error(
-      '   Fix: add the missing table/column to types/supabase.ts.',
-    );
-    console.error(
-      '   Tables you do not want to fully type can use `Row: Record<string, any>` (with matching Insert/Update) to skip column-level enforcement.',
+      "   Tables you do not want to fully type can use `Row: Record<string, any>` (with matching Insert/Update) to skip column-level enforcement.",
     );
     process.exit(1);
   }
 
-  console.log('');
-  console.log(
-    '✅ No drift — every live (table, column) is declared in types/supabase.ts.',
-  );
+  console.log("");
+  console.log("✅ No drift — every live (table, column) is declared in types/supabase.ts.");
 }
 
 main();

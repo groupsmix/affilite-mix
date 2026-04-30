@@ -51,17 +51,21 @@ async function main() {
   const accent = await ask("Accent color hex (e.g. #10B981): ");
 
   console.log(`\nFont presets: ${FONT_PRESETS.join(", ")}`);
-  const fonts = await ask("Font preset [modern]: ") || "modern";
+  const fonts = (await ask("Font preset [modern]: ")) || "modern";
 
   console.log(`\nHomepage presets: ${HOMEPAGE_PRESETS.join(", ")}`);
-  const homepage = await ask("Homepage preset [standard]: ") || "standard";
+  const homepage = (await ask("Homepage preset [standard]: ")) || "standard";
 
   console.log(`\nAvailable features:\n  ${FEATURE_OPTIONS.join(", ")}`);
-  const featInput = await ask("Features (comma-separated) [blog,newsletter,search]: ")
-    || "blog,newsletter,search";
-  const features = featInput.split(",").map((f) => f.trim()).filter(Boolean);
+  const featInput =
+    (await ask("Features (comma-separated) [blog,newsletter,search]: ")) ||
+    "blog,newsletter,search";
+  const features = featInput
+    .split(",")
+    .map((f) => f.trim())
+    .filter(Boolean);
 
-  const language = await ask("Language code [en]: ") || "en";
+  const language = (await ask("Language code [en]: ")) || "en";
 
   rl.close();
 
@@ -107,10 +111,7 @@ ${featuresArray}
 
   // Add import
   const importLine = `import { ${varName} } from "./${id}";`;
-  index = index.replace(
-    /(import \{[^}]+\} from "\.\/[^"]+";)\n\n/,
-    `$1\n${importLine}\n\n`,
-  );
+  index = index.replace(/(import \{[^}]+\} from "\.\/[^"]+";)\n\n/, `$1\n${importLine}\n\n`);
 
   // Add to allSites array
   index = index.replace(

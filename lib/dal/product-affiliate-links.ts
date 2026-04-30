@@ -85,7 +85,10 @@ export async function updateProductAffiliateLink(
 }
 
 /** Delete an affiliate link */
-export async function deleteProductAffiliateLink(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteProductAffiliateLink(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
 
   const { error } = await sb.from(TABLE).delete().eq("id", id);
