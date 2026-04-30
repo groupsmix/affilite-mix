@@ -116,6 +116,12 @@ jobs:
 
       - run: npm ci
 
+      # AUDIT-FIX: Run npm audit before deploying to catch newly
+      # disclosed vulnerabilities that CI may not have seen if the
+      # last CI run was on a different day.
+      - name: Security audit (deploy gate)
+        run: npm audit --omit=dev --audit-level=high
+
       # ── Validate Cloudflare Worker bindings (PRIORITY 0) ───────────
       # F-007: Production deploy must hard-fail if required Cloudflare
       # bindings are missing. Without these, the Worker will not start.
