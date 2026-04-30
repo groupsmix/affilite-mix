@@ -43,7 +43,10 @@ export async function getAllActiveSites(): Promise<SiteRow[]> {
 }
 
 /** Get a single site by its database UUID */
-export async function getSiteRowById(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteRow | null> {
+export async function getSiteRowById(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteRow | null> {
   if (shouldSkipDbCall()) return null;
 
   const sb = await getClient();
@@ -174,12 +177,18 @@ export async function updateSite(
 }
 
 /** Soft-delete a site (deactivate) */
-export async function deactivateSite(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteRow> {
+export async function deactivateSite(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteRow> {
   return updateSite(id, { is_active: false }, getClient);
 }
 
 /** Delete a site permanently */
-export async function deleteSite(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteSite(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;

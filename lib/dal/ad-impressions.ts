@@ -56,9 +56,7 @@ export async function getAdImpressionStats(
 
   // Aggregate by placement
   const map = new Map<string, number>();
-  for (const row of assertRows<{ ad_placement_id: string; impression_count: number }>(
-    data ?? [],
-  )) {
+  for (const row of assertRows<{ ad_placement_id: string; impression_count: number }>(data ?? [])) {
     map.set(row.ad_placement_id, (map.get(row.ad_placement_id) ?? 0) + row.impression_count);
   }
 

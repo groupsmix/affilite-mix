@@ -144,7 +144,11 @@ export async function listCategoriesByTaxonomy(
 }
 
 /** Get a single category by id */
-export async function getCategoryById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<CategoryRow | null> {
+export async function getCategoryById(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<CategoryRow | null> {
   if (shouldSkipDbCall()) {
     return null;
   }
@@ -370,7 +374,11 @@ export async function getCategoryUsageCounts(
 }
 
 /** Delete a category */
-export async function deleteCategory(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteCategory(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 

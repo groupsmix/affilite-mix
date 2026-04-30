@@ -6,7 +6,10 @@ import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 const TABLE = "content_products";
 
 /** Link a product to a content item */
-export async function linkProduct(input: ContentProductRow, getClient: DalClientGetter = defaultDalClientGetter): Promise<ContentProductRow> {
+export async function linkProduct(
+  input: ContentProductRow,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ContentProductRow> {
   const sb = await getClient();
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
   if (error) throw error;

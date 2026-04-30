@@ -13,11 +13,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 const ADMIN_API_DIR = path.resolve(__dirname, "..", "app", "api", "admin");
-const APPROVED_IMPORTS = [
-  "requireAdmin",
-  "withAuthz",
-  "withAuthzDynamic",
-];
+const APPROVED_IMPORTS = ["requireAdmin", "withAuthz", "withAuthzDynamic"];
 
 function findRouteFiles(dir: string): string[] {
   const results: string[] = [];

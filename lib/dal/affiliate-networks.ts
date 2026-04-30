@@ -17,7 +17,10 @@ export interface AffiliateNetworkRow {
 const TABLE = "affiliate_networks";
 
 /** List affiliate networks for a site */
-export async function listAffiliateNetworks(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<AffiliateNetworkRow[]> {
+export async function listAffiliateNetworks(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<AffiliateNetworkRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -64,7 +67,11 @@ export async function upsertAffiliateNetwork(
 }
 
 /** Delete an affiliate network config */
-export async function deleteAffiliateNetwork(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteAffiliateNetwork(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;

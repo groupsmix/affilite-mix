@@ -55,7 +55,9 @@ async function main() {
   }
 
   await writeFile(outFile, baseline, "utf-8");
-  console.log(`Baseline written to ${outFile} (${sqlFiles.length} migrations, ${baseline.length} chars)`);
+  console.log(
+    `Baseline written to ${outFile} (${sqlFiles.length} migrations, ${baseline.length} chars)`,
+  );
 }
 
 main().catch((err) => {
