@@ -10,6 +10,7 @@ import { computeRequestBinding } from "@/lib/jwt-binding";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { isOriginAllowed } from "@/lib/security/allowed-origins";
 
 /** 10 refresh requests per minute per session */
 const REFRESH_RATE_LIMIT = {
@@ -22,17 +23,29 @@ const REFRESH_RATE_LIMIT = {
  * POST /api/auth/refresh
  * Re-issues the admin JWT if the current one is still valid.
  * Called periodically from the admin layout to prevent silent
- * logout during long editing sessions (8-hour token expiry).
+ * logout during long editing sessions (4-hour token expiry per F-SEC-03).
  *
  * P0-1: The refresh route now passes the NextRequest to createToken so
  * the refreshed token preserves the bnd claim. The binding cookie and
  * activity cookie are re-issued alongside the token, and the cookie
- * maxAge is aligned to the 8h JWT expiry.
+ * maxAge is aligned to the 4h JWT expiry.
  */
 export async function POST(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // F-API-06: Add Origin check as defence-in-depth against CSRF, even though
+  // SameSite=Strict is also enforced by the browser.
+  if (
+    !isOriginAllowed(
+      request.headers.get("origin"),
+      request.headers.get("host"),
+      request.headers.get("x-site-id"),
+    )
+  ) {
+    return NextResponse.json({ error: "Forbidden: cross-origin request" }, { status: 403 });
   }
 
   const rlKey = `auth-refresh:${session.email ?? session.userId ?? "unknown"}`;
@@ -49,13 +62,13 @@ export async function POST(request: NextRequest) {
     const token = await createToken(session, request);
     const response = NextResponse.json({ ok: true });
 
-    // P0-1: Align cookie maxAge with JWT expiry (8h, not 24h).
+    // P0-1 / F-SEC-03: Align cookie maxAge with JWT expiry (4h).
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
       sameSite: "strict",
       path: "/",
-      maxAge: 60 * 60 * 8, // 8 hours — matches JWT EXPIRY
+      maxAge: 60 * 60 * 4, // 4 hours — matches JWT EXPIRY
     });
 
     // P0-1: Re-issue the binding cookie so it stays in sync with the

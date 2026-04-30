@@ -4,7 +4,6 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createPriceAlert, getPriceAlert, deactivatePriceAlert } from "@/lib/dal/price-alerts";
-import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * POST /api/products/:productId/price-alert

@@ -17,7 +17,7 @@ const ACTIVITY_COOKIE = "nh_admin_activity";
 const BINDING_COOKIE = "nh_admin_binding";
 /** Admin sessions expire after 30 minutes of inactivity */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-const EXPIRY = "8h"; // F-005: Reduced from 24h to limit exposure
+const EXPIRY = "4h"; // F-SEC-03: Reduced from 8h to limit exposure
 
 /**
  * Dummy bcrypt hash used to equalize timing between known and unknown users.
@@ -385,7 +385,7 @@ export function getAdminBindingCookie(binding: string): {
       secure: IS_SECURE_COOKIE,
       sameSite: "strict" as const,
       path: "/",
-      maxAge: 60 * 60 * 8, // 8 hours (matches JWT expiry)
+      maxAge: 60 * 60 * 4, // 4 hours (matches JWT EXPIRY — F-SEC-03)
     },
   };
 }

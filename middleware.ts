@@ -49,7 +49,7 @@ function nicheNotFoundResponse(request: NextRequest): NextResponse {
  * is automatically resolved via DB lookup.
  * Also handles CSRF protection for state-changing API routes.
  */
-export async function middleware(request: NextRequest) {
+async function innerMiddleware(request: NextRequest) {
   const { pathname, hostname } = request.nextUrl;
 
   // ── Maintenance mode (A-023 / F-PERF-02) ──────────────
@@ -78,7 +78,8 @@ export async function middleware(request: NextRequest) {
         const kv = getAppCacheKV();
         if (kv) {
           const kvMaintenance = await kv.get("maintenance_mode");
-          _maintenanceCacheValue = kvMaintenance === "1" || kvMaintenance === "true";
+          _maintenanceCacheValue =
+            kvMaintenance?.toLowerCase() === "1" || kvMaintenance?.toLowerCase() === "true";
         }
         _maintenanceCacheExpiry = Date.now() + 30_000;
       }
@@ -536,6 +537,37 @@ export async function middleware(request: NextRequest) {
   // to support concurrent POST requests and prevent token exposure in response headers.
 
   return response;
+}
+
+// F-FE-02: Wrap middleware in a try/catch to prevent a single unhandled
+// exception (e.g. from URL parsing or KV) from taking down the entire site.
+export async function middleware(request: NextRequest) {
+  try {
+    return await innerMiddleware(request);
+  } catch (err) {
+    captureException(err, { context: "middleware.unhandled_exception" });
+
+    // Fallback: If it's an API route, return 500 JSON.
+    // Otherwise, return a soft-failed request so the Next.js app can still render
+    // a basic page (e.g. not-found or an un-branded homepage).
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Internal Server Error" },
+        {
+          status: 500,
+          headers: {
+            "Cache-Control": "no-store, max-age=0",
+          },
+        },
+      );
+    }
+
+    // For non-API routes, we can't easily resolve siteId if DB/KV failed.
+    // Passing through without headers allows the app to render its generic fallback.
+    const response = NextResponse.next();
+    response.headers.set("x-middleware-error", "1");
+    return response;
+  }
 }
 
 export const config = {
