@@ -4,113 +4,72 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.x     | :white_check_mark: |
-| < 0.1   | :x:                |
+| latest  | :white_check_mark: |
+
+Only the latest version deployed from the `main` branch receives security updates.
 
 ## Reporting a Vulnerability
 
-We take security vulnerabilities seriously. If you discover a security issue, please report it responsibly.
+If you discover a security vulnerability, please report it responsibly.
 
-### How to Report
+**Do NOT open a public GitHub issue for security vulnerabilities.**
 
-1. **Do NOT** create a public GitHub issue for security vulnerabilities.
-2. Open a private security advisory on the GitHub repository
-   ([Security → Advisories → Report a vulnerability](https://github.com/groupsmix/affilite-mix/security/advisories/new)).
-   The repository's listed maintainers will be notified privately and can
-   coordinate a fix without exposing the issue publicly.
-3. If GitHub Security Advisories are not available to you, contact the
-   repository's listed maintainers directly via the `Maintainer` contact
-   on the GitHub organization profile (https://github.com/groupsmix).
-   The repo intentionally does not publish a generic `security@...`
-   alias in source control because it would otherwise become a stale
-   placeholder; route reports through the contact methods above so they
-   reach a real on-call human.
-4. Include as much detail as possible:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Any suggested mitigations (if known)
+Instead, please email **security@groupsmix.com** with:
 
-### Response Timeline
+1. A description of the vulnerability
+2. Steps to reproduce the issue
+3. Potential impact assessment
+4. Any suggested remediation (optional)
 
-- **Acknowledgement**: Within 2 business days
-- **Initial Assessment**: Within 7 days
-- **Fix Timeline**: varies by severity (critical: 24-72h, high: 1-2 weeks, medium: 1 month)
+### What to expect
 
-### Security Updates
+- **Acknowledgement**: Within 48 hours of your report.
+- **Triage**: We will assess severity and impact within 5 business days.
+- **Resolution**: Critical and high severity issues will be patched as soon as possible, typically within 14 days. Medium and lower severity issues are addressed in the next scheduled release.
+- **Disclosure**: We will coordinate disclosure timing with you. We ask that you refrain from public disclosure until a fix is available.
 
-Security updates are released as patch versions and announced via:
+### Scope
 
-- GitHub Security Advisories
-- Release notes with `[SECURITY]` prefix
+The following are in scope for security reports:
 
-## Security Best Practices
+- Authentication and authorization bypasses
+- Cross-site scripting (XSS), CSRF, or injection vulnerabilities
+- Sensitive data exposure
+- Server-side request forgery (SSRF)
+- Remote code execution
+- Privilege escalation
+- Row-Level Security (RLS) bypass in Supabase/PostgreSQL
 
-### For Administrators
+### Out of Scope
 
-- Use strong, unique passwords with TOTP 2FA enabled
-- Rotate `CRON_SECRET`, `JWT_SECRET`, and Stripe keys periodically
-- Monitor Sentry for unusual activity patterns
-- Review audit logs regularly
+- Denial of service (DoS/DDoS) attacks
+- Social engineering
+- Issues in third-party dependencies (report these to the upstream project)
+- Issues requiring physical access to a user's device
 
-### Environment Variables
+## Security Controls
 
-Required security-sensitive variables:
+This project implements the following security measures:
 
-- `STRIPE_SECRET_KEY` - Stripe API key
-- `CRON_SECRET` - Cron job authentication
-- `JWT_SECRET` - JWT signing
-- `SENTRY_DSN` - Error tracking
-- `TURNSTILE_SECRET_KEY` - CAPTCHA verification
+- **Authentication**: JWT-based auth with token binding, idle timeout, and revocation
+- **Authorization**: Role-based access with `requireAdmin`, `withAuthz`, and `withAuthzDynamic` wrappers
+- **Rate limiting**: Distributed rate limiting via Cloudflare KV/Durable Objects with fail-closed policy
+- **Input validation**: Server-side validation on all API routes
+- **CSRF protection**: Double-submit cookie pattern with HMAC verification
+- **CSP**: Content Security Policy headers enforced via middleware
+- **Secret scanning**: Gitleaks in CI prevents accidental secret commits
+- **Dependency scanning**: npm audit and dependency-review-action in CI
+- **Static analysis**: CodeQL SAST scanning on every PR
+- **Database security**: Supabase Row-Level Security (RLS) policies with tenant isolation
 
-Never commit `.env` files or secrets to version control.
+## Security-Related Files
 
-### Rate Limiting
-
-All public API endpoints have rate limiting enabled:
-
-- Login: 5 attempts/15min per IP
-- Community endpoints: 5-10 requests/hour per IP
-- Webhooks: protected by signature verification
-
-### Content Security Policy
-
-The application enforces strict CSP headers:
-
-- `frame-ancestors 'none'` - prevents clickjacking
-- `object-src 'none'` - prevents plugin-based attacks
-- Strict connect-src policy limiting external connections
-
-## Known Attack Surfaces
-
-### User Input
-
-- All user-submitted content (comments, wrist shots) goes through moderation
-- XSS protection via sanitization library
-- CAPTCHA verification on public submission endpoints
-
-### Authentication & Session Lifetime (B-04)
-
-- JWT-based admin authentication (HS256, `jose` library)
-- **Absolute session expiry**: 8 hours (`EXPIRY` in `lib/auth.ts`)
-- **Idle timeout**: 30 minutes (`IDLE_TIMEOUT_MS` in `lib/auth.ts`), enforced via HMAC-signed activity cookie
-- **IP/UA binding**: Tokens carry a `bnd` claim hashing User-Agent + IP/24 (or /32 for super_admin). Replay from a different device/network is rejected.
-- **Binding cookie**: Separate `nh_admin_binding` HttpOnly cookie must match the JWT `bnd` claim
-- **TOTP 2FA**: Required for `super_admin` role; optional for `admin`. TOTP secrets encrypted at rest (AES-256-GCM via `TOTP_ENCRYPTION_KEY`).
-- **Token revocation**: JTI-based revocation list checked on every session read
-- **Logout**: Clears JWT, binding, activity, active-site, and CSRF cookies
-
-### API Security
-
-- CSRF protection for state-changing requests
-- Stripe webhook signature verification (HMAC-SHA256)
-- Cron endpoints secured with timing-safe Bearer token comparison
-
-## Compliance
-
-This application follows these security standards:
-
-- OWASP Top 10 awareness
-- Defense in depth
-- Principle of least privilege
-- Secure by default configuration
+- [`/.github/workflows/security.yml`](.github/workflows/security.yml) - Dependency audit, license compliance, gitleaks
+- [`/.github/workflows/codeql.yml`](.github/workflows/codeql.yml) - CodeQL static analysis
+- [`/lib/auth.ts`](lib/auth.ts) - Authentication implementation
+- [`/lib/authz.ts`](lib/authz.ts) - Authorization helpers
+- [`/lib/rate-limit.ts`](lib/rate-limit.ts) - Rate limiting
+- [`/lib/csrf.ts`](lib/csrf.ts) - CSRF protection
+- [`/lib/csp.ts`](lib/csp.ts) - Content Security Policy
+- [`/docs/threat-model.md`](docs/threat-model.md) - Threat model documentation
+- [`/docs/incident-response.md`](docs/incident-response.md) - Incident response procedures
