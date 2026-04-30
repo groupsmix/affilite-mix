@@ -98,6 +98,25 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // ── Request body size guard (AUDIT-FIX) ────────────────
+  // Reject excessively large request bodies early to prevent Worker CPU
+  // and memory exhaustion. The Content-Length header is checked before
+  // any body parsing happens. Routes that need larger payloads (e.g.
+  // CSV import) enforce their own tighter limits downstream.
+  const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
+  if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method)) {
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+      return new NextResponse(
+        JSON.stringify({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" }),
+        {
+          status: 413,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+  }
+
   // ── Trailing-slash normalization (SA9) ─────────────────
   // Redirect /foo/ → /foo to prevent duplicate canonical URLs.
   // Skip the root path "/" and Next.js internals.
@@ -447,6 +466,15 @@ export async function middleware(request: NextRequest) {
 
   // Echo the trace ID on the response so clients/devtools can correlate.
   response.headers.set(TRACE_ID_HEADER, traceId);
+
+  // ── Security headers (AUDIT-FIX) ──────────────────────
+  // Referrer-Policy: prevent affiliate URL leakage in referrer headers.
+  // Permissions-Policy: restrict browser features not needed by the app.
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
+  );
 
   // FIX-10 (F-019, F-012): Vary headers to prevent cache poisoning.
   // Cookie: responses differ based on admin session / active site cookie.

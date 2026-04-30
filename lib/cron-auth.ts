@@ -7,10 +7,17 @@ import { NextRequest } from "next/server";
  */
 export function timingSafeCompare(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) {
-    // Compare a with itself to keep constant-time behavior
+    // AUDIT-FIX: Previously XOR'd `a[i] ^ a[i]` which is algebraically 0 and
+    // could be optimised away by a JIT, eliminating the dummy work that keeps
+    // the branch timing-equivalent to the equal-length path. Now XOR against
+    // `b[i % lenB]` (same approach as lib/csrf.ts) so the compiler cannot
+    // prove the result is constant.
+    const longer = a.byteLength > b.byteLength ? a.byteLength : b.byteLength;
+    const lenA = a.byteLength || 1;
+    const lenB = b.byteLength || 1;
     let result = 0;
-    for (let i = 0; i < a.byteLength; i++) {
-      result |= a[i] ^ a[i];
+    for (let i = 0; i < longer; i++) {
+      result |= a[i % lenA] ^ b[i % lenB];
     }
     void result;
     return false;
