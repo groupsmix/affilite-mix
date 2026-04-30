@@ -49,7 +49,7 @@ This is a well-architected multi-tenant affiliate marketing platform built on Ne
     v
 [Supabase Postgres + RLS]
     |-- Row Level Security with JWT-scoped site_id
-    |-- 94 forward migrations + down migrations
+    |-- 93 forward migrations + 91 down migrations
     |
 [Cloudflare KV] -- rate limiting, caching, negative hostname cache
 [Cloudflare R2] -- ISR cache, image storage
@@ -61,7 +61,7 @@ This is a well-architected multi-tenant affiliate marketing platform built on Ne
 
 - **Frontend:** Next.js 15 App Router, React 19, Tailwind CSS 4, Radix UI, TipTap editor, Recharts
 - **Backend:** Next.js API routes (edge runtime), Cloudflare Workers
-- **Database:** Supabase (Postgres) with RLS, 94 migrations, RBAC
+- **Database:** Supabase (Postgres) with RLS, 93 migrations, RBAC
 - **Auth:** Custom JWT (jose), bcrypt password hashing, TOTP 2FA, request binding
 - **Infrastructure:** Cloudflare Workers/Pages, KV, R2, Durable Objects, Queues
 - **Monitoring:** Sentry (error tracking), Web Vitals reporting, CSP reporting
@@ -215,7 +215,7 @@ This is a well-architected multi-tenant affiliate marketing platform built on Ne
 **Why this matters:** Without a baseline schema dump, there is no way to:
 
 1. Detect schema drift between environments
-2. Onboard new developers without running all 94 migrations
+2. Onboard new developers without running all 93 migrations
 3. Validate that the migration chain produces the expected schema
 
 The `scripts/check-schema-drift.sh` script presumably depends on this file being populated.
@@ -436,7 +436,7 @@ This project demonstrates security and operational maturity well above average:
 
 10. **Operational documentation:** 40+ docs covering architecture, threat model, incident response, backup strategy, secrets rotation, SLO definitions, compliance readiness, rollback strategy, observability runbook, and more.
 
-11. **Migration discipline:** 94 forward migrations with corresponding down migrations. CI-enforced migration policy check. Migration safety documentation.
+11. **Migration discipline:** 93 forward migrations with 91 corresponding down migrations (2 early migrations lack downs). CI-enforced migration policy check. Migration safety documentation.
 
 12. **Dependency hygiene:** 0 npm audit vulnerabilities. Pinned action SHAs in CI. Dependabot configured. Gitleaks configured for secret scanning.
 
@@ -537,7 +537,7 @@ This project demonstrates security and operational maturity well above average:
 - The security posture is mature. Multiple layers of defense with compensating controls documented for each exemption. This is not checkbox security.
 - The multi-tenant isolation through RLS + server-derived site IDs + CI enforcement is well thought out.
 - The rate-limiting architecture (DO -> KV -> in-memory with fail policies) is production-grade.
-- 94 migrations with down-migration support shows disciplined schema evolution.
+- 93 migrations with down-migration support (91/93 have downs) shows disciplined schema evolution.
 
 **What's concerning:**
 
