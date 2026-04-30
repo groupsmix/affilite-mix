@@ -87,8 +87,40 @@ export async function POST(request: NextRequest) {
 
     if (attempts >= 3) {
       logger.error("Stripe webhook max retries reached, acking to stop loop", { id: event.id });
-      // In a full implementation, enqueue to an R2 NDJSON DLQ here.
-      // For now, ack to stop the loop and let Sentry alert operators.
+
+      // A44#10 / A46#13: Persist the failed event to a KV-backed DLQ so it
+      // can be drained and reprocessed later. The key is prefixed with
+      // `webhook-dlq:` and the event ID. TTL is 30 days (2592000s) to avoid
+      // unbounded accumulation while giving operators time to investigate.
+      try {
+        const kv = (process.env as any).RATE_LIMIT_KV as any;
+        if (kv) {
+          const dlqKey = `webhook-dlq:${event.id}`;
+          const dlqPayload = JSON.stringify({
+            event_id: event.id,
+            event_type: event.type,
+            failed_at: new Date().toISOString(),
+            attempts,
+            last_error: err instanceof Error ? err.message : String(err),
+            // Store the raw event so it can be replayed
+            payload: event,
+          });
+          await kv.put(dlqKey, dlqPayload, { expirationTtl: 86400 * 30 });
+          logger.info("Stripe webhook event persisted to KV DLQ", {
+            id: event.id,
+            type: event.type,
+          });
+        } else {
+          logger.error("KV unavailable for webhook DLQ write", { id: event.id });
+        }
+      } catch (dlqErr) {
+        // Best-effort DLQ write; Sentry will still alert on the original error.
+        logger.error("Failed to write webhook event to KV DLQ", {
+          id: event.id,
+          dlqError: dlqErr instanceof Error ? dlqErr.message : String(dlqErr),
+        });
+      }
+
       return NextResponse.json({ received: true, dlq: true });
     }
 

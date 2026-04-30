@@ -74,18 +74,28 @@ variable "required_status_checks" {
     that an attacker who runs a same-named check from a different app
     cannot satisfy the rule.
   EOT
+  # A31#27 / A34#20: Include sbom, attest, and wrangler-dryrun so a PR
+  # cannot ship if SBOM signing, supply-chain attestation, or the Wrangler
+  # dry-run step is broken. Without these, a PR passing only the four
+  # original checks can merge with a broken SBOM / attestation pipeline.
   default = [
     { context = "check" },             # ci.yml :: check job
     { context = "secret-scan" },       # security.yml :: secret scanning job
     { context = "codeql" },            # security.yml :: CodeQL analysis
     { context = "dependency-review" }, # security.yml :: dep review
+    { context = "sbom" },              # sbom.yml :: SBOM generation + signing
+    { context = "attest" },            # sbom.yml :: GitHub artifact attestation
+    { context = "wrangler-dryrun" },   # deploy.yml :: Wrangler dry-run validation
   ]
 }
 
 variable "required_review_count" {
   type        = number
   description = "Number of approving PR reviews required."
-  default     = 1
+  # A34#25 / A31#28: SOC2 Separation of Duties requires at least 2 reviewers
+  # for production-impacting repos. A single reviewer allows an insider
+  # compromise to self-approve after the first review.
+  default     = 2
 }
 
 variable "break_glass_team_slug" {

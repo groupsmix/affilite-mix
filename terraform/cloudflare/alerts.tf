@@ -84,8 +84,12 @@ resource "cloudflare_notification_policy" "worker_5xx_alert" {
   enabled     = var.alerts_enabled
   alert_type  = "http_alert_edge_error"
 
+  # A31#23-24 / A40#1-2: Monitor both the main worker AND the heavy-crons
+  # worker. Without the secondary service, CPU-time and 5xx alerts for
+  # cron-heavy operations (AI generation, commission ingest, price scrape)
+  # are silently dropped.
   filters = {
-    services    = ["affilite-mix"]
+    services    = ["affilite-mix", "affilite-mix-heavy-crons"]
     environment = ["production"]
   }
 
@@ -110,8 +114,9 @@ resource "cloudflare_notification_policy" "worker_cpu_time_alert" {
   enabled     = var.alerts_enabled
   alert_type  = "http_alert_edge_error"
 
+  # A31#23-24 / A40#1-2: same as above — cover both workers.
   filters = {
-    services    = ["affilite-mix"]
+    services    = ["affilite-mix", "affilite-mix-heavy-crons"]
     environment = ["production"]
   }
 

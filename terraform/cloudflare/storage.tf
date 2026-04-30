@@ -60,6 +60,20 @@ resource "cloudflare_workers_kv_namespace" "app_cache_kv" {
   title      = "APP_CACHE_KV"
 }
 
+# A37#2: The Cloudflare Terraform provider does not yet expose lifecycle_rule,
+# versioning, or object-lock attributes for R2 buckets. These MUST be
+# configured out-of-band via the S3-compatible API or Cloudflare dashboard:
+#
+#   Operator runbook (A37 — R2 bucket hardening):
+#   1. Enable object lifecycle on next-inc-cache:
+#        aws s3api put-bucket-lifecycle-configuration \
+#          --endpoint-url https://<account-id>.r2.cloudflarestorage.com \
+#          --bucket next-inc-cache \
+#          --lifecycle-configuration '{"Rules":[{"ID":"expire-stale-cache","Status":"Enabled","Expiration":{"Days":30}}]}'
+#   2. Enable lifecycle + object-lock on worker_logs (see below).
+#   3. Verify via: aws s3api get-bucket-lifecycle-configuration --endpoint-url ... --bucket ...
+#
+# Tracked: https://github.com/cloudflare/terraform-provider-cloudflare/issues/XXXX
 resource "cloudflare_r2_bucket" "next_inc_cache" {
   account_id = var.cloudflare_account_id
   name       = "next-inc-cache"
@@ -81,6 +95,20 @@ variable "worker_logs_bucket_name" {
   description = "R2 bucket name that receives Cloudflare Logpush deliveries for the workers_trace_events dataset. Override per environment if multi-env tenants share the same account."
 }
 
+# A37#3 / A37#10: Logs bucket MUST have:
+#   - Lifecycle rule: expire objects after 730 days (2 years) for SOC2 retention.
+#   - Object-lock (WORM): COMPLIANCE mode, 730 days — tamper-evident log retention.
+#   - Access logging: not available on R2, use Logpush for bucket-level audit.
+#
+# Configure via S3-compatible API after initial apply:
+#   aws s3api put-object-lock-configuration \
+#     --endpoint-url https://<account-id>.r2.cloudflarestorage.com \
+#     --bucket <worker_logs_bucket_name> \
+#     --object-lock-configuration '{"ObjectLockEnabled":"Enabled","Rule":{"DefaultRetention":{"Mode":"COMPLIANCE","Days":730}}}'
+#   aws s3api put-bucket-lifecycle-configuration \
+#     --endpoint-url https://<account-id>.r2.cloudflarestorage.com \
+#     --bucket <worker_logs_bucket_name> \
+#     --lifecycle-configuration '{"Rules":[{"ID":"retain-2y","Status":"Enabled","Expiration":{"Days":730}}]}'
 resource "cloudflare_r2_bucket" "worker_logs" {
   account_id = var.cloudflare_account_id
   name       = var.worker_logs_bucket_name
