@@ -82,19 +82,23 @@ describe("F-028 click-queue producer", () => {
     expect(arg.click_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
-  it("preserves a caller-supplied click_id", async () => {
+  it("ignores caller-supplied click_id and generates a server-side one (F-BIZ-01)", async () => {
     const { publishClick } = await import("@/lib/click-queue");
     const { recordClick } = await import("@/lib/dal/affiliate-clicks");
 
+    const callerSupplied = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
     await publishClick({
       site_id: "site-1",
       product_name: "Widget",
       affiliate_url: "https://example.com/aff",
-      click_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      click_id: callerSupplied,
     });
 
     const arg = (recordClick as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(arg.click_id).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    // F-BIZ-01: client-supplied click_id must be ignored to prevent
+    // replay/suppression attacks. The producer generates a fresh UUID.
+    expect(arg.click_id).not.toBe(callerSupplied);
+    expect(arg.click_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   it("falls through to direct write when queue send throws", async () => {

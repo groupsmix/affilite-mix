@@ -67,13 +67,13 @@ describe("P1-8: Activity cookie signed timestamp", () => {
 });
 
 describe("P1-8: Binding cookie config", () => {
-  it("getAdminBindingCookie sets 8h maxAge matching JWT expiry", async () => {
+  it("getAdminBindingCookie sets 4h maxAge matching JWT expiry (F-SEC-03)", async () => {
     const { getAdminBindingCookie } = await import("@/lib/auth");
     const bc = getAdminBindingCookie("test-binding-hash");
 
     expect(bc.name).toBe("nh_admin_binding");
     expect(bc.value).toBe("test-binding-hash");
-    expect(bc.options.maxAge).toBe(60 * 60 * 8);
+    expect(bc.options.maxAge).toBe(60 * 60 * 4);
     expect(bc.options.httpOnly).toBe(true);
     expect(bc.options.sameSite).toBe("strict");
   });
