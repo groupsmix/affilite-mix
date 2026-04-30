@@ -97,7 +97,7 @@ async function postAlert(env: TailWorkerEnv, payload: CloudflareTailEvent): Prom
   }
 }
 
-const logShipperWorker = {
+const logShipper = {
   async tail(events: CloudflareTailEvent[], env: TailWorkerEnv, ctx: ExecutionContext) {
     if (!events.length) return;
 
@@ -118,4 +118,4 @@ const logShipperWorker = {
   },
 };
 
-export default logShipperWorker;
+export default logShipper;

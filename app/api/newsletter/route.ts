@@ -4,7 +4,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
-import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
+import { isValidEmail, normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { hashNewsletterToken } from "@/lib/newsletter-token";
@@ -111,8 +111,10 @@ export async function POST(request: Request) {
     }
 
     // F-ABUSE-01: Per-email rate limit — 5 signups per email per hour
+    // F-007: Hash email before using in rate-limit key to avoid PII in operational metadata
+    const emailHash = await hashEmailForRateLimit(email);
     const emailRateConfig = { maxRequests: 5, windowMs: 60 * 60 * 1000 };
-    const emailRl = await checkRateLimit(`newsletter:cooldown:${email}`, emailRateConfig);
+    const emailRl = await checkRateLimit(`newsletter:cooldown:${emailHash}`, emailRateConfig);
     if (!emailRl.allowed) {
       return apiError(429, "Too many signup attempts for this email", undefined, {
         "Retry-After": String(Math.ceil(emailRl.retryAfterMs / 1000)),

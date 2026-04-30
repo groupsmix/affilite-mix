@@ -29,10 +29,11 @@ interface WranglerConfig {
 
 function parseWranglerJsonc(): WranglerConfig {
   const raw = fs.readFileSync(WRANGLER_PATH, "utf-8");
-  // Strip JSONC comments (simple regex approach — sufficient for our file)
+  // Strip JSONC comments and trailing commas (simple regex approach — sufficient for our file)
   const withoutComments = raw
     .replace(/\/\/.*$/gm, "") // Remove single-line comments
-    .replace(/\/\*[\s\S]*?\*\//g, ""); // Remove block comments
+    .replace(/\/\*[\s\S]*?\*\//g, "") // Remove block comments
+    .replace(/,(\s*[}\]])/g, "$1"); // Remove trailing commas (valid in JSONC)
   return JSON.parse(withoutComments);
 }
 

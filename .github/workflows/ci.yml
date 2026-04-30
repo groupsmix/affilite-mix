@@ -31,16 +31,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Prettier format check (FR-0004)
+        run: npm run format:check
       - name: Security audit
         run: npm audit --audit-level=high
       - name: Migration policy lint (E-2)
         run: bash scripts/check-migrations.sh
       - name: Env-var documentation guard (G-13)
         run: bash scripts/check-env-docs.sh
-      - name: Format check
-        run: npm run format:check
-      - name: Lint
-        run: npm run lint -- --max-warnings=0
+      - run: npm run lint -- --max-warnings=0
       - run: npm test
       - name: Vitest coverage threshold (G-37)
         run: npm run test:coverage
@@ -94,6 +93,15 @@ jobs:
             exit 1
           fi
           bash scripts/check-admin-authz.sh || exit 1
+
+      - name: DAL site_id scoping audit (AUDIT-FIX)
+        run: |
+          set -euo pipefail
+          if [ ! -f "scripts/check-dal-site-scoping.sh" ]; then
+            echo "::error::scripts/check-dal-site-scoping.sh is missing — DAL site scoping audit cannot run."
+            exit 1
+          fi
+          bash scripts/check-dal-site-scoping.sh || exit 1
 
       - name: CORS security tests (PRIORITY 2)
         run: |
@@ -156,8 +164,9 @@ jobs:
             echo "::error::jq is required for R2 isolation check but is not installed"
             exit 1
           fi
-          # Strip JSONC line comments so `jq` can parse the file.
-          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc)
+          # Strip JSONC line comments and trailing commas so `jq` can parse the file.
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
+            | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
           R2_PUBLIC=$(echo "$WRANGLER_JSON" | jq -r '
             [ (.env.production.r2_buckets // .r2_buckets // [])[]
               | select(.binding == "R2_PUBLIC_BUCKET" or .binding == "NEXT_INC_CACHE_R2_BUCKET")
