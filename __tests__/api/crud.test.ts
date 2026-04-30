@@ -253,7 +253,10 @@ describe("products CRUD validation", () => {
 describe("content CRUD validation", () => {
   describe("create", () => {
     it("accepts minimal valid content", () => {
-      const result = validateCreateContent({ title: "Best Watches 2025", slug: "best-watches-2025" });
+      const result = validateCreateContent({
+        title: "Best Watches 2025",
+        slug: "best-watches-2025",
+      });
       expect(result.errors).toBeNull();
       expect(result.data?.type).toBe("article");
       expect(result.data?.status).toBe("draft");

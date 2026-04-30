@@ -56,7 +56,11 @@ export async function getPriceAlert(
 }
 
 /** List all active alerts for an email */
-export async function listAlertsByEmail(email: string, siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<PriceAlertRow[]> {
+export async function listAlertsByEmail(
+  email: string,
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<PriceAlertRow[]> {
   const sb = await getClient();
 
   const { data, error } = await sb
@@ -91,7 +95,10 @@ export async function findTriggeredAlerts(
 }
 
 /** Mark an alert as triggered */
-export async function markAlertTriggered(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function markAlertTriggered(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
 
   const { error } = await sb
@@ -102,7 +109,10 @@ export async function markAlertTriggered(id: string, getClient: DalClientGetter 
 }
 
 /** Unsubscribe from an alert */
-export async function deactivatePriceAlert(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deactivatePriceAlert(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
 
   const { error } = await sb.from(TABLE).update({ is_active: false }).eq("id", id);
@@ -110,7 +120,11 @@ export async function deactivatePriceAlert(id: string, getClient: DalClientGette
 }
 
 /** Unsubscribe all alerts for an email */
-export async function deactivateAllAlerts(email: string, siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deactivateAllAlerts(
+  email: string,
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
 
   const { error } = await sb

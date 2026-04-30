@@ -24,9 +24,7 @@ function findDalFiles(dir: string): string[] {
 }
 
 describe("FIX-04: privileged DAL siteId enforcement", () => {
-  const dalFiles = findDalFiles(DAL_DIR).filter(
-    (f) => !f.includes("dal-client.ts"),
-  );
+  const dalFiles = findDalFiles(DAL_DIR).filter((f) => !f.includes("dal-client.ts"));
 
   it("finds at least one DAL file", () => {
     expect(dalFiles.length).toBeGreaterThan(0);
@@ -38,8 +36,7 @@ describe("FIX-04: privileged DAL siteId enforcement", () => {
 
     // Only check files that import getPrivilegedSupabaseClient or use service-role
     const usesPrivileged =
-      content.includes("getPrivilegedSupabaseClient") ||
-      content.includes("getServiceClient");
+      content.includes("getPrivilegedSupabaseClient") || content.includes("getServiceClient");
 
     if (!usesPrivileged) continue;
 

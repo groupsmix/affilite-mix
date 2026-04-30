@@ -23,13 +23,13 @@
   "r2_buckets": [
     {
       "binding": "LOG_SINK",
-      "bucket_name": "affilite-mix-logs"
-    }
+      "bucket_name": "affilite-mix-logs",
+    },
   ],
 
   // Observability for the log shipper itself — if THIS Worker silently
   // dies, we still want a heartbeat in Cloudflare's native dashboard.
   "observability": {
-    "enabled": true
-  }
+    "enabled": true,
+  },
 }

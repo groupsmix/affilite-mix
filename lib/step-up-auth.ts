@@ -40,10 +40,7 @@ export function requireStepUpAuth(
   options?: { windowMs?: number },
 ): NextResponse | null {
   if (!session) {
-    return NextResponse.json(
-      { error: "Authentication required" },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
   const windowMs = options?.windowMs ?? STEP_UP_WINDOW_MS;
@@ -53,7 +50,8 @@ export function requireStepUpAuth(
     return NextResponse.json(
       {
         error: "Step-up authentication required",
-        reason: "This operation requires recent password or 2FA verification. Please re-authenticate.",
+        reason:
+          "This operation requires recent password or 2FA verification. Please re-authenticate.",
       },
       { status: 403 },
     );

@@ -6,13 +6,13 @@ Regular DR drills verify that backup, restore, rollback, and failover procedures
 
 ## Drill Schedule
 
-| Drill | Frequency | Duration | Environment |
-| --- | --- | --- | --- |
-| Database restore | Quarterly | 1–2 hours | Staging Supabase project |
-| Worker rollback | Monthly | 15 minutes | Production (safe — Cloudflare retains versions) |
-| Secrets rotation | Quarterly (staggered) | 30 minutes | Production (one secret at a time) |
-| Full failover | Bi-annually | 2–4 hours | Staging → new Supabase project |
-| Cron failure recovery | Quarterly | 30 minutes | Production |
+| Drill                 | Frequency             | Duration   | Environment                                     |
+| --------------------- | --------------------- | ---------- | ----------------------------------------------- |
+| Database restore      | Quarterly             | 1–2 hours  | Staging Supabase project                        |
+| Worker rollback       | Monthly               | 15 minutes | Production (safe — Cloudflare retains versions) |
+| Secrets rotation      | Quarterly (staggered) | 30 minutes | Production (one secret at a time)               |
+| Full failover         | Bi-annually           | 2–4 hours  | Staging → new Supabase project                  |
+| Cron failure recovery | Quarterly             | 30 minutes | Production                                      |
 
 ---
 
@@ -21,6 +21,7 @@ Regular DR drills verify that backup, restore, rollback, and failover procedures
 **Goal:** Verify that a database backup can be restored to a functioning state.
 
 ### Prerequisites
+
 - [ ] Access to Supabase Dashboard for the staging project
 - [ ] A recent backup (PITR or daily) OR manual backup dumps from `backup-strategy.md`
 - [ ] `psql` or Supabase CLI installed locally
@@ -29,6 +30,7 @@ Regular DR drills verify that backup, restore, rollback, and failover procedures
 
 - [ ] **1. Create a fresh Supabase project** for the drill (or use an existing staging project)
 - [ ] **2. Apply all migrations:**
+
   ```bash
   # Using Supabase CLI
   supabase db push --project-ref <staging-ref>
@@ -38,6 +40,7 @@ Regular DR drills verify that backup, restore, rollback, and failover procedures
     psql "$STAGING_DB_URL" -f "$f"
   done
   ```
+
 - [ ] **3. Restore data from backup:**
   ```bash
   # From manual backup dumps
@@ -46,6 +49,7 @@ Regular DR drills verify that backup, restore, rollback, and failover procedures
   done
   ```
 - [ ] **4. Verify data integrity:**
+
   ```sql
   -- Row counts should match production (approximately)
   SELECT 'sites' AS tbl, COUNT(*) FROM sites
@@ -59,6 +63,7 @@ Regular DR drills verify that backup, restore, rollback, and failover procedures
   WHERE s.id IS NULL;
   -- Expected: 0 rows (no orphaned content)
   ```
+
 - [ ] **5. Verify RLS policies:**
   ```sql
   -- Check that RLS is enabled on all expected tables
@@ -73,12 +78,13 @@ Regular DR drills verify that backup, restore, rollback, and failover procedures
   - [ ] Content is visible
   - [ ] Products display correctly
 - [ ] **7. Document results:**
-  - Time to restore: _____ minutes
-  - Data completeness: _____% (compare row counts to production)
-  - Issues encountered: _____
+  - Time to restore: **\_** minutes
+  - Data completeness: **\_**% (compare row counts to production)
+  - Issues encountered: **\_**
   - RLS policies intact: Yes / No
 
 ### Success Criteria
+
 - All migrations apply without errors
 - Data restores completely (row counts within 1% of source)
 - Application functions normally against restored DB
@@ -117,11 +123,12 @@ Regular DR drills verify that backup, restore, rollback, and failover procedures
   curl -s -o /dev/null -w "%{http_code}" https://wristnerd.site/
   ```
 - [ ] **6. Document results:**
-  - Time from rollback initiation to healthy response: _____ seconds
-  - Any errors during rollback: _____
+  - Time from rollback initiation to healthy response: **\_** seconds
+  - Any errors during rollback: **\_**
   - Cache invalidation needed: Yes / No
 
 ### Success Criteria
+
 - Rollback completes in < 60 seconds
 - Health endpoint returns `"healthy"` after rollback
 - All domains respond with 200
@@ -149,11 +156,12 @@ Rotate one secret per drill session. Follow the procedures in [secrets-rotation-
   - [ ] If R2 keys: image upload in admin panel works
 - [ ] **7. Record the end time and any downtime observed**
 - [ ] **8. Document results:**
-  - Secret rotated: _____
-  - Total downtime: _____ seconds
-  - Unexpected behavior: _____
+  - Secret rotated: **\_**
+  - Total downtime: **\_** seconds
+  - Unexpected behavior: **\_**
 
 ### Success Criteria
+
 - Rotation completes with < 5 minutes of downtime
 - No data loss
 - All dependent features resume normal operation
@@ -185,11 +193,12 @@ Rotate one secret per drill session. Follow the procedures in [secrets-rotation-
   - [ ] Affiliate click tracking works
   - [ ] Cron jobs execute on schedule
 - [ ] **7. Document results:**
-  - Total failover time: _____ minutes
-  - Data loss (if any): _____
-  - Steps that failed or needed adjustment: _____
+  - Total failover time: **\_** minutes
+  - Data loss (if any): **\_**
+  - Steps that failed or needed adjustment: **\_**
 
 ### Success Criteria
+
 - Full failover completes in < 4 hours
 - All critical features operational
 - Data loss is within acceptable bounds (< 24h of data for free-tier, < 1h for PITR)
@@ -214,9 +223,10 @@ Rotate one secret per drill session. Follow the procedures in [secrets-rotation-
 - [ ] **5. Document results:**
   - Manual trigger successful: Yes / No
   - Content published correctly: Yes / No
-  - Time to detect and recover from simulated missed cron: _____ minutes
+  - Time to detect and recover from simulated missed cron: **\_** minutes
 
 ### Success Criteria
+
 - Manual cron trigger succeeds
 - Published content appears on the site within 1 minute
 - Recovery process documented and repeatable
@@ -235,19 +245,23 @@ After each drill, record results here or in a separate `docs/drill-logs/` direct
 **Drill type:** [Database Restore / Rollback / Secrets Rotation / Full Failover / Cron Recovery]
 
 ## Results
-- Duration: _____ minutes
+
+- Duration: **\_** minutes
 - Success: Yes / No / Partial
-- Downtime observed: _____
+- Downtime observed: **\_**
 
 ## Issues Discovered
+
 1. [Issue description + remediation]
 
 ## Action Items
-| Action | Owner | Due Date |
-| --- | --- | --- |
+
+| Action                 | Owner  | Due Date   |
+| ---------------------- | ------ | ---------- |
 | [Fix discovered issue] | [Name] | YYYY-MM-DD |
 
 ## Next Drill Scheduled
+
 YYYY-MM-DD — [Drill type]
 ```
 
@@ -255,10 +269,10 @@ YYYY-MM-DD — [Drill type]
 
 ## Recommended Tools
 
-| Purpose | Recommended Tool | Notes |
-| --- | --- | --- |
-| Uptime monitoring | Better Stack / UptimeRobot | Multi-region HTTP checks |
-| Pager / on-call | PagerDuty / Opsgenie / Better Stack | Escalation policies + phone alerts |
-| Cron monitoring | Better Stack Heartbeats / Cronitor | Detects missed scheduled jobs |
-| Log aggregation | Cloudflare Logpush / Datadog | Query structured JSON logs at scale |
-| Status page | Better Stack / Atlassian Statuspage | Communicate outages to stakeholders |
+| Purpose           | Recommended Tool                    | Notes                               |
+| ----------------- | ----------------------------------- | ----------------------------------- |
+| Uptime monitoring | Better Stack / UptimeRobot          | Multi-region HTTP checks            |
+| Pager / on-call   | PagerDuty / Opsgenie / Better Stack | Escalation policies + phone alerts  |
+| Cron monitoring   | Better Stack Heartbeats / Cronitor  | Detects missed scheduled jobs       |
+| Log aggregation   | Cloudflare Logpush / Datadog        | Query structured JSON logs at scale |
+| Status page       | Better Stack / Atlassian Statuspage | Communicate outages to stakeholders |

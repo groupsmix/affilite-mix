@@ -79,9 +79,7 @@ export async function grantAdminSiteMembership(
  */
 export async function listAllAdminSiteMembershipsWithSlugs(
   getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<
-  Array<{ admin_user_id: string; site_id: string; site_slug: string }>
-> {
+): Promise<Array<{ admin_user_id: string; site_id: string; site_slug: string }>> {
   const sb = await getClient();
   const { data, error } = await sb.from(TABLE).select("admin_user_id, site_id, sites!inner(slug)");
 

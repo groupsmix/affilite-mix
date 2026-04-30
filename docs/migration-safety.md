@@ -1,11 +1,13 @@
 # Migration Dry-Run & Safety — F-015
 
 ## Overview
+
 Guidelines for safe database migrations with rollback support.
 
 ## Migration Workflow
 
 ### 1. Before Creating Migration
+
 ```bash
 # Create a backup of staging DB
 ./scripts/backup-staging.sh
@@ -15,7 +17,9 @@ pg_dump -h staging-db -U postgres -d affilite_mix --schema-only > schema-before.
 ```
 
 ### 2. Write Migration with DOWN
+
 Every migration MUST have one of:
+
 - A companion DOWN migration
 - A `-- NO DOWN` marker if forward-only is justified
 
@@ -28,6 +32,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_at timestamptz;
 ```
 
 ### 3. Test on Staging
+
 ```bash
 # Apply migration to staging
 psql -h staging-db -U postgres -d affilite_mix -f supabase/migrations/00052_feature_add.sql
@@ -41,6 +46,7 @@ diff schema-before.sql schema-after.sql
 ```
 
 ### 4. Review in PR
+
 - Migration file reviewed by backend engineer
 - DOWN migration or NO DOWN justification included
 - Smoke test results attached
@@ -48,6 +54,7 @@ diff schema-before.sql schema-after.sql
 ## Schema Diff CI (F-015)
 
 Add to CI pipeline:
+
 ```yaml
 - name: Check schema diff
   run: |
@@ -67,6 +74,7 @@ npm run test:integration
 ```
 
 ## Checklist
+
 - [ ] Backup staging before migration
 - [ ] Write DOWN migration or justify NO DOWN
 - [ ] Test on staging with smoke tests

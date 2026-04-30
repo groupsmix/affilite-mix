@@ -45,13 +45,12 @@ const original = readFileSync(path, "utf8");
 // the example inside the JSONC comment block above it. This handles both
 // the empty `[]` form and a previously-injected single-service form so
 // the script is idempotent.
-const re =
-  /^(\s*)"tail_consumers"\s*:\s*\[(?:\s*\{\s*"service"\s*:\s*"[^"]*"\s*\}\s*)?\s*\]/m;
+const re = /^(\s*)"tail_consumers"\s*:\s*\[(?:\s*\{\s*"service"\s*:\s*"[^"]*"\s*\}\s*)?\s*\]/m;
 const match = original.match(re);
 if (!match) {
   console.error("::error::tail_consumers key not found in", path);
   console.error(
-    "::error::expected an empty `\"tail_consumers\": []` (or a previously injected single-service form) at the top level of the config.",
+    '::error::expected an empty `"tail_consumers": []` (or a previously injected single-service form) at the top level of the config.',
   );
   process.exit(1);
 }

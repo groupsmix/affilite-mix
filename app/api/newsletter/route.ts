@@ -203,10 +203,9 @@ export async function POST(request: Request) {
       logger.error("[newsletter] buildConfirmationEmail returned null — safeHref rejected URL", {
         siteId: site.id,
       });
-      captureException(
-        new Error("buildConfirmationEmail: safeHref rejected confirmation URL"),
-        { context: "[api/newsletter] confirmation URL failed safeHref validation" },
-      );
+      captureException(new Error("buildConfirmationEmail: safeHref rejected confirmation URL"), {
+        context: "[api/newsletter] confirmation URL failed safeHref validation",
+      });
       return apiError(503, "Newsletter email is temporarily unavailable. Please try again later.");
     }
 

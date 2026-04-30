@@ -8,7 +8,8 @@ const CONFIG = {
   prefix: "recipient",
   label: "Gifts by Recipient",
   taxonomyType: "recipient" as const,
-  description: "Find the perfect watch gift for anyone on your list. Browse our curated picks by recipient.",
+  description:
+    "Find the perfect watch gift for anyone on your list. Browse our curated picks by recipient.",
 };
 
 export const revalidate = 60;

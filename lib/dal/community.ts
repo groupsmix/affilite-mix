@@ -60,7 +60,10 @@ export async function listApprovedWristShots(
 }
 
 /** List pending wrist shots for moderation */
-export async function listPendingWristShots(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<WristShotRow[]> {
+export async function listPendingWristShots(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<WristShotRow[]> {
   const sb = await getClient();
 
   const { data, error } = await sb
@@ -157,7 +160,10 @@ export async function listApprovedComments(
 }
 
 /** List pending comments for moderation */
-export async function listPendingComments(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<CommentRow[]> {
+export async function listPendingComments(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<CommentRow[]> {
   const sb = await getClient();
 
   const { data, error } = await sb
@@ -195,7 +201,10 @@ export async function moderateComment(
 }
 
 /** Get comment by ID */
-export async function getCommentById(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<CommentRow | null> {
+export async function getCommentById(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<CommentRow | null> {
   const sb = await getClient();
 
   const { data, error } = await sb.from(COMMENTS_TABLE).select("*").eq("id", id).maybeSingle();

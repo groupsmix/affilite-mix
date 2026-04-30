@@ -20,7 +20,4 @@ export interface CryptoProductMeta {
 
 // Future niches will add their own interfaces here.
 // No schema changes needed — just add a new interface.
-export type ProductMeta =
-  | ArabicProductMeta
-  | CryptoProductMeta
-  | Record<string, unknown>;
+export type ProductMeta = ArabicProductMeta | CryptoProductMeta | Record<string, unknown>;
