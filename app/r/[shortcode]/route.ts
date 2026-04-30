@@ -83,19 +83,26 @@ export async function GET(
     // SEC-02: Enforce affiliate domain allowlist at redirect time (mirrors
     // the check in /api/track/click). Without this, a compromised DB row
     // could redirect users to a phishing domain.
+    //
+    // Trust `domainCheck.allowed` directly: validateAffiliateDomain already
+    // applies the AFFILIATE_DOMAIN_ENFORCEMENT policy (defaulting to "strict"
+    // in production). Re-reading the env var here would diverge from that
+    // default and silently allow off-allow-list redirects when the var is
+    // unset in production.
     const domainCheck = validateAffiliateDomain(destinationUrl);
     if (!domainCheck.allowed) {
-      const enforcement = process.env.AFFILIATE_DOMAIN_ENFORCEMENT;
-      if (enforcement === "strict") {
-        logger.error("[r/shortcode] rejected affiliate destination off allow-list", {
-          siteId,
-          shortcode,
-          domain: domainCheck.domain,
-          reason: domainCheck.reason,
-        });
-        return apiError(400, "Affiliate destination not on approved domain list");
-      }
-      // Log-only mode: warn but allow the redirect
+      logger.error("[r/shortcode] rejected affiliate destination off allow-list", {
+        siteId,
+        shortcode,
+        domain: domainCheck.domain,
+        reason: domainCheck.reason,
+      });
+      return apiError(400, "Affiliate destination not on approved domain list");
+    }
+    if (domainCheck.reason) {
+      // `allowed: true` with a `reason` means warn-mode tolerated an
+      // off-list domain. Emit a structured warning so the corpus can
+      // be audited before AFFILIATE_DOMAIN_ENFORCEMENT=strict ships.
       logger.warn("[r/shortcode] affiliate destination off allow-list (log-only)", {
         siteId,
         shortcode,

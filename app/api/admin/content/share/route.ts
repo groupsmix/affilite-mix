@@ -80,6 +80,16 @@ export const DELETE = withAuthz(
       );
     }
 
+    // SEC-19: Validate UUIDs to prevent injection via crafted identifiers
+    // (mirrors the POST handler so the unshare path closes the same vector).
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(content_id as string) || !UUID_RE.test(target_site_id as string)) {
+      return NextResponse.json(
+        { error: "content_id and target_site_id must be valid UUIDs" },
+        { status: 400 },
+      );
+    }
+
     try {
       await unshareContent(siteId, content_id as string, target_site_id as string);
 
