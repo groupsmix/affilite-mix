@@ -85,9 +85,10 @@ export async function POST(request: NextRequest) {
 
     // Per-email rate limiting — prevents brute-force from rotating IPs
     const normalized = normalizeEmail(email);
-    // F-032: Strip '+' alias tags from email to prevent rate-limit bypass
-    const { getRateLimitEmailKey } = await import("@/lib/validate-email");
-    const rateLimitEmail = getRateLimitEmailKey(email);
+    // F-032 + F-007: Strip '+' alias tags and hash email to prevent rate-limit
+    // bypass and avoid PII in operational metadata (KV keys, logs, dashboards).
+    const { hashEmailForRateLimit } = await import("@/lib/validate-email");
+    const rateLimitEmail = await hashEmailForRateLimit(email);
 
     const emailRl = await checkRateLimit(`login-email:${rateLimitEmail}`, LOGIN_RATE_LIMIT_EMAIL);
     if (!emailRl.allowed) {
