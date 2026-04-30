@@ -7,12 +7,12 @@ import { NextRequest } from "next/server";
  */
 export function timingSafeCompare(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) {
-    // G-43: Do NOT simplify this branch. We walk both buffers with
-    // modular indexing so the work is data-dependent and cannot be
-    // folded away by an optimising JIT. The previous `a[i] ^ a[i]`
-    // pattern is algebraically 0 and a JIT can prove it dead, collapsing
-    // the loop and reintroducing a timing side-channel.
-    const longer = Math.max(a.byteLength, b.byteLength);
+    // AUDIT-FIX: Previously XOR'd `a[i] ^ a[i]` which is algebraically 0 and
+    // could be optimised away by a JIT, eliminating the dummy work that keeps
+    // the branch timing-equivalent to the equal-length path. Now XOR against
+    // `b[i % lenB]` (same approach as lib/csrf.ts) so the compiler cannot
+    // prove the result is constant.
+    const longer = a.byteLength > b.byteLength ? a.byteLength : b.byteLength;
     const lenA = a.byteLength || 1;
     const lenB = b.byteLength || 1;
     let result = 0;
