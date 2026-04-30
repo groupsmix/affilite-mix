@@ -4,6 +4,7 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createPriceAlert, getPriceAlert, deactivatePriceAlert } from "@/lib/dal/price-alerts";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * POST /api/products/:productId/price-alert
@@ -16,12 +17,21 @@ export async function POST(
 ) {
   const { productId } = await params;
 
+  // SEC-11: Validate productId format to prevent injection via crafted route params
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(productId)) {
+    return NextResponse.json({ error: "Invalid product ID format" }, { status: 400 });
+  }
+
   // Rate limit: 10 alerts/hour per IP
-  // Fix: use centralized getClientIp instead of raw header parsing
+  // SEC-10 / F-376: use centralized getClientIp() instead of raw
+  // x-forwarded-for parsing, which was trivially bypassable via spoofed
+  // headers and allowed unlimited price alert signups from a single client.
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`price-alert:${ip}`, {
     maxRequests: 10,
     windowMs: 60 * 60 * 1000,
+    failPolicy: "closed" as const,
   });
   if (!rl.allowed) {
     return NextResponse.json(
@@ -84,6 +94,20 @@ export async function DELETE(
 ) {
   await params; // consume params
 
+  // SEC-12: Add rate limiting to DELETE endpoint (was completely unprotected)
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`price-alert-del:${ip}`, {
+    maxRequests: 20,
+    windowMs: 60 * 60 * 1000,
+    failPolicy: "closed" as const,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   let body: { alert_id?: string };
   try {
     body = await request.json();
@@ -93,6 +117,12 @@ export async function DELETE(
 
   if (!body.alert_id) {
     return NextResponse.json({ error: "alert_id is required" }, { status: 400 });
+  }
+
+  // SEC-13: Validate alert_id is a UUID to prevent injection
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(body.alert_id)) {
+    return NextResponse.json({ error: "Invalid alert_id format" }, { status: 400 });
   }
 
   try {
