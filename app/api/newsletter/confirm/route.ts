@@ -7,8 +7,10 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { hashNewsletterToken } from "@/lib/newsletter-token";
 
-/** 10 confirm requests per minute per IP */
-const CONFIRM_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000 };
+/** 10 confirm requests per minute per IP.
+ * SEC-16: failPolicy "closed" — confirmation tokens are bearer secrets;
+ * skipping rate limiting during KV outages allows brute-force token guessing. */
+const CONFIRM_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000, failPolicy: "closed" as const };
 
 /**
  * GET /api/newsletter/confirm?token=<uuid>

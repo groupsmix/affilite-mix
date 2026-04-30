@@ -7,6 +7,18 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- DB-BUG-01: The update_updated_at() trigger function is referenced by
+-- migration 00002_admin_users.sql but was never created. Without this
+-- function, migration 00002 fails on a fresh database with
+-- "function update_updated_at() does not exist".
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TABLE IF NOT EXISTS sites (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slug        TEXT NOT NULL UNIQUE,
@@ -165,6 +177,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX idx_audit_site ON audit_log(site_id, created_at DESC);
 
+-- ── Auto-update triggers ─────────────────────────────────────────────
+-- DB-BUG-02: products and content tables have updated_at columns but no
+-- trigger to auto-update them. Without these triggers, updated_at stays
+-- at the insert-time value forever, making audit trails unreliable.
+CREATE TRIGGER products_updated_at
+  BEFORE UPDATE ON products
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER content_updated_at
+  BEFORE UPDATE ON content
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ── RLS Policies ─────────────────────────────────────────────────────
 -- Enable RLS on all tables
 ALTER TABLE sites ENABLE ROW LEVEL SECURITY;
@@ -184,12 +208,26 @@ CREATE POLICY "Public can read active products" ON products FOR SELECT USING (st
 CREATE POLICY "Public can read published content" ON content FOR SELECT USING (status = 'published');
 CREATE POLICY "Public can read content_products" ON content_products FOR SELECT USING (true);
 
+-- DB-SEC-01: The affiliate_clicks table needs an INSERT policy for the
+-- authenticated role so click tracking via the tenant client (which uses
+-- a scoped JWT, not the service role) can write rows. Without this, any
+-- click recording path that goes through getTenantClient() silently fails
+-- because RLS blocks the INSERT.
+CREATE POLICY "Authenticated can insert clicks" ON affiliate_clicks
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- DB-SEC-02: The audit_log table needs an INSERT policy for the
+-- authenticated role for the same reason as clicks above.
+CREATE POLICY "Authenticated can insert audit_log" ON audit_log
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
 -- Service role bypass (for admin operations via service_role key)
 -- The service_role key bypasses RLS by default in Supabase.
 
 -- ── RPC Functions ────────────────────────────────────────────────────
 
 -- Top products by click count
+-- DB-SEC-03: Clamp p_limit to [1, 1000] to prevent DoS via unbounded queries.
 CREATE OR REPLACE FUNCTION top_products_by_clicks(p_site_id UUID, p_limit INT DEFAULT 10)
 RETURNS TABLE(product_name TEXT, click_count BIGINT) AS $$
   SELECT product_name, COUNT(*) AS click_count
@@ -197,7 +235,7 @@ RETURNS TABLE(product_name TEXT, click_count BIGINT) AS $$
   WHERE site_id = p_site_id
   GROUP BY product_name
   ORDER BY click_count DESC
-  LIMIT p_limit;
+  LIMIT LEAST(GREATEST(p_limit, 1), 1000);
 $$ LANGUAGE sql STABLE;
 
 -- Top referrers
@@ -208,7 +246,7 @@ RETURNS TABLE(referrer TEXT, referral_count BIGINT) AS $$
   WHERE site_id = p_site_id AND referrer != ''
   GROUP BY referrer
   ORDER BY referral_count DESC
-  LIMIT p_limit;
+  LIMIT LEAST(GREATEST(p_limit, 1), 1000);
 $$ LANGUAGE sql STABLE;
 
 -- Top content by clicks
@@ -219,5 +257,5 @@ RETURNS TABLE(content_slug TEXT, click_count BIGINT) AS $$
   WHERE site_id = p_site_id AND content_slug != ''
   GROUP BY content_slug
   ORDER BY click_count DESC
-  LIMIT p_limit;
+  LIMIT LEAST(GREATEST(p_limit, 1), 1000);
 $$ LANGUAGE sql STABLE;

@@ -1,6 +1,20 @@
 import { NextRequest } from "next/server";
 
 /**
+ * Fixed iteration count for the mismatched-length branch of
+ * {@link timingSafeCompare}. Chosen to comfortably exceed any realistic
+ * cron-secret length (cron secrets in this codebase are random hex/base64
+ * strings well under 256 bytes) so the loop body runs the same number of
+ * times regardless of the actual byte lengths of the provided/expected
+ * tokens. Using a compile-time constant here — rather than the previous
+ * `Math.max(a.byteLength, b.byteLength)` upper bound — removes the length
+ * side-channel that earlier revisions of this branch exposed: an attacker
+ * who could observe wall-clock latency could otherwise infer
+ * `max(lenProvided, lenExpected)` from how long the loop ran.
+ */
+const MAX_COMPARE_LEN = 256;
+
+/**
  * Timing-safe comparison of two byte arrays.
  * Uses constant-time XOR to avoid leaking length or content via timing.
  * Compatible with Cloudflare Workers (no Node.js crypto dependency).
@@ -12,11 +26,19 @@ export function timingSafeCompare(a: Uint8Array, b: Uint8Array): boolean {
     // the branch timing-equivalent to the equal-length path. Now XOR against
     // `b[i % lenB]` (same approach as lib/csrf.ts) so the compiler cannot
     // prove the result is constant.
-    const longer = a.byteLength > b.byteLength ? a.byteLength : b.byteLength;
+    //
+    // AUDIT-FIX (length side-channel): the loop now runs a fixed
+    // `MAX_COMPARE_LEN` iterations rather than `max(a, b)`, so the loop
+    // count no longer depends on either secret's length. The length
+    // mismatch itself is folded into `result` (`lenA ^ lenB`) so any
+    // difference in lengths still poisons the accumulator — the function
+    // still returns `false` regardless, but the work performed by the
+    // mismatched-length branch is independent of the actual byte lengths.
     const lenA = a.byteLength || 1;
     const lenB = b.byteLength || 1;
     let result = 0;
-    for (let i = 0; i < longer; i++) {
+    result |= lenA ^ lenB;
+    for (let i = 0; i < MAX_COMPARE_LEN; i++) {
       result |= a[i % lenA] ^ b[i % lenB];
     }
     void result;

@@ -43,7 +43,12 @@ export async function POST(request: NextRequest) {
     logger.warn("Stripe webhook signature verification failed", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    // SEC-09: Include security headers on error responses to prevent
+    // MIME-type sniffing attacks on the JSON error body.
+    return NextResponse.json(
+      { error: "Invalid signature" },
+      { status: 400, headers: { "X-Content-Type-Options": "nosniff" } },
+    );
   }
 
   try {

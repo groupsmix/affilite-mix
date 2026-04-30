@@ -11,6 +11,15 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
  */
 
 const MIN_LENGTH = 8;
+/**
+ * SEC-05: Maximum password length. bcrypt silently truncates input to 72
+ * bytes, so passwords longer than that give users a false sense of
+ * security. We cap at 128 characters (well above 72 bytes for ASCII,
+ * accommodating multi-byte UTF-8) to prevent DoS via extremely long
+ * password strings being fed to the bcrypt hash function, while staying
+ * generous enough for passphrase users.
+ */
+const MAX_LENGTH = 128;
 const HAS_UPPERCASE = /[A-Z]/;
 const HAS_LOWERCASE = /[a-z]/;
 const HAS_DIGIT = /\d/;
@@ -28,6 +37,9 @@ export interface PasswordPolicyResult {
 export function validatePasswordPolicy(password: string): PasswordPolicyResult {
   if (!password || password.length < MIN_LENGTH) {
     return { valid: false, error: `Password must be at least ${MIN_LENGTH} characters` };
+  }
+  if (password.length > MAX_LENGTH) {
+    return { valid: false, error: `Password must be at most ${MAX_LENGTH} characters` };
   }
   if (!HAS_UPPERCASE.test(password)) {
     return { valid: false, error: "Password must contain at least one uppercase letter" };
