@@ -14,19 +14,24 @@ import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "node:crypto";
 
+// The privileged Supabase client wraps every PostgREST builder in a Proxy
+// (see `lib/server-only/service-role.ts`) that exposes a runtime-only
+// `unsafeNoSiteFilter()` opt-out for cross-tenant operations. The method
+// is not part of the upstream `@supabase/supabase-js` types, so we declare
+// the minimal shape we need here.
+type SiteFilterOptOut<T> = T & { unsafeNoSiteFilter(): PromiseLike<T> };
+
 async function logClickFailure(payload: RecordClickInput, errorMessage: string): Promise<void> {
   try {
     const sb = getPrivilegedSupabaseClient();
     // click_failures has no top-level site_id column (site_id lives inside the
     // jsonb `payload`). The privileged-client proxy enforces a site_id filter
     // by default, so we explicitly opt out for this cross-tenant DLQ table.
-    await sb
-      .from("click_failures")
-      .insert({
-        payload: { ...payload, _error: errorMessage } as unknown as Record<string, unknown>,
-        error_message: errorMessage,
-      })
-      .unsafeNoSiteFilter();
+    const insertBuilder = sb.from("click_failures").insert({
+      payload: { ...payload, _error: errorMessage } as unknown as Record<string, unknown>,
+      error_message: errorMessage,
+    });
+    await (insertBuilder as unknown as SiteFilterOptOut<typeof insertBuilder>).unsafeNoSiteFilter();
   } catch (err) {
     captureException(err, { context: "click-queue.log-failure" });
   }
