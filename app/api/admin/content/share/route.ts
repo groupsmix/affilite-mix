@@ -36,6 +36,15 @@ export const POST = withAuthz(
       );
     }
 
+    // SEC-19: Validate UUIDs to prevent injection via crafted identifiers
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(content_id as string) || !UUID_RE.test(target_site_id as string)) {
+      return NextResponse.json(
+        { error: "content_id and target_site_id must be valid UUIDs" },
+        { status: 400 },
+      );
+    }
+
     try {
       const shared = await shareContent(content_id as string, siteId, target_site_id as string);
 
