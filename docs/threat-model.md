@@ -75,6 +75,28 @@ rows with `413 Payload Too Large`. The cap is enforced both via the
 `Content-Length` header pre-form-data parsing and against `Blob.size`
 after parsing.
 
+## Organizational Controls (A207 / A208)
+
+Code-side defenses (RLS, CSP, audit logs, rate limiting, JWT binding) are
+documented above. Controls that live outside the codebase -- Cloudflare role
+assignments, GitHub MFA enforcement, developer laptop hardening, third-party
+service access reviews, and offboarding procedures -- are documented in
+[`docs/org-security.md`](org-security.md).
+
+## Red Team Rules of Engagement (A205)
+
+Adversarial simulation engagements must follow the rules of engagement in
+[`docs/red-team-roe.md`](red-team-roe.md) before any external testing
+begins. The ROE defines scope, authorized techniques, success criteria,
+deconfliction headers, and reporting format.
+
+## Continuous Attack-Surface Management (A213)
+
+A daily GitHub Actions workflow (`.github/workflows/asm.yml`) resolves all
+declared domains, diffs Certificate Transparency logs, and scans for
+unexpected open ports. Any new or changed public-facing asset triggers a
+workflow failure for manual review.
+
 ## Pagination DoS (audit #22)
 
 `lib/pagination.ts` clamps `?limit=` to `[1, 100]` and rejects
