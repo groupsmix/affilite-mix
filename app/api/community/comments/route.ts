@@ -39,7 +39,11 @@ export async function POST(request: NextRequest) {
 
   // Rate limit: 10 comments per hour per IP
   // SEC-04: failPolicy "closed" prevents comment spam during KV outages.
-  const rl = await checkRateLimit(`comment:${ip}`, { maxRequests: 10, windowMs: 60 * 60 * 1000, failPolicy: "closed" as const });
+  const rl = await checkRateLimit(`comment:${ip}`, {
+    maxRequests: 10,
+    windowMs: 60 * 60 * 1000,
+    failPolicy: "closed" as const,
+  });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many comments. Try again later." },
@@ -143,15 +147,11 @@ export async function POST(request: NextRequest) {
     }
 
     // SEC-06: Sanitize user_name to strip any HTML/script injection.
-    // Previously only body was sanitized; user_name was stored raw and
-    // could contain XSS payloads that would execute when rendered in the
-    // admin moderation UI or public comment display.
-    const sanitizedName = body.user_name
-      .replace(/[<>&"']/g, (c: string) => {
-        const map: Record<string, string> = { "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" };
-        return map[c] ?? c;
-      })
-      .trim();
+    // Use the same tag-stripping path as `body` (sanitizeHtml) instead of
+    // HTML-entity encoding — React auto-escapes text content on render, so
+    // entity-encoding here would double-encode common characters (`'` →
+    // `&#39;` would render as the literal string `&#39;` in `O'Brien`).
+    const sanitizedName = sanitizeHtml(body.user_name).trim();
 
     const comment = await createComment({
       site_id: siteId,

@@ -11,7 +11,11 @@ import { isOriginAllowed } from "@/lib/security/allowed-origins";
 
 /** 120 ad impression requests per minute per IP.
  * SEC-15: failPolicy "closed" prevents impression fraud during KV outages. */
-const IMPRESSION_RATE_LIMIT = { maxRequests: 120, windowMs: 60 * 1000, failPolicy: "closed" as const };
+const IMPRESSION_RATE_LIMIT = {
+  maxRequests: 120,
+  windowMs: 60 * 1000,
+  failPolicy: "closed" as const,
+};
 
 /** POST /api/track/impression — record an ad impression from the public site */
 export async function POST(request: NextRequest) {
