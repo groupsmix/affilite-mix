@@ -9,7 +9,7 @@
 
 ## 1. EXECUTIVE SUMMARY
 
-This is a well-architected multi-tenant affiliate marketing platform built on Next.js 15, deployed to Cloudflare Workers via OpenNext, backed by Supabase (Postgres + RLS). The codebase demonstrates above-average security maturity for a startup-stage project -- there is defense-in-depth across authentication, authorization, CSRF, CSP, rate limiting, SSRF protection, and tenant isolation. CI/CD is comprehensive with 17 workflow files, 109 unit/integration test files (1,282 passing tests), and 11 E2E specs.
+This is a well-architected multi-tenant affiliate marketing platform built on Next.js 15, deployed to Cloudflare Workers via OpenNext, backed by Supabase (Postgres + RLS). The codebase demonstrates above-average security maturity for a startup-stage project -- there is defense-in-depth across authentication, authorization, CSRF, CSP, rate limiting, SSRF protection, and tenant isolation. CI/CD is comprehensive with 15 workflow files, 109 unit/integration test files (1,282 passing tests), and 11 E2E specs.
 
 **Overall health score: 8/10**
 
@@ -98,7 +98,7 @@ This is a well-architected multi-tenant affiliate marketing platform built on Ne
 | Monitoring      | Sentry                                       | ~10.50.0                           |
 | Bot protection  | Cloudflare Turnstile                         | via API                            |
 | Testing         | Vitest ^4.1.5, Playwright ^1.59.1            | 109 test files, 11 E2E specs       |
-| CI/CD           | GitHub Actions                               | 17 workflows                       |
+| CI/CD           | GitHub Actions                               | 15 workflows                       |
 | IaC             | Terraform                                    | Cloudflare + GitHub provider       |
 | Linting         | ESLint ^9.39.4, Prettier                     | Zero warnings enforced             |
 | Bundle analysis | @next/bundle-analyzer, size-limit            | CI-enforced                        |
@@ -344,6 +344,32 @@ Without Content-Type validation at the binary level (magic bytes, not just exten
 
 ---
 
+### Finding 11
+
+**Title:** No integration test for Stripe webhook signature verification in production mode
+
+**Severity:** Medium
+**Confidence:** High
+**Domain:** Testing / Payments
+
+**Evidence:**
+
+- File: [`app/api/membership/webhook/route.ts`](app/api/membership/webhook/route.ts) -- Production code path verifies the `Stripe-Signature` header via `stripe.webhooks.constructEvent`.
+- Existing tests fuzz the webhook handler but do not exercise the production signature-verification path with real signatures derived from `STRIPE_WEBHOOK_SECRET`.
+
+**Why this matters:** The webhook is the trust boundary between Stripe and our billing state. A regression that silently disables signature verification (e.g., wrapping `constructEvent` in a `try/catch` that swallows errors, or accepting requests when `STRIPE_WEBHOOK_SECRET` is empty) would let any unauthenticated caller forge subscription events. This is the primary attack surface against revenue integrity, and it is one of the top-3 risks identified in the executive summary.
+
+**Remediation:** Add an integration test that:
+
+1. Mints a Stripe signature using the SDK's `Stripe.webhooks.generateTestHeaderString()` helper against a fixed `STRIPE_WEBHOOK_SECRET`.
+2. Asserts the route returns 200 for a correctly signed payload and 400 for a tampered/replayed payload.
+3. Asserts the route returns a non-200 status when `STRIPE_WEBHOOK_SECRET` is missing in production mode.
+
+**Priority:** P2
+**Effort:** S
+
+---
+
 ### Finding 10
 
 **Title:** No E2E test for the complete login -> admin dashboard flow
@@ -364,6 +390,8 @@ Without Content-Type validation at the binary level (magic bytes, not just exten
 **Priority:** P3
 **Effort:** M
 
+> Note: Findings are numbered in priority order. Finding 11 (Stripe webhook signature integration test) was added to back the executive summary's top-3 risk #2 with a concrete, traceable entry; the trailing number is intentional rather than re-flowing the rest.
+
 ---
 
 ## 6. FIX FIRST (P0/P1 Issues)
@@ -372,14 +400,15 @@ No P0 or P1 issues were found. All findings are P2 or P3. This project is in rem
 
 The highest-priority items to address before launch are the P2 findings:
 
-| #   | Finding                                  | Impact                                      | Fix time |
-| --- | ---------------------------------------- | ------------------------------------------- | -------- |
-| 1   | `as any` casts for Cloudflare bindings   | Runtime crash risk on binding changes       | 1-2 days |
-| 2   | Empty catch blocks in hot path           | Observability blind spots during KV outages | < 1 day  |
-| 4   | Empty `supabase/schema.sql`              | No drift detection between environments     | 1 day    |
-| 7   | Dual cookie consent components           | Potential GDPR compliance gap               | 1 day    |
-| 8   | Upload route lacks magic-byte validation | Stored XSS via admin compromise             | 1-2 days |
-| 9   | No DR drill execution evidence           | Untested backup strategy                    | 1 day    |
+| #   | Finding                                      | Impact                                                 | Fix time |
+| --- | -------------------------------------------- | ------------------------------------------------------ | -------- |
+| 1   | `as any` casts for Cloudflare bindings       | Runtime crash risk on binding changes                  | 1-2 days |
+| 2   | Empty catch blocks in hot path               | Observability blind spots during KV outages            | < 1 day  |
+| 4   | Empty `supabase/schema.sql`                  | No drift detection between environments                | 1 day    |
+| 7   | Dual cookie consent components               | Potential GDPR compliance gap                          | 1 day    |
+| 8   | Upload route lacks magic-byte validation     | Stored XSS via admin compromise                        | 1-2 days |
+| 9   | No DR drill execution evidence               | Untested backup strategy                               | 1 day    |
+| 11  | No Stripe webhook signature integration test | Forged subscription events possible after a regression | < 1 day  |
 
 ---
 
@@ -403,7 +432,7 @@ This project demonstrates security and operational maturity well above average:
 
 8. **HTML sanitization:** Custom allowlist-based sanitizer using htmlparser2 (no JSDOM dependency, Cloudflare-compatible). URL scheme allowlist (not denylist). Heading remapping for SEO hierarchy preservation.
 
-9. **CI/CD pipeline:** 17 GitHub Actions workflows covering lint, typecheck, test, build, bundle size, admin route authz enforcement, service-role import scanning, R2 bucket isolation, Stripe key prefix checking, lockfile integrity, migration policy, env-var documentation guard, CodeQL SAST, SBOM generation, Lighthouse, load testing, chaos testing, DR drills.
+9. **CI/CD pipeline:** 15 GitHub Actions workflows covering lint, typecheck, test, build, bundle size, admin route authz enforcement, service-role import scanning, R2 bucket isolation, Stripe key prefix checking, lockfile integrity, migration policy, env-var documentation guard, CodeQL SAST, SBOM generation, Lighthouse, load testing, chaos testing, DR drills.
 
 10. **Operational documentation:** 40+ docs covering architecture, threat model, incident response, backup strategy, secrets rotation, SLO definitions, compliance readiness, rollback strategy, observability runbook, and more.
 
@@ -429,6 +458,7 @@ This project demonstrates security and operational maturity well above average:
 - [ ] Add file magic-byte validation to upload route (Finding 8)
 - [ ] Verify cookie consent CMP is singular and GDPR-compliant (Finding 7)
 - [ ] Run DR restore drill and document results (Finding 9)
+- [ ] Add Stripe webhook signature integration test (Finding 11)
 
 ### Week 3 (Medium)
 
@@ -529,7 +559,7 @@ This project demonstrates security and operational maturity well above average:
 - The entire auth/authz stack (JWT binding, TOTP, bcrypt, timing equalization)
 - The rate-limiting architecture (DO + KV + in-memory)
 - The middleware design (domain resolution, CSP nonce, CSRF, trace ID)
-- The CI pipeline structure (17 workflows, security scanning, authz enforcement)
+- The CI pipeline structure (15 workflows, security scanning, authz enforcement)
 - The multi-tenant RLS approach
 - The documentation culture (40+ docs)
 
