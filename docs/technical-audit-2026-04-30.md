@@ -9,13 +9,14 @@
 
 ## 1. EXECUTIVE SUMMARY
 
-Affilite-Mix is a **well-above-average** multi-tenant affiliate marketing platform built on Next.js 15 / Cloudflare Workers with Supabase (Postgres + RLS). The codebase demonstrates mature security engineering across authentication, authorization, CSRF, CSP, rate limiting, SSRF protection, and tenant isolation -- far exceeding what is typical at this stage. The project has 109 unit/integration test files (~16,300 lines), 11 E2E specs, 93 database migrations with rollback scripts, Terraform IaC for Cloudflare and GitHub, and extensive operational documentation (incident response, SLOs, backup policy, DR runbook, threat model).
+Affilite-Mix is a **well-above-average** multi-tenant affiliate marketing platform built on Next.js 15 / Cloudflare Workers with Supabase (Postgres + RLS). The codebase demonstrates mature security engineering across authentication, authorization, CSRF, CSP, rate limiting, SSRF protection, and tenant isolation -- far exceeding what is typical at this stage. The project has 109 unit/integration test files (~16,300 lines), 11 E2E specs, 94 database migrations (91 with rollback scripts), Terraform IaC for Cloudflare and GitHub, and extensive operational documentation (incident response, SLOs, backup policy, DR runbook, threat model).
 
 **Overall Project Health Score: 8.2 / 10**
 
 **Go/No-Go Recommendation:** GO for production, with the P0 items below addressed first.
 
 **Top 3 Risks:**
+
 1. Per-tenant RLS bypass surface -- the service-role client is widely used in admin routes; a single missing `site_id` filter in a DAL function exposes cross-tenant data.
 2. Cloudflare single-vendor dependency -- KV, DO, Queues, R2, Workers edge runtime with no multi-cloud failover path.
 3. No automated integration test coverage against a live Supabase instance in CI (RLS policies are tested via mocks, not a real DB).
@@ -111,25 +112,30 @@ Affilite-Mix is a **well-above-average** multi-tenant affiliate marketing platfo
 ## 3. CONFIRMED STACK
 
 **Languages & Runtimes:**
+
 - TypeScript ~5.8 (strict mode enabled)
 - Node.js ^22.13.0
 - Cloudflare Workers edge runtime
 
 **Frameworks:**
+
 - Frontend: Next.js ~15.5.14 / React ^19.2.5
 - Backend: Next.js API routes (edge + Node runtimes)
 
 **Database:**
+
 - Type: PostgreSQL (Supabase hosted)
 - ORM/Client: @supabase/supabase-js ~2.105.1 (no ORM, raw query builder)
 
 **Infrastructure:**
+
 - Platform: Cloudflare Workers (via @opennextjs/cloudflare ~1.19.1)
 - Edge: Cloudflare CDN
 - Serverless: Cloudflare Workers
 - IaC: Terraform (Cloudflare zone config + GitHub branch protection)
 
 **Third-Party Services:**
+
 - Auth: Custom (JWT + bcrypt + TOTP)
 - Email: Resend
 - Payments: Stripe ~22.1.0
@@ -141,11 +147,13 @@ Affilite-Mix is a **well-above-average** multi-tenant affiliate marketing platfo
 - Cookie Consent: vanilla-cookieconsent ^3.1.0
 
 **CI/CD:**
+
 - Platform: GitHub Actions
 - Deployment: `opennextjs-cloudflare build && deploy` via wrangler
-- Workflows: ci.yml, deploy.yml, deploy-gradual.yml, preview.yml, security.yml, codeql.yml, sbom.yml, lighthouse.yml, load-test.yml, chaos.yml, backup-restore-drill.yml, dr-drill.yml
+- Workflows (15): ci.yml, deploy.yml, deploy-gradual.yml, preview.yml, security.yml, codeql.yml, sbom.yml, lighthouse.yml, load-test.yml, chaos.yml, backup-restore-drill.yml, dr-drill.yml, admin-bootstrap.yml, integration-nightly.yml, rollback.yml
 
 **Development Tools:**
+
 - Package Manager: npm (package-lock.json)
 - Build Tool: Next.js built-in (Turbopack/Webpack)
 - Linter: ESLint 9 with TypeScript parser, max-warnings=0
@@ -159,20 +167,21 @@ Affilite-Mix is a **well-above-average** multi-tenant affiliate marketing platfo
 ## 4. BLIND SPOTS
 
 **Cannot Verify From Repo:**
+
 - Actual Supabase project tier (Pro vs Free -- PITR availability depends on this)
-- Whether KV namespace IDs in `wrangler.jsonc` are production values or placeholders
+- Whether KV namespace IDs in `wrangler.jsonc` are production values or placeholders (file is committed; values cannot be confirmed without prod access)
 - Actual Cloudflare WAF rules in production (Terraform defines them, but state is not committed)
 - Real traffic volume and database size
 - Whether Stripe restricted API keys (`rk_live_`) are actually used (`.env.example` still references `sk_live_`)
 - Whether TOTP is actually enforced for all super_admin accounts in production DB
 
 **Missing Artifacts Needed:**
-- `wrangler.jsonc` (referenced but not visible in file listing -- may be gitignored)
-- Vitest config file (`vitest.config.ts`) to confirm coverage thresholds
+
 - Actual Lighthouse CI scores from recent runs
 - npm audit output for current dependency state
 
 **Need Production Access To Verify:**
+
 - Supabase PITR is actually enabled (docs say it should be)
 - KV/DO bindings are correctly wired
 - Cloudflare WAF rules are applied to the zone
@@ -260,18 +269,21 @@ There are no critical P0 blockers. The codebase has already addressed the most d
 **Focus: Close the RLS verification gap and operational hardening**
 
 Week 1:
+
 - [ ] Set up Supabase local instance in CI for RLS integration tests
 - [ ] Verify wrangler.jsonc R2 bucket isolation in production
 - [ ] Add request body size middleware guard
 - [ ] Add Permissions-Policy and Referrer-Policy headers
 
 Week 2:
+
 - [ ] Extend DAL site_id audit script to cover all functions
 - [ ] Add Cache-Control headers to admin API responses
 - [ ] Run a manual penetration test against admin panel IDOR vectors
 - [ ] Verify TOTP enforcement for all super_admin accounts
 
 Week 3-4:
+
 - [ ] Implement database connection pool monitoring/alerting
 - [ ] Set up Supabase read replica for public read queries (if traffic warrants)
 - [ ] Document and test JWT secret rotation procedure end-to-end
@@ -280,16 +292,18 @@ Week 3-4:
 ### 60-Day Plan (Hardening)
 
 Month 2:
+
 - [ ] Implement automated canary deployment in deploy-gradual.yml
 - [ ] Add distributed tracing (OTEL endpoint configuration)
 - [ ] Implement cron job overlap prevention (idempotency keys for AI generation)
-- [ ] Migrate Stripe to restricted API keys (rk_live_) if not already done
+- [ ] Migrate Stripe to restricted API keys (rk*live*) if not already done
 - [ ] Add R2 object lifecycle rules for orphan cleanup
 - [ ] Implement automated SLO burn-rate alerting
 
 ### 90-Day Plan (Excellence)
 
 Month 3:
+
 - [ ] Evaluate multi-cloud failover strategy (at minimum, DNS failover to a static page)
 - [ ] Implement automated chaos engineering tests in CI (expand chaos.yml)
 - [ ] Add database query performance regression tests
@@ -389,7 +403,7 @@ Month 3:
 - **Tenant isolation is well-thought-out.** Multi-layer: middleware injects `x-site-id`, `requireAdmin()` validates cookie + membership, DAL functions filter by `site_id`, RLS policies enforce at database level, CI checks validate authz wrappers.
 - **Operational maturity is high for the project stage.** SLO definitions, incident response playbook, backup policy with RTO/RPO, DR runbook, threat model, secrets rotation runbook, migration safety docs, and extensive CI security checks.
 - **Test coverage is meaningful.** 109 test files covering security-critical paths: CORS, CSRF, auth timing, rate limiting, tenant isolation, Stripe webhook verification, prompt injection, RLS, admin ACL, and more.
-- **Database migration discipline is excellent.** 94 migrations with corresponding rollback (down) scripts, migration order checks in CI, safety documentation, and schema drift detection scripts.
+- **Database migration discipline is excellent.** 94 forward migrations with 91 corresponding rollback (down) scripts (3 latest migrations have no `-down.sql` yet), migration order checks in CI, safety documentation, and schema drift detection scripts.
 
 ### What's Concerning
 
@@ -420,6 +434,7 @@ Month 3:
 ## 15. IF I HAD TO REBUILD THIS CLEANLY
 
 ### Keep
+
 - The multi-tenant architecture with static config + DB registry
 - The security middleware stack (CSRF, CSP, CORS, rate limiting)
 - The DAL pattern with typed validation functions
@@ -428,19 +443,23 @@ Month 3:
 - The CI security checks (authz enforcement, service-role scan, etc.)
 
 ### Redesign
+
 - **Split middleware into composable middleware chain** -- separate site resolution, security headers, CSRF, and rate limiting into distinct middleware functions composed in order
 - **Move admin operations to RLS-enforced tenant JWTs** instead of service-role. Mint a short-lived JWT with `site_id` claim for each admin request so Postgres RLS enforces tenant isolation even for admin ops.
 - **Add edge caching layer** for public content with cache tag-based invalidation via Cloudflare Cache API
 
 ### Remove
+
 - The legacy `getServiceClient()` wrapper in `lib/supabase-server.ts` (already deprecated)
 - The shared `CRON_SECRET` fallback (enforce per-trigger secrets only)
 
 ### Standardize
+
 - API error responses to use structured error codes (`{ code: "RATE_LIMITED", message: "..." }`)
 - Logging to always include `siteId`, `traceId`, and `userId` fields
 
 ### Add
+
 - Database connection pooling (Supabase Supavisor or external PgBouncer)
 - Edge cache for public GET endpoints
 - OTEL distributed tracing integration
@@ -452,17 +471,19 @@ Month 3:
 ## 16. MISSING ARTIFACTS I SHOULD PROVIDE NEXT
 
 ### High Priority
-- [ ] `wrangler.jsonc` -- needed to verify R2 bucket isolation, KV namespace IDs, DO bindings, queue configuration
-- [ ] `vitest.config.ts` -- needed to verify coverage thresholds and test configuration
-- [ ] `next.config.ts` / `next.config.mjs` -- needed to verify security headers, image optimization, CSP configuration
+
 - [ ] Recent `npm audit` output -- needed to verify current vulnerability state
 
+_(Earlier drafts of this section listed `wrangler.jsonc`, `vitest.config.ts`, and `next.config.ts` as missing. They are present in the repo root and have been audited in place.)_
+
 ### Medium Priority
+
 - [ ] Supabase dashboard screenshots showing PITR status, connection pool settings, and backup history
 - [ ] Cloudflare dashboard showing WAF rules, rate limiting rules, and Bot Fight Mode status
 - [ ] Recent Lighthouse CI results
 
 ### Low Priority
+
 - [ ] Load test results from `load-test.js`
 - [ ] Sentry error dashboard showing top errors
 - [ ] Cloudflare Analytics showing request volume and error rates
@@ -471,13 +492,13 @@ Month 3:
 
 ## 17. TECHNICAL DEBT REGISTER
 
-| Location | Type | Debt | Effort | Risk if Not Fixed |
-|----------|------|------|--------|-------------------|
-| [`middleware.ts`](middleware.ts:1) | Complexity | 502-line monolith handling site resolution, CSRF, CORS, CSP, rate limiting, maintenance mode | L | Medium -- hard to reason about, test, and debug |
-| [`lib/supabase-server.ts:52`](lib/supabase-server.ts:52) | Deprecated | `getServiceClient()` still exists despite deprecation | S | Low -- ESLint rule prevents new usage |
-| [`lib/rate-limit.ts`](lib/rate-limit.ts:1) | Complexity | 477 lines with 3 backends (DO, KV, in-memory) and complex fallback logic | M | Medium -- incident debugging is difficult |
-| [`supabase/schema.sql`](supabase/schema.sql:1) | Placeholder | Schema file is empty (auto-generated marker only) | S | Low -- migrations are authoritative |
-| [`lib/cron-auth.ts:11`](lib/cron-auth.ts:11) | Bug | Timing-safe compare for mismatched lengths XORs `a[i] ^ a[i]` (always 0) instead of `a[i] ^ b[i % b.length]` | S | Low -- length mismatch already returns false, but the dummy work is algebraically dead |
+| Location                                                 | Type        | Debt                                                                                                                                                                                                                                                                                                                                                                                                      | Effort | Risk if Not Fixed                                                              |
+| -------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------ |
+| [`middleware.ts`](middleware.ts:1)                       | Complexity  | 502-line monolith handling site resolution, CSRF, CORS, CSP, rate limiting, maintenance mode                                                                                                                                                                                                                                                                                                              | L      | Medium -- hard to reason about, test, and debug                                |
+| [`lib/supabase-server.ts:52`](lib/supabase-server.ts:52) | Deprecated  | `getServiceClient()` still exists despite deprecation                                                                                                                                                                                                                                                                                                                                                     | S      | Low -- ESLint rule prevents new usage                                          |
+| [`lib/rate-limit.ts`](lib/rate-limit.ts:1)               | Complexity  | 477 lines with 3 backends (DO, KV, in-memory) and complex fallback logic                                                                                                                                                                                                                                                                                                                                  | M      | Medium -- incident debugging is difficult                                      |
+| [`supabase/schema.sql`](supabase/schema.sql:1)           | Placeholder | Schema file is empty (auto-generated marker only)                                                                                                                                                                                                                                                                                                                                                         | S      | Low -- migrations are authoritative                                            |
+| [`lib/cron-auth.ts:11`](lib/cron-auth.ts:11)             | Style       | On length mismatch, the dummy work is algebraically dead (`a[i] ^ a[i]`). This is intentionally constant-time and side-channel-clean (the function already returns `false` early), but the dead XOR can confuse future readers. Consider replacing with a comment explaining intent, not with `b[i % b.length]` (which would leak `b`'s contents through the differing XOR result and is strictly worse). | S      | Low -- correctness is fine; the entry is a readability nit, not a security bug |
 
 **Estimated total debt:** ~3-4 engineering weeks
 
@@ -486,6 +507,7 @@ Month 3:
 ## 18. DEPENDENCY RISK REPORT
 
 **Key Dependencies:**
+
 - `next` ~15.5.14 -- actively maintained, latest stable
 - `react` ^19.2.5 -- latest stable
 - `@supabase/supabase-js` ~2.105.1 -- actively maintained
@@ -495,10 +517,12 @@ Month 3:
 - `@opennextjs/cloudflare` ~1.19.1 -- actively maintained, community adapter
 
 **Dependency Graph Complexity:**
+
 - Direct dependencies: 29 (production), 18 (dev)
 - Notable: `postcss` and `uuid` overrides suggest past conflict resolution
 
 **License Compliance:**
+
 - CI workflow `security.yml` checks for GPL/AGPL/SSPL licenses on every PR
 - All visible dependencies use MIT/Apache-2.0/ISC licenses
 
@@ -507,6 +531,7 @@ Month 3:
 ## 19. COST MODEL ANALYSIS
 
 **Estimated Monthly Cost (based on codebase clues):**
+
 - Cloudflare Workers (Free/Paid): $0-25/month (100k-10M requests/day)
 - Supabase Pro: $25/month (8GB DB, 250MB file storage, 50GB bandwidth)
 - Cloudflare R2: $0-5/month (10GB free, then $0.015/GB/month)
@@ -518,6 +543,7 @@ Month 3:
 - **Estimated Total:** $50-100/month at early scale
 
 **Cost Cliff Warnings:**
+
 - Supabase: Pro -> Team at high connection count ($599/month)
 - Cloudflare Workers: Free -> Paid at >100k requests/day ($5/month + $0.50/million)
 - R2: Free tier -> paid at >10GB storage
@@ -530,6 +556,7 @@ Month 3:
 ## 20. OPERATIONAL RUNBOOK GAPS
 
 **Existing Runbooks (comprehensive):**
+
 - [x] Incident response (`docs/incident-response.md`)
 - [x] DR procedure (`docs/DR-RUNBOOK.md`)
 - [x] Backup policy (`docs/BACKUP-POLICY.md`)
@@ -545,6 +572,7 @@ Month 3:
 - [x] Production launch checklist (`docs/production-launch-checklist.md`)
 
 **Missing Runbooks:**
+
 - [ ] Database migration rollback procedure (specific to production, not just `down.sql` scripts)
 - [ ] Supabase connection pool exhaustion troubleshooting
 - [ ] AI provider failover manual override procedure
@@ -593,12 +621,14 @@ Month 3:
 ```
 
 **Data Retention Points:**
+
 - Supabase Postgres: All persistent data, PITR enabled (5-min granularity)
 - Cloudflare KV: Ephemeral caches (60s-3600s TTL)
 - Cloudflare R2: Media uploads (no auto-expiry), ISR cache, audit DLQ
 - Cloudflare Queues: Transient (click events processed and drained)
 
 **Data Deletion Complexity:**
+
 - Easy: KV entries (TTL-based auto-expiry)
 - Moderate: Database records (CASCADE deletes on sites, SET NULL on categories)
 - Hard: R2 uploaded media (requires manual cleanup or lifecycle rules)
@@ -627,11 +657,11 @@ Month 3:
 
 **Privilege Boundaries:**
 
-| Role | Capabilities |
-|------|-------------|
-| Anonymous user | Read published content, subscribe to newsletter, submit clicks |
-| Authenticated (future) | Community comments, wrist shots, quiz submissions |
-| Admin (per-site) | CRUD content/products/categories for assigned sites only |
-| Super Admin | All admin capabilities across all sites, user management, TOTP required |
-| Service account (cron) | Scheduled tasks: publish, price scrape, AI generate, data retention |
-| Service account (webhook) | Stripe event processing, membership management |
+| Role                      | Capabilities                                                            |
+| ------------------------- | ----------------------------------------------------------------------- |
+| Anonymous user            | Read published content, subscribe to newsletter, submit clicks          |
+| Authenticated (future)    | Community comments, wrist shots, quiz submissions                       |
+| Admin (per-site)          | CRUD content/products/categories for assigned sites only                |
+| Super Admin               | All admin capabilities across all sites, user management, TOTP required |
+| Service account (cron)    | Scheduled tasks: publish, price scrape, AI generate, data retention     |
+| Service account (webhook) | Stripe event processing, membership management                          |
