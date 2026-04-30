@@ -1,0 +1,18 @@
+# Packages excluded from license-allowlist enforcement.
+#
+# Each entry is `name@version` as reported by `license-checker`. Add a brief
+# justification for every entry below — the list is intentionally narrow so
+# unexpected copyleft dependencies still trip the License compliance check.
+#
+# - @img/sharp-libvips-*@1.2.4: prebuilt libvips binaries shipped by the
+#   `sharp` image-processing library. libvips itself is LGPL-3.0; we
+#   consume it dynamically (not statically linked into our distributable),
+#   which is permitted by LGPL-3.0 §4. Reviewed and accepted.
+@img/sharp-libvips-darwin-arm64@1.2.4
+@img/sharp-libvips-darwin-x64@1.2.4
+@img/sharp-libvips-linux-arm64@1.2.4
+@img/sharp-libvips-linux-arm@1.2.4
+@img/sharp-libvips-linux-s390x@1.2.4
+@img/sharp-libvips-linux-x64@1.2.4
+@img/sharp-libvips-linuxmusl-arm64@1.2.4
+@img/sharp-libvips-linuxmusl-x64@1.2.4
