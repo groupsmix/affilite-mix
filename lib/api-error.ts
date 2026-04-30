@@ -95,7 +95,7 @@ export async function parseJsonBody(
   try {
     return (await request.json()) as Record<string, unknown>;
   } catch {
-    return apiError(400, "Invalid JSON body");
+    return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
   }
 }
 
