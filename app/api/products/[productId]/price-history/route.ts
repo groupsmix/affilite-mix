@@ -50,13 +50,24 @@ export async function GET(
   // A46#2: Guard against NaN from non-numeric input — default to 90.
   const days = Number.isNaN(rawDays) ? 90 : Math.min(Math.max(Math.round(rawDays), 1), 365);
 
+  // A47#1: Resolve the requesting tenant from the middleware-injected
+  // x-site-id header. This ensures a product UUID belonging to tenant A
+  // cannot be queried from tenant B's hostname (cross-tenant info leak).
+  let siteSlug: string;
   try {
-    // A47#1: Resolve the requesting tenant from the middleware-injected
-    // x-site-id header. This ensures a product UUID belonging to tenant A
-    // cannot be queried from tenant B's hostname (cross-tenant info leak).
-    const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
-    const siteId = await resolveDbSiteId(siteSlug);
+    siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
+  } catch {
+    return NextResponse.json({ error: "Missing site context" }, { status: 400 });
+  }
 
+  let siteId: string;
+  try {
+    siteId = await resolveDbSiteId(siteSlug);
+  } catch {
+    return NextResponse.json({ error: "Unknown site" }, { status: 400 });
+  }
+
+  try {
     const snapshots = await getPriceHistory(productId, days, siteId);
 
     return NextResponse.json(
@@ -73,8 +84,9 @@ export async function GET(
       },
       {
         headers: {
-          // A46#1: Cache for 5 minutes to reduce DB load on repeated queries.
-          "Cache-Control": "public, max-age=300, s-maxage=300",
+          // Response is tenant-scoped via x-site-id, so use `private` to
+          // prevent shared proxies from serving tenant A's data to tenant B.
+          "Cache-Control": "private, max-age=300",
         },
       },
     );

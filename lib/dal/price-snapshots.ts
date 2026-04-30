@@ -55,9 +55,10 @@ export async function createPriceSnapshots(
 /**
  * Get price history for a product (last N days).
  *
- * A47#1: `siteId` parameter enforces tenant isolation — callers MUST pass
- * the site ID derived from the request's `x-site-id` header so a product
- * UUID belonging to tenant A cannot be queried from tenant B's hostname.
+ * A47#1: When `siteId` is provided, the query is scoped to that tenant,
+ * preventing cross-tenant data leakage. Public-facing callers (API routes)
+ * MUST pass the site ID derived from the request's `x-site-id` header.
+ * Internal callers (cron jobs) may omit it when operating across all sites.
  */
 export async function getPriceHistory(
   productId: string,
