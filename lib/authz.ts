@@ -85,11 +85,12 @@ export function withAuthz(
       return apiError(403, "Forbidden");
     }
 
-    return handler(request, {
+    const res = await handler(request, {
       session,
       siteId: dbSiteId,
       siteSlug,
     });
+    return res;
   };
 }
 

@@ -476,6 +476,13 @@ export async function middleware(request: NextRequest) {
     "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
   );
 
+  // AUDIT-FIX: Admin API responses must never be cached by CDN or browser
+  // to prevent serving tenant-specific data to the wrong user or session.
+  if (pathname.startsWith("/api/admin/")) {
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    response.headers.set("Pragma", "no-cache");
+  }
+
   // FIX-10 (F-019, F-012): Vary headers to prevent cache poisoning.
   // Cookie: responses differ based on admin session / active site cookie.
   // x-site-id, host: responses differ based on the resolved tenant.
