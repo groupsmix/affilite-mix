@@ -1,0 +1,62 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# SEMGREP CUSTOM SAST RULES (F-002 supplement)
+#
+# Supplements CodeQL with custom rules targeting Next.js, Supabase, and
+# Cloudflare Workers patterns specific to this codebase. Catches issues
+# that generic SAST tools miss:
+#   - Unsafe route handlers missing auth wrappers
+#   - Raw service-role imports outside the allowlist
+#   - Unvalidated redirects in server components
+#   - Missing rate limiting on API routes
+#   - Raw IP header parsing instead of getClientIp()
+#
+# Audit reference: F-002 supplement — "Add Semgrep with custom rules"
+# ═══════════════════════════════════════════════════════════════════════════
+
+name: "\U0001F50E Semgrep SAST"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Every Monday 08:00 UTC — after CodeQL and security workflows.
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  semgrep:
+    name: Semgrep scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    container:
+      image: semgrep/semgrep:latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Run Semgrep with custom rules
+        run: |
+          semgrep scan \
+            --config auto \
+            --config .semgrep/ \
+            --sarif --output semgrep-results.sarif \
+            --error \
+            --exclude='node_modules' \
+            --exclude='__tests__' \
+            --exclude='.open-next' \
+            --exclude='.next'
+
+      - name: Upload SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep
+        continue-on-error: true

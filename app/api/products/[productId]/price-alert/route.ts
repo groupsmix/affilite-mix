@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createPriceAlert, getPriceAlert, deactivatePriceAlert } from "@/lib/dal/price-alerts";
@@ -22,9 +23,10 @@ export async function POST(
     return NextResponse.json({ error: "Invalid product ID format" }, { status: 400 });
   }
 
-  // SEC-10: Use centralized getClientIp() instead of raw x-forwarded-for.
-  // The previous code was trivially bypassable by spoofing the header,
-  // allowing unlimited price alert signups from a single client.
+  // Rate limit: 10 alerts/hour per IP
+  // SEC-10 / F-376: use centralized getClientIp() instead of raw
+  // x-forwarded-for parsing, which was trivially bypassable via spoofed
+  // headers and allowed unlimited price alert signups from a single client.
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`price-alert:${ip}`, {
     maxRequests: 10,
