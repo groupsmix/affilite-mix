@@ -8,6 +8,7 @@ Each should be scoped into its own remediation ticket once confirmed.
 **Risk**: Prompt injection, provenance, moderation, human review.
 
 **Investigation scope**:
+
 - Review `lib/ai/prompt-sanitization.ts` for injection resistance
 - Verify `AI_MAX_PROMPT_CHARS` ceiling is enforced
 - Check that AI-generated content always enters a `draft` state (never auto-published)
@@ -21,6 +22,7 @@ Each should be scoped into its own remediation ticket once confirmed.
 **Risk**: Duplicate event processing, unsigned webhook acceptance.
 
 **Investigation scope**:
+
 - Verify `stripe_events` table enforces idempotency (unique constraint on event ID)
 - Confirm `lib/stripe-webhook.ts` validates Stripe signatures before processing
 - Check `apply_stripe_membership_event` RPC handles duplicate calls safely
@@ -33,6 +35,7 @@ Each should be scoped into its own remediation ticket once confirmed.
 **Risk**: Incomplete data erasure, unbounded PII retention.
 
 **Investigation scope**:
+
 - Cross-reference `erase_user()` RPC (migration 00088) against all tables with email/PII columns
 - Verify `purge_retention()` covers all high-write analytics tables
 - Check that no table stores PII without a documented retention policy
@@ -47,6 +50,7 @@ Each should be scoped into its own remediation ticket once confirmed.
 **Risk**: Untested failure modes lead to extended outages.
 
 **Recommended drills**:
+
 1. **Queue failure**: Disable CLICK_QUEUE binding, verify fallback to direct DB write
 2. **Supabase outage**: Simulate DB unavailability, verify middleware stale-while-error cache
 3. **R2 failure**: Disable R2 credentials, verify upload route returns 503

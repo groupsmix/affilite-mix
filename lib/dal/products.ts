@@ -58,7 +58,10 @@ export type CountProductsOptions = Omit<
 >;
 
 /** List products for a site with optional filters */
-export async function listProducts(opts: ListProductsOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<ProductRow[]> {
+export async function listProducts(
+  opts: ListProductsOptions,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ProductRow[]> {
   const sb = await getClient();
   const sortColumn: ProductSortColumn = opts.sortBy ?? "created_at";
   const ascending = opts.sortDirection === "asc";
@@ -102,7 +105,10 @@ export async function listProducts(opts: ListProductsOptions, getClient: DalClie
 }
 
 /** Count products matching filters */
-export async function countProducts(opts: CountProductsOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+export async function countProducts(
+  opts: CountProductsOptions,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<number> {
   // Skip when Supabase is not configured or during next build.
   if (shouldSkipDbCall()) {
     return 0;
@@ -143,7 +149,10 @@ export async function countProducts(opts: CountProductsOptions, getClient: DalCl
  * List distinct non-empty merchant values for a site. Used to populate the
  * "network" faceted filter in the products admin table.
  */
-export async function listDistinctMerchants(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<string[]> {
+export async function listDistinctMerchants(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<string[]> {
   if (shouldSkipDbCall()) {
     return [];
   }
@@ -168,7 +177,11 @@ export async function listDistinctMerchants(siteId: string, getClient: DalClient
 }
 
 /** Get a single product by id */
-export async function getProductById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<ProductRow | null> {
+export async function getProductById(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ProductRow | null> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -261,7 +274,11 @@ export async function updateProduct(
 }
 
 /** Delete a product */
-export async function deleteProduct(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteProduct(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 

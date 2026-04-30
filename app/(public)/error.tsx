@@ -12,8 +12,10 @@ const translations = {
     home: "Go to Homepage",
   },
   ar: {
-    heading: "\u0646\u0648\u0627\u062c\u0647 \u0645\u0634\u0643\u0644\u0629 \u0641\u064a \u062a\u062d\u0645\u064a\u0644 \u0647\u0630\u0647 \u0627\u0644\u0635\u0641\u062d\u0629",
-    fallback: "\u062d\u062f\u062b \u062e\u0637\u0623 \u063a\u064a\u0631 \u0645\u062a\u0648\u0642\u0639. \u064a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.",
+    heading:
+      "\u0646\u0648\u0627\u062c\u0647 \u0645\u0634\u0643\u0644\u0629 \u0641\u064a \u062a\u062d\u0645\u064a\u0644 \u0647\u0630\u0647 \u0627\u0644\u0635\u0641\u062d\u0629",
+    fallback:
+      "\u062d\u062f\u062b \u062e\u0637\u0623 \u063a\u064a\u0631 \u0645\u062a\u0648\u0642\u0639. \u064a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.",
     retry: "\u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649",
     home: "\u0627\u0644\u0639\u0648\u062f\u0629 \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u062d\u0629 \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629",
   },
@@ -64,13 +66,9 @@ export default function PublicError({
         </svg>
       </div>
 
-      <h2 className="mb-2 text-2xl font-bold text-gray-900">
-        {t.heading}
-      </h2>
+      <h2 className="mb-2 text-2xl font-bold text-gray-900">{t.heading}</h2>
       <p className="mb-8 text-sm text-gray-500">
-        {process.env.NODE_ENV === "development"
-          ? error.message || t.fallback
-          : t.fallback}
+        {process.env.NODE_ENV === "development" ? error.message || t.fallback : t.fallback}
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-3">

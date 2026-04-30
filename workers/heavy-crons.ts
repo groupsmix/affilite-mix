@@ -32,9 +32,7 @@ const worker = {
     ctx: CloudflareExecutionContext,
   ) {
     const cronHost =
-      typeof env.CRON_HOST === "string" && env.CRON_HOST.trim()
-        ? env.CRON_HOST.trim()
-        : null;
+      typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
 
     if (!cronHost) {
       console.error(
@@ -71,9 +69,7 @@ const worker = {
           : null;
 
     if (!cronSecret) {
-      console.error(
-        `[heavy-crons] No secret configured for "${job.name}" — skipping dispatch.`,
-      );
+      console.error(`[heavy-crons] No secret configured for "${job.name}" — skipping dispatch.`);
       return;
     }
 
@@ -89,15 +85,9 @@ const worker = {
         .then(async (res: Response) => {
           const body = await res.text();
           if (res.ok) {
-            console.log(
-              `[heavy-crons] ${job.name} responded ${res.status}:` ,
-              body,
-            );
+            console.log(`[heavy-crons] ${job.name} responded ${res.status}:`, body);
           } else {
-            console.error(
-              `[heavy-crons] ${job.name} failed ${res.status}:` ,
-              body,
-            );
+            console.error(`[heavy-crons] ${job.name} failed ${res.status}:`, body);
           }
         })
         .catch((err: unknown) => {

@@ -22,7 +22,7 @@ export function getRateLimitEmailKey(email: string): string {
   const normalized = normalizeEmail(email);
   const [localPart, domain] = normalized.split("@");
   if (!localPart || !domain) return normalized;
-  
+
   const strippedLocal = localPart.split("+")[0];
   return `${strippedLocal}@${domain}`;
 }

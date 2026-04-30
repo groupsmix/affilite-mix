@@ -49,15 +49,13 @@ describe("safeRedirectUrl (G-46)", () => {
   it("allows cross-origin URLs in allow-list", () => {
     const req = makeRequest();
     const allowed = new Set(["https://trusted.com"]);
-    expect(
-      safeRedirectUrl("https://trusted.com/callback", req, { allowedOrigins: allowed }),
-    ).toBe("https://trusted.com/callback");
+    expect(safeRedirectUrl("https://trusted.com/callback", req, { allowedOrigins: allowed })).toBe(
+      "https://trusted.com/callback",
+    );
   });
 
   it("uses custom fallback when provided", () => {
     const req = makeRequest();
-    expect(
-      safeRedirectUrl("https://evil.com", req, { fallback: "/admin" }),
-    ).toBe("/admin");
+    expect(safeRedirectUrl("https://evil.com", req, { fallback: "/admin" })).toBe("/admin");
   });
 });

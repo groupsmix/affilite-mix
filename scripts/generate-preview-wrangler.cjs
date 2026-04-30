@@ -8,17 +8,17 @@
  *   - services self-reference: preview can't self-bind to the prod service.
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-const src = path.join(__dirname, '..', 'wrangler.jsonc');
-const dst = path.join(__dirname, '..', 'wrangler.preview.json');
+const src = path.join(__dirname, "..", "wrangler.jsonc");
+const dst = path.join(__dirname, "..", "wrangler.preview.json");
 
-const raw = fs.readFileSync(src, 'utf8');
+const raw = fs.readFileSync(src, "utf8");
 
 // Strip JSONC comments and trailing commas while respecting string literals.
 function stripJsonc(input) {
-  let out = '';
+  let out = "";
   let i = 0;
   const n = input.length;
   while (i < n) {
@@ -32,7 +32,7 @@ function stripJsonc(input) {
         const c = input[i];
         out += c;
         i++;
-        if (c === '\\' && i < n) {
+        if (c === "\\" && i < n) {
           out += input[i];
           i++;
           continue;
@@ -41,20 +41,20 @@ function stripJsonc(input) {
       }
       continue;
     }
-    if (ch === '/' && next === '/') {
-      while (i < n && input[i] !== '\n') i++;
+    if (ch === "/" && next === "/") {
+      while (i < n && input[i] !== "\n") i++;
       continue;
     }
-    if (ch === '/' && next === '*') {
+    if (ch === "/" && next === "*") {
       i += 2;
-      while (i < n && !(input[i] === '*' && input[i + 1] === '/')) i++;
+      while (i < n && !(input[i] === "*" && input[i + 1] === "/")) i++;
       i += 2;
       continue;
     }
     out += ch;
     i++;
   }
-  return out.replace(/,(\s*[}\]])/g, '$1');
+  return out.replace(/,(\s*[}\]])/g, "$1");
 }
 
 const cleaned = stripJsonc(raw);
@@ -73,4 +73,4 @@ if (previewName) {
 }
 
 fs.writeFileSync(dst, JSON.stringify(cfg, null, 2));
-console.log(`Wrote ${dst}${previewName ? ` (name=${previewName})` : ''}`);
+console.log(`Wrote ${dst}${previewName ? ` (name=${previewName})` : ""}`);

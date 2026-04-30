@@ -25,11 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function GiftFinderLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function GiftFinderLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
   if (!site.features.giftFinder) notFound();
   return <>{children}</>;

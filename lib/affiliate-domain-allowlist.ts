@@ -146,12 +146,31 @@ function extractRegistrableDomain(hostname: string): string {
 
   // Known multi-part TLDs
   const multiPartTlds = new Set([
-    "co.uk", "co.jp", "co.nz", "co.za", "co.in", "co.il",
-    "com.au", "com.br", "com.mx", "com.sg", "com.hk",
-    "com.tw", "com.my", "com.tr", "com.ar", "com.co",
-    "org.uk", "org.au", "net.au", "net.nz",
-    "ac.uk", "ac.nz", "ac.za",
-    "gov.uk", "gov.au",
+    "co.uk",
+    "co.jp",
+    "co.nz",
+    "co.za",
+    "co.in",
+    "co.il",
+    "com.au",
+    "com.br",
+    "com.mx",
+    "com.sg",
+    "com.hk",
+    "com.tw",
+    "com.my",
+    "com.tr",
+    "com.ar",
+    "com.co",
+    "org.uk",
+    "org.au",
+    "net.au",
+    "net.nz",
+    "ac.uk",
+    "ac.nz",
+    "ac.za",
+    "gov.uk",
+    "gov.au",
   ]);
 
   const lastTwo = parts.slice(-2).join(".");
@@ -201,13 +220,9 @@ export function validateAffiliateDomain(url: string): DomainValidationResult {
     allowed.has(hostname) ||
     allowed.has(registrable) ||
     // Check prefix patterns (e.g. "affiliate." matches "affiliate.example.com")
-    Array.from(allowed).some(
-      (d) => d.endsWith(".") && hostname.startsWith(d),
-    ) ||
+    Array.from(allowed).some((d) => d.endsWith(".") && hostname.startsWith(d)) ||
     // Check if any allowed domain is a suffix of the hostname
-    Array.from(allowed).some(
-      (d) => hostname === d || hostname.endsWith(`.${d}`),
-    );
+    Array.from(allowed).some((d) => hostname === d || hostname.endsWith(`.${d}`));
 
   if (isAllowed) {
     return { allowed: true, domain: hostname };

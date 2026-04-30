@@ -40,27 +40,26 @@ export async function POST(request: NextRequest) {
 
   if (violation) {
     // Forward to Sentry as a non-crashing event for analysis
-    captureException(
-      new Error("CSP Violation"),
-      {
-        tags: { csp_violation: true },
-        level: "warning" as const,
-        contexts: {
-          csp_violation: {
-            // Strip PII from document URL
-            document_url: typeof violation.document_uri === "string"
+    captureException(new Error("CSP Violation"), {
+      tags: { csp_violation: true },
+      level: "warning" as const,
+      contexts: {
+        csp_violation: {
+          // Strip PII from document URL
+          document_url:
+            typeof violation.document_uri === "string"
               ? violation.document_uri.replace(/[\?#].*$/, "").slice(0, 200)
               : undefined,
-            violated_directive: violation["violated-directive"],
-            blocked_uri: violation["blocked-uri"],
-            original_policy: violation["original-policy"],
-            referrer: typeof violation.referrer === "string"
+          violated_directive: violation["violated-directive"],
+          blocked_uri: violation["blocked-uri"],
+          original_policy: violation["original-policy"],
+          referrer:
+            typeof violation.referrer === "string"
               ? violation.referrer.replace(/[\?#].*$/, "").slice(0, 200)
               : undefined,
-          },
         },
       },
-    );
+    });
   }
 
   // Always return 204 No Content per CSP spec

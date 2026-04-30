@@ -25,7 +25,9 @@ export interface NicheTemplateRow {
 }
 
 /** List all niche templates */
-export async function listNicheTemplates(getClient: DalClientGetter = defaultDalClientGetter): Promise<NicheTemplateRow[]> {
+export async function listNicheTemplates(
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<NicheTemplateRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -38,7 +40,10 @@ export async function listNicheTemplates(getClient: DalClientGetter = defaultDal
 }
 
 /** Get a single template by slug */
-export async function getNicheTemplateBySlug(slug: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<NicheTemplateRow | null> {
+export async function getNicheTemplateBySlug(
+  slug: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<NicheTemplateRow | null> {
   const sb = await getClient();
   const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
 
@@ -77,7 +82,10 @@ export async function updateNicheTemplate(
 }
 
 /** Delete a niche template (only non-builtin) */
-export async function deleteNicheTemplate(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteNicheTemplate(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("id", id).eq("is_builtin", false);
 

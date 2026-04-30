@@ -8,22 +8,18 @@
 //
 // Deploy via: npx wrangler deploy --config wrangler.heavy-crons.jsonc
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "affilite-mix-heavy-crons",
-	"main": "workers/heavy-crons.ts",
-	"compatibility_date": "2026-03-17",
-	"compatibility_flags": ["nodejs_compat"],
-	"triggers": {
-		"crons": [
-			"0 2 * * *",
-			"0 5 * * *",
-			"0 7 * * *"
-		]
-	},
-	"observability": {
-		"enabled": true
-	},
-	"placement": {
-		"mode": "smart"
-	}
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "affilite-mix-heavy-crons",
+  "main": "workers/heavy-crons.ts",
+  "compatibility_date": "2026-03-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["0 2 * * *", "0 5 * * *", "0 7 * * *"],
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "placement": {
+    "mode": "smart",
+  },
 }

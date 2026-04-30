@@ -21,16 +21,19 @@ export interface MembershipRow {
 const TABLE = "memberships";
 
 /** Create a membership */
-export async function createMembership(input: {
-  site_id: string;
-  email: string;
-  name?: string;
-  tier?: "insider" | "pro";
-  stripe_customer_id?: string;
-  stripe_subscription_id?: string;
-  current_period_start?: string;
-  current_period_end?: string;
-}, getClient: DalClientGetter = defaultDalClientGetter): Promise<MembershipRow> {
+export async function createMembership(
+  input: {
+    site_id: string;
+    email: string;
+    name?: string;
+    tier?: "insider" | "pro";
+    stripe_customer_id?: string;
+    stripe_subscription_id?: string;
+    current_period_start?: string;
+    current_period_end?: string;
+  },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<MembershipRow> {
   const sb = await getClient();
 
   const { data, error } = await sb.from(TABLE).insert(input).select().single();
@@ -106,7 +109,11 @@ export async function updateMembership(
 }
 
 /** List all members for a site */
-export async function listMembers(siteId: string, status?: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<MembershipRow[]> {
+export async function listMembers(
+  siteId: string,
+  status?: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<MembershipRow[]> {
   const sb = await getClient();
 
   let query = sb
@@ -125,7 +132,10 @@ export async function listMembers(siteId: string, status?: string, getClient: Da
 }
 
 /** Get member count for a site */
-export async function getMemberCount(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+export async function getMemberCount(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<number> {
   const sb = await getClient();
 
   const { count, error } = await sb
