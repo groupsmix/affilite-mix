@@ -9,7 +9,7 @@
 
 ## 1. EXECUTIVE SUMMARY
 
-Affilite-Mix is a **well-above-average** multi-tenant affiliate marketing platform built on Next.js 15 / Cloudflare Workers with Supabase (Postgres + RLS). The codebase demonstrates mature security engineering across authentication, authorization, CSRF, CSP, rate limiting, SSRF protection, and tenant isolation -- far exceeding what is typical at this stage. The project has 109 unit/integration test files (~16,300 lines), 11 E2E specs, 94 database migrations (91 with rollback scripts), Terraform IaC for Cloudflare and GitHub, and extensive operational documentation (incident response, SLOs, backup policy, DR runbook, threat model).
+Affilite-Mix is a **well-above-average** multi-tenant affiliate marketing platform built on Next.js 15 / Cloudflare Workers with Supabase (Postgres + RLS). The codebase demonstrates mature security engineering across authentication, authorization, CSRF, CSP, rate limiting, SSRF protection, and tenant isolation -- far exceeding what is typical at this stage. The project has 109 unit/integration test files (~16,300 lines), 11 E2E specs, 93 database migrations (91 with rollback scripts), Terraform IaC for Cloudflare and GitHub, and extensive operational documentation (incident response, SLOs, backup policy, DR runbook, threat model).
 
 **Overall Project Health Score: 8.2 / 10**
 
@@ -51,7 +51,7 @@ Affilite-Mix is a **well-above-average** multi-tenant affiliate marketing platfo
                            |
                     [Supabase Postgres]
                      RLS enabled on all tables
-                     94 migrations
+                     93 migrations
                      service_role for admin ops
                      tenant-scoped JWT for public reads
                            |
@@ -403,7 +403,7 @@ Month 3:
 - **Tenant isolation is well-thought-out.** Multi-layer: middleware injects `x-site-id`, `requireAdmin()` validates cookie + membership, DAL functions filter by `site_id`, RLS policies enforce at database level, CI checks validate authz wrappers.
 - **Operational maturity is high for the project stage.** SLO definitions, incident response playbook, backup policy with RTO/RPO, DR runbook, threat model, secrets rotation runbook, migration safety docs, and extensive CI security checks.
 - **Test coverage is meaningful.** 109 test files covering security-critical paths: CORS, CSRF, auth timing, rate limiting, tenant isolation, Stripe webhook verification, prompt injection, RLS, admin ACL, and more.
-- **Database migration discipline is excellent.** 94 forward migrations with 91 corresponding rollback (down) scripts (3 latest migrations have no `-down.sql` yet), migration order checks in CI, safety documentation, and schema drift detection scripts.
+- **Database migration discipline is excellent.** 93 forward migrations with 91 corresponding rollback (down) scripts (2 early migrations -- `00039_create_click_failures` and `00065_add_actor_user_id` -- have no `-down.sql`), migration order checks in CI, safety documentation, and schema drift detection scripts.
 
 ### What's Concerning
 
