@@ -14,7 +14,9 @@ export function ProsCons({ pros, cons, language = "en" }: ProsConsProps) {
       {/* Pros */}
       <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
         <h4 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-emerald-800">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs text-white">+</span>
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs text-white">
+            +
+          </span>
           {isAr ? "المميزات" : "Pros"}
         </h4>
         {pros.length > 0 ? (
@@ -36,7 +38,9 @@ export function ProsCons({ pros, cons, language = "en" }: ProsConsProps) {
       {/* Cons */}
       <div className="rounded-lg border border-red-200 bg-red-50 p-4">
         <h4 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-red-800">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">&minus;</span>
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+            &minus;
+          </span>
           {isAr ? "العيوب" : "Cons"}
         </h4>
         {cons.length > 0 ? (

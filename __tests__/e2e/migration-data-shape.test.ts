@@ -19,7 +19,7 @@ describe("Database Migration Data Shape", () => {
       expect.arrayContaining([
         expect.objectContaining({ column_name: "slug", data_type: "text" }),
         expect.objectContaining({ column_name: "domain", data_type: "text" }),
-      ])
+      ]),
     );
   });
 });

@@ -5,11 +5,7 @@ import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { notFound } from "next/navigation";
 import { ProductForm } from "../product-form";
 
-export default async function EditProductPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) notFound();
   const { id } = await params;

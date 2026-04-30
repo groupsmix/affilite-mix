@@ -46,7 +46,10 @@ const LIST_COLUMNS =
   "id, site_id, title, slug, excerpt, featured_image, type, status, review_state, category_id, tags, author, publish_at, meta_title, meta_description, og_image, created_at, updated_at" as const;
 
 /** List content for a site with optional filters */
-export async function listContent(opts: ListContentOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<ContentRow[]> {
+export async function listContent(
+  opts: ListContentOptions,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ContentRow[]> {
   const sb = await getClient();
   const sortColumn: ContentSortColumn = opts.sortBy ?? "created_at";
   const ascending = opts.sortDirection === "asc";
@@ -83,7 +86,11 @@ export async function listContent(opts: ListContentOptions, getClient: DalClient
 }
 
 /** Get a single content item by id */
-export async function getContentById(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<ContentRow | null> {
+export async function getContentById(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ContentRow | null> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -186,7 +193,11 @@ export async function updateContent(
 }
 
 /** Delete content */
-export async function deleteContent(siteId: string, id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteContent(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
 
@@ -194,7 +205,10 @@ export async function deleteContent(siteId: string, id: string, getClient: DalCl
 }
 
 /** Count content items matching filters */
-export async function countContent(opts: CountContentOptions, getClient: DalClientGetter = defaultDalClientGetter): Promise<number> {
+export async function countContent(
+  opts: CountContentOptions,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<number> {
   const sb = await getClient();
   let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", opts.siteId);
 

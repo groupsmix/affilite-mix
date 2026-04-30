@@ -50,9 +50,7 @@ test.describe("Admin Content Page", () => {
     await expect(slugInput).toHaveValue("my-test-article");
   });
 
-  test("content form should have content type dropdown with correct options", async ({
-    page,
-  }) => {
+  test("content form should have content type dropdown with correct options", async ({ page }) => {
     await page.goto("/admin/content/new");
 
     const isLoginPage = await page
@@ -72,9 +70,7 @@ test.describe("Admin Content Page", () => {
     expect(count).toBeGreaterThanOrEqual(3);
   });
 
-  test("content form should have status dropdown with scheduled option", async ({
-    page,
-  }) => {
+  test("content form should have status dropdown with scheduled option", async ({ page }) => {
     await page.goto("/admin/content/new");
 
     const isLoginPage = await page
@@ -134,14 +130,10 @@ test.describe("Admin Content Page", () => {
     }
 
     await expect(page.locator("text=Schedule Publishing")).toBeVisible();
-    await expect(
-      page.locator('input[type="datetime-local"]').first(),
-    ).toBeVisible();
+    await expect(page.locator('input[type="datetime-local"]').first()).toBeVisible();
   });
 
-  test("content form should show validation error on empty submit", async ({
-    page,
-  }) => {
+  test("content form should show validation error on empty submit", async ({ page }) => {
     await page.goto("/admin/content/new");
 
     const isLoginPage = await page

@@ -83,7 +83,10 @@ export async function listSharedTargets(
 }
 
 /** List content shared TO a given site (from other sites) */
-export async function listContentSharedToSite(targetSiteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SharedContentRow[]> {
+export async function listContentSharedToSite(
+  targetSiteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SharedContentRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)

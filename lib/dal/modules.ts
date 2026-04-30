@@ -18,7 +18,10 @@ const TABLE = "site_modules";
 /* ------------------------------------------------------------------ */
 
 /** List all module records for a site */
-export async function listSiteModules(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteModuleRow[]> {
+export async function listSiteModules(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteModuleRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -31,7 +34,10 @@ export async function listSiteModules(siteId: string, getClient: DalClientGetter
 }
 
 /** List only enabled modules for a site */
-export async function listEnabledModules(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteModuleRow[]> {
+export async function listEnabledModules(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteModuleRow[]> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -45,7 +51,11 @@ export async function listEnabledModules(siteId: string, getClient: DalClientGet
 }
 
 /** Check if a specific module is enabled for a site */
-export async function isModuleEnabled(siteId: string, moduleKey: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<boolean> {
+export async function isModuleEnabled(
+  siteId: string,
+  moduleKey: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<boolean> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -118,7 +128,11 @@ export async function bulkUpsertSiteModules(
 }
 
 /** Delete a module record for a site */
-export async function deleteSiteModule(siteId: string, moduleKey: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<void> {
+export async function deleteSiteModule(
+  siteId: string,
+  moduleKey: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<void> {
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("module_key", moduleKey);
 

@@ -49,10 +49,7 @@ function clearCsrfToken(): void {
  * If the server returns 403, the cached token is cleared, a fresh
  * token is fetched, and the request is retried once.
  */
-export async function fetchWithCsrf(
-  url: string,
-  opts: RequestInit = {},
-): Promise<Response> {
+export async function fetchWithCsrf(url: string, opts: RequestInit = {}): Promise<Response> {
   const token = await ensureCsrfToken();
   const headers = new Headers(opts.headers);
   headers.set(CSRF_HEADER, token);

@@ -52,7 +52,11 @@ const QUIZ_TABLE = "quizzes";
 const SUBMISSION_TABLE = "quiz_submissions";
 
 /** Get active quiz by slug */
-export async function getQuizBySlug(siteId: string, slug: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<QuizRow | null> {
+export async function getQuizBySlug(
+  siteId: string,
+  slug: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<QuizRow | null> {
   const sb = await getClient();
 
   const { data, error } = await sb
@@ -68,7 +72,10 @@ export async function getQuizBySlug(siteId: string, slug: string, getClient: Dal
 }
 
 /** List active quizzes for a site */
-export async function listQuizzes(siteId: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<QuizRow[]> {
+export async function listQuizzes(
+  siteId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<QuizRow[]> {
   const sb = await getClient();
 
   const { data, error } = await sb
@@ -142,7 +149,10 @@ export async function updateQuizSubmission(
 }
 
 /** Get a submission by ID */
-export async function getQuizSubmission(id: string, getClient: DalClientGetter = defaultDalClientGetter): Promise<QuizSubmissionRow | null> {
+export async function getQuizSubmission(
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<QuizSubmissionRow | null> {
   const sb = await getClient();
 
   const { data, error } = await sb.from(SUBMISSION_TABLE).select("*").eq("id", id).maybeSingle();

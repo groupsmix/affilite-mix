@@ -55,8 +55,7 @@ describe("injectProductLinks", () => {
   });
 
   it("links both first and last occurrences", () => {
-    const html =
-      "<p>Test Product is great.</p><p>Middle section.</p><p>Buy Test Product now.</p>";
+    const html = "<p>Test Product is great.</p><p>Middle section.</p><p>Buy Test Product now.</p>";
     const result = injectProductLinks(html, [makeProduct()], true);
     const linkCount = (result.match(/\/api\/track\/click/g) || []).length;
     expect(linkCount).toBe(2);
@@ -82,8 +81,7 @@ describe("injectProductLinks", () => {
   });
 
   it("does not create nested anchors but links text outside anchors", () => {
-    const html =
-      '<p><a href="/existing">Test Product</a> is mentioned again as Test Product.</p>';
+    const html = '<p><a href="/existing">Test Product</a> is mentioned again as Test Product.</p>';
     const result = injectProductLinks(html, [makeProduct()], true);
     // Should have the original anchor plus one new link for text outside
     const anchorCount = (result.match(/<a /g) || []).length;

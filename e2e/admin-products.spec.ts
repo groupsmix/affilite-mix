@@ -34,7 +34,10 @@ test.describe("Admin Products Page", () => {
     // The page may redirect to login if not authenticated
     // If we land on the product form, verify fields exist
     const nameInput = page.locator('input[type="text"]').first();
-    const isLoginPage = await page.locator("text=Admin Login").isVisible().catch(() => false);
+    const isLoginPage = await page
+      .locator("text=Admin Login")
+      .isVisible()
+      .catch(() => false);
 
     if (!isLoginPage) {
       await expect(page.locator("text=Name")).toBeVisible();
@@ -47,7 +50,10 @@ test.describe("Admin Products Page", () => {
     // Navigate and check if we can access the form
     await page.goto("/admin/products/new");
 
-    const isLoginPage = await page.locator("text=Admin Login").isVisible().catch(() => false);
+    const isLoginPage = await page
+      .locator("text=Admin Login")
+      .isVisible()
+      .catch(() => false);
     if (isLoginPage) {
       // Skip test if we can't access the product form without auth
       test.skip();
@@ -66,7 +72,10 @@ test.describe("Admin Products Page", () => {
   test("product form should show validation error on empty submit", async ({ page }) => {
     await page.goto("/admin/products/new");
 
-    const isLoginPage = await page.locator("text=Admin Login").isVisible().catch(() => false);
+    const isLoginPage = await page
+      .locator("text=Admin Login")
+      .isVisible()
+      .catch(() => false);
     if (isLoginPage) {
       test.skip();
       return;
@@ -83,7 +92,10 @@ test.describe("Admin Products Page", () => {
   test("product form should have status dropdown with correct options", async ({ page }) => {
     await page.goto("/admin/products/new");
 
-    const isLoginPage = await page.locator("text=Admin Login").isVisible().catch(() => false);
+    const isLoginPage = await page
+      .locator("text=Admin Login")
+      .isVisible()
+      .catch(() => false);
     if (isLoginPage) {
       test.skip();
       return;
@@ -103,7 +115,10 @@ test.describe("Admin Products Page", () => {
   test("product form should have currency dropdown", async ({ page }) => {
     await page.goto("/admin/products/new");
 
-    const isLoginPage = await page.locator("text=Admin Login").isVisible().catch(() => false);
+    const isLoginPage = await page
+      .locator("text=Admin Login")
+      .isVisible()
+      .catch(() => false);
     if (isLoginPage) {
       test.skip();
       return;

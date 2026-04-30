@@ -1,9 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Newsletter Signup", () => {
-  test("should display newsletter signup form on the homepage", async ({
-    page,
-  }) => {
+  test("should display newsletter signup form on the homepage", async ({ page }) => {
     await page.goto("/");
 
     // Newsletter signup may be present on the homepage
@@ -17,9 +15,7 @@ test.describe("Newsletter Signup", () => {
     }
   });
 
-  test("should reject invalid email on newsletter signup", async ({
-    page,
-  }) => {
+  test("should reject invalid email on newsletter signup", async ({ page }) => {
     await page.goto("/");
 
     const emailInput = page.locator(
@@ -36,9 +32,7 @@ test.describe("Newsletter Signup", () => {
     await emailInput.first().fill("not-an-email");
 
     // Find and click the subscribe/submit button near the email input
-    const submitBtn = page.locator(
-      'button[type="submit"]:near(input[type="email"])',
-    );
+    const submitBtn = page.locator('button[type="submit"]:near(input[type="email"])');
     if ((await submitBtn.count()) > 0) {
       await submitBtn.first().click();
 
@@ -75,9 +69,7 @@ test.describe("Newsletter Signup", () => {
 
     await emailInput.first().fill("test@example.com");
 
-    const submitBtn = page.locator(
-      'button[type="submit"]:near(input[type="email"])',
-    );
+    const submitBtn = page.locator('button[type="submit"]:near(input[type="email"])');
     if ((await submitBtn.count()) > 0) {
       await submitBtn.first().click();
 

@@ -40,7 +40,10 @@ module.exports = {
       preset: "lighthouse:recommended",
       assertions: {
         // ── Core Web Vitals (error = CI fails) ──────────────
-        "largest-contentful-paint": ["error", { maxNumericValue: 2500, aggregationMethod: "median" }],
+        "largest-contentful-paint": [
+          "error",
+          { maxNumericValue: 2500, aggregationMethod: "median" },
+        ],
         "cumulative-layout-shift": ["error", { maxNumericValue: 0.1, aggregationMethod: "median" }],
         "total-blocking-time": ["error", { maxNumericValue: 200, aggregationMethod: "median" }],
 
@@ -51,14 +54,8 @@ module.exports = {
         "categories:seo": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
 
         // ── Resource budgets (warn only — tune after baseline) ──
-        "resource-summary:script:size": [
-          "warn",
-          { maxNumericValue: 300000 },
-        ],
-        "resource-summary:total:size": [
-          "warn",
-          { maxNumericValue: 800000 },
-        ],
+        "resource-summary:script:size": ["warn", { maxNumericValue: 300000 }],
+        "resource-summary:total:size": ["warn", { maxNumericValue: 800000 }],
 
         // ── Audits skipped via `settings.skipAudits` ────────
         // `lighthouse:recommended` asserts these audits ran; since we skip
