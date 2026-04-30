@@ -14,13 +14,24 @@ import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "node:crypto";
 
+// The privileged Supabase client wraps every PostgREST builder in a Proxy
+// (see `lib/server-only/service-role.ts`) that exposes a runtime-only
+// `unsafeNoSiteFilter()` opt-out for cross-tenant operations. The method
+// is not part of the upstream `@supabase/supabase-js` types, so we declare
+// the minimal shape we need here.
+type SiteFilterOptOut<T> = T & { unsafeNoSiteFilter(): PromiseLike<T> };
+
 async function logClickFailure(payload: RecordClickInput, errorMessage: string): Promise<void> {
   try {
     const sb = getPrivilegedSupabaseClient();
-    await sb.from("click_failures").insert({
+    // click_failures has no top-level site_id column (site_id lives inside the
+    // jsonb `payload`). The privileged-client proxy enforces a site_id filter
+    // by default, so we explicitly opt out for this cross-tenant DLQ table.
+    const insertBuilder = sb.from("click_failures").insert({
       payload: { ...payload, _error: errorMessage } as unknown as Record<string, unknown>,
       error_message: errorMessage,
     });
+    await (insertBuilder as unknown as SiteFilterOptOut<typeof insertBuilder>).unsafeNoSiteFilter();
   } catch (err) {
     captureException(err, { context: "click-queue.log-failure" });
   }
@@ -65,7 +76,9 @@ function getClickQueue(): CloudflareQueue<ClickQueueMessage> | undefined {
  * clicks are best-effort analytics.
  */
 export async function publishClick(input: RecordClickInput): Promise<void> {
-  const clickId = input.click_id ?? randomUUID();
+  // F-BIZ-01: Ensure click_id is strictly server-generated at the edge.
+  // We ignore any client-supplied click_id to prevent replay/suppression attacks.
+  const clickId = randomUUID();
   const enriched: RecordClickInput = { ...input, click_id: clickId };
   const queue = getClickQueue();
   const payload: ClickQueueMessage = { ...enriched, ts: Date.now() };

@@ -100,7 +100,7 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
     return _privilegedClient as PrivilegedSupabaseClient;
   }
 
-  _privilegedClient = createClient<Database>(url, key, {
+  const rawClient = createClient<Database>(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -115,11 +115,122 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
       },
     },
   });
+
+  // F-API-01: Wrap the raw client in a Proxy that intercepts `.from()` so
+  // every PostgREST query builder is forced through `wrapTable`, which
+  // enforces a `.eq('site_id', ...)` filter (or an explicit
+  // `.unsafeNoSiteFilter()` opt-out) before the query is awaited.
+  // The Proxy itself is cached so subsequent cache hits also return the
+  // wrapped client — the previous implementation only returned the Proxy
+  // on the cold path, which silently bypassed the guard on every cache hit.
+  _privilegedClient = new Proxy(rawClient, {
+    get(t, p, r) {
+      if (p === "from") {
+        return (table: string) => wrapTable(t.from(table));
+      }
+      return Reflect.get(t, p, r);
+    },
+  }) as SupabaseClient<Database>;
   _privilegedClientCreatedAt = now;
   _cachedUrl = url;
   _cachedKey = key;
 
   return _privilegedClient as PrivilegedSupabaseClient;
+}
+
+/**
+ * F-API-01: Proxy wrapper for PostgREST query builders to enforce
+ * tenant isolation on the privileged service-role client.
+ *
+ * The PostgREST builder is thenable — the query only executes when the
+ * caller awaits it. We therefore enforce the `site_id` requirement at the
+ * `then`/awaitable boundary rather than on `select`/`insert`/`update`/
+ * `delete`/`upsert`, because those methods are *starters* in the supabase-js
+ * fluent API (e.g. `.from(t).select('*').eq('site_id', id)`), not terminals.
+ *
+ * Acceptable patterns:
+ *   client.from(t).select('*').eq('site_id', id)
+ *   client.from(t).insert({ site_id: id, ... })
+ *   client.from(t).update({...}).eq('site_id', id)
+ *   client.from(t).delete().eq('site_id', id)
+ *   client.from(t).upsert({ site_id: id, ... })
+ *   client.from(t).select('*').unsafeNoSiteFilter() // explicit opt-out
+ */
+function wrapTable(builder: any): any {
+  const state = { siteFilterApplied: false, lastTerminal: "<query>" };
+  return wrapBuilder(builder, state);
+}
+
+const PASSTHROUGH_TERMINALS = ["select", "insert", "update", "delete", "upsert"] as const;
+
+function wrapBuilder(
+  builder: any,
+  state: { siteFilterApplied: boolean; lastTerminal: string },
+): any {
+  const handler: ProxyHandler<any> = {
+    get(t, p) {
+      // Tenant filter: any `.eq('site_id', …)` satisfies the guard.
+      if (p === "eq") {
+        return (col: string, val: any) => {
+          if (col === "site_id") state.siteFilterApplied = true;
+          return wrapBuilder(t.eq(col, val), state);
+        };
+      }
+      // Explicit opt-out for cross-tenant operations.
+      if (p === "unsafeNoSiteFilter") {
+        return () => {
+          state.siteFilterApplied = true;
+          return wrapBuilder(t, state);
+        };
+      }
+
+      // Terminal awaitable: enforce the site filter when the query is awaited.
+      if (p === "then") {
+        const orig = t.then;
+        if (typeof orig !== "function") return orig;
+        return (resolve: any, reject: any) => {
+          if (!state.siteFilterApplied) {
+            const err = new Error(
+              `[F-API-01] Privileged ${state.lastTerminal} executed without .eq('site_id', …) or .unsafeNoSiteFilter() opt-out.`,
+            );
+            if (typeof reject === "function") return reject(err);
+            return Promise.reject(err);
+          }
+          return orig.call(t, resolve, reject);
+        };
+      }
+
+      const v = t[p];
+      if (typeof v === "function") {
+        // Mutation starters: track the method name and, for insert/upsert,
+        // accept `site_id` embedded in the payload as filter satisfaction.
+        if ((PASSTHROUGH_TERMINALS as readonly string[]).includes(String(p))) {
+          state.lastTerminal = String(p);
+          if (String(p) === "insert" || String(p) === "upsert") {
+            return (...args: any[]) => {
+              const payload = args[0];
+              const items = Array.isArray(payload) ? payload : [payload];
+              if (
+                items.length > 0 &&
+                items.every((it: any) => it && typeof it === "object" && "site_id" in it)
+              ) {
+                state.siteFilterApplied = true;
+              }
+              return wrapBuilder(v.apply(t, args), state);
+            };
+          }
+          return (...args: any[]) => wrapBuilder(v.apply(t, args), state);
+        }
+
+        // Any other builder method (filter, order, limit, single, …) — keep
+        // the chain wrapped so we can still observe the eventual `then`.
+        return (...args: any[]) => wrapBuilder(v.apply(t, args), state);
+      }
+      return v;
+    },
+  };
+
+  return new Proxy(builder, handler);
 }
 
 /**

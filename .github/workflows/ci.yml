@@ -271,8 +271,13 @@ jobs:
       - name: Generate SBOM (P2-7)
         run: |
           # P2-7: Generate Software Bill of Materials for the release.
-          npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json --spec-version 1.5 || echo "::warning::SBOM generation failed (non-blocking)"
-        continue-on-error: true
+          npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json --spec-version 1.5
+
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
 
       - name: Wrangler dry-run check (F-035)
         # `wrangler.jsonc` references `.open-next/assets` and
