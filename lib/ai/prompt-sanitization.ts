@@ -67,14 +67,38 @@ const CONTROL_TOKEN_PATTERNS: ReadonlyArray<RegExp> = [
   // Anthropic / Cohere transcript markers
   /<\|HUMAN_PREAMBLE\|>/gi,
   /<\|CHATBOT_PREAMBLE\|>/gi,
-  // Generic role-impersonation prefixes at the start of a line.
+  // Generic role-impersonation prefixes at the start of a line (ASCII).
   // Anchored to (^|\n) so we don't false-positive on legitimate
   // sentences containing the word "System:" mid-paragraph.
   /(^|\n)\s*(?:system|assistant|developer)\s*:\s*/gi,
+  // A115 audit fix: Multilingual role-impersonation variants.
+  // Arabic: نظام (system), مساعد (assistant), مطور (developer)
+  /(^|\n)\s*(?:\u0646\u0638\u0627\u0645|\u0645\u0633\u0627\u0639\u062F|\u0645\u0637\u0648\u0631)\s*[::\uFF1A]\s*/gim,
+  // Cyrillic: система (system), ассистент (assistant), разработчик (developer)
+  /(^|\n)\s*(?:\u0441\u0438\u0441\u0442\u0435\u043C\u0430|\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043D\u0442|\u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A)\s*[::\uFF1A]\s*/gim,
+  // Chinese: 系统 (system), 助手 (assistant), 开发者 (developer)
+  /(^|\n)\s*(?:\u7CFB\u7EDF|\u52A9\u624B|\u5F00\u53D1\u8005)\s*[::\uFF1A]\s*/gim,
 ];
 
 /** Bytes a tokenizer may interpret as a message boundary. */
 const FORBIDDEN_CHARS = /[\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\uFFFE\uFFFF]/g;
+
+/**
+ * A115 audit fix: Zero-width and invisible Unicode characters that can be
+ * used to split control tokens or smuggle instructions past regex filters.
+ *
+ * Includes:
+ *   - Zero-width spaces/joiners/non-joiners (U+200B..U+200F)
+ *   - Unicode tag characters (U+E0000..U+E007F)
+ *   - Variation selectors (U+FE00..U+FE0F)
+ *   - Word joiner (U+2060), zero-width no-break space / BOM (U+FEFF)
+ *   - Invisible separators (U+2028, U+2029)
+ *   - Soft hyphen (U+00AD)
+ *   - Left-to-right / right-to-left marks and overrides (U+200E..U+200F, U+202A..U+202E)
+ */
+
+const INVISIBLE_CHARS =
+  /[\u00AD\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060\uFEFF\uFE00-\uFE0F]|\uDB40[\uDC00-\uDC7F]/g;
 
 /**
  * Reads the optional environment override and returns the effective
@@ -112,6 +136,18 @@ export function sanitizePrompt(input: string, options: SanitizePromptOptions = {
   }
 
   let out = input;
+
+  // 0. NFKC normalization — folds compatibility characters (fullwidth
+  //    Latin, ligatures, circled letters, etc.) to their canonical form
+  //    so obfuscated tokens like `Ｓystem:` or `ⓐssistant:` are caught
+  //    by the ASCII regexes below. (A115 audit fix)
+  out = out.normalize("NFKC");
+
+  // 0b. Strip invisible / zero-width characters that can be used to
+  //     split control tokens or smuggle instructions past regex filters.
+  //     This must run before control-token detection so `S\u200Bystem:`
+  //     becomes `System:` and is caught. (A115 audit fix)
+  out = out.replace(INVISIBLE_CHARS, "");
 
   // 1. Strip well-known control tokens.
   for (const pattern of CONTROL_TOKEN_PATTERNS) {
