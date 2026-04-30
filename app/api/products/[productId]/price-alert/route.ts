@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createPriceAlert, getPriceAlert, deactivatePriceAlert } from "@/lib/dal/price-alerts";
@@ -16,7 +17,8 @@ export async function POST(
   const { productId } = await params;
 
   // Rate limit: 10 alerts/hour per IP
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // Fix: use centralized getClientIp instead of raw header parsing
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`price-alert:${ip}`, {
     maxRequests: 10,
     windowMs: 60 * 60 * 1000,

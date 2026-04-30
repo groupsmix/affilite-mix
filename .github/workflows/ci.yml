@@ -206,6 +206,33 @@ jobs:
           fi
           echo "All security-critical routes use fail-closed rate limiting."
 
+      - name: Raw IP header parsing check (Risk-6)
+        run: |
+          # Risk-6: All API routes must use getClientIp() for IP extraction.
+          # Raw x-forwarded-for parsing is inconsistent and misses
+          # CF-Connecting-IP. Exempt lib/get-client-ip.ts itself.
+          set -euo pipefail
+          VIOLATIONS=""
+          for file in $(find app/api -name '*.ts' -o -name '*.tsx' | grep -v node_modules); do
+            if grep -q 'x-forwarded-for' "$file" && ! grep -q 'getClientIp' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          # Also check for direct header access in route files
+          for file in $(find app/api -name 'route.ts' -o -name 'route.tsx'); do
+            if grep -qE "headers\.get\(['\"]x-forwarded-for" "$file" 2>/dev/null; then
+              if ! grep -q 'getClientIp' "$file"; then
+                VIOLATIONS="$VIOLATIONS $file"
+              fi
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::API routes using raw IP header parsing instead of getClientIp():$VIOLATIONS"
+            echo "::error::Use getClientIp(request) from @/lib/get-client-ip for consistent, safe IP extraction."
+            exit 1
+          fi
+          echo "All API routes use centralized IP extraction."
+
       - name: Verify Stripe uses Restricted API Keys (F-033)
         run: |
           # FIX-15 (F-033): Stripe legacy sk_live_ / sk_test_ keys grant full account
