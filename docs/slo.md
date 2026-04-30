@@ -19,7 +19,7 @@
 ### 4. Public API Response
 
 - **Target:** ≤ 200ms at p95
-- **Applies to:** /api/community/_, /api/newsletter/_
+- **Applies to:** `/api/community/*`, `/api/newsletter/*`
 
 ## Error Budget Policy
 

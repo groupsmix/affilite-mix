@@ -385,7 +385,7 @@ export function getAdminBindingCookie(binding: string): {
       secure: IS_SECURE_COOKIE,
       sameSite: "strict" as const,
       path: "/",
-      maxAge: 60 * 60 * 8, // 8 hours (matches JWT expiry)
+      maxAge: 60 * 60 * 4, // 4 hours (matches JWT EXPIRY — F-SEC-03)
     },
   };
 }

@@ -23,12 +23,12 @@ const REFRESH_RATE_LIMIT = {
  * POST /api/auth/refresh
  * Re-issues the admin JWT if the current one is still valid.
  * Called periodically from the admin layout to prevent silent
- * logout during long editing sessions (8-hour token expiry).
+ * logout during long editing sessions (4-hour token expiry per F-SEC-03).
  *
  * P0-1: The refresh route now passes the NextRequest to createToken so
  * the refreshed token preserves the bnd claim. The binding cookie and
  * activity cookie are re-issued alongside the token, and the cookie
- * maxAge is aligned to the 8h JWT expiry.
+ * maxAge is aligned to the 4h JWT expiry.
  */
 export async function POST(request: NextRequest) {
   const session = await getAdminSession();
@@ -38,7 +38,13 @@ export async function POST(request: NextRequest) {
 
   // F-API-06: Add Origin check as defence-in-depth against CSRF, even though
   // SameSite=Strict is also enforced by the browser.
-  if (!isOriginAllowed(request.headers.get("origin"), request.headers.get("host"), request.headers.get("x-site-id"))) {
+  if (
+    !isOriginAllowed(
+      request.headers.get("origin"),
+      request.headers.get("host"),
+      request.headers.get("x-site-id"),
+    )
+  ) {
     return NextResponse.json({ error: "Forbidden: cross-origin request" }, { status: 403 });
   }
 
