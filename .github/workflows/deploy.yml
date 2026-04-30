@@ -768,25 +768,59 @@ jobs:
       # closed before any Worker mutation happens. Set the variable
       # `LOG_SHIPPER_REQUIRED_OVERRIDE=true` for a one-off override
       # (logged, audited).
-      - name: Enforce log shipping in production (F-009)
+      # F-005: Hardened log-shipping override with expiry, ticket requirement,
+      # and structured audit trail. The override is a break-glass mechanism
+      # and must be time-bounded and traceable.
+      - name: Enforce log shipping in production (F-005 / F-009)
         run: |
           set -euo pipefail
           ENABLED="${{ vars.LOG_SHIPPER_ENABLED }}"
           OVERRIDE="${{ vars.LOG_SHIPPER_REQUIRED_OVERRIDE }}"
+          OVERRIDE_TICKET="${{ vars.LOG_SHIPPER_OVERRIDE_TICKET }}"
+          OVERRIDE_EXPIRES="${{ vars.LOG_SHIPPER_OVERRIDE_EXPIRES }}"
+
           if [ "$ENABLED" != "true" ] && [ "$OVERRIDE" != "true" ]; then
             echo "::error::F-009: production deploy requires LOG_SHIPPER_ENABLED=true." >&2
             echo "::error::Provision the Tail Worker (workers/log-shipper) and set the repo" >&2
             echo "::error::variable LOG_SHIPPER_ENABLED=true. For a temporary, audited" >&2
-            echo "::error::override (e.g. shipper outage), set LOG_SHIPPER_REQUIRED_OVERRIDE=true." >&2
+            echo "::error::override, set LOG_SHIPPER_REQUIRED_OVERRIDE=true along with:" >&2
+            echo "::error::  LOG_SHIPPER_OVERRIDE_TICKET=<incident/change ticket URL>" >&2
+            echo "::error::  LOG_SHIPPER_OVERRIDE_EXPIRES=<ISO8601 UTC datetime>" >&2
             exit 1
           fi
+
           if [ "$OVERRIDE" = "true" ] && [ "$ENABLED" != "true" ]; then
-            echo "::warning::F-009: LOG_SHIPPER_REQUIRED_OVERRIDE=true is bypassing the durable-log-shipping requirement. Restore LOG_SHIPPER_ENABLED=true ASAP."
+            # F-005: Require a linked ticket for audit trail
+            if [ -z "$OVERRIDE_TICKET" ]; then
+              echo "::error::F-005: LOG_SHIPPER_REQUIRED_OVERRIDE=true requires LOG_SHIPPER_OVERRIDE_TICKET to be set."
+              echo "::error::Set it to the incident or change ticket URL authorizing this override."
+              exit 1
+            fi
+
+            # F-005: Require an expiry timestamp and enforce it
+            if [ -z "$OVERRIDE_EXPIRES" ]; then
+              echo "::error::F-005: LOG_SHIPPER_REQUIRED_OVERRIDE=true requires LOG_SHIPPER_OVERRIDE_EXPIRES to be set."
+              echo "::error::Set it to an ISO 8601 UTC datetime (e.g. 2025-01-15T12:00:00Z) after which the override is invalid."
+              exit 1
+            fi
+
+            # Check if the override has expired
+            EXPIRES_EPOCH=$(date -d "$OVERRIDE_EXPIRES" +%s 2>/dev/null || echo "0")
+            NOW_EPOCH=$(date +%s)
+            if [ "$EXPIRES_EPOCH" -le "$NOW_EPOCH" ]; then
+              echo "::error::F-005: LOG_SHIPPER_REQUIRED_OVERRIDE has expired (was: $OVERRIDE_EXPIRES)."
+              echo "::error::Either restore LOG_SHIPPER_ENABLED=true or set a new expiry."
+              exit 1
+            fi
+
+            echo "::warning::F-005: LOG_SHIPPER_REQUIRED_OVERRIDE=true is bypassing the durable-log-shipping requirement."
             echo "::warning::Override used by: ${{ github.actor }} at $(date -u +%Y-%m-%dT%H:%M:%SZ) in run ${{ github.run_id }}"
-            echo "::warning::This override usage is logged in the workflow run and should be linked to a change ticket."
-            # F-005: Surface override usage as a GitHub Actions annotation so it
+            echo "::warning::Linked ticket: $OVERRIDE_TICKET"
+            echo "::warning::Override expires: $OVERRIDE_EXPIRES"
+            echo "::warning::Restore LOG_SHIPPER_ENABLED=true ASAP."
+            # Surface override usage as a GitHub Actions annotation so it
             # appears in the PR / commit checks summary and is auditable.
-            echo "::notice title=Log-Shipper Override Active::LOG_SHIPPER_REQUIRED_OVERRIDE=true was used by ${{ github.actor }} in workflow run ${{ github.run_id }}. Ensure a change ticket is linked and LOG_SHIPPER_ENABLED is restored promptly."
+            echo "::notice title=Log-Shipper Override Active::LOG_SHIPPER_REQUIRED_OVERRIDE=true was used by ${{ github.actor }} in workflow run ${{ github.run_id }}. Ticket: $OVERRIDE_TICKET. Expires: $OVERRIDE_EXPIRES. Ensure LOG_SHIPPER_ENABLED is restored promptly."
           fi
 
       - name: Deploy log-shipper Tail Worker

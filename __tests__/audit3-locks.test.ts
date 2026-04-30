@@ -392,7 +392,7 @@ describe("Audit-3 regression locks", () => {
     const deploy = read(".github/workflows/deploy.yml");
 
     it("deploy workflow has a step that fails closed without log shipping", () => {
-      expect(deploy).toMatch(/Enforce log shipping in production \(F-009\)/);
+      expect(deploy).toMatch(/Enforce log shipping in production \(F-005/);
       expect(deploy).toMatch(/LOG_SHIPPER_ENABLED/);
       expect(deploy).toMatch(/LOG_SHIPPER_REQUIRED_OVERRIDE/);
       expect(deploy).toMatch(/exit 1/);

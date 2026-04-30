@@ -1,0 +1,83 @@
+rules:
+  # ── Raw IP header parsing ──────────────────────────────────────────
+  # All routes must use getClientIp() for consistent, safe IP extraction.
+  # Raw header parsing can miss CF-Connecting-IP, be spoofed, or return
+  # undefined in edge cases.
+  - id: raw-ip-header-parsing
+    patterns:
+      - pattern: |
+          request.headers.get("x-forwarded-for")
+      - pattern-not-inside: |
+          function getClientIp(...) { ... }
+    message: >
+      Use `getClientIp(request)` from `@/lib/get-client-ip` instead of
+      raw header parsing. Raw `x-forwarded-for` extraction is inconsistent
+      across proxies and misses Cloudflare's `CF-Connecting-IP` header.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      audit-ref: audit-risk-6
+
+  # ── Missing auth wrapper in admin routes ───────────────────────────
+  - id: admin-route-missing-auth
+    patterns:
+      - pattern: |
+          export async function $METHOD(request: ...) { ... }
+      - pattern-not: |
+          export async function $METHOD(request: ...) {
+            ...
+            await requireAdmin()
+            ...
+          }
+      - pattern-not: |
+          export async function $METHOD(request: ...) {
+            ...
+            await requireSuperAdmin()
+            ...
+          }
+    paths:
+      include:
+        - "app/api/admin/**/route.ts"
+        - "app/api/admin/**/route.tsx"
+    message: >
+      Admin API route handler does not call `requireAdmin()` /
+      `requireSuperAdmin()`. All admin routes must use an approved authz
+      wrapper.
+    languages: [typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      audit-ref: F-003
+
+  # ── Service-role import outside allowlist ──────────────────────────
+  - id: service-role-import
+    pattern: |
+      import { ... } from "@/lib/server-only/service-role"
+    message: >
+      Importing the privileged Supabase client bypasses RLS. This import
+      must be listed in `lib/security/service-role-allowlist.ts` and
+      reviewed by the security CODEOWNER.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      audit-ref: risk-8
+
+  # ── Unsafe redirect without validation ─────────────────────────────
+  - id: unsafe-redirect
+    patterns:
+      - pattern: |
+          NextResponse.redirect($URL)
+      - pattern-not: |
+          NextResponse.redirect(safeRedirectUrl(...))
+      - pattern-not: |
+          NextResponse.redirect(new URL(..., request.url))
+    message: >
+      Use `safeRedirectUrl()` from `@/lib/safe-redirect` to validate
+      redirect targets. Open redirects allow phishing attacks.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      audit-ref: general

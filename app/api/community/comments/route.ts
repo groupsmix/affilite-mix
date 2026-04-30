@@ -38,7 +38,12 @@ export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
 
   // Rate limit: 10 comments per hour per IP
-  const rl = await checkRateLimit(`comment:${ip}`, { maxRequests: 10, windowMs: 60 * 60 * 1000 });
+  // SEC-04: failPolicy "closed" prevents comment spam during KV outages.
+  const rl = await checkRateLimit(`comment:${ip}`, {
+    maxRequests: 10,
+    windowMs: 60 * 60 * 1000,
+    failPolicy: "closed" as const,
+  });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many comments. Try again later." },
@@ -91,6 +96,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // SEC-07: Validate target_id and parent_id are UUIDs to prevent injection.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(body.target_id)) {
+    return NextResponse.json({ error: "target_id must be a valid UUID" }, { status: 400 });
+  }
+  if (body.parent_id && !UUID_RE.test(body.parent_id)) {
+    return NextResponse.json({ error: "parent_id must be a valid UUID" }, { status: 400 });
+  }
+
   // Verify Turnstile CAPTCHA
   const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
   if (!turnstileResult.success) {
@@ -132,13 +146,20 @@ export async function POST(request: NextRequest) {
       throw err;
     }
 
+    // SEC-06: Sanitize user_name to strip any HTML/script injection.
+    // Use the same tag-stripping path as `body` (sanitizeHtml) instead of
+    // HTML-entity encoding — React auto-escapes text content on render, so
+    // entity-encoding here would double-encode common characters (`'` →
+    // `&#39;` would render as the literal string `&#39;` in `O'Brien`).
+    const sanitizedName = sanitizeHtml(body.user_name).trim();
+
     const comment = await createComment({
       site_id: siteId,
       target_type: body.target_type as "product" | "content",
       target_id: body.target_id,
       parent_id: body.parent_id,
       user_email: normalizedEmail,
-      user_name: body.user_name,
+      user_name: sanitizedName,
       body: sanitizedBody,
     });
 
