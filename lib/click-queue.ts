@@ -17,10 +17,16 @@ import { randomUUID } from "node:crypto";
 async function logClickFailure(payload: RecordClickInput, errorMessage: string): Promise<void> {
   try {
     const sb = getPrivilegedSupabaseClient();
-    await sb.from("click_failures").insert({
-      payload: { ...payload, _error: errorMessage } as unknown as Record<string, unknown>,
-      error_message: errorMessage,
-    });
+    // click_failures has no top-level site_id column (site_id lives inside the
+    // jsonb `payload`). The privileged-client proxy enforces a site_id filter
+    // by default, so we explicitly opt out for this cross-tenant DLQ table.
+    await sb
+      .from("click_failures")
+      .insert({
+        payload: { ...payload, _error: errorMessage } as unknown as Record<string, unknown>,
+        error_message: errorMessage,
+      })
+      .unsafeNoSiteFilter();
   } catch (err) {
     captureException(err, { context: "click-queue.log-failure" });
   }

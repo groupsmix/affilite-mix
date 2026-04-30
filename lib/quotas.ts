@@ -223,9 +223,29 @@ interface CounterShape {
   count: number;
 }
 
-// F-API-07: Track consecutive KV failures to fail-closed on sustained outage.
-let kvConsecutiveFailures = 0;
+// F-API-07: Track recent KV failures within a sliding time window so that we
+// fail closed only on a sustained KV outage. Using a simple counter shared
+// across all tenants in the isolate would let three failures from unrelated
+// sites trip the threshold for everyone, and a single success from any tenant
+// would reset it. A timestamp window scopes "sustained" to wall-clock time
+// rather than request count, so interleaved traffic from many tenants can't
+// flip the breaker spuriously.
 const KV_FAILURE_THRESHOLD = 3;
+const KV_FAILURE_WINDOW_MS = 10_000;
+const kvFailureTimestamps: number[] = [];
+
+function recordKvFailure(now: number): number {
+  const cutoff = now - KV_FAILURE_WINDOW_MS;
+  while (kvFailureTimestamps.length > 0 && kvFailureTimestamps[0] < cutoff) {
+    kvFailureTimestamps.shift();
+  }
+  kvFailureTimestamps.push(now);
+  return kvFailureTimestamps.length;
+}
+
+function resetKvFailures(): void {
+  kvFailureTimestamps.length = 0;
+}
 
 async function readCounter(
   siteId: string,
@@ -237,17 +257,23 @@ async function readCounter(
   try {
     const key = kvKey(siteId, resource, window);
     const data = (await kv.get(key, "json")) as CounterShape | null;
-    kvConsecutiveFailures = 0;
+    resetKvFailures();
     return data?.count ?? 0;
   } catch (err) {
-    kvConsecutiveFailures++;
+    const recentFailures = recordKvFailure(Date.now());
     captureException(err, {
       context: "quotas.readCounter",
-      extra: { siteId, resource, window, consecutiveFailures: kvConsecutiveFailures },
+      extra: {
+        siteId,
+        resource,
+        window,
+        recentFailures,
+        windowMs: KV_FAILURE_WINDOW_MS,
+      },
     });
-    if (kvConsecutiveFailures >= KV_FAILURE_THRESHOLD) {
+    if (recentFailures >= KV_FAILURE_THRESHOLD) {
       throw new Error(
-        `KV unreachable for ${kvConsecutiveFailures} consecutive calls — failing closed.`,
+        `KV unreachable for ${recentFailures} calls within ${KV_FAILURE_WINDOW_MS}ms — failing closed.`,
       );
     }
     return 0;
