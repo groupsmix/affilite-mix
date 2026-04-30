@@ -135,7 +135,7 @@ customer data. Date every artifact with the collection timestamp.
 - [ ] Evidence reviewed by a second team member
 - [ ] Pack version and date recorded below
 
-**Pack version**: **_
-**Collection date**: _**
-**Collected by**: **_
-**Reviewed by**: _**
+**Pack version**: **\_
+**Collection date**: \_**
+**Collected by**: **\_
+**Reviewed by**: \_**
