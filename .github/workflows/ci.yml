@@ -94,6 +94,15 @@ jobs:
           fi
           bash scripts/check-admin-authz.sh || exit 1
 
+      - name: DAL site_id scoping audit (AUDIT-FIX)
+        run: |
+          set -euo pipefail
+          if [ ! -f "scripts/check-dal-site-scoping.sh" ]; then
+            echo "::error::scripts/check-dal-site-scoping.sh is missing — DAL site scoping audit cannot run."
+            exit 1
+          fi
+          bash scripts/check-dal-site-scoping.sh || exit 1
+
       - name: CORS security tests (PRIORITY 2)
         run: |
           # P1-11: Fail closed when test files are missing.
