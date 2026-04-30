@@ -4,21 +4,49 @@ import { useEffect } from "react";
 import "vanilla-cookieconsent/dist/cookieconsent.css";
 import * as CookieConsent from "vanilla-cookieconsent";
 
+/**
+ * A69: Consent banner version. Bump this value whenever the banner text,
+ * categories, or legal basis changes so consent records can prove which
+ * version the user saw.
+ */
+export const CONSENT_BANNER_VERSION = "2026-04";
+
 interface CookieConsentCmpProps {
   language?: string;
   privacyPolicyUrl?: string;
 }
 
 /**
+ * Detect GPC (Global Privacy Control) signal.
+ * A63: California AG requires honouring Sec-GPC:1 as an opt-out of sale/share.
+ * The middleware forwards the header as `x-gpc: 1`; on the client side the
+ * browser exposes `navigator.globalPrivacyControl`.
+ */
+function isGpcEnabled(): boolean {
+  if (typeof navigator !== "undefined" && "globalPrivacyControl" in navigator) {
+    return !!(navigator as Record<string, unknown>).globalPrivacyControl;
+  }
+  return false;
+}
+
+/**
  * CMP (Consent Management Platform) wrapper around vanilla-cookieconsent (MIT).
  * Replaces the homemade cookie banner with a TCF v2.2-ready consent manager
  * required by ad networks like Mediavine/Raptive.
+ *
+ * NOTE: vanilla-cookieconsent does NOT emit a TCF v2.2 IAB consent string.
+ * For ad networks requiring a CMP-ID and IAB consent string (Mediavine,
+ * Raptive), upgrade to a certified TCF CMP (Didomi, OneTrust, Sourcepoint).
  */
 export default function CookieConsentCmp({
   language = "en",
   privacyPolicyUrl = "/privacy",
 }: CookieConsentCmpProps) {
   useEffect(() => {
+    // A63: If GPC is enabled, treat as opt-out -- skip the banner entirely
+    // and reject all non-essential categories.
+    const gpc = isGpcEnabled();
+
     void CookieConsent.run({
       guiOptions: {
         consentModal: {
@@ -171,14 +199,35 @@ export default function CookieConsentCmp({
         },
       },
 
+      // A63: If GPC is active, auto-reject all non-essential categories.
+      ...(gpc
+        ? {
+            mode: "opt-out" as const,
+          }
+        : {}),
+
       onConsent: () => {
-        const accepted = CookieConsent.acceptedCategory("affiliate");
-        window.dispatchEvent(new CustomEvent("cookieConsent", { detail: { accepted } }));
+        // A69: Emit the full category vector so all listeners can react,
+        // not just the affiliate listener.
+        const detail = {
+          analytics: CookieConsent.acceptedCategory("analytics"),
+          affiliate: CookieConsent.acceptedCategory("affiliate"),
+          advertising: CookieConsent.acceptedCategory("advertising"),
+          bannerVersion: CONSENT_BANNER_VERSION,
+          gpc,
+        };
+        window.dispatchEvent(new CustomEvent("cookieConsent", { detail }));
       },
 
       onChange: () => {
-        const accepted = CookieConsent.acceptedCategory("affiliate");
-        window.dispatchEvent(new CustomEvent("cookieConsent", { detail: { accepted } }));
+        const detail = {
+          analytics: CookieConsent.acceptedCategory("analytics"),
+          affiliate: CookieConsent.acceptedCategory("affiliate"),
+          advertising: CookieConsent.acceptedCategory("advertising"),
+          bannerVersion: CONSENT_BANNER_VERSION,
+          gpc,
+        };
+        window.dispatchEvent(new CustomEvent("cookieConsent", { detail }));
       },
     });
   }, [language, privacyPolicyUrl]);
