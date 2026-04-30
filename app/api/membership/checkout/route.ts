@@ -33,8 +33,9 @@ function priceIdForTier(tier: string): string | undefined {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  // SEC-14: failPolicy "closed" on financial transactions -- never skip
-  // rate limiting for checkout even during KV outages.
+  // F-006 / SEC-14: failPolicy: "closed" — checkout creates payment
+  // sessions and must never silently skip rate limiting when KV/DO is
+  // unavailable.
   const rl = await checkRateLimit(`membership-checkout:${ip}`, {
     maxRequests: 5,
     windowMs: 60 * 60 * 1000,

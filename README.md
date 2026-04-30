@@ -33,6 +33,12 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 | Bot protection   | Cloudflare Turnstile                            |
 | Deployment       | Cloudflare Workers via `@opennextjs/cloudflare` |
 
+> **F-008 — Deployment identity**: Production is deployed to **Cloudflare
+> Workers**. The Vercel URL shown in the GitHub repo metadata is a
+> legacy preview/demo endpoint and is **not** the canonical production
+> domain. Do not rely on it for production traffic, cookies, CORS, or
+> CSP configuration.
+
 ## Getting Started
 
 ### Prerequisites
