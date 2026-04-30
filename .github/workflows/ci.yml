@@ -178,6 +178,34 @@ jobs:
             exit 1
           fi
 
+      - name: Fail-closed rate limiting on security routes (F-006)
+        run: |
+          # F-006: Security-critical routes (auth, admin mutations) must use
+          # failPolicy: "closed" so rate limiting is never silently skipped
+          # when the distributed limiter (KV/DO) is unavailable.
+          set -euo pipefail
+          VIOLATIONS=""
+          SECURITY_ROUTES=(
+            "app/api/auth/login/route.ts"
+            "app/api/auth/forgot-password/route.ts"
+            "app/api/auth/reset-password/route.ts"
+            "app/api/auth/refresh/route.ts"
+            "app/api/auth/me/route.ts"
+          )
+          for route in "${SECURITY_ROUTES[@]}"; do
+            if [ -f "$route" ]; then
+              if grep -q "checkRateLimit" "$route" && ! grep -q 'failPolicy.*"closed"' "$route"; then
+                VIOLATIONS="$VIOLATIONS $route"
+              fi
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Security routes missing failPolicy: \"closed\":$VIOLATIONS"
+            echo "::error::All auth/admin rate-limited routes must use failPolicy: \"closed\" to prevent abuse during KV/DO outages."
+            exit 1
+          fi
+          echo "All security-critical routes use fail-closed rate limiting."
+
       - name: Verify Stripe uses Restricted API Keys (F-033)
         run: |
           # FIX-15 (F-033): Stripe legacy sk_live_ / sk_test_ keys grant full account

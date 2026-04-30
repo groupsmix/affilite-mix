@@ -5,8 +5,14 @@ import { getSiteById } from "@/config/sites";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 
-/** 60 auth/me requests per minute per IP */
-const AUTH_ME_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
+/** 60 auth/me requests per minute per IP.
+ * F-006: failPolicy: "closed" — auth endpoints must never silently skip
+ * rate limiting when the distributed limiter is unavailable. */
+const AUTH_ME_RATE_LIMIT = {
+  maxRequests: 60,
+  windowMs: 60 * 1000,
+  failPolicy: "closed" as const,
+};
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
