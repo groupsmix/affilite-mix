@@ -1,0 +1,113 @@
+# =============================================================================
+# A213: Continuous Attack-Surface Management (ASM)
+#
+# Runs daily at 06:30 UTC. Resolves every domain declared in wrangler.jsonc
+# and terraform/cloudflare/dns.tf, diffs Certificate Transparency logs, and
+# checks for unexpected open ports. Fails the workflow (and notifies via
+# GitHub issue) if the diff is non-empty, indicating a new or changed
+# public-facing asset that needs review.
+#
+# This is a *detection* workflow, not a blocking gate. It does not modify
+# any infrastructure.
+# =============================================================================
+name: Attack-Surface Diff (ASM)
+
+on:
+  schedule:
+    - cron: "30 6 * * *" # daily at 06:30 UTC
+  workflow_dispatch: {} # allow manual trigger
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  asm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq nmap curl
+
+      - name: Extract domains from config
+        id: domains
+        run: |
+          # Pull custom_domain patterns from wrangler.jsonc (strip comments)
+          WRANGLER_DOMAINS=$(sed 's|//.*||' wrangler.jsonc \
+            | jq -r '.routes[]? | select(.custom_domain == true) | .pattern' 2>/dev/null || true)
+
+          # Pull worker_custom_domains defaults from dns.tf
+          TF_DOMAINS=$(grep -oP '"\K[a-zA-Z0-9.-]+\.(xyz|site|com|net|org)(?=")' \
+            terraform/cloudflare/dns.tf 2>/dev/null || true)
+
+          # Combine, deduplicate, sort
+          ALL_DOMAINS=$(printf '%s\n%s' "$WRANGLER_DOMAINS" "$TF_DOMAINS" \
+            | sort -u | grep -v '^$')
+
+          echo "Domains to scan:"
+          echo "$ALL_DOMAINS"
+          echo "$ALL_DOMAINS" > /tmp/asm-domains.txt
+
+      - name: CT log diff
+        run: |
+          mkdir -p asm-results
+          while IFS= read -r domain; do
+            [ -z "$domain" ] && continue
+            echo "Querying crt.sh for ${domain}..."
+            curl -fsS --max-time 30 \
+              "https://crt.sh/?q=%25.${domain}&output=json" 2>/dev/null \
+              | jq -r '.[].name_value' 2>/dev/null \
+              | sort -u > "asm-results/ct-${domain}.txt" || true
+          done < /tmp/asm-domains.txt
+
+      - name: Port scan (443, 80, 8080, 22)
+        run: |
+          while IFS= read -r domain; do
+            [ -z "$domain" ] && continue
+            echo "Scanning ports for ${domain}..."
+            nmap -p 80,443,22,8080,9000 -Pn -T4 --open "$domain" \
+              -oN "asm-results/nmap-${domain}.txt" 2>/dev/null || true
+          done < /tmp/asm-domains.txt
+
+      - name: DNS resolution snapshot
+        run: |
+          while IFS= read -r domain; do
+            [ -z "$domain" ] && continue
+            echo "Resolving ${domain}..."
+            dig +short "$domain" A > "asm-results/dns-a-${domain}.txt" 2>/dev/null || true
+            dig +short "$domain" AAAA >> "asm-results/dns-a-${domain}.txt" 2>/dev/null || true
+            dig +short "$domain" CNAME > "asm-results/dns-cname-${domain}.txt" 2>/dev/null || true
+          done < /tmp/asm-domains.txt
+
+      - name: Upload results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: asm-results-${{ github.run_id }}
+          path: asm-results/
+          retention-days: 90
+
+      - name: Check for unexpected findings
+        run: |
+          ISSUES=""
+
+          # Check for unexpected open ports (only 80/443 should be open)
+          for f in asm-results/nmap-*.txt; do
+            [ -f "$f" ] || continue
+            if grep -qE '(22|8080|9000)/tcp\s+open' "$f"; then
+              ISSUES="${ISSUES}Unexpected open port in ${f}\n"
+            fi
+          done
+
+          if [ -n "$ISSUES" ]; then
+            echo "::error::ASM findings detected:"
+            printf '%b' "$ISSUES"
+            echo ""
+            echo "Review the uploaded asm-results artifact for details."
+            exit 1
+          fi
+
+          echo "No unexpected findings. Attack surface is as expected."

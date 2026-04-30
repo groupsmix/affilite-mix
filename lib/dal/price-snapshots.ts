@@ -52,22 +52,37 @@ export async function createPriceSnapshots(
   return assertRows<PriceSnapshotRow>(data);
 }
 
-/** Get price history for a product (last N days) */
+/**
+ * Get price history for a product (last N days).
+ *
+ * A47#1: When `siteId` is provided, the query is scoped to that tenant,
+ * preventing cross-tenant data leakage. Public-facing callers (API routes)
+ * MUST pass the site ID derived from the request's `x-site-id` header.
+ * Internal callers (cron jobs) may omit it when operating across all sites.
+ */
 export async function getPriceHistory(
   productId: string,
   days: number = 90,
+  siteId?: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<PriceSnapshotRow[]> {
   const sb = await getClient();
   const since = new Date();
   since.setDate(since.getDate() - days);
 
-  const { data, error } = await sb
+  let query = sb
     .from(TABLE)
     .select("*")
     .eq("product_id", productId)
     .gte("scraped_at", since.toISOString())
     .order("scraped_at", { ascending: true });
+
+  // A47#1: When siteId is provided, scope the query to the requesting tenant.
+  if (siteId) {
+    query = query.eq("site_id", siteId);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return assertRows<PriceSnapshotRow>(data);

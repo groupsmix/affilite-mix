@@ -1,0 +1,8 @@
+# RFC 9116 — https://www.rfc-editor.org/rfc/rfc9116
+# This file is served at /.well-known/security.txt per the standard.
+
+Contact: mailto:security@groupsmix.com
+Expires: 2027-04-30T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://wristnerd.xyz/.well-known/security.txt
+Policy: https://github.com/groupsmix/affilite-mix/blob/main/SECURITY.md
