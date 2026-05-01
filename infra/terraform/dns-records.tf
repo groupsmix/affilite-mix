@@ -6,3 +6,10 @@ resource "cloudflare_record" "spf" {
   value   = "v=spf1 include:_spf.resend.com -all"
   ttl     = 3600
 }
+resource "cloudflare_record" "dmarc" {
+  zone_id = var.cloudflare_zone_id
+  name    = "_dmarc"
+  type    = "TXT"
+  value   = "v=DMARC1; p=reject; rua=mailto:dmarc-reports@groupsmix.com; adkim=s; aspf=s"
+  ttl     = 3600
+}
