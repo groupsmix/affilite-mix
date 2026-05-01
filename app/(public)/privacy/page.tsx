@@ -138,28 +138,13 @@ export default async function PrivacyPage() {
             : "We retain your personal data only as long as necessary for the purposes for which it was collected:"}
         </p>
         <ul>
-          <li>{isAr ? "بيانات النقرات التابعة: 365 يومًا" : "Affiliate click data: 365 days"}</li>
+          <li>{isAr ? "بيانات النقرات التابعة: 90 يومًا" : "Affiliate click data: 90 days"}</li>
           <li>
             {isAr
               ? "اشتراكات النشرة البريدية: حتى إلغاء الاشتراك"
               : "Newsletter subscriptions: Until you unsubscribe"}
           </li>
-          <li>{isAr ? "مقاييس أداء الويب: 90 يومًا" : "Web performance metrics: 90 days"}</li>
-          <li>
-            {isAr
-              ? "بيانات الاختبارات القصيرة: 365 يومًا"
-              : "Quiz submissions: 365 days"}
-          </li>
-          <li>
-            {isAr
-              ? "أحداث Stripe: 90 يومًا"
-              : "Stripe events: 90 days"}
-          </li>
-          <li>
-            {isAr
-              ? "سجل التدقيق: 365 يومًا (ساخن)، 7 سنوات (أرشيف)"
-              : "Audit log: 365 days (hot), 7 years (archive)"}
-          </li>
+          <li>{isAr ? "مقاييس أداء الويب: 30 يومًا" : "Web performance metrics: 30 days"}</li>
         </ul>
 
         <h2>
@@ -182,8 +167,8 @@ export default async function PrivacyPage() {
           <li>
             <strong>Supabase:</strong>{" "}
             {isAr
-              ? "استضافة قاعدة البيانات وتخزين البيانات (الاتحاد الأوروبي — فرانكفورت)"
-              : "Database hosting and data storage (EU — Frankfurt)"}
+              ? "استضافة قاعدة البيانات وتخزين البيانات (الولايات المتحدة/الاتحاد الأوروبي)"
+              : "Database hosting and data storage (US/EU)"}
           </li>
           <li>
             <strong>Stripe:</strong>{" "}
@@ -201,37 +186,7 @@ export default async function PrivacyPage() {
               ? "مراقبة الأخطاء وتتبع الأداء (الولايات المتحدة)"
               : "Error monitoring and performance tracking (US)"}
           </li>
-          <li>
-            <strong>
-              {isAr ? "مزودو الذكاء الاصطناعي:" : "AI providers:"}
-            </strong>{" "}
-            {isAr
-              ? "نستخدم مزودي ذكاء اصطناعي (Cloudflare AI وGoogle Gemini وGroq وCohere) لإنشاء المحتوى فقط. لا يتم إرسال أي بيانات مستخدم إلى هذه الخدمات."
-              : "We use AI providers (Cloudflare AI, Google Gemini, Groq, and Cohere) for content generation only. No user data is sent to these services."}
-          </li>
         </ul>
-
-        <h2>
-          {isAr
-            ? "المحتوى المُنشأ بالذكاء الاصطناعي"
-            : "AI-Generated Content"}
-        </h2>
-        <p>
-          {isAr
-            ? "يتم إنشاء بعض المحتوى على هذا الموقع بمساعدة الذكاء الاصطناعي ومراجعته من قبل محرر بشري قبل النشر. يتم تمييز المحتوى المُنشأ بالذكاء الاصطناعي بوضوح. لا يتم استخدام بياناتك الشخصية كمدخلات لنماذج الذكاء الاصطناعي."
-            : "Some content on this site is drafted with the assistance of AI and reviewed by a human editor before publication. AI-generated content is clearly marked. Your personal data is never used as input to AI models."}
-        </p>
-
-        <h2>
-          {isAr
-            ? "اتخاذ القرارات الآلية"
-            : "Automated Decision-Making"}
-        </h2>
-        <p>
-          {isAr
-            ? "لا نتخذ قرارات آلية تؤثر قانونيًا أو بشكل كبير عليك بموجب المادة 22 من اللائحة العامة لحماية البيانات. قد تقدم اختباراتنا توصيات بشأن المنتجات، لكن هذه اقتراحات فقط وليست قرارات ملزمة."
-            : "We do not make automated decisions that produce legal or similarly significant effects on you under GDPR Article 22. Our quizzes may produce product recommendations, but these are suggestions only and not binding decisions."}
-        </p>
 
         <h2>{isAr ? "روابط الشركاء التابعين" : "Affiliate Links"}</h2>
         <p>
@@ -259,63 +214,6 @@ export default async function PrivacyPage() {
             ? "لممارسة أي من هذه الحقوق، تواصل معنا عبر البريد الإلكتروني: "
             : "To exercise any of these rights, contact us at: "}
           <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
-        </p>
-
-        <h2>
-          {isAr
-            ? "حقوق سكان كاليفورنيا (CCPA/CPRA)"
-            : "California Residents (CCPA/CPRA)"}
-        </h2>
-        <p>
-          {isAr
-            ? "إذا كنت مقيمًا في كاليفورنيا، فلديك حقوق إضافية بموجب قانون خصوصية المستهلك في كاليفورنيا (CCPA) وقانون حقوق الخصوصية في كاليفورنيا (CPRA):"
-            : "If you are a California resident, you have additional rights under the California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA):"}
-        </p>
-        <ul>
-          <li>
-            {isAr
-              ? "الحق في معرفة المعلومات الشخصية التي نجمعها ونستخدمها ونفصح عنها"
-              : "The right to know what personal information we collect, use, and disclose"}
-          </li>
-          <li>
-            {isAr
-              ? "الحق في حذف معلوماتك الشخصية"
-              : "The right to delete your personal information"}
-          </li>
-          <li>
-            {isAr
-              ? "الحق في تصحيح المعلومات الشخصية غير الدقيقة"
-              : "The right to correct inaccurate personal information"}
-          </li>
-          <li>
-            {isAr
-              ? "الحق في إلغاء الاشتراك في بيع أو مشاركة المعلومات الشخصية"
-              : "The right to opt out of the sale or sharing of personal information"}
-          </li>
-          <li>
-            {isAr
-              ? "الحق في عدم التمييز بسبب ممارسة حقوق الخصوصية"
-              : "The right to non-discrimination for exercising privacy rights"}
-          </li>
-        </ul>
-        <p>
-          {isAr
-            ? "نحن لا نبيع أو نشارك معلوماتك الشخصية كما هو محدد في CCPA/CPRA. تتبع الشركاء التابعين يُستخدم لإسناد العمولات فقط ولا يشكل بيعًا أو مشاركة للمعلومات الشخصية. نحن لا نعالج معلومات شخصية حساسة كما هو محدد في قسم 1798.121 من CPRA. نحن نحترم إشارة Global Privacy Control (GPC) ونعاملها كطلب إلغاء اشتراك."
-            : "We do not sell or share your personal information as defined by CCPA/CPRA. Affiliate tracking is used for commission attribution only and does not constitute a sale or sharing of personal information. We do not process sensitive personal information as defined in CPRA Section 1798.121. We honor the Global Privacy Control (GPC) signal and treat it as an opt-out request."}
-        </p>
-        <p>
-          {isAr
-            ? "فئات المعلومات الشخصية التي جمعناها في الأشهر الـ 12 الماضية: المعرفات (البريد الإلكتروني)، معلومات النشاط عبر الإنترنت (النقرات، مقاييس الأداء)، والاستدلالات (تفضيلات الاختبار)."
-            : "Categories of personal information collected in the last 12 months: Identifiers (email), Internet activity information (clicks, performance metrics), and Inferences (quiz preferences)."}
-        </p>
-
-        <h2>
-          {isAr ? "بيانات الأطفال" : "Children\u2019s Privacy"}
-        </h2>
-        <p>
-          {isAr
-            ? "خدماتنا غير موجهة للأطفال دون سن 16 عامًا (وفقًا للائحة العامة لحماية البيانات) أو 13 عامًا (وفقًا لقانون COPPA). نحن لا نجمع عن علم معلومات شخصية من الأطفال. إذا علمت أن طفلاً قد زودنا ببيانات شخصية، يرجى التواصل معنا وسنحذفها فورًا."
-            : "Our services are not directed to children under 16 (GDPR-K) or under 13 (COPPA). We do not knowingly collect personal information from children. If you become aware that a child has provided us with personal data, please contact us and we will promptly delete it."}
         </p>
 
         <h2>{isAr ? "تقديم شكوى" : "Right to Lodge a Complaint"}</h2>

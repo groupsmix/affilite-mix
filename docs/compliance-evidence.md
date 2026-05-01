@@ -19,7 +19,6 @@ inside this repository.
 | Vendor DPAs            | At onboarding + yearly | `docs/vendor-dpas.md` + signed PDF in `docs/evidence/dpa/`                                                  | Legal         |
 | Incident postmortems   | Per incident           | `docs/incidents/YYYY-MM-DD-<slug>.md`                                                                       | On-call       |
 | SLO burn alerts        | Continuous             | `docs/slo.md` + Cloudflare/Sentry dashboards                                                                | Platform      |
-| Mobile/on-chain audit  | Per audit cycle        | `docs/audit-mobile-onchain-2026-04-30.md` (A116-A135, all N/A)                                              | Security      |
 
 ## Evidence Storage
 

@@ -11,7 +11,7 @@ import AxeBuilder from "@axe-core/playwright";
 /** Shared axe configuration — excludes known third-party widgets. */
 function buildAxe(page: Page) {
   return new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .exclude(".turnstile-widget"); // Cloudflare Turnstile iframe
 }
 

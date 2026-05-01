@@ -6,9 +6,6 @@
   "main": "workers/custom-worker.ts",
   "compatibility_date": "2026-03-17",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-  // A206/A209: Disable the *.workers.dev preview URL so all traffic must
-  // transit the zone-level WAF, Bot Fight Mode, and TLS settings.
-  "workers_dev": false,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
