@@ -28,37 +28,10 @@ alert_mechanisms = {
 logpush_enabled       = true
 logpush_destination_conf = ""  # e.g. "r2://<account-id>/workers-logpush?account-id=...&access-key-id=...&secret-access-key=..."
 
-# ── A210: Email security (SPF / DKIM / DMARC) ─────────────────────────
-# These DNS records prevent domain spoofing in phishing attacks.
-# Adjust the SPF record to include your actual mail senders.
-dns_records = {
-  "spf-wristnerd" = {
-    name    = "wristnerd.xyz"
-    type    = "TXT"
-    content = "v=spf1 include:_spf.google.com include:amazonses.com ~all"
-    comment = "A210: SPF - authorize legitimate mail senders"
-  }
-  "dmarc-wristnerd" = {
-    name    = "_dmarc.wristnerd.xyz"
-    type    = "TXT"
-    content = "v=DMARC1; p=reject; rua=mailto:dmarc-reports@wristnerd.xyz; ruf=mailto:dmarc-forensics@wristnerd.xyz; adkim=s; aspf=s; pct=100"
-    comment = "A210: DMARC - reject unauthenticated mail, strict alignment"
-  }
-  # DKIM is typically configured by the mail provider (Resend, Google Workspace,
-  # etc.) which provides the specific selector and public key. Add a record like:
-  # "dkim-resend" = {
-  #   name    = "resend._domainkey.wristnerd.xyz"
-  #   type    = "TXT"
-  #   content = "v=DKIM1; k=rsa; p=<public-key-from-resend>"
-  #   comment = "A210: DKIM - Resend mail signing key"
-  # }
-}
-
 # ── WAF configuration ─────────────────────────────────────────────────
 # Source from Cloudflare analytics → Security → Events → top ASNs.
 waf_blocked_asns      = []
-# A31#10 / A36#13: Cuba (CU) added to complete the OFAC-restricted set.
-waf_blocked_countries = ["KP", "IR", "SY", "CU"]
+waf_blocked_countries = ["KP", "IR", "SY"]
 
 # ── R2 location hint ──────────────────────────────────────────────────
 r2_default_location   = "WNAM"

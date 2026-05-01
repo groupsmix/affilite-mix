@@ -10,7 +10,22 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { cronLock } from "@/lib/cron-lock";
 import type { AIContentType } from "@/lib/ai/content-generator";
-import { containsProhibitedContent } from "@/lib/ai/content-moderation";
+
+/**
+ * F-AI-02: Basic content moderation. Returns true if the text contains
+ * patterns commonly associated with harmful or prohibited content.
+ * A more robust approach would use Cloudflare Workers AI moderation or
+ * OpenAI's moderation API.
+ */
+const PROHIBITED_PATTERNS = [
+  /\b(phishing|malware|exploit|ransomware)\b/i,
+  /\b(illegal.*download|crack(ed|s)?.*software)\b/i,
+  /\b(hate\s*speech|incit(e|ing)\s*violence)\b/i,
+];
+
+function containsProhibitedContent(text: string): boolean {
+  return PROHIBITED_PATTERNS.some((pattern) => pattern.test(text));
+}
 
 /**
  * Cron endpoint: Auto-generate AI articles for all active sites.

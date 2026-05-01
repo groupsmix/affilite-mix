@@ -73,30 +73,7 @@
 | RLS enforcement  | Every tenant table has RLS, CI-verified  | `scripts/db-audit.sh`, CI db-audit job             |
 | Tenant isolation | Service-role allowlist, DAL site scoping | `lib/security/service-role-allowlist.ts`           |
 
-## CC1–CC5 — Control Environment, Communication, Risk, Monitoring, Control Activities
-
-These criteria are primarily people/process controls handled outside the codebase. Repo-level evidence supporting them:
-
-| Criteria | Title | Evidence |
-| -------- | ----- | -------- |
-| CC1 | Control Environment | `.github/CODEOWNERS`, `docs/release-process.md`, `docs/access-recertification.md` |
-| CC2 | Communication and Information | `docs/incident-response.md`, `docs/alerting-runbook.md`, `docs/observability-runbook.md` |
-| CC3 | Risk Assessment | `docs/threat-model.md`, `docs/ropa.md` (DPIA threshold assessment) |
-| CC4 | Monitoring Activities | Sentry alerts (`terraform/cloudflare/sentry-alerts.tf`), `docs/slo.md` (burn-rate alerts), `docs/observability-runbook.md` |
-| CC5 | Control Activities | CI gates (`.github/workflows/ci.yml`), branch protection, required PR reviews, eslint security rules |
-
-> Full CC1–CC5 narrative is maintained in the trust report (external to repo).
-
-## PI1.1 — Processing Integrity
-
-| Control | Implementation | Evidence |
-| ------- | -------------- | -------- |
-| Input validation | Schema validation on all API inputs | `lib/validation.ts`, `lib/validate-email.ts` |
-| Idempotency | Stripe events deduplicated on `event.id` | Migrations 00054, 00070; `lib/stripe-event-processor.ts` |
-| Reconciliation | Commission ingest cron verifies upstream data | `app/api/cron/commission-ingest/` |
-| Data integrity | Click queue with DLQ for failed writes | `lib/click-queue.ts`, `click_failures` table |
-
-## P1.1 — Privacy (P1: Notice)
+## P1.1 — Privacy
 
 | Control           | Implementation                     | Evidence                                          |
 | ----------------- | ---------------------------------- | ------------------------------------------------- |
@@ -104,59 +81,6 @@ These criteria are primarily people/process controls handled outside the codebas
 | Data erasure      | Privacy API for user data deletion | `app/api/admin/privacy/user/route.ts`             |
 | ROPA              | Documented processing activities   | `docs/ropa.md`                                    |
 | Cookie consent    | Consent management                 | `lib/cookie-utils.ts`                             |
-
-## P2 — Choice and Consent
-
-| Control | Implementation | Evidence |
-| ------- | -------------- | -------- |
-| Cookie CMP | Granular opt-in consent (4 categories) | `app/(public)/components/cookie-consent-cmp.tsx` |
-| GPC signal | Honoured as opt-out per California AG | `middleware.ts` (x-gpc header), `cookie-consent-cmp.tsx` (GPC detection) |
-| Consent before fire | Non-essential scripts gated on consent | `sentry.client.config.ts` (consent-gated init) |
-
-## P3 — Collection
-
-| Control | Implementation | Evidence |
-| ------- | -------------- | -------- |
-| Lawful basis documented | Per-category in RoPA | `docs/ropa.md` |
-| Data minimization | Only necessary fields collected | Privacy policy, schema review |
-
-## P4 — Use, Retention and Disposal
-
-| Control | Implementation | Evidence |
-| ------- | -------------- | -------- |
-| Automated retention | `purge_retention()` SECURITY DEFINER function | Migration 00085, `app/api/cron/data-retention/route.ts` |
-| Retention periods documented | Per-table in RoPA | `docs/ropa.md` |
-
-## P5 — Access
-
-| Control | Implementation | Evidence |
-| ------- | -------------- | -------- |
-| DSAR export | JSON export across 7 tables | `GET /api/admin/privacy/user` |
-| DSAR erasure | Delete/anonymise across 6 tables | `DELETE /api/admin/privacy/user` |
-| Response SLA | 30 calendar days documented | `docs/compliance-readiness.md` |
-
-## P6 — Disclosure to Third Parties
-
-| Control | Implementation | Evidence |
-| ------- | -------------- | -------- |
-| Sub-processor register | All vendors with DPA status | `docs/vendor-dpas.md` |
-| Transfer Impact Assessment | Schrems II TIA | `docs/schrems-ii-tia.md` |
-| DPF verification | Per-vendor certification status | `docs/vendor-dpas.md` section 7 |
-
-## P7 — Quality
-
-| Control | Implementation | Evidence |
-| ------- | -------------- | -------- |
-| Email validation | Format + domain validation | `lib/validate-email.ts` |
-| Data rectification | Admin update paths for subscriber/comment data | Admin UI, documented manual process |
-
-## P8 — Monitoring and Enforcement
-
-| Control | Implementation | Evidence |
-| ------- | -------------- | -------- |
-| Privacy monitoring | Structured logging of DSAR actions | `app/api/admin/privacy/user/route.ts` (logger.info) |
-| Audit trail | Immutable audit_log table | `lib/audit-log.ts`, migration creating audit_log |
-| Compliance review | Quarterly vendor review, annual pentest | Evidence Collection Cadence (below) |
 
 ---
 

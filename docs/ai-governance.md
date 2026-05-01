@@ -97,55 +97,6 @@ All AI-generated review/comparison/guide content is published with a
 visible affiliate disclosure. Disclosure rendering is enforced by the
 content templates and is not configurable per-site.
 
-## AI-Content Disclosure — EU AI Act Art. 50 (A72)
-
-### Art. 50(1): Human-readable marking
-
-Every article published from an `ai_drafts` row must carry a visible
-disclosure: _"This article was drafted with the assistance of AI and
-reviewed by an editor."_ This is distinct from the affiliate disclosure.
-
-**Implementation requirements:**
-- Add an `AiContentDisclosure` React component rendered when
-  `content.generated_by_ai === true`
-- Assert with a test that publishing an `ai_drafts` row injects the
-  disclosure into the output
-- The disclosure must be visible in both English and Arabic
-
-### Art. 50(2): Machine-readable provenance
-
-AI-generated content must be machine-readably marked. Implementation:
-
-1. Add `<meta name="generator" content="ai-assisted-content">` tag on
-   pages where the underlying `content` row has `generated_by_ai = true`
-2. Add a `isAIGenerated` field to the `Article` JSON-LD structured data
-3. Long-term: evaluate C2PA manifest metadata for full provenance
-
-### Data propagation
-
-When an `ai_drafts` row is approved and published to `content`:
-- Propagate `ai_drafts.provider` and `ai_drafts.model` to
-  `content.ai_provider` and `content.ai_model`
-- Set `content.generated_by_ai = true`
-- These fields enable the automatic rendering of the AI disclosure
-
-### EU AI Act classification
-
-| Category | Applicability | Status |
-| -------- | ------------- | ------ |
-| Prohibited (Art. 5) | None of the prohibited uses apply | PASS |
-| High-risk (Annex III) | Content generation is not high-risk | PASS |
-| Limited-risk transparency (Art. 50) | AI-generated content must be marked | **Action required** (see above) |
-| GPAI deployer obligations (Art. 53) | Document model use | Partial (this document) |
-| Watermarking (Art. 50(2)) | Machine-readable marking | **Action required** (see above) |
-| Human oversight | Admin approval gate before publish | PASS |
-| FRIA (Art. 27) | Only required for high-risk; N/A | N/A |
-
-### Lawful basis for training
-
-N/A -- the platform does not train models. All models are third-party
-hosted and accessed via API.
-
 ## Drift / Retraining
 
 We do not train custom models. Provider-side changes are tracked

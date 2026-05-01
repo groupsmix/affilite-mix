@@ -242,13 +242,6 @@ interface MemoryRateLimitEntry {
 
 const memoryStore = new Map<string, MemoryRateLimitEntry>();
 
-/**
- * A75/A78: Hard cap on in-memory rate-limit entries to prevent unbounded
- * memory growth between cleanup intervals. When the cap is hit, the oldest
- * entries (by insertion order, which Map preserves) are evicted.
- */
-const MEMORY_STORE_MAX_ENTRIES = 10_000;
-
 const CLEANUP_INTERVAL_MS = 60_000;
 let lastCleanup = Date.now();
 
@@ -264,17 +257,6 @@ function cleanupMemory(windowMs: number) {
       memoryStore.delete(key);
     }
   }
-
-  // A75: If still over cap after expiry cleanup, LRU-evict oldest entries.
-  if (memoryStore.size > MEMORY_STORE_MAX_ENTRIES) {
-    const excess = memoryStore.size - MEMORY_STORE_MAX_ENTRIES;
-    let evicted = 0;
-    for (const key of memoryStore.keys()) {
-      if (evicted >= excess) break;
-      memoryStore.delete(key);
-      evicted++;
-    }
-  }
 }
 
 function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitResult {
@@ -285,12 +267,6 @@ function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitRe
 
   let entry = memoryStore.get(key);
   if (!entry) {
-    // A75: Enforce hard cap before inserting new entries.
-    if (memoryStore.size >= MEMORY_STORE_MAX_ENTRIES) {
-      // Evict the oldest entry (first key in insertion order).
-      const firstKey = memoryStore.keys().next().value;
-      if (firstKey !== undefined) memoryStore.delete(firstKey);
-    }
     entry = { timestamps: [] };
     memoryStore.set(key, entry);
   }
