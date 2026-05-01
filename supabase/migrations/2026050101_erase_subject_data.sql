@@ -9,7 +9,7 @@ create or replace function public.erase_subject_data(
 ) returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = pg_catalog, public
 as $$
 declare
   v_count_newsletter int := 0;
