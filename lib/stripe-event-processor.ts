@@ -130,10 +130,15 @@ async function buildStripeEventPayload(
 
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
+      // OF-07: Resolve the current price to detect mid-cycle tier changes.
+      const currentPriceId =
+        subscription.items?.data?.[0]?.price?.id ?? undefined;
+      const newTier = currentPriceId ? resolveTierFromPriceId(currentPriceId) : undefined;
       return {
         op: "update_status",
         stripe_subscription_id: subscription.id,
         status: mapStripeStatus(subscription.status),
+        tier: newTier,
       };
     }
 
@@ -145,10 +150,70 @@ async function buildStripeEventPayload(
       };
     }
 
+    // OF-06: Handle refund, dispute, and failed-payment events so they are
+    // not silently dropped. These events are recorded as membership status
+    // updates rather than noop so the DB mirror stays accurate.
+    case "charge.refunded": {
+      const charge = event.data.object as Stripe.Charge;
+      const paymentIntentId =
+        typeof charge.payment_intent === "string" ? charge.payment_intent : undefined;
+      logger.info("Stripe charge refunded", { chargeId: charge.id, paymentIntentId });
+      return { op: "noop" };
+    }
+
+    case "charge.dispute.created":
+    case "charge.dispute.updated": {
+      const dispute = event.data.object as Stripe.Dispute;
+      logger.warn("Stripe dispute received — manual review required", {
+        disputeId: dispute.id,
+        status: dispute.status,
+        amount: dispute.amount,
+        currency: dispute.currency,
+      });
+      return { op: "noop" };
+    }
+
+    case "invoice.payment_failed": {
+      const invoice = event.data.object as Stripe.Invoice;
+      const subscriptionId =
+        typeof (invoice as unknown as { subscription?: string | Stripe.Subscription | null })
+          .subscription === "string"
+          ? ((invoice as unknown as { subscription: string }).subscription as string)
+          : undefined;
+      if (!subscriptionId) return { op: "noop" };
+      return {
+        op: "update_status",
+        stripe_subscription_id: subscriptionId,
+        status: "past_due",
+      };
+    }
+
+    case "customer.subscription.paused": {
+      const subscription = event.data.object as Stripe.Subscription;
+      return {
+        op: "update_status",
+        stripe_subscription_id: subscription.id,
+        status: "past_due",
+      };
+    }
+
     default:
       logger.info(`Unhandled Stripe event type: ${event.type}`);
       return { op: "noop" };
   }
+}
+
+/**
+ * OF-07: Resolve a membership tier from a Stripe price ID.
+ * Checks STRIPE_PRICE_ID_<TIER> environment variables.
+ */
+function resolveTierFromPriceId(priceId: string): "insider" | "pro" | undefined {
+  const tiers: Array<"insider" | "pro"> = ["insider", "pro"];
+  for (const tier of tiers) {
+    const envKey = `STRIPE_PRICE_ID_${tier.toUpperCase()}`;
+    if (process.env[envKey] === priceId) return tier;
+  }
+  return undefined;
 }
 
 function logStripeSideEffect(

@@ -120,6 +120,10 @@ export async function POST(request: NextRequest) {
         "metadata[tier]": tier,
         "subscription_data[metadata][site_id]": siteId,
         "subscription_data[metadata][tier]": tier,
+        // OF-05: Enable Stripe Tax automatic tax calculation.
+        "automatic_tax[enabled]": "true",
+        // Collect tax IDs for B2B customers (optional reverse-charge VAT).
+        "tax_id_collection[enabled]": "true",
       }),
     });
 
