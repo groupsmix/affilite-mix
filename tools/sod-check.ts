@@ -38,7 +38,11 @@ interface RbacConfig {
 
 const CONFIG_PATH = path.join(process.cwd(), "config/rbac/roles.json");
 
-function resolvePermissions(roleId: string, roles: Role[], visited = new Set<string>()): Permission[] {
+function resolvePermissions(
+  roleId: string,
+  roles: Role[],
+  visited = new Set<string>(),
+): Permission[] {
   if (visited.has(roleId)) return [];
   visited.add(roleId);
   const role = roles.find((r) => r.id === roleId);

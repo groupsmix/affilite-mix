@@ -20,11 +20,11 @@ third-party dependencies (sandboxed ad slots, CMP) noted below.
 
 ## Known Issues
 
-| Issue | Impact | Target fix |
-|-------|--------|-----------|
-| Third-party ad iframes | Level A — no accessible name | Ad partner review |
-| Cookie consent dynamic region | Level AA — live region announcements | CMP upgrade |
-| Price history chart table alternative | Level A — no data table fallback | Q3 2026 |
+| Issue                                 | Impact                               | Target fix        |
+| ------------------------------------- | ------------------------------------ | ----------------- |
+| Third-party ad iframes                | Level A — no accessible name         | Ad partner review |
+| Cookie consent dynamic region         | Level AA — live region announcements | CMP upgrade       |
+| Price history chart table alternative | Level A — no data table fallback     | Q3 2026           |
 
 ## Contact
 

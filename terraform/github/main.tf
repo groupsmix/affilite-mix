@@ -80,9 +80,9 @@ variable "required_status_checks" {
     { context = "codeql" },            # security.yml :: CodeQL analysis
     { context = "dependency-review" }, # security.yml :: dep review
     # OF-09: Additional required checks for supply-chain + deploy safety.
-    { context = "sbom" },              # sbom.yml :: SBOM attestation
-    { context = "wrangler-dry-run" },  # deploy.yml :: Wrangler dry-run
-    { context = "staging-smoke" },     # deploy-gradual.yml :: staging smoke test
+    { context = "sbom" },             # sbom.yml :: SBOM attestation
+    { context = "wrangler-dry-run" }, # deploy.yml :: Wrangler dry-run
+    { context = "staging-smoke" },    # deploy-gradual.yml :: staging smoke test
   ]
 }
 
@@ -90,7 +90,7 @@ variable "required_review_count" {
   type        = number
   description = "Number of approving PR reviews required."
   # OF-09: Require at least 2 reviewers to prevent single-actor merges.
-  default     = 2
+  default = 2
 }
 
 variable "break_glass_team_slug" {
@@ -101,7 +101,7 @@ variable "break_glass_team_slug" {
     Membership of this team must be audited regularly. Set to null to
     disable bypass entirely.
   EOT
-  default = null
+  default     = null
 }
 
 provider "github" {

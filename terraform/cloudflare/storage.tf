@@ -151,7 +151,7 @@ variable "r2_replication_enabled" {
 # Lifecycle policy note output — surfaced as Terraform output so CI/CD plans
 # contain a visible reminder that manual wiring is still required.
 output "r2_lifecycle_notice" {
-  value = <<-EOT
+  value       = <<-EOT
     OF-11 NOTICE: R2 lifecycle/WORM/replication rules are not yet
     manageable via Terraform. Apply the following settings manually or via
     the Cloudflare API / wrangler CLI:
