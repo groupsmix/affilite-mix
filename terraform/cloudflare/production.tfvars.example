@@ -57,8 +57,7 @@ dns_records = {
 # ── WAF configuration ─────────────────────────────────────────────────
 # Source from Cloudflare analytics → Security → Events → top ASNs.
 waf_blocked_asns      = []
-# A31#10 / A36#13: Cuba (CU) added to complete the OFAC-restricted set.
-waf_blocked_countries = ["KP", "IR", "SY", "CU"]
+waf_blocked_countries = ["KP", "IR", "SY"]
 
 # ── R2 location hint ──────────────────────────────────────────────────
 r2_default_location   = "WNAM"
