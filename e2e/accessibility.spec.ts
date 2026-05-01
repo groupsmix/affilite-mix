@@ -24,7 +24,7 @@ for (const { name, path } of PUBLIC_PATHS) {
     }
 
     const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       // Marketing-page content we don't own shouldn't block CI — narrow
       // the scope to our page chrome.
       .exclude("[data-axe-exclude]")

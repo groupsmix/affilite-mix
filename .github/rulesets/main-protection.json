@@ -1,5 +1,5 @@
 {
-  "_comment": [
+  "_comment_": [
     "Portable GitHub ruleset payload for the `main` branch.",
     "Mirrors terraform/github/branch-protection.tf for teams that prefer to apply",
     "the policy via `gh api` without running Terraform. See",
@@ -9,7 +9,7 @@
     "  jq 'del(._comment)' .github/rulesets/main-protection.json | \\",
     "    gh api -X POST repos/groupsmix/affilite-mix/rulesets --input -",
     "",
-    "Bypass actors are intentionally an empty list — admin / maintainer",
+    "Bypass actors are intentionally an empty list \u2014 admin / maintainer",
     "bypass is disabled. The Terraform module exposes a",
     "`break_glass_team_slug` variable for teams that want to grant",
     "PR-mode bypass to a documented incident-response team. To match",
@@ -22,19 +22,29 @@
   "bypass_actors": [],
   "conditions": {
     "ref_name": {
-      "include": ["refs/heads/main"],
+      "include": [
+        "refs/heads/main"
+      ],
       "exclude": []
     }
   },
   "rules": [
-    { "type": "deletion" },
-    { "type": "non_fast_forward" },
-    { "type": "required_linear_history" },
-    { "type": "required_signatures" },
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "required_linear_history"
+    },
+    {
+      "type": "required_signatures"
+    },
     {
       "type": "pull_request",
       "parameters": {
-        "required_approving_review_count": 1,
+        "required_approving_review_count": 2,
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": true,
         "require_last_push_approval": true,
@@ -46,16 +56,57 @@
       "parameters": {
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
-          { "context": "check" },
-          { "context": "Required checks" },
-          { "context": "RLS audit (E-6)" },
-          { "context": "DB type drift (E-5)" },
-          { "context": "Terraform validate" },
-          { "context": "Dependency review" },
-          { "context": "Secret leak prevention" },
-          { "context": "License compliance" },
-          { "context": "npm audit (high / critical)" },
-          { "context": "Preview E2E gate" }
+          {
+            "context": "check"
+          },
+          {
+            "context": "Required checks"
+          },
+          {
+            "context": "RLS audit (E-6)"
+          },
+          {
+            "context": "DB type drift (E-5)"
+          },
+          {
+            "context": "Terraform validate"
+          },
+          {
+            "context": "Dependency review"
+          },
+          {
+            "context": "Secret leak prevention"
+          },
+          {
+            "context": "License compliance"
+          },
+          {
+            "context": "npm audit (high / critical)"
+          },
+          {
+            "context": "Preview E2E gate"
+          },
+          {
+            "context": "secret-scan"
+          },
+          {
+            "context": "codeql"
+          },
+          {
+            "context": "dependency-review"
+          },
+          {
+            "context": "ci / build"
+          },
+          {
+            "context": "security / semgrep"
+          },
+          {
+            "context": "Accessibility (axe-core)"
+          },
+          {
+            "context": "WCAG 2.2 AA"
+          }
         ]
       }
     }

@@ -79,13 +79,16 @@ variable "required_status_checks" {
     { context = "secret-scan" },       # security.yml :: secret scanning job
     { context = "codeql" },            # security.yml :: CodeQL analysis
     { context = "dependency-review" }, # security.yml :: dep review
+    { context = "ci / build" },        # OF-08: build must pass
+    { context = "security / semgrep" }, # OF-08: semgrep scan
+    { context = "Accessibility (axe-core)" }, # OF-08: a11y gate
   ]
 }
 
 variable "required_review_count" {
   type        = number
-  description = "Number of approving PR reviews required."
-  default     = 1
+  description = "Number of approving PR reviews required. OF-08: Minimum 2 for SOC2."
+  default     = 2
 }
 
 variable "break_glass_team_slug" {

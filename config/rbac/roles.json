@@ -1,0 +1,64 @@
+{
+  "roles": {
+    "ai_drafter": {
+      "allow": ["ai.draft.create", "ai.draft.read"],
+      "deny": ["content.publish"]
+    },
+    "publisher": {
+      "allow": ["content.publish", "content.read"],
+      "deny": ["ai.draft.create"]
+    },
+    "finance": {
+      "allow": ["payments.read", "payments.refund"],
+      "deny": ["payments.approve"]
+    },
+    "approver": {
+      "allow": ["payments.approve"],
+      "deny": ["payments.refund"]
+    },
+    "auditor": {
+      "allow": ["audit.read"],
+      "deny": ["audit.purge"]
+    },
+    "dpo": {
+      "allow": ["gdpr.dsar.read", "gdpr.dsar.delete", "gdpr.dsar.restrict"],
+      "deny": ["content.publish"]
+    },
+    "super_admin": {
+      "allow": ["*"],
+      "deny": []
+    }
+  },
+  "sod_constraints": [
+    {
+      "description": "AI drafter cannot publish content (4-eyes principle)",
+      "role": "ai_drafter",
+      "forbidden_with": ["content.publish"]
+    },
+    {
+      "description": "Publisher cannot draft AI content",
+      "role": "publisher",
+      "forbidden_with": ["ai.draft.create"]
+    },
+    {
+      "description": "Finance cannot approve their own refunds",
+      "role": "finance",
+      "forbidden_with": ["payments.approve"]
+    },
+    {
+      "description": "Approver cannot issue refunds",
+      "role": "approver",
+      "forbidden_with": ["payments.refund"]
+    },
+    {
+      "description": "Auditor cannot purge audit logs",
+      "role": "auditor",
+      "forbidden_with": ["audit.purge"]
+    },
+    {
+      "description": "DPO cannot publish content (conflict of interest)",
+      "role": "dpo",
+      "forbidden_with": ["content.publish"]
+    }
+  ]
+}

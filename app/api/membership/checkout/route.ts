@@ -120,6 +120,9 @@ export async function POST(request: NextRequest) {
         "metadata[tier]": tier,
         "subscription_data[metadata][site_id]": siteId,
         "subscription_data[metadata][tier]": tier,
+        // OF-09: Stripe Tax — automatic tax calculation + customer tax ID collection
+        "automatic_tax[enabled]": "true",
+        "tax_id_collection[enabled]": "true",
       }),
     });
 

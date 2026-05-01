@@ -252,7 +252,7 @@
   //     { "service": "affilite-mix-log-shipper" }
   //   ]
   // and redeploy this main Worker.
-  "tail_consumers": [],
+  "tail_consumers": [{ "service": "affilite-mix-log-shipper" }],
 }
 // BLIND SPOT FIX: Production Bindings & Secrets Truth
 // ---------------------------------------------------

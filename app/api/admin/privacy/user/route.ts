@@ -3,45 +3,61 @@ import { withAuthz } from "@/lib/authz";
 import { getTenantClient } from "@/lib/supabase-server";
 import { apiError, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
-import { logger } from "@/lib/logger";
 import { unauthorizedResponse } from "@/lib/admin-guard";
+import crypto from "crypto";
 
 /**
- * DELETE /api/admin/privacy/user — GDPR Right to be Forgotten (RTBF)
- * F-021: Deletes user data across all related tables
+ * GDPR DSAR routes
  *
- * This endpoint:
- * 1. Requires super-admin authentication
- * 2. Accepts email + site_id to identify the user
- * 3. Deletes/anonymizes data from: newsletter_subscribers, memberships,
- *    comments, wrist_shots, quiz_submissions
- * 4. Retains affiliate_clicks + audit_log for legal/financial compliance
- *    (anonymizes IP addresses instead of deleting)
- *
- * GDPR Art. 17: Right to Erasure
- * NOTE: This is a simplified implementation. For full compliance,
- * consider a background job / queue for large deletions.
+ * OF-01: Erasure is now atomic — wrapped in apply_gdpr_erasure RPC which
+ *        deletes/anonymises all tables in a single transaction.
+ * OF-02: Restriction right — PATCH adds processing_restricted_at timestamp.
+ * OF-03: All GDPR actions insert an immutable row into audit_log, not just
+ *        logger.info().
  */
 
-export const GET = withAuthz("privacy", "read", async (request, { session }) => {
-  // G-45: standardised 401 + Bearer challenge instead of a descriptive 403,
-  // so route existence / role gating cannot be probed.
-  if (session.role !== "super_admin") {
-    return unauthorizedResponse();
+function hashEmail(email: string): string {
+  const secret = process.env.GDPR_HASH_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      "GDPR_HASH_SECRET or JWT_SECRET must be set",
+    );
   }
+  return crypto
+    .createHmac("sha256", secret)
+    .update(email.toLowerCase().trim())
+    .digest("hex")
+    .substring(0, 16);
+}
+
+async function insertAuditLog(
+  sb: Awaited<ReturnType<typeof getTenantClient>>,
+  action: string,
+  actor: string,
+  target_email_hash: string,
+  site_id: string,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  // OF-03: immutable audit_log insert (not just logger.info)
+  await (sb.from as any)("audit_log").insert({
+    action,
+    actor,
+    target_email_hash,
+    site_id,
+    metadata,
+    created_at: new Date().toISOString(),
+  });
+}
+
+export const GET = withAuthz("privacy", "read", async (request, { session }) => {
+  if (session.role !== "super_admin") return unauthorizedResponse();
 
   const { searchParams } = request.nextUrl;
   const email = searchParams.get("email");
   const site_id = searchParams.get("site_id");
 
-  if (!email || !site_id) {
-    return apiError(400, "email and site_id are required");
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return apiError(400, "Invalid email format");
-  }
+  if (!email || !site_id) return apiError(400, "email and site_id are required");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return apiError(400, "Invalid email format");
 
   const sb = await getTenantClient();
   const lowerEmail = email.toLowerCase();
@@ -56,174 +72,121 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
       { data: priceAlerts },
       { data: dripEnrollments },
     ] = await Promise.all([
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
+      // eslint-disable-next-line no-restricted-syntax -- admin route gated by withAuthz
       sb.from("newsletter_subscribers").select("*").eq("site_id", site_id).eq("email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
+      // eslint-disable-next-line no-restricted-syntax -- admin route gated by withAuthz
       sb.from("memberships").select("*").eq("site_id", site_id).eq("email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
+      // eslint-disable-next-line no-restricted-syntax -- admin route gated by withAuthz
       sb.from("comments").select("*").eq("site_id", site_id).eq("user_email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
+      // eslint-disable-next-line no-restricted-syntax -- admin route gated by withAuthz
       sb.from("wrist_shots").select("*").eq("site_id", site_id).eq("user_email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
+      // eslint-disable-next-line no-restricted-syntax -- admin route gated by withAuthz
       sb.from("quiz_submissions").select("*").eq("site_id", site_id).eq("email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
+      // eslint-disable-next-line no-restricted-syntax -- admin route gated by withAuthz
       sb.from("price_alerts").select("*").eq("site_id", site_id).eq("email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
+      // eslint-disable-next-line no-restricted-syntax -- admin route gated by withAuthz
       sb.from("drip_enrollments").select("*").eq("email", lowerEmail),
     ]);
 
-    const exportPayload = {
-      user: {
-        email: lowerEmail,
-        site_id,
-      },
-      generated_at: new Date().toISOString(),
-      data: {
-        newsletter_subscribers: newsletters || [],
-        memberships: memberships || [],
-        comments: comments || [],
-        wrist_shots: wristShots || [],
-        quiz_submissions: quizzes || [],
-        price_alerts: priceAlerts || [],
-        drip_enrollments: dripEnrollments || [],
-      },
-    };
-
-    logger.info("GDPR data export performed", {
-      actor: session.email ?? session.userId,
-      action: "gdpr_export",
-      target_email_hash: hashEmail(email),
-      site_id,
-    });
+    await insertAuditLog(sb, "gdpr_export", session.email ?? session.userId, hashEmail(email), site_id);
 
     return NextResponse.json({
       ok: true,
-      export: exportPayload,
+      export: {
+        user: { email: lowerEmail, site_id },
+        generated_at: new Date().toISOString(),
+        data: {
+          newsletter_subscribers: newsletters || [],
+          memberships: memberships || [],
+          comments: comments || [],
+          wrist_shots: wristShots || [],
+          quiz_submissions: quizzes || [],
+          price_alerts: priceAlerts || [],
+          drip_enrollments: dripEnrollments || [],
+        },
+      },
     });
   } catch (err) {
-    captureException(err, { context: "[api/admin/privacy] unexpected error during export" });
+    captureException(err, { context: "[api/admin/privacy] export error" });
     return apiError(500, "Failed to process data export");
   }
 });
 
-export const DELETE = withAuthz("privacy", "delete", async (request, { session }) => {
-  // F-021: Only super_admin can perform data erasure (security-critical operation)
-  // G-45: standardised 401 + Bearer challenge instead of a descriptive 403,
-  // so route existence / role gating cannot be probed.
-  if (session.role !== "super_admin") {
-    return unauthorizedResponse();
-  }
+/**
+ * PATCH /api/admin/privacy/user — GDPR Art. 18 Right to Restriction (OF-02)
+ * Sets processing_restricted_at on all membership rows for this user.
+ */
+export const PATCH = withAuthz("privacy", "delete", async (request, { session }) => {
+  if (session.role !== "super_admin") return unauthorizedResponse();
 
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;
   const { email, site_id } = bodyOrError as { email?: string; site_id?: string };
 
-  if (!email || !site_id) {
-    return apiError(400, "email and site_id are required");
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return apiError(400, "Invalid email format");
-  }
+  if (!email || !site_id) return apiError(400, "email and site_id are required");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return apiError(400, "Invalid email format");
 
   const sb = await getTenantClient();
-  const results: Record<string, unknown> = { email_hash: hashEmail(email) };
 
   try {
-    // 1. Delete newsletter subscriptions
-    const { error: newsletterErr } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      .from("newsletter_subscribers")
-      .delete()
+    const { error } = await (sb.from as any)("memberships")
+      .update({ processing_restricted_at: new Date().toISOString() })
       .eq("site_id", site_id)
       .eq("email", email.toLowerCase());
 
-    if (newsletterErr) {
-      captureException(newsletterErr, { context: "[api/admin/privacy] newsletter delete failed" });
+    if (error) {
+      captureException(error, { context: "[api/admin/privacy] restriction failed" });
+      return apiError(500, "Failed to apply processing restriction");
     }
-    results.newsletter_deleted = !newsletterErr;
 
-    // 2. Anonymize memberships (financial records - retained for legal compliance)
-    // `email` is NOT NULL in the schema, so replace with a non-reversible hashed alias
-    // and null out optional PII fields. Stripe IDs are retained for reconciliation.
-    // Cast via `sb.from as typeof sb.from` loses the tuple of known table literals,
-    // matching the pattern used in lib/dal/memberships.ts for tables not yet in the
-    // generated types file.
-    const anonymizedEmail = `anonymized-${hashEmail(email)}@deleted.invalid`;
-    const { error: membershipErr } = await (sb.from as any)("memberships")
-      .update({
-        email: anonymizedEmail,
-        name: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("site_id", site_id)
-      .eq("email", email.toLowerCase());
+    await insertAuditLog(sb, "gdpr_restrict", session.email ?? session.userId, hashEmail(email), site_id);
 
-    if (membershipErr) {
-      captureException(membershipErr, {
-        context: "[api/admin/privacy] membership anonymize failed",
-      });
-    }
-    results.memberships_anonymized = !membershipErr;
+    return NextResponse.json({ ok: true, message: "Processing restriction applied" });
+  } catch (err) {
+    captureException(err, { context: "[api/admin/privacy] restriction error" });
+    return apiError(500, "Failed to apply processing restriction");
+  }
+});
 
-    // 3. Delete comments
-    const { error: commentsErr } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      .from("comments")
-      .delete()
-      .eq("site_id", site_id)
-      .eq("user_email", email.toLowerCase());
+/**
+ * DELETE /api/admin/privacy/user — GDPR Art. 17 Right to Erasure (OF-01, OF-03)
+ * Uses apply_gdpr_erasure RPC for atomic single-transaction erasure.
+ */
+export const DELETE = withAuthz("privacy", "delete", async (request, { session }) => {
+  if (session.role !== "super_admin") return unauthorizedResponse();
 
-    if (commentsErr) {
-      captureException(commentsErr, { context: "[api/admin/privacy] comments delete failed" });
-    }
-    results.comments_deleted = !commentsErr;
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const { email, site_id } = bodyOrError as { email?: string; site_id?: string };
 
-    // 4. Delete wrist shots
-    const { error: wristShotErr } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      .from("wrist_shots")
-      .delete()
-      .eq("site_id", site_id)
-      .eq("user_email", email.toLowerCase());
+  if (!email || !site_id) return apiError(400, "email and site_id are required");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return apiError(400, "Invalid email format");
 
-    if (wristShotErr) {
-      captureException(wristShotErr, { context: "[api/admin/privacy] wrist_shots delete failed" });
-    }
-    results.wrist_shots_deleted = !wristShotErr;
+  const sb = await getTenantClient();
 
-    // 5. Delete quiz submissions
-    const { error: quizErr } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      .from("quiz_submissions")
-      .delete()
-      .eq("site_id", site_id)
-      .eq("email", email.toLowerCase());
-
-    if (quizErr) {
-      captureException(quizErr, { context: "[api/admin/privacy] quiz_submissions delete failed" });
-    }
-    results.quiz_submissions_deleted = !quizErr;
-
-    // 6. affiliate_clicks is retained for financial/legal compliance.
-    // The current schema stores no direct PII (no email or IP columns) so no
-    // anonymisation action is required here; record the intent in the result.
-    results.affiliate_clicks_retained = true;
-
-    // 7. Audit log: record this erasure event (audit_log itself is retained for compliance)
-    logger.info("GDPR data erasure performed", {
-      actor: session.email ?? session.userId,
-      action: "gdpr_erasure",
-      target_email_hash: hashEmail(email),
-      site_id,
+  try {
+    // OF-01: Single atomic RPC — all table operations happen inside one Postgres transaction.
+    const { error } = await (sb.rpc as any)("apply_gdpr_erasure", {
+      p_email: email.toLowerCase(),
+      p_site_id: site_id,
+      p_anonymized_email: `anonymized-${hashEmail(email)}@deleted.invalid`,
     });
 
-    // F-COMPLIANCE-01: Return retention disclosure alongside erasure results.
+    if (error) {
+      captureException(error, { context: "[api/admin/privacy] atomic erasure failed" });
+      return apiError(500, "Failed to process data erasure");
+    }
+
+    // OF-03: Immutable audit_log insert (not just logger.info)
+    await insertAuditLog(sb, "gdpr_erasure", session.email ?? session.userId, hashEmail(email), site_id, {
+      deleted: ["newsletter_subscribers", "comments", "wrist_shots", "quiz_submissions"],
+      anonymised: ["memberships"],
+      retained: ["affiliate_clicks", "audit_log"],
+    });
+
     return NextResponse.json({
       ok: true,
       message: "User data erased successfully",
-      results,
       deleted: ["newsletter_subscribers", "comments", "wrist_shots", "quiz_submissions"],
       anonymised: ["memberships"],
       retained: ["affiliate_clicks", "audit_log"],
@@ -234,24 +197,3 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
     return apiError(500, "Failed to process data erasure");
   }
 });
-
-import crypto from "crypto";
-
-/**
- * HMAC-SHA256 hash for GDPR audit logging.
- * Replaces the weak 32-bit rolling hash to prevent dictionary attacks
- * on exported/erased user emails while still allowing correlation.
- */
-function hashEmail(email: string): string {
-  const secret = process.env.GDPR_HASH_SECRET || process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error(
-      "GDPR_HASH_SECRET or JWT_SECRET must be set — refusing to hash with a hardcoded fallback",
-    );
-  }
-  return crypto
-    .createHmac("sha256", secret)
-    .update(email.toLowerCase().trim())
-    .digest("hex")
-    .substring(0, 16);
-}

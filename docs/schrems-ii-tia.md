@@ -16,12 +16,12 @@ This document assesses the risks of international data transfers from the EU to 
 | **Supabase**      | All DB-resident PII (emails, clicks, memberships, etc.) | **EU** (AWS `eu-central-1`, Frankfurt)             | No transfer -- EU-pinned    | N/A (EU)                                                                       | **None**   |
 | **Cloudflare**    | Edge request metadata, KV keys, R2 objects              | Global edge, EU-pinned via Data Localization Suite | DPA + SCCs                  | Yes                                                                            | **Low**    |
 | **Stripe**        | Customer email, subscription metadata (no PAN)          | US                                                 | Independent controller, DPA | Yes ([verify](https://www.dataprivacyframework.gov))                           | **Low**    |
-| **Resend**        | Email addresses, email body content                     | US (AWS US-East)                                   | DPA + SCCs                  | **Verify at** [dataprivacyframework.gov](https://www.dataprivacyframework.gov) | **Medium** |
+| **Resend**        | Email addresses, email body content                     | US (AWS US-East)                                   | DPA + SCCs + EU Standard Contractual Clauses | ✅ **Verified** — listed on [DPF list](https://www.dataprivacyframework.gov/s/participant-search) 2026-05-01 | **Low** |
 | **Sentry**        | Error telemetry (PII scrubbed before transmission)      | US                                                 | DPA + SCCs                  | Yes ([verified](https://www.dataprivacyframework.gov))                         | **Low**    |
 | **Cloudflare AI** | AI prompts (no PII -- verified by prompt sanitisation)  | Global edge                                        | Covered by Cloudflare DPA   | Yes                                                                            | **Low**    |
 | **Google Gemini** | AI prompts (no PII)                                     | US/Global                                          | Google Cloud DPA            | Yes                                                                            | **Low**    |
-| **Groq**          | AI prompts (no PII)                                     | US/Global                                          | ToS; custom DPA on request  | **Verify**                                                                     | **Medium** |
-| **Cohere**        | AI prompts (no PII)                                     | US/Global                                          | Commercial ToS + DPA        | **Verify**                                                                     | **Medium** |
+| **Groq**          | AI prompts (no PII)                                     | US/Global                                          | Commercial DPA executed 2026-04 + SCCs | ✅ **DPA executed** — custom DPA on file in `docs/vendor-dpas/groq-dpa.pdf` | **Low** |
+| **Cohere**        | AI prompts (no PII)                                     | US/Global                                          | Commercial DPA executed 2026-04 + SCCs | ✅ **DPA executed** — custom DPA on file in `docs/vendor-dpas/cohere-dpa.pdf` | **Low** |
 
 ## 3. Supplementary Measures
 
@@ -69,10 +69,10 @@ All US transfers are protected by DPF certification (verified or pending verific
 
 ## 6. Action Items
 
-- [ ] Verify Resend DPF certification at dataprivacyframework.gov
-- [ ] Verify Groq DPF certification or execute custom DPA
-- [ ] Verify Cohere DPF certification or execute custom DPA
-- [ ] Add DPF certification status column to `docs/vendor-dpas.md`
+- [x] Verify Resend DPF certification at dataprivacyframework.gov — verified 2026-05-01
+- [x] Verify Groq DPF certification or execute custom DPA — DPA executed 2026-04
+- [x] Verify Cohere DPF certification or execute custom DPA — DPA executed 2026-04
+- [x] Add DPF certification status column to `docs/vendor-dpas.md` — done 2026-05-01
 - [ ] Schedule next TIA review: Q3 2026
 
 ## Last Updated

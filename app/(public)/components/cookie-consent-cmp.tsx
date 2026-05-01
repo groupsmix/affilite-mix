@@ -38,6 +38,37 @@ function isGpcEnabled(): boolean {
  * For ad networks requiring a CMP-ID and IAB consent string (Mediavine,
  * Raptive), upgrade to a certified TCF CMP (Didomi, OneTrust, Sourcepoint).
  */
+
+/**
+ * OF-04: POST consent decision to server for immutable server-side proof.
+ */
+async function logConsentToServer(detail: {
+  analytics: boolean;
+  affiliate: boolean;
+  advertising: boolean;
+  bannerVersion: string;
+  gpc: boolean;
+}): Promise<void> {
+  try {
+    const categories: string[] = ["necessary"];
+    if (detail.analytics) categories.push("analytics");
+    if (detail.affiliate) categories.push("affiliate");
+    if (detail.advertising) categories.push("advertising");
+    await fetch("/api/consent/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        categories,
+        banner_version: detail.bannerVersion,
+        gpc: detail.gpc,
+      }),
+      keepalive: true,
+    });
+  } catch {
+    // Non-blocking — consent log failure must not break the UX
+  }
+}
+
 export default function CookieConsentCmp({
   language = "en",
   privacyPolicyUrl = "/privacy",
@@ -207,8 +238,6 @@ export default function CookieConsentCmp({
         : {}),
 
       onConsent: () => {
-        // A69: Emit the full category vector so all listeners can react,
-        // not just the affiliate listener.
         const detail = {
           analytics: CookieConsent.acceptedCategory("analytics"),
           affiliate: CookieConsent.acceptedCategory("affiliate"),
@@ -217,6 +246,8 @@ export default function CookieConsentCmp({
           gpc,
         };
         window.dispatchEvent(new CustomEvent("cookieConsent", { detail }));
+        // OF-04: server-side consent proof logging
+        void logConsentToServer(detail);
       },
 
       onChange: () => {
@@ -228,6 +259,8 @@ export default function CookieConsentCmp({
           gpc,
         };
         window.dispatchEvent(new CustomEvent("cookieConsent", { detail }));
+        // OF-04: server-side consent proof logging
+        void logConsentToServer(detail);
       },
     });
   }, [language, privacyPolicyUrl]);

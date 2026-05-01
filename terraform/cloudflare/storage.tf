@@ -112,3 +112,40 @@ output "worker_logs_bucket_name" {
   value       = cloudflare_r2_bucket.worker_logs.name
   description = "Name of the R2 bucket that receives the workers_trace_events Logpush job (LIVE-09). Wire this into `logpush_destination_conf` after generating R2 access keys."
 }
+
+
+###############################################################################
+# OF-07: R2 object-lock (WORM) and lifecycle for audit/compliance buckets
+###############################################################################
+
+resource "cloudflare_r2_bucket_lifecycle" "audit_archive_worm" {
+  account_id  = var.cloudflare_account_id
+  bucket_name = "audit-archive-worm"
+
+  rule {
+    id     = "retain-7yr"
+    status = "Enabled"
+    expiration {
+      days = 2555  # 7 years WORM retention
+    }
+  }
+}
+
+# Note: Cloudflare R2 does not yet expose a Terraform object-lock resource.
+# WORM retention is enforced via lifecycle + a separate immutability policy
+# set through the Cloudflare API (see scripts/r2-set-object-lock.sh).
+# Replication across regions is enabled via the R2 replication API — see
+# docs/r2-replication.md for the runbook.
+
+resource "cloudflare_r2_bucket_lifecycle" "worker_logs_lifecycle" {
+  account_id  = var.cloudflare_account_id
+  bucket_name = "workers-logpush-${var.environment}"
+
+  rule {
+    id     = "logs-retain-365d"
+    status = "Enabled"
+    expiration {
+      days = 365
+    }
+  }
+}

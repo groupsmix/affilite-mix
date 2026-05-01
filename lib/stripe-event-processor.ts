@@ -130,6 +130,35 @@ async function buildStripeEventPayload(
 
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
+      // OF-11: Detect mid-cycle tier/plan changes
+      const previousAttributes = (event.data as any).previous_attributes as Record<string, unknown> | undefined;
+      const prevItems = previousAttributes?.items as { data?: Array<{ price?: { id?: string } }> } | undefined;
+      const prevPriceId = prevItems?.data?.[0]?.price?.id;
+      const newPriceId = subscription.items?.data?.[0]?.price?.id;
+      const tierChanged = prevPriceId && newPriceId && prevPriceId !== newPriceId;
+
+      if (tierChanged) {
+        // Map new price ID back to tier name via env vars
+        const newTier = Object.entries(process.env)
+          .filter(([k]) => k.startsWith("STRIPE_PRICE_ID_"))
+          .find(([, v]) => v === newPriceId)?.[0]
+          ?.replace("STRIPE_PRICE_ID_", "")
+          ?.toLowerCase() as "insider" | "pro" | undefined;
+
+        return {
+          op: "change_tier",
+          stripe_subscription_id: subscription.id,
+          status: mapStripeStatus(subscription.status),
+          new_tier: newTier,
+          current_period_start: toIsoOrUndefined(
+            (subscription as any).current_period_start,
+          ),
+          current_period_end: toIsoOrUndefined(
+            (subscription as any).current_period_end,
+          ),
+        };
+      }
+
       return {
         op: "update_status",
         stripe_subscription_id: subscription.id,
@@ -143,6 +172,49 @@ async function buildStripeEventPayload(
         op: "cancel_membership",
         stripe_subscription_id: subscription.id,
       };
+    }
+
+
+    case "charge.refunded": {
+      const charge = event.data.object as Stripe.Charge;
+      const customerId = typeof charge.customer === "string" ? charge.customer : undefined;
+      return {
+        op: "record_refund",
+        stripe_customer_id: customerId,
+        amount_refunded: charge.amount_refunded,
+        currency: charge.currency,
+        charge_id: charge.id,
+      } as StripeEventOp;
+    }
+
+    case "charge.dispute.created":
+    case "charge.dispute.funds_withdrawn": {
+      const dispute = event.data.object as Stripe.Dispute;
+      const chargeId = typeof dispute.charge === "string" ? dispute.charge : undefined;
+      return {
+        op: "record_dispute",
+        charge_id: chargeId,
+        dispute_id: dispute.id,
+        status: dispute.status,
+        amount: dispute.amount,
+        currency: dispute.currency,
+      } as StripeEventOp;
+    }
+
+    case "invoice.payment_failed": {
+      const invoice = event.data.object as Stripe.Invoice;
+      const subscriptionId =
+        typeof (invoice as any).subscription === "string"
+          ? (invoice as any).subscription as string
+          : undefined;
+      return {
+        op: "payment_failed",
+        stripe_subscription_id: subscriptionId,
+        attempt_count: invoice.attempt_count ?? 0,
+        next_payment_attempt: invoice.next_payment_attempt
+          ? new Date(invoice.next_payment_attempt * 1000).toISOString()
+          : undefined,
+      } as StripeEventOp;
     }
 
     default:
