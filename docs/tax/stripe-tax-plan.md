@@ -6,6 +6,7 @@ Decision: enable Stripe Tax with `automatic_tax: { enabled: true }` and
 Nexus map (initial): US-DE (HQ), EU (Stripe Tax for VAT), UK (VAT), AU (GST).
 
 Action items:
+
 1. Toggle Stripe Tax in dashboard for prod + test mode.
 2. Add `automatic_tax` to all `checkout.sessions.create` and
    `subscriptions.create` calls (search: `stripe.checkout`/`stripe.subscriptions`).
