@@ -41,22 +41,49 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Run Semgrep with custom rules
+      # Step 1: Custom rules are blocking (--error). These are the
+      # codebase-specific security invariants the team owns and must
+      # keep green at all times.
+      - name: Run custom Semgrep rules (blocking)
         run: |
           semgrep scan \
-            --config auto \
             --config .semgrep/ \
-            --sarif --output semgrep-results.sarif \
+            --sarif --output semgrep-custom.sarif \
             --error \
             --exclude='node_modules' \
             --exclude='__tests__' \
             --exclude='.open-next' \
             --exclude='.next'
 
-      - name: Upload SARIF results
+      # Step 2: Community rules are informational. Findings are
+      # uploaded to GitHub Security tab for triage but do not block
+      # the pipeline. This prevents 1000+ community rules from
+      # producing false-positive CI failures while still surfacing
+      # findings for security review.
+      - name: Run community Semgrep rules (informational)
+        if: always()
+        run: |
+          semgrep scan \
+            --config auto \
+            --sarif --output semgrep-community.sarif \
+            --exclude='node_modules' \
+            --exclude='__tests__' \
+            --exclude='.open-next' \
+            --exclude='.next' \
+          || true
+
+      - name: Upload custom SARIF results
         if: always()
         uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
         with:
-          sarif_file: semgrep-results.sarif
-          category: semgrep
+          sarif_file: semgrep-custom.sarif
+          category: semgrep-custom
+        continue-on-error: true
+
+      - name: Upload community SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a # v3
+        with:
+          sarif_file: semgrep-community.sarif
+          category: semgrep-community
         continue-on-error: true
