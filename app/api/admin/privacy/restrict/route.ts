@@ -41,7 +41,6 @@ export const POST = withAuthz("privacy", "manage", async (request, { session }) 
   const sb = await getTenantClient();
 
   try {
-    // eslint-disable-next-line no-restricted-syntax -- admin route; service-scoped
     const { error } = await (sb.from as any)("subject_restrictions").upsert(
       {
         email: email.toLowerCase(),
@@ -61,7 +60,7 @@ export const POST = withAuthz("privacy", "manage", async (request, { session }) 
 
     await recordAuditEvent({
       site_id,
-      actor: session.email ?? session.userId,
+      actor: session.email ?? session.userId ?? "system",
       actor_user_id: session.userId,
       action: "gdpr.restrict",
       entity_type: "subject",
@@ -92,7 +91,6 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
   const sb = await getTenantClient();
 
   try {
-    // eslint-disable-next-line no-restricted-syntax -- admin route; service-scoped
     const { error } = await (sb.from as any)("subject_restrictions")
       .update({ lifted_at: new Date().toISOString() })
       .eq("site_id", site_id)
@@ -106,7 +104,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
 
     await recordAuditEvent({
       site_id,
-      actor: session.email ?? session.userId,
+      actor: session.email ?? session.userId ?? "system",
       actor_user_id: session.userId,
       action: "gdpr.restrict.lift",
       entity_type: "subject",

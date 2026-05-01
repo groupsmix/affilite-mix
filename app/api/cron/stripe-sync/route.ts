@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
     let reconcileFixed = 0;
 
     for await (const stripeSub of stripe.subscriptions.list({ status: "active", limit: 100 })) {
-      // eslint-disable-next-line no-restricted-syntax -- service-role cron; explicit reconciliation
       const { data: dbMembership } = await (sb.from as any)("memberships")
         .select("id, status, tier")
         .eq("stripe_subscription_id", stripeSub.id)
@@ -87,7 +86,6 @@ export async function POST(request: NextRequest) {
           subscriptionId: stripeSub.id,
           dbStatus: dbMembership.status,
         });
-        // eslint-disable-next-line no-restricted-syntax -- service-role cron
         await (sb.from as any)("memberships")
           .update({ status: "active", updated_at: new Date().toISOString() })
           .eq("stripe_subscription_id", stripeSub.id);
