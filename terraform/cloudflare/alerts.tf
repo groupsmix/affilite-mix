@@ -57,9 +57,12 @@ variable "alert_mechanisms" {
 
 variable "alerts_enabled" {
   type = bool
-  # F-OBS-01: Keep default false to avoid breaking terraform apply without
-  # destinations. Set to true in tfvars once alert_mechanisms are provisioned.
-  default     = false
+  # OF-10: Default true so alerts are live out of the box once
+  # alert_mechanisms destinations are wired. The lifecycle precondition
+  # below prevents apply from succeeding with enabled=true and empty
+  # mechanisms, so operators are forced to supply destinations rather than
+  # silently running without alerting.
+  default     = true
   description = "Whether the SLO burn-rate notification policies should be enabled. Requires alert_mechanisms to contain at least one destination."
 }
 

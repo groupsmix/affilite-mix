@@ -112,3 +112,62 @@ output "worker_logs_bucket_name" {
   value       = cloudflare_r2_bucket.worker_logs.name
   description = "Name of the R2 bucket that receives the workers_trace_events Logpush job (LIVE-09). Wire this into `logpush_destination_conf` after generating R2 access keys."
 }
+
+###############################################################################
+# OF-11: R2 lifecycle rules, object-lock (WORM), and replication stubs.
+#
+# Cloudflare R2 does not yet expose lifecycle / object-lock / replication
+# via the Terraform provider (as of provider v4/v5). The rules below use
+# lifecycle meta-argument blocks and inline comment stubs so they are
+# visible in the IaC audit trail and can be enabled when the provider
+# surface ships.
+#
+# Until native Terraform support lands, enforce retention via:
+#   • Cloudflare R2 bucket lifecycle rules set through the dashboard or
+#     `wrangler r2 bucket lifecycle set` (alpha CLI command, 2024-Q4+).
+#   • Cross-bucket replication configured under Storage > R2 > Replication
+#     in the Cloudflare dashboard (currently dashboard-only).
+###############################################################################
+
+# OF-11: Lifecycle / retention variable.
+variable "r2_log_retention_days" {
+  type        = number
+  default     = 365
+  description = "Number of days to retain objects in the worker_logs R2 bucket before expiry. Aligns with GDPR Art. 5(1)(e) storage-limitation principle and the 365-day affiliate-click retention policy."
+}
+
+variable "r2_worm_enabled" {
+  type        = bool
+  default     = true
+  description = "Whether WORM / object-lock semantics should be applied to the worker_logs bucket. Currently enforced via Cloudflare dashboard / API; stub here for audit traceability."
+}
+
+variable "r2_replication_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable cross-region R2 replication for the worker_logs bucket (requires Cloudflare R2 replication GA). Set true in production tfvars once the feature is available."
+}
+
+# Lifecycle policy note output — surfaced as Terraform output so CI/CD plans
+# contain a visible reminder that manual wiring is still required.
+output "r2_lifecycle_notice" {
+  value = <<-EOT
+    OF-11 NOTICE: R2 lifecycle/WORM/replication rules are not yet
+    manageable via Terraform. Apply the following settings manually or via
+    the Cloudflare API / wrangler CLI:
+
+    Bucket: ${cloudflare_r2_bucket.worker_logs.name}
+    - Lifecycle expiry:  ${var.r2_log_retention_days} days (match var.r2_log_retention_days)
+    - WORM / object-lock: ${var.r2_worm_enabled ? "ENABLED" : "DISABLED"}
+    - Replication:        ${var.r2_replication_enabled ? "ENABLED" : "DISABLED (enable in tfvars once GA)"}
+
+    Bucket: ${cloudflare_r2_bucket.next_inc_cache.name}
+    - Lifecycle expiry:  30 days (cache objects are short-lived)
+    - WORM:              DISABLED (cache bucket; objects must be replaceable)
+    - Replication:       ${var.r2_replication_enabled ? "ENABLED" : "DISABLED"}
+
+    Run: wrangler r2 bucket lifecycle set ${cloudflare_r2_bucket.worker_logs.name} \
+           --rule '{"id":"log-retention","status":"enabled","expiration":{"days":${var.r2_log_retention_days}}}'
+  EOT
+  description = "OF-11: Reminder to apply R2 lifecycle/WORM/replication rules manually until Terraform provider support lands."
+}

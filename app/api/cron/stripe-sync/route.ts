@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
   const stripe = await getStripeClient(stripeKey);
 
   try {
+    // ── Phase 1: Event replay (last 48 h) ─────────────────────────────────
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const processedEventIds = await getRecentStripeEventIds(
       fortyEightHoursAgo,
@@ -37,12 +38,6 @@ export async function POST(request: NextRequest) {
     for await (const event of stripeEvents) {
       if (!processedEventIds.has(event.id)) {
         logger.info("Syncing missed Stripe event", { id: event.id, type: event.type });
-
-        // LIVE-10 / F-024: `processStripeEvent` records the event id
-        // and applies the membership-side effect atomically. The
-        // `processedEventIds` pre-check above is just a perf
-        // optimisation — duplicates are still safely skipped by the
-        // RPC if the in-memory snapshot is stale.
         const result = await processStripeEvent(stripe, event);
         if (!result.duplicate) {
           syncedCount++;
@@ -50,8 +45,58 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Phase 2: OF-08 Full subscription reconciliation ───────────────────
+    // Pull every active Stripe subscription and compare against DB memberships.
+    // This catches gaps that fall outside the 48-hour event window (e.g. the
+    // cron was down for days, or a webhook was never delivered).
+    const sb = getPrivilegedSupabaseClient();
+    let reconcileFixed = 0;
+
+    for await (const stripeSub of stripe.subscriptions.list({ status: "active", limit: 100 })) {
+      // eslint-disable-next-line no-restricted-syntax -- service-role cron; explicit reconciliation
+      const { data: dbMembership } = await (sb.from as any)("memberships")
+        .select("id, status, tier")
+        .eq("stripe_subscription_id", stripeSub.id)
+        .maybeSingle();
+
+      if (!dbMembership) {
+        logger.warn("OF-08: Active Stripe subscription has no DB membership row", {
+          subscriptionId: stripeSub.id,
+          customerId: typeof stripeSub.customer === "string" ? stripeSub.customer : undefined,
+        });
+        // Replay checkout.session.completed for this subscription to create the row.
+        const sessions = await stripe.checkout.sessions.list({
+          subscription: stripeSub.id,
+          limit: 1,
+        });
+        if (sessions.data.length > 0) {
+          const syntheticEvent = {
+            id: `reconcile_${stripeSub.id}`,
+            type: "checkout.session.completed" as const,
+            data: { object: sessions.data[0] },
+          } as unknown as import("stripe").Stripe.Event;
+          const result = await processStripeEvent(stripe, syntheticEvent);
+          if (!result.duplicate) reconcileFixed++;
+        }
+        continue;
+      }
+
+      // Ensure status mirror is accurate.
+      if (dbMembership.status !== "active") {
+        logger.info("OF-08: Correcting stale membership status", {
+          subscriptionId: stripeSub.id,
+          dbStatus: dbMembership.status,
+        });
+        // eslint-disable-next-line no-restricted-syntax -- service-role cron
+        await (sb.from as any)("memberships")
+          .update({ status: "active", updated_at: new Date().toISOString() })
+          .eq("stripe_subscription_id", stripeSub.id);
+        reconcileFixed++;
+      }
+    }
+
     void recordCronLiveness("stripe-sync");
-    return NextResponse.json({ success: true, syncedCount });
+    return NextResponse.json({ success: true, syncedCount, reconcileFixed });
   } catch (error) {
     logger.error("Stripe sync failed", {
       error: error instanceof Error ? error.message : String(error),

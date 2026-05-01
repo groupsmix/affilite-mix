@@ -79,13 +79,18 @@ variable "required_status_checks" {
     { context = "secret-scan" },       # security.yml :: secret scanning job
     { context = "codeql" },            # security.yml :: CodeQL analysis
     { context = "dependency-review" }, # security.yml :: dep review
+    # OF-09: Additional required checks for supply-chain + deploy safety.
+    { context = "sbom" },              # sbom.yml :: SBOM attestation
+    { context = "wrangler-dry-run" },  # deploy.yml :: Wrangler dry-run
+    { context = "staging-smoke" },     # deploy-gradual.yml :: staging smoke test
   ]
 }
 
 variable "required_review_count" {
   type        = number
   description = "Number of approving PR reviews required."
-  default     = 1
+  # OF-09: Require at least 2 reviewers to prevent single-actor merges.
+  default     = 2
 }
 
 variable "break_glass_team_slug" {

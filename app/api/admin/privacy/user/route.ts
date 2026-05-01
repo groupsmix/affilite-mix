@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordAuditEvent } from "@/lib/audit-log";
 import { withAuthz } from "@/lib/authz";
 import { getTenantClient } from "@/lib/supabase-server";
 import { apiError, parseJsonBody } from "@/lib/api-error";
@@ -107,9 +108,6 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
 });
 
 export const DELETE = withAuthz("privacy", "delete", async (request, { session }) => {
-  // F-021: Only super_admin can perform data erasure (security-critical operation)
-  // G-45: standardised 401 + Bearer challenge instead of a descriptive 403,
-  // so route existence / role gating cannot be probed.
   if (session.role !== "super_admin") {
     return unauthorizedResponse();
   }
@@ -128,104 +126,37 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
   }
 
   const sb = await getTenantClient();
-  const results: Record<string, unknown> = { email_hash: hashEmail(email) };
 
   try {
-    // 1. Delete newsletter subscriptions
-    const { error: newsletterErr } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      .from("newsletter_subscribers")
-      .delete()
-      .eq("site_id", site_id)
-      .eq("email", email.toLowerCase());
-
-    if (newsletterErr) {
-      captureException(newsletterErr, { context: "[api/admin/privacy] newsletter delete failed" });
-    }
-    results.newsletter_deleted = !newsletterErr;
-
-    // 2. Anonymize memberships (financial records - retained for legal compliance)
-    // `email` is NOT NULL in the schema, so replace with a non-reversible hashed alias
-    // and null out optional PII fields. Stripe IDs are retained for reconciliation.
-    // Cast via `sb.from as typeof sb.from` loses the tuple of known table literals,
-    // matching the pattern used in lib/dal/memberships.ts for tables not yet in the
-    // generated types file.
-    const anonymizedEmail = `anonymized-${hashEmail(email)}@deleted.invalid`;
-    const { error: membershipErr } = await (sb.from as any)("memberships")
-      .update({
-        email: anonymizedEmail,
-        name: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("site_id", site_id)
-      .eq("email", email.toLowerCase());
-
-    if (membershipErr) {
-      captureException(membershipErr, {
-        context: "[api/admin/privacy] membership anonymize failed",
-      });
-    }
-    results.memberships_anonymized = !membershipErr;
-
-    // 3. Delete comments
-    const { error: commentsErr } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      .from("comments")
-      .delete()
-      .eq("site_id", site_id)
-      .eq("user_email", email.toLowerCase());
-
-    if (commentsErr) {
-      captureException(commentsErr, { context: "[api/admin/privacy] comments delete failed" });
-    }
-    results.comments_deleted = !commentsErr;
-
-    // 4. Delete wrist shots
-    const { error: wristShotErr } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      .from("wrist_shots")
-      .delete()
-      .eq("site_id", site_id)
-      .eq("user_email", email.toLowerCase());
-
-    if (wristShotErr) {
-      captureException(wristShotErr, { context: "[api/admin/privacy] wrist_shots delete failed" });
-    }
-    results.wrist_shots_deleted = !wristShotErr;
-
-    // 5. Delete quiz submissions
-    const { error: quizErr } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      .from("quiz_submissions")
-      .delete()
-      .eq("site_id", site_id)
-      .eq("email", email.toLowerCase());
-
-    if (quizErr) {
-      captureException(quizErr, { context: "[api/admin/privacy] quiz_submissions delete failed" });
-    }
-    results.quiz_submissions_deleted = !quizErr;
-
-    // 6. affiliate_clicks is retained for financial/legal compliance.
-    // The current schema stores no direct PII (no email or IP columns) so no
-    // anonymisation action is required here; record the intent in the result.
-    results.affiliate_clicks_retained = true;
-
-    // 7. Audit log: record this erasure event (audit_log itself is retained for compliance)
-    logger.info("GDPR data erasure performed", {
-      actor: session.email ?? session.userId,
-      action: "gdpr_erasure",
-      target_email_hash: hashEmail(email),
-      site_id,
+    // OF-01: Atomic erasure via Postgres RPC — all deletes/anonymisations and
+    // the audit_log insert happen inside a single transaction. No partial
+    // erasure is possible even if the function raises mid-way.
+    // OF-02: The RPC itself inserts into audit_log before returning.
+    const { error } = await sb.rpc("erase_subject_data" as any, {
+      p_email: email.toLowerCase(),
+      p_site_id: site_id,
+      p_actor: session.email ?? session.userId,
     });
 
-    // F-COMPLIANCE-01: Return retention disclosure alongside erasure results.
+    if (error) {
+      captureException(error, { context: "[api/admin/privacy] erase_subject_data rpc failed" });
+      return apiError(500, "Failed to process data erasure");
+    }
+
+    // Secondary audit record in application audit log (belt-and-suspenders).
+    await recordAuditEvent({
+      site_id,
+      actor: session.email ?? session.userId,
+      actor_user_id: session.userId,
+      action: "gdpr_erasure",
+      entity_type: "subject",
+      entity_id: hashEmail(email),
+      details: { target_email_hash: hashEmail(email) },
+    });
+
     return NextResponse.json({
       ok: true,
       message: "User data erased successfully",
-      results,
-      deleted: ["newsletter_subscribers", "comments", "wrist_shots", "quiz_submissions"],
-      anonymised: ["memberships"],
       retained: ["affiliate_clicks", "audit_log"],
       retention_basis: "GDPR Art. 17(3)(e) — retention for legal/financial claims",
     });

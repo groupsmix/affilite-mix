@@ -252,7 +252,13 @@
   //     { "service": "affilite-mix-log-shipper" }
   //   ]
   // and redeploy this main Worker.
-  "tail_consumers": [],
+  "tail_consumers": [
+    // OF-20: Enable log shipping to durable observability sink.
+    // Deploy the affilite-mix-log-shipper tail worker (scaffold in
+    // workers/log-shipper/) and set TAIL_WORKER_ENABLED=true in your
+    // environment before enabling this entry.
+    // { "service": "affilite-mix-log-shipper" }
+  ],
 }
 // BLIND SPOT FIX: Production Bindings & Secrets Truth
 // ---------------------------------------------------
