@@ -106,6 +106,7 @@ disclosure: _"This article was drafted with the assistance of AI and
 reviewed by an editor."_ This is distinct from the affiliate disclosure.
 
 **Implementation requirements:**
+
 - Add an `AiContentDisclosure` React component rendered when
   `content.generated_by_ai === true`
 - Assert with a test that publishing an `ai_drafts` row injects the
@@ -124,6 +125,7 @@ AI-generated content must be machine-readably marked. Implementation:
 ### Data propagation
 
 When an `ai_drafts` row is approved and published to `content`:
+
 - Propagate `ai_drafts.provider` and `ai_drafts.model` to
   `content.ai_provider` and `content.ai_model`
 - Set `content.generated_by_ai = true`
@@ -131,15 +133,15 @@ When an `ai_drafts` row is approved and published to `content`:
 
 ### EU AI Act classification
 
-| Category | Applicability | Status |
-| -------- | ------------- | ------ |
-| Prohibited (Art. 5) | None of the prohibited uses apply | PASS |
-| High-risk (Annex III) | Content generation is not high-risk | PASS |
+| Category                            | Applicability                       | Status                          |
+| ----------------------------------- | ----------------------------------- | ------------------------------- |
+| Prohibited (Art. 5)                 | None of the prohibited uses apply   | PASS                            |
+| High-risk (Annex III)               | Content generation is not high-risk | PASS                            |
 | Limited-risk transparency (Art. 50) | AI-generated content must be marked | **Action required** (see above) |
-| GPAI deployer obligations (Art. 53) | Document model use | Partial (this document) |
-| Watermarking (Art. 50(2)) | Machine-readable marking | **Action required** (see above) |
-| Human oversight | Admin approval gate before publish | PASS |
-| FRIA (Art. 27) | Only required for high-risk; N/A | N/A |
+| GPAI deployer obligations (Art. 53) | Document model use                  | Partial (this document)         |
+| Watermarking (Art. 50(2))           | Machine-readable marking            | **Action required** (see above) |
+| Human oversight                     | Admin approval gate before publish  | PASS                            |
+| FRIA (Art. 27)                      | Only required for high-risk; N/A    | N/A                             |
 
 ### Lawful basis for training
 

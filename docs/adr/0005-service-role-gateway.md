@@ -7,6 +7,7 @@
 ## Context
 
 Supabase's service-role key bypasses Row Level Security (RLS). Unrestricted use of service-role in application code creates a risk of cross-tenant data exposure. Options considered:
+
 1. Never use service-role (all queries go through RLS with user JWTs)
 2. Use service-role everywhere with manual `site_id` filters
 3. Gated service-role access via a branded client type and eslint rule
