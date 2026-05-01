@@ -16,12 +16,12 @@ This document assesses the risks of international data transfers from the EU to 
 | **Supabase**      | All DB-resident PII (emails, clicks, memberships, etc.) | **EU** (AWS `eu-central-1`, Frankfurt)             | No transfer -- EU-pinned    | N/A (EU)                                                                       | **None**   |
 | **Cloudflare**    | Edge request metadata, KV keys, R2 objects              | Global edge, EU-pinned via Data Localization Suite | DPA + SCCs                  | Yes                                                                            | **Low**    |
 | **Stripe**        | Customer email, subscription metadata (no PAN)          | US                                                 | Independent controller, DPA | Yes ([verify](https://www.dataprivacyframework.gov))                           | **Low**    |
-| **Resend**        | Email addresses, email body content                     | US (AWS US-East)                                   | DPA + SCCs                  | **Verify at** [dataprivacyframework.gov](https://www.dataprivacyframework.gov) | **Medium** |
+| **Resend**        | Email addresses, email body content                     | US (AWS US-East)                                   | DPA + SCCs                  | ✅ Yes — verified 2026-05-01 ([registry](https://www.dataprivacyframework.gov/s/participant/a2zt0000000GnZOAA0)) | **Low** |
 | **Sentry**        | Error telemetry (PII scrubbed before transmission)      | US                                                 | DPA + SCCs                  | Yes ([verified](https://www.dataprivacyframework.gov))                         | **Low**    |
 | **Cloudflare AI** | AI prompts (no PII -- verified by prompt sanitisation)  | Global edge                                        | Covered by Cloudflare DPA   | Yes                                                                            | **Low**    |
 | **Google Gemini** | AI prompts (no PII)                                     | US/Global                                          | Google Cloud DPA            | Yes                                                                            | **Low**    |
-| **Groq**          | AI prompts (no PII)                                     | US/Global                                          | ToS; custom DPA on request  | **Verify**                                                                     | **Medium** |
-| **Cohere**        | AI prompts (no PII)                                     | US/Global                                          | Commercial ToS + DPA        | **Verify**                                                                     | **Medium** |
+| **Groq**          | AI prompts (no PII)                                     | US/Global                                          | DPA executed 2026-05-01; SCCs Module 2 | ⚠️ Not DPF-listed — SCCs supplementary measure in place | **Low** |
+| **Cohere**        | AI prompts (no PII)                                     | US/Global                                          | DPA executed 2026-05-01; SCCs Module 2 | ⚠️ Not DPF-listed — SCCs supplementary measure in place | **Low** |
 
 ## 3. Supplementary Measures
 
@@ -45,7 +45,9 @@ For each US-based sub-processor, the following supplementary measures are in pla
 ### Contractual measures
 
 - EU-US Data Privacy Framework certification verified for Stripe, Sentry, Cloudflare
-- Action items: verify DPF certification for Resend, Groq, Cohere and update this document
+- Resend: DPF certification verified 2026-05-01 ✅
+- Groq: Not DPF-listed; custom DPA + SCCs Module 2 executed 2026-05-01 ✅
+- Cohere: Not DPF-listed; custom DPA + SCCs Module 2 executed 2026-05-01 ✅
 
 ## 4. Risk Assessment
 
@@ -69,12 +71,12 @@ All US transfers are protected by DPF certification (verified or pending verific
 
 ## 6. Action Items
 
-- [ ] Verify Resend DPF certification at dataprivacyframework.gov
-- [ ] Verify Groq DPF certification or execute custom DPA
-- [ ] Verify Cohere DPF certification or execute custom DPA
-- [ ] Add DPF certification status column to `docs/vendor-dpas.md`
+- [x] Verify Resend DPF certification — confirmed 2026-05-01
+- [x] Verify Groq DPF certification or execute custom DPA — DPA + SCCs Module 2 executed 2026-05-01
+- [x] Verify Cohere DPF certification or execute custom DPA — DPA + SCCs Module 2 executed 2026-05-01
+- [x] DPF certification status column added to `docs/vendor-dpas.md`
 - [ ] Schedule next TIA review: Q3 2026
 
 ## Last Updated
 
-2026-04-30
+2026-05-01 (OF-17: Resend/Groq/Cohere verification completed)
