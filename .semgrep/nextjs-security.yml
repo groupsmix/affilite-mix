@@ -38,8 +38,8 @@ rules:
           }
     paths:
       include:
-        - "app/api/admin/**/route.ts"
-        - "app/api/admin/**/route.tsx"
+        - "**/app/api/admin/**/route.ts"
+        - "**/app/api/admin/**/route.tsx"
     message: >
       Admin API route handler does not call `requireAdmin()` /
       `requireSuperAdmin()`. All admin routes must use an approved authz
