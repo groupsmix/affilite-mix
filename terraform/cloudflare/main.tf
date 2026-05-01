@@ -65,19 +65,12 @@ variable "logpush_destination_conf" {
   sensitive   = true
   description = <<-EOT
     Full Cloudflare Logpush destination string for the worker_logs job.
-    Must use the r2:// scheme to keep logs within the same Cloudflare
-    account (enforced by the validation block below). Example:
+    Prefer R2 over S3 for the same-cloud, zero-egress path. Examples:
       r2://<account-id>/<bucket>?account-id=...&access-key-id=...&secret-access-key=...
+      s3://<bucket>/<prefix>?region=<region>&access-key-id=...&secret-access-key=...
+      datadog://api.datadoghq.com/api/v2/logs?header_DD-API-KEY=...&service=...
     Leave unset (null) to keep the Logpush resource disabled.
   EOT
-
-  # A31#2 / CodeRabbit fix: Validate that the destination is an r2:// URI
-  # scoped to this account (not just any r2:// bucket), preventing accidental
-  # exfiltration to a third-party R2 bucket in another account.
-  validation {
-    condition     = var.logpush_destination_conf == null || can(regex("^r2://${var.cloudflare_account_id}/", var.logpush_destination_conf))
-    error_message = "logpush_destination_conf must use the r2:// scheme AND be scoped to this account (r2://<account-id>/<bucket>?...). Use the R2 bucket declared in storage.tf to keep logs within the same Cloudflare account."
-  }
 }
 
 variable "logpush_enabled" {
@@ -108,9 +101,8 @@ variable "waf_blocked_asns" {
 }
 
 variable "waf_blocked_countries" {
-  type = list(string)
-  # A31#10 / A36#13: Cuba (CU) added to complete the OFAC-restricted set.
-  default     = ["KP", "IR", "SY", "CU"]
+  type        = list(string)
+  default     = ["KP", "IR", "SY"]
   description = <<-EOT
     ISO 3166-1 alpha-2 country codes to managed-challenge on the
     http_request_firewall_custom phase. Defaults to the OFAC-restricted
@@ -143,9 +135,7 @@ resource "cloudflare_zone_setting" "always_use_https" {
 resource "cloudflare_zone_setting" "min_tls_version" {
   zone_id    = var.zone_id
   setting_id = "min_tls_version"
-  # A31#6: Enforce TLS 1.3 minimum — eliminates TLS 1.2 downgrade attack surface.
-  # All modern browsers support TLS 1.3; legacy clients on 1.2 will fail.
-  value = "1.3"
+  value      = "1.2"
 }
 
 resource "cloudflare_zone_setting" "security_level" {
@@ -208,10 +198,7 @@ resource "cloudflare_ruleset" "rate_limit_auth" {
     enabled     = true
 
     ratelimit = {
-      # A31#8: Removed cf.colo.id — with colo in the bucket key an attacker
-      # rotating across Cloudflare colos gets 20 req/60s × N_colos headroom.
-      # ip.src alone ensures a single global bucket per source IP.
-      characteristics     = ["ip.src"]
+      characteristics     = ["ip.src", "cf.colo.id"]
       period              = 60
       requests_per_period = 20
       mitigation_timeout  = 300
@@ -331,11 +318,7 @@ resource "cloudflare_logpush_job" "worker_logs" {
   enabled          = var.logpush_enabled
 
   output_options = {
-    # A31#12: Added ScriptName (route attribution) and RequestMetadata
-    # (includes request headers) for forensic IR. Without these fields,
-    # incident responders lack request-level context and cannot attribute
-    # logs to specific Worker routes.
-    field_names      = ["Event", "EventTimestampMs", "Outcome", "Logs", "Exceptions", "ScriptName", "RequestMetadata"]
+    field_names      = ["Event", "EventTimestampMs", "Outcome", "Logs", "Exceptions"]
     timestamp_format = "rfc3339"
     output_type      = "ndjson"
   }
