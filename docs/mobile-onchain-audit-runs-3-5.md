@@ -1,12 +1,12 @@
 # Mobile / On-Chain Security Audit -- Runs 3 & 5 of 10
 
-| Field          | Value                                                        |
-| -------------- | ------------------------------------------------------------ |
-| **Target**     | <https://github.com/groupsmix/affilite-mix/>                 |
-| **Runs**       | 3/10 and 5/10                                                |
-| **Date (UTC)** | 2026-04-30                                                   |
-| **Ruleset**    | A116--A135 (mobile MASVS + smart-contract security)          |
-| **Skip rule**  | "If something not matching my project, skip it."             |
+| Field          | Value                                               |
+| -------------- | --------------------------------------------------- |
+| **Target**     | <https://github.com/groupsmix/affilite-mix/>        |
+| **Runs**       | 3/10 and 5/10                                       |
+| **Date (UTC)** | 2026-04-30                                          |
+| **Ruleset**    | A116--A135 (mobile MASVS + smart-contract security) |
+| **Skip rule**  | "If something not matching my project, skip it."    |
 
 ---
 
@@ -36,35 +36,35 @@ smart-contract codebase. Per the skip rule all items are **N/A**.
 
 ## Mobile section (A116--A125)
 
-| ID   | Control                                                          | Verdict | Reason                                                                                              |
-| ---- | ---------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
-| A116 | OWASP MASVS L1+L2+R                                             | N/A     | MASVS is the Mobile Application Security Verification Standard. No mobile binary.                   |
-| A117 | Cert/pubkey pinning (Frida / objection / mitmproxy)              | N/A     | No mobile client to pin from. TLS to Cloudflare/Supabase is browser-managed.                        |
-| A118 | Secure storage (Keychain / Android Keystore / StrongBox / biometric) | N/A | No iOS Keychain, no Android Keystore. Secrets live in CF/Wrangler env + Supabase.                   |
-| A119 | Deep / universal / app links + custom URL schemes                | N/A     | No `apple-app-site-association`, no `assetlinks.json`, no `Info.plist` URL types, no `<intent-filter>`. Web links only. |
-| A120 | Reverse binary (strings / class-dump / Hopper / Ghidra)          | N/A     | No `.ipa` / `.apk` / Mach-O / ELF binary to disassemble. JS bundle review = web audit.             |
-| A121 | Anti-tamper / anti-debug / root-jailbreak detection              | N/A     | No mobile runtime. Concept does not apply to a server-rendered Next.js app.                         |
-| A122 | IPC (app groups, share extensions, intents, content providers, broadcast receivers) | N/A | OS-level mobile IPC primitives. None present.                                            |
-| A123 | Mobile permissions (background location, photos, contacts, mic, camera) | N/A | No mobile permission manifest. Web app does not declare these.                                |
-| A124 | WebViews (`addJavascriptInterface`, `file://`, mixed content, allowlist) | N/A | No `WKWebView` / `WebView` host. The product is a web page, not embedded in one.             |
-| A125 | SDK supply chain -- Apple Privacy Manifest, GDPR, kid-safe       | Partially N/A | No App Store SDKs / Apple Privacy Manifest applies. Web supply-chain review is out of scope of A125 as written. |
+| ID   | Control                                                                             | Verdict       | Reason                                                                                                                  |
+| ---- | ----------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| A116 | OWASP MASVS L1+L2+R                                                                 | N/A           | MASVS is the Mobile Application Security Verification Standard. No mobile binary.                                       |
+| A117 | Cert/pubkey pinning (Frida / objection / mitmproxy)                                 | N/A           | No mobile client to pin from. TLS to Cloudflare/Supabase is browser-managed.                                            |
+| A118 | Secure storage (Keychain / Android Keystore / StrongBox / biometric)                | N/A           | No iOS Keychain, no Android Keystore. Secrets live in CF/Wrangler env + Supabase.                                       |
+| A119 | Deep / universal / app links + custom URL schemes                                   | N/A           | No `apple-app-site-association`, no `assetlinks.json`, no `Info.plist` URL types, no `<intent-filter>`. Web links only. |
+| A120 | Reverse binary (strings / class-dump / Hopper / Ghidra)                             | N/A           | No `.ipa` / `.apk` / Mach-O / ELF binary to disassemble. JS bundle review = web audit.                                  |
+| A121 | Anti-tamper / anti-debug / root-jailbreak detection                                 | N/A           | No mobile runtime. Concept does not apply to a server-rendered Next.js app.                                             |
+| A122 | IPC (app groups, share extensions, intents, content providers, broadcast receivers) | N/A           | OS-level mobile IPC primitives. None present.                                                                           |
+| A123 | Mobile permissions (background location, photos, contacts, mic, camera)             | N/A           | No mobile permission manifest. Web app does not declare these.                                                          |
+| A124 | WebViews (`addJavascriptInterface`, `file://`, mixed content, allowlist)            | N/A           | No `WKWebView` / `WebView` host. The product is a web page, not embedded in one.                                        |
+| A125 | SDK supply chain -- Apple Privacy Manifest, GDPR, kid-safe                          | Partially N/A | No App Store SDKs / Apple Privacy Manifest applies. Web supply-chain review is out of scope of A125 as written.         |
 
 ---
 
 ## On-chain section (A126--A135)
 
-| ID   | Control                                                          | Verdict | Reason                                                                                              |
-| ---- | ---------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
-| A126 | SWC Registry (reentrancy, tx.origin, delegatecall, ...)          | N/A     | No Solidity / Vyper / Move / Cairo source. SWC is EVM-specific.                                    |
-| A127 | Slither + MythX + Foundry invariants + Echidna + Certora         | N/A     | No contracts to feed any of these tools. Tool list is EVM-only.                                     |
-| A128 | Upgradeability (Proxy / UUPS / Diamond)                          | N/A     | No proxy pattern, no EIP-1967 storage, no `initialize()` to audit.                                 |
-| A129 | On-chain access control (Ownable / AccessControl, multisig, timelock) | N/A | No on-chain roles. Off-chain RBAC is in `lib/authz.ts` (web concern, not A129).                    |
-| A130 | Economic (flash loans, sandwich, MEV, oracle TWAP)               | N/A     | No AMM, lending, oracle, or governance contracts.                                                   |
-| A131 | DeFi invariants (Echidna / Foundry -- solvency, conservation)    | N/A     | No DeFi protocol present.                                                                           |
-| A132 | Off-chain (HSM/MPC signer custody, bridge, indexer)              | N/A     | No on-chain signer, no bridge, no indexer.                                                          |
-| A133 | Deployment (deterministic build, EIP-1967 slots, ownership transfer) | N/A | No contract deployment artifacts. App deploy = `wrangler deploy`, web concern.                      |
-| A134 | User UX (tx simulation, EIP-712, blind signing)                  | N/A     | No wallet flow, no `eth_sign` / `personal_sign` / `signTypedData`.                                 |
-| A135 | Compliance (OFAC, Travel Rule, MiCA, Howey)                      | N/A     | No VASP function, no token issuance, no on-chain value transfer.                                    |
+| ID   | Control                                                               | Verdict | Reason                                                                          |
+| ---- | --------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------- |
+| A126 | SWC Registry (reentrancy, tx.origin, delegatecall, ...)               | N/A     | No Solidity / Vyper / Move / Cairo source. SWC is EVM-specific.                 |
+| A127 | Slither + MythX + Foundry invariants + Echidna + Certora              | N/A     | No contracts to feed any of these tools. Tool list is EVM-only.                 |
+| A128 | Upgradeability (Proxy / UUPS / Diamond)                               | N/A     | No proxy pattern, no EIP-1967 storage, no `initialize()` to audit.              |
+| A129 | On-chain access control (Ownable / AccessControl, multisig, timelock) | N/A     | No on-chain roles. Off-chain RBAC is in `lib/authz.ts` (web concern, not A129). |
+| A130 | Economic (flash loans, sandwich, MEV, oracle TWAP)                    | N/A     | No AMM, lending, oracle, or governance contracts.                               |
+| A131 | DeFi invariants (Echidna / Foundry -- solvency, conservation)         | N/A     | No DeFi protocol present.                                                       |
+| A132 | Off-chain (HSM/MPC signer custody, bridge, indexer)                   | N/A     | No on-chain signer, no bridge, no indexer.                                      |
+| A133 | Deployment (deterministic build, EIP-1967 slots, ownership transfer)  | N/A     | No contract deployment artifacts. App deploy = `wrangler deploy`, web concern.  |
+| A134 | User UX (tx simulation, EIP-712, blind signing)                       | N/A     | No wallet flow, no `eth_sign` / `personal_sign` / `signTypedData`.              |
+| A135 | Compliance (OFAC, Travel Rule, MiCA, Howey)                           | N/A     | No VASP function, no token issuance, no on-chain value transfer.                |
 
 ---
 
@@ -72,12 +72,12 @@ smart-contract codebase. Per the skip rule all items are **N/A**.
 
 Identical for both run 3 and run 5:
 
-| Metric                                            | Value |
-| ------------------------------------------------- | ----- |
-| Items checked                                     | 20    |
-| PASS                                              | 0     |
-| FAIL                                              | 0     |
-| N/A (skipped per rule)                            | 20    |
+| Metric                                                      | Value                           |
+| ----------------------------------------------------------- | ------------------------------- |
+| Items checked                                               | 20                              |
+| PASS                                                        | 0                               |
+| FAIL                                                        | 0                               |
+| N/A (skipped per rule)                                      | 20                              |
 | Evidence collected (Frida / class-dump / Slither / Echidna) | None -- toolchains do not apply |
 
 ---
