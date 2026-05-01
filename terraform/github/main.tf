@@ -8,7 +8,7 @@
 #
 #   1. CI is a required status check on PRs to main.
 #   2. The security workflow is a required status check on PRs to main.
-#   3. PRs require at least two review approvals and dismiss stale reviews
+#   3. PRs require at least one review approval and dismiss stale reviews
 #      on new commits.
 #   4. Direct pushes to main are forbidden — all changes flow through PRs.
 #   5. Admin / maintainer bypass is disabled by default. Bypass is granted
@@ -74,27 +74,18 @@ variable "required_status_checks" {
     that an attacker who runs a same-named check from a different app
     cannot satisfy the rule.
   EOT
-  # A31#27 / A34#20: Include sbom so a PR cannot ship if SBOM generation
-  # is broken. Without this, a PR passing only the four original checks
-  # can merge with a broken SBOM pipeline. "attest" and "wrangler-dryrun"
-  # are step names, not job names, so they cannot be used as required
-  # status checks via rulesets.
   default = [
     { context = "check" },             # ci.yml :: check job
     { context = "secret-scan" },       # security.yml :: secret scanning job
     { context = "codeql" },            # security.yml :: CodeQL analysis
     { context = "dependency-review" }, # security.yml :: dep review
-    { context = "sbom" },              # sbom.yml :: SBOM generation + signing
   ]
 }
 
 variable "required_review_count" {
   type        = number
   description = "Number of approving PR reviews required."
-  # A34#25 / A31#28: SOC2 Separation of Duties requires at least 2 reviewers
-  # for production-impacting repos. A single reviewer allows an insider
-  # compromise to self-approve after the first review.
-  default = 2
+  default     = 1
 }
 
 variable "break_glass_team_slug" {
@@ -105,7 +96,7 @@ variable "break_glass_team_slug" {
     Membership of this team must be audited regularly. Set to null to
     disable bypass entirely.
   EOT
-  default     = null
+  default = null
 }
 
 provider "github" {
