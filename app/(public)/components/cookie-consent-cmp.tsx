@@ -172,7 +172,7 @@ export default function CookieConsentCmp({
       },
 
       onConsent: () => {
-        const accepted = CookieConsent.acceptedCategory("affiliate");
+        const accepted = CookieConsent.acceptedCategory("analytics");
         window.dispatchEvent(new CustomEvent("cookieConsent", { detail: { accepted } }));
       },
 
