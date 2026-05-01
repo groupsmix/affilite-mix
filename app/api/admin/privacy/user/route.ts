@@ -91,7 +91,7 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
     };
 
     logger.info("GDPR data export performed", {
-      actor: session.email ?? session.userId,
+      actor: session.email ?? session.userId ?? "system",
       action: "gdpr_export",
       target_email_hash: hashEmail(email),
       site_id,
@@ -135,7 +135,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
     const { error } = await sb.rpc("erase_subject_data" as any, {
       p_email: email.toLowerCase(),
       p_site_id: site_id,
-      p_actor: session.email ?? session.userId,
+      p_actor: session.email ?? session.userId ?? "system",
     });
 
     if (error) {
@@ -146,7 +146,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
     // Secondary audit record in application audit log (belt-and-suspenders).
     await recordAuditEvent({
       site_id,
-      actor: session.email ?? session.userId,
+      actor: session.email ?? session.userId ?? "system",
       actor_user_id: session.userId,
       action: "gdpr_erasure",
       entity_type: "subject",

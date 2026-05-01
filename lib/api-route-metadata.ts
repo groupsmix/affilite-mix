@@ -251,6 +251,16 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/privacy/restrict",
+    methods: ["POST", "DELETE"],
+    requestSchema: "PrivacyRestrictInput",
+    responseSchema: "Ok",
+    sensitiveFields: ["email"],
+    notes: "GDPR Art. 18 — place / lift processing restriction. Always audit-logged.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/products",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "ProductInput",
@@ -820,6 +830,17 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
 /**
  * Convenience map keyed by route path for O(1) lookups.
  */
+  {
+    auth: "public",
+    path: "/api/consent/log",
+    methods: ["POST"],
+    requestSchema: "ConsentLogInput",
+    responseSchema: "Ok",
+    sensitiveFields: [],
+    rateLimit: "standard",
+    notes: "OF-04: Log consent banner acceptance. IP is truncated to /24 before storage.",
+  },
+
 export const API_ROUTE_METADATA_BY_PATH: ReadonlyMap<string, RouteMetadata> = new Map(
   API_ROUTE_METADATA.map((m) => [m.path, m]),
 );
