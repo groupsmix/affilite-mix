@@ -11,7 +11,8 @@ export async function GET(
 ) {
   const { productId } = await params;
   const url = new URL(request.url);
-  const days = Math.min(Number(url.searchParams.get("days") || "90"), 365);
+  const rawDays = Number(url.searchParams.get("days") || "90");
+  const days = Number.isNaN(rawDays) ? 90 : Math.min(Math.max(Math.round(rawDays), 1), 365);
 
   try {
     const snapshots = await getPriceHistory(productId, days);
