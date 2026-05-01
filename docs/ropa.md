@@ -4,17 +4,17 @@ GDPR Article 30 — Record of Processing Activities for affilite-mix.
 
 ## Data Categories
 
-| Data Category          | Source                    | Purpose                                     | Legal Basis                        | Recipients                   | Retention                                                                                                            | Cross-border? |
-| ---------------------- | ------------------------- | ------------------------------------------- | ---------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------- |
-| Newsletter subscribers | User signup form          | Email marketing, product recommendations    | Consent (Art. 6(1)(a))             | Supabase (EU)                | Until unsubscribe + 30 days; **unconfirmed (status=pending) rows hard-deleted after 30 days by `purge_retention()`**; confirmed-then-inactive subscribers auto-purged after 2 years of inactivity | No (EU-pinned) |
-| Admin users            | Manual provisioning       | Platform administration, content management | Legitimate interest (Art. 6(1)(f)) | Supabase (EU)                | Account lifetime + 90 days                                                                                           | No (EU-pinned) |
-| Affiliate clicks       | Automatic (redirect path) | Revenue attribution, commission tracking    | Legitimate interest (Art. 6(1)(f)) | Supabase (EU), networks      | 365 days (hot) then deleted                                                                                          | No (EU-pinned) |
-| Memberships            | User purchase (Stripe)    | Subscription management, access control     | Contract (Art. 6(1)(b))            | Supabase (EU), Stripe (US)   | Subscription lifetime + 7 years                                                                                      | Yes (Stripe US)|
-| Comments / UGC         | User submission           | Community engagement                        | Consent (Art. 6(1)(a))             | Supabase (EU)                | Until deletion request; **soft-deleted (status='deleted') rows hard-deleted after 30 days by `purge_retention()`**   | No (EU-pinned) |
-| Audit log              | Automatic (admin actions) | Security monitoring, compliance             | Legitimate interest (Art. 6(1)(f)) | Supabase (EU, hot), R2 (archive) | 365 days (hot), 7 years (R2 archive)                                                                            | No (EU-pinned) |
-| Stripe events          | Stripe webhooks           | Payment reconciliation                      | Contract (Art. 6(1)(b))            | Supabase (EU)                | 90 days                                                                                                              | No (EU-pinned) |
-| Quiz submissions       | User form submission      | Lead generation, personalization            | Consent (Art. 6(1)(a))             | Supabase (EU)                | **365 days** (default), then hard-deleted by `purge_retention()`                                                     | No (EU-pinned) |
-| Price alerts           | User signup               | Price monitoring notifications              | Consent (Art. 6(1)(a))             | Supabase (EU)                | Until unsubscribe + 2 years inactivity auto-purge                                                                    | No (EU-pinned) |
+| Data Category          | Source                    | Purpose                                     | Legal Basis                        | Recipients                       | Retention                                                                                                                                                                                         | Cross-border?   |
+| ---------------------- | ------------------------- | ------------------------------------------- | ---------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| Newsletter subscribers | User signup form          | Email marketing, product recommendations    | Consent (Art. 6(1)(a))             | Supabase (EU)                    | Until unsubscribe + 30 days; **unconfirmed (status=pending) rows hard-deleted after 30 days by `purge_retention()`**; confirmed-then-inactive subscribers auto-purged after 2 years of inactivity | No (EU-pinned)  |
+| Admin users            | Manual provisioning       | Platform administration, content management | Legitimate interest (Art. 6(1)(f)) | Supabase (EU)                    | Account lifetime + 90 days                                                                                                                                                                        | No (EU-pinned)  |
+| Affiliate clicks       | Automatic (redirect path) | Revenue attribution, commission tracking    | Legitimate interest (Art. 6(1)(f)) | Supabase (EU), networks          | 365 days (hot) then deleted                                                                                                                                                                       | No (EU-pinned)  |
+| Memberships            | User purchase (Stripe)    | Subscription management, access control     | Contract (Art. 6(1)(b))            | Supabase (EU), Stripe (US)       | Subscription lifetime + 7 years                                                                                                                                                                   | Yes (Stripe US) |
+| Comments / UGC         | User submission           | Community engagement                        | Consent (Art. 6(1)(a))             | Supabase (EU)                    | Until deletion request; **soft-deleted (status='deleted') rows hard-deleted after 30 days by `purge_retention()`**                                                                                | No (EU-pinned)  |
+| Audit log              | Automatic (admin actions) | Security monitoring, compliance             | Legitimate interest (Art. 6(1)(f)) | Supabase (EU, hot), R2 (archive) | 365 days (hot), 7 years (R2 archive)                                                                                                                                                              | No (EU-pinned)  |
+| Stripe events          | Stripe webhooks           | Payment reconciliation                      | Contract (Art. 6(1)(b))            | Supabase (EU)                    | 90 days                                                                                                                                                                                           | No (EU-pinned)  |
+| Quiz submissions       | User form submission      | Lead generation, personalization            | Consent (Art. 6(1)(a))             | Supabase (EU)                    | **365 days** (default), then hard-deleted by `purge_retention()`                                                                                                                                  | No (EU-pinned)  |
+| Price alerts           | User signup               | Price monitoring notifications              | Consent (Art. 6(1)(a))             | Supabase (EU)                    | Until unsubscribe + 2 years inactivity auto-purge                                                                                                                                                 | No (EU-pinned)  |
 
 ## Data Protection Measures
 
@@ -27,15 +27,15 @@ GDPR Article 30 — Record of Processing Activities for affilite-mix.
 
 ## Sub-processors
 
-| Sub-processor                 | Purpose              | Location                     | DPA in place? |
-| ----------------------------- | -------------------- | ---------------------------- | ------------- |
-| Supabase                      | Database hosting     | EU (AWS `eu-central-1`, Frankfurt) | Yes     |
-| Cloudflare                    | CDN, Workers, R2, KV | Global (Data Localization Suite) | Yes       |
-| Stripe                        | Payment processing   | US (independent controller)  | Yes           |
-| Resend                        | Email delivery       | US (AWS US-East)             | Yes           |
-| Sentry                        | Error monitoring     | US                           | Yes           |
-| Affiliate networks (CJ, etc.) | Commission tracking  | US                           | Yes           |
-| AI providers (Cloudflare AI, Gemini, Groq, Cohere) | Content generation (no PII sent) | Global | Yes (see `docs/vendor-dpas.md` section 6) |
+| Sub-processor                                      | Purpose                          | Location                           | DPA in place?                             |
+| -------------------------------------------------- | -------------------------------- | ---------------------------------- | ----------------------------------------- |
+| Supabase                                           | Database hosting                 | EU (AWS `eu-central-1`, Frankfurt) | Yes                                       |
+| Cloudflare                                         | CDN, Workers, R2, KV             | Global (Data Localization Suite)   | Yes                                       |
+| Stripe                                             | Payment processing               | US (independent controller)        | Yes                                       |
+| Resend                                             | Email delivery                   | US (AWS US-East)                   | Yes                                       |
+| Sentry                                             | Error monitoring                 | US                                 | Yes                                       |
+| Affiliate networks (CJ, etc.)                      | Commission tracking              | US                                 | Yes                                       |
+| AI providers (Cloudflare AI, Gemini, Groq, Cohere) | Content generation (no PII sent) | Global                             | Yes (see `docs/vendor-dpas.md` section 6) |
 
 ## Regulatory Scope Statements
 
@@ -65,34 +65,34 @@ This assessment will be revisited if the platform (a) introduces profiling-based
 
 ## Field-Level PII Classification Matrix
 
-| Table | Column | Classification | Notes |
-| ----- | ------ | -------------- | ----- |
-| `newsletter_subscribers` | `email` | PII | Primary identifier |
-| `newsletter_subscribers` | `site_id` | Internal | Tenant key |
-| `newsletter_subscribers` | `status` | Internal | pending/confirmed/unsubscribed |
-| `newsletter_subscribers` | `created_at` | Internal | Timestamp |
-| `memberships` | `email` | PII | Primary identifier |
-| `memberships` | `stripe_customer_id` | PCI-adjacent | Stripe token, not PAN; linkable to payment |
-| `memberships` | `stripe_subscription_id` | PCI-adjacent | Stripe token |
-| `memberships` | `plan`, `status` | Internal | Subscription metadata |
-| `comments` | `user_email` | PII | Author identifier |
-| `comments` | `author_name` | PII | Display name |
-| `comments` | `body` | UGC | May contain incidental PII |
-| `comments` | `ip_address` | PII | Truncated to /24 in logs |
-| `quiz_submissions` | `email` | PII | Respondent identifier |
-| `quiz_submissions` | `answers` | Preference data | Not sensitive PII |
-| `wrist_shots` | `user_email` | PII | Submitter identifier |
-| `wrist_shots` | `image_url` | UGC | User-uploaded image |
-| `audit_log` | `actor` | PII (hashed) | Admin email or user_id |
-| `audit_log` | `target_email_hash` | Pseudonymised PII | SHA-256 of target email |
-| `web_vitals` | `pathname`, `metric_name`, `value` | Analytics | No direct PII |
-| `affiliate_clicks` | `ip_address` | PII | Truncated to /24 |
-| `affiliate_clicks` | `user_agent` | Indirect PII | Browser fingerprint component |
-| `admin_users` | `email` | PII | Admin identifier |
-| `admin_users` | `password_hash` | Sensitive PII (hashed) | bcrypt cost-12 |
-| `admin_users` | `totp_secret_encrypted` | Sensitive PII (encrypted) | AES-256-GCM |
-| `price_alerts` | `email` | PII | Subscriber identifier |
-| `stripe_events` | `event_id`, `type`, `data` | PCI-adjacent | Stripe metadata, no PAN |
+| Table                    | Column                             | Classification            | Notes                                      |
+| ------------------------ | ---------------------------------- | ------------------------- | ------------------------------------------ |
+| `newsletter_subscribers` | `email`                            | PII                       | Primary identifier                         |
+| `newsletter_subscribers` | `site_id`                          | Internal                  | Tenant key                                 |
+| `newsletter_subscribers` | `status`                           | Internal                  | pending/confirmed/unsubscribed             |
+| `newsletter_subscribers` | `created_at`                       | Internal                  | Timestamp                                  |
+| `memberships`            | `email`                            | PII                       | Primary identifier                         |
+| `memberships`            | `stripe_customer_id`               | PCI-adjacent              | Stripe token, not PAN; linkable to payment |
+| `memberships`            | `stripe_subscription_id`           | PCI-adjacent              | Stripe token                               |
+| `memberships`            | `plan`, `status`                   | Internal                  | Subscription metadata                      |
+| `comments`               | `user_email`                       | PII                       | Author identifier                          |
+| `comments`               | `author_name`                      | PII                       | Display name                               |
+| `comments`               | `body`                             | UGC                       | May contain incidental PII                 |
+| `comments`               | `ip_address`                       | PII                       | Truncated to /24 in logs                   |
+| `quiz_submissions`       | `email`                            | PII                       | Respondent identifier                      |
+| `quiz_submissions`       | `answers`                          | Preference data           | Not sensitive PII                          |
+| `wrist_shots`            | `user_email`                       | PII                       | Submitter identifier                       |
+| `wrist_shots`            | `image_url`                        | UGC                       | User-uploaded image                        |
+| `audit_log`              | `actor`                            | PII (hashed)              | Admin email or user_id                     |
+| `audit_log`              | `target_email_hash`                | Pseudonymised PII         | SHA-256 of target email                    |
+| `web_vitals`             | `pathname`, `metric_name`, `value` | Analytics                 | No direct PII                              |
+| `affiliate_clicks`       | `ip_address`                       | PII                       | Truncated to /24                           |
+| `affiliate_clicks`       | `user_agent`                       | Indirect PII              | Browser fingerprint component              |
+| `admin_users`            | `email`                            | PII                       | Admin identifier                           |
+| `admin_users`            | `password_hash`                    | Sensitive PII (hashed)    | bcrypt cost-12                             |
+| `admin_users`            | `totp_secret_encrypted`            | Sensitive PII (encrypted) | AES-256-GCM                                |
+| `price_alerts`           | `email`                            | PII                       | Subscriber identifier                      |
+| `stripe_events`          | `event_id`, `type`, `data`         | PCI-adjacent              | Stripe metadata, no PAN                    |
 
 > **Legend:** PII = Personally Identifiable Information, PCI-adjacent = linked to payment but not PAN/SAD, UGC = User-Generated Content, Sensitive PII = requires additional protection.
 
@@ -122,8 +122,8 @@ any change MUST be mirrored in this table and reviewed by the DPO.
 
 The corresponding data categories are also covered in the table above:
 
-| Data Category     | Source                        | Purpose                            | Legal Basis                        | Recipients       | Retention                                                    | Cross-border? |
-| ----------------- | ----------------------------- | ---------------------------------- | ---------------------------------- | ---------------- | ------------------------------------------------------------ | ------------- |
+| Data Category     | Source                        | Purpose                            | Legal Basis                        | Recipients    | Retention                                                    | Cross-border?  |
+| ----------------- | ----------------------------- | ---------------------------------- | ---------------------------------- | ------------- | ------------------------------------------------------------ | -------------- |
 | Experiment events | Automatic (A/B test SDK)      | Product experimentation, analytics | Legitimate interest (Art. 6(1)(f)) | Supabase (EU) | **180 days** (hot), then hard-deleted by `purge_retention()` | No (EU-pinned) |
 | Ad impressions    | Automatic (impression beacon) | Ad delivery analytics, attribution | Legitimate interest (Art. 6(1)(f)) | Supabase (EU) | **180 days** (hot), then hard-deleted by `purge_retention()` | No (EU-pinned) |
 

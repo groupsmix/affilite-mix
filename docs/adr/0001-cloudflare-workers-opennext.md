@@ -7,6 +7,7 @@
 ## Context
 
 The platform needed a deployment target for Next.js 15 App Router. Options considered:
+
 1. Vercel (native Next.js host)
 2. Cloudflare Workers via `@opennextjs/cloudflare`
 3. Self-hosted Node.js on AWS/GCP
