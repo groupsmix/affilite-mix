@@ -8,12 +8,12 @@
 
 ## 1. Engagement Window
 
-| Parameter          | Value                                         |
-| ------------------ | --------------------------------------------- |
-| Duration           | 5 business days                               |
-| Hours              | 09:00-17:00 UTC                               |
-| Emergency stop     | Contact on-call via `#red-team-channel` Slack  |
-| Kickoff notice     | 30 minutes before first external request       |
+| Parameter      | Value                                         |
+| -------------- | --------------------------------------------- |
+| Duration       | 5 business days                               |
+| Hours          | 09:00-17:00 UTC                               |
+| Emergency stop | Contact on-call via `#red-team-channel` Slack |
+| Kickoff notice | 30 minutes before first external request      |
 
 ---
 
@@ -42,14 +42,14 @@
 
 ## 3. Authorized Techniques
 
-| Category                     | Techniques                                                        |
-| ---------------------------- | ----------------------------------------------------------------- |
-| Web application              | OWASP Top 10 (injection, broken auth, XSS, SSRF, CSRF, etc.)     |
-| ATT&CK Enterprise            | Initial access, privilege escalation, lateral movement chains     |
-| Cloud (Cloudflare-specific)  | Worker secret enumeration, KV/R2 binding abuse, `workers.dev` bypass |
-| AI red team (A214)           | Prompt injection, jailbreak, system-prompt extraction, indirect injection |
-| Authentication               | Credential stuffing (synthetic creds only), MFA bypass attempts   |
-| API testing                  | Fuzzing, parameter tampering, rate-limit bypass                   |
+| Category                    | Techniques                                                                |
+| --------------------------- | ------------------------------------------------------------------------- |
+| Web application             | OWASP Top 10 (injection, broken auth, XSS, SSRF, CSRF, etc.)              |
+| ATT&CK Enterprise           | Initial access, privilege escalation, lateral movement chains             |
+| Cloud (Cloudflare-specific) | Worker secret enumeration, KV/R2 binding abuse, `workers.dev` bypass      |
+| AI red team (A214)          | Prompt injection, jailbreak, system-prompt extraction, indirect injection |
+| Authentication              | Credential stuffing (synthetic creds only), MFA bypass attempts           |
+| API testing                 | Fuzzing, parameter tampering, rate-limit bypass                           |
 
 ---
 
@@ -69,15 +69,15 @@
 
 A finding is classified as a **test failure** if any of the following are demonstrated:
 
-| ID   | Condition                                                              | Severity |
-| ---- | ---------------------------------------------------------------------- | -------- |
-| SF-1 | Cross-tenant data read or write                                        | Critical |
-| SF-2 | Admin remote code execution                                            | Critical |
-| SF-3 | RLS bypass without service-role key                                    | Critical |
-| SF-4 | Cost burn >= $100 from one tenant in < 1 hour (denial-of-wallet)       | High     |
-| SF-5 | AI jailbreak success rate >= 10% on the internal evaluation set         | High     |
-| SF-6 | Authentication bypass (admin session without valid credentials)         | Critical |
-| SF-7 | Persistent XSS that survives content sanitization                      | High     |
+| ID   | Condition                                                        | Severity |
+| ---- | ---------------------------------------------------------------- | -------- |
+| SF-1 | Cross-tenant data read or write                                  | Critical |
+| SF-2 | Admin remote code execution                                      | Critical |
+| SF-3 | RLS bypass without service-role key                              | Critical |
+| SF-4 | Cost burn >= $100 from one tenant in < 1 hour (denial-of-wallet) | High     |
+| SF-5 | AI jailbreak success rate >= 10% on the internal evaluation set  | High     |
+| SF-6 | Authentication bypass (admin session without valid credentials)  | Critical |
+| SF-7 | Persistent XSS that survives content sanitization                | High     |
 
 ---
 
@@ -94,11 +94,11 @@ A finding is classified as a **test failure** if any of the following are demons
 
 ## 7. Reporting
 
-| Artifact                    | Format                                         | Deadline              |
-| --------------------------- | ---------------------------------------------- | --------------------- |
-| Daily progress update       | Slack message in `#red-team-channel`            | End of each test day  |
-| Final report                | Markdown in `docs/incidents/YYYY-MM-DD-redteam.md` | 5 business days after engagement |
-| Retest report               | Same format as final report                    | 30 days after remediation |
+| Artifact              | Format                                             | Deadline                         |
+| --------------------- | -------------------------------------------------- | -------------------------------- |
+| Daily progress update | Slack message in `#red-team-channel`               | End of each test day             |
+| Final report          | Markdown in `docs/incidents/YYYY-MM-DD-redteam.md` | 5 business days after engagement |
+| Retest report         | Same format as final report                        | 30 days after remediation        |
 
 ### Finding Format
 
@@ -116,13 +116,13 @@ Each finding must include:
 
 ## 8. ATT&CK Matrices Applied
 
-| Matrix              | Applicability |
-| ------------------- | ------------- |
-| Enterprise          | Primary       |
-| Cloud (Cloudflare)  | Primary       |
-| Cloud (Supabase)    | Secondary     |
-| Mobile              | N/A           |
-| ICS                 | N/A           |
+| Matrix             | Applicability |
+| ------------------ | ------------- |
+| Enterprise         | Primary       |
+| Cloud (Cloudflare) | Primary       |
+| Cloud (Supabase)   | Secondary     |
+| Mobile             | N/A           |
+| ICS                | N/A           |
 
 ---
 
