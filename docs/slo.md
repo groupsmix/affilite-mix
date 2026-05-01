@@ -46,14 +46,15 @@ Per Google SRE Workbook Chapter 5, the following burn-rate alerts replace naive 
 
 **Public Page Availability (99.9% SLO, 0.1% error budget/month)**
 
-| Severity | Short window | Long window | Burn rate | Budget consumed | Action |
-| -------- | ------------ | ----------- | --------- | --------------- | ------ |
-| P1 (page) | 5 min | 1 hour | 14.4x | 2% in 1h | Page on-call immediately |
-| P2 (page) | 30 min | 6 hours | 6x | 5% in 6h | Page on-call |
-| P3 (ticket) | 2 hours | 24 hours | 3x | 10% in 24h | File ticket, investigate next business day |
-| P4 (ticket) | 6 hours | 72 hours | 1x | 10% in 3d | File ticket, review at weekly SLO meeting |
+| Severity    | Short window | Long window | Burn rate | Budget consumed | Action                                     |
+| ----------- | ------------ | ----------- | --------- | --------------- | ------------------------------------------ |
+| P1 (page)   | 5 min        | 1 hour      | 14.4x     | 2% in 1h        | Page on-call immediately                   |
+| P2 (page)   | 30 min       | 6 hours     | 6x        | 5% in 6h        | Page on-call                               |
+| P3 (ticket) | 2 hours      | 24 hours    | 3x        | 10% in 24h      | File ticket, investigate next business day |
+| P4 (ticket) | 6 hours      | 72 hours    | 1x        | 10% in 3d       | File ticket, review at weekly SLO meeting  |
 
 **Alert formula:**
+
 ```
 ALERT IF:
   error_rate(short_window) >= burn_rate * SLO_error_rate
@@ -61,6 +62,7 @@ ALERT IF:
 ```
 
 For 99.9% SLO (error_rate = 0.1%):
+
 - P1: `error_rate(5m) >= 1.44% AND error_rate(1h) >= 1.44%`
 - P2: `error_rate(30m) >= 0.6% AND error_rate(6h) >= 0.6%`
 - P3: `error_rate(2h) >= 0.3% AND error_rate(24h) >= 0.3%`
@@ -70,10 +72,12 @@ For 99.9% SLO (error_rate = 0.1%):
 Same burn-rate windows as Public Page Availability applied to `/api/track/click` and `/r/[shortcode]` 5xx rate.
 
 **Stripe Webhook (99.5% SLO, error_rate = 0.5%)**
+
 - P1: `failure_rate(5m) >= 7.2% AND failure_rate(1h) >= 7.2%`
 - P2: `failure_rate(30m) >= 3.0% AND failure_rate(6h) >= 3.0%`
 
 **Latency SLOs (p95 TTFB < 800ms)**
+
 - SLI: Aggregated hourly from `web_vitals` table (`SELECT percentile_cont(0.95) WITHIN GROUP (ORDER BY value) FROM web_vitals WHERE metric_name = 'TTFB' AND created_at > now() - interval '1 hour'`)
 - Alert: p95 TTFB > 800ms for 2 consecutive hourly windows
 
@@ -87,6 +91,7 @@ Same burn-rate windows as Public Page Availability applied to `/api/track/click`
 ## Error Budget Remaining Dashboard
 
 Recommend building an admin page (`/admin/slo-dashboard`) that displays:
+
 - Current 30-day error budget remaining per SLO
 - Current burn rate (trailing 1h / 6h / 24h)
 - Time until budget exhaustion at current burn rate

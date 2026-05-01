@@ -7,6 +7,7 @@
 ## Context
 
 The platform serves content in English and Arabic across multiple tenant sites. Options considered:
+
 1. `next-intl` or `react-intl` (full i18n framework)
 2. `i18next` (standalone i18n)
 3. Per-component ternaries based on `site.language`
