@@ -7,6 +7,7 @@
 ## Context
 
 Rate limiting in a Cloudflare Workers environment cannot use traditional Redis or in-process counters because V8 isolates are ephemeral and stateless. Options considered:
+
 1. In-memory per-isolate counters (fast but not shared)
 2. KV-based counters (eventually consistent, not suitable for tight limits)
 3. Durable Objects (strongly consistent, single-point coordination)

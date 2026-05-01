@@ -134,6 +134,14 @@ WHERE schemaname = 'public'
   AND NOT (
     tablename = 'web_vitals' AND policyname = 'Allow anonymous inserts' AND cmd = 'INSERT'
   )
+  -- Allowlist: ad_impressions anon INSERT is intentional — the beacon
+  -- endpoint records impressions from unauthenticated visitors. The
+  -- policy restricts columns via WITH CHECK and the table has RLS
+  -- enabled. Remove this exclusion if the policy is tightened to
+  -- authenticated-only in a future migration.
+  AND NOT (
+    tablename = 'ad_impressions' AND policyname = 'public_insert_ad_impressions' AND cmd = 'INSERT'
+  )
 ORDER BY tablename, policyname;
 SQL
 )
