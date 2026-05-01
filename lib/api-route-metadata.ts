@@ -825,21 +825,20 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     responseSchema: "204 No Content",
     sensitiveFields: [],
   },
-];
-
-/**
- * Convenience map keyed by route path for O(1) lookups.
- */
   {
     auth: "public",
+    adminRequired: false,
+    scope: "global",
+    rateLimit: true,
+    csrf: false,
     path: "/api/consent/log",
     methods: ["POST"],
     requestSchema: "ConsentLogInput",
     responseSchema: "Ok",
     sensitiveFields: [],
-    rateLimit: "standard",
     notes: "OF-04: Log consent banner acceptance. IP is truncated to /24 before storage.",
   },
+];
 
 export const API_ROUTE_METADATA_BY_PATH: ReadonlyMap<string, RouteMetadata> = new Map(
   API_ROUTE_METADATA.map((m) => [m.path, m]),
