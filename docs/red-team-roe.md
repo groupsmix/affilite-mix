@@ -7,7 +7,6 @@ Owner: Security. Last reviewed: 2026-05-01.
 - \*.groupsmix.com production + staging
 - Cloudflare Workers + Pages
 - Supabase project (read-only DB probes; no destructive payloads)
-- Mobile app + on-chain components
 
 ## Scope (out)
 

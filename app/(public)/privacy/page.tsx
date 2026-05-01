@@ -106,7 +106,7 @@ export default async function PrivacyPage() {
                   : "Stores your cookie consent preference"}
               </td>
               <td>{isAr ? "أساسي" : "Essential"}</td>
-              <td>{isAr ? "سنة واحدة" : "1 year"}</td>
+              <td>{isAr ? "365 يومًا (سنة واحدة)" : "365 days (1 year)"}</td>
             </tr>
             <tr>
               <td>__csrf</td>
