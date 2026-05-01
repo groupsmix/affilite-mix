@@ -79,17 +79,18 @@ The platform routes every generative AI call through a fallback chain defined in
 
 Per Schrems II (CJEU C-311/18) and the EU-US DPF Adequacy Decision (July 2023), US-based sub-processors should be verified at [dataprivacyframework.gov](https://www.dataprivacyframework.gov).
 
-| Sub-processor | DPF Certified? | SCCs in place? | Last verified |
-| ------------- | -------------- | -------------- | ------------- |
-| Cloudflare | Yes | Yes | 2026-04-30 |
-| Stripe | Yes | N/A (independent controller) | 2026-04-30 |
-| Sentry | Yes | Yes | 2026-04-30 |
-| Resend | **Verify** | Yes | Pending |
-| Google (Gemini) | Yes | Yes (Google Cloud DPA) | 2026-04-30 |
-| Groq | **Verify** | ToS only; custom DPA on request | Pending |
-| Cohere | **Verify** | Yes (paid plan DPA) | Pending |
+| Sub-processor   | DPF Certified? | SCCs in place?                  | Last verified |
+| --------------- | -------------- | ------------------------------- | ------------- |
+| Cloudflare      | Yes            | Yes                             | 2026-04-30    |
+| Stripe          | Yes            | N/A (independent controller)    | 2026-04-30    |
+| Sentry          | Yes            | Yes                             | 2026-04-30    |
+| Resend          | **Verify**     | Yes                             | Pending       |
+| Google (Gemini) | Yes            | Yes (Google Cloud DPA)          | 2026-04-30    |
+| Groq            | **Verify**     | ToS only; custom DPA on request | Pending       |
+| Cohere          | **Verify**     | Yes (paid plan DPA)             | Pending       |
 
 **Action items:**
+
 - [ ] Verify Resend DPF certification
 - [ ] Verify Groq DPF certification or execute custom DPA
 - [ ] Verify Cohere DPF certification or execute custom DPA

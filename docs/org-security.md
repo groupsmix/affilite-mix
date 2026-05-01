@@ -15,12 +15,12 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 
 ### Role Assignments (Least Privilege)
 
-| Role                      | Who                        | Permissions                                      |
-| ------------------------- | -------------------------- | ------------------------------------------------ |
-| Super Administrator       | Org owner only (1 person)  | Full account access                              |
-| Administrator             | Security lead              | All settings except billing                      |
-| Workers Developer          | Developers                 | Workers Scripts:Edit, KV:Edit, R2:Edit only      |
-| Analytics Viewer          | On-call / SRE              | Read-only analytics and logs                     |
+| Role                | Who                       | Permissions                                 |
+| ------------------- | ------------------------- | ------------------------------------------- |
+| Super Administrator | Org owner only (1 person) | Full account access                         |
+| Administrator       | Security lead             | All settings except billing                 |
+| Workers Developer   | Developers                | Workers Scripts:Edit, KV:Edit, R2:Edit only |
+| Analytics Viewer    | On-call / SRE             | Read-only analytics and logs                |
 
 ### Required Controls
 
@@ -96,12 +96,12 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 
 ## 5. Third-Party Service Security
 
-| Service    | MFA Required | API Key Rotation | Access Review Cadence |
-| ---------- | ------------ | ---------------- | --------------------- |
-| Stripe     | Yes          | Quarterly        | Monthly               |
-| Resend     | Yes          | Quarterly        | Monthly               |
-| Sentry     | Yes          | Annually         | Quarterly             |
-| Turnstile  | N/A (zone-bound) | N/A          | Quarterly             |
+| Service   | MFA Required     | API Key Rotation | Access Review Cadence |
+| --------- | ---------------- | ---------------- | --------------------- |
+| Stripe    | Yes              | Quarterly        | Monthly               |
+| Resend    | Yes              | Quarterly        | Monthly               |
+| Sentry    | Yes              | Annually         | Quarterly             |
+| Turnstile | N/A (zone-bound) | N/A              | Quarterly             |
 
 ---
 
@@ -120,14 +120,14 @@ When a developer laptop compromise is suspected:
 
 ## 7. Access Review Cadence
 
-| Review                            | Frequency  | Owner          |
-| --------------------------------- | ---------- | -------------- |
-| Cloudflare account membership     | Monthly    | Security lead  |
-| GitHub org membership             | Monthly    | Security lead  |
-| Supabase project membership       | Monthly    | Security lead  |
-| Stripe dashboard access           | Quarterly  | Finance lead   |
-| CI/CD secret inventory            | Quarterly  | Security lead  |
-| CODEOWNERS file accuracy          | Quarterly  | Engineering lead |
+| Review                        | Frequency | Owner            |
+| ----------------------------- | --------- | ---------------- |
+| Cloudflare account membership | Monthly   | Security lead    |
+| GitHub org membership         | Monthly   | Security lead    |
+| Supabase project membership   | Monthly   | Security lead    |
+| Stripe dashboard access       | Quarterly | Finance lead     |
+| CI/CD secret inventory        | Quarterly | Security lead    |
+| CODEOWNERS file accuracy      | Quarterly | Engineering lead |
 
 ---
 
