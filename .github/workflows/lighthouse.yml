@@ -49,6 +49,23 @@ env:
   # the homepage Lighthouse run, so the strict allowlist has no behavioural
   # impact on the audit and matches prod parity.
   AFFILIATE_DOMAIN_ENFORCEMENT: strict
+  # B-01: TOTP encryption key required at boot in production
+  TOTP_ENCRYPTION_KEY: ci-test-totp-encryption-key-0123456789ab
+  # CR-01: HMAC strict mode required in production
+  INTERNAL_HMAC_MIGRATION_MODE: strict
+  # CF-03: Dedicated HMAC / hashing secrets required in production
+  CLICK_CACHE_HMAC_KEY: ci-test-click-cache-hmac-key
+  GDPR_HASH_SECRET: ci-test-gdpr-hash-secret
+  # CR-02: Per-trigger cron secrets required in production
+  CRON_PUBLISH_SECRET: ci-test-cron-publish
+  CRON_STRIPE_SYNC_SECRET: ci-test-cron-stripe-sync
+  CRON_AI_SECRET: ci-test-cron-ai
+  CRON_SITEMAP_SECRET: ci-test-cron-sitemap
+  CRON_RETENTION_SECRET: ci-test-cron-retention
+  CRON_COMMISSION_SECRET: ci-test-cron-commission
+  CRON_EPC_SECRET: ci-test-cron-epc
+  CRON_PRICE_SECRET: ci-test-cron-price
+  CRON_DEALS_SECRET: ci-test-cron-deals
 
 jobs:
   lighthouse:
