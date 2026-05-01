@@ -7,6 +7,7 @@
 ## Context
 
 Content Security Policy (CSP) can allow inline scripts/styles via either:
+
 1. Hash-based (`'sha256-...'`) -- requires knowing all inline scripts at build time
 2. Nonce-based (`'nonce-...'`) -- generates a fresh random value per request
 

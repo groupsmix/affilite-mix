@@ -145,16 +145,8 @@ export default async function PrivacyPage() {
               : "Newsletter subscriptions: Until you unsubscribe"}
           </li>
           <li>{isAr ? "مقاييس أداء الويب: 90 يومًا" : "Web performance metrics: 90 days"}</li>
-          <li>
-            {isAr
-              ? "بيانات الاختبارات القصيرة: 365 يومًا"
-              : "Quiz submissions: 365 days"}
-          </li>
-          <li>
-            {isAr
-              ? "أحداث Stripe: 90 يومًا"
-              : "Stripe events: 90 days"}
-          </li>
+          <li>{isAr ? "بيانات الاختبارات القصيرة: 365 يومًا" : "Quiz submissions: 365 days"}</li>
+          <li>{isAr ? "أحداث Stripe: 90 يومًا" : "Stripe events: 90 days"}</li>
           <li>
             {isAr
               ? "سجل التدقيق: 365 يومًا (ساخن)، 7 سنوات (أرشيف)"
@@ -202,31 +194,21 @@ export default async function PrivacyPage() {
               : "Error monitoring and performance tracking (US)"}
           </li>
           <li>
-            <strong>
-              {isAr ? "مزودو الذكاء الاصطناعي:" : "AI providers:"}
-            </strong>{" "}
+            <strong>{isAr ? "مزودو الذكاء الاصطناعي:" : "AI providers:"}</strong>{" "}
             {isAr
               ? "نستخدم مزودي ذكاء اصطناعي (Cloudflare AI وGoogle Gemini وGroq وCohere) لإنشاء المحتوى فقط. لا يتم إرسال أي بيانات مستخدم إلى هذه الخدمات."
               : "We use AI providers (Cloudflare AI, Google Gemini, Groq, and Cohere) for content generation only. No user data is sent to these services."}
           </li>
         </ul>
 
-        <h2>
-          {isAr
-            ? "المحتوى المُنشأ بالذكاء الاصطناعي"
-            : "AI-Generated Content"}
-        </h2>
+        <h2>{isAr ? "المحتوى المُنشأ بالذكاء الاصطناعي" : "AI-Generated Content"}</h2>
         <p>
           {isAr
             ? "يتم إنشاء بعض المحتوى على هذا الموقع بمساعدة الذكاء الاصطناعي ومراجعته من قبل محرر بشري قبل النشر. يتم تمييز المحتوى المُنشأ بالذكاء الاصطناعي بوضوح. لا يتم استخدام بياناتك الشخصية كمدخلات لنماذج الذكاء الاصطناعي."
             : "Some content on this site is drafted with the assistance of AI and reviewed by a human editor before publication. AI-generated content is clearly marked. Your personal data is never used as input to AI models."}
         </p>
 
-        <h2>
-          {isAr
-            ? "اتخاذ القرارات الآلية"
-            : "Automated Decision-Making"}
-        </h2>
+        <h2>{isAr ? "اتخاذ القرارات الآلية" : "Automated Decision-Making"}</h2>
         <p>
           {isAr
             ? "لا نتخذ قرارات آلية تؤثر قانونيًا أو بشكل كبير عليك بموجب المادة 22 من اللائحة العامة لحماية البيانات. قد تقدم اختباراتنا توصيات بشأن المنتجات، لكن هذه اقتراحات فقط وليست قرارات ملزمة."
@@ -261,11 +243,7 @@ export default async function PrivacyPage() {
           <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
         </p>
 
-        <h2>
-          {isAr
-            ? "حقوق سكان كاليفورنيا (CCPA/CPRA)"
-            : "California Residents (CCPA/CPRA)"}
-        </h2>
+        <h2>{isAr ? "حقوق سكان كاليفورنيا (CCPA/CPRA)" : "California Residents (CCPA/CPRA)"}</h2>
         <p>
           {isAr
             ? "إذا كنت مقيمًا في كاليفورنيا، فلديك حقوق إضافية بموجب قانون خصوصية المستهلك في كاليفورنيا (CCPA) وقانون حقوق الخصوصية في كاليفورنيا (CPRA):"
@@ -309,9 +287,7 @@ export default async function PrivacyPage() {
             : "Categories of personal information collected in the last 12 months: Identifiers (email), Internet activity information (clicks, performance metrics), and Inferences (quiz preferences)."}
         </p>
 
-        <h2>
-          {isAr ? "بيانات الأطفال" : "Children\u2019s Privacy"}
-        </h2>
+        <h2>{isAr ? "بيانات الأطفال" : "Children\u2019s Privacy"}</h2>
         <p>
           {isAr
             ? "خدماتنا غير موجهة للأطفال دون سن 16 عامًا (وفقًا للائحة العامة لحماية البيانات) أو 13 عامًا (وفقًا لقانون COPPA). نحن لا نجمع عن علم معلومات شخصية من الأطفال. إذا علمت أن طفلاً قد زودنا ببيانات شخصية، يرجى التواصل معنا وسنحذفها فورًا."
