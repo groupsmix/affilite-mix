@@ -16,6 +16,7 @@ This document outlines the current state of compliance for the Affilite-Mix plat
 The platform never sees, transmits, or stores Primary Account Numbers (PAN) or Sensitive Authentication Data (SAD). All payment processing is handled by Stripe via hosted Checkout / Payment Element flows. The `memberships` table stores only Stripe-issued tokens (`stripe_customer_id`, `stripe_subscription_id`).
 
 **SAQ A Checklist:**
+
 - [x] No PAN outside Stripe's vault
 - [x] Tokenization via Stripe customer/subscription IDs
 - [x] No card data in logs (Sentry `sendDefaultPii: false`)
