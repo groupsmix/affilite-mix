@@ -131,8 +131,7 @@ async function buildStripeEventPayload(
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
       // OF-07: Resolve the current price to detect mid-cycle tier changes.
-      const currentPriceId =
-        subscription.items?.data?.[0]?.price?.id ?? undefined;
+      const currentPriceId = subscription.items?.data?.[0]?.price?.id ?? undefined;
       const newTier = currentPriceId ? resolveTierFromPriceId(currentPriceId) : undefined;
       return {
         op: "update_status",

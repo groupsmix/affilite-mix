@@ -6,15 +6,11 @@
       "permissions": [
         {
           "resource": "sites",
-          "actions": [
-            "read"
-          ]
+          "actions": ["read"]
         },
         {
           "resource": "analytics",
-          "actions": [
-            "read"
-          ]
+          "actions": ["read"]
         }
       ]
     },
@@ -22,98 +18,64 @@
       "id": "editor",
       "display_name": "Editor",
       "display_name_ar": "\u0645\u062d\u0631\u0631",
-      "inherits": [
-        "viewer"
-      ],
+      "inherits": ["viewer"],
       "permissions": [
         {
           "resource": "sites",
-          "actions": [
-            "read",
-            "write"
-          ]
+          "actions": ["read", "write"]
         },
         {
           "resource": "quiz",
-          "actions": [
-            "read",
-            "write"
-          ]
+          "actions": ["read", "write"]
         },
         {
           "resource": "newsletter",
-          "actions": [
-            "read",
-            "write"
-          ]
+          "actions": ["read", "write"]
         }
       ]
     },
     {
       "id": "billing_admin",
       "display_name": "Billing Admin",
-      "inherits": [
-        "viewer"
-      ],
+      "inherits": ["viewer"],
       "permissions": [
         {
           "resource": "memberships",
-          "actions": [
-            "read",
-            "write"
-          ]
+          "actions": ["read", "write"]
         },
         {
           "resource": "invoices",
-          "actions": [
-            "read"
-          ]
+          "actions": ["read"]
         }
       ]
     },
     {
       "id": "privacy_officer",
       "display_name": "Privacy Officer",
-      "inherits": [
-        "viewer"
-      ],
+      "inherits": ["viewer"],
       "permissions": [
         {
           "resource": "privacy",
-          "actions": [
-            "read",
-            "write",
-            "delete"
-          ]
+          "actions": ["read", "write", "delete"]
         },
         {
           "resource": "audit_log",
-          "actions": [
-            "read"
-          ]
+          "actions": ["read"]
         }
       ]
     },
     {
       "id": "super_admin",
       "display_name": "Super Admin",
-      "inherits": [
-        "editor",
-        "billing_admin",
-        "privacy_officer"
-      ],
+      "inherits": ["editor", "billing_admin", "privacy_officer"],
       "permissions": [
         {
           "resource": "terraform",
-          "actions": [
-            "read"
-          ]
+          "actions": ["read"]
         },
         {
           "resource": "audit_log",
-          "actions": [
-            "read"
-          ]
+          "actions": ["read"]
         }
       ],
       "_sod_note": "super_admin intentionally has no 'approve_deploy' or 'approve_payout' to satisfy SoD requirements. Deployments must be approved by a second human via GitHub PR review."

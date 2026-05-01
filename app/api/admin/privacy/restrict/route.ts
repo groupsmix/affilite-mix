@@ -16,7 +16,7 @@ import { unauthorizedResponse } from "@/lib/admin-guard";
  * Lifts an existing restriction (Art. 18(4) — notify subject before lifting).
  */
 
-export const POST = withAuthz("privacy", "write", async (request, { session }) => {
+export const POST = withAuthz("privacy", "manage", async (request, { session }) => {
   if (session.role !== "super_admin") {
     return unauthorizedResponse();
   }
@@ -51,7 +51,7 @@ export const POST = withAuthz("privacy", "write", async (request, { session }) =
         created_by: session.email ?? session.userId,
         lifted_at: null,
       },
-      { onConflict: "site_id,email", ignoreDuplicates: false }
+      { onConflict: "site_id,email", ignoreDuplicates: false },
     );
 
     if (error) {

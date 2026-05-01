@@ -14,47 +14,47 @@ configuration.
 
 ### Evidence
 
-| Requirement | Evidence | Status |
-|-------------|----------|--------|
-| Req 2.2 — No default vendor passwords | Cloudflare API tokens rotate every 90 days via CI secret rotation | ✅ |
-| Req 6.3 — Secure development | Branch protection (2 reviews, SBOM, CodeQL) | ✅ |
-| Req 6.4 — Security in SDLC | `security.yml` CodeQL + dep-review in CI | ✅ |
-| Req 8.2 — Unique IDs | Supabase Auth row per user; no shared accounts | ✅ |
-| Req 9.9 — POS device inspection | N/A — no physical POS | N/A |
-| Req 12.8 — Third-party management | `docs/vendor-dpas.md` + quarterly review | ✅ |
+| Requirement                           | Evidence                                                          | Status |
+| ------------------------------------- | ----------------------------------------------------------------- | ------ |
+| Req 2.2 — No default vendor passwords | Cloudflare API tokens rotate every 90 days via CI secret rotation | ✅     |
+| Req 6.3 — Secure development          | Branch protection (2 reviews, SBOM, CodeQL)                       | ✅     |
+| Req 6.4 — Security in SDLC            | `security.yml` CodeQL + dep-review in CI                          | ✅     |
+| Req 8.2 — Unique IDs                  | Supabase Auth row per user; no shared accounts                    | ✅     |
+| Req 9.9 — POS device inspection       | N/A — no physical POS                                             | N/A    |
+| Req 12.8 — Third-party management     | `docs/vendor-dpas.md` + quarterly review                          | ✅     |
 
 ### ASV Scan
 
-| Field | Value |
-|-------|-------|
-| Vendor | TrustWave / Qualys (select before Q3 2026 scan) |
-| Cadence | Quarterly |
-| Last completed | _Not yet performed — schedule before first card-present event_ |
-| Evidence location | `s3://groupsmix-compliance/pci/asv/` |
+| Field             | Value                                                          |
+| ----------------- | -------------------------------------------------------------- |
+| Vendor            | TrustWave / Qualys (select before Q3 2026 scan)                |
+| Cadence           | Quarterly                                                      |
+| Last completed    | _Not yet performed — schedule before first card-present event_ |
+| Evidence location | `s3://groupsmix-compliance/pci/asv/`                           |
 
 > **Action (OF-15):** Book first ASV scan with chosen vendor before 2026-09-30.
 > Update the "Last completed" field and upload report to evidence bucket.
 
 ### Penetration Test
 
-| Field | Value |
-|-------|-------|
-| Vendor | TBD — must be PCI-qualified (QSA or independent pen tester) |
-| Cadence | Annual |
-| Last completed | _Not yet performed_ |
-| Scope | `*.groupsmix.com`, Cloudflare Workers, Supabase project |
-| Evidence location | `s3://groupsmix-compliance/pci/pentest/` |
+| Field             | Value                                                       |
+| ----------------- | ----------------------------------------------------------- |
+| Vendor            | TBD — must be PCI-qualified (QSA or independent pen tester) |
+| Cadence           | Annual                                                      |
+| Last completed    | _Not yet performed_                                         |
+| Scope             | `*.groupsmix.com`, Cloudflare Workers, Supabase project     |
+| Evidence location | `s3://groupsmix-compliance/pci/pentest/`                    |
 
 > **Action (OF-15):** Commission first annual pen test before 2026-12-31.
 
 ### Self-Assessment Questionnaire (SAQ A)
 
-| Field | Value |
-|-------|-------|
-| SAQ type | SAQ A |
-| Current status | In progress — awaiting ASV scan completion |
-| Attestation of Compliance (AoC) | Not yet signed |
-| Evidence location | `s3://groupsmix-compliance/pci/saq/` |
+| Field                           | Value                                      |
+| ------------------------------- | ------------------------------------------ |
+| SAQ type                        | SAQ A                                      |
+| Current status                  | In progress — awaiting ASV scan completion |
+| Attestation of Compliance (AoC) | Not yet signed                             |
+| Evidence location               | `s3://groupsmix-compliance/pci/saq/`       |
 
 ---
 
@@ -64,34 +64,34 @@ configuration.
 
 ### Readiness Summary
 
-| Phase | Target date | Status |
-|-------|-------------|--------|
-| Readiness assessment | Q2 2026 | In progress |
-| Gap remediation | Q3 2026 | Planned |
-| Type I audit | Q4 2026 | Planned |
-| Type II audit (12-month window) | Q4 2027 | Planned |
+| Phase                           | Target date | Status      |
+| ------------------------------- | ----------- | ----------- |
+| Readiness assessment            | Q2 2026     | In progress |
+| Gap remediation                 | Q3 2026     | Planned     |
+| Type I audit                    | Q4 2026     | Planned     |
+| Type II audit (12-month window) | Q4 2027     | Planned     |
 
 ### Trust Services Criteria coverage
 
-| Criteria | Coverage | Owner |
-|----------|----------|-------|
-| CC1–CC5 (Common Criteria) | `docs/soc2-controls-mapping.md` | Sec |
-| A1 (Availability) | SLO + burn-rate alerts | SRE |
-| C1 (Confidentiality) | Encryption at rest + KMS | Sec |
-| P1–P8 (Privacy) | GDPR controls + DSAR route | DPO |
-| PI1 (Processing Integrity) | Integration tests + SBOM | Eng |
+| Criteria                   | Coverage                        | Owner |
+| -------------------------- | ------------------------------- | ----- |
+| CC1–CC5 (Common Criteria)  | `docs/soc2-controls-mapping.md` | Sec   |
+| A1 (Availability)          | SLO + burn-rate alerts          | SRE   |
+| C1 (Confidentiality)       | Encryption at rest + KMS        | Sec   |
+| P1–P8 (Privacy)            | GDPR controls + DSAR route      | DPO   |
+| PI1 (Processing Integrity) | Integration tests + SBOM        | Eng   |
 
 ---
 
 ## GDPR Art. 30 — Records of Processing Activities (RoPA)
 
-| Activity | Lawful basis | Retention | Doc |
-|----------|-------------|-----------|-----|
-| Affiliate click tracking | Consent | 365 days | Privacy policy |
-| Email newsletter | Contract | Until unsubscribe | Privacy policy |
-| Membership management | Contract | 7 years (tax) | `docs/data-retention.md` |
-| DSAR / erasure log | Legal obligation | 3 years | `audit_log` table |
-| Error telemetry (Sentry) | Legitimate interest | 90 days | Sentry retention policy |
+| Activity                 | Lawful basis        | Retention         | Doc                      |
+| ------------------------ | ------------------- | ----------------- | ------------------------ |
+| Affiliate click tracking | Consent             | 365 days          | Privacy policy           |
+| Email newsletter         | Contract            | Until unsubscribe | Privacy policy           |
+| Membership management    | Contract            | 7 years (tax)     | `docs/data-retention.md` |
+| DSAR / erasure log       | Legal obligation    | 3 years           | `audit_log` table        |
+| Error telemetry (Sentry) | Legitimate interest | 90 days           | Sentry retention policy  |
 
 ---
 
