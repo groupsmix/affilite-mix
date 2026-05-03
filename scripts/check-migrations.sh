@@ -63,6 +63,25 @@ strip_sql_comments() {
 
 violations=0
 
+# ── F-A95-06: Duplicate migration prefix check ─────────────────────
+# Two migrations with the same numeric prefix can cause non-deterministic
+# apply ordering depending on the Supabase CLI version.  Reject them
+# at CI time so the collision is caught before it reaches production.
+declare -A seen_prefixes
+while IFS= read -r -d '' file; do
+  base="$(basename "$file")"
+  # Skip down-migrations for prefix collision check
+  case "$base" in *-down.sql) continue ;; esac
+  # Extract the numeric prefix (digits before the first underscore)
+  prefix="${base%%_*}"
+  if [[ -n "${seen_prefixes[$prefix]+x}" ]]; then
+    echo "::error file=$file::Duplicate migration prefix '$prefix'. Already used by '${seen_prefixes[$prefix]}'. Each migration must have a unique numeric prefix." >&2
+    violations=$((violations + 1))
+  else
+    seen_prefixes["$prefix"]="$base"
+  fi
+done < <(find "$MIGRATIONS_DIR" -type f -name '*.sql' -print0 | sort -z)
+
 while IFS= read -r -d '' file; do
   base="$(basename "$file")"
 
@@ -168,4 +187,4 @@ if [ "$violations" -gt 0 ]; then
   exit 1
 fi
 
-echo "check-migrations: OK — no FOR ALL USING (true), bare auth.<x>(), or unpinned SECURITY DEFINER functions."
+echo "check-migrations: OK — no duplicate prefixes, FOR ALL USING (true), bare auth.<x>(), or unpinned SECURITY DEFINER functions."
