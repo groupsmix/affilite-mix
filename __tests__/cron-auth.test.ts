@@ -31,37 +31,38 @@ describe("verifyCronAuth", () => {
   });
 
   it("returns false when no Authorization header is present", () => {
-    process.env.CRON_SECRET = "my-cron-secret";
+    process.env.CRON_SECRET = "my-cron-secret-that-is-at-least-32ch";
     const req = makeRequest();
     expect(verifyCronAuth(req)).toBe(false);
   });
 
   it("returns false when Authorization header has wrong format", () => {
-    process.env.CRON_SECRET = "my-cron-secret";
-    const req = makeRequest("Basic my-cron-secret");
+    process.env.CRON_SECRET = "my-cron-secret-that-is-at-least-32ch";
+    const req = makeRequest("Basic my-cron-secret-that-is-at-least-32ch");
     expect(verifyCronAuth(req)).toBe(false);
   });
 
   it("returns false when token does not match CRON_SECRET", () => {
-    process.env.CRON_SECRET = "correct-secret";
-    const req = makeRequest("Bearer wrong-secret");
+    process.env.CRON_SECRET = "correct-secret-value-at-least-32-chars";
+    const req = makeRequest("Bearer wrong-secret-value-at-least-32-chars");
     expect(verifyCronAuth(req)).toBe(false);
   });
 
   it("returns true when Bearer token matches CRON_SECRET", () => {
-    process.env.CRON_SECRET = "my-cron-secret";
-    const req = makeRequest("Bearer my-cron-secret");
+    process.env.CRON_SECRET = "my-cron-secret-that-is-at-least-32ch";
+    const req = makeRequest("Bearer my-cron-secret-that-is-at-least-32ch");
     expect(verifyCronAuth(req)).toBe(true);
   });
 
   it("returns false for tokens of different lengths (timing-safe)", () => {
-    process.env.CRON_SECRET = "short";
-    const req = makeRequest("Bearer a-much-longer-token-value");
+    // A100: secrets under 32 chars are now rejected
+    process.env.CRON_SECRET = "short-secret-under-minimum-length";
+    const req = makeRequest("Bearer a-much-longer-token-value-at-least-32ch");
     expect(verifyCronAuth(req)).toBe(false);
   });
 
   it("returns false for empty Bearer token", () => {
-    process.env.CRON_SECRET = "my-cron-secret";
+    process.env.CRON_SECRET = "my-cron-secret-that-is-at-least-32ch";
     const req = makeRequest("Bearer ");
     expect(verifyCronAuth(req)).toBe(false);
   });
@@ -85,16 +86,16 @@ describe("verifyCronAuth — per-trigger secrets (B-3)", () => {
   });
 
   it("accepts the per-trigger secret when set", () => {
-    process.env.CRON_PUBLISH_SECRET = "publish-only-secret";
-    const req = makeRequest("Bearer publish-only-secret");
+    process.env.CRON_PUBLISH_SECRET = "publish-only-secret-at-least-32chars";
+    const req = makeRequest("Bearer publish-only-secret-at-least-32chars");
     expect(verifyCronAuth(req, { secretEnvVars: ["CRON_PUBLISH_SECRET", "CRON_SECRET"] })).toBe(
       true,
     );
   });
 
   it("falls back to CRON_SECRET when per-trigger secret is unset", () => {
-    process.env.CRON_SECRET = "fallback-secret";
-    const req = makeRequest("Bearer fallback-secret");
+    process.env.CRON_SECRET = "fallback-secret-value-at-least-32chars";
+    const req = makeRequest("Bearer fallback-secret-value-at-least-32chars");
     expect(verifyCronAuth(req, { secretEnvVars: ["CRON_PUBLISH_SECRET", "CRON_SECRET"] })).toBe(
       true,
     );
@@ -108,8 +109,8 @@ describe("verifyCronAuth — per-trigger secrets (B-3)", () => {
   });
 
   it("rejects a secret intended for a different trigger", () => {
-    process.env.CRON_AI_SECRET = "ai-only-secret";
-    const req = makeRequest("Bearer ai-only-secret");
+    process.env.CRON_AI_SECRET = "ai-only-secret-value-at-least-32chars";
+    const req = makeRequest("Bearer ai-only-secret-value-at-least-32chars");
     // publish route only accepts CRON_PUBLISH_SECRET / CRON_SECRET
     expect(verifyCronAuth(req, { secretEnvVars: ["CRON_PUBLISH_SECRET", "CRON_SECRET"] })).toBe(
       false,
@@ -117,10 +118,10 @@ describe("verifyCronAuth — per-trigger secrets (B-3)", () => {
   });
 
   it("accepts either per-trigger OR fallback when both are configured", () => {
-    process.env.CRON_PUBLISH_SECRET = "publish-secret";
-    process.env.CRON_SECRET = "shared-secret";
-    const reqA = makeRequest("Bearer publish-secret");
-    const reqB = makeRequest("Bearer shared-secret");
+    process.env.CRON_PUBLISH_SECRET = "publish-secret-value-at-least-32ch";
+    process.env.CRON_SECRET = "shared-secret-value-at-least-32chars";
+    const reqA = makeRequest("Bearer publish-secret-value-at-least-32ch");
+    const reqB = makeRequest("Bearer shared-secret-value-at-least-32chars");
     const opts = { secretEnvVars: ["CRON_PUBLISH_SECRET", "CRON_SECRET"] };
     expect(verifyCronAuth(reqA, opts)).toBe(true);
     expect(verifyCronAuth(reqB, opts)).toBe(true);

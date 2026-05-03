@@ -41,31 +41,31 @@ describe("cron publish authentication", () => {
   });
 
   it("rejects requests with wrong secret", () => {
-    process.env.CRON_SECRET = "correct-secret";
+    process.env.CRON_SECRET = "correct-secret-value-at-least-32chars";
     const req = makeRequest("POST", "/api/cron/publish", {
-      authorization: "Bearer wrong-secret",
+      authorization: "Bearer wrong-secret-value-at-least-32chars-x",
     });
     expect(verifyCronAuth(req)).toBe(false);
   });
 
   it("accepts requests with correct Bearer token", () => {
-    process.env.CRON_SECRET = "my-cron-secret-123";
+    process.env.CRON_SECRET = "my-cron-secret-that-is-at-least-32ch";
     const req = makeRequest("POST", "/api/cron/publish", {
-      authorization: "Bearer my-cron-secret-123",
+      authorization: "Bearer my-cron-secret-that-is-at-least-32ch",
     });
     expect(verifyCronAuth(req)).toBe(true);
   });
 
   it("rejects Basic auth scheme (must be Bearer)", () => {
-    process.env.CRON_SECRET = "my-secret";
+    process.env.CRON_SECRET = "my-secret-value-that-is-at-least-32ch";
     const req = makeRequest("POST", "/api/cron/publish", {
-      authorization: "Basic my-secret",
+      authorization: "Basic my-secret-value-that-is-at-least-32ch",
     });
     expect(verifyCronAuth(req)).toBe(false);
   });
 
   it("rejects empty Bearer token", () => {
-    process.env.CRON_SECRET = "my-secret";
+    process.env.CRON_SECRET = "my-secret-value-that-is-at-least-32ch";
     const req = makeRequest("POST", "/api/cron/publish", {
       authorization: "Bearer ",
     });

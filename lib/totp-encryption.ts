@@ -52,6 +52,19 @@ function getEncryptionKey(): string | null {
 }
 
 /**
+ * F-A99-10 / A100: Return the previous encryption key for rotation.
+ *
+ * During a key rotation the operator sets `TOTP_ENCRYPTION_KEY` to the
+ * new value and `TOTP_ENCRYPTION_KEY_OLD` to the previous value.
+ * `decryptTotpSecret` tries the current key first, then falls back to
+ * the old key so existing encrypted rows remain readable while the
+ * background re-encryption job runs.
+ */
+function getOldEncryptionKey(): string | null {
+  return process.env.TOTP_ENCRYPTION_KEY_OLD?.trim() || null;
+}
+
+/**
  * Encrypt a TOTP secret for storage.
  *
  * Returns the encrypted string prefixed with `enc:v1:` so the decrypt
@@ -110,10 +123,26 @@ export async function decryptTotpSecret(stored: string): Promise<string> {
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
+  // Try the current key first.
   const key = await deriveKey(rawKey);
-  const plainBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+  try {
+    const plainBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+    return new TextDecoder().decode(plainBytes);
+  } catch (primaryError) {
+    // F-A99-10 / A100: If the current key fails (e.g. mid-rotation),
+    // try the old key before giving up. This prevents users from being
+    // locked out of their own TOTP secrets during key rotation.
+    const oldRawKey = getOldEncryptionKey();
+    if (!oldRawKey) throw primaryError;
 
-  return new TextDecoder().decode(plainBytes);
+    logger.warn(
+      "[totp-encryption] Primary key decryption failed; attempting TOTP_ENCRYPTION_KEY_OLD fallback.",
+    );
+
+    const oldKey = await deriveKey(oldRawKey);
+    const plainBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, oldKey, ciphertext);
+    return new TextDecoder().decode(plainBytes);
+  }
 }
 
 /**
