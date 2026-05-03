@@ -37,6 +37,12 @@ export async function POST() {
 
   const response = NextResponse.json({ ok: true });
 
+  // A56.10: Instruct the browser to clear all cookies and storage for this
+  // origin so no stale auth artefacts survive logout. "cache" is omitted to
+  // avoid a full cache bust on every logout (the CDN layer handles
+  // auth-specific Cache-Control already).
+  response.headers.set("Clear-Site-Data", '"cookies", "storage"');
+
   // Clear the main JWT auth cookie
   response.cookies.set(COOKIE_NAME, "", {
     httpOnly: true,

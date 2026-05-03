@@ -9,6 +9,10 @@ import { getClientIp } from "@/lib/get-client-ip";
  */
 const CSP_REPORT_RATE_LIMIT = { maxRequests: 60, windowMs: 60_000 };
 
+// A55.9: CSP reports are an inbound flood vector — cap body size to prevent
+// memory exhaustion. Real CSP reports are typically < 2 KB.
+const MAX_CSP_REPORT_BYTES = 10_240; // 10 KB
+
 export async function POST(request: NextRequest) {
   // F-06: Per-IP rate limit — documented in csrf-exempt-registry as
   // "cspReportBucket" but was not enforced at runtime. Without this,
@@ -17,6 +21,12 @@ export async function POST(request: NextRequest) {
   const rl = await checkRateLimit(`csp-report:${ip}`, CSP_REPORT_RATE_LIMIT);
   if (!rl.allowed) {
     return new NextResponse(null, { status: 429 });
+  }
+
+  // A55.9: Reject oversized payloads before parsing to prevent memory abuse.
+  const contentLength = request.headers.get("content-length");
+  if (contentLength && parseInt(contentLength, 10) > MAX_CSP_REPORT_BYTES) {
+    return new NextResponse(null, { status: 413 });
   }
 
   // CSP reports can be sent as JSON or multipart

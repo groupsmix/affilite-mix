@@ -18,6 +18,52 @@ import { getAppCacheKV } from "@/lib/runtime-env";
 
 const CSP_HEADER = "Content-Security-Policy";
 
+// A56.5: Comprehensive Permissions-Policy string — deny-all approach.
+// Shared between normal responses (applyAllSecurityHeaders) and early-exit
+// error responses so 4xx/5xx carry the same policy as 200s (A56.7/A56.8).
+const PERMISSIONS_POLICY = [
+  "camera=()",
+  "microphone=()",
+  "geolocation=()",
+  "payment=()",
+  "usb=()",
+  "magnetometer=()",
+  "gyroscope=()",
+  "accelerometer=()",
+  "interest-cohort=()",
+  "browsing-topics=()",
+  "attribution-reporting=()",
+  "document-domain=()",
+  "idle-detection=()",
+  "midi=()",
+  "otp-credentials=()",
+  "picture-in-picture=()",
+  "publickey-credentials-create=()",
+  "publickey-credentials-get=()",
+  "screen-wake-lock=()",
+  "serial=()",
+  "sync-xhr=()",
+  "web-share=()",
+  "window-management=()",
+  "xr-spatial-tracking=()",
+  "hid=()",
+  "gamepad=()",
+].join(", ");
+
+/**
+ * A56.7/A56.8: Apply baseline security headers to any response — including
+ * early-exit error responses (CSRF block, rate-limit 429, maintenance 503)
+ * and redirects. Previously only the happy-path 200 carried these headers.
+ */
+function applyBaselineSecurityHeaders(response: NextResponse): void {
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", PERMISSIONS_POLICY);
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+}
+
 // F-PERF-02: Per-isolate maintenance mode cache (30s TTL)
 let _maintenanceCacheValue = false;
 let _maintenanceCacheExpiry = 0;
@@ -40,7 +86,9 @@ function nicheNotFoundResponse(request: NextRequest): NextResponse {
   // This ensures tenant branding, localization, and proper SEO
   const url = request.nextUrl.clone();
   url.pathname = "/not-found";
-  return NextResponse.rewrite(url, { status: 404 });
+  const res = NextResponse.rewrite(url, { status: 404 });
+  applyBaselineSecurityHeaders(res);
+  return res;
 }
 
 /**
@@ -61,7 +109,7 @@ async function innerMiddleware(request: NextRequest) {
     const maintenanceMode =
       process.env.APP_MAINTENANCE_MODE === "1" || process.env.APP_MAINTENANCE_MODE === "true";
     if (maintenanceMode) {
-      return new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
+      const res = new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
         status: 503,
         headers: {
           "Content-Type": "application/json",
@@ -72,6 +120,8 @@ async function innerMiddleware(request: NextRequest) {
           Pragma: "no-cache",
         },
       });
+      applyBaselineSecurityHeaders(res);
+      return res;
     }
     try {
       if (_maintenanceCacheExpiry < Date.now()) {
@@ -84,15 +134,20 @@ async function innerMiddleware(request: NextRequest) {
         _maintenanceCacheExpiry = Date.now() + 30_000;
       }
       if (_maintenanceCacheValue) {
-        return new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
-          status: 503,
-          headers: {
-            "Content-Type": "application/json",
-            // G-35: same no-store guarantee as the env-var branch above.
-            "Cache-Control": "no-store",
-            Pragma: "no-cache",
+        const res = new NextResponse(
+          JSON.stringify({ error: "Service temporarily unavailable." }),
+          {
+            status: 503,
+            headers: {
+              "Content-Type": "application/json",
+              // G-35: same no-store guarantee as the env-var branch above.
+              "Cache-Control": "no-store",
+              Pragma: "no-cache",
+            },
           },
-        });
+        );
+        applyBaselineSecurityHeaders(res);
+        return res;
       }
     } catch {
       // Ignore KV errors; maintenance gate is best-effort.
@@ -108,13 +163,15 @@ async function innerMiddleware(request: NextRequest) {
   if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method)) {
     const contentLength = request.headers.get("content-length");
     if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
-      return new NextResponse(
+      const res = new NextResponse(
         JSON.stringify({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" }),
         {
           status: 413,
           headers: { "Content-Type": "application/json" },
         },
       );
+      applyBaselineSecurityHeaders(res);
+      return res;
     }
   }
 
@@ -132,7 +189,9 @@ async function innerMiddleware(request: NextRequest) {
     // Use new URL() pattern to properly preserve query strings
     const url = new URL(request.url);
     url.pathname = pathname.replace(/\/+$/, "");
-    return NextResponse.redirect(url, 308);
+    const redirectRes = NextResponse.redirect(url, 308);
+    applyBaselineSecurityHeaders(redirectRes);
+    return redirectRes;
   }
 
   // ── CORS preflight (OPTIONS) ───────────────────────────
@@ -183,10 +242,12 @@ async function innerMiddleware(request: NextRequest) {
       requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";
 
     if (!matchedOrigin) {
-      return new NextResponse(null, { status: 403 });
+      const res = new NextResponse(null, { status: 403 });
+      applyBaselineSecurityHeaders(res);
+      return res;
     }
 
-    return new NextResponse(null, {
+    const preflightRes = new NextResponse(null, {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": matchedOrigin,
@@ -197,6 +258,8 @@ async function innerMiddleware(request: NextRequest) {
         Vary: "Origin",
       },
     });
+    applyBaselineSecurityHeaders(preflightRes);
+    return preflightRes;
   }
 
   // ── Resolve site ──────────────────────────────────────
@@ -255,7 +318,7 @@ async function innerMiddleware(request: NextRequest) {
         failPolicy: "closed",
       });
       if (!rlResult.allowed) {
-        return new NextResponse("Too Many Requests", {
+        const res = new NextResponse("Too Many Requests", {
           status: 429,
           headers: {
             "Cache-Control": "no-store, max-age=0",
@@ -263,6 +326,8 @@ async function innerMiddleware(request: NextRequest) {
             "Retry-After": String(Math.ceil(rlResult.retryAfterMs / 1000) || 60),
           },
         });
+        applyBaselineSecurityHeaders(res);
+        return res;
       }
     } catch (rlErr) {
       // P0-2: Rate limit check itself failed — fail CLOSED. Under a KV/DO
@@ -271,7 +336,7 @@ async function innerMiddleware(request: NextRequest) {
         context: "middleware.hostname-resolve-rate-limit-failed",
         extra: { hostname },
       });
-      return new NextResponse(JSON.stringify({ error: "Rate limit unavailable" }), {
+      const rlUnavailRes = new NextResponse(JSON.stringify({ error: "Rate limit unavailable" }), {
         status: 503,
         headers: {
           "Content-Type": "application/json",
@@ -280,6 +345,8 @@ async function innerMiddleware(request: NextRequest) {
           "Retry-After": "30",
         },
       });
+      applyBaselineSecurityHeaders(rlUnavailRes);
+      return rlUnavailRes;
     }
 
     // G-34: worker-wide LRU cap on the number of *distinct* unknown
@@ -389,7 +456,7 @@ async function innerMiddleware(request: NextRequest) {
       // P1-1: Serve a branded temporary unavailable response rather than a
       // confusing 404. All middleware-generated 5xx responses MUST set
       // Cache-Control: no-store so CDNs/browsers never cache error pages.
-      return new NextResponse(
+      const dbErrRes = new NextResponse(
         JSON.stringify({
           error: "Service Temporarily Unavailable",
           message: "The platform is currently experiencing database connectivity issues.",
@@ -404,6 +471,8 @@ async function innerMiddleware(request: NextRequest) {
           },
         },
       );
+      applyBaselineSecurityHeaders(dbErrRes);
+      return dbErrRes;
     }
   }
 
@@ -420,7 +489,9 @@ async function innerMiddleware(request: NextRequest) {
 
     // 1. If Origin is present, reject mismatched origins immediately
     if (origin && !allowedOrigins.includes(origin)) {
-      return new NextResponse("Forbidden", { status: 403 });
+      const res = new NextResponse("Forbidden", { status: 403 });
+      applyBaselineSecurityHeaders(res);
+      return res;
     }
 
     // 2. Always validate the CSRF double-submit cookie token
@@ -437,7 +508,9 @@ async function innerMiddleware(request: NextRequest) {
       const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
       const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
       if (!validateCsrfToken(cookieValue, headerValue)) {
-        return new NextResponse("Forbidden – missing CSRF token", { status: 403 });
+        const res = new NextResponse("Forbidden – missing CSRF token", { status: 403 });
+        applyBaselineSecurityHeaders(res);
+        return res;
       }
     }
   }
@@ -481,12 +554,7 @@ async function innerMiddleware(request: NextRequest) {
   // X-Content-Type-Options: prevent MIME-type sniffing.
   // X-Frame-Options: prevent clickjacking (belt-and-suspenders with CSP frame-ancestors).
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
-  );
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("X-Frame-Options", "DENY");
+  applyBaselineSecurityHeaders(response);
 
   // A63: Forward GPC signal so the cookie-consent CMP can auto-reject
   // non-essential categories for California users who enable GPC.
@@ -564,7 +632,7 @@ export async function middleware(request: NextRequest) {
     // Otherwise, return a soft-failed request so the Next.js app can still render
     // a basic page (e.g. not-found or an un-branded homepage).
     if (request.nextUrl.pathname.startsWith("/api/")) {
-      return NextResponse.json(
+      const errRes = NextResponse.json(
         { error: "Internal Server Error" },
         {
           status: 500,
@@ -573,12 +641,15 @@ export async function middleware(request: NextRequest) {
           },
         },
       );
+      applyBaselineSecurityHeaders(errRes);
+      return errRes;
     }
 
     // For non-API routes, we can't easily resolve siteId if DB/KV failed.
     // Passing through without headers allows the app to render its generic fallback.
     const response = NextResponse.next();
     response.headers.set("x-middleware-error", "1");
+    applyBaselineSecurityHeaders(response);
     return response;
   }
 }

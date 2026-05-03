@@ -52,8 +52,12 @@ const nextConfig: NextConfig = {
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         {
           key: "Permissions-Policy",
-          // G-51: include `interest-cohort=()` to opt out of FLoC / Topics.
-          value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+          // A56.5 / G-51: comprehensive deny-all Permissions-Policy, aligned
+          // with the runtime policy set in middleware.ts. Static routes
+          // excluded from the middleware matcher (fonts, _next/static, etc.)
+          // still get this header from Next.js's built-in headers() config.
+          value:
+            "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=(), browsing-topics=(), attribution-reporting=(), document-domain=(), idle-detection=(), midi=(), otp-credentials=(), picture-in-picture=(), publickey-credentials-create=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), sync-xhr=(), web-share=(), window-management=(), xr-spatial-tracking=(), hid=(), gamepad=()",
         },
         {
           key: "Strict-Transport-Security",
