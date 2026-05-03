@@ -46,18 +46,21 @@ function isGpcEnabled(): boolean {
  * basis at audit time. Failures are non-blocking — the CMP UX must keep
  * working even if the log endpoint is briefly unavailable.
  */
-function postConsentProof(siteId: string | undefined, detail: {
-  analytics: boolean;
-  affiliate: boolean;
-  advertising: boolean;
-  bannerVersion: string;
-  gpc: boolean;
-}) {
+function postConsentProof(
+  siteId: string | undefined,
+  detail: {
+    analytics: boolean;
+    affiliate: boolean;
+    advertising: boolean;
+    bannerVersion: string;
+    gpc: boolean;
+  },
+) {
   try {
     const resolvedSiteId =
       siteId ??
       (typeof document !== "undefined"
-        ? document.documentElement.getAttribute("data-site-id") ?? ""
+        ? (document.documentElement.getAttribute("data-site-id") ?? "")
         : "");
     if (!resolvedSiteId) return;
     const categories: string[] = ["necessary"];
