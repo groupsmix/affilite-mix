@@ -1,0 +1,205 @@
+# A61-F3: Machine-readable data classification map.
+# This file is the structured source of truth for PII/sensitive data fields.
+# CI should validate that new migrations update this file (see .github/workflows/ci.yml).
+#
+# Schema:
+#   table: database table name
+#   column: column name or wildcard
+#   classification: PII | Sensitive-PII | PCI-adjacent | Financial-PII | UGC | Internal
+#   lawful_basis: GDPR Article reference
+#   purpose: why the data is collected
+#   retention: how long data is kept
+#   sub_processors: list of sub-processors with access
+#   cross_border: whether data leaves the EU
+#   dpia_required: whether a DPIA is required for this data
+
+fields:
+  - table: newsletter_subscribers
+    column: email
+    classification: PII
+    lawful_basis: "Art.6(1)(a) consent"
+    purpose: Email marketing, product recommendations
+    retention: "Until unsubscribe + 30 days; unconfirmed purged after 30 days"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: newsletter_subscribers
+    column: site_id
+    classification: Internal
+    lawful_basis: N/A
+    purpose: Tenant key
+    retention: Same as parent row
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: memberships
+    column: email
+    classification: PII
+    lawful_basis: "Art.6(1)(b) contract"
+    purpose: Subscription management, access control
+    retention: "Subscription lifetime + 7 years"
+    sub_processors: [Supabase, Stripe]
+    cross_border: true  # Stripe US
+    dpia_required: false
+
+  - table: memberships
+    column: stripe_customer_id
+    classification: PCI-adjacent
+    lawful_basis: "Art.6(1)(b) contract"
+    purpose: Payment token (not PAN)
+    retention: "Subscription lifetime + 7 years"
+    sub_processors: [Supabase, Stripe]
+    cross_border: true
+    dpia_required: false
+
+  - table: memberships
+    column: stripe_subscription_id
+    classification: PCI-adjacent
+    lawful_basis: "Art.6(1)(b) contract"
+    purpose: Subscription token
+    retention: "Subscription lifetime + 7 years"
+    sub_processors: [Supabase, Stripe]
+    cross_border: true
+    dpia_required: false
+
+  - table: comments
+    column: user_email
+    classification: PII
+    lawful_basis: "Art.6(1)(a) consent"
+    purpose: Author identification
+    retention: "Until deletion request; soft-deleted rows purged after 30 days"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: comments
+    column: author_name
+    classification: PII
+    lawful_basis: "Art.6(1)(a) consent"
+    purpose: Display name
+    retention: "Until deletion request"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: comments
+    column: body
+    classification: UGC
+    lawful_basis: "Art.6(1)(a) consent"
+    purpose: Community engagement
+    retention: "Until deletion request"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: wrist_shots
+    column: user_email
+    classification: PII
+    lawful_basis: "Art.6(1)(a) consent"
+    purpose: UGC attribution
+    retention: "Until deletion request"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: quiz_submissions
+    column: email
+    classification: PII
+    lawful_basis: "Art.6(1)(a) consent"
+    purpose: Lead generation, personalization
+    retention: "365 days then hard-deleted"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: price_alerts
+    column: email
+    classification: PII
+    lawful_basis: "Art.6(1)(a) consent"
+    purpose: Price monitoring notifications
+    retention: "Until unsubscribe + 2 years inactivity"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: admin_users
+    column: email
+    classification: PII
+    lawful_basis: "Art.6(1)(f) legitimate interest"
+    purpose: Platform administration
+    retention: "Account lifetime + 90 days"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: affiliate_clicks
+    column: ip_address
+    classification: PII
+    lawful_basis: "Art.6(1)(f) legitimate interest"
+    purpose: Revenue attribution, fraud prevention
+    retention: "365 days then deleted"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: affiliate_clicks
+    column: user_agent
+    classification: PII
+    lawful_basis: "Art.6(1)(f) legitimate interest"
+    purpose: Revenue attribution
+    retention: "365 days then deleted"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: audit_log
+    column: actor
+    classification: PII
+    lawful_basis: "Art.6(1)(c) legal obligation"
+    purpose: Security monitoring, compliance
+    retention: "365 days (hot), 7 years (R2 archive)"
+    sub_processors: [Supabase, "Cloudflare R2"]
+    cross_border: false
+    dpia_required: false
+
+  - table: consent_log
+    column: ip_truncated
+    classification: PII
+    lawful_basis: "Art.6(1)(c) + Art.7(1) proof of consent"
+    purpose: Compliance evidence
+    retention: "Permanent (anonymized after subject deletion)"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: consent_log
+    column: subject_id
+    classification: PII
+    lawful_basis: "Art.6(1)(c) + Art.7(1) proof of consent"
+    purpose: Link consent to subject
+    retention: "Permanent (anonymized after subject deletion)"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: stripe_events
+    column: "*"
+    classification: Financial-PII
+    lawful_basis: "Art.6(1)(b) contract"
+    purpose: Payment reconciliation
+    retention: "90 days"
+    sub_processors: [Supabase]
+    cross_border: false
+    dpia_required: false
+
+  - table: drip_enrollments
+    column: email
+    classification: PII
+    lawful_basis: "Art.6(1)(a) consent"
+    purpose: Email drip campaigns
+    retention: "Until completion or unsubscribe"
+    sub_processors: [Supabase, Resend]
+    cross_border: true  # Resend US
+    dpia_required: false

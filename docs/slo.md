@@ -88,6 +88,34 @@ Same burn-rate windows as Public Page Availability applied to `/api/track/click`
 - Both short and long windows must fire simultaneously to prevent alert noise from single-spike events
 - Fast-burn alerts (P1/P2) page on-call; slow-burn (P3/P4) file a ticket
 
+## SLI Measurement (A85-F1)
+
+The following SLIs are actively measured and feed into the burn-rate alerts above:
+
+| SLI | Source | Query / Metric | Measurement frequency |
+|-----|--------|---------------|----------------------|
+| Public page availability | Cloudflare Workers Analytics | `1 - (sum(5xx responses) / sum(total requests))` for routes excluding `/api/health` | Continuous (1-min resolution) |
+| Public page latency (p95 TTFB) | `web_vitals` table | `percentile_cont(0.95) WITHIN GROUP (ORDER BY value) FROM web_vitals WHERE metric_name = 'TTFB'` | Hourly aggregation |
+| Admin API latency (p95) | Sentry performance | `p95(transaction.duration)` for `/api/admin/*` transactions | Continuous (Sentry 1-min buckets) |
+| Stripe webhook success rate | `stripe_events` table | `1 - (count(status='failed') / count(*))` per hour | Hourly aggregation |
+| Click tracking availability | Cloudflare Workers Analytics | `1 - (sum(5xx) / sum(total))` for `/api/track/click` and `/r/*` | Continuous (1-min resolution) |
+
+### Data pipeline
+
+1. **Cloudflare Workers Analytics** provides per-route request counts and status codes at 1-minute granularity. These feed the availability and latency SLIs via the Cloudflare GraphQL Analytics API.
+2. **Sentry performance monitoring** captures transaction-level timing for API routes. Alerts are configured in `terraform/cloudflare/sentry-alerts.tf`.
+3. **`web_vitals` table** receives real-user TTFB/LCP/CLS metrics from the client-side `app/web-vitals.tsx` reporter via `POST /api/vitals`.
+4. **`stripe_events` table** records webhook processing outcomes, enabling the webhook success-rate SLI.
+
+### Reporting cadence
+
+| Cadence | Artifact | Owner |
+|---------|----------|-------|
+| Real-time | Sentry + Cloudflare dashboards | SRE |
+| Weekly | Error budget burn-rate summary (manual, pending dashboard) | SRE |
+| Monthly | SLO performance review in engineering sync | Engineering lead |
+| Quarterly | SLO target recalibration | CTO + SRE |
+
 ## Error Budget Remaining Dashboard
 
 Recommend building an admin page (`/admin/slo-dashboard`) that displays:

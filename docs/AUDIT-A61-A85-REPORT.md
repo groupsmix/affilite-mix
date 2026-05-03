@@ -371,4 +371,24 @@ Findings already tracked in `docs/technical-audit-2026-04-30.md` are cross-refer
 
 ---
 
+---
+
+## Remediation Log
+
+The following findings were addressed in the `docs/audit-a61-a85-report` branch:
+
+| Finding | Fix | File(s) changed |
+|---------|-----|-----------------|
+| A74-F1 (P1) | Wired circuit breaker into AI provider fallback chain | `lib/ai/providers.ts` |
+| A74-F2 (P1) | Added fault-injection tests for circuit breaker resilience | `__tests__/chaos/ai-fault-injection.test.ts` |
+| A68-F1 (P2) | Promoted all jsx-a11y rules from warn to error | `eslint.config.mjs` |
+| A62-F4 (P2) | Added consent_logs and audit_log to DSAR export | `app/api/admin/privacy/user/route.ts` |
+| A61-F3 (P2) | Created machine-readable data classification map | `docs/compliance/data-map.yaml` |
+| A66-F1 (P2) | Created formal access review policy | `docs/access-review-policy.md` |
+| A66-F2 (P2) | Created vendor risk register | `docs/vendor-risk-register.md` |
+| A85-F1 (P2) | Added SLI measurement definitions and reporting cadence | `docs/slo.md` |
+| A66-F3 (P3) | Created change management policy (incl. emergency changes) | `docs/change-management-policy.md` |
+| A67-F7 (P3) | Emergency change process documented in change management policy | `docs/change-management-policy.md` |
+| A84-F2 (P3) | Created supply chain risk register | `docs/supply-chain-risk.md` |
+
 *Report generated: 2026-04-30. Last updated: 2026-05-03.*
