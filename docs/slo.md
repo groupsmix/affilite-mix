@@ -81,12 +81,13 @@ Same burn-rate windows as Public Page Availability applied to `/api/track/click`
 - SLI: Aggregated hourly from `web_vitals` table (`SELECT percentile_cont(0.95) WITHIN GROUP (ORDER BY value) FROM web_vitals WHERE metric_name = 'TTFB' AND created_at > now() - interval '1 hour'`)
 - Alert: p95 TTFB > 800ms for 2 consecutive hourly windows
 
-### Implementation notes
+### Implementation
 
-- Sentry performance alerts support custom query windows; configure via `terraform/cloudflare/sentry-alerts.tf`
-- Cloudflare Workers Analytics provides CPU time per route for latency SLIs
-- Both short and long windows must fire simultaneously to prevent alert noise from single-spike events
-- Fast-burn alerts (P1/P2) page on-call; slow-burn (P3/P4) file a ticket
+- **Cloudflare notification policies:** [`terraform/cloudflare/alerts.tf`](../terraform/cloudflare/alerts.tf) -- 5xx burn-rate and CPU-time alerts via `cloudflare_notification_policy`. Enabled by default (`alerts_enabled = true`); requires `alert_mechanisms` to contain at least one email/PagerDuty/webhook destination.
+- **Sentry issue alerts:** [`terraform/cloudflare/sentry-alerts.tf`](../terraform/cloudflare/sentry-alerts.tf) -- KV fail-open, 5xx rate, click-tracking, DLQ depth, cron heartbeat, and AI cost alerts. Controlled by `sentry_alerts_enabled` variable.
+- Cloudflare Workers Analytics provides CPU time per route for latency SLIs.
+- Both short and long windows must fire simultaneously to prevent alert noise from single-spike events.
+- Fast-burn alerts (P1/P2) page on-call; slow-burn (P3/P4) file a ticket.
 
 ## Error Budget Remaining Dashboard
 
@@ -105,4 +106,4 @@ Data source: Cloudflare Analytics API or aggregated `web_vitals` / Sentry event 
 - Monthly: SLO performance review
 - Quarterly: SLO target review and recalibration
 
-Updated: 2026-04-30 (A85: multi-window burn-rate alerts)
+Updated: 2026-05-03 (A85: multi-window burn-rate alerts; sentry-alerts.tf converted to real Terraform)

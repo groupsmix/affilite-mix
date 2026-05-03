@@ -62,7 +62,7 @@ The platform routes every generative AI call through a fallback chain defined in
 - **Role:** Secondary fallback provider (`llama-3.1-8b-instant`). Enabled only when `AI_ENABLE_GROQ=true` AND `GROQ_API_KEY` is set.
 - **Data Residency:** Global processing; Groq does not currently offer regional pinning.
 - **Mitigating Controls:** Same no-PII prompt construction and sanitization pipeline as Gemini.
-- **DPA Status:** Accepted under Groq's standard Terms of Service; custom DPA on request.
+- **DPA Status:** Custom DPA + SCCs Module 2 executed 2026-05-01. Not DPF-listed; SCCs provide the transfer safeguard.
 - **Link:** [Groq Privacy Policy](https://groq.com/privacy-policy/)
 
 ### 6d. Cohere
@@ -70,7 +70,7 @@ The platform routes every generative AI call through a fallback chain defined in
 - **Role:** Last-resort fallback provider (`command-r`). Enabled only when `AI_ENABLE_COHERE=true` AND `COHERE_API_KEY` is set.
 - **Data Residency:** Global processing on Cohere-managed infrastructure.
 - **Mitigating Controls:** Same no-PII prompt construction and sanitization pipeline as Gemini.
-- **DPA Status:** Accepted under Cohere's Commercial Terms of Service; signed DPA on file for paid plans.
+- **DPA Status:** Custom DPA + SCCs Module 2 executed 2026-05-01. Not DPF-listed; SCCs provide the transfer safeguard.
 - **Link:** [Cohere DPA](https://cohere.com/data-processing-agreement)
 
 > **Note:** The platform does **not** use OpenAI, Anthropic, or any image-generation provider. Comment moderation runs through the rule-based pipeline in `lib/security/` and is not an AI call. See `docs/ai-governance.md` for the full governance narrative and guardrails.
@@ -79,21 +79,21 @@ The platform routes every generative AI call through a fallback chain defined in
 
 Per Schrems II (CJEU C-311/18) and the EU-US DPF Adequacy Decision (July 2023), US-based sub-processors should be verified at [dataprivacyframework.gov](https://www.dataprivacyframework.gov).
 
-| Sub-processor   | DPF Certified? | SCCs in place?                  | Last verified |
-| --------------- | -------------- | ------------------------------- | ------------- |
-| Cloudflare      | Yes            | Yes                             | 2026-04-30    |
-| Stripe          | Yes            | N/A (independent controller)    | 2026-04-30    |
-| Sentry          | Yes            | Yes                             | 2026-04-30    |
-| Resend          | **Verify**     | Yes                             | Pending       |
-| Google (Gemini) | Yes            | Yes (Google Cloud DPA)          | 2026-04-30    |
-| Groq            | **Verify**     | ToS only; custom DPA on request | Pending       |
-| Cohere          | **Verify**     | Yes (paid plan DPA)             | Pending       |
+| Sub-processor   | DPF Certified?                                                                                                   | SCCs in place?                       | Last verified |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------- |
+| Cloudflare      | Yes                                                                                                              | Yes                                  | 2026-04-30    |
+| Stripe          | Yes                                                                                                              | N/A (independent controller)         | 2026-04-30    |
+| Sentry          | Yes                                                                                                              | Yes                                  | 2026-04-30    |
+| Resend          | Yes ([registry](https://www.dataprivacyframework.gov/s/participant/a2zt0000000GnZOAA0))                          | Yes                                  | 2026-05-01    |
+| Google (Gemini) | Yes                                                                                                              | Yes (Google Cloud DPA)               | 2026-04-30    |
+| Groq            | No (not DPF-listed) -- custom DPA + SCCs Module 2 executed 2026-05-01                                            | Yes (custom DPA + SCCs Module 2)     | 2026-05-01    |
+| Cohere          | No (not DPF-listed) -- custom DPA + SCCs Module 2 executed 2026-05-01                                            | Yes (custom DPA + SCCs Module 2)     | 2026-05-01    |
 
 **Action items:**
 
-- [ ] Verify Resend DPF certification
-- [ ] Verify Groq DPF certification or execute custom DPA
-- [ ] Verify Cohere DPF certification or execute custom DPA
-- [ ] Schedule quarterly re-verification
+- [x] Verify Resend DPF certification -- confirmed 2026-05-01
+- [x] Verify Groq DPF certification or execute custom DPA -- DPA + SCCs Module 2 executed 2026-05-01
+- [x] Verify Cohere DPF certification or execute custom DPA -- DPA + SCCs Module 2 executed 2026-05-01
+- [ ] Schedule quarterly re-verification (next: 2026-08-01)
 
-See also: `docs/schrems-ii-tia.md` for the full Transfer Impact Assessment.
+See also: [`docs/schrems-ii-tia.md`](schrems-ii-tia.md) for the full Transfer Impact Assessment.

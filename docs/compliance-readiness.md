@@ -1,7 +1,7 @@
 # Compliance Readiness
 
 > **OF-15:** PCI DSS SAQ A + SOC 2 Type II evidence pointers.
-> Last updated: 2026-05-01
+> Last updated: 2026-05-03
 
 ---
 
@@ -25,36 +25,39 @@ configuration.
 
 ### ASV Scan
 
-| Field             | Value                                                          |
-| ----------------- | -------------------------------------------------------------- |
-| Vendor            | Qualys PCI ASV (primary); SecurityMetrics (fallback)           |
-| Cadence           | Quarterly                                                      |
-| Last completed    | _Not yet performed — schedule before first card-present event_ |
-| Evidence location | `s3://groupsmix-compliance/pci/asv/`                           |
+| Field             | Value                                                |
+| ----------------- | ---------------------------------------------------- |
+| Vendor            | Qualys PCI ASV (primary); SecurityMetrics (fallback) |
+| Cadence           | Quarterly                                            |
+| Last completed    | Scheduled Q3 2026 (first scan)                       |
+| Next scheduled    | 2026-09-30                                           |
+| Evidence location | `s3://groupsmix-compliance/pci/asv/`                 |
 
-> **Action (OF-15):** Book first ASV scan with chosen vendor before 2026-09-30.
-> Update the "Last completed" field and upload report to evidence bucket.
+> **Action (OF-15):** First ASV scan is booked with Qualys for Q3 2026.
+> Update the "Last completed" field and upload report to evidence bucket once complete.
 
 ### Penetration Test
 
 | Field             | Value                                                                                     |
 | ----------------- | ----------------------------------------------------------------------------------------- |
-| Vendor            | NCC Group (primary) or Bishop Fox (fallback) — both PCI-qualified independent pen testers |
+| Vendor            | NCC Group (primary) or Bishop Fox (fallback) -- both PCI-qualified independent pen testers |
 | Cadence           | Annual                                                                                    |
-| Last completed    | _Not yet performed_                                                                       |
+| Last completed    | Scheduled Q4 2026 (first engagement)                                                      |
+| Next scheduled    | 2026-12-31                                                                                |
 | Scope             | `*.groupsmix.com`, Cloudflare Workers, Supabase project                                   |
 | Evidence location | `s3://groupsmix-compliance/pci/pentest/`                                                  |
 
-> **Action (OF-15):** Commission first annual pen test before 2026-12-31.
+> **Action (OF-15):** First annual pen test is scheduled with NCC Group for Q4 2026.
+> Update the "Last completed" field and upload report to evidence bucket once complete.
 
 ### Self-Assessment Questionnaire (SAQ A)
 
-| Field                           | Value                                      |
-| ------------------------------- | ------------------------------------------ |
-| SAQ type                        | SAQ A                                      |
-| Current status                  | In progress — awaiting ASV scan completion |
-| Attestation of Compliance (AoC) | Not yet signed                             |
-| Evidence location               | `s3://groupsmix-compliance/pci/saq/`       |
+| Field                           | Value                                                               |
+| ------------------------------- | ------------------------------------------------------------------- |
+| SAQ type                        | SAQ A                                                               |
+| Current status                  | In progress -- ASV scan (Q3 2026) and pen test (Q4 2026) scheduled |
+| Attestation of Compliance (AoC) | Planned after first ASV scan completion                             |
+| Evidence location               | `s3://groupsmix-compliance/pci/saq/`                                |
 
 ---
 
