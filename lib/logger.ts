@@ -95,6 +95,22 @@ const DENIED_LOG_FIELDS = new Set([
   "apikey",
   "access_token",
   "refresh_token",
+  // A8-01: Additional PII fields that must never appear in logs.
+  "phone",
+  "phone_number",
+  "address",
+  "street",
+  "date_of_birth",
+  "dob",
+  "ssn",
+  "national_id",
+  "cin",
+  "first_name",
+  "last_name",
+  "full_name",
+  "credit_card",
+  "card_number",
+  "cvv",
 ]);
 
 function jsonReplacer(key: string, value: unknown): unknown {

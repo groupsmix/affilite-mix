@@ -221,6 +221,31 @@ describe("sanitizeHtml", () => {
     }
   });
 
+  describe("S5-06: entity-decode XSS bypass prevention", () => {
+    it("escapes entity-decoded <script> in text nodes", () => {
+      // htmlparser2 decodes &lt;script&gt; to <script> in ontext;
+      // without re-encoding the output would contain a real <script> tag.
+      const input = "Hello &lt;script&gt;alert(1)&lt;/script&gt;";
+      const result = sanitizeHtml(input);
+      expect(result).not.toContain("<script>");
+      expect(result).toContain("&lt;script&gt;");
+    });
+
+    it("escapes entity-decoded angle brackets in plain text", () => {
+      const input = "&lt;img src=x onerror=alert(1)&gt;";
+      const result = sanitizeHtml(input);
+      expect(result).not.toContain("<img");
+      expect(result).toContain("&lt;");
+      expect(result).toContain("&gt;");
+    });
+
+    it("preserves ampersands in text content as &amp;", () => {
+      const input = "<p>Tom &amp; Jerry</p>";
+      const result = sanitizeHtml(input);
+      expect(result).toContain("&amp;");
+    });
+  });
+
   describe("data: URI variants in img src", () => {
     const dataUris: Array<[string, string]> = [
       ["plain data:image/svg", '<img src="data:image/svg+xml,<svg onload=alert(1)>" />'],

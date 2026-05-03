@@ -164,11 +164,32 @@ export async function verifyInternalHmac(
 }
 
 /**
+ * Hard ceiling on inputs to timingSafeEqual.
+ *
+ * A2-02 / A6-06: Without a cap, an attacker who controls one side of
+ * the comparison (e.g. the `x-internal-signature` header) could submit
+ * a multi-megabyte string, forcing the function to allocate and iterate
+ * over that length.  HMAC-SHA256 signatures are 64 hex chars; 1 024
+ * gives generous headroom for any future hash upgrade while capping the
+ * worst-case work to a trivial amount.
+ */
+const MAX_COMPARE_LEN = 1_024;
+
+/**
  * Constant-time string comparison to prevent timing attacks.
- * Pads the shorter input to match the longer one so that length
- * mismatches do not leak via an early return.
+ *
+ * Inputs longer than MAX_COMPARE_LEN are rejected outright (returns
+ * false) to prevent CPU-exhaustion DoS (A2-02).  For legitimate HMAC
+ * signatures (64 hex chars) this limit is never reached.
+ *
+ * Length mismatches are folded into the result via XOR so the overall
+ * comparison time depends only on the longer (capped) input, not on
+ * whether the lengths matched.
  */
 export function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length > MAX_COMPARE_LEN || b.length > MAX_COMPARE_LEN) {
+    return false;
+  }
   const maxLen = Math.max(a.length, b.length);
   const aPadded = a.padEnd(maxLen, "\0");
   const bPadded = b.padEnd(maxLen, "\0");
