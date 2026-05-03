@@ -55,6 +55,10 @@ The 5-minute RPO is the PITR write-ahead-log granularity. The 4-hour RTO is the 
 
 The dump procedure is described in [`docs/backup-strategy.md`](./backup-strategy.md#2-manual-backup-script).
 
+> **A24-01 / A22-05:** The `SUPABASE_DB_URL` used by the nightly `pg_dump` job MUST include `sslmode=verify-full` to prevent MITM attacks during backup transit. The backup CI workflow enforces this by appending the parameter if not already present.
+>
+> **PITR retention confirmation (A22-05):** Supabase Pro plan provides 7-day PITR retention. If contractual SLAs require longer retention (e.g. 30 days), upgrade to the Supabase Team plan. The current 7-day window satisfies the 5-minute RPO target. Verify retention settings quarterly via Dashboard > Project Settings > Add-ons > PITR and capture a screenshot for the evidence pack.
+
 ---
 
 ## 3. Object storage backups (Cloudflare R2)
@@ -111,6 +115,17 @@ The full drill protocol — preconditions, queries to run, success criteria — 
 | Cron-failure recovery           | _TBD_    | _TBD_ | Production               | _TBD_        | _TBD_   | _TBD_               |
 
 A drill is considered overdue if its last run is older than the cadence in [`docs/dr-drill-checklist.md`](./dr-drill-checklist.md#drill-schedule). Overdue drills MUST be flagged in the next weekly ops review.
+
+### 6.1 Evidence requirements (A22-02)
+
+Each drill MUST produce the following evidence artefacts:
+
+1. **Screenshot of the restored database** showing row counts matching production (within 1%). The screenshot must include the URL bar (so the project ref is visible) and a system clock or visible timestamp.
+2. **Screenshot of RLS verification** showing `pg_tables.rowsecurity` output after restore.
+3. **Application smoke-test screenshot** showing the restored instance serving traffic (homepage + admin login).
+4. **Timing record** documenting minutes from "drill start" to "application healthy", compared against the 4-hour RTO target.
+
+Store evidence under `backup-evidence/drills/<YYYY-QN>/` in the compliance evidence folder (see section 5).
 
 ---
 
