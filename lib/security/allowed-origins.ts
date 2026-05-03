@@ -20,6 +20,14 @@ import { allSites, getSiteById, getSiteByDomain } from "@/config/sites";
 const DEV_LOCALHOST_ORIGINS = ["http://localhost:3000", "http://localhost:3001"];
 
 /**
+ * A49.6: Origins that must NEVER appear in the allow-list regardless of
+ * configuration. The string "null" is sent by sandboxed iframes and
+ * file:// origins; if it were ever allowlisted, an attacker-controlled
+ * sandboxed iframe could exfiltrate data via CORS.
+ */
+const FORBIDDEN_ORIGINS = new Set(["null", ""]);
+
+/**
  * G-33: an opaque-ish reference to a site that the caller has already
  * verified (either via static `allSites` lookup or a DB site-row lookup).
  *
@@ -67,7 +75,10 @@ export function getAllowedOrigins(verifiedSite?: VerifiedSiteRef | null): string
   if (process.env.NODE_ENV === "development") {
     origins.push(...DEV_LOCALHOST_ORIGINS);
   }
-  return origins;
+  // A49.6: Strip any origin that resolves to the forbidden set.
+  // This is a defence-in-depth guard; the static config should never
+  // produce "null" or "" origins, but a misconfigured alias could.
+  return origins.filter((o) => !FORBIDDEN_ORIGINS.has(o.toLowerCase()));
 }
 
 /**
