@@ -284,7 +284,7 @@ export default function CookieConsentCmp({
         postConsentProof(siteId, detail);
       },
     });
-  }, [language, privacyPolicyUrl]);
+  }, [language, privacyPolicyUrl, siteId]);
 
   return null;
 }
