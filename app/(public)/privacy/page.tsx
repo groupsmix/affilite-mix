@@ -232,6 +232,7 @@ export default async function PrivacyPage() {
           <li>{isAr ? "الوصول إلى بياناتك الشخصية" : "Access your personal data"}</li>
           <li>{isAr ? "تصحيح البيانات غير الدقيقة" : "Rectify inaccurate data"}</li>
           <li>{isAr ? "طلب حذف بياناتك" : "Request erasure of your data"}</li>
+          <li>{isAr ? "تقييد المعالجة" : "Restriction of processing (GDPR Art. 18)"}</li>
           <li>{isAr ? "الاعتراض على المعالجة" : "Object to processing"}</li>
           <li>{isAr ? "نقل البيانات" : "Data portability"}</li>
           <li>{isAr ? "سحب الموافقة في أي وقت" : "Withdraw consent at any time"}</li>

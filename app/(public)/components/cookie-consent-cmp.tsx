@@ -14,6 +14,7 @@ export const CONSENT_BANNER_VERSION = "2026-04";
 interface CookieConsentCmpProps {
   language?: string;
   privacyPolicyUrl?: string;
+  siteId?: string;
 }
 
 /**
@@ -41,11 +42,43 @@ function isGpcEnabled(): boolean {
 export default function CookieConsentCmp({
   language = "en",
   privacyPolicyUrl = "/privacy",
+  siteId,
 }: CookieConsentCmpProps) {
   useEffect(() => {
     // A63: If GPC is enabled, treat as opt-out -- skip the banner entirely
     // and reject all non-essential categories.
     const gpc = isGpcEnabled();
+
+    // OF-04: Persist consent decision server-side so we can prove lawful basis
+    // at audit time. Fire-and-forget; never block the UI on the network call.
+    function postConsentLog(reason: "consent" | "change") {
+      if (!siteId) return;
+      const categories = (
+        ["analytics", "affiliate", "advertising"] as const
+      ).filter((c) => CookieConsent.acceptedCategory(c));
+      const body = JSON.stringify({
+        site_id: siteId,
+        categories: ["necessary", ...categories],
+        banner_version: CONSENT_BANNER_VERSION,
+        gpc,
+        reason,
+      });
+      try {
+        if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+          const blob = new Blob([body], { type: "application/json" });
+          navigator.sendBeacon("/api/consent/log", blob);
+          return;
+        }
+      } catch {
+        // fall through to fetch
+      }
+      void fetch("/api/consent/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    }
 
     void CookieConsent.run({
       guiOptions: {
@@ -217,6 +250,7 @@ export default function CookieConsentCmp({
           gpc,
         };
         window.dispatchEvent(new CustomEvent("cookieConsent", { detail }));
+        postConsentLog("consent");
       },
 
       onChange: () => {
@@ -228,9 +262,10 @@ export default function CookieConsentCmp({
           gpc,
         };
         window.dispatchEvent(new CustomEvent("cookieConsent", { detail }));
+        postConsentLog("change");
       },
     });
-  }, [language, privacyPolicyUrl]);
+  }, [language, privacyPolicyUrl, siteId]);
 
   return null;
 }

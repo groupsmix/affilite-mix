@@ -61,10 +61,12 @@ export default async function PublicLayout({ children }: { children: React.React
   let dbTheme: Partial<SiteThemeConfig> = {};
   let dbNavItems: { label: string; href: string; icon?: string }[] = [];
   let dbFooterNav: { label: string; href: string; icon?: string }[] = [];
+  let dbSiteId: string | undefined;
   if (!shouldSkipDbCall()) {
     try {
       const dbSite = await resolveDbSiteBySlug(site.id);
       if (dbSite) {
+        dbSiteId = dbSite.id as string | undefined;
         const t = dbSite.theme as Record<string, string> | null;
         dbTheme = {
           primaryColor: t?.primary_color || site.theme.primaryColor,
@@ -116,7 +118,7 @@ export default async function PublicLayout({ children }: { children: React.React
           {children}
         </main>
         <SiteFooter site={site} dbFooterNav={dbFooterNav} />
-        {site.features.cookieConsent && <CookieConsentCmp language={site.language} />}
+        {site.features.cookieConsent && <CookieConsentCmp language={site.language} siteId={dbSiteId} />}
         <Toaster position="bottom-right" richColors closeButton />
       </div>
     </ThemeProvider>
