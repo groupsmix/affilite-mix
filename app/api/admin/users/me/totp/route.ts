@@ -6,6 +6,7 @@ import { encryptTotpSecret, decryptTotpSecret } from "@/lib/totp-encryption";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
+import { recordAuditEvent } from "@/lib/audit-log";
 import QRCode from "qrcode";
 
 /**
@@ -127,6 +128,16 @@ export async function PUT(request: Request) {
       totp_verified_at: new Date().toISOString(),
     });
 
+    // A8-05: Audit 2FA enablement (security-critical event)
+    await recordAuditEvent({
+      site_id: "__global__",
+      actor: session.email ?? session.userId,
+      actor_user_id: session.userId,
+      action: "totp_enable",
+      entity_type: "admin_user",
+      entity_id: session.userId,
+    });
+
     return NextResponse.json({ ok: true, message: "2FA enabled successfully" });
   } catch (err) {
     captureException(err, { context: "[api/admin/users/me/totp] verification failed" });
@@ -189,6 +200,16 @@ export async function DELETE(request: Request) {
       totp_secret: null,
       totp_enabled: false,
       totp_verified_at: null,
+    });
+
+    // A8-05: Audit 2FA disablement (security-critical event)
+    await recordAuditEvent({
+      site_id: "__global__",
+      actor: session.email ?? session.userId,
+      actor_user_id: session.userId,
+      action: "totp_disable",
+      entity_type: "admin_user",
+      entity_id: session.userId,
     });
 
     return NextResponse.json({ ok: true, message: "2FA disabled successfully" });
