@@ -93,6 +93,78 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Phase 3: Cancelled/expired subscription reconciliation ──────────
+    // Check for DB memberships that are still "active" but whose Stripe
+    // subscription is actually cancelled, past_due, or otherwise inactive.
+    // This catches cases where a cancellation webhook was missed entirely.
+    const { data: activeDbMemberships } = await (sb.from as any)("memberships")
+      .select("id, stripe_subscription_id, status")
+      .eq("status", "active")
+      .not("stripe_subscription_id", "is", null);
+
+    if (activeDbMemberships && activeDbMemberships.length > 0) {
+      for (const dbRow of activeDbMemberships as Array<{
+        id: string;
+        stripe_subscription_id: string;
+        status: string;
+      }>) {
+        if (!dbRow.stripe_subscription_id) continue;
+        try {
+          const stripeSub = await stripe.subscriptions.retrieve(dbRow.stripe_subscription_id);
+          const stripeStatus = stripeSub.status;
+
+          // If Stripe says the subscription is no longer active, update DB.
+          if (stripeStatus === "canceled" || stripeStatus === "unpaid") {
+            logger.info("OF-08: Cancelling stale active membership (Stripe sub is cancelled)", {
+              membershipId: dbRow.id,
+              subscriptionId: dbRow.stripe_subscription_id,
+              stripeStatus,
+            });
+            await (sb.from as any)("memberships")
+              .update({
+                status: "cancelled",
+                cancelled_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", dbRow.id);
+            reconcileFixed++;
+          } else if (stripeStatus === "past_due" || stripeStatus === "incomplete") {
+            logger.info("OF-08: Marking membership past_due (Stripe sub is past_due)", {
+              membershipId: dbRow.id,
+              subscriptionId: dbRow.stripe_subscription_id,
+              stripeStatus,
+            });
+            await (sb.from as any)("memberships")
+              .update({
+                status: "past_due",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", dbRow.id);
+            reconcileFixed++;
+          } else if (stripeStatus === "incomplete_expired") {
+            logger.info("OF-08: Marking membership expired (Stripe sub is incomplete_expired)", {
+              membershipId: dbRow.id,
+              subscriptionId: dbRow.stripe_subscription_id,
+            });
+            await (sb.from as any)("memberships")
+              .update({
+                status: "expired",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", dbRow.id);
+            reconcileFixed++;
+          }
+        } catch (subError) {
+          // Subscription may have been deleted from Stripe entirely.
+          logger.warn("OF-08: Could not retrieve Stripe subscription for reconciliation", {
+            membershipId: dbRow.id,
+            subscriptionId: dbRow.stripe_subscription_id,
+            error: subError instanceof Error ? subError.message : String(subError),
+          });
+        }
+      }
+    }
+
     void recordCronLiveness("stripe-sync");
     return NextResponse.json({ success: true, syncedCount, reconcileFixed });
   } catch (error) {
