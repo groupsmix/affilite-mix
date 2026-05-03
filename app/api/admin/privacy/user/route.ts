@@ -56,6 +56,11 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
       { data: quizzes },
       { data: priceAlerts },
       { data: dripEnrollments },
+      // A62-F4: Include consent_log and audit_log in Art.15/20 export.
+      // These are personal data about the subject and must be included
+      // in DSAR access/portability responses.
+      { data: consentLogs },
+      { data: auditLogs },
     ] = await Promise.all([
       // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb.from("newsletter_subscribers").select("*").eq("site_id", site_id).eq("email", lowerEmail),
@@ -71,6 +76,10 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
       sb.from("price_alerts").select("*").eq("site_id", site_id).eq("email", lowerEmail),
       // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb.from("drip_enrollments").select("*").eq("email", lowerEmail),
+      // eslint-disable-next-line no-restricted-syntax -- A62-F4: consent proof records for the subject
+      sb.from("consent_log").select("*").eq("site_id", site_id).eq("subject_id", lowerEmail),
+      // eslint-disable-next-line no-restricted-syntax -- A62-F4: audit trail entries where subject is the actor
+      sb.from("audit_log").select("*").eq("site_id", site_id).eq("actor", lowerEmail).limit(500),
     ]);
 
     const exportPayload = {
@@ -87,6 +96,9 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
         quiz_submissions: quizzes || [],
         price_alerts: priceAlerts || [],
         drip_enrollments: dripEnrollments || [],
+        // A62-F4: personal data required by Art.15/20 GDPR
+        consent_logs: consentLogs || [],
+        audit_logs: auditLogs || [],
       },
     };
 

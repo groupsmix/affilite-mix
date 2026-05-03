@@ -8,6 +8,7 @@
 
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { assembleSystemPrompt, sanitizePrompt } from "./prompt-sanitization";
+import { getCircuitBreaker, CircuitOpenError } from "./circuit-breaker";
 import {
   assertQuota,
   costToMicroUsd,
@@ -345,8 +346,14 @@ export async function generateWithFallback(
       continue;
     }
 
+    // A74-F1: wrap each provider call in a per-provider circuit breaker.
+    // When an upstream is degraded the breaker short-circuits immediately,
+    // letting the fallback chain skip to the next healthy provider without
+    // waiting for a timeout.
+    const cb = getCircuitBreaker(provider.name);
+
     try {
-      const text = await provider.generate(safePrompt, safeSystemPrompt);
+      const text = await cb.execute(() => provider.generate(safePrompt, safeSystemPrompt));
       if (options.siteId) {
         // Fire-and-forget usage accounting. We record the *actual* output
         // tokens (estimated from the response) plus the input estimate,
@@ -375,6 +382,12 @@ export async function generateWithFallback(
       // try the next provider when the limit, not the upstream, is the
       // problem.
       if (err instanceof QuotaExceededError) throw err;
+      // A74-F1: CircuitOpenError means the breaker is tripped — log it
+      // and fall through to the next provider in the chain.
+      if (err instanceof CircuitOpenError) {
+        errors.push(`${provider.name}: circuit breaker OPEN (skipped)`);
+        continue;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${provider.name}: ${msg}`);
     }
