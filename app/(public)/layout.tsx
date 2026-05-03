@@ -116,7 +116,9 @@ export default async function PublicLayout({ children }: { children: React.React
           {children}
         </main>
         <SiteFooter site={site} dbFooterNav={dbFooterNav} />
-        {site.features.cookieConsent && <CookieConsentCmp language={site.language} siteId={site.id} />}
+        {site.features.cookieConsent && (
+          <CookieConsentCmp language={site.language} siteId={site.id} />
+        )}
         <Toaster position="bottom-right" richColors closeButton />
       </div>
     </ThemeProvider>
