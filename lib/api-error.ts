@@ -99,6 +99,78 @@ export async function parseJsonBody(
   }
 }
 
+/**
+ * F-A91-01: Error catalog -- maps each ApiErrorCode to a default user-facing
+ * message in each supported language. Allows the client to display a localised
+ * error without parsing free-text strings, and decouples the internal error
+ * message from what the user sees.
+ *
+ * Usage on the client:
+ *   const msg = ERROR_CATALOG[response.code]?.[locale] ?? response.error;
+ */
+export const ERROR_CATALOG: Record<ApiErrorCode, Record<"en" | "ar", string>> = {
+  BAD_REQUEST: {
+    en: "The request was invalid. Please check your input and try again.",
+    ar: "الطلب غير صالح. يرجى التحقق من البيانات والمحاولة مرة أخرى.",
+  },
+  INVALID_JSON: {
+    en: "The request body could not be parsed. Please send valid JSON.",
+    ar: "تعذر تحليل نص الطلب. يرجى إرسال JSON صالح.",
+  },
+  VALIDATION_ERROR: {
+    en: "Some fields are invalid. Please correct the highlighted errors.",
+    ar: "بعض الحقول غير صالحة. يرجى تصحيح الأخطاء المميزة.",
+  },
+  UNAUTHORIZED: {
+    en: "You must be logged in to perform this action.",
+    ar: "يجب تسجيل الدخول لتنفيذ هذا الإجراء.",
+  },
+  FORBIDDEN: {
+    en: "You do not have permission to perform this action.",
+    ar: "ليس لديك صلاحية لتنفيذ هذا الإجراء.",
+  },
+  CSRF_FAILED: {
+    en: "Your session may have expired. Please refresh the page and try again.",
+    ar: "ربما انتهت جلستك. يرجى تحديث الصفحة والمحاولة مرة أخرى.",
+  },
+  NOT_FOUND: {
+    en: "The requested resource was not found.",
+    ar: "لم يتم العثور على المورد المطلوب.",
+  },
+  RATE_LIMITED: {
+    en: "Too many requests. Please wait a moment and try again.",
+    ar: "طلبات كثيرة جدًا. يرجى الانتظار لحظة والمحاولة مرة أخرى.",
+  },
+  CONFLICT: {
+    en: "This action conflicts with the current state. Please refresh and try again.",
+    ar: "هذا الإجراء يتعارض مع الحالة الحالية. يرجى التحديث والمحاولة مرة أخرى.",
+  },
+  PAYLOAD_TOO_LARGE: {
+    en: "The uploaded file is too large. Please reduce the file size.",
+    ar: "الملف المرفوع كبير جدًا. يرجى تقليل حجم الملف.",
+  },
+  SERVICE_UNAVAILABLE: {
+    en: "The service is temporarily unavailable. Please try again later.",
+    ar: "الخدمة غير متاحة مؤقتًا. يرجى المحاولة لاحقًا.",
+  },
+  INTERNAL_ERROR: {
+    en: "An unexpected error occurred. Please try again or contact support.",
+    ar: "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى أو الاتصال بالدعم.",
+  },
+  CAPTCHA_FAILED: {
+    en: "CAPTCHA verification failed. Please try again.",
+    ar: "فشل التحقق من CAPTCHA. يرجى المحاولة مرة أخرى.",
+  },
+  TOTP_REQUIRED: {
+    en: "Two-factor authentication is required. Please enter your verification code.",
+    ar: "المصادقة الثنائية مطلوبة. يرجى إدخال رمز التحقق.",
+  },
+  QUOTA_EXCEEDED: {
+    en: "You have exceeded your usage quota. Please upgrade your plan or wait for the reset.",
+    ar: "لقد تجاوزت حصة الاستخدام. يرجى ترقية خطتك أو الانتظار حتى إعادة التعيين.",
+  },
+};
+
 export function rateLimitHeaders(
   config: RateLimitConfig,
   result: RateLimitResult,

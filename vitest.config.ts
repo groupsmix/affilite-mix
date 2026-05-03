@@ -25,14 +25,16 @@ export default defineConfig({
         "node_modules/**",
         "scripts/**",
       ],
-      // T-01: Raised from 14-18% baseline toward 60% target.
-      // Current measured coverage is ~20/17/15/20. Ratchet up as coverage
-      // improves; do not lower without documenting why.
+      // T-01 / F-A86-05: Ratcheted up from 19/16/14/19 toward 60% target.
+      // PHI/healthcare software must not allow single-digit floors.
+      // Current measured coverage is ~20/17/15/20. These thresholds act as
+      // a no-regression floor; ratchet up as coverage improves.
+      // Do not lower without documenting why in the PR description.
       thresholds: {
-        statements: 19,
-        branches: 16,
-        functions: 14,
-        lines: 19,
+        statements: 25,
+        branches: 20,
+        functions: 20,
+        lines: 25,
       },
     },
   },
