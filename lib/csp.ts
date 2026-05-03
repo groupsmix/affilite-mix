@@ -84,6 +84,12 @@ export function buildCspHeader(nonce: string): string {
   // G-48 (follow-up): third-party image CDNs (e.g. Amazon's media
   // CDNs) stay in img-src until the R2 ingest migration lands — see
   // the tracking issue.
+  // A55.4: `data:` and `blob:` in img-src are required for dynamic image
+  // previews (admin upload thumbnails, Base64 QR codes). They do enable
+  // img-based data exfiltration from XSS payloads (e.g.
+  // `<img src="data:image/svg+xml,...">`) but the strict script-src nonce
+  // prevents attacker-controlled markup from reaching the DOM. Documented
+  // as an accepted trade-off; removal is tracked in the R2 ingest epic.
   const imgSources = ["'self'", "data:", "blob:"];
   if (r2) imgSources.push(r2);
   if (supabase) imgSources.push(supabase);
