@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantClient } from "@/lib/supabase-server";
+import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { getClientIp } from "@/lib/get-client-ip";
 import { apiError, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
@@ -26,6 +27,19 @@ export async function POST(request: NextRequest) {
     return apiError(400, "site_id, categories, and banner_version are required");
   }
 
+  // OF-04: accept either a UUID or a site slug from the CMP. Resolving server-
+  // side avoids leaking the UUID to the client and tolerates older banner
+  // builds that still post the slug.
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let resolvedSiteId = site_id;
+  if (!uuidRegex.test(site_id)) {
+    const row = await resolveDbSiteBySlug(site_id);
+    if (!row) {
+      return apiError(400, "Unknown site");
+    }
+    resolvedSiteId = row.id;
+  }
+
   const ip = getClientIp(request);
   const ipTruncated = ip ? ip.split(".").slice(0, 3).join(".") + ".0" : "unknown";
   const ua = request.headers.get("user-agent") ?? "";
@@ -35,7 +49,7 @@ export async function POST(request: NextRequest) {
     const sb = await getTenantClient();
     // eslint-disable-next-line no-restricted-syntax -- public insert; no RLS bypass needed
     const { error } = await sb.from("consent_log").insert({
-      site_id,
+      site_id: resolvedSiteId,
       subject_id: subject_id ?? null,
       categories,
       banner_version,

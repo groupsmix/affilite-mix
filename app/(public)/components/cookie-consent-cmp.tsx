@@ -14,6 +14,7 @@ export const CONSENT_BANNER_VERSION = "2026-04";
 interface CookieConsentCmpProps {
   language?: string;
   privacyPolicyUrl?: string;
+  siteId?: string;
 }
 
 /**
@@ -38,9 +39,57 @@ function isGpcEnabled(): boolean {
  * For ad networks requiring a CMP-ID and IAB consent string (Mediavine,
  * Raptive), upgrade to a certified TCF CMP (Didomi, OneTrust, Sourcepoint).
  */
+
+/**
+ * OF-04: Persist consent proof on the server.
+ * Sends a fire-and-forget POST to /api/consent/log so we can prove lawful
+ * basis at audit time. Failures are non-blocking — the CMP UX must keep
+ * working even if the log endpoint is briefly unavailable.
+ */
+function postConsentProof(siteId: string | undefined, detail: {
+  analytics: boolean;
+  affiliate: boolean;
+  advertising: boolean;
+  bannerVersion: string;
+  gpc: boolean;
+}) {
+  try {
+    const resolvedSiteId =
+      siteId ??
+      (typeof document !== "undefined"
+        ? document.documentElement.getAttribute("data-site-id") ?? ""
+        : "");
+    if (!resolvedSiteId) return;
+    const categories: string[] = ["necessary"];
+    if (detail.analytics) categories.push("analytics");
+    if (detail.affiliate) categories.push("affiliate");
+    if (detail.advertising) categories.push("advertising");
+    const body = JSON.stringify({
+      site_id: resolvedSiteId,
+      categories,
+      banner_version: detail.bannerVersion,
+      gpc: detail.gpc,
+    });
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([body], { type: "application/json" });
+      navigator.sendBeacon("/api/consent/log", blob);
+      return;
+    }
+    void fetch("/api/consent/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // Never throw from the CMP listener.
+  }
+}
+
 export default function CookieConsentCmp({
   language = "en",
   privacyPolicyUrl = "/privacy",
+  siteId,
 }: CookieConsentCmpProps) {
   useEffect(() => {
     // A63: If GPC is enabled, treat as opt-out -- skip the banner entirely
@@ -217,6 +266,7 @@ export default function CookieConsentCmp({
           gpc,
         };
         window.dispatchEvent(new CustomEvent("cookieConsent", { detail }));
+        postConsentProof(siteId, detail);
       },
 
       onChange: () => {
@@ -228,6 +278,7 @@ export default function CookieConsentCmp({
           gpc,
         };
         window.dispatchEvent(new CustomEvent("cookieConsent", { detail }));
+        postConsentProof(siteId, detail);
       },
     });
   }, [language, privacyPolicyUrl]);
