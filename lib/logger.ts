@@ -79,6 +79,9 @@ function emit(
 /**
  * F-OBS-02: PII field deny-list. These fields are unconditionally redacted
  * from log output to prevent accidental PII leakage.
+ *
+ * A41.2: Extended to cover patient/user PII fields that may appear in
+ * structured log extras (phone, name, address, date_of_birth, etc.).
  */
 const DENIED_LOG_FIELDS = new Set([
   "email",
@@ -95,6 +98,26 @@ const DENIED_LOG_FIELDS = new Set([
   "apikey",
   "access_token",
   "refresh_token",
+  // A41.2: PII fields that can leak patient/user identity
+  "phone",
+  "phone_number",
+  "mobile",
+  "first_name",
+  "last_name",
+  "full_name",
+  "patient_name",
+  "name",
+  "address",
+  "street",
+  "date_of_birth",
+  "dob",
+  "ssn",
+  "national_id",
+  "cin",
+  "passport",
+  "credit_card",
+  "card_number",
+  "iban",
 ]);
 
 function jsonReplacer(key: string, value: unknown): unknown {
