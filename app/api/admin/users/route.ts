@@ -11,6 +11,7 @@ import { hashPassword } from "@/lib/password";
 import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
+import { recordAuditEvent } from "@/lib/audit-log";
 import { parseJsonBody } from "@/lib/api-error";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
 
@@ -109,6 +110,16 @@ export async function POST(request: NextRequest) {
     });
 
     const { password_hash: _ph, totp_secret: _ts, ...safe } = user;
+    // A8-05: Audit admin user creation
+    await recordAuditEvent({
+      site_id: "__global__",
+      actor: session.email ?? session.userId ?? "unknown",
+      actor_user_id: session.userId,
+      action: "create",
+      entity_type: "admin_user",
+      entity_id: user.id,
+      details: { role: userRole },
+    });
     return NextResponse.json(safe, { status: 201 });
   } catch (err) {
     const message =
@@ -194,6 +205,16 @@ export async function PATCH(request: NextRequest) {
 
     const user = await updateAdminUser(id, updates);
     const { password_hash: _ph, totp_secret: _ts, ...safe } = user;
+    // A8-05: Audit admin user update
+    await recordAuditEvent({
+      site_id: "__global__",
+      actor: session.email ?? session.userId ?? "unknown",
+      actor_user_id: session.userId,
+      action: "update",
+      entity_type: "admin_user",
+      entity_id: id,
+      details: { fields: Object.keys(updates) },
+    });
     return NextResponse.json(safe);
   } catch (err) {
     captureException(err, { context: "Failed to update admin user:" });
@@ -248,6 +269,15 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await deleteAdminUser(id);
+    // A8-05: Audit admin user deletion
+    await recordAuditEvent({
+      site_id: "__global__",
+      actor: session.email ?? session.userId ?? "unknown",
+      actor_user_id: session.userId,
+      action: "delete",
+      entity_type: "admin_user",
+      entity_id: id,
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
     captureException(err, { context: "Failed to delete admin user:" });

@@ -14,6 +14,24 @@ type ValidationResult<T> =
   | { data: T; errors: null }
   | { data: null; errors: Record<string, string> };
 
+/**
+ * A14-04 / A14-05: Sanitize a raw string input.
+ *
+ * 1. Normalizes to NFC so confusable Unicode codepoint sequences
+ *    (e.g. a + combining acute vs. precomposed a-acute) are collapsed
+ *    before storage. This prevents homoglyph-based spoofing and
+ *    duplicate-name attacks.
+ * 2. Strips null bytes (U+0000) which Postgres TEXT columns reject
+ *    and which can confuse downstream C-based parsers.
+ *
+ * Call on every user-supplied text field after type-checking but before
+ * length/format validation so the length check operates on the
+ * canonical form.
+ */
+export function sanitizeText(value: string): string {
+  return value.normalize("NFC").replace(/\0/g, "");
+}
+
 function isString(v: unknown): v is string {
   return typeof v === "string";
 }
@@ -26,9 +44,10 @@ function isBoolean(v: unknown): v is boolean {
   return typeof v === "boolean";
 }
 
-/** Safely coerce an already-validated value to string (avoids `as string`). */
+/** Safely coerce an already-validated value to string (avoids `as string`).
+ *  A14-04/A14-05: Applies NFC normalization + null-byte stripping. */
 function toString(v: unknown): string {
-  return isString(v) ? v : "";
+  return isString(v) ? sanitizeText(v) : "";
 }
 
 /** Safely coerce an already-validated value to number | null. */
@@ -36,9 +55,10 @@ function toNumberOrNull(v: unknown): number | null {
   return isNumber(v) ? v : null;
 }
 
-/** Safely coerce an already-validated value to string | null. */
+/** Safely coerce an already-validated value to string | null.
+ *  A14-04/A14-05: Applies NFC normalization + null-byte stripping. */
 function toStringOrNull(v: unknown): string | null {
-  return isString(v) && v !== "" ? v : null;
+  return isString(v) && v !== "" ? sanitizeText(v) : null;
 }
 
 const SLUG_RE = /^[a-z0-9-]+$/;

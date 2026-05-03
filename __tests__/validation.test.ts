@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  sanitizeText,
   validateCreateCategory,
   validateUpdateCategory,
   validateCreateProduct,
@@ -8,6 +9,32 @@ import {
   validateUpdateContent,
   validateSetLinkedProducts,
 } from "@/lib/validation";
+
+// ── A14-04/A14-05: sanitizeText ─────────────────────────
+
+describe("sanitizeText (A14-04 / A14-05)", () => {
+  it("normalizes decomposed Unicode to NFC", () => {
+    // 'e\u0301' is e + combining acute accent (NFD form)
+    // NFC form is '\u00e9' (precomposed e-acute)
+    expect(sanitizeText("e\u0301")).toBe("\u00e9");
+  });
+
+  it("strips null bytes", () => {
+    expect(sanitizeText("hello\0world")).toBe("helloworld");
+  });
+
+  it("handles combined NFC + null byte stripping", () => {
+    expect(sanitizeText("cafe\u0301\0")).toBe("caf\u00e9");
+  });
+
+  it("passes through normal ASCII unchanged", () => {
+    expect(sanitizeText("hello world")).toBe("hello world");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(sanitizeText("")).toBe("");
+  });
+});
 
 // ── Categories ──────────────────────────────────────────
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { updateAdminUser } from "@/lib/dal/admin-users";
+import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
@@ -31,6 +32,16 @@ export async function PATCH(request: Request) {
 
   try {
     await updateAdminUser(session.userId, { name });
+    // A8-05: Audit profile updates
+    await recordAuditEvent({
+      site_id: "__global__",
+      actor: session.email ?? session.userId,
+      actor_user_id: session.userId,
+      action: "update",
+      entity_type: "admin_user_profile",
+      entity_id: session.userId,
+      details: { field: "name" },
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
     captureException(err, { context: "[api/admin/users/me] PATCH failed" });

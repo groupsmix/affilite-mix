@@ -8,6 +8,7 @@ import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-po
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
+import { recordAuditEvent } from "@/lib/audit-log";
 import { revokeToken } from "@/lib/jwt-revocation";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
@@ -72,6 +73,16 @@ export async function POST(request: Request) {
 
     const newHash = await hashPassword(newPassword);
     await updateAdminUser(session.userId, { password_hash: newHash });
+
+    // A8-05: Audit password changes (security-critical event)
+    await recordAuditEvent({
+      site_id: "__global__",
+      actor: session.email ?? session.userId,
+      actor_user_id: session.userId,
+      action: "password_change",
+      entity_type: "admin_user",
+      entity_id: session.userId,
+    });
 
     // Invalidate the current session to force a fresh login with the new password
     try {
