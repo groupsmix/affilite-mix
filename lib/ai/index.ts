@@ -1,4 +1,9 @@
-export { generateWithFallback, getAvailableProviders } from "./providers";
+export {
+  generateWithFallback,
+  getAvailableProviders,
+  isAIEnabled,
+  AIDisabledError,
+} from "./providers";
 export {
   generateContent,
   generateTopicSuggestions,
@@ -8,6 +13,7 @@ export {
 export {
   containsProhibitedContent,
   containsLeakedSecrets,
+  containsExternalUrls,
   moderateInput,
   moderateOutput,
 } from "./content-moderation";

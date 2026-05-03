@@ -59,6 +59,25 @@ const SECRET_PATTERNS: ReadonlyArray<RegExp> = [
   /\b[A-Za-z0-9_-]{40}\b/,
 ];
 
+/* ------------------------------------------------------------------ */
+/*  A112: External URL / phishing link scanner                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A112 audit fix: detect external URLs in model output.
+ * AI-generated content should not contain clickable links -- those are
+ * added by the platform via affiliate tracking. An external URL in the
+ * generated body is likely a phishing attempt via stored prompt injection.
+ */
+const EXTERNAL_URL_PATTERN = /https?:\/\/[^\s"'<>)}\]]{4,}/i;
+
+/**
+ * Returns `true` when the text contains what appears to be external URLs.
+ */
+export function containsExternalUrls(text: string): boolean {
+  return EXTERNAL_URL_PATTERN.test(text);
+}
+
 /**
  * Returns `true` when the text appears to contain leaked secrets or
  * the system-prompt hardening preamble (which would indicate a
@@ -113,6 +132,12 @@ export function moderateOutput(text: string): ModerationResult {
   }
   if (containsLeakedSecrets(text)) {
     return { passed: false, reason: "Output appears to contain leaked secrets or system prompt" };
+  }
+  // A112 audit fix: flag outputs that contain external URLs. AI content
+  // should never include links -- affiliate links are added by the
+  // platform. An external URL suggests a prompt-injection phishing attack.
+  if (containsExternalUrls(text)) {
+    return { passed: false, reason: "Output contains external URLs (possible phishing injection)" };
   }
   return { passed: true };
 }

@@ -32,30 +32,39 @@ export interface GeneratedContent {
   model: string;
 }
 
+/**
+ * A112 audit fix: anti-phishing footer appended to every content system
+ * prompt. Prevents stored-injection or jailbreak attacks from embedding
+ * external URLs in generated content.
+ */
+const ANTI_PHISHING_RULE =
+  "\nIMPORTANT: Do not include any external URLs, hyperlinks, or markdown links in the generated content. " +
+  "Do not direct readers to visit any external website. Product links will be added separately by the platform.";
+
 const SYSTEM_PROMPTS: Record<AIContentType, string> = {
   article: `You are an expert content writer for affiliate marketing websites.
 Write engaging, SEO-optimized articles that provide genuine value to readers.
 Always include practical insights and actionable advice.
 Format the output as HTML with proper headings (h2, h3), paragraphs, and lists.
-Do NOT include the title as an h1 — it will be added separately.`,
+Do NOT include the title as an h1 — it will be added separately.${ANTI_PHISHING_RULE}`,
 
   review: `You are an expert product reviewer for affiliate marketing websites.
 Write honest, detailed reviews that help readers make informed purchase decisions.
 Include pros and cons, key features, pricing information, and a verdict.
 Format the output as HTML with proper headings (h2, h3), paragraphs, and lists.
-Do NOT include the title as an h1 — it will be added separately.`,
+Do NOT include the title as an h1 — it will be added separately.${ANTI_PHISHING_RULE}`,
 
   comparison: `You are an expert product comparison writer for affiliate marketing websites.
 Write detailed side-by-side comparisons that help readers choose between products.
 Include feature comparisons, pricing, pros/cons for each, and a clear recommendation.
 Format the output as HTML with proper headings (h2, h3), paragraphs, comparison tables, and lists.
-Do NOT include the title as an h1 — it will be added separately.`,
+Do NOT include the title as an h1 — it will be added separately.${ANTI_PHISHING_RULE}`,
 
   guide: `You are an expert guide writer for affiliate marketing websites.
 Write comprehensive, step-by-step guides that provide genuine value.
 Include practical tips, common mistakes to avoid, and recommendations.
 Format the output as HTML with proper headings (h2, h3), paragraphs, numbered steps, and lists.
-Do NOT include the title as an h1 — it will be added separately.`,
+Do NOT include the title as an h1 — it will be added separately.${ANTI_PHISHING_RULE}`,
 };
 
 function buildPrompt(input: GenerateContentInput): string {

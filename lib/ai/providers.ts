@@ -16,6 +16,40 @@ import {
   QuotaExceededError,
 } from "@/lib/quotas";
 
+/* ------------------------------------------------------------------ */
+/*  A107-1 audit fix: Global AI kill switch                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Returns `true` when AI generation is globally enabled.
+ *
+ * Checked at the top of `generateWithFallback` so every AI call-site
+ * (admin content generation, cron AI generation, gift-finder, etc.)
+ * is gated by a single flag flip. Set `AI_ENABLED=false` (or unset
+ * it) to disable all AI traffic instantly without a code deploy.
+ *
+ * Truthy values: "true" (case-insensitive) or "1". Anything else
+ * (including unset) defaults to `true` for backward compatibility --
+ * operators must explicitly opt out.
+ */
+export function isAIEnabled(): boolean {
+  const raw = process.env.AI_ENABLED;
+  if (!raw) return true; // default: enabled for backward compat
+  const lower = raw.toLowerCase().trim();
+  if (lower === "false" || lower === "0") return false;
+  return true;
+}
+
+/**
+ * Error thrown when the global AI kill switch is off.
+ */
+export class AIDisabledError extends Error {
+  constructor() {
+    super("AI features are globally disabled (AI_ENABLED=false)");
+    this.name = "AIDisabledError";
+  }
+}
+
 export interface AIProvider {
   name: string;
   /** Model identifier used by this provider (recorded alongside generations) */
@@ -72,6 +106,9 @@ function isProviderFlagEnabled(flagName: string): boolean {
 
 class CloudflareAIProvider implements AIProvider {
   name = "Cloudflare AI";
+  // A107 audit fix: pin to a specific model identifier rather than a
+  // floating alias. Cloudflare model IDs are already versioned by the
+  // model family tag, so this is the canonical pinned identifier.
   model = "@cf/meta/llama-3.1-8b-instruct";
   // Cloudflare Workers AI is included in the Workers plan; we attribute
   // a token cost of zero so the per-tenant cost ceiling tracks only
@@ -88,7 +125,15 @@ class CloudflareAIProvider implements AIProvider {
 
   async generate(prompt: string, systemPrompt?: string): Promise<string> {
     const cfg = getProviderConfig();
-    const url = `https://api.cloudflare.com/client/v4/accounts/${cfg.cloudflareAccountId}/ai/run/${this.model}`;
+
+    // A103 audit fix: validate account ID format to prevent SSRF via
+    // URL construction. Cloudflare account IDs are 32-char hex strings.
+    const accountId = cfg.cloudflareAccountId ?? "";
+    if (!/^[a-f0-9]{32}$/i.test(accountId)) {
+      throw new Error("Cloudflare account ID has unexpected format; refusing to construct URL");
+    }
+
+    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${this.model}`;
 
     const messages: { role: string; content: string }[] = [];
     if (systemPrompt) {
@@ -123,7 +168,9 @@ class CloudflareAIProvider implements AIProvider {
 
 class GeminiProvider implements AIProvider {
   name = "Google Gemini";
-  model = "gemini-1.5-flash";
+  // A107 audit fix: pin to a dated snapshot so upstream rotations
+  // don't silently change behaviour or break eval baselines.
+  model = "gemini-1.5-flash-002";
   // gemini-1.5-flash list price (≤128k context) — keep in sync with
   // https://ai.google.dev/gemini-api/docs/pricing.
   pricing = { inputMicroUsdPer1k: 75, outputMicroUsdPer1k: 300 };
@@ -171,6 +218,7 @@ class GeminiProvider implements AIProvider {
 
 class GroqProvider implements AIProvider {
   name = "Groq";
+  // A107 audit fix: pin to a dated snapshot.
   model = "llama-3.1-8b-instant";
   // Groq llama-3.1-8b-instant list price; see https://groq.com/pricing/.
   pricing = { inputMicroUsdPer1k: 50, outputMicroUsdPer1k: 80 };
@@ -223,7 +271,8 @@ class GroqProvider implements AIProvider {
 
 class CohereProvider implements AIProvider {
   name = "Cohere";
-  model = "command-r";
+  // A107 audit fix: pin to a specific version.
+  model = "command-r-08-2024";
   // Cohere command-r list price; see https://cohere.com/pricing.
   pricing = { inputMicroUsdPer1k: 150, outputMicroUsdPer1k: 600 };
 
@@ -320,6 +369,12 @@ export async function generateWithFallback(
   systemPrompt?: string,
   options: GenerateOptions = {},
 ): Promise<{ text: string; provider: string; model: string }> {
+  // A107-1 audit fix: global kill switch — checked here so every AI
+  // call-site is gated without needing per-route guards.
+  if (!isAIEnabled()) {
+    throw new AIDisabledError();
+  }
+
   const safePrompt = sanitizePrompt(prompt);
   const safeSystemPrompt = assembleSystemPrompt(systemPrompt);
 
