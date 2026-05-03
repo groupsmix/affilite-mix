@@ -37,13 +37,13 @@ configuration.
 
 ### Penetration Test
 
-| Field             | Value                                                       |
-| ----------------- | ----------------------------------------------------------- |
+| Field             | Value                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------- |
 | Vendor            | NCC Group (primary) or Bishop Fox (fallback) — both PCI-qualified independent pen testers |
-| Cadence           | Annual                                                      |
-| Last completed    | _Not yet performed_                                         |
-| Scope             | `*.groupsmix.com`, Cloudflare Workers, Supabase project     |
-| Evidence location | `s3://groupsmix-compliance/pci/pentest/`                    |
+| Cadence           | Annual                                                                                    |
+| Last completed    | _Not yet performed_                                                                       |
+| Scope             | `*.groupsmix.com`, Cloudflare Workers, Supabase project                                   |
+| Evidence location | `s3://groupsmix-compliance/pci/pentest/`                                                  |
 
 > **Action (OF-15):** Commission first annual pen test before 2026-12-31.
 
