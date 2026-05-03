@@ -22,8 +22,14 @@ const CSP_HEADER = "Content-Security-Policy";
 let _maintenanceCacheValue = false;
 let _maintenanceCacheExpiry = 0;
 
-/** Methods allowed via CORS for public API endpoints (beacon, vitals, etc.) */
-const CORS_ALLOWED_METHODS = "GET, POST, OPTIONS";
+/**
+ * Methods allowed via CORS for API endpoints.
+ *
+ * A49.4: includes PUT, PATCH, DELETE so admin routes that accept those
+ * methods work correctly cross-origin. The RBAC / CSRF layers gate
+ * access independently of CORS.
+ */
+const CORS_ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 /** Headers the browser is allowed to send on cross-origin requests */
 const CORS_ALLOWED_HEADERS = [CSRF_HEADER, "Content-Type", "Authorization", TRACE_ID_HEADER].join(
   ", ",
@@ -146,6 +152,10 @@ async function innerMiddleware(request: NextRequest) {
   // was minted during the previous request.
   if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const requestOrigin = request.headers.get("origin") ?? "";
+    // A49.6: Reject the literal "null" origin (sandboxed iframes, file://).
+    if (requestOrigin.toLowerCase() === "null") {
+      return new NextResponse(null, { status: 403 });
+    }
     // P1-10: Resolve site identity for preflight requests from both static
     // config AND cached DB entries. Previously only static-config sites were
     // checked, so custom-domain preflights would always 403 until the site
@@ -415,6 +425,10 @@ async function innerMiddleware(request: NextRequest) {
   const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
   if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
     const origin = request.headers.get("origin") ?? "";
+    // A49.6: Reject the literal "null" origin early.
+    if (origin.toLowerCase() === "null") {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
     // G-33: pass the verified site reference, not the raw hostname.
     const allowedOrigins = getAllowedOrigins(verifiedSite);
 
@@ -527,7 +541,8 @@ async function innerMiddleware(request: NextRequest) {
   // Never use wildcard "*" — all endpoints may carry credentials.
   if (isApiRoute) {
     const requestOrigin = request.headers.get("origin") ?? "";
-    if (requestOrigin) {
+    // A49.6: never reflect the literal "null" origin.
+    if (requestOrigin && requestOrigin.toLowerCase() !== "null") {
       // G-33: pass the verified site reference, not the raw hostname.
       const allowedOrigins = getAllowedOrigins(verifiedSite);
       if (allowedOrigins.includes(requestOrigin)) {

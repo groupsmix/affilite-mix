@@ -13,6 +13,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
+import { pickFields } from "@/lib/safe-fields";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
@@ -170,10 +171,14 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const updates: Record<string, unknown> = {};
-    if (name !== undefined) updates.name = name;
-    if (role !== undefined) updates.role = role;
-    if (is_active !== undefined) updates.is_active = is_active;
+    // A48.4: Use central allowlist enforcer to prevent mass-assignment.
+    // Only name, role, and is_active are user-settable; password_hash
+    // is derived server-side below.
+    const safeBody = pickFields(
+      bodyOrError as Record<string, unknown>,
+      ["name", "role", "is_active"] as const,
+    );
+    const updates: Record<string, unknown> = { ...safeBody };
     if (password) {
       const policyCheck = validatePasswordPolicy(password);
       if (!policyCheck.valid) {
