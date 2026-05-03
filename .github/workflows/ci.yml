@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+# A34.12: Prevent duplicate CI runs on the same PR. A new push cancels
+# the in-flight run so we don't waste runner minutes or race CodeQL/Gitleaks.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
   NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
@@ -274,7 +280,7 @@ jobs:
           npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json --spec-version 1.5
 
       - name: Upload SBOM Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: sbom
           path: sbom.json

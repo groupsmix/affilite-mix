@@ -36,7 +36,10 @@ jobs:
     timeout-minutes: 15
 
     container:
-      image: semgrep/semgrep:latest
+      # A34.16: Pin to a specific version tag instead of :latest to prevent
+      # silent upgrades that could change scan behaviour or introduce
+      # supply-chain risk. Bump deliberately via Dependabot or Renovate.
+      image: semgrep/semgrep:1.117.0
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6

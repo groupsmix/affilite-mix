@@ -31,6 +31,12 @@ services:
     # prod minor changes, document the diff in `docs/local-supabase.md`.
     image: supabase/postgres:17
     restart: unless-stopped
+    # A32.4: Drop all Linux capabilities by default; re-add only what
+    # Postgres needs (chown for initdb, setuid/setgid for gosu/su-exec).
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE, FOWNER]
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
       interval: 5s
@@ -57,6 +63,16 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    # A32.4: PostgREST is stateless; run read-only and drop all caps.
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres
       PGRST_DB_SCHEMAS: public,storage,graphql_public
@@ -71,6 +87,20 @@ services:
     depends_on:
       - rest
     restart: unless-stopped
+    # A32.4: Kong needs /tmp for proxy buffering but otherwise is stateless.
+    # tmpfs mounts satisfy the writable-path requirement without giving
+    # the container a writable root filesystem.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "kong health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       # Mirrors the Supabase CLI default local endpoint so test configs
       # that assume `http://localhost:54321` work out of the box.
