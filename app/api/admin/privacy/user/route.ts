@@ -48,6 +48,8 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
   const lowerEmail = email.toLowerCase();
 
   try {
+    // A23-02: Use explicit column lists instead of select("*") to avoid
+    // exposing internal metadata columns in the DSAR export payload.
     const [
       { data: newsletters },
       { data: memberships },
@@ -58,19 +60,19 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
       { data: dripEnrollments },
     ] = await Promise.all([
       // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      sb.from("newsletter_subscribers").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      sb.from("newsletter_subscribers").select("id, email, site_id, confirmed, created_at").eq("site_id", site_id).eq("email", lowerEmail),
       // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      sb.from("memberships").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      sb.from("memberships").select("id, email, site_id, tier, status, created_at, expires_at").eq("site_id", site_id).eq("email", lowerEmail),
       // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      sb.from("comments").select("*").eq("site_id", site_id).eq("user_email", lowerEmail),
+      sb.from("comments").select("id, user_email, site_id, body, created_at").eq("site_id", site_id).eq("user_email", lowerEmail),
       // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      sb.from("wrist_shots").select("*").eq("site_id", site_id).eq("user_email", lowerEmail),
+      sb.from("wrist_shots").select("id, user_email, site_id, image_url, created_at").eq("site_id", site_id).eq("user_email", lowerEmail),
       // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      sb.from("quiz_submissions").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      sb.from("quiz_submissions").select("id, email, site_id, quiz_id, score, created_at").eq("site_id", site_id).eq("email", lowerEmail),
       // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      sb.from("price_alerts").select("*").eq("site_id", site_id).eq("email", lowerEmail),
+      sb.from("price_alerts").select("id, email, site_id, product_id, target_price, created_at").eq("site_id", site_id).eq("email", lowerEmail),
       // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
-      sb.from("drip_enrollments").select("*").eq("email", lowerEmail),
+      sb.from("drip_enrollments").select("id, email, campaign_id, status, created_at").eq("email", lowerEmail),
     ]);
 
     const exportPayload = {
@@ -154,6 +156,42 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
       return apiError(500, "Failed to process data erasure");
     }
 
+    // A22-04: Cascade erasure to R2 objects associated with this user.
+    // Wrist-shot images stored in R2 must be deleted after the DB rows
+    // are removed, since the RPC only handles relational data.
+    let r2DeleteCount = 0;
+    try {
+      const r2 = (process.env as Record<string, unknown>).R2_PRIVATE_BUCKET as
+        | { list: (opts: { prefix: string }) => Promise<{ objects: { key: string }[] }>; delete: (keys: string[]) => Promise<void> }
+        | undefined;
+
+      if (r2 && typeof r2.list === "function") {
+        // User-uploaded images are keyed by email hash under a per-site prefix.
+        const emailHash = hashEmail(email);
+        const prefixes = [
+          `uploads/${site_id}/wrist-shots/${emailHash}/`,
+          `uploads/${site_id}/user-content/${emailHash}/`,
+        ];
+
+        for (const prefix of prefixes) {
+          const listed = await r2.list({ prefix });
+          if (listed.objects.length > 0) {
+            const keys = listed.objects.map((o) => o.key);
+            await r2.delete(keys);
+            r2DeleteCount += keys.length;
+          }
+        }
+      }
+    } catch (r2Err) {
+      // R2 cleanup is best-effort; log but do not fail the erasure.
+      logger.warn("R2 object cleanup failed during GDPR erasure", {
+        error: r2Err instanceof Error ? r2Err.message : String(r2Err),
+        site_id,
+        target_email_hash: hashEmail(email),
+      });
+      captureException(r2Err, { context: "[api/admin/privacy] R2 cleanup during erasure" });
+    }
+
     // Secondary audit record in application audit log (belt-and-suspenders).
     await recordAuditEvent({
       site_id,
@@ -162,12 +200,13 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
       action: "gdpr_erasure",
       entity_type: "subject",
       entity_id: hashEmail(email),
-      details: { target_email_hash: hashEmail(email) },
+      details: { target_email_hash: hashEmail(email), r2_objects_deleted: r2DeleteCount },
     });
 
     return NextResponse.json({
       ok: true,
       message: "User data erased successfully",
+      r2_objects_deleted: r2DeleteCount,
       retained: ["affiliate_clicks", "audit_log"],
       retention_basis: "GDPR Art. 17(3)(e) — retention for legal/financial claims",
     });

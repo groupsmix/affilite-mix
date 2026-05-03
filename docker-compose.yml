@@ -2,7 +2,7 @@
 #
 # Spins up Postgres + PostgREST + Kong so that integration tests can talk
 # to a real Supabase API surface on `http://localhost:54321` without
-# touching a staging database.  All four services are disposable — none of
+# touching a staging database.  All four services are disposable -- none of
 # them carry production config and they live in an isolated Docker
 # network so they can be brought up / torn down around test runs.
 #
@@ -15,9 +15,22 @@
 #     npm run test:integration
 #   docker compose down -v            # stop + wipe volumes
 #
-# The JWTs below are the standard Supabase self-hosted dev keys — they
+# The JWTs below are the standard Supabase self-hosted dev keys -- they
 # only decode the test `JWT_SECRET` baked into this compose file and
 # must never be used in production.  See docs/local-supabase.md.
+#
+# Security hardening (audit A31):
+#   - All ports bound to 127.0.0.1 to prevent exposure on public interfaces
+#     (A31.2).
+#   - Isolated bridge network with `internal: true` so containers cannot
+#     reach the internet (A31.9).
+#   - cap_drop: ALL removes Linux capabilities; cap_add whitelists only what
+#     each service needs (A31.9).
+#   - security_opt: no-new-privileges prevents SUID/SGID escalation (A31.9).
+#   - mem_limit / pids_limit cap resource consumption (A31.9).
+#   - Healthchecks on every service so depends_on can gate on
+#     service_healthy (A31.11, A31.12).
+#   - Labels for ownership and environment tagging (A31.13).
 
 name: affilite-mix-supabase
 
@@ -42,14 +55,34 @@ services:
       JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
       JWT_EXP: 3600
     ports:
-      - "54322:5432"
+      # A31.2: Bind to loopback only -- prevents exposure on public interfaces.
+      - "127.0.0.1:54322:5432"
     volumes:
       - supabase-db-data:/var/lib/postgresql/data
       # Apply project migrations on first boot.  `docker-entrypoint-initdb.d`
       # runs all `*.sql` files in alphabetical order the first time the
-      # data volume is empty — matches the numeric ordering we already use
+      # data volume is empty -- matches the numeric ordering we already use
       # under `supabase/migrations/`.
       - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    # A31.9: Container hardening -- drop all caps, add back only what
+    # Postgres needs (file ownership, user switching).
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    pids_limit: 256
+    networks:
+      - supabase-internal
+    labels:
+      com.affilite-mix.environment: "local-dev"
+      com.affilite-mix.owner: "platform"
 
   rest:
     image: postgrest/postgrest:v12.2.0
@@ -57,6 +90,12 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    # A31.11: Healthcheck so kong can depend on service_healthy.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres
       PGRST_DB_SCHEMAS: public,storage,graphql_public
@@ -65,16 +104,39 @@ services:
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
       PGRST_APP_SETTINGS_JWT_EXP: "3600"
+    # A31.9: Container hardening.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    mem_limit: 512m
+    pids_limit: 128
+    networks:
+      - supabase-internal
+    labels:
+      com.affilite-mix.environment: "local-dev"
+      com.affilite-mix.owner: "platform"
 
   kong:
     image: kong:3.4
     depends_on:
-      - rest
+      # A31.12: Gate on service_healthy so Kong does not start before
+      # PostgREST is ready.
+      rest:
+        condition: service_healthy
     restart: unless-stopped
+    # A31.11: Healthcheck for kong.
+    healthcheck:
+      test: ["CMD-SHELL", "kong health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       # Mirrors the Supabase CLI default local endpoint so test configs
       # that assume `http://localhost:54321` work out of the box.
-      - "54321:8000"
+      # A31.2: Bind to loopback only.
+      - "127.0.0.1:54321:8000"
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
@@ -84,6 +146,30 @@ services:
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
     volumes:
       - ./docker/kong.yml:/var/lib/kong/kong.yml:ro
+    # A31.9: Container hardening.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 128
+    networks:
+      - supabase-internal
+    labels:
+      com.affilite-mix.environment: "local-dev"
+      com.affilite-mix.owner: "platform"
+
+networks:
+  # A31.9: Isolated network -- services only talk to each other.
+  # `internal: true` prevents containers from reaching the internet.
+  supabase-internal:
+    driver: bridge
+    internal: true
 
 volumes:
   supabase-db-data:

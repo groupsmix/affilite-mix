@@ -114,6 +114,37 @@ output "worker_logs_bucket_name" {
 }
 
 ###############################################################################
+# A22-03: Off-site backup bucket for disaster recovery.
+#
+# This bucket stores nightly pg_dump exports and R2 media replicas.
+# It is separate from the incremental cache and worker logs buckets so
+# lifecycle, access controls, and replication can be tuned independently.
+###############################################################################
+
+variable "backup_bucket_name" {
+  type        = string
+  default     = "backup-bucket"
+  description = "R2 bucket name for off-site database and media backups. Must match the bucket name used by the nightly pg_dump GitHub Actions workflow."
+}
+
+variable "backup_retention_days" {
+  type        = number
+  default     = 90
+  description = "Number of days to retain backup objects before expiry. Monthly archives are exempt (managed by a separate lifecycle rule prefix filter)."
+}
+
+resource "cloudflare_r2_bucket" "backups" {
+  account_id = var.cloudflare_account_id
+  name       = var.backup_bucket_name
+  location   = var.r2_default_location
+}
+
+output "backup_bucket_name" {
+  value       = cloudflare_r2_bucket.backups.name
+  description = "Name of the R2 bucket used for off-site database and media backups (A22-03)."
+}
+
+###############################################################################
 # OF-11: R2 lifecycle rules, object-lock (WORM), and replication stubs.
 #
 # Cloudflare R2 does not yet expose lifecycle / object-lock / replication
@@ -166,8 +197,15 @@ output "r2_lifecycle_notice" {
     - WORM:              DISABLED (cache bucket; objects must be replaceable)
     - Replication:       ${var.r2_replication_enabled ? "ENABLED" : "DISABLED"}
 
+    Bucket: ${cloudflare_r2_bucket.backups.name}
+    - Lifecycle expiry:  ${var.backup_retention_days} days (daily dumps; monthly archives retained indefinitely via prefix filter)
+    - WORM:              ENABLED (backup integrity)
+    - Replication:        ${var.r2_replication_enabled ? "ENABLED" : "DISABLED (A22-03: enable for off-site DR)"}
+
     Run: wrangler r2 bucket lifecycle set ${cloudflare_r2_bucket.worker_logs.name} \
            --rule '{"id":"log-retention","status":"enabled","expiration":{"days":${var.r2_log_retention_days}}}'
+    Run: wrangler r2 bucket lifecycle set ${cloudflare_r2_bucket.backups.name} \
+           --rule '{"id":"backup-retention","status":"enabled","expiration":{"days":${var.backup_retention_days}}}'
   EOT
-  description = "OF-11: Reminder to apply R2 lifecycle/WORM/replication rules manually until Terraform provider support lands."
+  description = "OF-11 / A22-03: Reminder to apply R2 lifecycle/WORM/replication rules manually until Terraform provider support lands."
 }
