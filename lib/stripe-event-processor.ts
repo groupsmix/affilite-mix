@@ -149,27 +149,77 @@ async function buildStripeEventPayload(
       };
     }
 
-    // OF-06: Handle refund, dispute, and failed-payment events so they are
-    // not silently dropped. These events are recorded as membership status
-    // updates rather than noop so the DB mirror stays accurate.
+    // OF-06: Handle refund, dispute, and failed-payment events so they
+    // update DB membership/payment state instead of silently dropping.
     case "charge.refunded": {
       const charge = event.data.object as Stripe.Charge;
       const paymentIntentId =
         typeof charge.payment_intent === "string" ? charge.payment_intent : undefined;
       logger.info("Stripe charge refunded", { chargeId: charge.id, paymentIntentId });
-      return { op: "noop" };
+
+      // Resolve the subscription from the charge's invoice so we can
+      // mark the membership as cancelled.
+      const subscriptionId = await resolveSubscriptionFromCharge(stripe, charge);
+      if (!subscriptionId) {
+        logger.warn("charge.refunded: could not resolve subscription, recording as noop", {
+          chargeId: charge.id,
+        });
+        return { op: "noop" };
+      }
+
+      // Full refund cancels membership; partial refund is recorded but
+      // membership stays active (manual review may still be needed).
+      const isFullRefund = charge.amount_refunded >= charge.amount;
+      if (isFullRefund) {
+        return {
+          op: "cancel_membership",
+          stripe_subscription_id: subscriptionId,
+        };
+      }
+      // Partial refund: update status to flag for review but keep active.
+      return {
+        op: "update_status",
+        stripe_subscription_id: subscriptionId,
+        status: "active",
+      };
     }
 
     case "charge.dispute.created":
     case "charge.dispute.updated": {
       const dispute = event.data.object as Stripe.Dispute;
-      logger.warn("Stripe dispute received — manual review required", {
+      logger.warn("Stripe dispute received — updating membership status", {
         disputeId: dispute.id,
         status: dispute.status,
         amount: dispute.amount,
         currency: dispute.currency,
       });
-      return { op: "noop" };
+
+      // Resolve subscription from the disputed charge.
+      const disputeCharge =
+        typeof dispute.charge === "string"
+          ? await stripe.charges.retrieve(dispute.charge)
+          : dispute.charge;
+      const disputeSubId = disputeCharge
+        ? await resolveSubscriptionFromCharge(stripe, disputeCharge as Stripe.Charge)
+        : undefined;
+
+      if (!disputeSubId) {
+        logger.warn("dispute: could not resolve subscription, recording as noop", {
+          disputeId: dispute.id,
+        });
+        return { op: "noop" };
+      }
+
+      // Map dispute status to membership state:
+      //   needs_response / under_review / warning_* → past_due (gate access)
+      //   lost → cancelled
+      //   won → active (restore access)
+      const disputeMembershipStatus = mapDisputeStatus(dispute.status);
+      return {
+        op: disputeMembershipStatus === "cancelled" ? "cancel_membership" : "update_status",
+        stripe_subscription_id: disputeSubId,
+        ...(disputeMembershipStatus !== "cancelled" && { status: disputeMembershipStatus }),
+      } as StripeEventOp;
     }
 
     case "invoice.payment_failed": {
@@ -239,6 +289,7 @@ function logStripeSideEffect(
       logger.info("Membership status updated", {
         stripeSubscriptionId: payload.stripe_subscription_id,
         status: payload.status,
+        tier: payload.tier,
         membershipId,
       });
       break;
@@ -259,6 +310,66 @@ function logStripeSideEffect(
 function toIsoOrUndefined(unixSeconds: number | null | undefined): string | undefined {
   if (!unixSeconds) return undefined;
   return new Date(unixSeconds * 1000).toISOString();
+}
+
+/**
+ * OF-06: Resolve the Stripe subscription ID from a charge object.
+ * Charges link to invoices, and invoices link to subscriptions.
+ */
+async function resolveSubscriptionFromCharge(
+  stripe: Stripe,
+  charge: Stripe.Charge,
+): Promise<string | undefined> {
+  // Try the invoice path: charge → invoice → subscription.
+  const invoiceId =
+    typeof (charge as unknown as { invoice?: string | null }).invoice === "string"
+      ? ((charge as unknown as { invoice: string }).invoice as string)
+      : undefined;
+
+  if (invoiceId) {
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+    const subId =
+      typeof (invoice as unknown as { subscription?: string | null }).subscription === "string"
+        ? ((invoice as unknown as { subscription: string }).subscription as string)
+        : undefined;
+    if (subId) return subId;
+  }
+
+  // Fallback: check payment_intent → invoice → subscription.
+  const piId = typeof charge.payment_intent === "string" ? charge.payment_intent : undefined;
+  if (piId) {
+    const pi = await stripe.paymentIntents.retrieve(piId);
+    const piInvoiceId =
+      typeof (pi as unknown as { invoice?: string | null }).invoice === "string"
+        ? ((pi as unknown as { invoice: string }).invoice as string)
+        : undefined;
+    if (piInvoiceId) {
+      const invoice = await stripe.invoices.retrieve(piInvoiceId);
+      const subId =
+        typeof (invoice as unknown as { subscription?: string | null }).subscription === "string"
+          ? ((invoice as unknown as { subscription: string }).subscription as string)
+          : undefined;
+      if (subId) return subId;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * OF-06: Map a Stripe dispute status to a membership status.
+ */
+function mapDisputeStatus(disputeStatus: string): "active" | "cancelled" | "past_due" {
+  switch (disputeStatus) {
+    case "won":
+      return "active";
+    case "lost":
+      return "cancelled";
+    // needs_response, under_review, warning_needs_response,
+    // warning_under_review, warning_closed, charge_refunded
+    default:
+      return "past_due";
+  }
 }
 
 function mapStripeStatus(
