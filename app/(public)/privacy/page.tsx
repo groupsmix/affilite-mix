@@ -233,6 +233,7 @@ export default async function PrivacyPage() {
           <li>{isAr ? "تصحيح البيانات غير الدقيقة" : "Rectify inaccurate data"}</li>
           <li>{isAr ? "طلب حذف بياناتك" : "Request erasure of your data"}</li>
           <li>{isAr ? "الاعتراض على المعالجة" : "Object to processing"}</li>
+          <li>{isAr ? "تقييد المعالجة" : "Restriction of processing"}</li>
           <li>{isAr ? "نقل البيانات" : "Data portability"}</li>
           <li>{isAr ? "سحب الموافقة في أي وقت" : "Withdraw consent at any time"}</li>
         </ul>

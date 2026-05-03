@@ -97,6 +97,17 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
       site_id,
     });
 
+    // OF-02: immutable audit row for the export (DSAR access right).
+    await recordAuditEvent({
+      site_id,
+      actor: session.email ?? session.userId ?? "system",
+      actor_user_id: session.userId,
+      action: "gdpr_export",
+      entity_type: "subject",
+      entity_id: hashEmail(email),
+      details: { target_email_hash: hashEmail(email) },
+    });
+
     return NextResponse.json({
       ok: true,
       export: exportPayload,
