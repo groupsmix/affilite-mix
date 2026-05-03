@@ -253,11 +253,21 @@
   //   ]
   // and redeploy this main Worker.
   "tail_consumers": [
-    // OF-20: Enable log shipping to durable observability sink.
-    // Deploy the affilite-mix-log-shipper tail worker (scaffold in
-    // workers/log-shipper/) and set TAIL_WORKER_ENABLED=true in your
-    // environment before enabling this entry.
-    // { "service": "affilite-mix-log-shipper" }
+    // OF-20: Log shipping to durable observability sink.
+    //
+    // This array is INTENTIONALLY EMPTY in source control. Referencing a
+    // non-existent Tail Worker would break every deploy. In production,
+    // the deploy workflow (`.github/workflows/deploy.yml`) handles this:
+    //
+    //   1. When LOG_SHIPPER_ENABLED=true (repo variable), the workflow
+    //      deploys `workers/log-shipper/` and then rewrites this array
+    //      via `scripts/inject-tail-consumers.mjs`.
+    //   2. When LOG_SHIPPER_ENABLED is unset/false AND the deploy targets
+    //      production, the workflow FAILS CLOSED (exit 1) unless an
+    //      audited, time-limited override is configured.
+    //
+    // This means production deploys REQUIRE log shipping to be active.
+    // The empty array here is a deploy-time placeholder, not a gap.
   ],
 }
 // BLIND SPOT FIX: Production Bindings & Secrets Truth
