@@ -27,7 +27,7 @@ This document serves as the formal register of Data Processing Agreements (DPAs)
 
 - **Role:** Transactional and newsletter email delivery.
 - **Data Residency:** Hosted primarily in AWS US-East. Email addresses and body contents traverse US boundaries.
-- **DPA Status:** Executed.
+- **DPA Status:** Executed. DPF certified -- verified 2026-05-01 ([registry](https://www.dataprivacyframework.gov/s/participant/a2zt0000000GnZOAA0)).
 - **Link:** [Resend DPA](https://resend.com/legal/dpa)
 
 ## 5. Sentry (Error Tracking & Telemetry)
