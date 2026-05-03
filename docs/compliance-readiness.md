@@ -27,7 +27,7 @@ configuration.
 
 | Field             | Value                                                          |
 | ----------------- | -------------------------------------------------------------- |
-| Vendor            | TrustWave / Qualys (select before Q3 2026 scan)                |
+| Vendor            | Qualys PCI ASV (primary); SecurityMetrics (fallback)           |
 | Cadence           | Quarterly                                                      |
 | Last completed    | _Not yet performed — schedule before first card-present event_ |
 | Evidence location | `s3://groupsmix-compliance/pci/asv/`                           |
@@ -37,13 +37,13 @@ configuration.
 
 ### Penetration Test
 
-| Field             | Value                                                       |
-| ----------------- | ----------------------------------------------------------- |
-| Vendor            | TBD — must be PCI-qualified (QSA or independent pen tester) |
-| Cadence           | Annual                                                      |
-| Last completed    | _Not yet performed_                                         |
-| Scope             | `*.groupsmix.com`, Cloudflare Workers, Supabase project     |
-| Evidence location | `s3://groupsmix-compliance/pci/pentest/`                    |
+| Field             | Value                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| Vendor            | NCC Group (primary) or Bishop Fox (fallback) — both PCI-qualified independent pen testers |
+| Cadence           | Annual                                                                                    |
+| Last completed    | _Not yet performed_                                                                       |
+| Scope             | `*.groupsmix.com`, Cloudflare Workers, Supabase project                                   |
+| Evidence location | `s3://groupsmix-compliance/pci/pentest/`                                                  |
 
 > **Action (OF-15):** Commission first annual pen test before 2026-12-31.
 

@@ -49,6 +49,7 @@ export type StripeEventOp =
       op: "update_status";
       stripe_subscription_id: string;
       status: "active" | "cancelled" | "expired" | "past_due";
+      tier?: string;
     }
   | {
       op: "cancel_membership";
