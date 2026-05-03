@@ -80,6 +80,15 @@ const CONTROL_TOKEN_PATTERNS: ReadonlyArray<RegExp> = [
   /(^|\n)\s*(?:\u7CFB\u7EDF|\u52A9\u624B|\u5F00\u53D1\u8005)\s*[::\uFF1A]\s*/gim,
 ];
 
+/**
+ * A101-2: Strip UNTRUSTED delimiter markers that an attacker could inject
+ * to close the trusted/untrusted boundary early. If user-supplied content
+ * contains the literal `<<UNTRUSTED_PATIENT_INPUT_BEGIN>>` or
+ * `<<UNTRUSTED_PATIENT_INPUT_END>>` (or any `<<UNTRUSTED_*>>` variant),
+ * the delimiter is removed so it cannot break out of the sandbox.
+ */
+const UNTRUSTED_DELIMITER_PATTERN = /<<\/?UNTRUSTED[_A-Z]*>>/gi;
+
 /** Bytes a tokenizer may interpret as a message boundary. */
 const FORBIDDEN_CHARS = /[\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\uFFFE\uFFFF]/g;
 
@@ -153,6 +162,10 @@ export function sanitizePrompt(input: string, options: SanitizePromptOptions = {
   for (const pattern of CONTROL_TOKEN_PATTERNS) {
     out = out.replace(pattern, " ");
   }
+
+  // 1b. A101-2: Strip UNTRUSTED delimiter markers so user content
+  //     cannot close the trusted/untrusted sandbox boundary early.
+  out = out.replace(UNTRUSTED_DELIMITER_PATTERN, "");
 
   // 2. Strip tokenizer-boundary control characters.
   out = out.replace(FORBIDDEN_CHARS, "");

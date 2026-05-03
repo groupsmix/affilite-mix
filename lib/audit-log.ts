@@ -127,6 +127,17 @@ export async function recordAuditEvent(
     if (retryError) {
       console.error("[audit-log] Retry also failed:", retryError.message);
 
+      // F-A99-06: Capture the failure in Sentry so audit data loss is
+      // observable in alerting, not just console.error / R2 DLQ.
+      captureException(retryError, {
+        context: "audit-log.insert-retry-exhausted",
+        extra: {
+          action: event.action,
+          entity_type: event.entity_type,
+          site_id: event.site_id,
+        },
+      });
+
       // ── Path 3: R2 DLQ fallback ──────────────────────────────────
       await writeToDlq(event);
 

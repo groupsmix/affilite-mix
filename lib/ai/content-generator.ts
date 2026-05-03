@@ -5,6 +5,7 @@
 
 import { generateWithFallback } from "./providers";
 import { moderateInput, moderateOutput } from "./content-moderation";
+import { sanitizePrompt } from "./prompt-sanitization";
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
 
@@ -58,16 +59,34 @@ Format the output as HTML with proper headings (h2, h3), paragraphs, numbered st
 Do NOT include the title as an h1 — it will be added separately.`,
 };
 
+/**
+ * A101-1: Sanitize a short text field before interpolating it into a
+ * prompt template. Uses `sanitizePrompt` with a tight cap so
+ * admin-supplied values (topic, siteName, niche, keywords, product
+ * names) cannot inject control tokens or UNTRUSTED delimiters.
+ */
+function sanitizeField(value: string, label: string): string {
+  return sanitizePrompt(value, { maxChars: 500, label });
+}
+
 function buildPrompt(input: GenerateContentInput): string {
   const lang = input.language === "ar" ? "Arabic" : "English";
+
+  // A101-1: Sanitize all admin-supplied fields before interpolation
+  // so stored prompt-injection via DB-writable fields (topic, site
+  // name, niche, keywords, product names) is neutralised.
+  const safeTopic = sanitizeField(input.topic, "topic");
+  const safeSiteName = sanitizeField(input.siteName, "siteName");
+  const safeNiche = sanitizeField(input.niche, "niche");
+
   const keywordStr = input.keywords?.length
-    ? `\nTarget keywords: ${input.keywords.join(", ")}`
+    ? `\nTarget keywords: ${input.keywords.map((k) => sanitizeField(k, "keyword")).join(", ")}`
     : "";
   const productsStr = input.productNames?.length
-    ? `\nProducts to cover: ${input.productNames.join(", ")}`
+    ? `\nProducts to cover: ${input.productNames.map((p) => sanitizeField(p, "productName")).join(", ")}`
     : "";
 
-  return `Write a ${input.contentType} about "${input.topic}" for ${input.siteName} (${input.niche}).
+  return `Write a ${input.contentType} about "${safeTopic}" for ${safeSiteName} (${safeNiche}).
 Language: ${lang}${keywordStr}${productsStr}
 
 Requirements:
@@ -216,7 +235,8 @@ export async function generateTopicSuggestions(
   count: number = 5,
   siteId?: string,
 ): Promise<{ topics: string[]; provider: string }> {
-  const prompt = `Suggest ${count} compelling ${contentType} topics for a website about "${niche}".
+  const safeNiche = sanitizeField(niche, "niche");
+  const prompt = `Suggest ${count} compelling ${contentType} topics for a website about "${safeNiche}".
 Each topic should be:
 - SEO-friendly and searchable
 - Genuinely useful for readers

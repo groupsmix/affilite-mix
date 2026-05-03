@@ -99,13 +99,19 @@ export function verifyCronAuth(request: NextRequest, options: VerifyCronAuthOpti
   const encoder = new TextEncoder();
   const provided = encoder.encode(token);
 
+  // A100: Reject secrets shorter than 32 characters. An empty-string
+  // secret would pass `timingSafeCompare("", "")` on some runtimes,
+  // and anything under 32 chars is too weak for a bearer token that
+  // gates cron endpoints.
+  const MIN_SECRET_LENGTH = 32;
+
   let anySecretConfigured = false;
   let perTriggerConfigured = false;
   let matched = false;
   for (let i = 0; i < envVars.length; i++) {
     const name = envVars[i];
     const value = process.env[name];
-    if (!value) continue;
+    if (!value || value.length < MIN_SECRET_LENGTH) continue;
     anySecretConfigured = true;
     if (i === 0) {
       // First entry is the per-trigger dedicated secret; subsequent
