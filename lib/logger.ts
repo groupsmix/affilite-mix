@@ -82,6 +82,16 @@ function emit(
  */
 const DENIED_LOG_FIELDS = new Set([
   "email",
+  "phone",
+  "phone_number",
+  "name",
+  "first_name",
+  "last_name",
+  "full_name",
+  "address",
+  "date_of_birth",
+  "dob",
+  "ssn",
   "password",
   "secret",
   "token",

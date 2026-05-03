@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     // to avoid edge runtime bloat/incompatibility.
     event = await constructStripeEvent(rawBody, signature, webhookSecret);
   } catch (err) {
-    logger.warn("Stripe webhook signature verification failed", {
+    logger.error("Stripe webhook signature verification failed", {
       error: err instanceof Error ? err.message : String(err),
     });
     // SEC-09: Include security headers on error responses to prevent

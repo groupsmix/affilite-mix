@@ -43,6 +43,13 @@ Filter: is:unresolved level:error
 Action: Notify #incidents channel + page on-call
 ```
 
+**Remediation:**
+1. Open Sentry, filter by last 10 minutes, group by `transaction` to identify the hottest endpoint.
+2. Check if a recent deploy correlates -- run `gh pr list --state merged --limit 5` and compare timestamps.
+3. If deploy-related: roll back via `wrangler rollback` or revert the merge commit and re-deploy.
+4. If infrastructure-related: check Supabase status page and Cloudflare status. If DB is slow, check connection pool saturation (see `docs/runbooks/supabase-connection-pool-exhaustion.md`).
+5. Communicate in `#incidents` within 5 minutes of page.
+
 #### 2. New Issue (P3)
 
 ```
@@ -50,6 +57,11 @@ Condition: A new issue is created
 Filter: level:error OR level:fatal
 Action: Notify #alerts channel
 ```
+
+**Remediation:**
+1. Triage the Sentry issue: check stack trace and affected users count.
+2. If < 5 users and non-revenue-impacting, assign to next sprint.
+3. If growing, escalate to P2 and follow Error Spike remediation above.
 
 #### 3. Auth Failures (P2)
 
@@ -59,6 +71,12 @@ Filter: tags[transaction]:/api/auth/* level:error
 Action: Notify #incidents channel
 ```
 
+**Remediation:**
+1. Check if failures are from a single IP (brute-force attempt) -- search Sentry for `ip` tag clustering.
+2. If brute-force: verify rate limiter is active (`lib/rate-limit.ts`). Consider temporary IP block via Cloudflare WAF.
+3. If widespread auth failures: check Supabase Auth service status and JWT secret rotation state (see `docs/secrets-rotation-runbook.md`).
+4. If TOTP-related: check `totp_lockout` table for mass lockouts.
+
 #### 4. Click Tracking Errors (P2)
 
 ```
@@ -66,6 +84,12 @@ Condition: Number of events > 5 in 10 minutes
 Filter: tags[transaction]:/api/track/click level:error
 Action: Notify #incidents channel (revenue impact)
 ```
+
+**Remediation:**
+1. Check if the affiliate network endpoint is returning errors -- inspect Sentry breadcrumbs for upstream HTTP status codes.
+2. Verify the click-tracking DLQ is capturing failed events (see `docs/runbooks/click-dlq.md`).
+3. If the DLQ queue itself is failing, check Cloudflare Queue binding status in the dashboard.
+4. Estimate revenue impact: multiply error count by average EPC to size the incident.
 
 #### 5. 5xx Spike (P1)
 
@@ -75,6 +99,13 @@ Filter: is:unresolved
 Action: Page on-call + notify #incidents channel
 ```
 
+**Remediation:**
+1. Immediately check Cloudflare Workers dashboard for CPU/memory limit breaches.
+2. Check Supabase dashboard for connection pool exhaustion or DB outage (see `docs/runbooks/supabase-connection-pool-exhaustion.md`).
+3. If a single endpoint dominates: consider disabling that route via feature flag or Cloudflare WAF rule while investigating.
+4. If deploy-correlated: execute rollback per `docs/rollback-strategy.md`.
+5. Post initial status update in `#incidents` within 5 minutes.
+
 #### 6. Migration Failure (P2)
 
 ```
@@ -82,6 +113,12 @@ Condition: A new issue is created
 Filter: message:*migration* level:error OR level:fatal
 Action: Notify #incidents channel
 ```
+
+**Remediation:**
+1. Check the deploy workflow run in GitHub Actions for the exact migration that failed.
+2. Do NOT manually apply the migration -- read `docs/runbooks/database-migration-rollback.md` first.
+3. If the migration partially applied: connect to the DB and check `_migrations_applied` ledger.
+4. If a forward-fix is needed, create a compensating migration rather than editing the failed one.
 
 #### 7. Admin High-Risk Action (P3)
 
@@ -91,12 +128,24 @@ Filter: tags[context]:admin-high-risk level:warning
 Action: Notify #alerts channel
 ```
 
+**Remediation:**
+1. Review the `audit_log` table for the actor, action, and entity involved.
+2. Confirm the action was authorized -- check the `actor_user_id` against the admin roster.
+3. If unauthorized: disable the admin account immediately, rotate affected secrets, and escalate to P1.
+4. Document the finding in `#security` channel.
+
 #### 8. Error Budget Warning (P4)
 
 ```
 Condition: Error count > (monthly budget × 0.25) in 7 days
 Action: Notify #alerts channel
 ```
+
+**Remediation:**
+1. Review the SLO dashboard (see `docs/slo.md` and `docs/slo-definitions.md`) to identify which SLI is burning budget.
+2. Identify the top 3 error sources in Sentry for the period.
+3. Create tickets for each root cause and prioritize in the next sprint.
+4. If budget is > 75% consumed with > 1 week remaining: escalate to P3 and allocate immediate engineering time.
 
 ---
 
