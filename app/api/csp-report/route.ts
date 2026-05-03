@@ -40,22 +40,36 @@ export async function POST(request: NextRequest) {
 
   if (violation) {
     // Forward to Sentry as a non-crashing event for analysis
+    //
+    // A41.6: CSP reports can leak sensitive data:
+    // - blocked-uri may contain full URLs with query-string tokens
+    // - script-sample may contain inline script source with nonces/secrets
+    // Truncate both to origin+path only (strip query/fragment) and cap length.
+    const sanitizeUri = (val: unknown): string | undefined => {
+      if (typeof val !== "string") return undefined;
+      return val.replace(/[\?#].*$/, "").slice(0, 200);
+    };
+
     captureException(new Error("CSP Violation"), {
       tags: { csp_violation: true },
       level: "warning" as const,
       contexts: {
         csp_violation: {
           // Strip PII from document URL
-          document_url:
-            typeof violation.document_uri === "string"
-              ? violation.document_uri.replace(/[\?#].*$/, "").slice(0, 200)
-              : undefined,
+          document_url: sanitizeUri(violation.document_uri ?? violation["document-uri"]),
           violated_directive: violation["violated-directive"],
-          blocked_uri: violation["blocked-uri"],
-          original_policy: violation["original-policy"],
-          referrer:
-            typeof violation.referrer === "string"
-              ? violation.referrer.replace(/[\?#].*$/, "").slice(0, 200)
+          // A41.6: Strip query strings and cap length on blocked-uri
+          blocked_uri: sanitizeUri(violation["blocked-uri"]),
+          original_policy:
+            typeof violation["original-policy"] === "string"
+              ? (violation["original-policy"] as string).slice(0, 500)
+              : undefined,
+          referrer: sanitizeUri(violation.referrer),
+          // A41.6: Truncate script-sample to 80 chars to avoid leaking
+          // inline script source that may contain nonces or tokens
+          script_sample:
+            typeof violation["script-sample"] === "string"
+              ? (violation["script-sample"] as string).slice(0, 80)
               : undefined,
         },
       },

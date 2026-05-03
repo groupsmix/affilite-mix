@@ -184,6 +184,14 @@
   // FIX-02 (F-018): NODE_ENV must be "production" so the app rejects dev fallback
   // tokens and enables production-only guards. Without this, the Workers runtime
   // defaults NODE_ENV to "production" but the Next.js shim may not propagate it.
+  // A42.1: Explicit CPU time limit. Without this the platform default
+  // applies (50ms Bundled / 30s Unbound). Setting 10s caps runaway
+  // fetch() chains and LLM prompt loops so they cannot pin a Worker
+  // for the full 30s Unbound ceiling. Tune upward only if legitimate
+  // cron handlers need more CPU time.
+  "limits": {
+    "cpu_ms": 10000,
+  },
   "vars": {
     "NODE_ENV": "production",
   },

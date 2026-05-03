@@ -151,6 +151,23 @@ export async function GET(request: NextRequest) {
     checks.click_queue_binding = { status: "ok" };
   }
 
+  // A40.7: Check R2 bucket binding (NEXT_INC_CACHE_R2_BUCKET).
+  // The deploy health check only verifies /api/health returns ok:true;
+  // a missing R2 binding would cause ISR cache failures that only surface
+  // as stale content. Surfacing it here catches "deploy-but-broken" faster.
+  const r2Bucket = (process.env as Record<string, unknown>).NEXT_INC_CACHE_R2_BUCKET;
+  const r2Present = !!r2Bucket && typeof r2Bucket === "object" && "get" in r2Bucket;
+  if (process.env.NODE_ENV === "production" && !r2Present) {
+    checks.r2_binding = {
+      status: "error",
+      error:
+        "NEXT_INC_CACHE_R2_BUCKET binding not available. ISR incremental cache will not persist.",
+    };
+    logger.error("Health check: NEXT_INC_CACHE_R2_BUCKET binding missing in production");
+  } else {
+    checks.r2_binding = { status: "ok" };
+  }
+
   // Check Resend email service (production-required for newsletter)
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey) {

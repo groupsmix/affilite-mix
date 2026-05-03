@@ -49,9 +49,13 @@ export function checkSentryConfig() {
     );
   }
 
-  // F-004: Global PII Scrubbing
+  // F-004 / A41.4: Global PII Scrubbing
   // Sentry is initialized via the @opennextjs/cloudflare wrapper. We inject
   // a global event processor here to scrub PII from all outgoing events.
+  //
+  // A41.4: Request bodies on booking/patient/auth endpoints can contain
+  // patient names, phones, and national IDs. The processor now scrubs
+  // request.data (body) unconditionally to prevent PHI leakage.
   try {
     if (isInitialized()) {
       addEventProcessor((event) => {
@@ -62,11 +66,47 @@ export function checkSentryConfig() {
           if (event.request.headers) {
             delete event.request.headers["cookie"];
             delete event.request.headers["authorization"];
+            delete event.request.headers["x-api-key"];
+          }
+          // A41.4: Unconditionally strip request bodies — they may contain
+          // PHI (patient names, phones, IDs) on booking/auth/patient routes.
+          // Sentry's default behaviour captures the full body; removing it
+          // here is defence-in-depth alongside sendDefaultPii: false.
+          if (event.request.data) {
+            event.request.data = "[REDACTED]";
+          }
+          // Strip query strings from the referrer as well (may contain tokens)
+          if (event.request.headers?.["referer"]) {
+            event.request.headers["referer"] = event.request.headers["referer"]
+              .split("?")[0]
+              .split("#")[0];
           }
         }
         if (event.user) {
           delete event.user.email;
           delete event.user.ip_address;
+          delete event.user.username;
+        }
+        // A41.4: Scrub breadcrumb data that may contain PII
+        if (event.breadcrumbs) {
+          for (const crumb of event.breadcrumbs) {
+            if (crumb.data) {
+              for (const key of Object.keys(crumb.data)) {
+                const lower = key.toLowerCase();
+                if (
+                  lower.includes("email") ||
+                  lower.includes("phone") ||
+                  lower.includes("password") ||
+                  lower.includes("token") ||
+                  lower.includes("secret") ||
+                  lower.includes("name") ||
+                  lower.includes("body")
+                ) {
+                  crumb.data[key] = "[REDACTED]";
+                }
+              }
+            }
+          }
         }
         return event;
       });

@@ -50,6 +50,8 @@ services:
       # data volume is empty — matches the numeric ordering we already use
       # under `supabase/migrations/`.
       - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - supabase-internal
 
   rest:
     image: postgrest/postgrest:v12.2.0
@@ -65,6 +67,9 @@ services:
       PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
       PGRST_APP_SETTINGS_JWT_EXP: "3600"
+    networks:
+      - supabase-internal
+      - supabase-public
 
   kong:
     image: kong:3.4
@@ -84,6 +89,19 @@ services:
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
     volumes:
       - ./docker/kong.yml:/var/lib/kong/kong.yml:ro
+    networks:
+      - supabase-public
+
+networks:
+  # A39.4: Explicit network segmentation. The default bridge gives every
+  # container unrestricted L2 connectivity; an explicit network with
+  # `internal: true` for the DB tier prevents Postgres from initiating
+  # outbound connections (e.g. to exfiltrate data via DNS/HTTP).
+  supabase-internal:
+    driver: bridge
+    internal: true
+  supabase-public:
+    driver: bridge
 
 volumes:
   supabase-db-data:

@@ -78,6 +78,19 @@ export interface CronJob {
    * user-facing request latency.
    */
   readonly heavy?: boolean;
+  /**
+   * A43.6: IANA timezone the job's business logic should respect.
+   *
+   * Cloudflare cron triggers fire in UTC. Jobs that interact with
+   * tenant-facing times (e.g. reminder windows, deal expiry) must
+   * convert to the tenant's timezone before deciding whether to act.
+   * This field documents the intended timezone so operators and tests
+   * can verify the schedule makes sense for end-users.
+   *
+   * When set to "tenant", the route handler is expected to read
+   * `tenantConfig.timezone` per-tenant rather than using a single zone.
+   */
+  readonly timezone?: string;
 }
 
 export const cronJobs: readonly CronJob[] = [
@@ -90,6 +103,7 @@ export const cronJobs: readonly CronJob[] = [
     csrfExempt: true,
     alertOnFailure: true,
     description: "Publish content scheduled for the current window.",
+    timezone: "UTC",
   },
   {
     name: "stripe-sync",
@@ -100,6 +114,7 @@ export const cronJobs: readonly CronJob[] = [
     csrfExempt: true,
     alertOnFailure: true,
     description: "Reconcile Stripe subscription state with local membership rows.",
+    timezone: "UTC",
   },
   {
     name: "ai-generate",
@@ -111,6 +126,7 @@ export const cronJobs: readonly CronJob[] = [
     alertOnFailure: false,
     description: "Daily AI draft generation across active sites.",
     heavy: true,
+    timezone: "UTC",
   },
   {
     name: "sitemap-refresh",
@@ -121,6 +137,7 @@ export const cronJobs: readonly CronJob[] = [
     csrfExempt: true,
     alertOnFailure: false,
     description: "Refresh per-site sitemaps and ping search engines.",
+    timezone: "UTC",
   },
   {
     name: "data-retention",
@@ -131,6 +148,7 @@ export const cronJobs: readonly CronJob[] = [
     csrfExempt: true,
     alertOnFailure: true,
     description: "GDPR retention sweep (clicks/audit log/stripe events).",
+    timezone: "UTC",
   },
   {
     name: "commission-ingest",
@@ -142,6 +160,7 @@ export const cronJobs: readonly CronJob[] = [
     alertOnFailure: true,
     description: "Pull affiliate-network commission reports and ingest.",
     heavy: true,
+    timezone: "UTC",
   },
   {
     name: "epc-recompute",
@@ -152,6 +171,7 @@ export const cronJobs: readonly CronJob[] = [
     csrfExempt: true,
     alertOnFailure: true,
     description: "Recompute earnings-per-click rollups.",
+    timezone: "UTC",
   },
   {
     name: "price-scrape",
@@ -163,6 +183,7 @@ export const cronJobs: readonly CronJob[] = [
     alertOnFailure: true,
     description: "Snapshot prices and fan out price-drop alert emails.",
     heavy: true,
+    timezone: "UTC",
   },
   {
     name: "expire-deals",
@@ -173,6 +194,9 @@ export const cronJobs: readonly CronJob[] = [
     csrfExempt: true,
     alertOnFailure: false,
     description: "Mark expired deals/coupons hourly.",
+    // A43.6: Deal expiry compares against tenant-local time zones.
+    // The handler must read tenantConfig.timezone per-site.
+    timezone: "tenant",
   },
 ] as const;
 
