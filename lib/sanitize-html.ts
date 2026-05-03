@@ -131,6 +131,18 @@ function escapeAttrValue(value: string): string {
 }
 
 /**
+ * S5-06: Escape text content so that entity-decoded characters cannot
+ * re-introduce HTML tags in the serialised output.
+ *
+ * htmlparser2 decodes entities before handing text to `ontext`, so
+ * `&lt;script&gt;` arrives as the literal string `<script>`.  Without
+ * re-encoding, the sanitised output would contain a real `<script>` tag.
+ */
+function escapeTextContent(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
  * Build a safe attribute string for an allowed tag.
  * - Only attributes in ALLOWED_ATTRS for that tag are kept.
  * - Event handlers (on*) and style attributes are always stripped.
@@ -234,7 +246,14 @@ export function sanitizeHtml(html: string): string {
 
       ontext(text) {
         if (suppressDepth > 0) return;
-        chunks.push(text);
+        // S5-06: htmlparser2 decodes HTML entities in text nodes by
+        // default (decodeEntities: true).  If the original markup
+        // contained `&lt;script&gt;`, the parser delivers the decoded
+        // string `<script>` here.  Pushing it as-is would re-introduce
+        // the tag in the output, bypassing the allow-list.  Re-encoding
+        // `<`, `>`, `&`, and `"` ensures text content can never spawn
+        // new elements or attributes in the serialised HTML.
+        chunks.push(escapeTextContent(text));
       },
 
       onclosetag(name) {

@@ -66,6 +66,47 @@ describe("F-OBS-02: Logger PII redaction", () => {
     consoleSpy.mockRestore();
   });
 
+  // A8-01: Newly added PII fields
+  it("redacts phone fields", () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    logger.info("test", { phone: "+1-555-0100", siteId: "site-1" });
+
+    const output = consoleSpy.mock.calls[0][0] as string;
+    expect(output).not.toContain("+1-555-0100");
+    expect(output).toContain("[REDACTED]");
+    consoleSpy.mockRestore();
+  });
+
+  it("redacts address fields", () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    logger.info("test", { address: "123 Main St", siteId: "site-1" });
+
+    const output = consoleSpy.mock.calls[0][0] as string;
+    expect(output).not.toContain("123 Main St");
+    expect(output).toContain("[REDACTED]");
+    consoleSpy.mockRestore();
+  });
+
+  it("redacts date_of_birth fields", () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    logger.info("test", { date_of_birth: "1990-01-01", siteId: "site-1" });
+
+    const output = consoleSpy.mock.calls[0][0] as string;
+    expect(output).not.toContain("1990-01-01");
+    expect(output).toContain("[REDACTED]");
+    consoleSpy.mockRestore();
+  });
+
+  it("redacts first_name and last_name fields", () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    logger.info("test", { first_name: "John", last_name: "Doe" });
+
+    const output = consoleSpy.mock.calls[0][0] as string;
+    expect(output).not.toContain("John");
+    expect(output).not.toContain("Doe");
+    consoleSpy.mockRestore();
+  });
+
   it("does not redact allowed fields", () => {
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     logger.info("test", { requestId: "req-abc", siteId: "site-1", latencyMs: 100, status: 200 });
