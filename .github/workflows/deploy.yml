@@ -84,6 +84,13 @@ env:
   # Server-side secrets (JWT, cron, AI, affiliate, etc.) are set as
   # Worker secrets in the "Set Worker secrets" step below so they are
   # readable at runtime and rotatable without a rebuild.
+  #
+  # A34.7 / A38.10: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+  # are intentionally public values (they ship in every browser bundle).
+  # They are stored as GitHub Actions secrets only for environment-level
+  # separation (staging vs production), NOT for confidentiality.
+  # Rotating the anon key requires a redeploy because it is baked into
+  # the JS bundle at build time.
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}

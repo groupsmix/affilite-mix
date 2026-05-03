@@ -1,0 +1,70 @@
+# A32.2: Prevent credentials, secrets, and build artifacts from being
+# copied into Docker images if a Dockerfile is added in future.
+# Without this file, a naive `COPY . .` would ship runner credentials
+# (e.g. ~/.aws/credentials written by backup.yml) into the image.
+
+# ── Secrets & credentials ────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+secrets-template.env
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ── Git & CI ─────────────────────────────────────────────────────────
+.git
+.github
+.gitignore
+
+# ── Dependencies & build output ─────────────────────────────────────
+node_modules
+.next
+.open-next
+.vercel
+.wrangler
+dist
+out
+coverage
+*.tsbuildinfo
+
+# ── IDE & OS ─────────────────────────────────────────────────────────
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Test & tooling ───────────────────────────────────────────────────
+__tests__
+e2e
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+.semgrep
+.gitleaks.toml
+.gitleaksignore
+.husky
+load-test.js
+lighthouserc.cjs
+
+# ── Documentation ────────────────────────────────────────────────────
+docs
+*.md
+!README.md
+LICENSE
+NOTICE.md
+
+# ── Terraform / IaC ─────────────────────────────────────────────────
+terraform
+infra
+*.tfstate
+*.tfstate.*
+*.tfvars
