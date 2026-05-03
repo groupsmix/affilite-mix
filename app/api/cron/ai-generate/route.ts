@@ -11,6 +11,7 @@ import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { cronLock } from "@/lib/cron-lock";
 import type { AIContentType } from "@/lib/ai/content-generator";
 import { containsProhibitedContent } from "@/lib/ai/content-moderation";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 /**
  * Cron endpoint: Auto-generate AI articles for all active sites.
@@ -98,6 +99,23 @@ export async function POST(request: NextRequest) {
             },
             getPrivilegedSupabaseClient,
           );
+
+          // A108 audit fix: record audit event for AI generation so
+          // there is a trail of AI invocations beyond billing_events.
+          void recordAuditEvent({
+            site_id: dbSiteId,
+            actor: "cron/ai-generate",
+            action: "create",
+            entity_type: "ai_draft",
+            entity_id: contentType,
+            details: {
+              topic,
+              contentType,
+              provider: result.provider,
+              model: result.model,
+              flagged,
+            },
+          });
 
           siteResult.generated++;
         } catch (err) {
