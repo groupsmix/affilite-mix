@@ -185,16 +185,17 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
                 {t.privacy}
               </Link>
             </p>
+            {/* A69-F3: Equal-prominence buttons on mobile too */}
             <div className="flex shrink-0 gap-2">
               <button
                 onClick={handleReject}
-                className="min-h-[36px] rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
+                className="min-h-[36px] rounded-lg border-2 border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-100"
               >
                 {t.reject}
               </button>
               <button
                 onClick={handleAccept}
-                className="min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all duration-300 hover:opacity-90"
+                className="min-h-[36px] rounded-lg border-2 border-transparent px-3 py-1.5 text-xs font-semibold text-white transition-all duration-300 hover:opacity-90"
                 style={{ backgroundColor: "var(--color-accent, #10B981)" }}
               >
                 {t.accept}
@@ -245,16 +246,19 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
                   </table>
                 )}
               </div>
+              {/* A69-F3: Both buttons use identical sizing, border-radius, and
+                  font-weight so Reject has equal visual prominence to Accept.
+                  This avoids a "dark pattern" where Reject is visually de-emphasised. */}
               <div className="flex w-full shrink-0 flex-col gap-3 sm:flex-row md:w-auto">
                 <button
                   onClick={handleReject}
-                  className="min-h-[44px] rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
+                  className="min-h-[44px] rounded-xl border-2 border-gray-700 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-100"
                 >
                   {t.reject}
                 </button>
                 <button
                   onClick={handleAccept}
-                  className="min-h-[44px] rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:opacity-90"
+                  className="min-h-[44px] rounded-xl border-2 border-transparent px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:opacity-90"
                   style={{ backgroundColor: "var(--color-accent, #10B981)" }}
                 >
                   {t.accept}
