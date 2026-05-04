@@ -1,0 +1,32 @@
+name: ✨ Feature request
+description: Suggest an improvement or new capability
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem are you trying to solve? Who is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This change does not introduce a new third-party data-collection SDK without a privacy review.
+          required: true
+        - label: This change does not loosen CSP, RBAC, or RLS without an explicit security review.
+          required: true
