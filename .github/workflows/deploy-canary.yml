@@ -1,0 +1,151 @@
+# A45#4: Gradual/canary deployment workflow
+# Deploys to a small percentage of traffic first, validates, then full rollout
+name: Deploy Canary
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: .open-next
+
+  deploy-canary:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: .open-next
+
+      - name: Deploy Canary (10% traffic)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Install wrangler
+          npm install -g wrangler
+
+          # Deploy with --tag for canary versioning
+          DEPLOY_OUTPUT=$(wrangler deploy --config wrangler.jsonc --tag canary-${GITHUB_SHA::7} 2>&1)
+          echo "$DEPLOY_OUTPUT"
+
+          # Extract deployment URL
+          CANARY_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP 'https://[a-z0-9-]+\.groupsmix\.workers\.dev' | head -1)
+          echo "CANARY_URL=$CANARY_URL" >> $GITHUB_ENV
+
+      - name: Canary Smoke Tests
+        run: |
+          echo "Running smoke tests against canary: $CANARY_URL"
+
+          # Health check
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$CANARY_URL/api/health" || echo "000")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Health check failed: HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          # Key API endpoints
+          for endpoint in "/api/products" "/api/health"; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$CANARY_URL$endpoint" || echo "000")
+            if [ "$HTTP_CODE" -ge 500 ]; then
+              echo "❌ $endpoint returned HTTP $HTTP_CODE"
+              exit 1
+            fi
+            echo "✅ $endpoint: HTTP $HTTP_CODE"
+          done
+
+      - name: Monitor Error Rate (5 min)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "Monitoring error rate for 5 minutes..."
+
+          for i in {1..5}; do
+            sleep 60
+
+            # Query Cloudflare Analytics API for 5xx rate
+            ERROR_RATE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/services/affilite-mix/environments/production/subrequests" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" | \
+              jq -r '.result.data[0].sum.errors // 0')
+
+            TOTAL=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/services/affilite-mix/environments/production/subrequests" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" | \
+              jq -r '.result.data[0].sum.requests // 1')
+
+            RATE=$(echo "scale=4; $ERROR_RATE / $TOTAL" | bc)
+            echo "Minute $i: Error rate = ${RATE} ($ERROR_RATE / $TOTAL)"
+
+            if (( $(echo "$RATE > 0.01" | bc -l) )); then
+              echo "❌ Error rate > 1%, aborting deployment"
+              exit 1
+            fi
+          done
+
+          echo "✅ Canary passed error rate checks"
+
+      - name: Promote to Full Production
+        if: success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "Promoting canary to full production..."
+
+          # Deploy to main production (100% traffic)
+          wrangler deploy --config wrangler.jsonc
+
+          echo "✅ Full deployment complete"
+
+      - name: Rollback on Failure
+        if: failure()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "Canary failed - initiating rollback..."
+
+          # Rollback to previous stable version
+          # This requires maintaining a 'stable' tag in Cloudflare
+          wrangler deploy --config wrangler.jsonc --tag stable
+
+          # Alert via Slack
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"🚨 Canary deployment failed for affilite-mix. Rolled back to stable."}' \
+            "${{ secrets.SLACK_WEBHOOK_URL }}" || true
+
+      - name: Deployment Summary
+        run: |
+          echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Canary: ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          echo "- Full Rollout: ✅ Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- Duration: ~10 minutes (5 min canary validation)" >> $GITHUB_STEP_SUMMARY

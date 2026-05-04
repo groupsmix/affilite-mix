@@ -1,0 +1,74 @@
+# A31#20, A44#6: DLQ consumer monitoring and alerting
+# Monitors Cloudflare Queues DLQ for poison messages and alerts on accumulation
+name: DLQ Monitor
+on:
+  schedule:
+    - cron: "*/15 * * * *"  # Every 15 minutes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check DLQ depths
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Fetch queue details via Cloudflare API
+          QUEUES=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/queues" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json")
+
+          ALERTS=()
+
+          # Parse queues and check DLQ depths
+          echo "$QUEUES" | jq -r '.result[] | select(.dead_letter_queue != null) | [.id, .name, .dead_letter_queue.queue_name] | @tsv' | while IFS=$'\t' read -r queue_id queue_name dlq_name; do
+            # Get DLQ depth
+            DLQ_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/queues/${queue_id}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json")
+
+            # Approximate message count from producers (DLQ is producers[0] for dead letters)
+            DEPTH=$(echo "$DLQ_INFO" | jq -r '.result.producers[0].message_count // 0')
+
+            if [ "$DEPTH" -gt 100 ]; then
+              ALERTS+=("🚨 DLQ Alert: ${dlq_name} has ${DEPTH} poison messages (queue: ${queue_name})")
+              echo "::error::DLQ ${dlq_name} has ${DEPTH} messages - requires investigation"
+            elif [ "$DEPTH" -gt 10 ]; then
+              echo "::warning::DLQ ${dlq_name} has ${DEPTH} messages - monitor closely"
+            else
+              echo "✅ DLQ ${dlq_name}: ${DEPTH} messages"
+            fi
+          done
+
+          # Also check Stripe webhook DLQ (R2 bucket)
+          STRIPE_DLQ_COUNT=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets/stripe-webhook-dlq/objects" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" | jq -r '.result.objects | length // 0')
+
+          if [ "$STRIPE_DLQ_COUNT" -gt 50 ]; then
+            ALERTS+=("🚨 Stripe Webhook DLQ has ${STRIPE_DLQ_COUNT} failed events")
+            echo "::error::Stripe webhook DLQ has ${STRIPE_DLQ_COUNT} events"
+          else
+            echo "✅ Stripe webhook DLQ: ${STRIPE_DLQ_COUNT} events"
+          fi
+
+          # Fail if critical alerts
+          if [ ${#ALERTS[@]} -gt 0 ]; then
+            echo "### Critical DLQ Alerts" >> $GITHUB_STEP_SUMMARY
+            printf '%s\n' "${ALERTS[@]}" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Post to Slack on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_SECURITY_WEBHOOK_URL }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"🚨 DLQ Alert: Poison messages detected in Cloudflare Queues. Check DLQ Monitor workflow."}' \
+            "$SLACK_WEBHOOK_URL" || true
