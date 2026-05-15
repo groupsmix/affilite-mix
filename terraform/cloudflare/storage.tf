@@ -171,3 +171,19 @@ output "r2_lifecycle_notice" {
   EOT
   description = "OF-11: Reminder to apply R2 lifecycle/WORM/replication rules manually until Terraform provider support lands."
 }
+
+# Use a null_resource to apply the lifecycle rule automatically
+resource "null_resource" "worker_logs_lifecycle" {
+  triggers = {
+    retention_days = var.r2_log_retention_days
+    bucket         = cloudflare_r2_bucket.worker_logs.name
+  }
+
+  provisioner "local-exec" {
+    command = "npx wrangler r2 bucket lifecycle set ${cloudflare_r2_bucket.worker_logs.name} --rule '{\"id\":\"log-retention\",\"status\":\"enabled\",\"expiration\":{\"days\":${var.r2_log_retention_days}}}'"
+    environment = {
+      CLOUDFLARE_API_TOKEN  = var.cloudflare_api_token
+      CLOUDFLARE_ACCOUNT_ID = var.cloudflare_account_id
+    }
+  }
+}

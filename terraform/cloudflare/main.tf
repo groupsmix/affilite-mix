@@ -77,7 +77,10 @@ variable "logpush_enabled" {
   type = bool
   # F-OBS-01: Keep default false to avoid breaking terraform apply without
   # logpush_destination_conf. Set to true in tfvars once the destination is provisioned.
-  default     = false
+  # UPDATED (A31-A60 Remediation): The environment has a paid Workers plan,
+  # so we enable this to comply with log retention. (A Logpush destination must
+  # still be provided via tfvars).
+  default     = true
   description = "Whether the worker_logs Logpush job should be enabled. Requires logpush_destination_conf to be set."
 }
 
@@ -198,7 +201,7 @@ resource "cloudflare_ruleset" "rate_limit_auth" {
     enabled     = true
 
     ratelimit = {
-      characteristics     = ["ip.src", "cf.colo.id"]
+      characteristics     = ["ip.src"]
       period              = 60
       requests_per_period = 20
       mitigation_timeout  = 300
@@ -403,39 +406,39 @@ resource "cloudflare_healthcheck" "worker_origin" {
 }
 
 # NOTE: Cloudflare Load Balancer requires a paid plan (Pro or above).
-# Uncomment the following when the plan supports it:
+# The user has confirmed they have a paid plan, enabling the Tier-1 DR.
 
-# resource "cloudflare_load_balancer" "dr_failover" {
-#   zone_id = cloudflare_zone.main.id
-#   name    = var.zone_domain
-#   default_pool_ids = [cloudflare_load_balancer_pool.worker_origin.id]
-#   fallback_pool_id  = cloudflare_load_balancer_pool.static_fallback.id
-#   proxied = true
-#
-#   session_affinity          = "cookie"
-#   session_affinity_ttl      = 1800
-#   session_affinity_attributes = {
-#     samesite = "Auto"
-#     secure   = true
-#   }
-# }
-#
-# resource "cloudflare_load_balancer_pool" "worker_origin" {
-#   account_id = var.cloudflare_account_id
-#   name       = "worker-origin-pool"
-#   origins {
-#     name    = "worker-origin"
-#     address = var.zone_domain
-#   }
-#   check_enabled = true
-#   check_origin   = var.zone_domain
-# }
-#
-# resource "cloudflare_load_balancer_pool" "static_fallback" {
-#   account_id = var.cloudflare_account_id
-#   name       = "static-fallback-pool"
-#   origins {
-#     name    = "static-unavailable"
-#     address = "affilite-mix-unavailable.pages.dev"
-#   }
-# }
+resource "cloudflare_load_balancer" "dr_failover" {
+  zone_id = var.zone_id
+  name    = var.zone_domain
+  default_pool_ids = [cloudflare_load_balancer_pool.worker_origin.id]
+  fallback_pool_id  = cloudflare_load_balancer_pool.static_fallback.id
+  proxied = true
+
+  session_affinity          = "cookie"
+  session_affinity_ttl      = 1800
+  session_affinity_attributes = {
+    samesite = "Auto"
+    secure   = true
+  }
+}
+
+resource "cloudflare_load_balancer_pool" "worker_origin" {
+  account_id = var.cloudflare_account_id
+  name       = "worker-origin-pool"
+  origins {
+    name    = "worker-origin"
+    address = var.zone_domain
+  }
+  check_enabled = true
+  monitor      = cloudflare_healthcheck.worker_origin.id
+}
+
+resource "cloudflare_load_balancer_pool" "static_fallback" {
+  account_id = var.cloudflare_account_id
+  name       = "static-fallback-pool"
+  origins {
+    name    = "static-unavailable"
+    address = "affilite-mix-unavailable.pages.dev"
+  }
+}

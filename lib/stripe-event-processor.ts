@@ -157,7 +157,15 @@ async function buildStripeEventPayload(
       const paymentIntentId =
         typeof charge.payment_intent === "string" ? charge.payment_intent : undefined;
       logger.info("Stripe charge refunded", { chargeId: charge.id, paymentIntentId });
-      return { op: "noop" };
+      
+      if (!charge.invoice) return { op: "noop" };
+      const invoice = await stripe.invoices.retrieve(charge.invoice as string);
+      if (!invoice.subscription) return { op: "noop" };
+
+      return { 
+        op: "cancel_membership",
+        stripe_subscription_id: invoice.subscription as string,
+      };
     }
 
     case "charge.dispute.created":
@@ -169,7 +177,18 @@ async function buildStripeEventPayload(
         amount: dispute.amount,
         currency: dispute.currency,
       });
-      return { op: "noop" };
+
+      if (!dispute.charge) return { op: "noop" };
+      const charge = await stripe.charges.retrieve(dispute.charge as string);
+      if (!charge.invoice) return { op: "noop" };
+      const invoice = await stripe.invoices.retrieve(charge.invoice as string);
+      if (!invoice.subscription) return { op: "noop" };
+
+      return { 
+        op: "update_status", 
+        stripe_subscription_id: invoice.subscription as string,
+        status: "past_due" 
+      };
     }
 
     case "invoice.payment_failed": {

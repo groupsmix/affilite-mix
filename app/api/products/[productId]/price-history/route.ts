@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPriceHistory } from "@/lib/dal/price-snapshots";
+import { getCurrentSite } from "@/lib/site-context";
 
 /**
  * GET /api/products/:productId/price-history?days=90
@@ -11,10 +12,18 @@ export async function GET(
 ) {
   const { productId } = await params;
   const url = new URL(request.url);
-  const days = Math.min(Number(url.searchParams.get("days") || "90"), 365);
+  // Prevent NaN if days is invalid
+  const daysParam = url.searchParams.get("days") || "90";
+  const parsedDays = Number(daysParam);
+  const days = isNaN(parsedDays) ? 90 : Math.min(parsedDays, 365);
 
   try {
-    const snapshots = await getPriceHistory(productId, days);
+    const site = await getCurrentSite();
+    if (!site) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
+
+    const snapshots = await getPriceHistory(productId, site.id, days);
 
     return NextResponse.json({
       product_id: productId,

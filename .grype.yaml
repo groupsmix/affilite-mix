@@ -1,0 +1,24 @@
+# Grype SCA configuration — A174
+# https://github.com/anchore/grype#configuration
+
+# Fail on Critical and High CVEs by default (see sbom.yml SLA enforcement).
+# To ignore a specific CVE, add it here with a mandatory comment that includes:
+#   - The tracking issue URL
+#   - The reason for acceptance
+#   - The expiry date (max 90 days for High, 30 days for Critical)
+
+ignore:
+  # Template for adding ignores (uncomment and fill in):
+  # - vulnerability: CVE-YYYY-NNNNN
+  #   package:
+  #     name: package-name
+  #     version: "affected-version"
+  #   reason: "No fix available upstream. Tracked in: https://github.com/org/repo/issues/NNN. Review by: YYYY-MM-DD"
+
+# Only report vulnerabilities with a fix available (reduces noise)
+# Set to false to see all CVEs including those without fixes
+only-fixed: false
+
+# Minimum severity to report (informational — enforcement is done in the workflow step)
+# Options: negligible, low, medium, high, critical
+fail-on-severity: ""

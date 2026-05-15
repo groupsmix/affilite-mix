@@ -10,6 +10,7 @@ import { captureException } from "@/lib/sentry";
 import { hashNewsletterToken } from "@/lib/newsletter-token";
 import { escapeAttribute, escapeHtml, safeHexColor, safeHref } from "@/lib/email-templates/escape";
 import { logger } from "@/lib/logger";
+import { validateNotDisposable } from "@/lib/security/disposable-email";
 
 /**
  * Build a branded HTML email for newsletter confirmation.
@@ -114,6 +115,12 @@ export async function POST(request: Request) {
 
     if (!email || !isValidEmail(email)) {
       return apiError(400, "Valid email is required");
+    }
+
+    // A153: Block disposable / throwaway email addresses
+    const disposableError = validateNotDisposable(email);
+    if (disposableError) {
+      return apiError(400, disposableError);
     }
 
     // F-ABUSE-01: Per-email rate limit — 5 signups per email per hour
