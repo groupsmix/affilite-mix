@@ -116,6 +116,16 @@ jobs:
 
       - run: npm ci
 
+      # A214: Lockfile integrity check prevents deploy of hallucinated packages
+      # that were not properly resolved and committed in the lockfile.
+      - name: Lockfile integrity check
+        run: |
+          set -euo pipefail
+          npm ci --dry-run > /tmp/lockfile-check.log 2>&1 || {
+            echo "::error::package-lock.json is out of sync with package.json."
+            cat /tmp/lockfile-check.log
+            exit 1
+          }
       # AUDIT-FIX: Run npm audit before deploying to catch newly
       # disclosed vulnerabilities that CI may not have seen if the
       # last CI run was on a different day.
@@ -1071,28 +1081,96 @@ jobs:
       # mid-rotation. The post-deploy health-check stage below verifies
       # the live Worker reports `status=ok` for every required secret.
       #
-      # A-025: Use wrangler deploy --json so the deploy creates a version
-      # and returns its ID. This makes the default deploy version-aware,
-      # enabling gradual rollouts and instant rollbacks via the Versions API.
-      - name: Deploy to Cloudflare
+      # A-025 / Finding-10: Use wrangler versions upload + deployments create
+      # for a safe gradual rollout (10% → 50% → 100% via health gates)
+      # instead of an all-at-once `wrangler deploy`. This gives instant
+      # rollback capability at each traffic split threshold.
+      #
+      # GRADUAL_ROLLOUT_ENABLED (repo variable):
+      #   true  → upload a new version, promote 10% of traffic, verify health,
+      #            then promote to 100%. Requires Workers Paid plan.
+      #   false → fall back to direct `wrangler deploy` (safe for staging /
+      #           accounts that do not yet have the Versions API enabled).
+      - name: Deploy to Cloudflare (gradual rollout)
+        id: cloudflare-deploy
+        env:
+          GRADUAL_ROLLOUT_ENABLED: ${{ vars.GRADUAL_ROLLOUT_ENABLED }}
+          CRON_HOST: ${{ secrets.CRON_HOST }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
-          # Build is already done above; wrangler deploy uses the compiled bundle.
-          npx wrangler deploy --json > deploy-output.json 2> deploy-stderr.txt || true
-          cat deploy-stderr.txt
 
-          VERSION_ID=$(jq -r '.versions[0].id // empty' deploy-output.json 2>/dev/null || true)
-          DEPLOYMENT_URL=$(jq -r '.versions[0].url // empty' deploy-output.json 2>/dev/null || true)
+          if [ "${GRADUAL_ROLLOUT_ENABLED:-false}" = "true" ]; then
+            echo "── Gradual rollout: uploading new Worker version ──"
+            npx --yes wrangler@${WRANGLER_VERSION} versions upload \
+              --json > /tmp/version-upload.json 2>/tmp/version-upload-err.txt || {
+                cat /tmp/version-upload-err.txt >&2
+                echo "::error::wrangler versions upload failed"
+                exit 1
+              }
+            cat /tmp/version-upload-err.txt || true
 
-          if [ -z "$VERSION_ID" ]; then
-            echo "::warning::Could not extract version_id from wrangler deploy output. Falling back to opennextjs-cloudflare deploy."
-            npx opennextjs-cloudflare deploy
-          else
+            VERSION_ID=$(jq -r '.id // empty' /tmp/version-upload.json 2>/dev/null || true)
+            if [ -z "$VERSION_ID" ]; then
+              echo "::error::Could not extract version id from versions upload output"
+              cat /tmp/version-upload.json
+              exit 1
+            fi
+            echo "Uploaded version: $VERSION_ID"
             echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
-            echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
-            echo "Deployed version $VERSION_ID at $DEPLOYMENT_URL"
+
+            echo "── Promoting 10% of traffic to new version ──"
+            npx --yes wrangler@${WRANGLER_VERSION} deployments create \
+              --version-id "$VERSION_ID" --version-percentage 10 \
+              --json > /tmp/deploy-10.json 2>/tmp/deploy-10-err.txt || {
+                cat /tmp/deploy-10-err.txt >&2
+                echo "::error::Failed to create 10% deployment"
+                exit 1
+              }
+            echo "10% deployment created — running health check..."
+
+            sleep 15
+            HTTP_STATUS=$(curl -s -o /tmp/canary-health.json -w "%{http_code}" \
+              --max-time 20 \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$CRON_HOST/api/health")
+            echo "Canary health (HTTP $HTTP_STATUS):"; cat /tmp/canary-health.json || true
+            if [ "$HTTP_STATUS" != "200" ]; then
+              echo "::error::Canary health check failed at 10% — rolling back to previous version"
+              npx --yes wrangler@${WRANGLER_VERSION} rollback --json || true
+              exit 1
+            fi
+
+            echo "── Promoting 100% of traffic to new version ──"
+            npx --yes wrangler@${WRANGLER_VERSION} deployments create \
+              --version-id "$VERSION_ID" --version-percentage 100 \
+              --json > /tmp/deploy-100.json 2>/tmp/deploy-100-err.txt || {
+                cat /tmp/deploy-100-err.txt >&2
+                echo "::error::Failed to create 100% deployment"
+                exit 1
+              }
+            DEPLOYMENT_URL=$(jq -r '.url // empty' /tmp/deploy-100.json 2>/dev/null || true)
+            echo "deployment_url=${DEPLOYMENT_URL}" >> "$GITHUB_OUTPUT"
+            echo "Gradual rollout complete — 100% on version $VERSION_ID"
+          else
+            echo "── Direct deploy (GRADUAL_ROLLOUT_ENABLED not set) ──"
+            npx --yes wrangler@${WRANGLER_VERSION} deploy \
+              --json > /tmp/deploy-output.json 2>/tmp/deploy-stderr.txt || true
+            cat /tmp/deploy-stderr.txt
+
+            VERSION_ID=$(jq -r '.versions[0].id // empty' /tmp/deploy-output.json 2>/dev/null || true)
+            DEPLOYMENT_URL=$(jq -r '.versions[0].url // empty' /tmp/deploy-output.json 2>/dev/null || true)
+
+            if [ -z "$VERSION_ID" ]; then
+              echo "::warning::Could not extract version_id from wrangler deploy output. Falling back to opennextjs-cloudflare deploy."
+              npx opennextjs-cloudflare deploy
+            else
+              echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
+              echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+              echo "Deployed version $VERSION_ID at $DEPLOYMENT_URL"
+            fi
           fi
-        id: cloudflare-deploy
+
 
       # NEW-001: The heavy-crons dispatcher worker reads the per-trigger
       # secret env vars (and CRON_HOST + CRON_SECRET as a fallback) at

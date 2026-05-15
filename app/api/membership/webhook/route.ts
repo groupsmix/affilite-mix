@@ -87,8 +87,9 @@ export async function POST(request: NextRequest) {
 
     if (attempts >= 3) {
       logger.error("Stripe webhook max retries reached, acking to stop loop", { id: event.id });
-      // In a full implementation, enqueue to an R2 NDJSON DLQ here.
-      // For now, ack to stop the loop and let Sentry alert operators.
+      // Persist the raw payload to the observability sink (Logpush to R2)
+      // so it can be replayed later.
+      logger.error("Stripe webhook DLQ payload", { id: event.id, payload: rawBody });
       return NextResponse.json({ received: true, dlq: true });
     }
 
