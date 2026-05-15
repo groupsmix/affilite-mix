@@ -151,11 +151,9 @@ export async function POST(request: NextRequest) {
     }
 
     let userRecord = null;
-    if (email) {
-      userRecord = await getAdminUserByEmail(email);
-      if (userRecord?.login_locked_until && new Date(userRecord.login_locked_until) > new Date()) {
-        return apiError(423, "Account temporarily locked due to too many failed login attempts. Please try again later.");
-      }
+    userRecord = await getAdminUserByEmail(email);
+    if (userRecord?.login_locked_until && new Date(userRecord.login_locked_until) > new Date()) {
+      return apiError(423, "Account temporarily locked due to too many failed login attempts. Please try again later.");
     }
 
     const authResult = await authenticateUser(email, password);
