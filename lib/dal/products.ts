@@ -63,14 +63,21 @@ export async function listProducts(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductRow[]> {
   const sb = await getClient();
-  const sortColumn: ProductSortColumn = opts.sortBy ?? "created_at";
+  
+  // A20: Order By allow-list. Even though sortBy is typed, if it comes
+  // from a JSON API body it must be validated at runtime.
+  const ALLOWED_SORT_COLUMNS = ["name", "price_amount", "score", "merchant", "status", "created_at", "updated_at"];
+  const sortColumn: string = opts.sortBy && ALLOWED_SORT_COLUMNS.includes(opts.sortBy)
+    ? opts.sortBy
+    : "created_at";
+
   const ascending = opts.sortDirection === "asc";
 
   let query = sb
     .from(TABLE)
     .select(LIST_COLUMNS)
     .eq("site_id", opts.siteId)
-    .order(sortColumn, { ascending, nullsFirst: false });
+    .order(sortColumn as ProductSortColumn, { ascending, nullsFirst: false });
 
   if (opts.categoryIds && opts.categoryIds.length > 0) {
     query = query.in("category_id", opts.categoryIds);

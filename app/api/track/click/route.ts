@@ -232,6 +232,12 @@ async function handleClick(request: NextRequest) {
       }
     }
 
+    // A158: Self-referral prevention. If an admin token is present, this click
+    // originates from an administrator and should be flagged to avoid
+    // polluting real visitor metrics (or prevented if policy requires).
+    const adminToken = request.cookies.get("nh_admin_token")?.value;
+    const isInternal = !!adminToken;
+
     // Publish to the click queue (falls back to direct DB write if no binding)
     void runAfterResponse(
       publishClick({
@@ -240,6 +246,7 @@ async function handleClick(request: NextRequest) {
         affiliate_url: destinationUrl,
         content_slug: searchParams.get("t") ?? "",
         referrer: sanitizedReferrer,
+        is_internal: isInternal,
       }),
       { context: "[api/track/click] publishClick" },
     );

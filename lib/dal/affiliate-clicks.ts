@@ -12,6 +12,7 @@ export interface RecordClickInput {
   content_slug?: string;
   referrer?: string;
   click_id?: string;
+  is_internal?: boolean; // A158
 }
 
 export interface ClickDateWindow {
@@ -78,6 +79,7 @@ export async function recordClick(
     content_slug: input.content_slug ?? "",
     referrer: input.referrer ?? "",
     ...(input.click_id ? { click_id: input.click_id } : {}),
+    is_internal: input.is_internal ?? false,
   };
 
   const { error } = await sb.from(TABLE).insert(row);
