@@ -104,7 +104,8 @@ export async function markAlertTriggered(
   const { error } = await sb
     .from(TABLE)
     .update({ triggered_at: new Date().toISOString(), is_active: false })
-    .eq("id", id);
+    .eq("id", id)
+    .is("triggered_at", null); // A10: Atomic update pattern to prevent race conditions
   if (error) throw error;
 }
 

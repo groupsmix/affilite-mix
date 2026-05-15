@@ -102,6 +102,17 @@ export async function POST(request: Request) {
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
 
+    const { website } = bodyOrError as { website?: string };
+    // A157: Honeypot check. If 'website' is filled, it's a bot.
+    // Return a generic success to the bot to avoid revealing the trap.
+    if (website && website.length > 0) {
+      logger.info("[api/newsletter] Honeypot triggered", { ip });
+      return NextResponse.json({
+        ok: true,
+        message: "Please check your email to confirm your subscription.",
+      });
+    }
+
     // Verify Turnstile token (skipped in dev if not configured)
     const turnstileResult = await verifyTurnstile(
       bodyOrError.turnstileToken as string | undefined,
