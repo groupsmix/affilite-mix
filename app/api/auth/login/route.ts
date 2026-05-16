@@ -16,6 +16,7 @@ import { isValidEmail, normalizeEmail, hashEmailForRateLimit } from "@/lib/valid
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { logger } from "@/lib/logger";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
@@ -150,8 +151,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let userRecord = null;
-    userRecord = await getAdminUserByEmail(email);
+    const userRecord = await getAdminUserByEmail(email);
     if (userRecord?.login_locked_until && new Date(userRecord.login_locked_until) > new Date()) {
       return apiError(423, "Account temporarily locked due to too many failed login attempts. Please try again later.");
     }

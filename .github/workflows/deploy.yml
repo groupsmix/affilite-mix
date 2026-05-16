@@ -1120,7 +1120,7 @@ jobs:
             echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
 
             echo "── Promoting 10% of traffic to new version ──"
-            npx --yes wrangler@${WRANGLER_VERSION} deployments create \
+            npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
               --version-id "$VERSION_ID" --version-percentage 10 \
               --json > /tmp/deploy-10.json 2>/tmp/deploy-10-err.txt || {
                 cat /tmp/deploy-10-err.txt >&2
@@ -1137,12 +1137,12 @@ jobs:
             echo "Canary health (HTTP $HTTP_STATUS):"; cat /tmp/canary-health.json || true
             if [ "$HTTP_STATUS" != "200" ]; then
               echo "::error::Canary health check failed at 10% — rolling back to previous version"
-              npx --yes wrangler@${WRANGLER_VERSION} rollback --json || true
+              npx --yes wrangler@${WRANGLER_VERSION} rollback --json || exit 0
               exit 1
             fi
 
             echo "── Promoting 100% of traffic to new version ──"
-            npx --yes wrangler@${WRANGLER_VERSION} deployments create \
+            npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
               --version-id "$VERSION_ID" --version-percentage 100 \
               --json > /tmp/deploy-100.json 2>/tmp/deploy-100-err.txt || {
                 cat /tmp/deploy-100-err.txt >&2
@@ -1155,15 +1155,20 @@ jobs:
           else
             echo "── Direct deploy (GRADUAL_ROLLOUT_ENABLED not set) ──"
             npx --yes wrangler@${WRANGLER_VERSION} deploy \
-              --json > /tmp/deploy-output.json 2>/tmp/deploy-stderr.txt || true
+              --json > /tmp/deploy-output.json 2>/tmp/deploy-stderr.txt || {
+                cat /tmp/deploy-stderr.txt >&2
+                echo "::error::wrangler deploy failed"
+                exit 1
+              }
             cat /tmp/deploy-stderr.txt
 
             VERSION_ID=$(jq -r '.versions[0].id // empty' /tmp/deploy-output.json 2>/dev/null || true)
             DEPLOYMENT_URL=$(jq -r '.versions[0].url // empty' /tmp/deploy-output.json 2>/dev/null || true)
 
             if [ -z "$VERSION_ID" ]; then
-              echo "::warning::Could not extract version_id from wrangler deploy output. Falling back to opennextjs-cloudflare deploy."
-              npx opennextjs-cloudflare deploy
+              echo "::error::Could not extract version_id from wrangler deploy output."
+              cat /tmp/deploy-output.json
+              exit 1
             else
               echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
               echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
