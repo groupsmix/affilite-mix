@@ -63,9 +63,11 @@ We are committed to ensuring digital accessibility for people with disabilities.
 
 ## Complaints Log
 
-| Date | Issue reported | Reporter | Status | Resolution |
+| Date | Issue reported | Case ID | Status | Resolution |
 |---|---|---|---|---|
 | (no complaints yet) | | | | |
+
+Identifying details for accessibility complaints must be stored only in internal restricted systems.
 
 ---
 

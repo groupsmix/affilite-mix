@@ -92,6 +92,7 @@ jobs:
             cat /tmp/version-upload-err.txt || true
 
             VERSION_ID=$(jq -r '.id // empty' /tmp/version-upload.json 2>/dev/null || true)
+            PREVIEW_URL=$(jq -r '.preview_url // empty' /tmp/version-upload.json 2>/dev/null || true)
             if [ -z "$VERSION_ID" ]; then
               echo "::error::Could not extract version id from versions upload output"
               cat /tmp/version-upload.json
@@ -117,15 +118,32 @@ jobs:
                 exit 1
               }
 
-            sleep 15
-            HTTP_STATUS=$(curl -s -o /tmp/canary-health.json -w "%{http_code}" \
-              --max-time 20 \
-              -H "Authorization: Bearer $CRON_SECRET" \
-              -H "Cookie: __VERSION=$VERSION_ID" \
-              "$CRON_HOST/api/health")
-            echo "Canary health (HTTP $HTTP_STATUS):"
-            cat /tmp/canary-health.json || true
-            if [ "$HTTP_STATUS" != "200" ]; then
+            echo "── Waiting for canary propagation ──"
+            for i in 1 2 3 4 5 6; do
+              if [ -n "$PREVIEW_URL" ]; then
+                TARGET_URL="$PREVIEW_URL/api/health"
+                EXTRA_HEADER=()
+              else
+                TARGET_URL="$CRON_HOST/api/health"
+                EXTRA_HEADER=(-H "Cloudflare-Workers-Version-Overrides: affilite-mix=${VERSION_ID}")
+              fi
+
+              HTTP_STATUS=$(curl -s -o /tmp/canary-health.json -w "%{http_code}" \
+                --max-time 20 \
+                -H "Authorization: Bearer $CRON_SECRET" \
+                "${EXTRA_HEADER[@]}" \
+                "$TARGET_URL" || true)
+
+              echo "Canary health attempt $i (HTTP $HTTP_STATUS):"
+              cat /tmp/canary-health.json || true
+
+              if [ "$HTTP_STATUS" = "200" ]; then
+                break
+              fi
+              sleep 10
+            done
+
+            if [ "${HTTP_STATUS:-}" != "200" ]; then
               echo "::error::Canary health check failed at 10% — rolling back to previous version"
               npx --yes wrangler@${WRANGLER_VERSION} rollback --json || true
               exit 1

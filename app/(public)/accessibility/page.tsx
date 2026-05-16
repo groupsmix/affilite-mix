@@ -37,7 +37,7 @@ export default function AccessibilityPage() {
         <ul>
           <li>
             <strong>Third-party ad slots:</strong> Sandboxed ad iframes may not fully conform to
-            WCAG 2.1. We ask ad partners to follow accessibility guidelines and review new
+            WCAG 2.2. We ask ad partners to follow accessibility guidelines and review new
             creatives.
           </li>
           <li>
