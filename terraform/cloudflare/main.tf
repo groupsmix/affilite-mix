@@ -426,19 +426,20 @@ resource "cloudflare_load_balancer" "dr_failover" {
 resource "cloudflare_load_balancer_pool" "worker_origin" {
   account_id = var.cloudflare_account_id
   name       = "worker-origin-pool"
-  origins {
+  origins = [{
     name    = "worker-origin"
     address = var.zone_domain
-  }
-  check_enabled = true
-  monitor      = cloudflare_healthcheck.worker_origin.id
+    enabled = true
+  }]
+  monitor = cloudflare_healthcheck.worker_origin.id
 }
 
 resource "cloudflare_load_balancer_pool" "static_fallback" {
   account_id = var.cloudflare_account_id
   name       = "static-fallback-pool"
-  origins {
+  origins = [{
     name    = "static-unavailable"
     address = "affilite-mix-unavailable.pages.dev"
-  }
+    enabled = true
+  }]
 }

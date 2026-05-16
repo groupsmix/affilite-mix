@@ -73,6 +73,7 @@ BEGIN
   ELSIF v_op = 'update_status' THEN
     UPDATE memberships
     SET status     = p_event_data ->> 'status',
+        tier       = COALESCE(NULLIF(p_event_data ->> 'tier', ''), tier),
         updated_at = now()
     WHERE stripe_subscription_id = p_event_data ->> 'stripe_subscription_id'
     RETURNING id, site_id INTO v_membership_id, v_site_id;
