@@ -2,55 +2,16 @@ import type Stripe from "stripe";
 import { applyStripeEventAtomic, type StripeEventOp } from "@/lib/dal/stripe-events";
 import { logger } from "@/lib/logger";
 
-/**
- * Result returned to the webhook / cron caller after processing a
- * verified Stripe event.
- */
 export interface StripeProcessingResult {
-  /** True when the event was already recorded (and therefore skipped). */
   duplicate: boolean;
-  /** Membership row touched by the side effect, if any. */
   membershipId: string | null;
 }
 
-/**
- * Process a verified Stripe webhook event.
- *
- * Extracted from app/api/membership/webhook/route.ts so the signature
- * verification / idempotency layer stays thin and the side-effectful
- * business logic can be unit-tested independently.
- *
- * LIVE-10 / F-024: the previous implementation recorded the event id
- * via `recordStripeEvent` and then mutated `memberships` in separate
- * Supabase queries. A crash between the two steps left the event
- * marked processed without the side effect applied, and Stripe
- * retries skipped the event as a duplicate — silently dropping
- * subscription updates.
- *
- * The current implementation:
- *   1. Resolves any extra data needed from the Stripe API (e.g.
- *      `subscriptions.retrieve` for current_period_*).
- *   2. Builds a `StripeEventOp` payload describing the side effect.
- *   3. Calls the `apply_stripe_membership_event` Postgres RPC, which
- *      records the event id and applies the side effect inside a
- *      single transaction. If the side effect raises, the event row
- *      is rolled back and Stripe will retry.
- *
- * Handled event types:
- *  - checkout.session.completed
- *  - invoice.paid
- *  - customer.subscription.updated
- *  - customer.subscription.deleted
- *
- * Any other event type is logged and recorded as a no-op (the route
- * still returns 2xx so Stripe does not retry).
- */
 export async function processStripeEvent(
   stripe: Stripe,
   event: Stripe.Event,
 ): Promise<StripeProcessingResult> {
   const payload = await buildStripeEventPayload(stripe, event);
-
   const result = await applyStripeEventAtomic(event.id, event.type, payload);
 
   if (result.duplicate) {
@@ -63,6 +24,36 @@ export async function processStripeEvent(
   }
 
   return { duplicate: result.duplicate, membershipId: result.membership_id };
+}
+
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | undefined {
+  const legacySubscription = (invoice as unknown as { subscription?: string | Stripe.Subscription | null })
+    .subscription;
+  if (typeof legacySubscription === "string") return legacySubscription;
+  if (legacySubscription && typeof legacySubscription === "object" && "id" in legacySubscription) {
+    return legacySubscription.id;
+  }
+
+  const parent = (invoice as unknown as {
+    parent?: {
+      subscription_details?: {
+        subscription?: string | Stripe.Subscription | null;
+      } | null;
+    } | null;
+  }).parent;
+  const nested = parent?.subscription_details?.subscription;
+  if (typeof nested === "string") return nested;
+  if (nested && typeof nested === "object" && "id" in nested) {
+    return nested.id;
+  }
+  return undefined;
+}
+
+function getChargeInvoiceId(charge: Stripe.Charge): string | undefined {
+  const invoice = (charge as unknown as { invoice?: string | Stripe.Invoice | null }).invoice;
+  if (typeof invoice === "string") return invoice;
+  if (invoice && typeof invoice === "object" && "id" in invoice) return invoice.id;
+  return undefined;
 }
 
 async function buildStripeEventPayload(
@@ -81,8 +72,6 @@ async function buildStripeEventPayload(
       const tier = (metadata?.tier as "insider" | "pro") || "insider";
 
       if (!email || !siteId || !subscriptionId) {
-        // Not enough data to attach a membership; record the event so
-        // Stripe stops retrying but skip the side effect.
         return { op: "noop" };
       }
 
@@ -105,15 +94,8 @@ async function buildStripeEventPayload(
 
     case "invoice.paid": {
       const invoice = event.data.object as Stripe.Invoice;
-      const subscriptionId =
-        typeof (invoice as unknown as { subscription?: string | Stripe.Subscription | null })
-          .subscription === "string"
-          ? ((invoice as unknown as { subscription: string }).subscription as string)
-          : undefined;
-
-      if (!subscriptionId) {
-        return { op: "noop" };
-      }
+      const subscriptionId = getInvoiceSubscriptionId(invoice);
+      if (!subscriptionId) return { op: "noop" };
 
       const sub = await stripe.subscriptions.retrieve(subscriptionId);
       return {
@@ -130,7 +112,6 @@ async function buildStripeEventPayload(
 
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
-      // OF-07: Resolve the current price to detect mid-cycle tier changes.
       const currentPriceId = subscription.items?.data?.[0]?.price?.id ?? undefined;
       const newTier = currentPriceId ? resolveTierFromPriceId(currentPriceId) : undefined;
       return {
@@ -149,22 +130,21 @@ async function buildStripeEventPayload(
       };
     }
 
-    // OF-06: Handle refund, dispute, and failed-payment events so they are
-    // not silently dropped. These events are recorded as membership status
-    // updates rather than noop so the DB mirror stays accurate.
     case "charge.refunded": {
       const charge = event.data.object as Stripe.Charge;
       const paymentIntentId =
         typeof charge.payment_intent === "string" ? charge.payment_intent : undefined;
       logger.info("Stripe charge refunded", { chargeId: charge.id, paymentIntentId });
-      
-      if (!charge.invoice) return { op: "noop" };
-      const invoice = await stripe.invoices.retrieve(charge.invoice as string);
-      if (!invoice.subscription) return { op: "noop" };
 
-      return { 
+      const invoiceId = getChargeInvoiceId(charge);
+      if (!invoiceId) return { op: "noop" };
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      const subscriptionId = getInvoiceSubscriptionId(invoice);
+      if (!subscriptionId) return { op: "noop" };
+
+      return {
         op: "cancel_membership",
-        stripe_subscription_id: invoice.subscription as string,
+        stripe_subscription_id: subscriptionId,
       };
     }
 
@@ -178,26 +158,24 @@ async function buildStripeEventPayload(
         currency: dispute.currency,
       });
 
-      if (!dispute.charge) return { op: "noop" };
-      const charge = await stripe.charges.retrieve(dispute.charge as string);
-      if (!charge.invoice) return { op: "noop" };
-      const invoice = await stripe.invoices.retrieve(charge.invoice as string);
-      if (!invoice.subscription) return { op: "noop" };
+      if (!dispute.charge || typeof dispute.charge !== "string") return { op: "noop" };
+      const charge = await stripe.charges.retrieve(dispute.charge);
+      const invoiceId = getChargeInvoiceId(charge);
+      if (!invoiceId) return { op: "noop" };
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      const subscriptionId = getInvoiceSubscriptionId(invoice);
+      if (!subscriptionId) return { op: "noop" };
 
-      return { 
-        op: "update_status", 
-        stripe_subscription_id: invoice.subscription as string,
-        status: "past_due" 
+      return {
+        op: "update_status",
+        stripe_subscription_id: subscriptionId,
+        status: "past_due",
       };
     }
 
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
-      const subscriptionId =
-        typeof (invoice as unknown as { subscription?: string | Stripe.Subscription | null })
-          .subscription === "string"
-          ? ((invoice as unknown as { subscription: string }).subscription as string)
-          : undefined;
+      const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
       return {
         op: "update_status",
@@ -221,10 +199,6 @@ async function buildStripeEventPayload(
   }
 }
 
-/**
- * OF-07: Resolve a membership tier from a Stripe price ID.
- * Checks STRIPE_PRICE_ID_<TIER> environment variables.
- */
 function resolveTierFromPriceId(priceId: string): "insider" | "pro" | undefined {
   const tiers: Array<"insider" | "pro"> = ["insider", "pro"];
   for (const tier of tiers) {
@@ -294,9 +268,6 @@ function mapStripeStatus(
       return "cancelled";
     case "incomplete_expired":
       return "expired";
-    // `incomplete` (initial payment not yet succeeded) and `paused`
-    // are treated as past_due so the membership stays gated until a
-    // subsequent webhook clarifies the state.
     default:
       return "past_due";
   }
