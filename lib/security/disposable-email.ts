@@ -142,14 +142,11 @@ export function isDisposableEmail(email: string): boolean {
   if (at === -1) return false;
   const domain = email.slice(at + 1).toLowerCase();
 
-  // Direct match
-  if (DISPOSABLE_DOMAINS.has(domain)) return true;
-
-  // Check parent domain (e.g. user@sub.mailinator.com → mailinator.com)
+  // Check the domain and all its parent suffix domains (e.g., sub.mailinator.com -> checks sub.mailinator.com and mailinator.com)
   const parts = domain.split(".");
-  if (parts.length > 2) {
-    const parentDomain = parts.slice(-2).join(".");
-    if (DISPOSABLE_DOMAINS.has(parentDomain)) return true;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const parent = parts.slice(i).join(".");
+    if (DISPOSABLE_DOMAINS.has(parent)) return true;
   }
 
   return false;

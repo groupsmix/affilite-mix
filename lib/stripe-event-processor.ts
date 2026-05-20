@@ -27,20 +27,23 @@ export async function processStripeEvent(
 }
 
 function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | undefined {
-  const legacySubscription = (invoice as unknown as { subscription?: string | Stripe.Subscription | null })
-    .subscription;
+  const legacySubscription = (
+    invoice as unknown as { subscription?: string | Stripe.Subscription | null }
+  ).subscription;
   if (typeof legacySubscription === "string") return legacySubscription;
   if (legacySubscription && typeof legacySubscription === "object" && "id" in legacySubscription) {
     return legacySubscription.id;
   }
 
-  const parent = (invoice as unknown as {
-    parent?: {
-      subscription_details?: {
-        subscription?: string | Stripe.Subscription | null;
+  const parent = (
+    invoice as unknown as {
+      parent?: {
+        subscription_details?: {
+          subscription?: string | Stripe.Subscription | null;
+        } | null;
       } | null;
-    } | null;
-  }).parent;
+    }
+  ).parent;
   const nested = parent?.subscription_details?.subscription;
   if (typeof nested === "string") return nested;
   if (nested && typeof nested === "object" && "id" in nested) {
@@ -75,7 +78,16 @@ async function buildStripeEventPayload(
         return { op: "noop" };
       }
 
-      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      let sub;
+      try {
+        sub = await stripe.subscriptions.retrieve(subscriptionId);
+      } catch (err) {
+        logger.error("Failed to retrieve subscription from Stripe in checkout.session.completed", {
+          subscriptionId,
+          error: err,
+        });
+        return { op: "noop" };
+      }
       return {
         op: "create_membership",
         site_id: siteId,
@@ -97,7 +109,16 @@ async function buildStripeEventPayload(
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
-      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      let sub;
+      try {
+        sub = await stripe.subscriptions.retrieve(subscriptionId);
+      } catch (err) {
+        logger.error("Failed to retrieve subscription from Stripe in invoice.paid", {
+          subscriptionId,
+          error: err,
+        });
+        return { op: "noop" };
+      }
       return {
         op: "renew_membership",
         stripe_subscription_id: subscriptionId,
@@ -138,7 +159,16 @@ async function buildStripeEventPayload(
 
       const invoiceId = getChargeInvoiceId(charge);
       if (!invoiceId) return { op: "noop" };
-      const invoice = await stripe.invoices.retrieve(invoiceId);
+      let invoice;
+      try {
+        invoice = await stripe.invoices.retrieve(invoiceId);
+      } catch (err) {
+        logger.error("Failed to retrieve invoice from Stripe in charge.refunded", {
+          invoiceId,
+          error: err,
+        });
+        return { op: "noop" };
+      }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
@@ -159,10 +189,28 @@ async function buildStripeEventPayload(
       });
 
       if (!dispute.charge || typeof dispute.charge !== "string") return { op: "noop" };
-      const charge = await stripe.charges.retrieve(dispute.charge);
+      let charge;
+      try {
+        charge = await stripe.charges.retrieve(dispute.charge);
+      } catch (err) {
+        logger.error("Failed to retrieve charge from Stripe in dispute handler", {
+          chargeId: dispute.charge,
+          error: err,
+        });
+        return { op: "noop" };
+      }
       const invoiceId = getChargeInvoiceId(charge);
       if (!invoiceId) return { op: "noop" };
-      const invoice = await stripe.invoices.retrieve(invoiceId);
+      let invoice;
+      try {
+        invoice = await stripe.invoices.retrieve(invoiceId);
+      } catch (err) {
+        logger.error("Failed to retrieve invoice from Stripe in dispute handler", {
+          invoiceId,
+          error: err,
+        });
+        return { op: "noop" };
+      }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 

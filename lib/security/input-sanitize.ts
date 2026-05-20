@@ -40,10 +40,7 @@ export interface SanitizeOptions {
  * Sanitize a single text field value.
  * Returns the sanitized string or an empty string if input is nullish.
  */
-export function sanitizeText(
-  input: unknown,
-  options: SanitizeOptions = {},
-): string {
+export function sanitizeText(input: unknown, options: SanitizeOptions = {}): string {
   if (typeof input !== "string") return "";
 
   const { maxLength = 10_000, allowNewlines = true, trim = true } = options;
@@ -59,11 +56,11 @@ export function sanitizeText(
   //    Strip DEL (U+007F) and C1 (U+0080–U+009F) always.
   if (allowNewlines) {
     // Strip C0 controls except TAB/LF/CR, strip DEL and C1
-    // eslint-disable-next-line no-control-regex
+
     s = s.replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "");
   } else {
     // Strip all C0 controls, DEL, and C1
-    // eslint-disable-next-line no-control-regex
+
     s = s.replace(/[\u0001-\u001F\u007F-\u009F]/g, "");
   }
 
@@ -73,8 +70,15 @@ export function sanitizeText(
   }
 
   // 5. Hard length truncation (on Unicode code points, not UTF-16 code units)
-  if ([...s].length > maxLength) {
-    s = [...s].slice(0, maxLength).join("");
+  let codePointsCount = 0;
+  let byteIndex = 0;
+  for (const char of s) {
+    if (codePointsCount >= maxLength) {
+      s = s.slice(0, byteIndex);
+      break;
+    }
+    byteIndex += char.length;
+    codePointsCount++;
   }
 
   return s;
@@ -114,7 +118,11 @@ export function sanitizeUrl(input: unknown, maxLength = 2048): string | null {
  */
 export function sanitizeInt(
   input: unknown,
-  { min = 0, max = Number.MAX_SAFE_INTEGER, defaultValue = 0 }: { min?: number; max?: number; defaultValue?: number } = {},
+  {
+    min = 0,
+    max = Number.MAX_SAFE_INTEGER,
+    defaultValue = 0,
+  }: { min?: number; max?: number; defaultValue?: number } = {},
 ): number {
   const n = Number(input);
   if (!Number.isFinite(n) || !Number.isInteger(n)) return defaultValue;

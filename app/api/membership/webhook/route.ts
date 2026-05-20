@@ -31,6 +31,18 @@ function redactStripePayloadForLogs(rawBody: string): Record<string, unknown> {
   }
 }
 
+function getRateLimitKv(): any {
+  const env = process.env as Record<string, unknown>;
+  if (env.RATE_LIMIT_KV && typeof env.RATE_LIMIT_KV === "object") {
+    return env.RATE_LIMIT_KV;
+  }
+  const globalEnv = globalThis as Record<string, any>;
+  if (globalEnv.RATE_LIMIT_KV && typeof globalEnv.RATE_LIMIT_KV === "object") {
+    return globalEnv.RATE_LIMIT_KV;
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -82,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     let attempts = 1;
     try {
-      const kv = (process.env as Record<string, any>).RATE_LIMIT_KV;
+      const kv = getRateLimitKv();
       if (kv && typeof kv.get === "function" && typeof kv.put === "function") {
         const attemptKey = `webhook-attempt:${event.id}`;
         attempts = parseInt((await kv.get(attemptKey)) || "0", 10) + 1;

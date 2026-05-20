@@ -112,7 +112,6 @@ const DENIED_LOG_FIELDS = new Set([
   "cvc",
   "expiry",
   "card_expiry",
-  "stripe_customer_id",
   "payment_method",
   "bank_account",
   "iban",
