@@ -44,9 +44,9 @@
     ]
   },
   "dependencies": {
-    "@sentry/browser": "~10.50.0",
-    "@sentry/cloudflare": "~10.50.0",
-    "@supabase/supabase-js": "~2.105.1",
+    "@sentry/browser": "~10.53.1",
+    "@sentry/cloudflare": "~10.53.1",
+    "@supabase/supabase-js": "~2.106.1",
     "@tanstack/react-table": "^8.21.3",
     "@tiptap/extension-image": "^3.22.5",
     "@tiptap/extension-link": "^3.22.5",
