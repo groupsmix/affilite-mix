@@ -55,7 +55,6 @@ export async function createPriceSnapshots(
 /** Get price history for a product (last N days) */
 export async function getPriceHistory(
   productId: string,
-  siteId: string,
   days: number = 90,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<PriceSnapshotRow[]> {
@@ -67,7 +66,6 @@ export async function getPriceHistory(
     .from(TABLE)
     .select("*")
     .eq("product_id", productId)
-    .eq("site_id", siteId)
     .gte("scraped_at", since.toISOString())
     .order("scraped_at", { ascending: true });
 

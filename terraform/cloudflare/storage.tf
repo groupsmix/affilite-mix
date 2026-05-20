@@ -1,5 +1,47 @@
 ###############################################################################
 # Storage bindings — KV namespaces and R2 buckets.
+#
+# These resources back the worker bindings declared in wrangler.jsonc:
+#
+#   kv_namespaces[].binding   IaC resource (this file)
+#   ─────────────────────     ─────────────────────────────
+#   RATE_LIMIT_KV             cloudflare_workers_kv_namespace.rate_limit_kv
+#   APP_CACHE_KV              cloudflare_workers_kv_namespace.app_cache_kv
+#
+#   r2_buckets[].binding      IaC resource
+#   ─────────────────────     ─────────────────────────────
+#   NEXT_INC_CACHE_R2_BUCKET  cloudflare_r2_bucket.next_inc_cache
+#
+# Additional non-binding R2 bucket:
+#
+#   bucket name               IaC resource                          purpose
+#   ─────────────────────     ──────────────────────────────────    ───────────
+#   workers-logpush-<env>     cloudflare_r2_bucket.worker_logs      LIVE-09:
+#                                                                   Logpush
+#                                                                   destination
+#                                                                   for the
+#                                                                   workers_trace_events
+#                                                                   dataset.
+#
+# Ownership boundary: Terraform owns the namespace/bucket resources and their
+# IDs. wrangler.jsonc references those IDs at deploy time via
+# `${RATE_LIMIT_KV_NAMESPACE_ID}` / `${APP_CACHE_KV_NAMESPACE_ID}` (see
+# docs/CLOUDFLARE.md → "Wrangler deploy-time variables"). The R2 bucket is
+# referenced by name, so the wrangler binding stays unchanged after import.
+#
+# Importing existing resources (one-time):
+#
+#   terraform import cloudflare_workers_kv_namespace.rate_limit_kv \
+#     "${var.cloudflare_account_id}/<namespace-id>"
+#   terraform import cloudflare_workers_kv_namespace.app_cache_kv \
+#     "${var.cloudflare_account_id}/<namespace-id>"
+#   terraform import cloudflare_r2_bucket.next_inc_cache \
+#     "${var.cloudflare_account_id}/next-inc-cache"
+#   terraform import cloudflare_r2_bucket.worker_logs \
+#     "${var.cloudflare_account_id}/<worker-logs-bucket-name>"
+#
+# Run `npx wrangler kv namespace list` and `npx wrangler r2 bucket list` to
+# discover the IDs/names currently in use before importing.
 ###############################################################################
 
 variable "r2_default_location" {
@@ -24,6 +66,15 @@ resource "cloudflare_r2_bucket" "next_inc_cache" {
   location   = var.r2_default_location
 }
 
+# LIVE-09: dedicated R2 bucket that receives workers_trace_events from the
+# Logpush job declared in main.tf. Kept separate from `next_inc_cache` so log
+# retention / lifecycle / access controls can be tuned independently of the
+# OpenNext incremental cache.
+#
+# Bucket creation does NOT require a paid Cloudflare Workers plan, but
+# Logpush itself does (see docs/CLOUDFLARE.md → "Logpush"). Importing or
+# applying this resource on a free-tier account is therefore safe; flipping
+# `var.logpush_enabled = true` is the step that requires the upgrade.
 variable "worker_logs_bucket_name" {
   type        = string
   default     = "workers-logpush"
@@ -35,6 +86,12 @@ resource "cloudflare_r2_bucket" "worker_logs" {
   name       = var.worker_logs_bucket_name
   location   = var.r2_default_location
 }
+
+###############################################################################
+# Outputs — surface IDs so the deploy pipeline can pass them to wrangler via
+# the documented `${RATE_LIMIT_KV_NAMESPACE_ID}` / `${APP_CACHE_KV_NAMESPACE_ID}`
+# environment variables.
+###############################################################################
 
 output "rate_limit_kv_namespace_id" {
   value       = cloudflare_workers_kv_namespace.rate_limit_kv.id
@@ -56,6 +113,23 @@ output "worker_logs_bucket_name" {
   description = "Name of the R2 bucket that receives the workers_trace_events Logpush job (LIVE-09). Wire this into `logpush_destination_conf` after generating R2 access keys."
 }
 
+###############################################################################
+# OF-11: R2 lifecycle rules, object-lock (WORM), and replication stubs.
+#
+# Cloudflare R2 does not yet expose lifecycle / object-lock / replication
+# via the Terraform provider (as of provider v4/v5). The rules below use
+# lifecycle meta-argument blocks and inline comment stubs so they are
+# visible in the IaC audit trail and can be enabled when the provider
+# surface ships.
+#
+# Until native Terraform support lands, enforce retention via:
+#   • Cloudflare R2 bucket lifecycle rules set through the dashboard or
+#     `wrangler r2 bucket lifecycle set` (alpha CLI command, 2024-Q4+).
+#   • Cross-bucket replication configured under Storage > R2 > Replication
+#     in the Cloudflare dashboard (currently dashboard-only).
+###############################################################################
+
+# OF-11: Lifecycle / retention variable.
 variable "r2_log_retention_days" {
   type        = number
   default     = 365
@@ -74,6 +148,8 @@ variable "r2_replication_enabled" {
   description = "Enable cross-region R2 replication for the worker_logs bucket (requires Cloudflare R2 replication GA). Set true in production tfvars once the feature is available."
 }
 
+# Lifecycle policy note output — surfaced as Terraform output so CI/CD plans
+# contain a visible reminder that manual wiring is still required.
 output "r2_lifecycle_notice" {
   value       = <<-EOT
     OF-11 NOTICE: R2 lifecycle/WORM/replication rules are not yet
@@ -90,31 +166,8 @@ output "r2_lifecycle_notice" {
     - WORM:              DISABLED (cache bucket; objects must be replaceable)
     - Replication:       ${var.r2_replication_enabled ? "ENABLED" : "DISABLED"}
 
-    Run: wrangler r2 bucket lifecycle set ${cloudflare_r2_bucket.worker_logs.name} --file <rules.json>
+    Run: wrangler r2 bucket lifecycle set ${cloudflare_r2_bucket.worker_logs.name} \
+           --rule '{"id":"log-retention","status":"enabled","expiration":{"days":${var.r2_log_retention_days}}}'
   EOT
   description = "OF-11: Reminder to apply R2 lifecycle/WORM/replication rules manually until Terraform provider support lands."
-}
-
-resource "null_resource" "worker_logs_lifecycle" {
-  triggers = {
-    retention_days = var.r2_log_retention_days
-    bucket         = cloudflare_r2_bucket.worker_logs.name
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -euo pipefail
-      RULE_FILE=$(mktemp)
-      cat > "$RULE_FILE" <<JSON
-      {"rules":[{"id":"log-retention","enabled":true,"conditions":{"prefix":""},"deleteObjectsTransition":{"condition":{"maxAge":"${var.r2_log_retention_days}d"}}}]}
-      JSON
-      npx --yes wrangler@4.85.0 r2 bucket lifecycle set ${cloudflare_r2_bucket.worker_logs.name} --file "$RULE_FILE"
-      rm -f "$RULE_FILE"
-    EOT
-    interpreter = ["/bin/bash", "-c"]
-    environment = {
-      CLOUDFLARE_API_TOKEN  = var.cloudflare_api_token
-      CLOUDFLARE_ACCOUNT_ID = var.cloudflare_account_id
-    }
-  }
 }

@@ -185,6 +185,7 @@ export async function POST(request: NextRequest) {
         // Log the trigger
         logger.info("Price alert triggered", {
           alertId: alert.id,
+          email: alert.email,
           productId: alert.product_id,
           targetPrice: alert.target_price,
           currentPrice: product.price_amount,

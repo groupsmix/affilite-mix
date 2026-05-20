@@ -257,30 +257,6 @@ RESOLVE → Verify health + all domains + Sentry baseline
 LEARN   → Post-mortem within 48h for SEV-1/SEV-2
 ```
 
-## Phase 6: Evidence & Notification (A187/A190)
-
-If the incident involves potential unauthorized access to data (Security Incident):
-
-1. **Chain of Custody:**
-   - [ ] Do **NOT** delete or rotate logs during an investigation.
-   - [ ] Snapshot the R2 logs bucket and the Supabase database immediately.
-   - [ ] Capture memory dumps of affected Workers if possible.
-   - [ ] Log every action taken during investigation in a tamper-proof document (e.g., shared GDoc with history or audit-log).
-   - [ ] Record WHO accessed WHAT, WHEN, and HOW.
-
-2. **Legal & Regulatory Notification (A190):**
-   - [ ] Consult `docs/breach-notification-templates.md` for pre-approved templates.
-   - [ ] **GDPR Art. 33:** Notify lead supervisory authority within 72 hours.
-   - [ ] **GDPR Art. 34:** Notify affected data subjects if "high risk".
-   - [ ] **SEC Item 1.05:** If a material cybersecurity incident occurs (for US-listed entities), file 8-K within 4 business days.
-   - [ ] **State Laws:** Review notification deadlines for CA (CCPA), NY (SHIELD), etc.
-
-3. **Public Relations:**
-   - [ ] All external statements must be reviewed by the Security Lead and Legal Counsel.
-   - [ ] Do not speculate on root cause until forensic investigation is complete.
-
----
-
 ## Legal & Compliance (Data Breaches)
 
 **CRITICAL:** If the incident involves a personal data breach, **GDPR Article 33** requires that you notify the relevant supervisory authority without undue delay and, where feasible, **not later than 72 hours** after having become aware of it.

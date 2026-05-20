@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Accessibility Statement",
   description:
-    "Our commitment to web accessibility — WCAG 2.2 AA conformance, known limitations, and how to contact us.",
+    "Our commitment to web accessibility — WCAG 2.1 AA conformance, known limitations, and how to contact us.",
 };
 
 export default function AccessibilityPage() {
@@ -19,13 +19,13 @@ export default function AccessibilityPage() {
 
         <h2>Conformance Status</h2>
         <p>
-          We aim for <strong>WCAG 2.2 Level AA</strong> conformance across this website. Where we
+          We aim for <strong>WCAG 2.1 Level AA</strong> conformance across this website. Where we
           fall short, we are actively working to resolve the gaps identified in our accessibility
           audit log.
         </p>
 
         <h2>Technical Specifications</h2>
-        <p>This website relies on the following technologies for conformance with WCAG 2.2:</p>
+        <p>This website relies on the following technologies for conformance with WCAG 2.1:</p>
         <ul>
           <li>HTML5 semantic markup</li>
           <li>WAI-ARIA landmark roles and live regions</li>
@@ -37,7 +37,7 @@ export default function AccessibilityPage() {
         <ul>
           <li>
             <strong>Third-party ad slots:</strong> Sandboxed ad iframes may not fully conform to
-            WCAG 2.2. We ask ad partners to follow accessibility guidelines and review new
+            WCAG 2.1. We ask ad partners to follow accessibility guidelines and review new
             creatives.
           </li>
           <li>

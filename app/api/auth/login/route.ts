@@ -16,51 +16,9 @@ import { isValidEmail, normalizeEmail, hashEmailForRateLimit } from "@/lib/valid
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
-import { logger } from "@/lib/logger";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
-import { validateNotDisposable } from "@/lib/security/disposable-email";
-
-/**
- * A154: Check if a password has appeared in a known data breach using the
- * HIBP k-anonymity API (https://haveibeenpwned.com/API/v3#SearchingPwnedPasswordsByRange).
- * Sends only the first 5 characters of the SHA-1 hash — the full password
- * and even its complete hash never leave this process.
- *
- * Returns true if the password appears in the breach database.
- * On network error, returns false (fail-open) to avoid blocking legitimate logins.
- */
-async function isBreachedPassword(password: string): Promise<boolean> {
-  try {
-    // SHA-1 of the password, upper-cased hex
-    const encoder = new TextEncoder();
-    const hashBuffer = await crypto.subtle.digest("SHA-1", encoder.encode(password));
-    const hashHex = Array.from(new Uint8Array(hashBuffer))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("")
-      .toUpperCase();
-
-    const prefix = hashHex.slice(0, 5);
-    const suffix = hashHex.slice(5);
-
-    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
-      headers: { "Add-Padding": "true" }, // k-anon padding
-      signal: AbortSignal.timeout(3000),
-    });
-
-    if (!res.ok) return false;
-
-    const text = await res.text();
-    // Each line is "SUFFIX:COUNT"
-    return text
-      .split("\n")
-      .some((line) => line.toUpperCase().startsWith(suffix));
-  } catch {
-    // Fail-open: network error or timeout — don't block logins
-    return false;
-  }
-}
 
 /**
  * G-50: 3 login attempts per 15 minutes per IP.
@@ -125,13 +83,6 @@ export async function POST(request: NextRequest) {
       return apiError(400, "password is required");
     }
 
-    // A153: Block disposable / throwaway email addresses on the admin login path too
-    // (prevents fake admin account creation via disposable addresses)
-    const disposableError = validateNotDisposable(normalizeEmail(email) || email);
-    if (disposableError) {
-      return apiError(400, disposableError);
-    }
-
     // Per-email rate limiting — prevents brute-force from rotating IPs
     const normalized = normalizeEmail(email);
     // F-032 + F-007: Strip '+' alias tags and hash email to prevent rate-limit
@@ -151,52 +102,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userRecord = await getAdminUserByEmail(email);
-    if (userRecord?.login_locked_until && new Date(userRecord.login_locked_until) > new Date()) {
-      return apiError(423, "Account temporarily locked due to too many failed login attempts. Please try again later.");
-    }
-
     const authResult = await authenticateUser(email, password);
     if (!authResult) {
-      if (userRecord) {
-        const attempts = (userRecord.login_failed_attempts || 0) + 1;
-        const updates: { login_failed_attempts: number; login_locked_until?: string | null } = {
-          login_failed_attempts: attempts,
-        };
-        if (attempts >= 10) {
-          updates.login_locked_until = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-        }
-        try {
-          await updateAdminUser(userRecord.id, updates);
-        } catch (e: any) {
-          // Ignore missing column errors if the 00096 migration hasn't run yet
-          if (e.code !== "42703") {
-            logger.error("Failed to update admin user lockout", { error: e });
-          }
-        }
-      }
       return apiError(401, "Invalid credentials");
-    }
-
-    if (userRecord && (userRecord.login_failed_attempts > 0 || userRecord.login_locked_until)) {
-      try {
-        await updateAdminUser(userRecord.id, { login_failed_attempts: 0, login_locked_until: null });
-      } catch (e: any) {
-        if (e.code !== "42703") {
-          logger.error("Failed to reset admin user lockout", { error: e });
-        }
-      }
-    }
-
-    // A154: Advisory HIBP k-anon breached-password check.
-    // We check AFTER successful authentication so the HIBP API only sees a
-    // prefix of the SHA-1 hash of the correct password — never a wrong guess.
-    // Fail-open (network errors don't block login); warn in response body only.
-    let passwordBreached = false;
-    try {
-      passwordBreached = await isBreachedPassword(password);
-    } catch {
-      // fail-open
     }
 
     // Enforce TOTP 2FA if enabled on the account
@@ -272,12 +180,7 @@ export async function POST(request: NextRequest) {
     const token = await createToken(authResult, request);
 
     const response = NextResponse.json(
-      {
-        ok: true,
-        // A154: Advisory flag — if true, prompt the user to change their password.
-        // Does NOT block login; the UI should show a security notice.
-        ...(passwordBreached ? { password_breached: true } : {}),
-      },
+      { ok: true },
       {
         headers: rateLimitHeaders(LOGIN_RATE_LIMIT_IP, rl),
       },

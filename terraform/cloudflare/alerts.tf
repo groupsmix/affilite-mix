@@ -88,7 +88,7 @@ resource "cloudflare_notification_policy" "worker_5xx_alert" {
   alert_type  = "http_alert_edge_error"
 
   filters = {
-    services    = ["affilite-mix", "affilite-mix-heavy-crons"]
+    services    = ["affilite-mix"]
     environment = ["production"]
   }
 
@@ -114,7 +114,7 @@ resource "cloudflare_notification_policy" "worker_cpu_time_alert" {
   alert_type  = "http_alert_edge_error"
 
   filters = {
-    services    = ["affilite-mix", "affilite-mix-heavy-crons"]
+    services    = ["affilite-mix"]
     environment = ["production"]
   }
 

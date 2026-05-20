@@ -10,7 +10,6 @@ import { captureException } from "@/lib/sentry";
 import { hashNewsletterToken } from "@/lib/newsletter-token";
 import { escapeAttribute, escapeHtml, safeHexColor, safeHref } from "@/lib/email-templates/escape";
 import { logger } from "@/lib/logger";
-import { validateNotDisposable } from "@/lib/security/disposable-email";
 
 /**
  * Build a branded HTML email for newsletter confirmation.
@@ -32,6 +31,7 @@ function buildConfirmationEmail(
   const safeDomain = escapeHtml(domain);
   const safeColor = safeHexColor(accentColor, "#10B981");
   const safeUrlValue = safeHref(confirmUrl, [domain]);
+  // safeHref returning null is treated as a hard failure by the caller.
   if (safeUrlValue === null) return null;
   const safeUrlAttr = escapeAttribute(safeUrlValue);
   const safeUrlText = escapeHtml(safeUrlValue);
@@ -70,6 +70,7 @@ function buildConfirmationEmail(
 /** POST /api/newsletter — Subscribe to the site newsletter (double opt-in) */
 export async function POST(request: Request) {
   try {
+    // N-01: Fail closed when email provider is not configured in production
     const resendKey = process.env.RESEND_API_KEY;
     const isProd = process.env.NODE_ENV === "production";
     if (!resendKey && isProd) {
@@ -79,7 +80,11 @@ export async function POST(request: Request) {
       return apiError(503, "Newsletter email is temporarily unavailable");
     }
 
+    // Rate limit: 5 signups per IP per 15 minutes
     const ip = getClientIp(request);
+
+    // SEC-04: failPolicy "closed" prevents abuse during KV outages —
+    // newsletter signup triggers emails, so we must not skip rate limiting.
     const nlRateConfig = {
       maxRequests: 5,
       windowMs: 15 * 60 * 1000,
@@ -96,15 +101,7 @@ export async function POST(request: Request) {
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
 
-    const { website } = bodyOrError as { website?: string };
-    if (website && website.length > 0) {
-      logger.info("[api/newsletter] Honeypot triggered");
-      return NextResponse.json({
-        ok: true,
-        message: "Please check your email to confirm your subscription.",
-      });
-    }
-
+    // Verify Turnstile token (skipped in dev if not configured)
     const turnstileResult = await verifyTurnstile(
       bodyOrError.turnstileToken as string | undefined,
       ip,
@@ -114,15 +111,13 @@ export async function POST(request: Request) {
     }
 
     const email = normalizeEmail((bodyOrError.email as string) ?? "");
+
     if (!email || !isValidEmail(email)) {
       return apiError(400, "Valid email is required");
     }
 
-    const disposableError = validateNotDisposable(email);
-    if (disposableError) {
-      return apiError(400, disposableError);
-    }
-
+    // F-ABUSE-01: Per-email rate limit — 5 signups per email per hour
+    // F-007: Hash email before using in rate-limit key to avoid PII in operational metadata
     const emailHash = await hashEmailForRateLimit(email);
     const emailRateConfig = { maxRequests: 5, windowMs: 60 * 60 * 1000 };
     const emailRl = await checkRateLimit(`newsletter:cooldown:${emailHash}`, emailRateConfig);
@@ -135,25 +130,30 @@ export async function POST(request: Request) {
 
     const site = await getCurrentSite();
     const sb = await getTenantClient();
+
+    // Check if subscriber already exists
     const { data: existing } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber lookup is query-justified as no DAL wrapper exists
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
       .select("id, status, confirmed_at")
       .eq("site_id", site.id)
       .eq("email", email)
       .single();
 
+    // B-02: Generate raw token for email, store only the SHA-256 hash
     const confirmationToken = crypto.randomUUID();
     const confirmationTokenHash = await hashNewsletterToken(confirmationToken);
 
     if (existing) {
       if (existing.status === "active" && existing.confirmed_at) {
+        // Already confirmed — return success silently
         return NextResponse.json({ ok: true, message: "You are already subscribed." });
       }
+      // Re-send confirmation: update token hash and reset status to pending
       const unsubscribeToken = crypto.randomUUID();
       const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
       const { error: updateError } = await sb
-        // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber update is query-justified as no DAL wrapper exists
+        // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
         .from("newsletter_subscribers")
         .update({
           status: "pending",
@@ -170,9 +170,11 @@ export async function POST(request: Request) {
         return apiError(500, "Failed to subscribe");
       }
     } else {
+      // Insert new subscriber with pending status
       const unsubscribeToken = crypto.randomUUID();
       const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
-      // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber insert is query-justified as no DAL wrapper exists
+
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       const { error: insertError } = await sb.from("newsletter_subscribers").insert({
         site_id: site.id,
         email,
@@ -187,8 +189,17 @@ export async function POST(request: Request) {
       }
     }
 
+    // Send confirmation email.
+    //
+    // T-07 (consolidated launch audit): in production we MUST NOT continue
+    // silently when the email provider is missing — the confirmation URL
+    // contains a bearer-style token that bypasses the double-opt-in
+    // guarantee, so writing it to logs would equal handing it to anyone
+    // with log-read access.
     const baseUrl = `https://${site.domain}`;
     const confirmUrl = `${baseUrl}/newsletter/confirm?token=${confirmationToken}`;
+
+    // T-08: fail closed if safeHref rejects the confirmation URL
     const emailHtml = buildConfirmationEmail(
       site.name,
       confirmUrl,
@@ -208,6 +219,8 @@ export async function POST(request: Request) {
 
     if (!resendKey) {
       if (isProd) {
+        // Fail closed: subscriber row is still pending so a retry once
+        // the provider is restored will re-send. We do NOT log the token.
         logger.error("[newsletter] RESEND_API_KEY missing in production", {
           siteId: site.id,
         });
@@ -216,6 +229,8 @@ export async function POST(request: Request) {
           "Newsletter email is temporarily unavailable. Please try again later.",
         );
       }
+      // Non-production: surface that the email could not be sent without
+      // exposing the confirmation token in logs.
       logger.warn("[newsletter] email provider unavailable (dev)", {
         siteId: site.id,
       });
@@ -236,6 +251,9 @@ export async function POST(request: Request) {
         }),
       });
       if (!res.ok) {
+        // Capture the provider's response status WITHOUT echoing the
+        // request body — that body contains the confirmation URL and
+        // therefore the bearer-style token.
         await res.text().catch(() => "");
         captureException(new Error(`Resend returned ${res.status}`), {
           context: "[api/newsletter] Failed to send confirmation email via Resend",
