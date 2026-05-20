@@ -136,6 +136,7 @@ export async function POST(request: Request) {
     const site = await getCurrentSite();
     const sb = await getTenantClient();
     const { data: existing } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber lookup is query-justified as no DAL wrapper exists
       .from("newsletter_subscribers")
       .select("id, status, confirmed_at")
       .eq("site_id", site.id)
@@ -152,6 +153,7 @@ export async function POST(request: Request) {
       const unsubscribeToken = crypto.randomUUID();
       const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
       const { error: updateError } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber update is query-justified as no DAL wrapper exists
         .from("newsletter_subscribers")
         .update({
           status: "pending",
@@ -170,6 +172,7 @@ export async function POST(request: Request) {
     } else {
       const unsubscribeToken = crypto.randomUUID();
       const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
+      // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber insert is query-justified as no DAL wrapper exists
       const { error: insertError } = await sb.from("newsletter_subscribers").insert({
         site_id: site.id,
         email,
