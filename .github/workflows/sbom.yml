@@ -51,6 +51,73 @@ jobs:
           output-file: sbom.spdx.json
           artifact-name: sbom-spdx
 
+      # ── A174: SCA vulnerability scan (Grype) ─────────────────────────
+      # Scans the CycloneDX SBOM for known CVEs with per-severity SLAs:
+      #   Critical / High  → fail immediately (block merge / release)
+      #   Medium           → warn (tracked in security backlog, 30-day SLA)
+      #   Low / Negligible → informational only
+      #
+      # Override: add the CVE to .grype.yaml under `ignore` with a comment
+      # linking to the tracking issue and expiry date.
+      - name: Install Grype
+        uses: anchore/scan-action/download-grype@v4
+        id: grype
+
+      - name: Run Grype SCA scan (A174)
+        id: grype-scan
+        run: |
+          set -euo pipefail
+          # Scan the CycloneDX SBOM (more accurate than directory scan)
+          grype sbom:sbom.cdx.json \
+            --output json \
+            --file grype-results.json \
+            --config .grype.yaml 2>/dev/null || true
+
+          # Output SARIF for GitHub Security tab
+          grype sbom:sbom.cdx.json \
+            --output sarif \
+            --file grype-results.sarif \
+            --config .grype.yaml 2>/dev/null || true
+
+          # Count findings by severity
+          CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical")] | length' grype-results.json 2>/dev/null || echo 0)
+          HIGH=$(jq '[.matches[] | select(.vulnerability.severity == "High")] | length' grype-results.json 2>/dev/null || echo 0)
+          MEDIUM=$(jq '[.matches[] | select(.vulnerability.severity == "Medium")] | length' grype-results.json 2>/dev/null || echo 0)
+          LOW=$(jq '[.matches[] | select(.vulnerability.severity == "Low")] | length' grype-results.json 2>/dev/null || echo 0)
+
+          echo "CVE summary: Critical=$CRITICAL High=$HIGH Medium=$MEDIUM Low=$LOW"
+          echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "high=$HIGH" >> "$GITHUB_OUTPUT"
+          echo "medium=$MEDIUM" >> "$GITHUB_OUTPUT"
+
+          # SLA enforcement: block on Critical or High
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "::error::A174 SCA: $CRITICAL Critical and $HIGH High CVEs found — review grype-results.json and remediate or add justified ignores to .grype.yaml"
+            exit 1
+          fi
+
+          if [ "$MEDIUM" -gt 0 ]; then
+            echo "::warning::A174 SCA: $MEDIUM Medium CVEs found — 30-day remediation SLA applies. Track in security backlog."
+          fi
+
+      - name: Upload Grype SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: grype-results.sarif
+        continue-on-error: true # Don't fail if SARIF upload fails
+
+      - name: Upload Grype results artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: grype-sca-results
+          retention-days: 90
+          path: |
+            grype-results.json
+            grype-results.sarif
+
+
       # ── Install cosign ──────────────────────────────────────────────
       - name: Install cosign
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3

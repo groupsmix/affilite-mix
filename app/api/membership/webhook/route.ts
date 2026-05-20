@@ -6,13 +6,44 @@ import { logger } from "@/lib/logger";
 import { constructStripeEvent, prewarmStripeWebhookKey } from "@/lib/stripe-webhook";
 import { getStripeClient } from "@/lib/stripe-client";
 
-// FIX-13 (F-004): Pre-warm the HMAC crypto key on cold start so the first
-// webhook verification doesn't pay the importKey() latency penalty.
 let _prewarmed = false;
 
+function redactStripePayloadForLogs(rawBody: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(rawBody) as {
+      id?: string;
+      type?: string;
+      created?: number;
+      livemode?: boolean;
+      data?: { object?: { id?: string; object?: string } };
+    };
+
+    return {
+      id: parsed.id,
+      type: parsed.type,
+      created: parsed.created,
+      livemode: parsed.livemode,
+      object_id: parsed.data?.object?.id,
+      object_type: parsed.data?.object?.object,
+    };
+  } catch {
+    return { parse_error: true };
+  }
+}
+
+function getRateLimitKv(): any {
+  const env = process.env as Record<string, unknown>;
+  if (env.RATE_LIMIT_KV && typeof env.RATE_LIMIT_KV === "object") {
+    return env.RATE_LIMIT_KV;
+  }
+  const globalEnv = globalThis as Record<string, any>;
+  if (globalEnv.RATE_LIMIT_KV && typeof globalEnv.RATE_LIMIT_KV === "object") {
+    return globalEnv.RATE_LIMIT_KV;
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
-  // F-FE-01: Fail fast if critical env vars are missing in edge runtime.
-  // Checked at request time (not module load) to avoid build-time failures.
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   const stripeKey = process.env.STRIPE_SECRET_KEY;
 
@@ -21,7 +52,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
   }
 
-  // FIX-13: Pre-warm on first invocation per isolate
   if (!_prewarmed) {
     _prewarmed = true;
     await prewarmStripeWebhookKey(webhookSecret);
@@ -36,15 +66,11 @@ export async function POST(request: NextRequest) {
 
   let event: any;
   try {
-    // F-009: Use lightweight Web Crypto verifier instead of full Stripe SDK
-    // to avoid edge runtime bloat/incompatibility.
     event = await constructStripeEvent(rawBody, signature, webhookSecret);
   } catch (err) {
     logger.warn("Stripe webhook signature verification failed", {
       error: err instanceof Error ? err.message : String(err),
     });
-    // SEC-09: Include security headers on error responses to prevent
-    // MIME-type sniffing attacks on the JSON error body.
     return NextResponse.json(
       { error: "Invalid signature" },
       { status: 400, headers: { "X-Content-Type-Options": "nosniff" } },
@@ -52,14 +78,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // G-18: Reuse a module-scope Stripe client across requests in the
-    // same isolate. The first call lazily imports the SDK; subsequent
-    // calls skip both the import and the constructor.
     const stripe = await getStripeClient(stripeKey);
-
-    // LIVE-10 / F-024: idempotency record + membership side effect run
-    // in a single Postgres transaction inside `processStripeEvent`. A
-    // crash here rolls the event row back so Stripe will retry.
     const result = await processStripeEvent(stripe, event);
 
     if (result.duplicate) {
@@ -73,22 +92,31 @@ export async function POST(request: NextRequest) {
       error: err instanceof Error ? err.message : String(err),
     });
 
-    // F-API-08: Ack the event with a 200 after N failed attempts to prevent
-    // an infinite retry loop hitting the Stripe account's rate limits.
     let attempts = 1;
     try {
-      const kv = (process.env as any).RATE_LIMIT_KV as any;
-      if (kv) {
+      const kv = getRateLimitKv();
+      if (kv && typeof kv.get === "function" && typeof kv.put === "function") {
         const attemptKey = `webhook-attempt:${event.id}`;
         attempts = parseInt((await kv.get(attemptKey)) || "0", 10) + 1;
         await kv.put(attemptKey, attempts.toString(), { expirationTtl: 86400 * 4 });
+      } else {
+        logger.warn("Stripe webhook retry KV binding unavailable; defaulting attempts to 1", {
+          id: event.id,
+        });
       }
-    } catch (e) {}
+    } catch (kvError) {
+      logger.warn("Stripe webhook retry counter update failed", {
+        id: event.id,
+        error: kvError instanceof Error ? kvError.message : String(kvError),
+      });
+    }
 
     if (attempts >= 3) {
       logger.error("Stripe webhook max retries reached, acking to stop loop", { id: event.id });
-      // In a full implementation, enqueue to an R2 NDJSON DLQ here.
-      // For now, ack to stop the loop and let Sentry alert operators.
+      logger.error("Stripe webhook DLQ payload", {
+        id: event.id,
+        payload: redactStripePayloadForLogs(rawBody),
+      });
       return NextResponse.json({ received: true, dlq: true });
     }
 

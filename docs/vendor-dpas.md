@@ -79,21 +79,30 @@ The platform routes every generative AI call through a fallback chain defined in
 
 Per Schrems II (CJEU C-311/18) and the EU-US DPF Adequacy Decision (July 2023), US-based sub-processors should be verified at [dataprivacyframework.gov](https://www.dataprivacyframework.gov).
 
-| Sub-processor   | DPF Certified? | SCCs in place?                  | Last verified |
-| --------------- | -------------- | ------------------------------- | ------------- |
-| Cloudflare      | Yes            | Yes                             | 2026-04-30    |
-| Stripe          | Yes            | N/A (independent controller)    | 2026-04-30    |
-| Sentry          | Yes            | Yes                             | 2026-04-30    |
-| Resend          | **Verify**     | Yes                             | Pending       |
-| Google (Gemini) | Yes            | Yes (Google Cloud DPA)          | 2026-04-30    |
-| Groq            | **Verify**     | ToS only; custom DPA on request | Pending       |
-| Cohere          | **Verify**     | Yes (paid plan DPA)             | Pending       |
+## Vendor Criticality Tiers (A171)
+
+To comply with internal risk management and procurement policies, vendors are classified into three tiers:
+
+- **Tier 1 — Mission Critical:** Outage causes complete platform downtime or exposure of core database. High DPA/Security scrutiny required.
+- **Tier 2 — Important:** Outage degrades user experience or stops non-critical business processes (e.g., newsletter). Moderate scrutiny.
+- **Tier 3 — Supporting:** Outage is largely invisible to users or has manual workarounds. Basic ToS/Privacy review.
+
+| Sub-processor   | Tier   | DPF Certified? | SCCs? | Last verified |
+| --------------- | ------ | -------------- | ----- | ------------- |
+| Cloudflare      | Tier 1 | Yes            | Yes   | 2026-05-15    |
+| Supabase        | Tier 1 | Yes            | Yes   | 2026-05-15    |
+| Stripe          | Tier 1 | Yes            | N/A   | 2026-05-15    |
+| Resend          | Tier 2 | Pending        | Yes   | 2026-05-15    |
+| Sentry          | Tier 2 | Yes            | Yes   | 2026-05-15    |
+| AI Providers    | Tier 2 | Varied         | Yes   | 2026-05-15    |
+| GitHub          | Tier 1 | Yes            | Yes   | 2026-05-15    |
+| PagerDuty       | Tier 2 | Yes            | Yes   | 2026-05-15    |
 
 **Action items:**
 
 - [ ] Verify Resend DPF certification
 - [ ] Verify Groq DPF certification or execute custom DPA
 - [ ] Verify Cohere DPF certification or execute custom DPA
-- [ ] Schedule quarterly re-verification
+- [ ] Schedule quarterly re-verification (next: 2026-08-15)
 
 See also: `docs/schrems-ii-tia.md` for the full Transfer Impact Assessment.

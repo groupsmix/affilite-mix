@@ -1,1 +1,7 @@
 npx lint-staged
+# A38: secret scan on every commit — fail fast before secrets reach remote
+if command -v gitleaks &>/dev/null; then
+  gitleaks protect --staged --config .gitleaks.toml --verbose
+else
+  echo "[pre-commit] gitleaks not installed — skipping local secret scan (CI will still block)" >&2
+fi

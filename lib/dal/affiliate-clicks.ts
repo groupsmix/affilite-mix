@@ -12,6 +12,7 @@ export interface RecordClickInput {
   content_slug?: string;
   referrer?: string;
   click_id?: string;
+  is_internal?: boolean;
 }
 
 export interface ClickDateWindow {
@@ -32,8 +33,10 @@ function applyCreatedAtWindow<
   TQuery extends {
     gte(column: string, value: string): TQuery;
     lte(column: string, value: string): TQuery;
+    eq(column: string, value: unknown): TQuery;
   },
 >(query: TQuery, window?: ClickDateWindow): TQuery {
+  query = query.eq("is_internal", false);
   if (window?.since) query = query.gte("created_at", window.since);
   if (window?.until) query = query.lte("created_at", window.until);
   return query;
@@ -65,7 +68,6 @@ function resolveChartWindow(window: DailyClicksWindow): {
   return { sinceDate, untilDate };
 }
 
-/** Record an affiliate click (fire-and-forget) */
 export async function recordClick(
   input: RecordClickInput,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -78,17 +80,15 @@ export async function recordClick(
     content_slug: input.content_slug ?? "",
     referrer: input.referrer ?? "",
     ...(input.click_id ? { click_id: input.click_id } : {}),
+    is_internal: input.is_internal ?? false,
   };
 
   const { error } = await sb.from(TABLE).insert(row);
-
-  // Fire-and-forget: log but don't throw
   if (error) {
     console.error("Failed to record affiliate click:", error.message);
   }
 }
 
-/** Get click count for a site (admin analytics) */
 export async function getClickCount(
   siteId: string,
   since?: string,
@@ -97,19 +97,15 @@ export async function getClickCount(
 ): Promise<number> {
   const sb = await getClient();
   let query = sb.from(TABLE).select("id", { count: "exact", head: true }).eq("site_id", siteId);
-
   query = applyCreatedAtWindow(query, { since, until });
-
   const { count, error } = await query;
   if (error) throw error;
   return count ?? 0;
 }
 
-/** Columns returned for click listings */
 const CLICK_COLUMNS =
   "id, click_id, site_id, product_name, affiliate_url, content_slug, referrer, created_at" as const;
 
-/** Get recent clicks for a site (admin) */
 export async function getRecentClicks(
   siteId: string,
   limit = 50,
@@ -118,18 +114,14 @@ export async function getRecentClicks(
 ): Promise<AffiliateClickRow[]> {
   const sb = await getClient();
   let query = sb.from(TABLE).select(CLICK_COLUMNS).eq("site_id", siteId);
-
   query = applyCreatedAtWindow(query, window)
     .order("created_at", { ascending: false })
     .limit(limit);
-
   const { data, error } = await query;
-
   if (error) throw error;
   return assertRows<AffiliateClickRow>(data);
 }
 
-/** Get top clicked products for a site (admin analytics) */
 export async function getTopProducts(
   siteId: string,
   since?: string,
@@ -147,21 +139,17 @@ export async function getTopProducts(
       p_since: rpcSinceDate,
       p_limit: limit,
     });
-
     if (error) throw error;
     return assertRows<{ product_name: string; click_count: number }>(data ?? []);
   }
 
-  let query = sb.from(TABLE).select("product_name, created_at").eq("site_id", siteId);
-
+  let query = sb.from(TABLE).select("product_name, created_at, is_internal").eq("site_id", siteId);
   query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-
   const { data, error } = await query;
   if (error) throw error;
 
   const rows = assertRows<{ product_name: string }>(data ?? []);
   const counts = new Map<string, number>();
-
   for (const row of rows) {
     const key = row.product_name;
     counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -173,7 +161,6 @@ export async function getTopProducts(
     .slice(0, limit);
 }
 
-/** Get top referring pages for a site (admin analytics) */
 export async function getTopReferrers(
   siteId: string,
   since?: string,
@@ -186,27 +173,22 @@ export async function getTopReferrers(
 
   if (!untilDate) {
     const rpcSinceDate = sinceDate ?? new Date(0).toISOString();
-
     const { data, error } = await sb.rpc("get_top_referrers", {
       p_site_id: siteId,
       p_since: rpcSinceDate,
       p_limit: limit,
     });
-
     if (error) throw error;
     return assertRows<{ referrer: string; click_count: number }>(data ?? []);
   }
 
-  let query = sb.from(TABLE).select("referrer, created_at").eq("site_id", siteId);
-
+  let query = sb.from(TABLE).select("referrer, created_at, is_internal").eq("site_id", siteId);
   query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-
   const { data, error } = await query;
   if (error) throw error;
 
   const rows = assertRows<{ referrer: string }>(data ?? []);
   const counts = new Map<string, number>();
-
   for (const row of rows) {
     const key = row.referrer && row.referrer.trim() ? row.referrer : "(direct)";
     counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -218,7 +200,6 @@ export async function getTopReferrers(
     .slice(0, limit);
 }
 
-/** Get top content pages driving clicks (admin analytics) */
 export async function getTopContentSlugs(
   siteId: string,
   since?: string,
@@ -231,27 +212,22 @@ export async function getTopContentSlugs(
 
   if (!untilDate) {
     const rpcSinceDate = sinceDate ?? new Date(0).toISOString();
-
     const { data, error } = await sb.rpc("get_top_content_slugs", {
       p_site_id: siteId,
       p_since: rpcSinceDate,
       p_limit: limit,
     });
-
     if (error) throw error;
     return assertRows<{ content_slug: string; click_count: number }>(data ?? []);
   }
 
-  let query = sb.from(TABLE).select("content_slug, created_at").eq("site_id", siteId);
-
+  let query = sb.from(TABLE).select("content_slug, created_at, is_internal").eq("site_id", siteId);
   query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-
   const { data, error } = await query;
   if (error) throw error;
 
   const rows = assertRows<{ content_slug: string }>(data ?? []);
   const counts = new Map<string, number>();
-
   for (const row of rows) {
     const key = row.content_slug?.trim();
     if (!key) continue;
@@ -264,7 +240,6 @@ export async function getTopContentSlugs(
     .slice(0, limit);
 }
 
-/** Get daily click counts for a site (admin analytics chart data) */
 export async function getDailyClicks(
   siteId: string,
   daysOrWindow: DailyClicksWindow = 30,
@@ -278,17 +253,14 @@ export async function getDailyClicks(
       p_site_id: siteId,
       p_since: sinceDate.toISOString(),
     });
-
     if (error) throw error;
 
-    // Build a lookup from the RPC results
     const rpcData = assertRows<{ date: string; count: number }>(data ?? []);
     const counts = new Map<string, number>();
     for (const row of rpcData) {
       counts.set(row.date, Number(row.count));
     }
 
-    // Fill missing dates with 0
     const result: { date: string; count: number }[] = [];
     const cursor = new Date(sinceDate);
     const today = new Date();
@@ -297,23 +269,19 @@ export async function getDailyClicks(
       result.push({ date: dateStr, count: counts.get(dateStr) ?? 0 });
       cursor.setDate(cursor.getDate() + 1);
     }
-
     return result;
   }
 
-  let query = sb.from(TABLE).select("created_at").eq("site_id", siteId);
-
+  let query = sb.from(TABLE).select("created_at, is_internal").eq("site_id", siteId);
   query = applyCreatedAtWindow(query, {
     since: sinceDate.toISOString(),
     until: untilDate.toISOString(),
   });
-
   const { data, error } = await query;
   if (error) throw error;
 
   const rows = assertRows<{ created_at: string }>(data ?? []);
   const counts = new Map<string, number>();
-
   for (const row of rows) {
     const date = new Date(row.created_at);
     const key = dateKeyUtc(date);
@@ -323,12 +291,10 @@ export async function getDailyClicks(
   const result: { date: string; count: number }[] = [];
   const cursor = startOfUtcDay(sinceDate);
   const end = startOfUtcDay(untilDate);
-
   while (cursor <= end) {
     const dateStr = dateKeyUtc(cursor);
     result.push({ date: dateStr, count: counts.get(dateStr) ?? 0 });
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
-
   return result;
 }

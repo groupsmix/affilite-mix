@@ -10,6 +10,7 @@ interface NewsletterSignupProps {
 
 export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps) {
   const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState(""); // A157: honeypot field
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -34,7 +35,7 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
       const res = await fetchWithCsrf("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, turnstileToken }),
+        body: JSON.stringify({ email, website, turnstileToken }),
       });
 
       if (!res.ok) {
@@ -106,6 +107,19 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
         className="flex flex-col gap-2"
       >
         <div className="flex gap-2">
+          {/* A157: Honeypot field. Visually hidden but accessible to bots. */}
+          <div style={{ display: "none" }} aria-hidden="true">
+            <label htmlFor="website">Leave this field empty</label>
+            <input
+              id="website"
+              name="website"
+              type="text"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              autoComplete="off"
+              tabIndex={-1}
+            />
+          </div>
           <input
             type="email"
             value={email}

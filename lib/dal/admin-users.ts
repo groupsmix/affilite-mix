@@ -14,13 +14,15 @@ export interface AdminUserRow {
   totp_verified_at: string | null;
   totp_failed_attempts: number;
   totp_locked_until: string | null;
+  login_failed_attempts: number;
+  login_locked_until: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export type AdminUserPublic = Omit<
   AdminUserRow,
-  "password_hash" | "totp_secret" | "totp_failed_attempts" | "totp_locked_until"
+  "password_hash" | "totp_secret" | "totp_failed_attempts" | "totp_locked_until" | "login_failed_attempts" | "login_locked_until"
 >;
 
 const TABLE = "admin_users";
@@ -117,6 +119,8 @@ export async function updateAdminUser(
       | "totp_verified_at"
       | "totp_failed_attempts"
       | "totp_locked_until"
+      | "login_failed_attempts"
+      | "login_locked_until"
     >
   >,
   getClient: DalClientGetter = defaultDalClientGetter,
