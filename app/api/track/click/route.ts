@@ -12,7 +12,7 @@ import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
 import { isOriginAllowed } from "@/lib/security/allowed-origins";
-import { verifyToken } from "@/lib/jwt";
+import { verifyToken } from "@/lib/auth";
 
 const CLICK_RATE_LIMIT = {
   maxRequests: 60,
@@ -24,8 +24,8 @@ async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
   const adminToken = request.cookies.get("nh_admin_token")?.value;
   if (!adminToken) return false;
   try {
-    await verifyToken(adminToken, request);
-    return true;
+    const payload = await verifyToken(adminToken, request);
+    return !!payload;
   } catch {
     return false;
   }
