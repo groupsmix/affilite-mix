@@ -63,6 +63,14 @@ export async function POST(request: NextRequest) {
           subscriptionId: stripeSub.id,
           customerId: typeof stripeSub.customer === "string" ? stripeSub.customer : undefined,
         });
+        
+        try {
+          const { captureMessage } = await import("@/lib/sentry");
+          captureMessage(`OF-08: Active Stripe subscription has no DB membership row: ${stripeSub.id}`, "warning");
+        } catch {
+          // ignore if sentry is not available
+        }
+
         // Replay checkout.session.completed for this subscription to create the row.
         const sessions = await stripe.checkout.sessions.list({
           subscription: stripeSub.id,
@@ -86,6 +94,12 @@ export async function POST(request: NextRequest) {
           subscriptionId: stripeSub.id,
           dbStatus: dbMembership.status,
         });
+        try {
+          const { captureMessage } = await import("@/lib/sentry");
+          captureMessage(`OF-08: Correcting stale membership status for ${stripeSub.id} (was ${dbMembership.status})`, "warning");
+        } catch {
+          // ignore if sentry is not available
+        }
         await (sb.from as any)("memberships")
           .update({ status: "active", updated_at: new Date().toISOString() })
           .eq("stripe_subscription_id", stripeSub.id);

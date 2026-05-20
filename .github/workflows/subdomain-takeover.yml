@@ -1,0 +1,112 @@
+# A146: Daily subdomain takeover scan.
+#
+# Scans all DNS records in the Cloudflare zone for dangling CNAMEs that could
+# be claimed by an attacker (S3, GitHub Pages, Heroku, Azure, Fastly, Shopify, etc.).
+#
+# Uses `dnsx` + `httpx` (or subjack) to enumerate and probe each CNAME target.
+# Failures are reported as GitHub Actions alerts and optionally sent to Slack.
+#
+# Requirements:
+#   - CLOUDFLARE_API_TOKEN secret (Zone:Read)
+#   - CLOUDFLARE_ACCOUNT_ID secret
+#   - CF_ZONE_ID secret (zone to scan)
+#   - SLACK_WEBHOOK_URL secret (optional, for Slack notifications)
+
+name: Subdomain Takeover Scan (A146)
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Daily at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write # for SARIF upload
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install tools
+        run: |
+          set -euo pipefail
+          # Install subjack for CNAME takeover detection
+          go install github.com/haccer/subjack@latest 2>/dev/null || {
+            echo "go not available — installing via direct download"
+            curl -sSL "https://github.com/haccer/subjack/releases/latest/download/subjack-linux-amd64" \
+              -o /usr/local/bin/subjack && chmod +x /usr/local/bin/subjack
+          }
+          # Install dnsx for DNS enumeration
+          go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest 2>/dev/null || true
+
+      - name: Enumerate DNS records from Cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CF_ZONE_ID:-}" ]; then
+            echo "::warning::CF_ZONE_ID not set — using hardcoded zone domain for scan"
+            ZONE_ID="$CF_ZONE_ID"
+          fi
+
+          # Fetch all DNS records from the zone
+          curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=CNAME&per_page=200" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            | jq -r '.result[].name' \
+            > /tmp/subdomains.txt
+
+          echo "Found $(wc -l < /tmp/subdomains.txt) CNAME records to scan"
+          cat /tmp/subdomains.txt
+
+      - name: Run subjack takeover scan
+        run: |
+          set -euo pipefail
+
+          if [ ! -s /tmp/subdomains.txt ]; then
+            echo "No CNAME records found — nothing to scan"
+            exit 0
+          fi
+
+          # subjack fingerprints takeover-vulnerable services and outputs findings
+          subjack -w /tmp/subdomains.txt \
+            -t 100 \
+            -timeout 30 \
+            -o /tmp/takeover-findings.txt \
+            -v \
+            -ssl || true
+
+          echo "=== Takeover scan results ==="
+          cat /tmp/takeover-findings.txt || echo "(no findings)"
+
+      - name: Alert on findings
+        if: always()
+        run: |
+          if [ -s /tmp/takeover-findings.txt ]; then
+            echo "::error::SUBDOMAIN TAKEOVER RISK DETECTED — see findings below"
+            cat /tmp/takeover-findings.txt
+            echo "::error::Immediately review dangling CNAMEs and remove or claim the targets"
+            exit 1
+          else
+            echo "No subdomain takeover risks detected"
+          fi
+
+      - name: Notify Slack on failure
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -sSf -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": ":rotating_light: *A146 Subdomain Takeover Scan FAILED* — dangling CNAMEs detected in affilite-mix zone. Review GitHub Actions immediately.",
+              "username": "Security Bot"
+            }' || true

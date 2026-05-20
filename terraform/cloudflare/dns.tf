@@ -70,7 +70,64 @@ variable "dns_records" {
     automatically by `cloudflare_workers_custom_domain` and managing them
     here as well will cause a conflict.
   EOT
-  default     = {}
+  default     = {
+    # ── A144: Email authentication ─────────────────────────────────────
+    # SPF: authorise Resend as the only legitimate sender (~all = softfail,
+    # tighten to -all after ≥30 days of clean DMARC aggregate reports).
+    "spf" = {
+      name    = "@"
+      type    = "TXT"
+      content = "v=spf1 include:_spf.resend.com ~all"
+      ttl     = 300
+      comment = "A144: SPF — authorises Resend. Tighten to -all after DMARC monitoring."
+    }
+
+    # DMARC: p=reject, 100% coverage, strict alignment, aggregate + forensic reports.
+    # Replace zone_domain placeholder with your actual domain in tfvars.
+    "dmarc" = {
+      name    = "_dmarc"
+      type    = "TXT"
+      content = "v=DMARC1; p=reject; sp=reject; pct=100; adkim=s; aspf=s; fo=1"
+      ttl     = 300
+      comment = "A144: DMARC p=reject, 100% coverage. Add rua/ruf mailto: in tfvars."
+    }
+
+    # ── A145: DNS hardening ────────────────────────────────────────────
+    # CAA: only Let's Encrypt may issue certificates for this zone.
+    "caa-issue" = {
+      name    = "@"
+      type    = "CAA"
+      content = "0 issue \"letsencrypt.org\""
+      ttl     = 3600
+      comment = "A145: CAA — restrict cert issuance to Let's Encrypt."
+    }
+
+    "caa-issuewild" = {
+      name    = "@"
+      type    = "CAA"
+      content = "0 issuewild \";\""
+      ttl     = 3600
+      comment = "A145: CAA — block wildcard cert issuance from all CAs."
+    }
+
+    # MTA-STS discovery record — id= must change whenever the policy changes.
+    "mta-sts" = {
+      name    = "_mta-sts"
+      type    = "TXT"
+      content = "v=STSv1; id=20260515000000;"
+      ttl     = 300
+      comment = "A145: MTA-STS discovery. Update id= after every policy change."
+    }
+
+    # TLS-RPT: receive JSON reports when a sending MTA cannot establish TLS.
+    "tls-rpt" = {
+      name    = "_smtp._tls"
+      type    = "TXT"
+      content = "v=TLSRPTv1; rua=mailto:tls-reports@wristnerd.xyz"
+      ttl     = 300
+      comment = "A145: TLS-RPT — SMTP TLS failure reporting."
+    }
+  }
 }
 
 resource "cloudflare_workers_custom_domain" "worker_domains" {
