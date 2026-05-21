@@ -338,14 +338,20 @@ jobs:
           # in place for local invocations that set both).
           STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
           SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
-          # Hard-fail on missing secret for trusted runs (main push or
-          # non-fork PRs); fork PRs fall through to skip-green.
-          # N-005: also gate on the secret actually being set — a trusted
-          # context with a missing/invalid secret skips rather than fails
-          # so that a paused or deleted staging DB doesn't permanently
-          # block merges. Update the secret when the DB is restored.
-          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && (secrets.SUPABASE_DB_POOLER_URL != '' || secrets.STAGING_SUPABASE_DB_URL != '') && 'true' || 'false' }}
+          # IS_TRUSTED_CONTEXT: true for main pushes and non-fork PRs.
+          # REQUIRE_STAGING_DB is derived in the shell below by also checking
+          # that the secret env var is non-empty — secrets cannot be reliably
+          # compared in GitHub Actions expressions (they redact to '***').
+          IS_TRUSTED_CONTEXT: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && 'true' || 'false' }}
         run: |
+          # N-005: hard-fail only when BOTH the context is trusted AND a DB
+          # URL secret is actually present. If the secret is empty/absent the
+          # staging DB is unavailable (paused/deleted) and we skip gracefully.
+          if [ -n "${STAGING_SUPABASE_DB_URL:-}" ] && [ "${IS_TRUSTED_CONTEXT}" = "true" ]; then
+            export REQUIRE_STAGING_DB=true
+          else
+            export REQUIRE_STAGING_DB=false
+          fi
           if bash scripts/db-audit.sh; then
             echo "status=passed" >> "$GITHUB_OUTPUT"
           else
@@ -397,9 +403,15 @@ jobs:
           # See db-audit job above for the IPv6/pooler rationale.
           STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
           SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
-          # N-005: same gating as db-audit — requires secret to be set.
-          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && (secrets.SUPABASE_DB_POOLER_URL != '' || secrets.STAGING_SUPABASE_DB_URL != '') && 'true' || 'false' }}
+          # IS_TRUSTED_CONTEXT mirrors the db-audit job — REQUIRE_STAGING_DB
+          # is derived in shell so we can check env var emptiness reliably.
+          IS_TRUSTED_CONTEXT: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && 'true' || 'false' }}
         run: |
+          if [ -n "${STAGING_SUPABASE_DB_URL:-}" ] && [ "${IS_TRUSTED_CONTEXT}" = "true" ]; then
+            export REQUIRE_STAGING_DB=true
+          else
+            export REQUIRE_STAGING_DB=false
+          fi
           if bash scripts/check-db-types.sh; then
             echo "status=passed" >> "$GITHUB_OUTPUT"
           else

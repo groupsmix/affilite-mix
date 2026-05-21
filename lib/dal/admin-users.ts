@@ -22,7 +22,12 @@ export interface AdminUserRow {
 
 export type AdminUserPublic = Omit<
   AdminUserRow,
-  "password_hash" | "totp_secret" | "totp_failed_attempts" | "totp_locked_until" | "login_failed_attempts" | "login_locked_until"
+  | "password_hash"
+  | "totp_secret"
+  | "totp_failed_attempts"
+  | "totp_locked_until"
+  | "login_failed_attempts"
+  | "login_locked_until"
 >;
 
 const TABLE = "admin_users";
