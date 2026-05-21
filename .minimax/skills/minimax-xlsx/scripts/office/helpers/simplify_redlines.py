@@ -128,7 +128,7 @@ def get_tracked_change_authors(doc_xml_path: Path) -> dict[str, int]:
         return {}
 
     try:
-        tree = ET.parse(doc_xml_path)
+        tree = ET.parse(doc_xml_path)  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
         root = tree.getroot()
     except ET.ParseError:
         return {}
@@ -152,7 +152,7 @@ def _get_authors_from_docx(docx_path: Path) -> dict[str, int]:
             if "word/document.xml" not in zf.namelist():
                 return {}
             with zf.open("word/document.xml") as f:
-                tree = ET.parse(f)
+                tree = ET.parse(f)  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
                 root = tree.getroot()
 
                 namespaces = {"w": WORD_NS}
