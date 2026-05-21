@@ -53,9 +53,7 @@ async function isBreachedPassword(password: string): Promise<boolean> {
 
     const text = await res.text();
     // Each line is "SUFFIX:COUNT"
-    return text
-      .split("\n")
-      .some((line) => line.toUpperCase().startsWith(suffix));
+    return text.split("\n").some((line) => line.toUpperCase().startsWith(suffix));
   } catch {
     // Fail-open: network error or timeout — don't block logins
     return false;
@@ -153,7 +151,10 @@ export async function POST(request: NextRequest) {
 
     const userRecord = await getAdminUserByEmail(email);
     if (userRecord?.login_locked_until && new Date(userRecord.login_locked_until) > new Date()) {
-      return apiError(423, "Account temporarily locked due to too many failed login attempts. Please try again later.");
+      return apiError(
+        423,
+        "Account temporarily locked due to too many failed login attempts. Please try again later.",
+      );
     }
 
     const authResult = await authenticateUser(email, password);
@@ -180,7 +181,10 @@ export async function POST(request: NextRequest) {
 
     if (userRecord && (userRecord.login_failed_attempts > 0 || userRecord.login_locked_until)) {
       try {
-        await updateAdminUser(userRecord.id, { login_failed_attempts: 0, login_locked_until: null });
+        await updateAdminUser(userRecord.id, {
+          login_failed_attempts: 0,
+          login_locked_until: null,
+        });
       } catch (e: any) {
         if (e.code !== "42703") {
           logger.error("Failed to reset admin user lockout", { error: e });

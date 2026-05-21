@@ -11,17 +11,18 @@
 **Next assessment:** 2026-11-15 (every 6 months)  
 **Assessment method:** Internal audit + automated scan (axe-core / Playwright)
 
-| Conformance Level | Status |
-|---|---|
-| WCAG 2.2 Level A | **Partially conformant** (see known issues below) |
-| WCAG 2.2 Level AA | **Partially conformant** (see known issues below) |
-| WCAG 2.2 Level AAA | Not targeted |
+| Conformance Level  | Status                                            |
+| ------------------ | ------------------------------------------------- |
+| WCAG 2.2 Level A   | **Partially conformant** (see known issues below) |
+| WCAG 2.2 Level AA  | **Partially conformant** (see known issues below) |
+| WCAG 2.2 Level AAA | Not targeted                                      |
 
 ---
 
 ## Scope
 
 This statement covers the web application served at:
+
 - `https://wristnerd.xyz`
 - `https://arabictools.wristnerd.xyz`
 - `https://crypto.wristnerd.xyz`
@@ -32,13 +33,13 @@ The admin dashboard (`/admin`) is intended for authenticated staff only and is p
 
 ## Known Non-Conformances
 
-| Criterion | Issue | Priority | Target fix |
-|---|---|---|---|
-| 1.4.3 Contrast Ratio | Some secondary text elements fall below 4.5:1 ratio | High | Q3 2026 |
-| 2.4.7 Focus Visible | Focus indicator not visible on some interactive controls in dark mode | High | Q3 2026 |
-| 1.1.1 Non-text Content | AI-generated product images lack descriptive alt text | Medium | Q3 2026 |
-| 4.1.3 Status Messages | Toast notifications not announced to screen readers | Medium | Q4 2026 |
-| 2.1.1 Keyboard | Some data table sort controls not keyboard-accessible | Low | Q4 2026 |
+| Criterion              | Issue                                                                 | Priority | Target fix |
+| ---------------------- | --------------------------------------------------------------------- | -------- | ---------- |
+| 1.4.3 Contrast Ratio   | Some secondary text elements fall below 4.5:1 ratio                   | High     | Q3 2026    |
+| 2.4.7 Focus Visible    | Focus indicator not visible on some interactive controls in dark mode | High     | Q3 2026    |
+| 1.1.1 Non-text Content | AI-generated product images lack descriptive alt text                 | Medium   | Q3 2026    |
+| 4.1.3 Status Messages  | Toast notifications not announced to screen readers                   | Medium   | Q4 2026    |
+| 2.1.1 Keyboard         | Some data table sort controls not keyboard-accessible                 | Low      | Q4 2026    |
 
 ---
 
@@ -63,9 +64,9 @@ We are committed to ensuring digital accessibility for people with disabilities.
 
 ## Complaints Log
 
-| Date | Issue reported | Case ID | Status | Resolution |
-|---|---|---|---|---|
-| (no complaints yet) | | | | |
+| Date                | Issue reported | Case ID | Status | Resolution |
+| ------------------- | -------------- | ------- | ------ | ---------- |
+| (no complaints yet) |                |         |        |            |
 
 Identifying details for accessibility complaints must be stored only in internal restricted systems.
 
@@ -81,9 +82,9 @@ Identifying details for accessibility complaints must be stored only in internal
 
 ## Legal Basis
 
-| Law | Jurisdiction | Applicability |
-|---|---|---|
-| ADA Title III | United States | Applies as a place of public accommodation operating in interstate commerce |
-| European Accessibility Act (EAA) 2025 | EU | Applies for EU-resident users from June 2025 |
-| AODA | Ontario, Canada | Applies if serving Ontario users |
-| EN 301 549 | EU | Technical standard referenced by EAA |
+| Law                                   | Jurisdiction    | Applicability                                                               |
+| ------------------------------------- | --------------- | --------------------------------------------------------------------------- |
+| ADA Title III                         | United States   | Applies as a place of public accommodation operating in interstate commerce |
+| European Accessibility Act (EAA) 2025 | EU              | Applies for EU-resident users from June 2025                                |
+| AODA                                  | Ontario, Canada | Applies if serving Ontario users                                            |
+| EN 301 549                            | EU              | Technical standard referenced by EAA                                        |

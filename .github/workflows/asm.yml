@@ -21,13 +21,13 @@ jobs:
           set -euo pipefail
           # A213: Scan known domains to detect shadow IT, new exposed ports, or unexpected certs.
           # We extract the custom domains from wrangler.jsonc
-          
+
           # Extract domains that have custom_domain: true
           DOMAINS=$(grep '"pattern"' wrangler.jsonc | grep 'custom_domain' | awk -F'"' '{print $4}' || true)
           # Add any site-only domains that might not be in wrangler.jsonc but are in config
           # For example: cryptoranked.xyz, aicompared.site
           DOMAINS="$DOMAINS cryptoranked.xyz aicompared.site"
-          
+
           for d in $DOMAINS; do
             echo "Scanning $d..."
             # Check certificate transparency logs
@@ -35,7 +35,7 @@ jobs:
             # Check for open ports (only 80, 443 should be open for web traffic)
             nmap -p 80,443,22,8080,9000 -Pn -T4 "$d" -oN "nmap-${d}.txt" || true
           done
-          
+
           # In a real environment, we would commit the baseline ct-*.txt and nmap-*.txt to the repo,
           # and then use git diff --exit-code to fail the build if there's any drift.
           # Here we just generate them to satisfy the A213 requirement structure.
