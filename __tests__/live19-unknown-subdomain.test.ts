@@ -11,9 +11,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // Mock the DB lookup so the test stays hermetic.
-const getSiteRowByDomain = vi.fn();
-vi.mock("@/lib/dal/sites", () => ({
-  getSiteRowByDomain: (...args: unknown[]) => getSiteRowByDomain(...args),
+const getMiddlewareSiteRowByDomain = vi.fn();
+vi.mock("@/lib/middleware-site-lookup", () => ({
+  getMiddlewareSiteRowByDomain: (...args: unknown[]) => getMiddlewareSiteRowByDomain(...args),
 }));
 
 // Mock CSP / Sentry so middleware doesn't try to reach external deps.
@@ -47,7 +47,7 @@ describe("LIVE-19 — unknown wristnerd.xyz subdomain → 404", () => {
   });
 
   it("returns 404 (rewrite to /not-found) when no DB row exists for the host", async () => {
-    getSiteRowByDomain.mockResolvedValue(null);
+    getMiddlewareSiteRowByDomain.mockResolvedValue(null);
 
     const { middleware } = await import("@/middleware");
     const res = await middleware(makeRequest("definitely-unprovisioned.wristnerd.xyz"));
@@ -59,7 +59,7 @@ describe("LIVE-19 — unknown wristnerd.xyz subdomain → 404", () => {
   });
 
   it("returns 404 when DB row exists but site is_active=false", async () => {
-    getSiteRowByDomain.mockResolvedValue({
+    getMiddlewareSiteRowByDomain.mockResolvedValue({
       id: "00000000-0000-0000-0000-000000000000",
       slug: "deactivated",
       is_active: false,
@@ -75,7 +75,7 @@ describe("LIVE-19 — unknown wristnerd.xyz subdomain → 404", () => {
     // wristnerd.xyz is in the static config, so the DB lookup is not
     // even consulted — the request must succeed (status undefined or
     // 200 from the request handler, never 404 from the middleware).
-    getSiteRowByDomain.mockResolvedValue(null);
+    getMiddlewareSiteRowByDomain.mockResolvedValue(null);
 
     const { middleware } = await import("@/middleware");
     const res = await middleware(makeRequest("wristnerd.xyz"));
