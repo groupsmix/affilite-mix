@@ -22,7 +22,7 @@ import posixpath
 import re
 import sys
 import zipfile
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from dataclasses import dataclass, asdict
 
 
@@ -466,3 +466,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
