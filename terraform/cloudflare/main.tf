@@ -269,7 +269,7 @@ resource "cloudflare_load_balancer" "dr_failover" {
   session_affinity_ttl = 1800
   session_affinity_attributes = {
     samesite = "Auto"
-    secure   = true
+    secure   = "Always"
   }
 }
 
