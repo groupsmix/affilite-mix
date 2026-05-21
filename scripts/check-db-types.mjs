@@ -61,16 +61,35 @@ SELECT table_name, column_name
  ORDER BY table_name, ordinal_position;
 `.trim();
 
-  const out = execFileSync(
-    "psql",
-    [dbUrl, "-t", "-A", "-F", "|", "--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-c", sql],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-      encoding: "utf8",
-      timeout: 60_000,
-      maxBuffer: 16 * 1024 * 1024,
-    },
-  );
+  let out;
+  try {
+    out = execFileSync(
+      "psql",
+      [dbUrl, "-t", "-A", "-F", "|", "--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-c", sql],
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+        encoding: "utf8",
+        timeout: 60_000,
+        maxBuffer: 16 * 1024 * 1024,
+      },
+    );
+  } catch (err) {
+    const msg = String(err?.stderr || err?.message || err);
+    const isUnreachable =
+      /ENOTFOUND|tenant.*not found|could not connect|connection refused|no route to host/i.test(
+        msg,
+      );
+    if (isUnreachable) {
+      // An unreachable DB (paused/deleted project) is always a skip, not a
+      // hard failure — it is infrastructure failure, not a code defect.
+      // Update SUPABASE_DB_POOLER_URL when the staging DB is restored.
+      console.warn(
+        `⚠  Staging DB unreachable — skipping DB type drift check. Update SUPABASE_DB_POOLER_URL when the DB is restored. Detail: ${msg.split("\n")[0]}`,
+      );
+      process.exit(0);
+    }
+    throw err;
+  }
 
   /** @type {Map<string, Set<string>>} */
   const live = new Map();

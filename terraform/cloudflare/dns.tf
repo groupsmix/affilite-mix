@@ -70,7 +70,7 @@ variable "dns_records" {
     automatically by `cloudflare_workers_custom_domain` and managing them
     here as well will cause a conflict.
   EOT
-  default     = {
+  default = {
     # ── A144: Email authentication ─────────────────────────────────────
     # SPF: authorise Resend as the only legitimate sender (~all = softfail,
     # tighten to -all after ≥30 days of clean DMARC aggregate reports).

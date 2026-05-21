@@ -63,10 +63,13 @@ export async function POST(request: NextRequest) {
           subscriptionId: stripeSub.id,
           customerId: typeof stripeSub.customer === "string" ? stripeSub.customer : undefined,
         });
-        
+
         try {
           const { captureMessage } = await import("@/lib/sentry");
-          captureMessage(`OF-08: Active Stripe subscription has no DB membership row: ${stripeSub.id}`, "warning");
+          captureMessage(
+            `OF-08: Active Stripe subscription has no DB membership row: ${stripeSub.id}`,
+            "warning",
+          );
         } catch {
           // ignore if sentry is not available
         }
@@ -96,7 +99,10 @@ export async function POST(request: NextRequest) {
         });
         try {
           const { captureMessage } = await import("@/lib/sentry");
-          captureMessage(`OF-08: Correcting stale membership status for ${stripeSub.id} (was ${dbMembership.status})`, "warning");
+          captureMessage(
+            `OF-08: Correcting stale membership status for ${stripeSub.id} (was ${dbMembership.status})`,
+            "warning",
+          );
         } catch {
           // ignore if sentry is not available
         }

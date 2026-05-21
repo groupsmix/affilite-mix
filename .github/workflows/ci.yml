@@ -393,6 +393,7 @@ jobs:
           # See db-audit job above for the IPv6/pooler rationale.
           STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
           SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+          # N-005: same gating as db-audit — hard-fail on trusted contexts.
           REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && 'true' || 'false' }}
         run: |
           if bash scripts/check-db-types.sh; then

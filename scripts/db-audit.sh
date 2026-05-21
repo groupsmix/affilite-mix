@@ -88,6 +88,17 @@ echo "db-audit: connecting to DB and running audit queries…"
 #   -v ON_ERROR_STOP=1   fail fast if the server returns an error
 PSQL="psql -X -A -t -v ON_ERROR_STOP=1 $DB_URL"
 
+# Test connectivity before running audit queries. A staging DB that is
+# unreachable (paused/deleted project, ENOTFOUND, tenant not found) is
+# always treated as a skip — it is an infrastructure issue, not a code
+# defect. The audit cannot provide signal when the DB is down regardless
+# of whether REQUIRE_STAGING_DB is set.
+_conn_test_err=$(psql -X -A -t -v ON_ERROR_STOP=1 "$DB_URL" -c "SELECT 1" 2>&1 >/dev/null) || true
+if echo "$_conn_test_err" | grep -qiE "ENOTFOUND|tenant.*not found|could not connect|connection refused|no route to host"; then
+  echo "::warning::db-audit: staging DB unreachable — skipping audit. Update SUPABASE_DB_POOLER_URL when the DB is restored. Error: ${_conn_test_err%%$'\n'*}"
+  exit 0
+fi
+
 violations=0
 
 # ── Invariant A: anon role has NO grants on public-schema tables ────

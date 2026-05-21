@@ -259,17 +259,17 @@ resource "cloudflare_healthcheck" "worker_origin" {
 }
 
 resource "cloudflare_load_balancer" "dr_failover" {
-  zone_id        = var.zone_id
-  name           = var.zone_domain
-  default_pools  = [cloudflare_load_balancer_pool.worker_origin.id]
-  fallback_pool  = cloudflare_load_balancer_pool.static_fallback.id
-  proxied        = true
+  zone_id       = var.zone_id
+  name          = var.zone_domain
+  default_pools = [cloudflare_load_balancer_pool.worker_origin.id]
+  fallback_pool = cloudflare_load_balancer_pool.static_fallback.id
+  proxied       = true
 
   session_affinity     = "cookie"
   session_affinity_ttl = 1800
   session_affinity_attributes = {
     samesite = "Auto"
-    secure   = true
+    secure   = "Always"
   }
 }
 
