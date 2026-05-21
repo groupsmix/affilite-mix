@@ -262,7 +262,14 @@ export async function POST(request: NextRequest) {
     }
 
     const rows = validMessages.map((m) => {
-      const row: Record<string, unknown> = {
+      const row: {
+        site_id: string;
+        product_name: string;
+        affiliate_url: string;
+        content_slug: string;
+        referrer: string;
+        click_id?: string;
+      } = {
         site_id: m.site_id,
         product_name: m.product_name,
         affiliate_url: m.affiliate_url,
