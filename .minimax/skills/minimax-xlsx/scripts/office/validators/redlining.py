@@ -31,7 +31,7 @@ class RedliningValidator:
         try:
             import defusedxml.ElementTree as ET
 
-            tree = ET.parse(modified_file)
+            tree = ET.parse(modified_file)  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
             root = tree.getroot()
 
             del_elements = root.findall(".//w:del", self.namespaces)
@@ -76,9 +76,9 @@ class RedliningValidator:
             try:
                 import defusedxml.ElementTree as ET
 
-                modified_tree = ET.parse(modified_file)
+                modified_tree = ET.parse(modified_file)  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
                 modified_root = modified_tree.getroot()
-                original_tree = ET.parse(original_file)
+                original_tree = ET.parse(original_file)  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
                 original_root = original_tree.getroot()
             except ET.ParseError as e:
                 print(f"FAILED - Error parsing XML files: {e}")

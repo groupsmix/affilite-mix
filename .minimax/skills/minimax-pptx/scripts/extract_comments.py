@@ -86,7 +86,7 @@ def read_xml(zf: zipfile.ZipFile, entry: str) -> ET.Element | None:
     """Read and parse an XML entry from the ZIP, returning None on failure."""
     try:
         with zf.open(entry) as f:
-            return ET.parse(f).getroot()
+            return ET.parse(f).getroot()  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
     except (KeyError, ET.ParseError) as exc:
         print(f"Warning: could not parse {entry}: {exc}", file=sys.stderr)
         return None
