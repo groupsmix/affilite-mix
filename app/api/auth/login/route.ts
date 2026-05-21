@@ -1,5 +1,3 @@
-export const runtime = "edge";
-
 import { NextRequest, NextResponse } from "next/server";
 import {
   authenticateUser,
@@ -79,7 +77,7 @@ const LOGIN_RATE_LIMIT_EMAIL = {
 };
 
 export async function POST(request: NextRequest) {
-  // F-FE-01: Fail fast if critical env vars are missing in edge runtime.
+  // F-FE-01: Fail fast if critical env vars are missing at runtime.
   // Checked at request time (not module load) to avoid build-time failures.
   // Only enforced in production — dev/test uses a random fallback via lib/jwt-secret.ts.
   if (

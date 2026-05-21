@@ -260,9 +260,9 @@ describe("Audit-3 regression locks", () => {
     });
 
     it("middleware short-circuits on negative-cache hit before DB lookup", () => {
-      // The negative cache check comes BEFORE getSiteRowByDomain.
+      // The negative cache check comes BEFORE getMiddlewareSiteRowByDomain.
       const idxNegative = mw.indexOf("site-domain-miss:");
-      const idxDb = mw.indexOf("getSiteRowByDomain(hostname)");
+      const idxDb = mw.indexOf("getMiddlewareSiteRowByDomain(hostname)");
       expect(idxNegative).toBeGreaterThan(0);
       expect(idxDb).toBeGreaterThan(idxNegative);
     });

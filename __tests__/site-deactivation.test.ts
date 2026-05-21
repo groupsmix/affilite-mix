@@ -2,19 +2,19 @@
  * Tests for the middleware DB-fallback deactivation branch.
  *
  * When a hostname is not in the static `config/sites` registry, middleware
- * falls back to a direct DB lookup via `getSiteRowByDomain()`. If the DB
+ * falls back to a direct DB lookup via `getMiddlewareSiteRowByDomain()`. If the DB
  * reports the site exists but is deactivated (`is_active: false`), middleware
  * must short-circuit with the tenant-aware "Niche Not Found" 404 rewrite
  * rather than continuing to inject an `x-site-id` header for a disabled tenant.
  *
- * These tests mock `getSiteRowByDomain` so no real Supabase call happens —
+ * These tests mock `getMiddlewareSiteRowByDomain` so no real Supabase call happens —
  * the deactivation decision lives in middleware itself.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/dal/sites", () => ({
-  getSiteRowByDomain: vi.fn(),
+vi.mock("@/lib/middleware-site-lookup", () => ({
+  getMiddlewareSiteRowByDomain: vi.fn(),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -22,9 +22,9 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 
 import { middleware } from "@/middleware";
-import { getSiteRowByDomain } from "@/lib/dal/sites";
+import { getMiddlewareSiteRowByDomain } from "@/lib/middleware-site-lookup";
 
-const mockedGetSiteRowByDomain = vi.mocked(getSiteRowByDomain);
+const mockedGetSiteRowByDomain = vi.mocked(getMiddlewareSiteRowByDomain);
 
 describe("middleware DB-fallback deactivation branch", () => {
   beforeEach(() => {

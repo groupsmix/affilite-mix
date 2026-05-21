@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSiteByDomain } from "@/config/sites";
 import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
-import { getSiteRowByDomain } from "@/lib/dal/sites";
+import { getMiddlewareSiteRowByDomain } from "@/lib/middleware-site-lookup";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
 import { buildCspHeader, generateCspNonce, NONCE_HEADER, buildReportToHeader } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
@@ -348,7 +348,7 @@ async function innerMiddleware(request: NextRequest) {
         return nicheNotFoundResponse(request);
       }
 
-      const row = cachedRow || (await getSiteRowByDomain(hostname));
+      const row = cachedRow || (await getMiddlewareSiteRowByDomain(hostname));
       if (row && !cachedRow) {
         try {
           const kv = getAppCacheKV();
@@ -382,7 +382,7 @@ async function innerMiddleware(request: NextRequest) {
       // F-025: Log structured error with trace id and emit Sentry instead of silent failure
       console.error(`[middleware] DB lookup failed for domain: ${hostname}`, { traceId, err });
       captureException(err, {
-        context: "[middleware] getSiteRowByDomain",
+        context: "[middleware] getMiddlewareSiteRowByDomain",
         extra: { hostname, traceId },
       });
 

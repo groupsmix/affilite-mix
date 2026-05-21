@@ -18,8 +18,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/dal/sites", () => ({
-  getSiteRowByDomain: vi.fn(),
+vi.mock("@/lib/middleware-site-lookup", () => ({
+  getMiddlewareSiteRowByDomain: vi.fn(),
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -27,10 +27,10 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 
 import { middleware } from "@/middleware";
-import { getSiteRowByDomain } from "@/lib/dal/sites";
+import { getMiddlewareSiteRowByDomain } from "@/lib/middleware-site-lookup";
 import { isWildcardSubdomain } from "@/config/sites";
 
-const mockedGetSiteRowByDomain = vi.mocked(getSiteRowByDomain);
+const mockedGetSiteRowByDomain = vi.mocked(getMiddlewareSiteRowByDomain);
 
 describe("middleware unknown wildcard subdomain rejection (LIVE-19)", () => {
   beforeEach(() => {
