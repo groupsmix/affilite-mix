@@ -1,0 +1,170 @@
+import { truncateIp } from "./get-client-ip";
+/**
+ * Structured logger.
+ *
+ * Every log line is emitted as a single JSON object so Cloudflare's log
+ * stream (and downstream consumers like Sentry, Logflare, or Better Stack)
+ * can parse it without a grammar.  The shape is deliberately flat:
+ *
+ *     { "ts": "…", "level": "info", "msg": "…", "ctx": "…", <...extras> }
+ *
+ * A request-scoped correlation ID is generated per API request and propagated
+ * via the `x-trace-id` header in `middleware.ts`. Passing it into
+ * `logger.child({ requestId })` adds it to every subsequent log line
+ * emitted through that child so log lines from a single request can be
+ * correlated end-to-end.
+ */
+
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
+const LEVEL_ORDER: Record<LogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+};
+
+const cachedLogLevel = (process.env.LOG_LEVEL ?? "").toLowerCase();
+const cachedIsProduction = process.env.NODE_ENV === "production";
+const cachedThreshold = (() => {
+  if (cachedLogLevel === "debug" || cachedLogLevel === "info" || cachedLogLevel === "warn" || cachedLogLevel === "error") {
+    return LEVEL_ORDER[cachedLogLevel as LogLevel];
+  }
+  return cachedIsProduction ? LEVEL_ORDER.info : LEVEL_ORDER.debug;
+})();
+
+function currentThreshold(): number {
+  return cachedThreshold;
+}
+
+export interface Logger {
+  debug: (msg: string, extras?: Record<string, unknown>) => void;
+  info: (msg: string, extras?: Record<string, unknown>) => void;
+  warn: (msg: string, extras?: Record<string, unknown>) => void;
+  error: (msg: string, extras?: Record<string, unknown>) => void;
+  /** Return a new logger whose emitted lines include the given bindings. */
+  child: (bindings: Record<string, unknown>) => Logger;
+}
+
+function emit(
+  level: LogLevel,
+  bindings: Record<string, unknown>,
+  msg: string,
+  extras?: Record<string, unknown>,
+) {
+  if (LEVEL_ORDER[level] < currentThreshold()) return;
+
+  // A93: sampling for high-volume log lines in production
+  if (cachedIsProduction && extras?.sampleRate !== undefined) {
+    const rate = typeof extras.sampleRate === "number" ? extras.sampleRate : 1.0;
+    if (Math.random() > rate) return;
+  }
+
+  const { sampleRate: _, ...cleanExtras } = extras ?? {};
+
+  const line = {
+    ts: new Date().toISOString(),
+    level,
+    msg,
+    ...bindings,
+    ...cleanExtras,
+  };
+
+  // Serialise once so we can survive non-cloneable values (Error, etc.)
+  const serialised = JSON.stringify(line, jsonReplacer);
+
+  // Route through the matching console method so Cloudflare colourises
+  // correctly and log-tailing tools can still filter by level.
+  switch (level) {
+    case "debug":
+    case "info":
+      console.log(serialised);
+      return;
+    case "warn":
+      console.warn(serialised);
+      return;
+    case "error":
+      console.error(serialised);
+  }
+}
+
+/**
+ * F-OBS-02: PII field deny-list. These fields are unconditionally redacted
+ * from log output to prevent accidental PII leakage.
+ */
+const DENIED_LOG_FIELDS = new Set([
+  "email",
+  "password",
+  "secret",
+  "token",
+  "cookie",
+  "authorization",
+  "body",
+  "password_hash",
+  "totp_secret",
+  "reset_token",
+  "api_key",
+  "apikey",
+  "access_token",
+  "refresh_token",
+  // A41 / A8: additional PII / payment fields
+  "phone",
+  "phone_number",
+  "mobile",
+  "ssn",
+  "social_security",
+  "national_insurance",
+  "ni_number",
+  "dob",
+  "date_of_birth",
+  "card",
+  "card_number",
+  "pan",
+  "cvv",
+  "cvc",
+  "expiry",
+  "card_expiry",
+  "payment_method",
+  "bank_account",
+  "iban",
+  "routing_number",
+  "private_key",
+  "private",
+  "credential",
+  "credentials",
+  "passphrase",
+  "pin",
+]);
+
+function jsonReplacer(key: string, value: unknown): unknown {
+  if (value instanceof Error) {
+    let stack = value.stack;
+    if (cachedIsProduction && stack) {
+      const lines = stack.split("\n");
+      stack = lines.slice(0, 6).join("\n");
+    }
+    return { message: value.message, name: value.name, stack };
+  }
+  // F-OBS-02: Redact denied PII fields
+  if (DENIED_LOG_FIELDS.has(key.toLowerCase())) {
+    return "[REDACTED]";
+  }
+  // F-026: Tighten IP truncation logic to catch all common IP keys
+  if (/^(?:req_)?ip(?:_address)?$|peer(?:_ip)?|^client_ip$/i.test(key)) {
+    return typeof value === "string" ? truncateIp(value) : value;
+  }
+  return value;
+}
+
+function build(bindings: Record<string, unknown>): Logger {
+  return {
+    debug: (msg, extras) => emit("debug", bindings, msg, extras),
+    info: (msg, extras) => emit("info", bindings, msg, extras),
+    warn: (msg, extras) => emit("warn", bindings, msg, extras),
+    error: (msg, extras) => emit("error", bindings, msg, extras),
+    child: (extra) => build({ ...bindings, ...extra }),
+  };
+}
+
+/** The root logger.  Use `logger.child({ requestId })` inside API routes. */
+export const logger: Logger = build({});

@@ -1,0 +1,317 @@
+﻿import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin, assertRole } from "@/lib/admin-guard";
+import { allSites } from "@/config/sites";
+import { listSites, createSite, updateSite, deleteSite } from "@/lib/dal/sites";
+import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
+import { recordAuditEvent } from "@/lib/audit-log";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { captureException } from "@/lib/sentry";
+import { parseJsonBody } from "@/lib/api-error";
+import { validateAdminUrlFields } from "@/lib/admin-url-guard";
+
+/** 100 admin API requests per minute per user session (3.30) */
+const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
+
+async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
+  const key = `admin:${email ?? userId ?? "unknown"}`;
+  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+  return null;
+}
+
+/** GET /api/admin/sites — list all available sites (super_admin: all, admin: membership-filtered) */
+export async function GET() {
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
+
+  // Non-super_admin users only see sites they have membership for
+  let allowedSiteIds: Set<string> | null = null;
+  if (session.role !== "super_admin" && session.userId) {
+    const memberships = await listAdminSiteMemberships(session.userId);
+    allowedSiteIds = new Set(memberships.map((m) => m.site_id));
+  }
+
+  // Try DB first — returns full SiteRow data with all fields
+  let dbSites: {
+    id: string;
+    slug: string;
+    name: string;
+    domain: string;
+    language: string;
+    direction: string;
+    is_active: boolean;
+    monetization_type: string;
+    est_revenue_per_click: number;
+    theme: Record<string, unknown>;
+    features: Record<string, boolean>;
+    meta_title: string | null;
+    meta_description: string | null;
+    source: "database";
+    db_id: string;
+    created_at: string;
+  }[] = [];
+  try {
+    const rows = await listSites();
+    dbSites = rows.map((r) => ({
+      id: r.slug,
+      slug: r.slug,
+      name: r.name,
+      domain: r.domain,
+      language: r.language,
+      direction: r.direction,
+      is_active: r.is_active,
+      monetization_type: r.monetization_type,
+      est_revenue_per_click: r.est_revenue_per_click,
+      theme: r.theme,
+      features: r.features,
+      meta_title: r.meta_title,
+      meta_description: r.meta_description,
+      source: "database" as const,
+      created_at: r.created_at,
+      db_id: r.id,
+    }));
+  } catch {
+    // DB might not be reachable; fall back to config-only
+  }
+
+  // Config fallback for sites not in DB
+  const configSites = allSites.map((s) => ({
+    id: s.id,
+    slug: s.id,
+    name: s.name,
+    domain: s.domain,
+    language: s.language,
+    direction: s.direction,
+    monetization_type: s.monetizationType,
+    theme: {
+      primaryColor: s.theme.primaryColor,
+      accentColor: s.theme.accentColor,
+    } as Record<string, unknown>,
+    source: "config" as const,
+  }));
+
+  const dbSlugs = new Set(dbSites.map((s) => s.id));
+  let mergedSites = [...dbSites, ...configSites.filter((s) => !dbSlugs.has(s.id))];
+
+  // Filter to membership-allowed sites for non-super_admin users
+  if (allowedSiteIds) {
+    mergedSites = mergedSites.filter((s) => allowedSiteIds.has("db_id" in s ? s.db_id : s.id));
+  }
+
+  return NextResponse.json({ sites: mergedSites });
+}
+
+/** POST /api/admin/sites — create a new site (super_admin only) */
+export async function POST(request: NextRequest) {
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
+
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const body = bodyOrError;
+  const { slug, name, domain } = body as {
+    slug?: string;
+    name?: string;
+    domain?: string;
+  };
+
+  if (!slug || !name || !domain) {
+    return NextResponse.json({ error: "slug, name, and domain are required" }, { status: 400 });
+  }
+
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    return NextResponse.json(
+      { error: "slug must be lowercase alphanumeric with hyphens only" },
+      { status: 400 },
+    );
+  }
+
+  // G-01: validate URL-typed fields before persisting a new site row.
+  const createUrlErr = validateAdminUrlFields({
+    logo_url: body.logo_url as string | null | undefined,
+    favicon_url: body.favicon_url as string | null | undefined,
+    og_image_url: body.og_image_url as string | null | undefined,
+  });
+  if (createUrlErr) {
+    return NextResponse.json({ error: createUrlErr.error }, { status: 400 });
+  }
+
+  try {
+    const site = await createSite({
+      slug,
+      name,
+      domain,
+      language: body.language as string | undefined,
+      direction: body.direction as "ltr" | "rtl" | undefined,
+      is_active: body.is_active as boolean | undefined,
+      monetization_type: body.monetization_type as "affiliate" | "ads" | "both" | undefined,
+      est_revenue_per_click: body.est_revenue_per_click as number | undefined,
+      ad_config: body.ad_config as Record<string, unknown> | undefined,
+      theme: body.theme as Record<string, unknown> | undefined,
+      logo_url: body.logo_url as string | null | undefined,
+      favicon_url: body.favicon_url as string | null | undefined,
+      nav_items: body.nav_items as { label: string; href: string; icon?: string }[] | undefined,
+      footer_nav: body.footer_nav as { label: string; href: string; icon?: string }[] | undefined,
+      features: body.features as Record<string, boolean> | undefined,
+      meta_title: body.meta_title as string | null | undefined,
+      meta_description: body.meta_description as string | null | undefined,
+      og_image_url: body.og_image_url as string | null | undefined,
+      social_links: body.social_links as Record<string, string> | undefined,
+    });
+    void recordAuditEvent({
+      site_id: site.id,
+      actor: session.email ?? "admin",
+      action: "create",
+      entity_type: "site",
+      entity_id: site.id,
+      details: { slug, name, domain },
+    });
+    return NextResponse.json(site, { status: 201 });
+  } catch (err) {
+    captureException(err, { context: "[api/admin/sites] POST create failed:" });
+    const message = err instanceof Error ? err.message : "Failed to create site";
+    if (message.includes("duplicate") || message.includes("unique")) {
+      return NextResponse.json(
+        { error: "A site with this slug or domain already exists" },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/** PATCH /api/admin/sites — update an existing site (super_admin only) */
+export async function PATCH(request: NextRequest) {
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
+
+  const patchBodyOrError = await parseJsonBody(request);
+  if (patchBodyOrError instanceof NextResponse) return patchBodyOrError;
+  const body = patchBodyOrError;
+  const { id } = body as { id?: string };
+
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  // Build updates from all allowed fields
+  const allowedFields = [
+    "name",
+    "domain",
+    "language",
+    "direction",
+    "is_active",
+    "monetization_type",
+    "est_revenue_per_click",
+    "ad_config",
+    "theme",
+    "logo_url",
+    "favicon_url",
+    "nav_items",
+    "footer_nav",
+    "features",
+    "meta_title",
+    "meta_description",
+    "og_image_url",
+    "social_links",
+  ] as const;
+
+  const updates: Record<string, unknown> = {};
+  for (const field of allowedFields) {
+    if (body[field] !== undefined) {
+      updates[field] = body[field];
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+  }
+
+  // G-01: validate any URL-typed fields being updated.
+  const urlFields: Record<string, string | null | undefined> = {};
+  for (const k of ["logo_url", "favicon_url", "og_image_url"] as const) {
+    if (updates[k] !== undefined) urlFields[k] = updates[k] as string | null;
+  }
+  const updateUrlErr = validateAdminUrlFields(urlFields);
+  if (updateUrlErr) {
+    return NextResponse.json({ error: updateUrlErr.error }, { status: 400 });
+  }
+
+  try {
+    const site = await updateSite(id, updates);
+    void recordAuditEvent({
+      site_id: id,
+      actor: session.email ?? "admin",
+      action: "update",
+      entity_type: "site",
+      entity_id: id,
+      details: updates as Record<string, unknown>,
+    });
+    return NextResponse.json(site);
+  } catch (err) {
+    captureException(err, { context: "[api/admin/sites] PATCH update failed:" });
+    const message = err instanceof Error ? err.message : "Failed to update site";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/** DELETE /api/admin/sites — delete a site (super_admin only) */
+export async function DELETE(request: NextRequest) {
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // G-45: standardised 401 + Bearer challenge instead of 403.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
+
+  const rlError = await enforceRateLimit(session.email, session.userId);
+  if (rlError) return rlError;
+
+  const { searchParams } = request.nextUrl;
+  const id = searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  try {
+    await deleteSite(id);
+    void recordAuditEvent({
+      site_id: id,
+      actor: session.email ?? "admin",
+      action: "delete",
+      entity_type: "site",
+      entity_id: id,
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    captureException(err, { context: "[api/admin/sites] DELETE failed:" });
+    const message = err instanceof Error ? err.message : "Failed to delete site";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

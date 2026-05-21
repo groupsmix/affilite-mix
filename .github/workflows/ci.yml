@@ -1,0 +1,484 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# CI only reads the repo — it never needs to write back, comment on PRs,
+# or use OIDC. Restrict the default GITHUB_TOKEN accordingly.
+permissions:
+  contents: read
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+  SUPABASE_SERVICE_ROLE_KEY: placeholder
+  JWT_SECRET: ci-test-secret
+  INTERNAL_API_TOKEN: ci-test-internal-token
+  CRON_SECRET: ci-test-cron-secret
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
+  TURNSTILE_SECRET_KEY: ""
+  NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Dependency allow-list guard (A214)
+        run: node scripts/check-dependency-allowlist.mjs
+      - run: npm ci
+      - name: Prettier format check (FR-0004)
+        run: npm run format:check
+      - name: Security audit
+        run: npm audit --audit-level=high
+      - name: Migration policy lint (E-2)
+        run: bash scripts/check-migrations.sh
+      - name: Env-var documentation guard (G-13)
+        run: bash scripts/check-env-docs.sh
+      - run: npm run lint -- --max-warnings=0
+      - run: npm test
+      - name: Vitest coverage threshold (G-37)
+        run: npm run test:coverage
+      - run: npm run typecheck:all
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://xyz.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+      - name: Bundle size check
+        run: npx size-limit
+      - name: Verify no dev fallback secrets in production (F-018, F-021)
+        run: |
+          # Ensure wrangler.jsonc production vars don't contain dev fallback tokens.
+          # The dev fallback token is defined in lib/internal-auth.ts as
+          # DEV_FALLBACK_INTERNAL_TOKEN = "__dev_only_change_me__"
+          # NEW-007: previously this check used the wrong string; now matches source.
+          DEV_TOKEN="__dev_only_change_me__"
+          if grep -q "$DEV_TOKEN" wrangler.jsonc; then
+            echo "::error::Dev fallback INTERNAL_API_TOKEN found in wrangler.jsonc — remove it before deploying to production."
+            exit 1
+          fi
+          echo "No dev fallback tokens found in wrangler.jsonc."
+
+      - name: Admin route authz enforcement (F-01)
+        run: |
+          # F-01: Every app/api/admin/**/route.ts MUST import requireAdmin,
+          # withAuthz, or withAuthzDynamic. A route that imports DAL
+          # without an authz wrapper is a cross-tenant data exposure risk.
+          set -euo pipefail
+          VIOLATIONS=""
+          for file in $(find app/api/admin -name 'route.ts' -o -name 'route.tsx'); do
+            if ! grep -qE 'requireAdmin|withAuthz|withAuthzDynamic' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Admin routes missing authz import (requireAdmin/withAuthz/withAuthzDynamic):$VIOLATIONS"
+            exit 1
+          fi
+          echo "All admin routes import an approved authz wrapper."
+
+      - name: Admin route DAL usage audit (PRIORITY 1)
+        run: |
+          # P1-11: Fail closed when scripts/tools are missing — never skip
+          # security-critical checks silently.
+          set -euo pipefail
+          if [ ! -f "scripts/check-admin-authz.sh" ]; then
+            echo "::error::scripts/check-admin-authz.sh is missing — admin authz audit cannot run. This is a required check."
+            exit 1
+          fi
+          bash scripts/check-admin-authz.sh || exit 1
+
+      - name: DAL site_id scoping audit (AUDIT-FIX)
+        run: |
+          set -euo pipefail
+          if [ ! -f "scripts/check-dal-site-scoping.sh" ]; then
+            echo "::error::scripts/check-dal-site-scoping.sh is missing — DAL site scoping audit cannot run."
+            exit 1
+          fi
+          bash scripts/check-dal-site-scoping.sh || exit 1
+
+      - name: Unchecked TODO/FIXME/HACK audit (A89)
+        run: |
+          set -euo pipefail
+          bash scripts/check-todos.sh || exit 1
+
+      - name: CORS security tests (PRIORITY 2)
+        run: |
+          # P1-11: Fail closed when test files are missing.
+          set -euo pipefail
+          if [ ! -f "__tests__/cors-security.test.ts" ]; then
+            echo "::error::__tests__/cors-security.test.ts is missing — CORS security tests cannot run. This is a required check."
+            exit 1
+          fi
+          echo "Running CORS security tests..."
+          npm test -- __tests__/cors-security.test.ts
+
+      - name: Internal API routes auth enforcement (P1-7)
+        run: |
+          set -euo pipefail
+          echo "Scanning app/api/internal/**/route.ts for auth mechanisms..."
+          VIOLATIONS=""
+          for file in $(find app/api/internal -name 'route.ts' -o -name 'route.tsx' 2>/dev/null); do
+            if ! grep -qE 'requireInternalAuth|getInternalToken|verifyInternalHmac|INTERNAL_HEADER|getInternalTokenFor' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Internal API routes missing auth (requireInternalAuth/getInternalToken/verifyInternalHmac/INTERNAL_HEADER):$VIOLATIONS"
+            exit 1
+          fi
+          echo "All internal API routes import an approved auth mechanism."
+
+      - name: Service-role import scan (P1-6)
+        run: |
+          set -euo pipefail
+          # Scan non-exempt API routes for privileged client imports.
+          # Allowed: cron, internal, membership/webhook, admin routes.
+          VIOLATIONS=""
+          for file in $(find app/api -name 'route.ts' -o -name 'route.tsx' | grep -v 'app/api/cron/' | grep -v 'app/api/internal/' | grep -v 'app/api/membership/webhook/' | grep -v 'app/api/admin/' | grep -v 'app/api/queue/'); do
+            if grep -qE 'getPrivilegedSupabaseClient|getServiceClient|service-role' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Non-exempt API routes importing service-role client (bypasses RLS):$VIOLATIONS"
+            exit 1
+          fi
+          echo "No unauthorized service-role imports in public API routes."
+
+      - name: R2 bucket isolation validation (G-09)
+        run: |
+          # G-09: inspect the actual Worker config (`wrangler.jsonc`),
+          # not `.env.example`. The latter ships with empty values by
+          # design, so grep-ing it was always a no-op. This check fails
+          # if the public and private R2 bucket bindings point at the
+          # same `bucket_name`, which would make unvalidated uploads
+          # publicly reachable.
+          set -euo pipefail
+          if [ ! -f wrangler.jsonc ]; then
+            echo "wrangler.jsonc not found, skipping R2 isolation check"
+            exit 0
+          fi
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "::error::jq is required for R2 isolation check but is not installed"
+            exit 1
+          fi
+          # Strip JSONC line comments and trailing commas so `jq` can parse the file.
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
+            | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
+          R2_PUBLIC=$(echo "$WRANGLER_JSON" | jq -r '
+            [ (.env.production.r2_buckets // .r2_buckets // [])[]
+              | select(.binding == "R2_PUBLIC_BUCKET" or .binding == "NEXT_INC_CACHE_R2_BUCKET")
+              | .bucket_name ]
+            | .[0] // ""
+          ')
+          R2_PRIVATE=$(echo "$WRANGLER_JSON" | jq -r '
+            [ (.env.production.r2_buckets // .r2_buckets // [])[]
+              | select(.binding == "R2_PRIVATE_BUCKET")
+              | .bucket_name ]
+            | .[0] // ""
+          ')
+          echo "R2_PUBLIC_BUCKET=$R2_PUBLIC"
+          echo "R2_PRIVATE_BUCKET=$R2_PRIVATE"
+          if [ -n "$R2_PUBLIC" ] && [ -n "$R2_PRIVATE" ] && [ "$R2_PUBLIC" = "$R2_PRIVATE" ]; then
+            echo "::error::R2_PUBLIC_BUCKET and R2_PRIVATE_BUCKET point at the same bucket ('$R2_PUBLIC')."
+            echo "::error::Production must isolate public and private buckets so unvalidated uploads are not publicly reachable."
+            exit 1
+          fi
+
+      - name: Fail-closed rate limiting on security routes (F-006)
+        run: |
+          # F-006: Security-critical routes (auth, admin mutations) must use
+          # failPolicy: "closed" so rate limiting is never silently skipped
+          # when the distributed limiter (KV/DO) is unavailable.
+          set -euo pipefail
+          VIOLATIONS=""
+          SECURITY_ROUTES=(
+            "app/api/auth/login/route.ts"
+            "app/api/auth/forgot-password/route.ts"
+            "app/api/auth/reset-password/route.ts"
+            "app/api/auth/refresh/route.ts"
+            "app/api/auth/me/route.ts"
+          )
+          for route in "${SECURITY_ROUTES[@]}"; do
+            if [ -f "$route" ]; then
+              if grep -q "checkRateLimit" "$route" && ! grep -q 'failPolicy.*"closed"' "$route"; then
+                VIOLATIONS="$VIOLATIONS $route"
+              fi
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Security routes missing failPolicy: \"closed\":$VIOLATIONS"
+            echo "::error::All auth/admin rate-limited routes must use failPolicy: \"closed\" to prevent abuse during KV/DO outages."
+            exit 1
+          fi
+          echo "All security-critical routes use fail-closed rate limiting."
+
+      - name: Raw IP header parsing check (Risk-6)
+        run: |
+          # Risk-6: All API routes must use getClientIp() for IP extraction.
+          # Raw x-forwarded-for parsing is inconsistent and misses
+          # CF-Connecting-IP. Exempt lib/get-client-ip.ts itself.
+          set -euo pipefail
+          VIOLATIONS=""
+          for file in $(find app/api -name '*.ts' -o -name '*.tsx' | grep -v node_modules); do
+            if grep -q 'x-forwarded-for' "$file" && ! grep -q 'getClientIp' "$file"; then
+              VIOLATIONS="$VIOLATIONS $file"
+            fi
+          done
+          # Also check for direct header access in route files
+          for file in $(find app/api -name 'route.ts' -o -name 'route.tsx'); do
+            if grep -qE "headers\.get\(['\"]x-forwarded-for" "$file" 2>/dev/null; then
+              if ! grep -q 'getClientIp' "$file"; then
+                VIOLATIONS="$VIOLATIONS $file"
+              fi
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::API routes using raw IP header parsing instead of getClientIp():$VIOLATIONS"
+            echo "::error::Use getClientIp(request) from @/lib/get-client-ip for consistent, safe IP extraction."
+            exit 1
+          fi
+          echo "All API routes use centralized IP extraction."
+
+      - name: Verify Stripe uses Restricted API Keys (F-033)
+        run: |
+          # FIX-15 (F-033): Stripe legacy sk_live_ / sk_test_ keys grant full account
+          # access. Restricted API Keys (rk_live_ / rk_test_) limit permissions
+          # to only the operations this app needs. This check ensures the
+          # .env.example and documentation reference only restricted keys.
+          if grep -qE 'sk_live_|sk_test_' .env.example 2>/dev/null; then
+            echo "::warning::Legacy Stripe key prefix (sk_live_/sk_test_) found in .env.example — migrate to Restricted API Keys (rk_live_/rk_test_)."
+          fi
+          echo "Stripe API key prefix check passed."
+
+      - name: Lockfile integrity check (P2-7)
+        run: |
+          # P2-7: Ensure package-lock.json is in sync with package.json.
+          # npm ci already validates this, but an explicit check gives a
+          # clearer error message when the lockfile has drifted.
+          # Note: avoid piping npm ci output through head with pipefail,
+          # as head closing the pipe early triggers SIGPIPE failures.
+          set -euo pipefail
+          npm ci --dry-run > /tmp/lockfile-check.log 2>&1 || {
+            echo "::error::package-lock.json is out of sync with package.json. Run 'npm install' and commit the lockfile."
+            cat /tmp/lockfile-check.log
+            exit 1
+          }
+          echo "Lockfile integrity verified."
+
+      - name: Generate SBOM (P2-7)
+        run: |
+          # P2-7: Generate Software Bill of Materials for the release.
+          npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json --spec-version 1.5
+
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: sbom.json
+
+      - name: Wrangler dry-run check (F-035)
+        # `wrangler.jsonc` references `.open-next/assets` and
+        # `workers/custom-worker.ts` imports the generated
+        # `../.open-next/worker.js` — both are normally produced by
+        # `opennextjs-cloudflare build`. For a CI *config* validation we
+        # don't need a real OpenNext build; stub the assets directory and
+        # worker entrypoint so wrangler can resolve all paths and validate
+        # bindings/syntax. The full OpenNext build is exercised by
+        # `preview.yml` / `deploy.yml`.
+        run: |
+          mkdir -p .open-next/assets
+          cat > .open-next/worker.js <<'EOF'
+          // CI stub generated by ci.yml. Replaced at deploy time by
+          // `opennextjs-cloudflare build`. Existence is sufficient for
+          // `wrangler deploy --dry-run` to validate wrangler.jsonc.
+          export default { fetch: () => new Response("stub") };
+          EOF
+          npx wrangler deploy --dry-run
+
+  # ── RLS / anon-grant audit against staging DB (E-6) ────────────────
+  # Runs the queries from docs/public-rls-inventory.md against the
+  # staging database. Fails the build if any unexpected policies or
+  # grants have drifted onto the public schema.
+  #
+  # Gating policy (N-005):
+  #   - Trusted contexts (main pushes, PRs from this repo) set
+  #     REQUIRE_STAGING_DB=true so a missing STAGING_SUPABASE_DB_URL
+  #     hard-fails the job instead of silently passing.
+  #   - Fork PRs cannot read the secret and run in skip-green mode so
+  #     external contributors are not blocked. This is enforced by
+  #     scripts/db-audit.sh based on REQUIRE_STAGING_DB.
+  # F-10: db-audit and db-types jobs now surface an explicit skip
+  # status so branch protection can distinguish between "passed"
+  # and "skipped due to missing secrets". The job name includes the
+  # outcome — configure branch protection to require the *:passed
+  # variant, not the generic job name.
+  db-audit:
+    name: RLS audit (E-6)
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.audit-result.outputs.status }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Install psql
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Run db-audit
+        id: audit-result
+        env:
+          # Prefer the transaction-pooler URL when it's set as a secret
+          # because Supabase direct hostnames (db.<ref>.supabase.co) only
+          # resolve over IPv6, and GitHub-hosted runners are IPv4-only.
+          # Fall back to the direct URL for setups that don't use the
+          # pooler. db-audit.sh treats whatever lands here as the primary
+          # URL (its own STAGING > POOLER > DATABASE_URL ordering remains
+          # in place for local invocations that set both).
+          STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
+          SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+          # Hard-fail on missing secret for trusted runs (main push or
+          # non-fork PRs); fork PRs fall through to skip-green.
+          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && 'true' || 'false' }}
+        run: |
+          if bash scripts/db-audit.sh; then
+            echo "status=passed" >> "$GITHUB_OUTPUT"
+          else
+            # If the script exited non-zero because the DB URL was missing
+            # (fork PR), mark as skipped rather than failed so the required
+            # check gate can distinguish the two.
+            if [ -z "${STAGING_SUPABASE_DB_URL:-}" ] && [ "${REQUIRE_STAGING_DB}" != "true" ]; then
+              echo "status=skipped" >> "$GITHUB_OUTPUT"
+              echo "::warning::F-10: db-audit skipped — no staging DB URL available (fork PR)"
+            else
+              echo "status=failed" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+          fi
+
+      - name: Report audit status
+        if: always()
+        run: |
+          echo "### RLS audit: ${{ steps.audit-result.outputs.status }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── DB type drift check (E-5) ─────────────────────────────────────
+  # Regenerates types/supabase.ts from the staging DB via
+  # `supabase gen types` and fails if the checked-in file has drifted.
+  #
+  # Gating policy (N-005): same as db-audit above — trusted contexts
+  # set REQUIRE_STAGING_DB=true so missing secrets fail loudly; fork
+  # PRs run in skip-green mode.
+  db-types:
+    name: DB type drift (E-5)
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.types-result.outputs.status }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+      - name: Install Supabase CLI
+        # F-011: pin the Supabase CLI version so a breaking upstream
+        # release cannot change `supabase gen types` output without a
+        # deliberate code change. Bump deliberately via Renovate /
+        # Dependabot; do NOT switch back to `version: latest`.
+        uses: supabase/setup-cli@df56b21da46c98abb12a9804e4fb1f657773e333 # v1
+        with:
+          version: 2.45.5
+      - name: Check DB types drift
+        id: types-result
+        env:
+          # See db-audit job above for the IPv6/pooler rationale.
+          STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
+          SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+          REQUIRE_STAGING_DB: ${{ (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) && 'true' || 'false' }}
+        run: |
+          if bash scripts/check-db-types.sh; then
+            echo "status=passed" >> "$GITHUB_OUTPUT"
+          else
+            if [ -z "${STAGING_SUPABASE_DB_URL:-}" ] && [ "${REQUIRE_STAGING_DB}" != "true" ]; then
+              echo "status=skipped" >> "$GITHUB_OUTPUT"
+              echo "::warning::F-10: db-types skipped — no staging DB URL available (fork PR)"
+            else
+              echo "status=failed" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+          fi
+
+      - name: Report types status
+        if: always()
+        run: |
+          echo "### DB type drift: ${{ steps.types-result.outputs.status }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Terraform IaC validation (F-01) ───────────────────────────────
+  # Catches syntax/type errors in terraform/cloudflare/*.tf so the
+  # checked-in policy-as-code is guaranteed to be applyable. We run
+  # `terraform init -backend=false` (no remote state needed for
+  # syntactic validation) followed by `fmt -check` and `validate`.
+  terraform:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_wrapper: false
+      - name: terraform fmt -check
+        run: terraform -chdir=terraform/cloudflare fmt -check -recursive
+      - name: terraform init (no backend)
+        # Retry to absorb transient 502/timeout errors when the provider
+        # registry / GitHub releases CDN flakes during plugin download.
+        # Pure infra flake — code is unchanged on retry.
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if terraform -chdir=terraform/cloudflare init -backend=false -input=false; then
+              exit 0
+            fi
+            echo "terraform init failed (attempt ${attempt}); retrying after backoff..." >&2
+            sleep $((attempt * 15))
+          done
+          echo "terraform init failed after 3 attempts" >&2
+          exit 1
+      - name: terraform validate
+        run: terraform -chdir=terraform/cloudflare validate
+
+  # ── Cross-workflow required gates ──────────────────────────────────
+  # Branch protection should require ALL of the following check names:
+  #
+  #   1. "Required checks"    (this workflow — lint/test/typecheck/build)
+  #   2. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
+  #   3. "npm audit (high / critical)"  (security.yml)
+  #   4. "License compliance"           (security.yml)
+  #   5. "Dependency review"            (security.yml, PRs only)
+  #
+  # GitHub Actions `needs` cannot cross workflow boundaries, so each
+  # workflow exposes its own gate job with a stable name. Configure
+  # all five names as required status checks in repo Settings →
+  # Branches → Branch protection rules → Require status checks.
+
+  required-checks:
+    name: Required checks
+    needs: [check]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs succeeded
+        env:
+          CHECK_RESULT: ${{ needs.check.result }}
+        run: |
+          set -euo pipefail
+          echo "check: $CHECK_RESULT"
+          if [ "$CHECK_RESULT" != "success" ]; then
+            echo "::error::Required 'check' job did not succeed"
+            exit 1
+          fi

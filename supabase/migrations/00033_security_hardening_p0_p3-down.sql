@@ -1,0 +1,1 @@
+-- NO DOWN: Automated rollback not supported for this migration. Requires manual intervention.

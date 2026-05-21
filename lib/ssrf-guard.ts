@@ -1,0 +1,347 @@
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { fetchWithRetry, type FetchWithRetryOptions } from "@/lib/fetch-with-retry";
+/**
+ * SSRF (Server-Side Request Forgery) protection utilities.
+ *
+ * Use validateExternalUrl() before making any fetch() call with a URL that
+ * could originate from user input. This prevents attackers from making the
+ * server fetch internal resources (metadata endpoints, cloud instance IPs,
+ * internal APIs, etc.).
+ *
+ * F-036: SSRF guard for URLs
+ */
+
+import { logger } from "./logger";
+import dns from "node:dns";
+import { promisify } from "node:util";
+
+const lookupAsync = promisify(dns.lookup);
+
+// Blocked hostnames / IP ranges
+const BLOCKED_HOSTS = new Set([
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "::",
+  "::1",
+  "::ffff:7f00:1", // IPv6-mapped 127.0.0.1
+  "::ffff:a9fe:a9fe", // IPv6-mapped 169.254.169.254 (AWS/GCP/Azure metadata)
+  "metadata.google.internal", // GCP metadata
+  "metadata.internal", // Generic cloud metadata
+  "169.254.169.254", // AWS/GCP/Azure metadata endpoint
+  "metadata.azure.com",
+  "100.100.100.100", // Alibaba Cloud metadata
+]);
+
+// Blocked CIDR ranges (IPv4)
+const BLOCKED_IP_RANGES = [
+  "10.0.0.0/8",
+  "127.0.0.0/8", // Loopback
+  "172.16.0.0/12",
+  "192.168.0.0/16",
+  "169.254.0.0/16", // Link-local / metadata
+  "0.0.0.0/8", // "This" network
+  "100.64.0.0/10", // Carrier-grade NAT (RFC 6598)
+];
+
+/**
+ * Normalize a URL.hostname value. For IPv6 literals Node's URL parser
+ * returns the address wrapped in square brackets (e.g. "[::1]"); strip
+ * those so the value matches BLOCKED_HOSTS entries and can be compared
+ * against IPv6-mapped IPv4 addresses.
+ */
+function normalizeHostname(hostname: string): string {
+  return hostname.replace(/^\[|\]$/g, "").toLowerCase();
+}
+
+/**
+ * If the hostname is an IPv6-mapped IPv4 address (::ffff:a.b.c.d or
+ * ::ffff:AABB:CCDD), return the dotted-quad IPv4 equivalent; otherwise
+ * return null.
+ */
+function ipv6MappedToIPv4(hostname: string): string | null {
+  const dotted = hostname.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+  if (dotted) return dotted[1];
+
+  const hex = hostname.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (hex) {
+    const high = parseInt(hex[1], 16);
+    const low = parseInt(hex[2], 16);
+    return [(high >> 8) & 0xff, high & 0xff, (low >> 8) & 0xff, low & 0xff].join(".");
+  }
+
+  return null;
+}
+
+/**
+ * Check whether an IPv6 hostname falls into a private/blocked prefix:
+ *   - fe80::/10  link-local
+ *   - fc00::/7   unique-local addresses (covers fd00::/8)
+ * Returns true if the address must be blocked.
+ *
+ * The check is conservative: any address whose first hextet matches the
+ * prefix is rejected, regardless of the rest of the address.
+ */
+function isBlockedIPv6Prefix(hostname: string): boolean {
+  // Must contain a colon to be an IPv6 literal at all.
+  if (!hostname.includes(":")) return false;
+
+  // Take the first hextet (chars before the first colon).
+  const firstColon = hostname.indexOf(":");
+  const headRaw = hostname.slice(0, firstColon).toLowerCase();
+  if (headRaw.length === 0 || !/^[0-9a-f]{1,4}$/.test(headRaw)) return false;
+
+  const head = parseInt(headRaw, 16);
+
+  // fc00::/7 — first 7 bits are 1111 110x → first byte is 0xfc or 0xfd.
+  // The first hextet's high byte equals (head >> 8).
+  const highByte = (head >> 8) & 0xff;
+  if (highByte === 0xfc || highByte === 0xfd) return true;
+
+  // fe80::/10 — first 10 bits are 1111 1110 10. The first hextet is
+  // 0xfe80–0xfebf inclusive.
+  if (head >= 0xfe80 && head <= 0xfebf) return true;
+
+  return false;
+}
+
+/**
+ * Parse a CIDR like "10.0.0.0/8" and check if an IP falls within it.
+ */
+function ipInRange(ip: string, cidr: string): boolean {
+  const [range, bitsStr] = cidr.split("/");
+  const bits = parseInt(bitsStr, 10);
+
+  const ipParts = ip.split(".").map(Number);
+  const rangeParts = range.split(".").map(Number);
+
+  const ipNum = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
+
+  const rangeNum =
+    (rangeParts[0] << 24) | (rangeParts[1] << 16) | (rangeParts[2] << 8) | rangeParts[3];
+
+  const mask = (-1 << (32 - bits)) >>> 0;
+
+  return (ipNum & mask) === (rangeNum & mask);
+}
+
+export interface UrlValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+/**
+ * Validate that a URL is safe to fetch (not an SSRF attack vector).
+ *
+ * Returns { valid: true } or { valid: false, error: "..." }.
+ *
+ * @param urlString - The URL to validate
+ * @param allowPrivateIPs - Set to true only for internal tools with explicit
+ *                          security controls; defaults to false (fail-safe).
+ */
+export async function validateExternalUrl(
+  urlString: string,
+  allowPrivateIPs = false,
+): Promise<UrlValidationResult> {
+  let url: URL;
+  try {
+    url = new URL(urlString);
+  } catch {
+    return { valid: false, error: "Invalid URL format" };
+  }
+
+  // Only allow https (and http for explicit internal cases)
+  const allowedProtocols = allowPrivateIPs ? ["http:", "https:"] : ["https:"];
+  if (!allowedProtocols.includes(url.protocol)) {
+    return { valid: false, error: `Protocol '${url.protocol}' is not allowed` };
+  }
+
+  const hostname = normalizeHostname(url.hostname);
+
+  // Block wildcard DNS services used for DNS rebinding/SSRF bypass
+  const WILDCARD_DNS = [
+    ".nip.io",
+    ".sslip.io",
+    ".localtest.me",
+    ".xip.io",
+    ".vcap.me",
+    ".internal",
+  ];
+  // FIX-25 (F-036): Also block DNS rebinding-friendly TLDs
+  const REBINDING_TLDS = [".arpa", ".local", ".localhost", ".test", ".invalid", ".onion"];
+  for (const suffix of WILDCARD_DNS) {
+    if (hostname.endsWith(suffix)) {
+      return { valid: false, error: `Wildcard DNS '${suffix}' is blocked` };
+    }
+  }
+  for (const tld of REBINDING_TLDS) {
+    if (hostname.endsWith(tld)) {
+      return { valid: false, error: `TLD '${tld}' is blocked (SSRF risk)` };
+    }
+  }
+
+  // Blocklist check
+  if (BLOCKED_HOSTS.has(hostname)) {
+    return { valid: false, error: `Hostname '${hostname}' is blocked` };
+  }
+
+  // IPv6 link-local (fe80::/10) and unique-local (fc00::/7) ranges.
+  if (isBlockedIPv6Prefix(hostname)) {
+    return {
+      valid: false,
+      error: `IPv6 private/link-local address '${hostname}' is blocked (SSRF risk)`,
+    };
+  }
+
+  // IPv6-mapped IPv4 (e.g. ::ffff:7f00:1): check the embedded IPv4 address
+  const mapped = ipv6MappedToIPv4(hostname);
+  if (mapped) {
+    for (const cidr of BLOCKED_IP_RANGES) {
+      if (ipInRange(mapped, cidr)) {
+        return { valid: false, error: `IP range '${cidr}' is blocked (SSRF risk)` };
+      }
+    }
+  }
+
+  // CIDR range check
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const match = hostname.match(ipv4Regex);
+  if (match) {
+    const ip = match.slice(1).join(".");
+    for (const cidr of BLOCKED_IP_RANGES) {
+      if (ipInRange(ip, cidr)) {
+        return { valid: false, error: `IP range '${cidr}' is blocked (SSRF risk)` };
+      }
+    }
+  }
+
+  // Domain-to-IP resolution with rebinding check (lightweight approach)
+  // For user-supplied URLs, we resolve and validate; fail-closed on errors
+  try {
+    // Skip DNS resolution for IP literals (already checked above)
+    if (
+      !hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/) &&
+      !ipv6MappedToIPv4(hostname)
+    ) {
+      const { address } = await lookupAsync(hostname);
+
+      // Check if the resolved IP is in blocked ranges
+      const ipMatch = address.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+      if (ipMatch) {
+        const ip = ipMatch.slice(1).join(".");
+        for (const cidr of BLOCKED_IP_RANGES) {
+          if (ipInRange(ip, cidr)) {
+            return { valid: false, error: `Resolved IP range \'${cidr}\' is blocked (SSRF risk)` };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // If resolution fails, log and block (fail-closed)
+    logger.warn("SSRF guard: DNS resolution failed for hostname", { hostname, error: String(err) });
+    return { valid: false, error: "DNS resolution failed — blocked" };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Wrapper around fetch() that validates the URL before making the request.
+ * Use this instead of raw fetch() when the URL may contain user input.
+ *
+ * @param urlString - The URL to fetch
+ * @param options - Standard fetch options
+ * @param allowPrivateIPs - Only set true for internal tooling
+ */
+/**
+ * FIX-25 (F-036): Post-redirect SSRF validation.
+ *
+ * DNS rebinding attacks work by serving a legitimate IP on the first
+ * DNS lookup (passing validation) and a private IP on the second
+ * (after redirect). This wrapper validates the final URL after
+ * following redirects.
+ *
+ * Use this for high-risk fetches where the URL comes from untrusted
+ * input and the response is used in a security-sensitive context.
+ */
+export async function safeFetchWithRedirectValidation(
+  urlString: string,
+  options?: RequestInit,
+  allowPrivateIPs = false,
+): Promise<Response> {
+  const result = await validateExternalUrl(urlString, allowPrivateIPs);
+  if (!result.valid) {
+    logger.warn("SSRF blocked", { url: urlString, reason: result.error });
+    throw new Error(`SSRF guard: ${result.error}`);
+  }
+
+  const response = await fetchWithTimeout(urlString, {
+    timeoutMs: 15000,
+    redirect: "manual", // Don't auto-follow; validate each redirect
+    ...options,
+  });
+
+  // Validate redirect chain
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get("location");
+    if (location) {
+      const redirectResult = await validateExternalUrl(location, allowPrivateIPs);
+      if (!redirectResult.valid) {
+        logger.warn("SSRF blocked on redirect", { url: location, reason: redirectResult.error });
+        throw new Error(`SSRF guard on redirect: ${redirectResult.error}`);
+      }
+      // Re-fetch the redirect target with the same validation
+      return safeFetchWithRedirectValidation(location, options, allowPrivateIPs);
+    }
+  }
+
+  return response;
+}
+
+/**
+ * Wrapper around fetch() that validates the URL before making the request.
+ * Use this instead of raw fetch() when the URL may contain user input.
+ *
+ * @param urlString - The URL to fetch
+ * @param options - Standard fetch options
+ * @param allowPrivateIPs - Only set true for internal tooling
+ */
+export async function safeFetch(
+  urlString: string,
+  options?: RequestInit,
+  allowPrivateIPs = false,
+): Promise<Response> {
+  const result = await validateExternalUrl(urlString, allowPrivateIPs);
+  if (!result.valid) {
+    logger.warn("SSRF blocked", { url: urlString, reason: result.error });
+    throw new Error(`SSRF guard: ${result.error}`);
+  }
+
+  return fetchWithTimeout(urlString, {
+    timeoutMs: 15000, // Default 15s timeout to prevent hanging
+    redirect: "follow",
+    ...options,
+  });
+}
+
+/**
+ * Combined SSRF guard and retry logic.
+ * Use for external API calls that may originate from user input and
+ * need high reliability.
+ */
+export async function safeFetchWithRetry(
+  urlString: string,
+  options: FetchWithRetryOptions = {},
+  allowPrivateIPs = false,
+): Promise<Response> {
+  const result = await validateExternalUrl(urlString, allowPrivateIPs);
+  if (!result.valid) {
+    logger.warn("SSRF blocked", { url: urlString, reason: result.error });
+    throw new Error(`SSRF guard: ${result.error}`);
+  }
+
+  return fetchWithRetry(urlString, {
+    timeoutMs: 15000,
+    ...options,
+  });
+}

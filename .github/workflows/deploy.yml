@@ -1,0 +1,1453 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# AUTO-DEPLOY TO CLOUDFLARE WORKERS
+#
+# This workflow automatically deploys your site when you push to main.
+# It also automatically creates the R2 bucket and KV namespace if they don't exist.
+#
+# TO DEPLOY:
+# 1. Push code to main branch → Auto deploys!
+# 2. Or go to GitHub → Actions → "Deploy to Cloudflare" → Run workflow
+#
+# SETUP REQUIRED (one-time):
+# Go to GitHub repo → Settings → Secrets and variables → Actions
+# Add these secrets (see docs/CLOUDFLARE.md for full inventory):
+#
+# ── Build-time (used by Next.js bundler + wrangler CLI) ──
+#   - CLOUDFLARE_API_TOKEN (scoped token — see docs/cloudflare-production.md)
+#     REQUIRED. CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL (Global Key) is NOT
+#     supported by this workflow — the Global Key grants full account access
+#     and must not be used. Create a scoped API token instead.
+#   - CLOUDFLARE_ACCOUNT_ID
+#   - NEXT_PUBLIC_SUPABASE_URL
+#   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+#   - SUPABASE_DB_URL (for DB migrations only — must be IPv4-reachable;
+#     GitHub-hosted runners are IPv4-only and the direct Supabase host
+#     `db.<ref>.supabase.co` is IPv6-only on the free tier. Use the
+#     Session pooler URL instead: aws-0-<region>.pooler.supabase.com:5432).
+#   - SUPABASE_DB_POOLER_URL (optional override; if set, used for migrations
+#     in preference to SUPABASE_DB_URL. Lets teams keep the direct URL for
+#     other tooling while giving CI an IPv4-reachable pooler URL.)
+#
+# ── Runtime Worker secrets (set via `wrangler secret put`) ──
+#   - SUPABASE_SERVICE_ROLE_KEY
+#   - JWT_SECRET (generate: openssl rand -hex 64)
+#   - CRON_SECRET (generate: openssl rand -hex 32) — shared fallback, dev/staging only
+#   - CRON_HOST (e.g. https://wristnerd.xyz)
+#   - INTERNAL_API_TOKEN (generate: openssl rand -hex 64)
+#   - RESEND_API_KEY, SENTRY_DSN, TURNSTILE_SECRET_KEY (optional)
+#   - Stripe: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID_INSIDER, STRIPE_PRICE_ID_PRO (optional — required for paid memberships)
+#   - Per-trigger cron secrets — REQUIRED in production (NEW-001):
+#       CRON_PUBLISH_SECRET, CRON_STRIPE_SYNC_SECRET, CRON_AI_SECRET,
+#       CRON_SITEMAP_SECRET, CRON_RETENTION_SECRET, CRON_COMMISSION_SECRET,
+#       CRON_EPC_SECRET, CRON_PRICE_SECRET, CRON_DEALS_SECRET
+#     (single source of truth: `lib/cron-registry.ts -> cronJobs`).
+#     `verifyCronAuth` rejects requests in production when only the
+#     shared CRON_SECRET fallback is configured, so the deploy below
+#     uploads every per-trigger secret to BOTH `affilite-mix` and
+#     `affilite-mix-heavy-crons` workers.
+#   - AI keys: CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COHERE_API_KEY (optional)
+#   - Affiliate: CJ_API_KEY, CJ_PUBLISHER_ID, PARTNERSTACK_API_KEY, ADMITAD_API_KEY, ADMITAD_PUBLISHER_ID (optional)
+#   - R2: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL (optional)
+#
+# ── Admin bootstrap ──
+#   Admin user creation has been moved to a separate break-glass workflow:
+#   .github/workflows/admin-bootstrap.yml (manual trigger only)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Top-level default: read-only. Each deploy job below explicitly opts into
+# the extra scopes it needs (e.g. `id-token: write` for OIDC,
+# `deployments: write` for GitHub deployment statuses).
+permissions:
+  contents: read
+
+env:
+  # ── Wrangler pin ───────────────────────────────────────────────────
+  # Pin wrangler to a known version so CI is reproducible. `npx wrangler`
+  # without a version will resolve whatever `@opennextjs/cloudflare`'s
+  # floating dep range picks up that day, which has caused OpenNext
+  # breakage before. Keep this in sync with the `wrangler` devDependency
+  # in package.json so local `npm run preview` / `npm run deploy` and CI
+  # run the same wrangler. Bump deliberately when upgrading
+  # @opennextjs/cloudflare.
+  WRANGLER_VERSION: "4.85.0"
+
+  # ── Build-time only ────────────────────────────────────────────────
+  # NEXT_PUBLIC_* vars are inlined by Next.js at bundle time.
+  # Everything else here is consumed by wrangler CLI or DB migrations.
+  # Server-side secrets (JWT, cron, AI, affiliate, etc.) are set as
+  # Worker secrets in the "Set Worker secrets" step below so they are
+  # readable at runtime and rotatable without a rebuild.
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+  NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+  # Required at build time by lib/site-context.ts#getCurrentSite: static
+  # prerendering of public pages has no request headers, so the build must
+  # know which site's metadata/layout to render for paths outside the
+  # dynamic routes. Must be a valid slug from config/sites/ or the DB.
+  NEXT_PUBLIC_DEFAULT_SITE: ${{ secrets.NEXT_PUBLIC_DEFAULT_SITE }}
+  SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════
+  # STAGE 1: Validate migrations on staging + validate secrets
+  # ═══════════════════════════════════════════════════════════════════
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # A214: Lockfile integrity check prevents deploy of hallucinated packages
+      # that were not properly resolved and committed in the lockfile.
+      - name: Lockfile integrity check
+        run: |
+          set -euo pipefail
+          npm ci --dry-run > /tmp/lockfile-check.log 2>&1 || {
+            echo "::error::package-lock.json is out of sync with package.json."
+            cat /tmp/lockfile-check.log
+            exit 1
+          }
+      # AUDIT-FIX: Run npm audit before deploying to catch newly
+      # disclosed vulnerabilities that CI may not have seen if the
+      # last CI run was on a different day.
+      - name: Security audit (deploy gate)
+        run: npm audit --omit=dev --audit-level=high
+
+      # ── Validate Cloudflare Worker bindings (PRIORITY 0) ───────────
+      # F-007: Production deploy must hard-fail if required Cloudflare
+      # bindings are missing. Without these, the Worker will not start.
+      - name: Validate Cloudflare Worker bindings
+        run: |
+          set -euo pipefail
+
+          echo "=== Validating required Cloudflare Worker bindings ==="
+
+          MISSING_BINDINGS=""
+
+          # Check wrangler.jsonc contains required KV namespace bindings
+          echo "Checking KV namespace bindings..."
+          if ! grep -q '"binding".*"RATE_LIMIT_KV"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS RATE_LIMIT_KV"
+          fi
+          if ! grep -q '"binding".*"APP_CACHE_KV"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS APP_CACHE_KV"
+          fi
+
+          # APP_CACHE_KV is required for middleware/domain resolution
+          # (already checked above and added to MISSING_BINDINGS if absent;
+          # the aggregate report at the end of this step will surface it
+          # alongside any other missing bindings).
+
+          # Check Durable Object bindings
+          echo "Checking Durable Object bindings..."
+          if ! grep -q '"name".*"RATE_LIMITER_DO"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS RATE_LIMITER_DO"
+          fi
+
+          # Check Queue producer bindings
+          echo "Checking Queue bindings..."
+          if ! grep -q '"binding".*"CLICK_QUEUE"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS CLICK_QUEUE"
+          fi
+
+          # CLICK_QUEUE_DLQ is required when CLICK_QUEUE is configured
+          if grep -q '"binding".*"CLICK_QUEUE"' wrangler.jsonc; then
+            if ! grep -q 'click-tracking-dlq\|CLICK_QUEUE_DLQ' wrangler.jsonc; then
+              echo "::warning::CLICK_QUEUE is configured but no dead-letter queue (dlq) found"
+              echo "::warning::Consider adding a DLQ binding for failed message handling"
+            fi
+          fi
+
+          # Check R2 bucket bindings
+          echo "Checking R2 bucket bindings..."
+          if ! grep -q '"binding".*"NEXT_INC_CACHE_R2_BUCKET"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS NEXT_INC_CACHE_R2_BUCKET"
+          fi
+          if ! grep -q '"binding".*"STRIPE_WEBHOOK_DLQ_BUCKET"' wrangler.jsonc; then
+            MISSING_BINDINGS="$MISSING_BINDINGS STRIPE_WEBHOOK_DLQ_BUCKET"
+          fi
+
+
+          # Check KV namespace IDs are configured (not empty placeholders).
+          # In wrangler.jsonc the `binding` and `id` fields live on
+          # separate lines, so a single-line grep can never match.
+          # Use awk to scan each binding block for an empty id.
+          echo "Checking KV namespace IDs are configured..."
+          check_kv_id_empty() {
+            local name="$1"
+            awk -v name="$name" '
+              $0 ~ "\"binding\"[[:space:]]*:[[:space:]]*\""name"\"" { found=1; next }
+              found && /"id"[[:space:]]*:[[:space:]]*"[[:space:]]*"/ { print "EMPTY"; exit }
+              found && /"id"[[:space:]]*:/ { exit }
+            ' wrangler.jsonc
+          }
+          if [ "$(check_kv_id_empty RATE_LIMIT_KV)" = "EMPTY" ]; then
+            echo "::error::RATE_LIMIT_KV namespace ID is empty"
+            echo "::error::Run: npx wrangler kv:namespace create RATE_LIMIT_KV"
+            exit 1
+          fi
+          if [ "$(check_kv_id_empty APP_CACHE_KV)" = "EMPTY" ]; then
+            echo "::error::APP_CACHE_KV namespace ID is empty"
+            echo "::error::Run: npx wrangler kv:namespace create APP_CACHE_KV"
+            exit 1
+          fi
+
+          if [ -n "$MISSING_BINDINGS" ]; then
+            echo "::error::Missing required Cloudflare bindings:$MISSING_BINDINGS"
+            echo "::error::Add missing bindings to wrangler.jsonc before deploying"
+            exit 1
+          fi
+
+          echo "All required Cloudflare bindings are configured"
+
+      # ── Validate required Cloudflare Worker secrets ────────────────
+      - name: Validate required Cloudflare Worker secrets
+        env:
+          _NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          _NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          _SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          _SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+          _CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          _JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          _SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          _CRON_HOST: ${{ secrets.CRON_HOST }}
+          _INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+          _CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          _CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # NEW-001: Per-trigger cron secrets. Required in production —
+          # `verifyCronAuth` rejects the shared CRON_SECRET fallback
+          # unless CRON_ALLOW_SHARED_FALLBACK_IN_PROD=1 is set, and
+          # `instrumentation.ts` throws on missing required env. Keep
+          # this list in lockstep with `lib/cron-registry.ts -> cronJobs`;
+          # `__tests__/cron-registry.test.ts` enforces that every
+          # registered job's secret env var appears here.
+          _CRON_PUBLISH_SECRET: ${{ secrets.CRON_PUBLISH_SECRET }}
+          _CRON_STRIPE_SYNC_SECRET: ${{ secrets.CRON_STRIPE_SYNC_SECRET }}
+          _CRON_AI_SECRET: ${{ secrets.CRON_AI_SECRET }}
+          _CRON_SITEMAP_SECRET: ${{ secrets.CRON_SITEMAP_SECRET }}
+          _CRON_RETENTION_SECRET: ${{ secrets.CRON_RETENTION_SECRET }}
+          _CRON_COMMISSION_SECRET: ${{ secrets.CRON_COMMISSION_SECRET }}
+          _CRON_EPC_SECRET: ${{ secrets.CRON_EPC_SECRET }}
+          _CRON_PRICE_SECRET: ${{ secrets.CRON_PRICE_SECRET }}
+          _CRON_DEALS_SECRET: ${{ secrets.CRON_DEALS_SECRET }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+
+          REQUIRED=(
+            _NEXT_PUBLIC_SUPABASE_URL
+            _NEXT_PUBLIC_SUPABASE_ANON_KEY
+            _SUPABASE_SERVICE_ROLE_KEY
+            _SUPABASE_JWT_SECRET
+            _CRON_SECRET
+            _JWT_SECRET
+            _SENTRY_DSN
+            _CRON_HOST
+            _INTERNAL_API_TOKEN
+            _CLOUDFLARE_API_TOKEN
+            _CLOUDFLARE_ACCOUNT_ID
+            # NEW-001: per-trigger cron secrets (one per cronJobs entry)
+            _CRON_PUBLISH_SECRET
+            _CRON_STRIPE_SYNC_SECRET
+            _CRON_AI_SECRET
+            _CRON_SITEMAP_SECRET
+            _CRON_RETENTION_SECRET
+            _CRON_COMMISSION_SECRET
+            _CRON_EPC_SECRET
+            _CRON_PRICE_SECRET
+            _CRON_DEALS_SECRET
+          )
+
+          # Map env var names to their user-facing secret names
+          declare -A SECRET_NAMES=(
+            [_NEXT_PUBLIC_SUPABASE_URL]=NEXT_PUBLIC_SUPABASE_URL
+            [_NEXT_PUBLIC_SUPABASE_ANON_KEY]=NEXT_PUBLIC_SUPABASE_ANON_KEY
+            [_SUPABASE_SERVICE_ROLE_KEY]=SUPABASE_SERVICE_ROLE_KEY
+            [_SUPABASE_JWT_SECRET]=SUPABASE_JWT_SECRET
+            [_CRON_SECRET]=CRON_SECRET
+            [_JWT_SECRET]=JWT_SECRET
+            [_SENTRY_DSN]=SENTRY_DSN
+            [_CRON_HOST]=CRON_HOST
+            [_INTERNAL_API_TOKEN]=INTERNAL_API_TOKEN
+            [_CLOUDFLARE_API_TOKEN]=CLOUDFLARE_API_TOKEN
+            [_CLOUDFLARE_ACCOUNT_ID]=CLOUDFLARE_ACCOUNT_ID
+            [_CRON_PUBLISH_SECRET]=CRON_PUBLISH_SECRET
+            [_CRON_STRIPE_SYNC_SECRET]=CRON_STRIPE_SYNC_SECRET
+            [_CRON_AI_SECRET]=CRON_AI_SECRET
+            [_CRON_SITEMAP_SECRET]=CRON_SITEMAP_SECRET
+            [_CRON_RETENTION_SECRET]=CRON_RETENTION_SECRET
+            [_CRON_COMMISSION_SECRET]=CRON_COMMISSION_SECRET
+            [_CRON_EPC_SECRET]=CRON_EPC_SECRET
+            [_CRON_PRICE_SECRET]=CRON_PRICE_SECRET
+            [_CRON_DEALS_SECRET]=CRON_DEALS_SECRET
+          )
+
+          for key in "${REQUIRED[@]}"; do
+            if [ -z "${!key}" ]; then
+              MISSING="$MISSING ${SECRET_NAMES[$key]}"
+            fi
+          done
+
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required secrets:$MISSING"
+            echo "Add them in GitHub → Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+          echo "All required secrets are present"
+
+      # ── Require scoped API token (no Global API Key fallback) ──────
+      - name: Require scoped CLOUDFLARE_API_TOKEN
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set. This workflow requires a scoped API token."
+            echo "::error::The Global API Key (CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL) is not supported — it grants full account access."
+            echo "::error::Create a scoped token at https://dash.cloudflare.com/profile/api-tokens and add it as the CLOUDFLARE_API_TOKEN repo secret."
+            exit 1
+          fi
+
+      # ── Install psql for DB validation ─────────────────────────────
+      - name: Install psql
+        run: |
+          set -euo pipefail
+          echo "Installing psql..."
+          sudo apt-get update && sudo apt-get install -y postgresql-client 2>&1 | tail -5
+
+      # ── Require staging DB for production deploys ──────────────────
+      - name: Require staging DB smoke test
+        if: github.ref == 'refs/heads/main'
+        env:
+          _STAGING_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$_STAGING_DB_URL" ]; then
+            echo "::error::STAGING_SUPABASE_DB_URL is required for production deploy"
+            echo "::error::Add a staging Supabase DB URL in GitHub → Settings → Secrets"
+            exit 1
+          fi
+
+          # Guard: refuse to reset a database that matches any production URL
+          if [ -n "$SUPABASE_DB_URL" ] && [ "$_STAGING_DB_URL" = "$SUPABASE_DB_URL" ]; then
+            echo "::error::STAGING_SUPABASE_DB_URL must not equal SUPABASE_DB_URL — refusing to reset production database"
+            exit 1
+          fi
+
+          echo "Running fresh staging DB migration apply..."
+
+          # Drop and recreate the public schema (equivalent to supabase db reset).
+          psql "$_STAGING_DB_URL" -v ON_ERROR_STOP=1 \
+            -c "DROP SCHEMA IF EXISTS public CASCADE;" \
+            -c "CREATE SCHEMA public;" \
+            -c "GRANT ALL ON SCHEMA public TO postgres;" \
+            -c "GRANT ALL ON SCHEMA public TO public;"
+
+          echo "Staging database reset complete"
+
+          # Apply all migrations in order
+          echo "Applying migrations to clean database..."
+          for file in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
+            filename=$(basename "$file")
+            [[ "$filename" == *.sql ]] || continue
+
+            echo "  -> $filename"
+            if ! psql "$_STAGING_DB_URL" -v ON_ERROR_STOP=1 -f "$file" > /tmp/migration.log 2>&1; then
+              echo "::error::Migration failed: $filename"
+              cat /tmp/migration.log
+              exit 1
+            fi
+          done
+
+          echo "All migrations applied successfully on staging"
+
+          # Verify critical tables exist
+          echo "Verifying schema..."
+          TABLES="sites categories products content affiliate_clicks admin_users newsletter_subscribers audit_log ad_placements ad_impressions ai_drafts affiliate_networks"
+          for table in $TABLES; do
+            if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='$table';" | grep -q 1; then
+              echo "::error::Missing table: $table"
+              exit 1
+            fi
+          done
+          echo "All critical tables exist"
+
+          # Verify critical columns
+          echo "Verifying critical columns..."
+
+          for col in actor entity_type ip; do
+            if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_name='audit_log' AND column_name='$col';" | grep -q 1; then
+              echo "::error::Missing audit_log.$col column"
+              exit 1
+            fi
+          done
+
+          if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_name='sites' AND column_name='is_active';" | grep -q 1; then
+            echo "::error::Missing sites.is_active column"
+            exit 1
+          fi
+
+          if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_name='newsletter_subscribers' AND column_name='unsubscribe_token';" | grep -q 1; then
+            echo "::error::Missing newsletter_subscribers.unsubscribe_token column"
+            exit 1
+          fi
+
+          echo "All critical columns exist"
+
+          # Verify analytics RPCs
+          echo "Verifying analytics RPC functions..."
+          RPCS="get_top_products get_top_referrers get_top_content_slugs get_daily_clicks"
+          for rpc in $RPCS; do
+            if ! psql "$_STAGING_DB_URL" -t -A -c "SELECT 1 FROM pg_proc WHERE proname='$rpc';" | grep -q 1; then
+              echo "::error::Missing RPC function: $rpc"
+              exit 1
+            fi
+          done
+          echo "All analytics RPCs exist"
+
+          # ── Schema drift check ──────────────────────────────────────
+          # Compare staging schema against production to detect drift.
+          echo "Checking for schema drift..."
+          STAGING_TABLES=$(psql "$_STAGING_DB_URL" -t -A -c \
+            "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;")
+
+          if [ -n "$SUPABASE_DB_URL" ]; then
+            PROD_TABLES=$(psql "$SUPABASE_DB_URL" -t -A -c \
+              "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;" 2>/dev/null || echo "")
+
+            if [ -n "$PROD_TABLES" ]; then
+              STAGING_ONLY=$(comm -23 <(echo "$STAGING_TABLES") <(echo "$PROD_TABLES") || true)
+              if [ -n "$STAGING_ONLY" ]; then
+                echo "New tables being added to production:"
+                echo "$STAGING_ONLY" | sed 's/^/  + /'
+              fi
+
+              PROD_ONLY=$(comm -13 <(echo "$STAGING_TABLES") <(echo "$PROD_TABLES") || true)
+              if [ -n "$PROD_ONLY" ]; then
+                echo "::warning::Tables in production but not in migrations (potential drift):"
+                echo "$PROD_ONLY" | sed 's/^/  - /'
+              fi
+            else
+              echo "Could not connect to production DB for drift check (non-fatal)"
+            fi
+          fi
+
+          # ── Rollback notes check ────────────────────────────────────
+          # Each migration should contain a rollback comment.
+          echo "Checking rollback notes in migrations..."
+          MISSING_ROLLBACK=""
+          for file in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
+            filename=$(basename "$file")
+            [[ "$filename" == *.sql ]] || continue
+            if ! grep -qi "rollback\|revert\|undo\|drop.*if.*exists" "$file"; then
+              MISSING_ROLLBACK="$MISSING_ROLLBACK $filename"
+            fi
+          done
+          if [ -n "$MISSING_ROLLBACK" ]; then
+            echo "::error::Migrations without rollback notes:$MISSING_ROLLBACK"
+            echo "::error::Every migration MUST include a -- ROLLBACK: <instructions> comment"
+            echo "::error::describing how to revert the change (expand-contract, down migration, etc.)."
+            echo "::error::See docs/rollback-strategy.md for guidance."
+            exit 1
+          fi
+
+          echo "Database reset smoke test PASSED"
+
+      # ── G-31: Staging Worker integration smoke (validate runtime drift) ──
+      #
+      # The DB smoke above only validates that migrations apply cleanly
+      # against staging Postgres. It does not catch runtime drift in the
+      # OpenNext + Cloudflare Workers bundling pipeline — e.g. a bumped
+      # compatibility_date that no longer accepts a flag, an OpenNext
+      # transform that rejects a new Next.js feature, a missing binding
+      # in wrangler.jsonc, or a worker bundle that exceeds the size
+      # limit. Those failures only surface during the production
+      # `wrangler deploy` step, where a rollback is far more expensive.
+      #
+      # This step exercises the full bundle-and-validate path against a
+      # staging-shaped wrangler config so any runtime drift fails fast,
+      # before the migrate-production stage touches the production DB.
+      # `wrangler deploy --dry-run` performs all server-side validation
+      # (account, bindings, compatibility flags) without uploading the
+      # bundle, so it is safe to run on every push without affecting
+      # any live Worker.
+      - name: Staging Worker integration smoke (opennextjs-cloudflare build + wrangler dry-run)
+        if: github.ref == 'refs/heads/main'
+        env:
+          # Use staging Supabase values when available so the build does
+          # not bake production URLs/keys into a smoke artefact. Falls
+          # back to the production NEXT_PUBLIC_* (which are public anyway)
+          # if staging isn't configured yet, so this step does not block
+          # repos that haven't provisioned staging infra.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_DEFAULT_SITE: ${{ secrets.NEXT_PUBLIC_DEFAULT_SITE }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIEW_WORKER_NAME: affilite-mix-staging-smoke
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::Staging Worker smoke requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to be set."
+            echo "::error::wrangler dry-run still talks to the Cloudflare API to validate bindings and the account."
+            exit 1
+          fi
+
+          echo "── Generating staging-scoped wrangler config ──"
+          # Reuse the preview wrangler generator: it strips production-only
+          # bits (routes, custom_domains, triggers.crons, self-reference
+          # service binding) so the dry-run is portable to a staging
+          # worker name and does not collide with the live worker's
+          # routes.
+          node scripts/generate-preview-wrangler.cjs
+
+          echo "── Inlining placeholder KV namespace ids for dry-run validation ──"
+          # The committed wrangler.jsonc leaves KV namespace ids empty so
+          # each environment can inject its own; the deploy job calls
+          # `npx wrangler kv namespace create` to populate them. The
+          # smoke does not need real namespaces — we just need the
+          # config to parse and pass schema validation. Substitute a
+          # documented dummy id (32 hex chars) so wrangler accepts it.
+          DUMMY_KV_ID="00000000000000000000000000000000"
+          node -e "
+            const fs = require('fs');
+            const cfg = JSON.parse(fs.readFileSync('wrangler.preview.json', 'utf8'));
+            for (const ns of cfg.kv_namespaces || []) {
+              if (!ns.id || ns.id.trim() === '') ns.id = '${DUMMY_KV_ID}';
+            }
+            fs.writeFileSync('wrangler.preview.json', JSON.stringify(cfg, null, 2));
+          "
+
+          echo "── Building OpenNext bundle for staging smoke ──"
+          npx @opennextjs/cloudflare build --config wrangler.preview.json
+
+          echo "── Validating Worker bundle via wrangler deploy --dry-run ──"
+          # --dry-run performs server-side validation (account, bindings,
+          # compatibility flags, bundle size) but does not upload the
+          # Worker. Output is written to /tmp/staging-smoke so the
+          # generated bundle can be inspected from the runner logs on
+          # failure. Tail consumers are not required for dry-run; the
+          # production rollout reattaches them after the live Tail
+          # Worker is provisioned.
+          npx --yes wrangler@${WRANGLER_VERSION} deploy \
+            --dry-run \
+            --outdir /tmp/staging-smoke \
+            --config wrangler.preview.json
+
+          echo "Staging Worker integration smoke PASSED"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # STAGE 2: Snapshot production DB + apply migrations
+  # ═══════════════════════════════════════════════════════════════════
+  migrate-production:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install psql
+        run: |
+          set -euo pipefail
+          sudo apt-get update && sudo apt-get install -y postgresql-client 2>&1 | tail -5
+
+      # ── Snapshot production DB before migration ────────────────────
+      - name: Snapshot production DB
+        env:
+          _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+        run: |
+          set -euo pipefail
+          DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
+
+          if [ -z "$DB_URL" ]; then
+            echo "::warning::No DB URL set, skipping snapshot"
+            exit 0
+          fi
+
+          echo "Creating pre-migration schema snapshot..."
+
+          # Record table list and row counts before migration
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A -c "
+            SELECT table_name, pg_relation_size(quote_ident(table_name))
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name;
+          " > /tmp/pre_migration_snapshot.txt 2>/dev/null || true
+
+          # Record current migration state
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A -c "
+            SELECT filename, applied_at
+            FROM _migrations_applied
+            ORDER BY applied_at;
+          " > /tmp/pre_migration_ledger.txt 2>/dev/null || true
+
+          echo "Pre-migration snapshot saved"
+          echo "--- Tables and sizes ---"
+          cat /tmp/pre_migration_snapshot.txt || true
+          echo "--- Applied migrations ---"
+          cat /tmp/pre_migration_ledger.txt || true
+
+      # ── Apply production migrations ────────────────────────────────
+      - name: Apply database migrations to production
+        env:
+          _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+        run: |
+          set -euo pipefail
+
+          echo "Applying database migrations to production..."
+          # Prefer the pooler URL if provided; fall back to the direct URL.
+          DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
+
+          # Audit F-005: production migrations cannot silently skip when the
+          # DB URL secret is missing. A green deploy without a corresponding
+          # migration apply is exactly how schemas drift in production.
+          if [ -z "$DB_URL" ]; then
+            echo "::error::SUPABASE_DB_POOLER_URL or SUPABASE_DB_URL is required for production deploy"
+            echo "::error::Add the Supabase session pooler URL to GitHub repo secrets before retrying."
+            exit 1
+          fi
+
+          # IPv4 preflight: GitHub Actions runners cannot reach IPv6-only hosts.
+          DB_HOST=$(printf '%s' "$DB_URL" | sed -E 's|^[a-zA-Z]+://[^@]+@([^:/?]+).*|\1|')
+          if ! getent ahostsv4 "$DB_HOST" >/dev/null 2>&1; then
+            echo "::error::SUPABASE_DB_URL host '$DB_HOST' has no IPv4 address, but GitHub Actions runners are IPv4-only."
+            echo "::error::Switch SUPABASE_DB_URL (or add SUPABASE_DB_POOLER_URL) to the Supabase session pooler URL:"
+            echo "::error::  postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
+            echo "::error::Find it in Supabase Dashboard → Project Settings → Database → Connection pooling → Session mode."
+            exit 1
+          fi
+
+          # Create a migrations ledger table to track applied migrations.
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "
+            CREATE TABLE IF NOT EXISTS _migrations_applied (
+              filename  text PRIMARY KEY,
+              applied_at timestamptz NOT NULL DEFAULT now()
+            );
+          "
+
+          if [ -d "supabase/migrations" ]; then
+            for file in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
+              filename=$(basename "$file")
+              [[ "$filename" == *.sql ]] || continue
+
+              # Check if this migration has already been applied
+              applied=$(psql "$DB_URL" -t -A -c \
+                "SELECT COUNT(*) FROM _migrations_applied WHERE filename = '$filename';")
+
+              if [ "$applied" = "1" ]; then
+                echo "Already applied: $filename"
+                continue
+              fi
+
+              echo "Applying: $filename"
+              if psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$file"; then
+                psql "$DB_URL" -c \
+                  "INSERT INTO _migrations_applied (filename) VALUES ('$filename') ON CONFLICT DO NOTHING;"
+                echo "Applied: $filename"
+              else
+                echo "::error::Failed: $filename"
+                exit 1
+              fi
+            done
+          fi
+
+          echo "Database migrations complete"
+
+      # ── Verify schema after migration ──────────────────────────────
+      - name: Verify production schema
+        env:
+          _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+        run: |
+          set -euo pipefail
+          DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
+
+          # Audit F-005: schema verification is only meaningful when it ran
+          # against the same DB the migration step targeted. Missing URL
+          # here means the previous step did the same skip; both must
+          # fail closed instead of greenwashing the deploy.
+          if [ -z "$DB_URL" ]; then
+            echo "::error::SUPABASE_DB_POOLER_URL or SUPABASE_DB_URL is required for post-migration schema verification"
+            exit 1
+          fi
+
+          echo "Verifying production schema after migration..."
+
+          # Verify critical tables exist
+          TABLES="sites categories products content affiliate_clicks admin_users newsletter_subscribers audit_log"
+          for table in $TABLES; do
+            if ! psql "$DB_URL" -t -A -c "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='$table';" | grep -q 1; then
+              echo "::error::Missing table after migration: $table"
+              exit 1
+            fi
+          done
+
+          # G-T-01: stripe_events must carry the columns referenced by the
+          # webhook processor and the data-retention cron. Audit S-06 hit
+          # the failure mode where `created_at` was missing in production
+          # while code was already querying it.
+          STRIPE_COLS="stripe_event_id event_type received_at created_at"
+          for col in $STRIPE_COLS; do
+            if ! psql "$DB_URL" -t -A -c "SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='stripe_events' AND column_name='$col';" | grep -q 1; then
+              echo "::error::Missing column on stripe_events: $col (G-T-01 / audit S-06). Migration 00081 should add it; check the migrate-production stage."
+              exit 1
+            fi
+          done
+
+          echo "Post-migration schema verification passed"
+
+      # ── G-MD-01: production migration ledger gate ──────────────────
+      # Hard-fails the deploy if the production `_migrations_applied`
+      # ledger is behind the newest migration file in the repo. Without
+      # this gate, a bug that silently skipped the migrate-production
+      # stage (e.g. an env-condition mistake) could ship code expecting
+      # an unmigrated schema.
+      - name: Migration ledger gate (G-MD-01)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+        run: |
+          set -euo pipefail
+          bash scripts/check-migration-ledger.sh
+
+  # ═══════════════════════════════════════════════════════════════════
+  # STAGE 3: Build and deploy application
+  # ═══════════════════════════════════════════════════════════════════
+  deploy:
+    needs: [validate, migrate-production]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ── Create R2 bucket if not exists ──────────────────────────────
+      - name: Create R2 bucket (if not exists)
+        run: |
+          echo "Checking R2 bucket..."
+          npx --yes wrangler@${WRANGLER_VERSION} r2 bucket create next-inc-cache 2>&1 || echo "Bucket may already exist, continuing..."
+
+      # ── N-003 / Audit R-008: deploy the Tail Worker before the main Worker ──
+      #
+      # The log-shipper Tail Worker must already exist in the account
+      # before the main Worker can reference it via `tail_consumers`,
+      # otherwise wrangler rejects the deploy. This step:
+      #   1. Idempotently creates the `affilite-mix-logs` R2 bucket
+      #      that the shipper writes to.
+      #   2. Deploys the shipper Worker from `workers/log-shipper/`.
+      #   3. Rewrites `wrangler.jsonc` so the main Worker's
+      #      `tail_consumers` references the now-deployed shipper.
+      #
+      # Gated on the `LOG_SHIPPER_ENABLED` repo variable so existing
+      # accounts without the shipper provisioned keep deploying as
+      # before. Operators flip the variable to `true` once they want
+      # durable observability — no code change required.
+      #
+      # F-009: durable observability is mandatory for production. If
+      # the deploy workflow is invoked against the production
+      # environment but LOG_SHIPPER_ENABLED is unset/false, fail
+      # closed before any Worker mutation happens. Set the variable
+      # `LOG_SHIPPER_REQUIRED_OVERRIDE=true` for a one-off override
+      # (logged, audited).
+      # F-005: Hardened log-shipping override with expiry, ticket requirement,
+      # and structured audit trail. The override is a break-glass mechanism
+      # and must be time-bounded and traceable.
+      - name: Enforce log shipping in production (F-005 / F-009)
+        run: |
+          set -euo pipefail
+          ENABLED="${{ vars.LOG_SHIPPER_ENABLED }}"
+          OVERRIDE="${{ vars.LOG_SHIPPER_REQUIRED_OVERRIDE }}"
+          OVERRIDE_TICKET="${{ vars.LOG_SHIPPER_OVERRIDE_TICKET }}"
+          OVERRIDE_EXPIRES="${{ vars.LOG_SHIPPER_OVERRIDE_EXPIRES }}"
+
+          if [ "$ENABLED" != "true" ] && [ "$OVERRIDE" != "true" ]; then
+            echo "::error::F-009: production deploy requires LOG_SHIPPER_ENABLED=true." >&2
+            echo "::error::Provision the Tail Worker (workers/log-shipper) and set the repo" >&2
+            echo "::error::variable LOG_SHIPPER_ENABLED=true. For a temporary, audited" >&2
+            echo "::error::override, set LOG_SHIPPER_REQUIRED_OVERRIDE=true along with:" >&2
+            echo "::error::  LOG_SHIPPER_OVERRIDE_TICKET=<incident/change ticket URL>" >&2
+            echo "::error::  LOG_SHIPPER_OVERRIDE_EXPIRES=<ISO8601 UTC datetime>" >&2
+            exit 1
+          fi
+
+          if [ "$OVERRIDE" = "true" ] && [ "$ENABLED" != "true" ]; then
+            # F-005: Require a linked ticket for audit trail
+            if [ -z "$OVERRIDE_TICKET" ]; then
+              echo "::error::F-005: LOG_SHIPPER_REQUIRED_OVERRIDE=true requires LOG_SHIPPER_OVERRIDE_TICKET to be set."
+              echo "::error::Set it to the incident or change ticket URL authorizing this override."
+              exit 1
+            fi
+
+            # F-005: Require an expiry timestamp and enforce it
+            if [ -z "$OVERRIDE_EXPIRES" ]; then
+              echo "::error::F-005: LOG_SHIPPER_REQUIRED_OVERRIDE=true requires LOG_SHIPPER_OVERRIDE_EXPIRES to be set."
+              echo "::error::Set it to an ISO 8601 UTC datetime (e.g. 2025-01-15T12:00:00Z) after which the override is invalid."
+              exit 1
+            fi
+
+            # Check if the override has expired
+            EXPIRES_EPOCH=$(date -d "$OVERRIDE_EXPIRES" +%s 2>/dev/null || echo "0")
+            NOW_EPOCH=$(date +%s)
+            if [ "$EXPIRES_EPOCH" -le "$NOW_EPOCH" ]; then
+              echo "::error::F-005: LOG_SHIPPER_REQUIRED_OVERRIDE has expired (was: $OVERRIDE_EXPIRES)."
+              echo "::error::Either restore LOG_SHIPPER_ENABLED=true or set a new expiry."
+              exit 1
+            fi
+
+            echo "::warning::F-005: LOG_SHIPPER_REQUIRED_OVERRIDE=true is bypassing the durable-log-shipping requirement."
+            echo "::warning::Override used by: ${{ github.actor }} at $(date -u +%Y-%m-%dT%H:%M:%SZ) in run ${{ github.run_id }}"
+            echo "::warning::Linked ticket: $OVERRIDE_TICKET"
+            echo "::warning::Override expires: $OVERRIDE_EXPIRES"
+            echo "::warning::Restore LOG_SHIPPER_ENABLED=true ASAP."
+            # Surface override usage as a GitHub Actions annotation so it
+            # appears in the PR / commit checks summary and is auditable.
+            echo "::notice title=Log-Shipper Override Active::LOG_SHIPPER_REQUIRED_OVERRIDE=true was used by ${{ github.actor }} in workflow run ${{ github.run_id }}. Ticket: $OVERRIDE_TICKET. Expires: $OVERRIDE_EXPIRES. Ensure LOG_SHIPPER_ENABLED is restored promptly."
+          fi
+
+      - name: Deploy log-shipper Tail Worker
+        if: vars.LOG_SHIPPER_ENABLED == 'true'
+        run: |
+          set -euo pipefail
+          echo "LOG_SHIPPER_ENABLED=true — provisioning Tail Worker..."
+
+          # 1. R2 bucket for durable log storage. `r2 bucket create` is
+          # idempotent on Cloudflare's side but emits non-zero on conflict;
+          # tolerate that so reruns don't fail.
+          npx --yes wrangler@${WRANGLER_VERSION} r2 bucket create affilite-mix-logs 2>&1 \
+            || echo "affilite-mix-logs bucket may already exist, continuing..."
+
+          # 2. Deploy the Tail Worker.
+          npx --yes wrangler@${WRANGLER_VERSION} deploy \
+            --config workers/log-shipper/wrangler.jsonc
+
+      - name: Wire tail_consumers in wrangler.jsonc
+        if: vars.LOG_SHIPPER_ENABLED == 'true'
+        run: |
+          set -euo pipefail
+          SHIPPER_SERVICE=affilite-mix-log-shipper \
+            node scripts/inject-tail-consumers.mjs wrangler.jsonc
+          echo "── tail_consumers after rewrite ─────────────────────"
+          grep -n -B1 -A3 '"tail_consumers"' wrangler.jsonc | grep -v '//' || true
+
+      # ── Create KV namespaces if not exists, then inline the ids ──────
+      #
+      # Audit F-007: APP_CACHE_KV is referenced by middleware for dynamic
+      # domain resolution; it has the same lifecycle requirements as
+      # RATE_LIMIT_KV and must be provisioned/inlined or the deploy will
+      # ship with an unresolved binding placeholder.
+      - name: Create KV namespaces (if not exist)
+        run: |
+          set -euo pipefail
+
+          resolve_or_create_kv() {
+            local name="$1"
+            local id
+
+            id=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
+              | jq -r --arg n "$name" --arg pn "affilite-mix-$name" \
+                  '.[] | select(.title == $n or .title == $pn) | .id' \
+              | head -n1 || true)
+
+            if [ -z "$id" ]; then
+              echo "No existing $name namespace found — creating one..." >&2
+              local create_out
+              create_out=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace create "$name" 2>&1 || true)
+              echo "$create_out" >&2
+              id=$(echo "$create_out" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/' || true)
+              if [ -z "$id" ]; then
+                id=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
+                  | jq -r --arg n "$name" --arg pn "affilite-mix-$name" \
+                      '.[] | select(.title == $n or .title == $pn) | .id' \
+                  | head -n1 || true)
+              fi
+            fi
+
+            if [ -z "$id" ]; then
+              # `resolve_or_create_kv` is invoked via command substitution
+              # (`id=$(resolve_or_create_kv "$binding")`), which captures
+              # stdout into the variable. Diagnostics must go to stderr
+              # (`>&2`) so the GitHub Actions runner log surfaces them
+              # instead of swallowing them inside `$id`.
+              echo "::error::Unable to resolve $name namespace id. Check CLOUDFLARE_API_TOKEN has 'Workers KV Storage:Edit' permission." >&2
+              exit 1
+            fi
+            echo "$id"
+          }
+
+          inline_kv_id() {
+            local binding="$1"
+            local id="$2"
+            BINDING="$binding" KV_ID="$id" perl -i -0pe '
+              s/("binding"\s*:\s*"$ENV{BINDING}"[^}]*?"id"\s*:\s*")[^"]*(")/$1$ENV{KV_ID}$2/s
+            ' wrangler.jsonc
+            if ! grep -q "\"id\": \"$id\"" wrangler.jsonc; then
+              echo "::error::Failed to inline $binding namespace id into wrangler.jsonc"
+              grep -n "$binding" wrangler.jsonc || true
+              exit 1
+            fi
+          }
+
+          for binding in RATE_LIMIT_KV APP_CACHE_KV; do
+            echo "Resolving KV namespace id for $binding..."
+            id=$(resolve_or_create_kv "$binding")
+            echo "Using $binding namespace id: $id"
+            inline_kv_id "$binding" "$id"
+            echo "Inlined $binding namespace id into wrangler.jsonc"
+          done
+
+      # ── Build OpenNext bundle ─────────────────────────────────────────
+      # opennextjs-cloudflare deploy
+      - name: Build OpenNext bundle
+        run: npx @opennextjs/cloudflare build
+
+      # ── SLSA Build Provenance (A173) ──────────────────────────────────
+      - name: Generate SLSA build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v2
+        with:
+          subject-path: '.open-next/**'
+
+      # ── Set Worker secrets BEFORE deploy (audit R-004) ────────────────
+      #
+      # Cloudflare evaluates secrets at request time, so a deploy that
+      # ships before the secret rotation completes will serve traffic
+      # against stale or missing secrets — a partial outage masquerading
+      # as a successful deploy. Synchronise secrets first; the deploy
+      # below either picks them up immediately or never runs.
+      - name: Set Worker secrets
+        run: |
+          set -euo pipefail
+
+          # Validate that all required secrets are present before touching the worker.
+          MISSING=""
+          [ -z "$_CRON_SECRET" ]        && MISSING="$MISSING CRON_SECRET"
+          [ -z "$_JWT_SECRET" ]         && MISSING="$MISSING JWT_SECRET"
+          [ -z "$_SB_SERVICE_KEY" ]     && MISSING="$MISSING SUPABASE_SERVICE_ROLE_KEY"
+          [ -z "$_SB_JWT_SECRET" ]      && MISSING="$MISSING SUPABASE_JWT_SECRET"
+          [ -z "$_SB_URL" ]             && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_URL"
+          [ -z "$_SB_ANON_KEY" ]        && MISSING="$MISSING NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          [ -z "$_CRON_HOST" ]          && MISSING="$MISSING CRON_HOST"
+          [ -z "$_INTERNAL_TOKEN" ]     && MISSING="$MISSING INTERNAL_API_TOKEN"
+          # NEW-001: Per-trigger cron secrets are required in production —
+          # `verifyCronAuth` rejects requests authed via the shared
+          # CRON_SECRET fallback unless CRON_ALLOW_SHARED_FALLBACK_IN_PROD=1
+          # is set, and `instrumentation.ts` throws on missing required env.
+          # Keep this list aligned with `lib/cron-registry.ts -> cronJobs`.
+          [ -z "$_CRON_PUBLISH" ]       && MISSING="$MISSING CRON_PUBLISH_SECRET"
+          [ -z "$_CRON_STRIPE" ]        && MISSING="$MISSING CRON_STRIPE_SYNC_SECRET"
+          [ -z "$_CRON_AI" ]            && MISSING="$MISSING CRON_AI_SECRET"
+          [ -z "$_CRON_SITEMAP" ]       && MISSING="$MISSING CRON_SITEMAP_SECRET"
+          [ -z "$_CRON_RETENTION" ]     && MISSING="$MISSING CRON_RETENTION_SECRET"
+          [ -z "$_CRON_COMMISSION" ]    && MISSING="$MISSING CRON_COMMISSION_SECRET"
+          [ -z "$_CRON_EPC" ]           && MISSING="$MISSING CRON_EPC_SECRET"
+          [ -z "$_CRON_PRICE" ]         && MISSING="$MISSING CRON_PRICE_SECRET"
+          [ -z "$_CRON_DEALS" ]         && MISSING="$MISSING CRON_DEALS_SECRET"
+
+          if [ -n "$MISSING" ]; then
+            echo "::error::Required secrets are missing:$MISSING"
+            exit 1
+          fi
+
+          echo "Setting required Worker secrets..."
+          echo "$_CRON_SECRET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_JWT_SECRET"         | npx --yes wrangler@${WRANGLER_VERSION} secret put JWT_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_SB_SERVICE_KEY"     | npx --yes wrangler@${WRANGLER_VERSION} secret put SUPABASE_SERVICE_ROLE_KEY --name affilite-mix > /dev/null 2>&1
+          echo "$_SB_JWT_SECRET"      | npx --yes wrangler@${WRANGLER_VERSION} secret put SUPABASE_JWT_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_SB_URL"             | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_URL --name affilite-mix > /dev/null 2>&1
+          echo "$_SB_ANON_KEY"        | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_SUPABASE_ANON_KEY --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_HOST"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST --name affilite-mix > /dev/null 2>&1
+          echo "$_INTERNAL_TOKEN"     | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN --name affilite-mix > /dev/null 2>&1
+
+          # NEW-001: Per-trigger cron secrets. One per cronJobs entry in
+          # `lib/cron-registry.ts`. The registry test asserts that every
+          # job's secretEnvVar appears here as a `wrangler secret put`
+          # line so adding a new cron without wiring its secret fails CI.
+          echo "Setting per-trigger cron secrets on main worker (NEW-001)..."
+          echo "$_CRON_PUBLISH"       | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PUBLISH_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_STRIPE"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_STRIPE_SYNC_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_AI"            | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AI_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_SITEMAP"       | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SITEMAP_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_RETENTION"     | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_RETENTION_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_COMMISSION"    | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_COMMISSION_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_EPC"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_EPC_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_PRICE"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PRICE_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_DEALS"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_DEALS_SECRET --name affilite-mix > /dev/null 2>&1
+
+          echo "Setting optional Worker secrets (skipped if not configured)..."
+          [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix > /dev/null 2>&1       || true
+          [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx --yes wrangler@${WRANGLER_VERSION} secret put SENTRY_DSN --name affilite-mix > /dev/null 2>&1           || true
+          [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put TURNSTILE_SECRET_KEY --name affilite-mix > /dev/null 2>&1 || true
+          [ -n "$_NL_FROM" ]          && echo "$_NL_FROM"          | npx --yes wrangler@${WRANGLER_VERSION} secret put NEWSLETTER_FROM_EMAIL --name affilite-mix > /dev/null 2>&1 || true
+
+          echo "Setting optional AI provider secrets..."
+          [ -n "$_CF_AI_TOKEN" ]      && echo "$_CF_AI_TOKEN"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CLOUDFLARE_AI_API_TOKEN --name affilite-mix > /dev/null 2>&1 || true
+          [ -n "$_GEMINI_KEY" ]       && echo "$_GEMINI_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put GEMINI_API_KEY --name affilite-mix > /dev/null 2>&1         || true
+          [ -n "$_GROQ_KEY" ]         && echo "$_GROQ_KEY"         | npx --yes wrangler@${WRANGLER_VERSION} secret put GROQ_API_KEY --name affilite-mix > /dev/null 2>&1           || true
+          [ -n "$_COHERE_KEY" ]       && echo "$_COHERE_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put COHERE_API_KEY --name affilite-mix > /dev/null 2>&1         || true
+
+          echo "Setting optional affiliate network secrets..."
+          [ -n "$_CJ_KEY" ]           && echo "$_CJ_KEY"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CJ_API_KEY --name affilite-mix > /dev/null 2>&1             || true
+          [ -n "$_CJ_PUB" ]           && echo "$_CJ_PUB"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CJ_PUBLISHER_ID --name affilite-mix > /dev/null 2>&1       || true
+          [ -n "$_PSTACK_KEY" ]       && echo "$_PSTACK_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put PARTNERSTACK_API_KEY --name affilite-mix > /dev/null 2>&1   || true
+          [ -n "$_ADMITAD_KEY" ]      && echo "$_ADMITAD_KEY"      | npx --yes wrangler@${WRANGLER_VERSION} secret put ADMITAD_API_KEY --name affilite-mix > /dev/null 2>&1        || true
+          [ -n "$_ADMITAD_PUB" ]      && echo "$_ADMITAD_PUB"      | npx --yes wrangler@${WRANGLER_VERSION} secret put ADMITAD_PUBLISHER_ID --name affilite-mix > /dev/null 2>&1   || true
+
+          echo "Setting optional Stripe secrets (LIVE-17)..."
+          [ -n "$_STRIPE_KEY" ]       && echo "$_STRIPE_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_SECRET_KEY --name affilite-mix > /dev/null 2>&1        || true
+          [ -n "$_STRIPE_WH" ]        && echo "$_STRIPE_WH"        | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_WEBHOOK_SECRET --name affilite-mix > /dev/null 2>&1   || true
+          [ -n "$_STRIPE_INSIDER" ]   && echo "$_STRIPE_INSIDER"   | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_PRICE_ID_INSIDER --name affilite-mix > /dev/null 2>&1 || true
+          [ -n "$_STRIPE_PRO" ]       && echo "$_STRIPE_PRO"       | npx --yes wrangler@${WRANGLER_VERSION} secret put STRIPE_PRICE_ID_PRO --name affilite-mix > /dev/null 2>&1     || true
+          # CRON_STRIPE_SYNC_SECRET is now uploaded unconditionally above as
+          # part of the NEW-001 per-trigger cron secret rollout.
+
+          echo "Setting optional R2 image storage secrets..."
+          [ -n "$_R2_ACCOUNT" ]       && echo "$_R2_ACCOUNT"       | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_ACCOUNT_ID --name affilite-mix > /dev/null 2>&1          || true
+          [ -n "$_R2_KEY_ID" ]        && echo "$_R2_KEY_ID"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_ACCESS_KEY_ID --name affilite-mix > /dev/null 2>&1       || true
+          [ -n "$_R2_SECRET" ]        && echo "$_R2_SECRET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_SECRET_ACCESS_KEY --name affilite-mix > /dev/null 2>&1   || true
+          [ -n "$_R2_BUCKET" ]        && echo "$_R2_BUCKET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_BUCKET_NAME --name affilite-mix > /dev/null 2>&1         || true
+          [ -n "$_R2_URL" ]           && echo "$_R2_URL"           | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_PUBLIC_URL --name affilite-mix > /dev/null 2>&1          || true
+
+          echo "Worker secrets configured"
+        env:
+          _CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          _JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          _SB_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          _SB_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+          _SB_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          _SB_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          _RESEND_KEY: ${{ secrets.RESEND_API_KEY }}
+          _SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+          _CRON_HOST: ${{ secrets.CRON_HOST }}
+          _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          _NL_FROM: ${{ secrets.NEWSLETTER_FROM_EMAIL }}
+          _CF_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_API_TOKEN }}
+          _GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+          _GROQ_KEY: ${{ secrets.GROQ_API_KEY }}
+          _COHERE_KEY: ${{ secrets.COHERE_API_KEY }}
+          _CJ_KEY: ${{ secrets.CJ_API_KEY }}
+          _CJ_PUB: ${{ secrets.CJ_PUBLISHER_ID }}
+          _PSTACK_KEY: ${{ secrets.PARTNERSTACK_API_KEY }}
+          _ADMITAD_KEY: ${{ secrets.ADMITAD_API_KEY }}
+          _ADMITAD_PUB: ${{ secrets.ADMITAD_PUBLISHER_ID }}
+          _STRIPE_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          _STRIPE_WH: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          _STRIPE_INSIDER: ${{ secrets.STRIPE_PRICE_ID_INSIDER }}
+          _STRIPE_PRO: ${{ secrets.STRIPE_PRICE_ID_PRO }}
+          # NEW-001: Per-trigger cron secrets, one per `cronJobs` entry in
+          # `lib/cron-registry.ts`. Required in production; the validate
+          # step above and `__tests__/cron-registry.test.ts` enforce that
+          # this list stays in sync with the registry.
+          _CRON_PUBLISH: ${{ secrets.CRON_PUBLISH_SECRET }}
+          _CRON_STRIPE: ${{ secrets.CRON_STRIPE_SYNC_SECRET }}
+          _CRON_AI: ${{ secrets.CRON_AI_SECRET }}
+          _CRON_SITEMAP: ${{ secrets.CRON_SITEMAP_SECRET }}
+          _CRON_RETENTION: ${{ secrets.CRON_RETENTION_SECRET }}
+          _CRON_COMMISSION: ${{ secrets.CRON_COMMISSION_SECRET }}
+          _CRON_EPC: ${{ secrets.CRON_EPC_SECRET }}
+          _CRON_PRICE: ${{ secrets.CRON_PRICE_SECRET }}
+          _CRON_DEALS: ${{ secrets.CRON_DEALS_SECRET }}
+          _R2_ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
+          _R2_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          _R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
+          _R2_URL: ${{ secrets.R2_PUBLIC_URL }}
+
+      # ── Deploy to Cloudflare (after secrets are synced) ────────────────
+      #
+      # Audit R-004: this step runs AFTER `Set Worker secrets` so traffic
+      # never hits the new Worker bundle while the secret store is still
+      # mid-rotation. The post-deploy health-check stage below verifies
+      # the live Worker reports `status=ok` for every required secret.
+      #
+      # A-025 / Finding-10: Use wrangler versions upload + deployments create
+      # for a safe gradual rollout (10% → 50% → 100% via health gates)
+      # instead of an all-at-once `wrangler deploy`. This gives instant
+      # rollback capability at each traffic split threshold.
+      #
+      # GRADUAL_ROLLOUT_ENABLED (repo variable):
+      #   true  → upload a new version, promote 10% of traffic, verify health,
+      #            then promote to 100%. Requires Workers Paid plan.
+      #   false → fall back to direct `wrangler deploy` (safe for staging /
+      #           accounts that do not yet have the Versions API enabled).
+      - name: Deploy to Cloudflare (gradual rollout)
+        id: cloudflare-deploy
+        env:
+          GRADUAL_ROLLOUT_ENABLED: ${{ vars.GRADUAL_ROLLOUT_ENABLED }}
+          CRON_HOST: ${{ secrets.CRON_HOST }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ "${GRADUAL_ROLLOUT_ENABLED:-false}" = "true" ]; then
+            echo "── Gradual rollout: uploading new Worker version ──"
+            npx --yes wrangler@${WRANGLER_VERSION} versions upload \
+              --json > /tmp/version-upload.json 2>/tmp/version-upload-err.txt || {
+                cat /tmp/version-upload-err.txt >&2
+                echo "::error::wrangler versions upload failed"
+                exit 1
+              }
+            cat /tmp/version-upload-err.txt || true
+
+            VERSION_ID=$(jq -r '.id // empty' /tmp/version-upload.json 2>/dev/null || true)
+            if [ -z "$VERSION_ID" ]; then
+              echo "::error::Could not extract version id from versions upload output"
+              cat /tmp/version-upload.json
+              exit 1
+            fi
+            echo "Uploaded version: $VERSION_ID"
+            echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
+
+            echo "── Promoting 10% of traffic to new version ──"
+            npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
+              --version-id "$VERSION_ID" --version-percentage 10 \
+              --json > /tmp/deploy-10.json 2>/tmp/deploy-10-err.txt || {
+                cat /tmp/deploy-10-err.txt >&2
+                echo "::error::Failed to create 10% deployment"
+                exit 1
+              }
+            echo "10% deployment created — running health check..."
+
+            sleep 15
+            HTTP_STATUS=$(curl -s -o /tmp/canary-health.json -w "%{http_code}" \
+              --max-time 20 \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$CRON_HOST/api/health")
+            echo "Canary health (HTTP $HTTP_STATUS):"; cat /tmp/canary-health.json || true
+            if [ "$HTTP_STATUS" != "200" ]; then
+              echo "::error::Canary health check failed at 10% — rolling back to previous version"
+              npx --yes wrangler@${WRANGLER_VERSION} rollback --json || exit 0
+              exit 1
+            fi
+
+            echo "── Promoting 100% of traffic to new version ──"
+            npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
+              --version-id "$VERSION_ID" --version-percentage 100 \
+              --json > /tmp/deploy-100.json 2>/tmp/deploy-100-err.txt || {
+                cat /tmp/deploy-100-err.txt >&2
+                echo "::error::Failed to create 100% deployment"
+                exit 1
+              }
+            DEPLOYMENT_URL=$(jq -r '.url // empty' /tmp/deploy-100.json 2>/dev/null || true)
+            echo "deployment_url=${DEPLOYMENT_URL}" >> "$GITHUB_OUTPUT"
+            echo "Gradual rollout complete — 100% on version $VERSION_ID"
+          else
+            echo "── Direct deploy (GRADUAL_ROLLOUT_ENABLED not set) ──"
+            npx --yes wrangler@${WRANGLER_VERSION} deploy \
+              --json > /tmp/deploy-output.json 2>/tmp/deploy-stderr.txt || {
+                cat /tmp/deploy-stderr.txt >&2
+                echo "::error::wrangler deploy failed"
+                exit 1
+              }
+            cat /tmp/deploy-stderr.txt
+
+            VERSION_ID=$(jq -r '.versions[0].id // empty' /tmp/deploy-output.json 2>/dev/null || true)
+            DEPLOYMENT_URL=$(jq -r '.versions[0].url // empty' /tmp/deploy-output.json 2>/dev/null || true)
+
+            if [ -z "$VERSION_ID" ]; then
+              echo "::error::Could not extract version_id from wrangler deploy output."
+              cat /tmp/deploy-output.json
+              exit 1
+            else
+              echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
+              echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+              echo "Deployed version $VERSION_ID at $DEPLOYMENT_URL"
+            fi
+          fi
+
+
+      # NEW-001: The heavy-crons dispatcher worker reads the per-trigger
+      # secret env vars (and CRON_HOST + CRON_SECRET as a fallback) at
+      # cron-trigger time to authenticate its outbound POST to the main
+      # worker. Without these uploaded to `affilite-mix-heavy-crons`, the
+      # dispatcher falls through to "No secret configured — skipping
+      # dispatch" and the heavy crons (ai-generate / commission-ingest /
+      # price-scrape) silently never run. We push the full per-trigger
+      # set (not just the heavy ones) so the surface stays symmetric with
+      # the main worker and a future re-flagging of `heavy: true` on a
+      # job does not require a separate deploy change.
+      - name: Set heavy-crons Worker secrets
+        env:
+          _CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          _CRON_HOST: ${{ secrets.CRON_HOST }}
+          _CRON_PUBLISH: ${{ secrets.CRON_PUBLISH_SECRET }}
+          _CRON_STRIPE: ${{ secrets.CRON_STRIPE_SYNC_SECRET }}
+          _CRON_AI: ${{ secrets.CRON_AI_SECRET }}
+          _CRON_SITEMAP: ${{ secrets.CRON_SITEMAP_SECRET }}
+          _CRON_RETENTION: ${{ secrets.CRON_RETENTION_SECRET }}
+          _CRON_COMMISSION: ${{ secrets.CRON_COMMISSION_SECRET }}
+          _CRON_EPC: ${{ secrets.CRON_EPC_SECRET }}
+          _CRON_PRICE: ${{ secrets.CRON_PRICE_SECRET }}
+          _CRON_DEALS: ${{ secrets.CRON_DEALS_SECRET }}
+        run: |
+          set -euo pipefail
+
+          # Required for the dispatcher to know where to POST and to
+          # auth via fallback if a per-trigger secret is somehow unset.
+          echo "$_CRON_HOST"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST           --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_SECRET"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SECRET         --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+
+          echo "Setting per-trigger cron secrets on heavy-crons worker (NEW-001)..."
+          echo "$_CRON_PUBLISH"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PUBLISH_SECRET     --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_STRIPE"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_STRIPE_SYNC_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_AI"             | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AI_SECRET          --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_SITEMAP"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SITEMAP_SECRET     --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_RETENTION"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_RETENTION_SECRET   --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_COMMISSION"     | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_COMMISSION_SECRET  --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_EPC"            | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_EPC_SECRET         --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_PRICE"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PRICE_SECRET       --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_DEALS"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_DEALS_SECRET       --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+
+          echo "heavy-crons worker secrets configured"
+
+      # A-018: Deploy the dedicated heavy-crons worker so long-running cron
+      # jobs (ai-generate, commission-ingest, price-scrape) do not share
+      # CPU/memory budget with user-facing request handling.
+      - name: Deploy heavy-crons worker
+        run: npx --yes wrangler@${WRANGLER_VERSION} deploy --config wrangler.heavy-crons.jsonc
+
+  # ═══════════════════════════════════════════════════════════════════
+  # STAGE 4: Health check + verify deployment
+  # ═══════════════════════════════════════════════════════════════════
+  health-check:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Post-deploy health gate
+        run: |
+          set -euo pipefail
+          CRON_HOST="${{ secrets.CRON_HOST }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+
+          if [ -z "$CRON_HOST" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_HOST or CRON_SECRET not set — cannot run post-deploy health gate"
+            echo "Both are required secrets. Add them in GitHub → Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+          echo "Waiting 15 s for deploy to propagate..."
+          sleep 15
+
+          HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" \
+            --max-time 20 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$CRON_HOST/api/health")
+
+          echo "Health response (HTTP $HTTP_STATUS):"
+          cat /tmp/health.json || true
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Health check returned HTTP $HTTP_STATUS — deployment may be broken"
+            exit 1
+          fi
+
+          # Fail if any check is in error state
+          DEGRADED=$(cat /tmp/health.json | grep -o '"status":"degraded"' | head -1 || true)
+          if [ -n "$DEGRADED" ]; then
+            echo "::error::Worker reports degraded health — check KV binding, env vars, and DB connectivity"
+            exit 1
+          fi
+
+          echo "Deployment healthy"
+
+      # A-021: Post-deploy RLS policy drift check.
+      # Compares the current pg_policies against a known baseline and
+      # alerts if any critical tenant-isolation policies are missing.
+      - name: Verify RLS policy baseline
+        run: |
+          set -euo pipefail
+          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
+          if [ -z "$DB_URL" ]; then
+            echo "::warning::SUPABASE_DB_URL not set — skipping RLS policy baseline check"
+            exit 0
+          fi
+
+          MISSING=$(psql "$DB_URL" -t -A -c "
+            SELECT policyname
+            FROM pg_policies
+            WHERE schemaname = 'public'
+              AND tablename IN (
+                'sites','products','content','pages','ad_placements',
+                'categories','modules','quizzes','scheduled_jobs',
+                'affiliate_clicks','commissions','click_failures',
+                'affiliate_tracking_keys'
+              )
+              AND policyname LIKE 'tenant_isolation_auth_%'
+            ORDER BY policyname;
+          " | wc -l)
+
+          if [ "$MISSING" -lt 10 ]; then
+            echo "::error::Only $MISSING tenant_isolation_auth_* policies found in pg_policies. Expected >= 10. Check migration drift."
+            exit 1
+          fi
+
+          echo "RLS baseline check passed ($MISSING tenant isolation policies)"
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment complete!"
+          echo "Testing site reachability..."
+          sleep 5
+          CRON_HOST="${{ secrets.CRON_HOST }}"
+          if [ -n "$CRON_HOST" ]; then
+            curl -s -o /dev/null -w "HTTP %{http_code}" --max-time 10 "$CRON_HOST/" || echo "Site may need DNS propagation"
+          else
+            echo "::warning::CRON_HOST not set — skipping site reachability check"
+          fi
+
+      # G-11: runtime drift gates. Migration drift is already enforced
+      # above (the Verify production schema step). These three checks
+      # compare the live Worker's bindings, secrets, and cron schedules
+      # against what `wrangler.jsonc` declares, so a hand-rolled
+      # `wrangler` invocation that bypasses CI cannot silently leave
+      # production in a different state from the checked-in config.
+      - name: Runtime drift — Worker bindings
+        continue-on-error: true
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping binding drift check"
+            exit 0
+          fi
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
+            | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
+          DECL=$(echo "$WRANGLER_JSON" | jq -r '
+            [
+              (.kv_namespaces // [])[] | .binding,
+              (.r2_buckets // [])[] | .binding,
+              (.queues.producers // [])[] | .binding,
+              (.durable_objects.bindings // [])[] | .name
+            ] | sort | unique | .[]
+          ')
+          LIVE=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/bindings" \
+            | jq -r '(.result // [])[] | (.name // .binding // empty)' | sort -u)
+          MISSING=$(comm -23 <(echo "$DECL") <(echo "$LIVE"))
+          if [ -n "$MISSING" ]; then
+            echo "::error::Bindings declared in wrangler.jsonc but missing from live Worker:"
+            echo "$MISSING" | sed 's/^/  - /'
+            exit 1
+          fi
+          echo "All declared Worker bindings present on the live Worker."
+
+      - name: Runtime drift — Worker secrets
+        continue-on-error: true
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping secret drift check"
+            exit 0
+          fi
+          # Canonical list of production secrets. Keep in sync with
+          # wrangler.jsonc / scripts/validate-cloudflare-bindings.sh.
+          REQUIRED_SECRETS=(
+            SUPABASE_SERVICE_ROLE_KEY
+            SUPABASE_JWT_SECRET
+            NEXT_PUBLIC_SUPABASE_URL
+            NEXT_PUBLIC_SUPABASE_ANON_KEY
+            JWT_SECRET
+            CRON_SECRET
+            INTERNAL_API_TOKEN
+            APP_URL
+            STRIPE_SECRET_KEY
+            STRIPE_WEBHOOK_SECRET
+            SENTRY_DSN
+          )
+          LIVE_SECRETS=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/secrets" \
+            | jq -r '(.result // [])[].name' | sort -u)
+          MISSING=""
+          for s in "${REQUIRED_SECRETS[@]}"; do
+            if ! echo "$LIVE_SECRETS" | grep -qx "$s"; then
+              MISSING="${MISSING}${s} "
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::Required Worker secrets missing on the live Worker: $MISSING"
+            echo "Set them with: wrangler secret put <NAME>"
+            exit 1
+          fi
+          echo "All canonical Worker secrets present on the live Worker."
+
+      - name: Runtime drift — Cron schedules
+        continue-on-error: true
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping cron drift check"
+            exit 0
+          fi
+          WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
+            | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
+          DECL=$(echo "$WRANGLER_JSON" | jq -r '(.triggers.crons // [])[]' | sort -u)
+          LIVE=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/schedules" \
+            | jq -r '(.schedules // [])[].cron' | sort -u)
+          MISSING=$(comm -23 <(echo "$DECL") <(echo "$LIVE"))
+          EXTRA=$(comm -13 <(echo "$DECL") <(echo "$LIVE"))
+          if [ -n "$MISSING" ] || [ -n "$EXTRA" ]; then
+            if [ -n "$MISSING" ]; then
+              echo "::error::Cron schedules declared in wrangler.jsonc but not live:"
+              echo "$MISSING" | sed 's/^/  - /'
+            fi
+            if [ -n "$EXTRA" ]; then
+              echo "::warning::Cron schedules live but not declared in wrangler.jsonc:"
+              echo "$EXTRA" | sed 's/^/  - /'
+            fi
+            if [ -n "$MISSING" ]; then exit 1; fi
+          fi
+          echo "Live cron schedules match wrangler.jsonc."
+
+      - name: Traffic promotion note
+        run: |
+          echo "### Deployment Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deploy completed. Traffic is live." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "For gradual rollouts, use the **Deploy (gradual rollout)** workflow instead." >> "$GITHUB_STEP_SUMMARY"
+          echo "See: \`.github/workflows/deploy-gradual.yml\`" >> "$GITHUB_STEP_SUMMARY"

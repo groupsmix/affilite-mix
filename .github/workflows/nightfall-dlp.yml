@@ -1,0 +1,26 @@
+name: Nightfall DLP Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1' # Run weekly on Mondays at 4 AM
+
+jobs:
+  nightfall-dlp:
+    name: Nightfall DLP / PII Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        
+      - name: Nightfall DLP Action
+        uses: nightfallai/nightfall_code_scanner@a5c7f89b919e13b8f1bc2cc5bd8d8e3dbf33dc68 # v1
+        env:
+          NIGHTFALL_API_KEY: ${{ secrets.NIGHTFALL_API_KEY }}
+        with:
+          # A246: Implement Nightfall DLP for rigorous PII scanning
+          nightfall_config_file: .nightfall.yml # Optional path if custom rules needed
+          commit_hash: ${{ github.sha }}

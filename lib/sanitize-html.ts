@@ -1,0 +1,262 @@
+/**
+ * Server-side HTML sanitizer.
+ * Uses htmlparser2 (pure-JS parser) with an allowlist approach — only permitted
+ * tags and attributes survive. Prevents stored XSS from admin-authored content.
+ *
+ * Compatible with Cloudflare Workers (no JSDOM / DOMPurify dependency).
+ */
+
+import { Parser } from "htmlparser2";
+
+const ALLOWED_TAGS = new Set([
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "p",
+  "br",
+  "hr",
+  "ul",
+  "ol",
+  "li",
+  "a",
+  "img",
+  "strong",
+  "b",
+  "em",
+  "i",
+  "u",
+  "s",
+  "del",
+  "ins",
+  "blockquote",
+  "pre",
+  "code",
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "th",
+  "td",
+  "div",
+  "span",
+  "figure",
+  "figcaption",
+  "sup",
+  "sub",
+]);
+
+const ALLOWED_ATTRS: Record<string, Set<string>> = {
+  a: new Set(["href", "title", "target", "rel"]),
+  img: new Set(["src", "alt", "title", "width", "height", "loading"]),
+  td: new Set(["colspan", "rowspan"]),
+  th: new Set(["colspan", "rowspan", "scope"]),
+  ol: new Set(["start", "type"]),
+  blockquote: new Set(["cite"]),
+  code: new Set(["class"]),
+  pre: new Set(["class"]),
+  div: new Set(["class"]),
+  span: new Set(["class"]),
+};
+
+const VOID_TAGS = new Set(["br", "hr", "img"]);
+
+/**
+ * Heading level remapping: <h1> in user-authored content is demoted to <h2>
+ * to preserve the page's heading hierarchy (the page already has its own <h1>).
+ */
+const HEADING_REMAP: Record<string, string> = { h1: "h2" };
+
+/**
+ * Allow-list of URL schemes permitted in `href`/`src` attributes.
+ *
+ * Deny-lists are fragile — `javascript:`, `data:`, and `vbscript:` are
+ * the well-known offenders but browsers keep inventing new ones
+ * (`blob:`, `filesystem:`, `intent:` on Android, etc.). An allow-list
+ * locks URLs to the small set we actually want users to author.
+ *
+ * Accepted forms:
+ *   - Absolute URLs with schemes `http:`, `https:`, `mailto:`, `tel:`
+ *   - Relative / site-root URLs (`/foo`, `foo/bar`, `../x`)
+ *   - In-page anchors (`#id`)
+ */
+const ALLOWED_URL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
+
+/**
+ * URLs are pre-cleaned to match what the browser will actually resolve:
+ *   - Leading/trailing C0 control characters (U+0000..U+001F) and space
+ *     are stripped by the URL parser (WHATWG URL spec §4.4).
+ *   - ASCII tab, LF and CR inside the URL are stripped everywhere.
+ * Without this, crafted inputs like `java\tscript:` or `\x01javascript:`
+ * would sneak past scheme detection and still be resolved as
+ * `javascript:` by the browser.
+ */
+export function isSafeUrl(value: string): boolean {
+  if (typeof value !== "string") return false;
+
+  // Strip all ASCII tab, newline and carriage-return characters (anywhere
+  // in the string — the URL parser removes them globally), then trim
+  // leading/trailing C0 controls and spaces.
+  const trimmed = value.replace(/[\t\n\r]/g, "").replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, "");
+  if (trimmed.length === 0) return false;
+
+  // Relative URLs and same-page anchors never specify a scheme.
+  if (trimmed.startsWith("#")) return true;
+  if (trimmed.startsWith("/")) return true;
+
+  // Detect an explicit scheme. The regex matches the URL scheme grammar
+  // (alpha, followed by alpha/digit/+/-/.) — identical to how browsers
+  // parse the leading component of a URL.
+  const schemeMatch = /^([a-z][a-z0-9+\-.]*):/i.exec(trimmed);
+  if (!schemeMatch) {
+    // No scheme and no leading `/` or `#`: treat as a relative path
+    // (e.g. `foo/bar`, `page.html`). Still safe — the browser resolves
+    // it against the document base URL and cannot escape it.
+    return true;
+  }
+
+  return ALLOWED_URL_SCHEMES.has(schemeMatch[1].toLowerCase() + ":");
+}
+
+/** Escape special characters in attribute values */
+function escapeAttrValue(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Build a safe attribute string for an allowed tag.
+ * - Only attributes in ALLOWED_ATTRS for that tag are kept.
+ * - Event handlers (on*) and style attributes are always stripped.
+ * - javascript: / data: / vbscript: protocols in href/src are stripped.
+ * - <a> tags always get rel="noopener noreferrer nofollow".
+ */
+/**
+ * F-041: Make ALLOWED_CLASSES data-driven to support any language prefix
+ * without hardcoding the list of languages.
+ */
+function isAllowedClass(cls: string): boolean {
+  if (cls.startsWith("language-")) return true;
+  if (["text-left", "text-center", "text-right", "text-justify"].includes(cls)) return true;
+  return false;
+}
+
+function buildAttrs(tag: string, raw: Record<string, string>): string {
+  const allowedSet = ALLOWED_ATTRS[tag];
+  const parts: string[] = [];
+
+  if (allowedSet) {
+    for (const [name, value] of Object.entries(raw)) {
+      const lc = name.toLowerCase();
+
+      // Always strip event handlers and style
+      if (lc.startsWith("on") || lc === "style") continue;
+
+      if (!allowedSet.has(lc)) continue;
+
+      // Restrict classes to a strict allow-list to prevent UI redressing
+      if (lc === "class") {
+        const safeClasses = value.split(/\s+/).filter(isAllowedClass).join(" ");
+        if (!safeClasses) continue;
+        parts.push(`class="${escapeAttrValue(safeClasses)}"`);
+        continue;
+      }
+
+      // Lock href/src to the scheme allow-list defined above.
+      if ((lc === "href" || lc === "src") && !isSafeUrl(value)) {
+        continue;
+      }
+
+      // Skip user-supplied rel on <a> — we force our own below
+      if (tag === "a" && lc === "rel") continue;
+
+      parts.push(`${lc}="${escapeAttrValue(value)}"`);
+    }
+  }
+
+  // Force safe rel on <a> tags
+  if (tag === "a") {
+    parts.push('rel="noopener noreferrer nofollow"');
+  }
+
+  return parts.length > 0 ? " " + parts.join(" ") : "";
+}
+
+/**
+ * Sanitize HTML using htmlparser2 with a tag/attribute allowlist.
+ * - Strips all tags not in ALLOWED_TAGS
+ * - Strips all attributes not in ALLOWED_ATTRS for that tag
+ * - Removes javascript:/data:/vbscript: protocols in href/src
+ * - Forces rel="noopener noreferrer nofollow" on all <a> tags
+ * - Removes event handler attributes (on*)
+ */
+const MAX_INPUT_LENGTH = 100_000; // 100KB is generous for any blog comment or typical article
+
+export function sanitizeHtml(html: string): string {
+  if (!html) return html;
+
+  if (html.length > MAX_INPUT_LENGTH) {
+    throw new Error(`Input exceeds maximum allowed length of ${MAX_INPUT_LENGTH} characters`);
+  }
+
+  const chunks: string[] = [];
+
+  // Track depth inside disallowed tags so their text content is also dropped.
+  // Without this, a payload like `<style>body{background:url(javascript:...)}</style>`
+  // would leak its CSS body as plain text even though the <style> wrapper is stripped.
+  let suppressDepth = 0;
+
+  const parser = new Parser(
+    {
+      onopentag(name, attribs) {
+        const raw = name.toLowerCase();
+        if (!ALLOWED_TAGS.has(raw)) {
+          if (!VOID_TAGS.has(raw)) suppressDepth++;
+          return;
+        }
+
+        // Remap h1 → h2 so user content doesn't break page heading hierarchy
+        const tag = HEADING_REMAP[raw] ?? raw;
+        const attrStr = buildAttrs(tag, attribs);
+
+        if (VOID_TAGS.has(tag)) {
+          chunks.push(`<${tag}${attrStr} />`);
+        } else {
+          chunks.push(`<${tag}${attrStr}>`);
+        }
+      },
+
+      ontext(text) {
+        if (suppressDepth > 0) return;
+        chunks.push(text);
+      },
+
+      onclosetag(name) {
+        const raw = name.toLowerCase();
+        if (!ALLOWED_TAGS.has(raw)) {
+          if (!VOID_TAGS.has(raw) && suppressDepth > 0) suppressDepth--;
+          return;
+        }
+        if (VOID_TAGS.has(raw)) return;
+        const tag = HEADING_REMAP[raw] ?? raw;
+        chunks.push(`</${tag}>`);
+      },
+    },
+    {
+      recognizeSelfClosing: true,
+      lowerCaseTags: true,
+      lowerCaseAttributeNames: true,
+    },
+  );
+
+  parser.write(html);
+  parser.end();
+
+  return chunks.join("");
+}

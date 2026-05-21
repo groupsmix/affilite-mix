@@ -1,0 +1,11 @@
+-- A25/A7 hardening: remove obsolete SECURITY DEFINER page-reorder overload.
+--
+-- Migration 00026 created public.reorder_pages(updates jsonb) as SECURITY DEFINER
+-- and updated pages by id only, without a site_id tenant boundary and without an
+-- explicit search_path. Migration 00060 added the safer overload
+-- public.reorder_pages(p_site_id uuid, updates jsonb), but did not drop the old
+-- function. If the old RPC remains exposed through PostgREST, any caller with
+-- EXECUTE permission could reorder pages across tenants by supplying page IDs.
+--
+-- The application should call only reorder_pages(p_site_id uuid, updates jsonb).
+DROP FUNCTION IF EXISTS public.reorder_pages(jsonb);

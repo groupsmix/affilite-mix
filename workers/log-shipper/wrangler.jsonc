@@ -1,0 +1,35 @@
+// Tail Worker for affilite-mix.
+//
+// Audit R-008: dashboard logs and Cloudflare's in-product Worker
+// Analytics retention is too short to reconstruct an incident. This
+// Worker subscribes to the main Worker's tail stream and forwards
+// every event to a durable sink (R2 by default; Datadog / Splunk /
+// Logtail also work over `fetch`).
+//
+// Deploy:
+//   1. Edit `workers/log-shipper/index.ts` and pick a sink.
+//   2. `wrangler deploy --config workers/log-shipper/wrangler.jsonc`
+//   3. Uncomment the `tail_consumers` block in the parent
+//      `wrangler.jsonc` and redeploy the main Worker.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "affilite-mix-log-shipper",
+  "main": "index.ts",
+  "compatibility_date": "2026-03-17",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // R2 bucket used as the durable log sink. Create it once with:
+  //   npx wrangler r2 bucket create affilite-mix-logs
+  "r2_buckets": [
+    {
+      "binding": "LOG_SINK",
+      "bucket_name": "affilite-mix-logs",
+    },
+  ],
+
+  // Observability for the log shipper itself — if THIS Worker silently
+  // dies, we still want a heartbeat in Cloudflare's native dashboard.
+  "observability": {
+    "enabled": true,
+  },
+}

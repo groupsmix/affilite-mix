@@ -1,0 +1,291 @@
+// Wrangler config for @opennextjs/cloudflare Workers deployment.
+// Deploy via: npx opennextjs-cloudflare build && npx opennextjs-cloudflare deploy
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "affilite-mix",
+  "main": "workers/custom-worker.ts",
+  "compatibility_date": "2026-03-17",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // A206/A209: Disable the *.workers.dev preview URL so all traffic must
+  // transit the zone-level WAF, Bot Fight Mode, and TLS settings.
+  "workers_dev": false,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "services": [
+    {
+      // Self-reference service binding, the service name must match the worker name
+      // see https://opennext.js.org/cloudflare/caching
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "affilite-mix",
+    },
+  ],
+  // KV namespace for distributed rate limiting.
+  //
+  // The `id` is intentionally NOT hardcoded to a specific Cloudflare
+  // account's namespace.  Each deployment environment must provision
+  // its own namespace and supply the ID via the
+  // RATE_LIMIT_KV_NAMESPACE_ID environment variable at build/deploy
+  // time.  Wrangler interpolates `${VAR}` in string fields from the
+  // shell environment when running `wrangler deploy` /
+  // `opennextjs-cloudflare deploy`.
+  //
+  // One-time setup per environment:
+  //   1. npx wrangler kv:namespace create RATE_LIMIT_KV
+  //   2. export RATE_LIMIT_KV_NAMESPACE_ID="<id from step 1>"
+  //   3. deploy as usual
+  //
+  // See docs/CLOUDFLARE.md for the full bootstrap procedure.
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT_KV",
+      "id": "${RATE_LIMIT_KV_NAMESPACE_ID}",
+    },
+    {
+      "binding": "APP_CACHE_KV",
+      "id": "${APP_CACHE_KV_NAMESPACE_ID}",
+    },
+  ],
+  // R2 incremental cache — create the bucket in the Cloudflare dashboard first
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "next-inc-cache",
+    },
+    {
+      // A44/A46: durable redacted forensic DLQ for Stripe webhook events
+      // that exceed the retry cap. Raw card data is never present; the
+      // route stores redacted event metadata only.
+      "binding": "STRIPE_WEBHOOK_DLQ_BUCKET",
+      "bucket_name": "stripe-webhook-dlq",
+    },
+  ],
+  // Durable Objects for OpenNext's caching layer and F-005 rate limiting.
+  // These classes are re-exported from workers/custom-worker.ts so wrangler
+  // must declare the bindings and the initial SQLite-backed migration, even
+  // if tag-based revalidation is not yet enabled in open-next.config.ts.
+  // See: https://opennext.js.org/cloudflare/caching
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "NEXT_CACHE_DO_QUEUE",
+        "class_name": "DOQueueHandler",
+      },
+      {
+        "name": "NEXT_TAG_CACHE_DO_SHARDED",
+        "class_name": "DOShardedTagCache",
+      },
+      {
+        // F-005: atomic distributed rate limiting.
+        // lib/rate-limit.ts prefers this binding over KV when present.
+        "name": "RATE_LIMITER_DO",
+        "class_name": "RateLimiterDO",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"],
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["RateLimiterDO"],
+    },
+  ],
+  // F-028: Cloudflare Queue for affiliate click tracking.
+  //
+  // The click endpoint (/api/track/click) publishes lightweight messages to
+  // this queue instead of writing directly to Supabase. The consumer runs
+  // the batch insert with retry/backoff and a dead-letter queue for failed
+  // batches, so a Supabase outage no longer drops click data on the floor.
+  //
+  // One-time setup per environment (CI/production):
+  //   npx wrangler queues create click-tracking
+  //   npx wrangler queues create click-tracking-dlq
+  //
+  // The queue is consumed by the worker exported from workers/custom-worker.ts
+  // (see the `queue` handler) which forwards batches to /api/queue/clicks.
+  "queues": {
+    "producers": [
+      {
+        "binding": "CLICK_QUEUE",
+        "queue": "click-tracking",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "click-tracking",
+        "max_batch_size": 25,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "click-tracking-dlq",
+      },
+    ],
+  },
+  // ═════════════════════════════════════════════════════════════════
+  // DOMAIN ROUTING - Dashboard Managed
+  // ═════════════════════════════════════════════════════════════════
+  //
+  // ADD/REMOVE DOMAINS WITHOUT CODE CHANGES:
+  // 1. Go to Cloudflare Dashboard → Workers & Pages → affilite-mix
+  // 2. Settings → Triggers → Add Custom Domain
+  // 3. Enter your domain (e.g., "cryptoranked.xyz" or "crypto.wristnerd.xyz")
+  // 4. Set DNS record (A or CNAME) pointing to the worker
+  // 5. Update the domain in your Supabase sites table
+  //
+  // ROUTES EXPLAINED:
+  // - "*.wristnerd.xyz" catches ALL subdomains (arabictools, crypto, etc.)
+  // - Add standalone domains (cryptoranked.xyz) via Dashboard → Custom Domains
+  // - The middleware resolves domain → site_id via DB lookup
+  //
+  "routes": [
+    // ── Custom Domains (auto-provision DNS, no wildcards allowed) ──
+    { "pattern": "wristnerd.xyz", "custom_domain": true },
+    { "pattern": "arabictools.wristnerd.xyz", "custom_domain": true },
+    { "pattern": "crypto.wristnerd.xyz", "custom_domain": true },
+    // ── To add more domains (wildcards or standalone): ──────────────
+    // Option A: Cloudflare Dashboard → Workers & Pages → affilite-mix
+    //           → Settings → Triggers → Add Custom Domain
+    // Option B: Add a Worker Route for wildcards:
+    //           → Settings → Triggers → Add Route → *.wristnerd.xyz/*
+    // Option C: Add another { "pattern": "newdomain.xyz", "custom_domain": true } here
+    // The middleware resolves any domain → site_id via DB lookup
+  ],
+  // Cron triggers — publish scheduled content, AI generation, and sitemap refresh
+  //
+  // SCHEDULE BREAKDOWN:
+  // - */5 * * * *  → Every 5 minutes: Publish scheduled content
+  // - 0 2 * * *    → Daily at 2 AM UTC: AI content generation
+  // - 0 3 * * *    → Daily at 3 AM UTC: Sitemap refresh
+  //
+  // The worker will POST to /api/cron/publish, /api/cron/ai-generate, and
+  // /api/cron/sitemap-refresh. Each route authenticates via its own
+  // per-trigger secret (B-3) and falls back to the shared CRON_SECRET:
+  //
+  //   Route                       Primary secret           Fallback
+  //   --------------------------- ------------------------ ------------
+  //   /api/cron/publish           CRON_PUBLISH_SECRET      CRON_SECRET
+  //   /api/cron/ai-generate       CRON_AI_SECRET           CRON_SECRET
+  //   /api/cron/sitemap-refresh   CRON_SITEMAP_SECRET      CRON_SECRET
+  //
+  // /api/health also accepts CRON_SECRET for backwards compatibility.
+  // Set each secret via: `wrangler secret put CRON_PUBLISH_SECRET` etc.
+  "triggers": {
+    "crons": [
+      "*/5 * * * *", // Scheduled publishing (every 5 minutes)
+      "0 1 * * *", // Stripe sync (daily at 1 AM UTC)
+      // A-018: Heavy crons moved to affilite-mix-heavy-crons worker
+      // "0 2 * * *", // AI content generation (daily at 2 AM UTC)
+      "0 3 * * *", // Sitemap refresh (daily at 3 AM UTC)
+      "0 4 * * *", // Data retention (daily at 4 AM UTC)
+      // A-018: Heavy crons moved to affilite-mix-heavy-crons worker
+      // "0 5 * * *", // Commission ingest (daily at 5 AM UTC)
+      "0 6 * * *", // EPC recompute (daily at 6 AM UTC)
+      // A-018: Heavy crons moved to affilite-mix-heavy-crons worker
+      // "0 7 * * *", // Price scrape (daily at 7 AM UTC)
+      "0 * * * *", // Expire deals (hourly)
+    ],
+  },
+  // FIX-02 (F-018): NODE_ENV must be "production" so the app rejects dev fallback
+  // tokens and enables production-only guards. Without this, the Workers runtime
+  // defaults NODE_ENV to "production" but the Next.js shim may not propagate it.
+  "vars": {
+    "NODE_ENV": "production",
+  },
+  // Workers observability (logs, errors, metrics in CF dashboard)
+  "observability": {
+    "enabled": true,
+  },
+  // A-013: OpenTelemetry tracing — enabled when OTEL_ENDPOINT is set.
+  // Wrangler interpolates ${VAR} from env vars. Configure your sink
+  // (Honeycomb, Datadog, Grafana Tempo, etc.) in CI secrets.
+  "otel": {
+    "enabled": true,
+    "endpoint": "${OTEL_ENDPOINT}",
+    "headers": {
+      "authorization": "Bearer ${OTEL_AUTH_TOKEN}",
+    },
+  },
+  // Smart placement — run the worker close to the origin (Supabase)
+  "placement": {
+    "mode": "smart",
+  },
+  // ═════════════════════════════════════════════════════════════════
+  // TAIL CONSUMERS — Log Shipping / Long-Term Retention (W8)
+  // ═════════════════════════════════════════════════════════════════
+  // Workers Observability (above) provides dashboard logs but NO
+  // long-term retention or external alerting pipeline.  A Tail Worker
+  // forwards every request/log/exception event to a durable log sink
+  // (e.g. Axiom, Datadog, Grafana Loki, Better Stack, S3).
+  //
+  // Setup (one-time):
+  //   1. Create the tail worker:
+  //        wrangler generate affilite-mix-log-shipper
+  //   2. Implement the tail handler — see the Cloudflare docs link
+  //      below for a minimal template that forwards to your sink.
+  //   3. Deploy it:
+  //        cd affilite-mix-log-shipper && wrangler deploy
+  //   4. Uncomment the entry below and redeploy the main worker.
+  //
+  // Alternative: Cloudflare Logpush (Enterprise) can push Worker
+  // Trace Events directly to R2, S3, Datadog, or Splunk without a
+  // Tail Worker.  Enable via Dashboard → Analytics & Logs → Logpush.
+  //
+  // See: https://developers.cloudflare.com/workers/observability/tail-workers/
+  // See: https://developers.cloudflare.com/logs/about/
+  //
+  // Audit R-008: durable observability sink.
+  //
+  // The Tail Worker scaffold ships in this repo at
+  // `workers/log-shipper/` (README.md + index.ts + wrangler.jsonc).
+  // It is intentionally NOT enabled by default here because
+  // referencing a non-existent service would fail every deploy.
+  //
+  // PRODUCTION (recommended): set the `LOG_SHIPPER_ENABLED=true`
+  // repo *variable* (Settings → Secrets and variables → Actions →
+  // Variables, NOT Secrets). The deploy workflow will then:
+  //   1. Idempotently create the `affilite-mix-logs` R2 bucket.
+  //   2. Deploy the Tail Worker from `workers/log-shipper/`.
+  //   3. Rewrite this `tail_consumers` array via
+  //      `scripts/inject-tail-consumers.mjs` before the main deploy.
+  // See `.github/workflows/deploy.yml` and `workers/log-shipper/README.md`.
+  //
+  // MANUAL: deploy the shipper as documented in
+  // `workers/log-shipper/README.md`, then replace the empty list below
+  // with:
+  //   "tail_consumers": [
+  //     { "service": "affilite-mix-log-shipper" }
+  //   ]
+  // and redeploy this main Worker.
+  "tail_consumers": [
+    // OF-20: Enable log shipping to durable observability sink.
+    // Deploy the affilite-mix-log-shipper tail worker (scaffold in
+    // workers/log-shipper/) and set TAIL_WORKER_ENABLED=true in your
+    // environment before enabling this entry.
+    // { "service": "affilite-mix-log-shipper" }
+  ],
+}
+// BLIND SPOT FIX: Production Bindings & Secrets Truth
+// ---------------------------------------------------
+// The following secrets MUST be provisioned in the Cloudflare Dashboard
+// or via `wrangler secret put <NAME> --env production` for production:
+//
+// - SUPABASE_URL: The REST API URL for the Supabase project
+// - SUPABASE_SERVICE_ROLE_KEY: The service_role JWT for the Supabase project
+// - JWT_SECRET: A strong 256-bit secure random string for signing admin sessions
+// - STRIPE_SECRET_KEY: Live mode Stripe API key (sk_live_...)
+// - STRIPE_WEBHOOK_SECRET: Live mode Stripe webhook signing secret (whsec_...)
+// - INTERNAL_API_TOKEN: Shared secret between Cloudflare Queue and the API
+// - CRON_SECRET: Shared secret between Cloudflare Cron and the API
+// - TURNSTILE_SECRET_KEY: Cloudflare Turnstile secret
+// - APP_URL: Canonical app URL for absolute URLs (e.g. password reset links)
+// - RESEND_API_KEY: Resend API key for outbound emails
+// - CLOUDFLARE_ACCOUNT_ID: Required for Cloudflare AI provider
+// - CLOUDFLARE_API_TOKEN: Scoped token for Cloudflare AI provider
+// - SENTRY_DSN: Sentry project DSN
+//
+// Bindings are declared above (kv_namespaces, d1_databases, r2_buckets,
+// queues, analytics_engine_datasets). Ensure these are created in the
+// Cloudflare Dashboard before deploying.

@@ -1,0 +1,76 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin, unauthorizedResponse } from "@/lib/admin-guard";
+import { getSiteById } from "@/config/sites";
+import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { parseJsonBody } from "@/lib/api-error";
+import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
+import { recordAuditEvent } from "@/lib/audit-log";
+
+/** 100 admin API requests per minute per user session (3.30) */
+const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
+
+/** POST /api/admin/sites/select — set the active site cookie */
+export async function POST(request: NextRequest) {
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rlKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
+  const rl = await checkRateLimit(rlKey, ADMIN_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) return bodyOrError;
+  const { siteId } = bodyOrError as { siteId?: string };
+
+  if (!siteId || typeof siteId !== "string") {
+    return NextResponse.json({ error: "siteId is required" }, { status: 400 });
+  }
+
+  const site = getSiteById(siteId);
+  if (!site) {
+    return NextResponse.json({ error: "Site not found" }, { status: 404 });
+  }
+
+  // Enforce membership: non-super_admin users must have a membership row
+  // for the target site. super_admin can still switch globally.
+  // G-45: standardised 401 + Bearer challenge instead of 403 so a probe
+  // cannot enumerate which sites the caller is or isn't a member of.
+  if (session.role !== "super_admin" && session.userId) {
+    const dbSiteId = await resolveDbSiteId(siteId);
+    const membership = await getAdminSiteMembership(session.userId, dbSiteId);
+    if (!membership) {
+      return unauthorizedResponse();
+    }
+  }
+
+  const response = NextResponse.json({ ok: true, site: { id: site.id, name: site.name } });
+
+  // FIX-34 (F-017): Audit log for site context switch
+  void recordAuditEvent({
+    site_id: siteId,
+    actor: session.email ?? session.userId ?? "admin",
+    action: "select_site",
+    entity_type: "site",
+    entity_id: siteId,
+    details: { siteName: site.name },
+  });
+
+  response.cookies.set(ACTIVE_SITE_COOKIE, site.id, {
+    httpOnly: true,
+    secure: IS_SECURE_COOKIE,
+    sameSite: "strict",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+  });
+
+  return response;
+}

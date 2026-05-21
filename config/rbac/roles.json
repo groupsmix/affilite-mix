@@ -1,0 +1,96 @@
+{
+  "roles": [
+    {
+      "id": "viewer",
+      "display_name": "Viewer",
+      "permissions": [
+        {
+          "resource": "sites",
+          "actions": ["read"]
+        },
+        {
+          "resource": "analytics",
+          "actions": ["read"]
+        }
+      ]
+    },
+    {
+      "id": "editor",
+      "display_name": "Editor",
+      "display_name_ar": "\u0645\u062d\u0631\u0631",
+      "inherits": ["viewer"],
+      "permissions": [
+        {
+          "resource": "sites",
+          "actions": ["read", "write"]
+        },
+        {
+          "resource": "quiz",
+          "actions": ["read", "write"]
+        },
+        {
+          "resource": "newsletter",
+          "actions": ["read", "write"]
+        }
+      ]
+    },
+    {
+      "id": "billing_admin",
+      "display_name": "Billing Admin",
+      "inherits": ["viewer"],
+      "permissions": [
+        {
+          "resource": "memberships",
+          "actions": ["read", "write"]
+        },
+        {
+          "resource": "invoices",
+          "actions": ["read"]
+        }
+      ]
+    },
+    {
+      "id": "privacy_officer",
+      "display_name": "Privacy Officer",
+      "inherits": ["viewer"],
+      "permissions": [
+        {
+          "resource": "privacy",
+          "actions": ["read", "write", "delete"]
+        },
+        {
+          "resource": "audit_log",
+          "actions": ["read"]
+        }
+      ]
+    },
+    {
+      "id": "super_admin",
+      "display_name": "Super Admin",
+      "inherits": ["editor", "billing_admin", "privacy_officer"],
+      "permissions": [
+        {
+          "resource": "terraform",
+          "actions": ["read"]
+        },
+        {
+          "resource": "audit_log",
+          "actions": ["read"]
+        }
+      ],
+      "_sod_note": "super_admin intentionally has no 'approve_deploy' or 'approve_payout' to satisfy SoD requirements. Deployments must be approved by a second human via GitHub PR review."
+    }
+  ],
+  "sod_forbidden_pairs": [
+    {
+      "write_action": "approve_deploy",
+      "approval_action": "write",
+      "_note": "No role may both initiate and approve a deployment."
+    },
+    {
+      "write_action": "approve_payout",
+      "approval_action": "write",
+      "_note": "No role may both initiate and approve a payout."
+    }
+  ]
+}

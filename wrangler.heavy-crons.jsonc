@@ -1,0 +1,25 @@
+// A-018: Dedicated Wrangler config for heavy cron jobs.
+//
+// Heavy crons (ai-generate, commission-ingest, price-scrape) run on a
+// separate Worker so they cannot exhaust the main worker's CPU budget
+// and impact user-facing request latency. This worker is a thin
+// dispatcher — it forwards cron events to the main affilite-mix app via
+// HTTP. The actual business logic stays in `app/api/cron/*` routes.
+//
+// Deploy via: npx wrangler deploy --config wrangler.heavy-crons.jsonc
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "affilite-mix-heavy-crons",
+  "main": "workers/heavy-crons.ts",
+  "compatibility_date": "2026-03-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["0 2 * * *", "0 5 * * *", "0 7 * * *"],
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "placement": {
+    "mode": "smart",
+  },
+}

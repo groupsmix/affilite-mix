@@ -1,0 +1,112 @@
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Lighthouse CI uses its own LHCI_GITHUB_APP_TOKEN to post status checks,
+# so the default GITHUB_TOKEN only needs read access to the repo.
+permissions:
+  contents: read
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: https://xyz.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+  SUPABASE_SERVICE_ROLE_KEY: placeholder
+  JWT_SECRET: ci-test-secret
+  INTERNAL_API_TOKEN: ci-test-internal-token
+  CRON_SECRET: ci-test-cron-secret
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
+  TURNSTILE_SECRET_KEY: ""
+  NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+  # `instrumentation.ts` requires SENTRY_DSN to load the server-side
+  # error monitor. We don't want to ship Lighthouse data to a real
+  # Sentry project, but the variable must be non-empty for `next start`
+  # to finish booting; an obviously-fake DSN keeps the audit local.
+  SENTRY_DSN: https://placeholder@placeholder.ingest.sentry.io/0
+  SUPABASE_JWT_SECRET: ci-test-supabase-jwt-secret
+  APP_URL: http://localhost:9222
+  # `next start` forces NODE_ENV=production, which disables the normal
+  # localhost → NEXT_PUBLIC_DEFAULT_SITE resolution in config/sites and
+  # the corresponding `isLocalhostDev` bypass in middleware.ts. Without
+  # the opt-in below, Lighthouse's very first request to
+  # http://localhost:9222/ falls into the unknown-hostname path, which
+  # runs a Supabase-backed rate-limit check with failPolicy="closed";
+  # since Supabase is a placeholder in CI, the check errors and the
+  # middleware returns 429 before any page can render. Setting this
+  # flag makes middleware treat `localhost` the same way it would in
+  # dev — skip the DB lookup, serve the default site. Safe: the flag
+  # is only read from env (never from request data) and is not set in
+  # production deploys.
+  ALLOW_LOCALHOST_FALLBACK_IN_PROD: "1"
+  # E-01 / R-01: server-env now treats AFFILIATE_DOMAIN_ENFORCEMENT as a
+  # production-required variable (validateServerEnv throws at instrumentation
+  # time when NODE_ENV=production and this is missing). `next start` boots
+  # under NODE_ENV=production, so omitting it makes every Lighthouse navigation
+  # hit a process-crash 500. We pin "strict" here because that is the value
+  # used in real production deploys; no real affiliate URLs are exercised by
+  # the homepage Lighthouse run, so the strict allowlist has no behavioural
+  # impact on the audit and matches prod parity.
+  AFFILIATE_DOMAIN_ENFORCEMENT: strict
+  # B-01: TOTP encryption key required at boot in production
+  TOTP_ENCRYPTION_KEY: ci-test-totp-encryption-key-0123456789ab
+  # CR-01: HMAC strict mode required in production
+  INTERNAL_HMAC_MIGRATION_MODE: strict
+  # CF-03: Dedicated HMAC / hashing secrets required in production
+  CLICK_CACHE_HMAC_KEY: ci-test-click-cache-hmac-key
+  GDPR_HASH_SECRET: ci-test-gdpr-hash-secret
+  # CR-02: Per-trigger cron secrets required in production
+  CRON_PUBLISH_SECRET: ci-test-cron-publish
+  CRON_STRIPE_SYNC_SECRET: ci-test-cron-stripe-sync
+  CRON_AI_SECRET: ci-test-cron-ai
+  CRON_SITEMAP_SECRET: ci-test-cron-sitemap
+  CRON_RETENTION_SECRET: ci-test-cron-retention
+  CRON_COMMISSION_SECRET: ci-test-cron-commission
+  CRON_EPC_SECRET: ci-test-cron-epc
+  CRON_PRICE_SECRET: ci-test-cron-price
+  CRON_DEALS_SECRET: ci-test-cron-deals
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build Next.js
+        run: npm run build
+
+      - name: Run Lighthouse CI (PR gate)
+        # LHCI's exit code is now load-bearing: any `error`-level
+        # assertion in `lighthouserc.cjs` (LCP ≤ 2500 ms, CLS ≤ 0.1,
+        # TBT ≤ 200 ms, perf score ≥ 0.9, a11y score ≥ 0.9) will fail
+        # the PR. This satisfies the G-36 Lighthouse gate requirement
+        # that LCP regressions must block merges.
+        #
+        # If `next start` cannot fully serve a route in this Cloudflare
+        # Workers app, switch the `startServerCommand` in lighthouserc
+        # to `opennextjs-cloudflare preview` rather than re-softening
+        # this step — silencing the gate defeats the budget.
+        run: npx @lhci/cli autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      # Upload the raw .lighthouseci/ directory so reviewers can inspect
+      # actual LCP / INP / CLS / bundle-size / 3rd-party / font / image
+      # metrics instead of only seeing that the workflow ran. Also runs on
+      # failure so budget-violation reports are preserved.
+      - name: Upload Lighthouse results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lighthouse-results
+          path: .lighthouseci/
+          if-no-files-found: warn
+          retention-days: 14

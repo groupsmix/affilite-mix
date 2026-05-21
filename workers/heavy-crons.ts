@@ -1,0 +1,100 @@
+/**
+ * A-018: Dedicated Cloudflare Worker for heavy cron jobs.
+ *
+ * Heavy crons (ai-generate, commission-ingest, price-scrape) perform
+ * long-running work with many external API calls. Running them on the
+ * same worker that serves user requests risks CPU timeout / memory
+ * exhaustion and adds latency to user traffic. This lightweight
+ * dispatcher worker isolates them by receiving cron events and
+ * forwarding them to the main affilite-mix app via HTTP.
+ *
+ * This worker intentionally does NOT bundle Next.js / OpenNext — it
+ * is a thin TypeScript file compiled by wrangler. The actual business
+ * logic stays in the main app (`app/api/cron/*`) so there is no code
+ * duplication.
+ */
+
+import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
+
+interface CloudflareScheduledController {
+  cron: string;
+  scheduledTime: number;
+}
+interface CloudflareExecutionContext {
+  waitUntil(promise: Promise<any>): void;
+  passThroughOnException(): void;
+}
+
+const worker = {
+  async scheduled(
+    controller: CloudflareScheduledController,
+    env: Record<string, unknown>,
+    ctx: CloudflareExecutionContext,
+  ) {
+    const cronHost =
+      typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
+
+    if (!cronHost) {
+      console.error(
+        "[heavy-crons] CRON_HOST is not configured — skipping dispatch. " +
+          "Set it with: wrangler secret put CRON_HOST",
+      );
+      return;
+    }
+
+    const job = getCronJobBySchedule(controller.cron);
+    if (!job) {
+      console.error(
+        `[heavy-crons] Unknown cron schedule "${controller.cron}". ` +
+          "Add it to lib/cron-registry.ts.",
+      );
+      return;
+    }
+
+    if (!job.heavy) {
+      console.warn(
+        `[heavy-crons] Schedule "${controller.cron}" (${job.name}) is NOT marked heavy. ` +
+          "It should be dispatched from the main worker instead.",
+      );
+      return;
+    }
+
+    const perTriggerSecret = env[job.secretEnvVar];
+    const fallbackSecret = env[CRON_FALLBACK_SECRET_ENV];
+    const cronSecret =
+      typeof perTriggerSecret === "string" && perTriggerSecret
+        ? perTriggerSecret
+        : typeof fallbackSecret === "string" && fallbackSecret
+          ? fallbackSecret
+          : null;
+
+    if (!cronSecret) {
+      console.error(`[heavy-crons] No secret configured for "${job.name}" — skipping dispatch.`);
+      return;
+    }
+
+    const url = `${cronHost}${job.path}`;
+    ctx.waitUntil(
+      fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cronSecret}`,
+          "Content-Type": "application/json",
+        },
+      })
+        .then(async (res: Response) => {
+          const body = await res.text();
+          if (res.ok) {
+            console.log(`[heavy-crons] ${job.name} responded ${res.status}:`, body);
+          } else {
+            console.error(`[heavy-crons] ${job.name} failed ${res.status}:`, body);
+          }
+        })
+        .catch((err: unknown) => {
+          console.error(`[heavy-crons] ${job.name} fetch error:`, err);
+        }),
+    );
+  },
+};
+
+export default worker;
