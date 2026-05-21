@@ -87,16 +87,16 @@ To comply with internal risk management and procurement policies, vendors are cl
 - **Tier 2 — Important:** Outage degrades user experience or stops non-critical business processes (e.g., newsletter). Moderate scrutiny.
 - **Tier 3 — Supporting:** Outage is largely invisible to users or has manual workarounds. Basic ToS/Privacy review.
 
-| Sub-processor   | Tier   | DPF Certified? | SCCs? | Last verified |
-| --------------- | ------ | -------------- | ----- | ------------- |
-| Cloudflare      | Tier 1 | Yes            | Yes   | 2026-05-15    |
-| Supabase        | Tier 1 | Yes            | Yes   | 2026-05-15    |
-| Stripe          | Tier 1 | Yes            | N/A   | 2026-05-15    |
-| Resend          | Tier 2 | Pending        | Yes   | 2026-05-15    |
-| Sentry          | Tier 2 | Yes            | Yes   | 2026-05-15    |
-| AI Providers    | Tier 2 | Varied         | Yes   | 2026-05-15    |
-| GitHub          | Tier 1 | Yes            | Yes   | 2026-05-15    |
-| PagerDuty       | Tier 2 | Yes            | Yes   | 2026-05-15    |
+| Sub-processor | Tier   | DPF Certified? | SCCs? | Last verified |
+| ------------- | ------ | -------------- | ----- | ------------- |
+| Cloudflare    | Tier 1 | Yes            | Yes   | 2026-05-15    |
+| Supabase      | Tier 1 | Yes            | Yes   | 2026-05-15    |
+| Stripe        | Tier 1 | Yes            | N/A   | 2026-05-15    |
+| Resend        | Tier 2 | Pending        | Yes   | 2026-05-15    |
+| Sentry        | Tier 2 | Yes            | Yes   | 2026-05-15    |
+| AI Providers  | Tier 2 | Varied         | Yes   | 2026-05-15    |
+| GitHub        | Tier 1 | Yes            | Yes   | 2026-05-15    |
+| PagerDuty     | Tier 2 | Yes            | Yes   | 2026-05-15    |
 
 **Action items:**
 

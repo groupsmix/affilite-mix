@@ -1,1 +1,4 @@
 .github/workflows/deploy.yml
+
+# External skill templates — not part of the project source
+.minimax/

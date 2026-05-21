@@ -82,18 +82,18 @@ This project implements the following security measures:
 > Rotation is performed via `wrangler secret put <NAME>` for Worker runtime secrets and through
 > the respective provider dashboard for account-level keys.
 
-| Secret | Max Lifetime | Rotation Trigger |
-|---|---|---|
-| `STRIPE_SECRET_KEY` (live) | **90 days** | Quarterly or on any suspected compromise |
-| `STRIPE_WEBHOOK_SECRET` | **90 days** | With every Stripe endpoint recreation |
-| `JWT_SECRET` | **90 days** | Quarterly; immediately on breach |
-| `SUPABASE_SERVICE_ROLE_KEY` | **180 days** | Bi-annually or on team membership change |
-| `SUPABASE_JWT_SECRET` | **180 days** | Bi-annually |
-| `INTERNAL_API_TOKEN` | **90 days** | Quarterly |
-| `CRON_SECRET` + per-trigger secrets | **90 days** | Quarterly |
-| `CLOUDFLARE_API_TOKEN` | **180 days** | On team membership change |
-| `RESEND_API_KEY` | **180 days** | On team membership change |
-| `TURNSTILE_SECRET_KEY` | **1 year** | Annual or on zone change |
+| Secret                              | Max Lifetime | Rotation Trigger                         |
+| ----------------------------------- | ------------ | ---------------------------------------- |
+| `STRIPE_SECRET_KEY` (live)          | **90 days**  | Quarterly or on any suspected compromise |
+| `STRIPE_WEBHOOK_SECRET`             | **90 days**  | With every Stripe endpoint recreation    |
+| `JWT_SECRET`                        | **90 days**  | Quarterly; immediately on breach         |
+| `SUPABASE_SERVICE_ROLE_KEY`         | **180 days** | Bi-annually or on team membership change |
+| `SUPABASE_JWT_SECRET`               | **180 days** | Bi-annually                              |
+| `INTERNAL_API_TOKEN`                | **90 days**  | Quarterly                                |
+| `CRON_SECRET` + per-trigger secrets | **90 days**  | Quarterly                                |
+| `CLOUDFLARE_API_TOKEN`              | **180 days** | On team membership change                |
+| `RESEND_API_KEY`                    | **180 days** | On team membership change                |
+| `TURNSTILE_SECRET_KEY`              | **1 year**   | Annual or on zone change                 |
 
 ### Rotation Runbook (Worker Runtime Secrets)
 
@@ -133,14 +133,15 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://wristnerd.xyz/api/health
 
 ## Incident Response SLOs
 
-| Severity | Description | Response SLO | Escalation |
-|---|---|---|---|
-| P0 | Data breach / RCE | 1 hour | PagerDuty → on-call eng |
-| P1 | Auth bypass / privilege escalation | 4 hours | Slack `#security-incidents` |
-| P2 | Information disclosure | 24 hours | GitHub private advisory |
-| P3 | Best-practice gap | 7 days | Standard PR |
+| Severity | Description                        | Response SLO | Escalation                  |
+| -------- | ---------------------------------- | ------------ | --------------------------- |
+| P0       | Data breach / RCE                  | 1 hour       | PagerDuty → on-call eng     |
+| P1       | Auth bypass / privilege escalation | 4 hours      | Slack `#security-incidents` |
+| P2       | Information disclosure             | 24 hours     | GitHub private advisory     |
+| P3       | Best-practice gap                  | 7 days       | Standard PR                 |
 
 In the event of a confirmed breach:
+
 1. Rotate **all** secrets immediately (see rotation runbook above).
 2. Open a private GitHub Security Advisory to track the incident.
 3. Notify affected users within **72 hours** per GDPR Art. 34 if personal data was involved.

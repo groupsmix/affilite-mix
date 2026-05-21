@@ -67,6 +67,8 @@ interface AdminRow {
   totp_verified_at: string | null;
   totp_failed_attempts: number;
   totp_locked_until: string | null;
+  login_failed_attempts: number;
+  login_locked_until: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -84,6 +86,8 @@ function makeRow(partial: Partial<AdminRow>): AdminRow {
     totp_verified_at: null,
     totp_failed_attempts: 0,
     totp_locked_until: null,
+    login_failed_attempts: 0,
+    login_locked_until: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01",
     ...partial,

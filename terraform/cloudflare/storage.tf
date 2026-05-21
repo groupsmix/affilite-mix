@@ -102,7 +102,7 @@ resource "null_resource" "worker_logs_lifecycle" {
   }
 
   provisioner "local-exec" {
-    command = <<-EOT
+    command     = <<-EOT
       set -euo pipefail
       RULE_FILE=$(mktemp)
       cat > "$RULE_FILE" <<JSON
