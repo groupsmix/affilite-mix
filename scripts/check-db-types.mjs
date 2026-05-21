@@ -61,16 +61,31 @@ SELECT table_name, column_name
  ORDER BY table_name, ordinal_position;
 `.trim();
 
-  const out = execFileSync(
-    "psql",
-    [dbUrl, "-t", "-A", "-F", "|", "--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-c", sql],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-      encoding: "utf8",
-      timeout: 60_000,
-      maxBuffer: 16 * 1024 * 1024,
-    },
-  );
+  let out;
+  try {
+    out = execFileSync(
+      "psql",
+      [dbUrl, "-t", "-A", "-F", "|", "--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-c", sql],
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+        encoding: "utf8",
+        timeout: 60_000,
+        maxBuffer: 16 * 1024 * 1024,
+      },
+    );
+  } catch (err) {
+    const msg = String(err?.stderr || err?.message || err);
+    const isUnreachable = /ENOTFOUND|tenant.*not found|could not connect|connection refused|no route to host/i.test(msg);
+    if (isUnreachable) {
+      if (process.env.REQUIRE_STAGING_DB === "true") {
+        console.error(`::error::check-db-types: staging DB is unreachable. Update SUPABASE_DB_POOLER_URL secret or pause the REQUIRE_STAGING_DB gate. Detail: ${msg.split("\n")[0]}`);
+        process.exit(1);
+      }
+      console.warn(`⚠  Staging DB unreachable — skipping DB type drift check (REQUIRE_STAGING_DB!=true). Detail: ${msg.split("\n")[0]}`);
+      process.exit(0);
+    }
+    throw err;
+  }
 
   /** @type {Map<string, Set<string>>} */
   const live = new Map();
