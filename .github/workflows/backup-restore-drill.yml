@@ -1,0 +1,22 @@
+name: Backup Restore Drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment for backup restore drill"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+
+jobs:
+  backup-restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run backup restore drill
+        run: bash scripts/dr-drill.sh --restore
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}

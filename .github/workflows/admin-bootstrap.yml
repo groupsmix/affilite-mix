@@ -1,0 +1,36 @@
+name: Admin Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Admin email to bootstrap"
+        required: true
+        type: string
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Bootstrap admin user
+        run: npx tsx scripts/bootstrap-admin.ts
+        env:
+          ADMIN_BOOTSTRAP_EMAIL: ${{ inputs.email }}
+          ADMIN_BOOTSTRAP_PASSWORD: ${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

@@ -298,7 +298,12 @@ export async function safeFetchWithRedirectValidation(
         throw new Error(`SSRF guard on redirect: ${redirectResult.error}`);
       }
       // Re-fetch the redirect target with the same validation
-      return safeFetchWithRedirectValidation(location, options, allowPrivateIPs, _hopsRemaining - 1);
+      return safeFetchWithRedirectValidation(
+        location,
+        options,
+        allowPrivateIPs,
+        _hopsRemaining - 1,
+      );
     }
   }
 
