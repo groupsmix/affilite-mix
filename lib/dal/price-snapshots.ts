@@ -14,6 +14,9 @@ export interface PriceSnapshotRow {
 }
 
 const TABLE = "price_snapshots";
+// A23-01: Explicit column list prevents silent over-fetching.
+const ALL_COLUMNS =
+  "id, product_id, site_id, price_amount, currency, source, scraped_at, created_at" as const;
 
 /** Record a price snapshot */
 export async function createPriceSnapshot(
@@ -65,7 +68,7 @@ export async function getPriceHistory(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .eq("product_id", productId)
     .eq("site_id", siteId)
     .gte("scraped_at", since.toISOString())
@@ -84,7 +87,7 @@ export async function getLatestPrice(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .eq("product_id", productId)
     .order("scraped_at", { ascending: false })
     .limit(1)
@@ -106,7 +109,7 @@ export async function getLatestPricesForProducts(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .in("product_id", productIds)
     .order("product_id")
     .order("scraped_at", { ascending: false });

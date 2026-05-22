@@ -127,6 +127,14 @@ function ipInRange(ip: string, cidr: string): boolean {
 export interface UrlValidationResult {
   valid: boolean;
   error?: string;
+  /**
+   * A1-04: The IP address the hostname resolved to during validation.
+   * Present when the URL contains a hostname (not a bare IP literal) and
+   * DNS resolution succeeded.  Callers should rewrite the fetch URL to use
+   * this IP and pass the original hostname in the `Host` header so no second
+   * DNS lookup occurs, eliminating the DNS-rebinding TOCTOU window.
+   */
+  resolvedIp?: string;
 }
 
 /**
@@ -214,31 +222,56 @@ export async function validateExternalUrl(
     }
   }
 
-  // Domain-to-IP resolution with rebinding check (lightweight approach)
-  // For user-supplied URLs, we resolve and validate; fail-closed on errors
-  try {
-    // Skip DNS resolution for IP literals (already checked above)
-    if (
-      !hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/) &&
-      !ipv6MappedToIPv4(hostname)
-    ) {
+  // A1-04: DNS-rebinding TOCTOU mitigation.
+  //
+  // Naive guards validate the hostname, then let the runtime make a second DNS
+  // lookup when the actual fetch() happens.  A DNS-rebinding attacker can
+  // return a safe public IP for the first lookup (passing validation) and a
+  // private IP for the second (hitting the metadata endpoint).
+  //
+  // Fix: resolve the hostname exactly once here, validate the resulting IP,
+  // then return the resolved IP alongside the original URL so callers can
+  // rewrite the URL to fetch-by-IP (with the Host header preserved), making
+  // further DNS lookups impossible.
+  if (
+    !hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/) &&
+    !ipv6MappedToIPv4(hostname)
+  ) {
+    let resolvedIp: string;
+    try {
       const { address } = await lookupAsync(hostname);
+      resolvedIp = address;
+    } catch (err) {
+      // Fail-closed: if resolution fails, block the request.
+      logger.warn("SSRF guard: DNS resolution failed for hostname", {
+        hostname,
+        error: String(err),
+      });
+      return { valid: false, error: "DNS resolution failed — blocked" };
+    }
 
-      // Check if the resolved IP is in blocked ranges
-      const ipMatch = address.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-      if (ipMatch) {
-        const ip = ipMatch.slice(1).join(".");
-        for (const cidr of BLOCKED_IP_RANGES) {
-          if (ipInRange(ip, cidr)) {
-            return { valid: false, error: `Resolved IP range \'${cidr}\' is blocked (SSRF risk)` };
-          }
+    // Validate the resolved IP against the blocked ranges.
+    const ipMatch = resolvedIp.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipMatch) {
+      const ip = ipMatch.slice(1).join(".");
+      for (const cidr of BLOCKED_IP_RANGES) {
+        if (ipInRange(ip, cidr)) {
+          return {
+            valid: false,
+            error: `Resolved IP range '${cidr}' is blocked (SSRF risk)`,
+          };
         }
       }
     }
-  } catch (err) {
-    // If resolution fails, log and block (fail-closed)
-    logger.warn("SSRF guard: DNS resolution failed for hostname", { hostname, error: String(err) });
-    return { valid: false, error: "DNS resolution failed — blocked" };
+
+    // Also block the resolved IP against the hostname blocklist.
+    if (BLOCKED_HOSTS.has(resolvedIp)) {
+      return { valid: false, error: `Resolved IP '${resolvedIp}' is blocked` };
+    }
+
+    // Return the resolved IP so the caller can pin the fetch to this IP,
+    // preventing a second DNS lookup from returning a different address.
+    return { valid: true, resolvedIp };
   }
 
   return { valid: true };
@@ -282,11 +315,35 @@ export async function safeFetchWithRedirectValidation(
     throw new Error(`SSRF guard: ${result.error}`);
   }
 
-  const response = await fetchWithTimeout(urlString, {
+  // A1-04: Pin the fetch to the resolved IP so no second DNS lookup happens.
+  // Rewrite the URL to use the resolved IP address and add the original
+  // hostname as the Host header, making DNS rebinding impossible.
+  let fetchUrl = urlString;
+  const extraHeaders: Record<string, string> = {};
+  if (result.resolvedIp) {
+    try {
+      const parsed = new URL(urlString);
+      const originalHostname = parsed.hostname;
+      parsed.hostname = result.resolvedIp;
+      fetchUrl = parsed.toString();
+      extraHeaders["Host"] = originalHostname;
+    } catch {
+      // Malformed URL — validateExternalUrl already checked it, so this
+      // should be unreachable; fall back to the original URL.
+    }
+  }
+
+  const mergedOptions: RequestInit & { timeoutMs: number } = {
     timeoutMs: 15000,
     redirect: "manual", // Don't auto-follow; validate each redirect
     ...options,
-  });
+    headers: {
+      ...(options?.headers as Record<string, string> | undefined),
+      ...extraHeaders,
+    },
+  };
+
+  const response = await fetchWithTimeout(fetchUrl, mergedOptions);
 
   // Validate redirect chain
   if (response.status >= 300 && response.status < 400) {
