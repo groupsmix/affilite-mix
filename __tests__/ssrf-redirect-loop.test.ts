@@ -45,9 +45,9 @@ describe("TC-01: SSRF redirect loop protection", () => {
     const { safeFetchWithRedirectValidation } = await import("@/lib/ssrf-guard");
 
     // The function must throw after the bounded number of hops
-    await expect(
-      safeFetchWithRedirectValidation("https://example.com/loop"),
-    ).rejects.toThrow(/too many redirects/);
+    await expect(safeFetchWithRedirectValidation("https://example.com/loop")).rejects.toThrow(
+      /too many redirects/,
+    );
 
     // Should have stopped at exactly MAX_REDIRECT_HOPS fetches
     expect(fetchCallCount).toBe(MAX_REDIRECT_HOPS);
@@ -88,9 +88,7 @@ describe("TC-01: SSRF redirect loop protection", () => {
       }),
     );
     // Second call: final response
-    mockedFetch.mockResolvedValueOnce(
-      new Response("OK", { status: 200 }),
-    );
+    mockedFetch.mockResolvedValueOnce(new Response("OK", { status: 200 }));
 
     const { safeFetchWithRedirectValidation } = await import("@/lib/ssrf-guard");
 

@@ -78,10 +78,7 @@ describe("TC-02: Cross-tenant cookie forgery", () => {
     expect(result.error).not.toBeNull();
     expect(result.error!.status).toBe(401);
     // Membership was checked
-    expect(getAdminSiteMembership).toHaveBeenCalledWith(
-      "user-123",
-      "db-uuid-other-site",
-    );
+    expect(getAdminSiteMembership).toHaveBeenCalledWith("user-123", "db-uuid-other-site");
   });
 
   it("allows super_admin even without explicit membership", async () => {
