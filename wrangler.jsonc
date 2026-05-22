@@ -40,11 +40,11 @@
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT_KV",
-      "id": "${RATE_LIMIT_KV_NAMESPACE_ID}",
+      "id": "7ac37dff0a794542b0c766f38e73f105",
     },
     {
       "binding": "APP_CACHE_KV",
-      "id": "${APP_CACHE_KV_NAMESPACE_ID}",
+      "id": "c3d304f1c65240628314a80fb64cbe4a",
     },
   ],
   // R2 incremental cache — create the bucket in the Cloudflare dashboard first
@@ -191,16 +191,8 @@
   "observability": {
     "enabled": true,
   },
-  // A-013: OpenTelemetry tracing — enabled when OTEL_ENDPOINT is set.
-  // Wrangler interpolates ${VAR} from env vars. Configure your sink
-  // (Honeycomb, Datadog, Grafana Tempo, etc.) in CI secrets.
-  "otel": {
-    "enabled": true,
-    "endpoint": "${OTEL_ENDPOINT}",
-    "headers": {
-      "authorization": "Bearer ${OTEL_AUTH_TOKEN}",
-    },
-  },
+  // A-013: OpenTelemetry tracing — disabled by default.
+  // To enable, add "otel" block back with your endpoint and token.
   // Smart placement — run the worker close to the origin (Supabase)
   "placement": {
     "mode": "smart",
