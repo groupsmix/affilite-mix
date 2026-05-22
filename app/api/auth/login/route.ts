@@ -14,6 +14,7 @@ import { isValidEmail, normalizeEmail, hashEmailForRateLimit } from "@/lib/valid
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { ACTIVITY_COOKIE, BINDING_COOKIE } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
@@ -303,6 +304,14 @@ export async function POST(request: NextRequest) {
         headers: rateLimitHeaders(LOGIN_RATE_LIMIT_IP, rl),
       },
     );
+    // A7-05: Explicitly delete any pre-existing session cookies before setting
+    // the new ones.  This prevents session fixation: if a pre-login cookie was
+    // somehow planted (e.g. via subdomain cookie injection), deleting it here
+    // ensures the authenticated session always starts from a clean slate.
+    response.cookies.delete(COOKIE_NAME);
+    response.cookies.delete(ACTIVITY_COOKIE);
+    response.cookies.delete(BINDING_COOKIE);
+
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
