@@ -62,7 +62,9 @@ async function writeToDlq(event: AuditEvent): Promise<void> {
 
   const now = new Date();
   const day = now.toISOString().slice(0, 10);
-  const key = `dlq/audit/${day}/${now.getTime()}-${Math.random().toString(36).slice(2, 8)}.ndjson`;
+  // A6-04: use CSPRNG (crypto.randomUUID) instead of Math.random so DLQ keys
+  // are unpredictable and cannot be enumerated by a bucket-listing attacker.
+  const key = `dlq/audit/${day}/${now.getTime()}-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}.ndjson`;
 
   try {
     await bucket.put(key, JSON.stringify(event) + "\n");
