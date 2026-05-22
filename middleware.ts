@@ -108,14 +108,40 @@ async function innerMiddleware(request: NextRequest) {
   const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
   if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method)) {
     const contentLength = request.headers.get("content-length");
-    if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+    const transferEncoding = (request.headers.get("transfer-encoding") || "").toLowerCase();
+    // FP-07: reject requests that try to bypass the size guard by omitting
+    // Content-Length and using chunked transfer encoding, or by lying about
+    // the size. We rely on Cloudflare to normalize headers in production but
+    // defend in depth here so the 10 MB intent is actually enforced.
+    if (!contentLength && transferEncoding.includes("chunked")) {
       return new NextResponse(
-        JSON.stringify({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" }),
+        JSON.stringify({
+          error: "Length required",
+          code: "LENGTH_REQUIRED",
+        }),
         {
-          status: 413,
+          status: 411,
           headers: { "Content-Type": "application/json" },
         },
       );
+    }
+    if (contentLength) {
+      const parsed = parseInt(contentLength, 10);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        return new NextResponse(
+          JSON.stringify({ error: "Invalid Content-Length", code: "BAD_REQUEST" }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (parsed > MAX_BODY_BYTES) {
+        return new NextResponse(
+          JSON.stringify({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" }),
+          {
+            status: 413,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
     }
   }
 

@@ -19,6 +19,7 @@ import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 /**
  * A154: Check if a password has appeared in a known data breach using the
@@ -173,6 +174,24 @@ export async function POST(request: NextRequest) {
             logger.error("Failed to update admin user lockout", { error: e });
           }
         }
+      }
+      // FP-09: forensic trail — record failed login attempts with IP and
+      // hashed email so SOC can correlate attacker IPs across accounts.
+      try {
+        await recordAuditEvent({
+          site_id: "_global",
+          actor: rateLimitEmail,
+          action: "auth.login.failed",
+          entity_type: "admin_user",
+          entity_id: userRecord?.id ?? "unknown",
+          ip,
+          details: {
+            email_hash: rateLimitEmail,
+            user_known: Boolean(userRecord),
+          },
+        });
+      } catch (auditErr) {
+        logger.warn("Failed to record audit event for failed login", { error: auditErr });
       }
       return apiError(401, "Invalid credentials");
     }
