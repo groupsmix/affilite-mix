@@ -1,0 +1,22 @@
+name: DR Drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment for DR drill"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+
+jobs:
+  dr-drill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run DR drill
+        run: bash scripts/dr-drill.sh
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
