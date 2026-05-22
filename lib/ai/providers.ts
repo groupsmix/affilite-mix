@@ -10,6 +10,8 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { assembleSystemPrompt, sanitizePrompt } from "./prompt-sanitization";
 import {
   assertQuota,
+  reserveQuota,
+  releaseQuota,
   costToMicroUsd,
   estimateTokens,
   recordUsage,
@@ -326,14 +328,11 @@ export async function generateWithFallback(
   const inputTokenEstimate = estimateTokens(safePrompt) + estimateTokens(safeSystemPrompt ?? "");
 
   if (options.siteId) {
-    // Pre-flight ceilings. Throw QuotaExceededError so callers can render
-    // a friendly 429 / admin notice. We deliberately check both counters
-    // up-front: a single AI call can blow the daily request limit OR the
-    // monthly token limit, and we want callers to see the more specific
-    // signal first.
-    await assertQuota(options.siteId, "ai_requests", 1);
+    // RC-RECHECK-02: Reserve quota atomically before generation so concurrent
+    // requests see the reservation. If all providers fail, release the reservation.
+    await reserveQuota(options.siteId, "ai_requests", 1);
     if (inputTokenEstimate > 0) {
-      await assertQuota(options.siteId, "ai_tokens", inputTokenEstimate);
+      await reserveQuota(options.siteId, "ai_tokens", inputTokenEstimate);
     }
   }
 
@@ -348,11 +347,11 @@ export async function generateWithFallback(
     try {
       const text = await provider.generate(safePrompt, safeSystemPrompt);
       if (options.siteId) {
-        // R2-04: Await usage accounting sequentially to ensure durability.
-        // If any recording fails, log a structured warning with full context
-        // so operators can reconcile from logs. Generation is never blocked.
+        // RC-RECHECK-02 / R2-04: Post-flight accounting. ai_requests (1) and
+        // ai_tokens (inputTokenEstimate) were already reserved. Record the
+        // delta for actual token usage and the cost.
         const outputTokenEstimate = estimateTokens(text);
-        const totalTokens = inputTokenEstimate + outputTokenEstimate;
+        const tokenDelta = outputTokenEstimate; // output wasn't reserved
         const microUsd =
           Math.ceil((inputTokenEstimate * provider.pricing.inputMicroUsdPer1k) / 1000) +
           Math.ceil((outputTokenEstimate * provider.pricing.outputMicroUsdPer1k) / 1000);
@@ -360,14 +359,13 @@ export async function generateWithFallback(
           resource: string;
           amount: number;
           fn: () => Promise<void>;
-        }> = [
-          { resource: "ai_requests", amount: 1, fn: () => recordUsage(options.siteId!, "ai_requests", 1) },
-        ];
-        if (totalTokens > 0) {
+        }> = [];
+        // Record output tokens (input was already reserved)
+        if (tokenDelta > 0) {
           accountingOps.push({
             resource: "ai_tokens",
-            amount: totalTokens,
-            fn: () => recordUsage(options.siteId!, "ai_tokens", totalTokens),
+            amount: tokenDelta,
+            fn: () => recordUsage(options.siteId!, "ai_tokens", tokenDelta),
           });
         }
         if (microUsd > 0) {
@@ -381,8 +379,6 @@ export async function generateWithFallback(
           try {
             await op.fn();
           } catch (accErr) {
-            // R2-04: Structured log for accounting reconciliation — includes
-            // all context needed to replay the failed write.
             console.error("[ai/providers] accounting write failed", {
               siteId: options.siteId,
               resource: op.resource,
@@ -401,6 +397,20 @@ export async function generateWithFallback(
       if (err instanceof QuotaExceededError) throw err;
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${provider.name}: ${msg}`);
+    }
+  }
+
+  // RC-RECHECK-02: All providers failed — release the reserved quota so the
+  // tenant isn't charged for a generation that never happened.
+  if (options.siteId) {
+    try {
+      await releaseQuota(options.siteId, "ai_requests", 1);
+      if (inputTokenEstimate > 0) {
+        await releaseQuota(options.siteId, "ai_tokens", inputTokenEstimate);
+      }
+    } catch {
+      // Best-effort release — if KV is down the reservation stays but
+      // will be reconciled by the next window rollover.
     }
   }
 

@@ -435,6 +435,40 @@ export async function assertQuota(
 }
 
 /**
+ * RC-RECHECK-02: Reserve quota atomically before performing the side-effect.
+ *
+ * Unlike checkQuota (read-only) → recordUsage (post-hoc), this function
+ * increments the counter immediately so concurrent requests see the
+ * reservation and don't over-commit. If the side-effect fails, the caller
+ * should call `releaseQuota()` to credit the amount back.
+ *
+ * Throws `QuotaExceededError` if the reservation would exceed the limit.
+ */
+export async function reserveQuota(
+  siteId: string,
+  resource: QuotaResource,
+  increment: number = 1,
+): Promise<QuotaCheckResult> {
+  const result = await checkQuota(siteId, resource, increment);
+  if (!result.allowed) throw new QuotaExceededError(siteId, result);
+  // Atomically increment the counter to reserve capacity
+  await recordUsage(siteId, resource, increment);
+  return result;
+}
+
+/**
+ * RC-RECHECK-02: Release previously reserved quota on failure.
+ * Credits the amount back (clamped at zero by recordUsage).
+ */
+export async function releaseQuota(
+  siteId: string,
+  resource: QuotaResource,
+  amount: number,
+): Promise<void> {
+  await recordUsage(siteId, resource, -amount);
+}
+
+/**
  * Read all usage counters for a site. Useful for admin dashboards and
  * the cost-attribution report tracked in `docs/ai-governance.md`.
  */
