@@ -33,6 +33,10 @@ export interface DlqEntry {
 /**
  * Write a failed webhook event to the durable DLQ table.
  * Best-effort — logs but does not throw on DB errors.
+ *
+ * Note: site_id scoping is intentionally omitted — Stripe webhook events
+ * are platform-level and do not carry tenant context. The webhook_dlq
+ * table is not RLS-protected; access is restricted via service-role only.
  */
 export async function writeToDlq(entry: DlqEntry): Promise<void> {
   try {
