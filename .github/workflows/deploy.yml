@@ -572,13 +572,28 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      # ── Skip entire migrate-production stage if requested ──────────
+      - name: Check skip flag
+        id: skip-check
+        env:
+          _SKIP: ${{ vars.SKIP_DB_MIGRATIONS }}
+        run: |
+          if [ "${_SKIP:-}" = "true" ]; then
+            echo "::warning::SKIP_DB_MIGRATIONS=true — skipping DB migration stage"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install psql
+        if: steps.skip-check.outputs.skip != 'true'
         run: |
           set -euo pipefail
           sudo apt-get update && sudo apt-get install -y postgresql-client 2>&1 | tail -5
 
       # ── Snapshot production DB before migration ────────────────────
       - name: Snapshot production DB
+        if: steps.skip-check.outputs.skip != 'true'
         env:
           _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
@@ -616,6 +631,7 @@ jobs:
 
       # ── Apply production migrations ────────────────────────────────
       - name: Apply database migrations to production
+        if: steps.skip-check.outputs.skip != 'true'
         env:
           _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
@@ -683,6 +699,7 @@ jobs:
 
       # ── Verify schema after migration ──────────────────────────────
       - name: Verify production schema
+        if: steps.skip-check.outputs.skip != 'true'
         env:
           _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
@@ -731,6 +748,7 @@ jobs:
       # stage (e.g. an env-condition mistake) could ship code expecting
       # an unmigrated schema.
       - name: Migration ledger gate (G-MD-01)
+        if: steps.skip-check.outputs.skip != 'true'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
