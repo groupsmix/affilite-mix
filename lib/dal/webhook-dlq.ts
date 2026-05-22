@@ -19,7 +19,7 @@
  *   );
  */
 
-import { getPrivilegedSupabaseClient } from "@/lib/supabase-server";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
 
 export interface DlqEntry {
@@ -36,7 +36,7 @@ export interface DlqEntry {
  */
 export async function writeToDlq(entry: DlqEntry): Promise<void> {
   try {
-    const sb = await getPrivilegedSupabaseClient();
+    const sb = getPrivilegedSupabaseClient();
     const { error } = await sb
       .from("webhook_dlq")
       .upsert(
@@ -74,7 +74,7 @@ export async function writeToDlq(entry: DlqEntry): Promise<void> {
  */
 export async function resolveDlqEntry(eventId: string): Promise<void> {
   try {
-    const sb = await getPrivilegedSupabaseClient();
+    const sb = getPrivilegedSupabaseClient();
     await sb
       .from("webhook_dlq")
       .update({ status: "resolved", resolved_at: new Date().toISOString() })
