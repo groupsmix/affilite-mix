@@ -333,12 +333,20 @@ jobs:
         if: github.ref == 'refs/heads/main'
         env:
           _STAGING_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+          _SKIP_STAGING_SMOKE: ${{ vars.SKIP_STAGING_SMOKE }}
         run: |
           set -euo pipefail
+
+          if [ "${_SKIP_STAGING_SMOKE:-}" = "true" ]; then
+            echo "::warning::SKIP_STAGING_SMOKE=true — skipping staging DB smoke test (single-DB setup)"
+            echo "To enable: provision a separate staging Supabase project and set STAGING_SUPABASE_DB_URL."
+            exit 0
+          fi
 
           if [ -z "$_STAGING_DB_URL" ]; then
             echo "::error::STAGING_SUPABASE_DB_URL is required for production deploy"
             echo "::error::Add a staging Supabase DB URL in GitHub → Settings → Secrets"
+            echo "::error::Or set repo variable SKIP_STAGING_SMOKE=true if you only have one Supabase project."
             exit 1
           fi
 
