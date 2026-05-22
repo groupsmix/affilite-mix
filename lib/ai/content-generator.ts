@@ -5,6 +5,7 @@
 
 import { generateWithFallback } from "./providers";
 import { moderateInput, moderateOutput } from "./content-moderation";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
 
@@ -197,8 +198,12 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
     );
   }
 
+  // I-02: Sanitize AI-generated HTML before storage (defense-in-depth).
+  // This prevents stored XSS if any render path skips render-time sanitization.
+  const sanitizedBody = sanitizeHtml(parsed.body);
+
   // A109: Prepend AI-generated watermark to the body.
-  const watermarkedBody = `${AI_GENERATED_WATERMARK}${parsed.body}`;
+  const watermarkedBody = `${AI_GENERATED_WATERMARK}${sanitizedBody}`;
 
   return { ...parsed, body: watermarkedBody, provider, model };
 }

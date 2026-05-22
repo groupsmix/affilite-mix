@@ -6,6 +6,7 @@ import { getMiddlewareSiteRowByDomain } from "@/lib/middleware-site-lookup";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
 import { buildCspHeader, generateCspNonce, NONCE_HEADER, buildReportToHeader } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
+import { logger } from "@/lib/logger";
 import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
 import { getAllowedOrigins, type VerifiedSiteRef } from "@/lib/security/allowed-origins";
@@ -380,7 +381,8 @@ async function innerMiddleware(request: NextRequest) {
       }
     } catch (err) {
       // F-025: Log structured error with trace id and emit Sentry instead of silent failure
-      console.error(`[middleware] DB lookup failed for domain: ${hostname}`, { traceId, err });
+      // T-03: Use structured logger to prevent log injection via hostname
+      logger.error("[middleware] DB lookup failed for domain", { hostname, traceId, err });
       captureException(err, {
         context: "[middleware] getMiddlewareSiteRowByDomain",
         extra: { hostname, traceId },
