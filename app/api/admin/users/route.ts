@@ -13,12 +13,15 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
+import { hashEmailForRateLimit } from "@/lib/validate-email";
 
 /** 100 admin API requests per minute per user session (3.30) */
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
 async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
-  const key = `admin:${email ?? userId ?? "unknown"}`;
+  // AM-11: Use hashed email to avoid PII in rate-limit key material
+  const identifier = email ? await hashEmailForRateLimit(email) : (userId ?? "unknown");
+  const key = `admin:${identifier}`;
   const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
   if (!rl.allowed) {
     return NextResponse.json(

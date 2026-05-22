@@ -85,13 +85,27 @@ export function apiError(
  *   X-RateLimit-Remaining — requests remaining in the current window
  *   X-RateLimit-Reset     — Unix epoch (seconds) when the window resets
  */
+/** Maximum JSON body size (1 MB). Reject before parsing to prevent memory exhaustion. */
+const MAX_JSON_BODY_BYTES = 1_048_576;
+
 /**
  * Safely parse the JSON body of a request.
- * Returns the parsed body on success, or a 400 NextResponse on failure.
+ * Returns the parsed body on success, or a 400/413 NextResponse on failure.
+ *
+ * AM-03: Checks Content-Length before calling request.json() to prevent
+ * large payloads from consuming memory/CPU before validation.
  */
 export async function parseJsonBody(
   request: Request,
 ): Promise<Record<string, unknown> | NextResponse> {
+  const contentLength = request.headers.get("content-length");
+  if (contentLength) {
+    const len = Number.parseInt(contentLength, 10);
+    if (Number.isFinite(len) && len > MAX_JSON_BODY_BYTES) {
+      return apiError(413, "Request body too large", undefined, undefined, "PAYLOAD_TOO_LARGE");
+    }
+  }
+
   try {
     return (await request.json()) as Record<string, unknown>;
   } catch {

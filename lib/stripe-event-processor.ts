@@ -264,7 +264,6 @@ function logStripeSideEffect(
   switch (payload.op) {
     case "create_membership":
       logger.info("Membership created via Stripe checkout", {
-        email: payload.email,
         siteId: payload.site_id,
         tier: payload.tier,
         membershipId,

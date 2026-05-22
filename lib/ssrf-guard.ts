@@ -314,6 +314,9 @@ export async function safeFetchWithRedirectValidation(
  * Wrapper around fetch() that validates the URL before making the request.
  * Use this instead of raw fetch() when the URL may contain user input.
  *
+ * AM-08: Uses redirect: "manual" and validates each Location header to
+ * prevent a validated public URL from redirecting to an internal target.
+ *
  * @param urlString - The URL to fetch
  * @param options - Standard fetch options
  * @param allowPrivateIPs - Only set true for internal tooling
@@ -323,15 +326,5 @@ export async function safeFetch(
   options?: RequestInit,
   allowPrivateIPs = false,
 ): Promise<Response> {
-  const result = await validateExternalUrl(urlString, allowPrivateIPs);
-  if (!result.valid) {
-    logger.warn("SSRF blocked", { url: urlString, reason: result.error });
-    throw new Error(`SSRF guard: ${result.error}`);
-  }
-
-  return fetchWithTimeout(urlString, {
-    timeoutMs: 15000, // Default 15s timeout to prevent hanging
-    redirect: "follow",
-    ...options,
-  });
+  return safeFetchWithRedirectValidation(urlString, options, allowPrivateIPs);
 }

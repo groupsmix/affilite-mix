@@ -7,6 +7,9 @@
 // Re-export shared email validation from the canonical utility module (task 18.6)
 export { isValidEmail } from "./validate-email";
 
+// AM-04: Use shared max content body length from sanitizer to prevent mismatch
+import { MAX_INPUT_LENGTH as MAX_CONTENT_BODY_LENGTH } from "./sanitize-html";
+
 // FIX-05 (F-010): Affiliate domain allow-list validation
 import { validateAffiliateDomain } from "./affiliate-domain-allowlist";
 
@@ -562,8 +565,8 @@ export function validateCreateContent(
   if (body.body !== undefined && !isString(body.body)) {
     errors.body = "body must be a string";
   }
-  if (isString(body.body) && body.body.length > 500_000) {
-    errors.body = "body must be less than 500,000 characters";
+  if (isString(body.body) && body.body.length > MAX_CONTENT_BODY_LENGTH) {
+    errors.body = `body must be less than ${MAX_CONTENT_BODY_LENGTH.toLocaleString()} characters`;
   }
   if (body.excerpt !== undefined && (!isString(body.excerpt) || body.excerpt.length > 5000)) {
     errors.excerpt = "excerpt must be a string and under 5000 characters";

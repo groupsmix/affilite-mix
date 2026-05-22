@@ -50,9 +50,28 @@ export async function GET(request: NextRequest) {
   }
   budget = Math.min(100000, Math.max(0, budget));
 
-  const occasion = searchParams.get("occasion") ?? "";
-  const recipient = searchParams.get("recipient") ?? "";
-  const style = searchParams.get("style") ?? "";
+  // AM-12: Cap query param length and restrict to safe characters
+  const MAX_PARAM_LEN = 100;
+  const SAFE_PARAM_RE = /^[a-zA-Z0-9 _-]*$/;
+
+  const rawOccasion = searchParams.get("occasion") ?? "";
+  const rawRecipient = searchParams.get("recipient") ?? "";
+  const rawStyle = searchParams.get("style") ?? "";
+
+  if (
+    rawOccasion.length > MAX_PARAM_LEN ||
+    rawRecipient.length > MAX_PARAM_LEN ||
+    rawStyle.length > MAX_PARAM_LEN
+  ) {
+    return NextResponse.json({ error: "Query parameters exceed maximum length" }, { status: 400 });
+  }
+  if (!SAFE_PARAM_RE.test(rawOccasion) || !SAFE_PARAM_RE.test(rawRecipient) || !SAFE_PARAM_RE.test(rawStyle)) {
+    return NextResponse.json({ error: "Query parameters contain invalid characters" }, { status: 400 });
+  }
+
+  const occasion = rawOccasion.toLowerCase();
+  const recipient = rawRecipient.toLowerCase();
+  const style = rawStyle.toLowerCase();
 
   const dbSiteId = await resolveDbSiteId(site.id);
   const sb = await getTenantClient();

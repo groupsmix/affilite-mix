@@ -83,16 +83,6 @@ const DEFAULT_ALLOWED_DOMAINS = [
   "affil.walmart.com",
   // Target
   "target.com",
-  // Generic catch-all patterns for subdomains
-  "affiliates.",
-  "affiliate.",
-  "ref.",
-  "refer.",
-  "go.",
-  "track.",
-  "tracking.",
-  "click.",
-  "partner.",
 ];
 
 /**
@@ -215,14 +205,12 @@ export function validateAffiliateDomain(url: string): DomainValidationResult {
   const registrable = extractRegistrableDomain(hostname);
   const allowed = getAllowedDomains();
 
-  // Check exact hostname and registrable domain
+  // Check exact hostname, registrable domain, or subdomain of an allowed domain
   const isAllowed =
     allowed.has(hostname) ||
     allowed.has(registrable) ||
-    // Check prefix patterns (e.g. "affiliate." matches "affiliate.example.com")
-    Array.from(allowed).some((d) => d.endsWith(".") && hostname.startsWith(d)) ||
-    // Check if any allowed domain is a suffix of the hostname
-    Array.from(allowed).some((d) => hostname === d || hostname.endsWith(`.${d}`));
+    // Check if hostname is a subdomain of an explicitly allowed domain
+    Array.from(allowed).some((d) => hostname.endsWith(`.${d}`));
 
   if (isAllowed) {
     return { allowed: true, domain: hostname };
