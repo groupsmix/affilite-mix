@@ -37,14 +37,19 @@
   //   3. deploy as usual
   //
   // See docs/CLOUDFLARE.md for the full bootstrap procedure.
+  // R-12: KV namespace IDs are injected at deploy time via environment
+  // variables. Do not hardcode environment-specific IDs here.
+  // Set RATE_LIMIT_KV_NAMESPACE_ID and APP_CACHE_KV_NAMESPACE_ID in your
+  // deploy environment, then use `scripts/inject-kv-ids.mjs` or pass
+  // them via wrangler CLI overrides.
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT_KV",
-      "id": "7ac37dff0a794542b0c766f38e73f105",
+      "id": "${RATE_LIMIT_KV_NAMESPACE_ID}",
     },
     {
       "binding": "APP_CACHE_KV",
-      "id": "c3d304f1c65240628314a80fb64cbe4a",
+      "id": "${APP_CACHE_KV_NAMESPACE_ID}",
     },
   ],
   // R2 incremental cache — create the bucket in the Cloudflare dashboard first
@@ -260,7 +265,7 @@
 // - SUPABASE_URL: The REST API URL for the Supabase project
 // - SUPABASE_SERVICE_ROLE_KEY: The service_role JWT for the Supabase project
 // - JWT_SECRET: A strong 256-bit secure random string for signing admin sessions
-// - STRIPE_SECRET_KEY: Live mode Stripe API key (sk_live_...)
+// - STRIPE_SECRET_KEY: Restricted API key (rk_live_...) — do NOT use legacy sk_live_ keys
 // - STRIPE_WEBHOOK_SECRET: Live mode Stripe webhook signing secret (whsec_...)
 // - INTERNAL_API_TOKEN: Shared secret between Cloudflare Queue and the API
 // - CRON_SECRET: Shared secret between Cloudflare Cron and the API

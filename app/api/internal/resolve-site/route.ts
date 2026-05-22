@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSiteRowByDomain } from "@/lib/dal/sites";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
-import { INTERNAL_HEADER, getInternalToken } from "@/lib/internal-auth";
+import { INTERNAL_HEADER, getInternalTokenFor } from "@/lib/internal-auth";
 import { timingSafeCompare } from "@/lib/cron-auth";
 
 /** 60 resolve-site requests per minute per IP */
@@ -16,13 +16,11 @@ const RESOLVE_SITE_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
  * to prevent external domain enumeration. Not intended for public use.
  */
 export async function GET(request: NextRequest) {
-  // Resolve the expected token. `getInternalToken()` throws in production if
-  // INTERNAL_API_TOKEN is missing or set to the documented public dev
-  // fallback — treat that as a misconfiguration and return 500 rather than
-  // leaking route behaviour based on an attacker-guessable constant.
+  // R-13: Use purpose-specific token for internal routes.
+  // Throws in production if token is missing or set to dev fallback.
   let expected: string;
   try {
-    expected = getInternalToken();
+    expected = getInternalTokenFor("internal");
   } catch {
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }

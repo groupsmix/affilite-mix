@@ -221,6 +221,13 @@ export async function generateTopicSuggestions(
   count: number = 5,
   siteId?: string,
 ): Promise<{ topics: string[]; provider: string }> {
+  // R-04: Apply the same moderation pipeline used by generateContent().
+  // Previously this called generateWithFallback directly, bypassing input/output moderation.
+  const inputCheck = moderateInput(niche);
+  if (!inputCheck.passed) {
+    throw new ContentModerationError(`[ai] Input moderation failed: ${inputCheck.reason}`, "input");
+  }
+
   const prompt = `Suggest ${count} compelling ${contentType} topics for a website about "${niche}".
 Each topic should be:
 - SEO-friendly and searchable
@@ -230,6 +237,15 @@ Each topic should be:
 Output each topic on its own line, numbered 1-${count}. No other text.`;
 
   const { text, provider } = await generateWithFallback(prompt, undefined, { siteId });
+
+  // R-04: Screen generated topic suggestions for prohibited content
+  const outputCheck = moderateOutput(text);
+  if (!outputCheck.passed) {
+    throw new ContentModerationError(
+      `[ai] Output moderation failed: ${outputCheck.reason}`,
+      "output",
+    );
+  }
 
   const topics = text
     .split("\n")

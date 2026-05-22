@@ -12,11 +12,15 @@
  * keyed by `quota:{siteId}:{resource}:{window}` so existing operational
  * tools (KV listing, dashboard) work unchanged.
  *
- * Failure mode: when KV is unreachable the helpers fail **open** (return
- * `allowed: true`) and emit a Sentry breadcrumb. Quota overruns are an
- * accounting concern, not a security boundary — we never want a KV
- * outage to brick AI content generation or media uploads. Rate limits
+ * Failure mode (R-06): the helpers use a **circuit-breaker** strategy.
+ * Transient KV failures (< 3 within 10 s) fail **open** (return
+ * `allowed: true`) — quota overruns are an accounting concern, not a
+ * security boundary. However, **sustained** KV failures (≥ 3 within
+ * 10 s) cause `checkQuota` to fail **closed** (`allowed: false`) to
+ * prevent unbounded cost exposure during a prolonged outage. Rate limits
  * (in `lib/rate-limit.ts`) remain the security-grade ceiling.
+ *
+ * In summary: brief blips → fail open; prolonged outage → fail closed.
  *
  * Public API:
  *   resolveTenantQuotas(siteId)       → TenantQuotaConfig

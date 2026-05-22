@@ -348,26 +348,34 @@ export async function generateWithFallback(
     try {
       const text = await provider.generate(safePrompt, safeSystemPrompt);
       if (options.siteId) {
-        // Fire-and-forget usage accounting. We record the *actual* output
+        // R-05: Post-flight usage accounting. Record the *actual* output
         // tokens (estimated from the response) plus the input estimate,
         // along with a USD cost derived from the resolved provider's
-        // price card. recordUsage swallows KV failures.
+        // price card. Pre-flight reservation happened above via assertQuota.
+        //
+        // We await the recording (not fire-and-forget) so failures are
+        // detected, but we catch and log rather than throw so accounting
+        // never breaks generation. This enables alerting on KV write
+        // failure rate without losing the generation result.
         const outputTokenEstimate = estimateTokens(text);
         const totalTokens = inputTokenEstimate + outputTokenEstimate;
         const microUsd =
           Math.ceil((inputTokenEstimate * provider.pricing.inputMicroUsdPer1k) / 1000) +
           Math.ceil((outputTokenEstimate * provider.pricing.outputMicroUsdPer1k) / 1000);
-        // We deliberately swallow this — accounting must never
-        // resurface as a generation error.
-        void Promise.allSettled([
-          recordUsage(options.siteId, "ai_requests", 1),
-          totalTokens > 0
-            ? recordUsage(options.siteId, "ai_tokens", totalTokens)
-            : Promise.resolve(),
-          microUsd > 0
-            ? recordUsage(options.siteId, "ai_cost_micro_usd", costToMicroUsd(microUsd / 1_000_000))
-            : Promise.resolve(),
-        ]);
+        try {
+          await Promise.allSettled([
+            recordUsage(options.siteId, "ai_requests", 1),
+            totalTokens > 0
+              ? recordUsage(options.siteId, "ai_tokens", totalTokens)
+              : Promise.resolve(),
+            microUsd > 0
+              ? recordUsage(options.siteId, "ai_cost_micro_usd", costToMicroUsd(microUsd / 1_000_000))
+              : Promise.resolve(),
+          ]);
+        } catch {
+          // Accounting must never resurface as a generation error.
+          // Sentry capture happens inside recordUsage itself.
+        }
       }
       return { text, provider: provider.name, model: provider.model };
     } catch (err) {
@@ -380,7 +388,16 @@ export async function generateWithFallback(
     }
   }
 
-  throw new Error(`All AI providers failed:\n${errors.join("\n")}`);
+  // R-07: Log full provider errors server-side for diagnostics but only
+  // expose normalized codes in the thrown error to prevent upstream response
+  // body leakage to clients.
+  console.error("[ai] All providers failed:", errors);
+  const sanitizedErrors = errors.map((e) => {
+    // Extract only the provider name and status code, strip response bodies
+    const match = e.match(/^([^:]+):\s*(.*?error\s*\d{3})/i);
+    return match ? `${match[1]}: ${match[2]}` : e.replace(/:\s*.{200,}$/, ": [response truncated]");
+  });
+  throw new Error(`All AI providers failed:\n${sanitizedErrors.join("\n")}`);
 }
 
 /** Get list of available (configured) providers */

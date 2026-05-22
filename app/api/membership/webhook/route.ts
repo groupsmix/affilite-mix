@@ -3,6 +3,7 @@ import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
 import { constructStripeEvent, prewarmStripeWebhookKey } from "@/lib/stripe-webhook";
 import { getStripeClient } from "@/lib/stripe-client";
+import { getTenantClient } from "@/lib/supabase-server";
 
 let _prewarmed = false;
 
@@ -110,11 +111,34 @@ export async function POST(request: NextRequest) {
     }
 
     if (attempts >= 3) {
-      logger.error("Stripe webhook max retries reached, acking to stop loop", { id: event.id });
-      logger.error("Stripe webhook DLQ payload", {
-        id: event.id,
-        payload: redactStripePayloadForLogs(rawBody),
-      });
+      logger.error("Stripe webhook max retries reached, persisting to DLQ table", { id: event.id });
+
+      // R-03: Persist failed events to a durable stripe_event_failures table
+      // so recovery evidence is not lost when logs are unavailable.
+      try {
+        const sb = await getTenantClient();
+        await sb
+          // eslint-disable-next-line no-restricted-syntax -- Direct insert into DLQ table; no DAL wrapper needed for infrastructure concern
+          .from("stripe_event_failures")
+          .upsert(
+            {
+              event_id: event.id,
+              event_type: event.type,
+              payload: redactStripePayloadForLogs(rawBody),
+              error_message: err instanceof Error ? err.message : String(err),
+              attempts,
+            },
+            { onConflict: "event_id" },
+          );
+      } catch (dlqErr) {
+        // Last resort: log the payload so it's at least in the log stream
+        logger.error("Stripe webhook DLQ persistence failed, logging payload", {
+          id: event.id,
+          payload: redactStripePayloadForLogs(rawBody),
+          dlqError: dlqErr instanceof Error ? dlqErr.message : String(dlqErr),
+        });
+      }
+
       return NextResponse.json({ received: true, dlq: true });
     }
 

@@ -25,14 +25,16 @@ export default defineConfig({
         "node_modules/**",
         "scripts/**",
       ],
-      // T-01: Raised from 14-18% baseline toward 60% target.
-      // Current measured coverage is ~20/17/15/20. Ratchet up as coverage
+      // R-08: Raised thresholds from 14-19% toward 40%+ target.
+      // Critical directories (auth, tenant isolation, rate limiting, webhooks,
+      // payments, AI) should aim for ≥80-90% branch coverage via per-directory
+      // thresholds once infrastructure supports them. Ratchet up as coverage
       // improves; do not lower without documenting why.
       thresholds: {
-        statements: 19,
-        branches: 16,
-        functions: 14,
-        lines: 19,
+        statements: 35,
+        branches: 30,
+        functions: 28,
+        lines: 35,
       },
     },
   },

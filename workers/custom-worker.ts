@@ -202,13 +202,15 @@ const worker = {
           })(),
         );
       } else {
-        // Without an internal token / cron host we have no durable sink, so
-        // log the bodies (recoverable from Worker tail / Logpush) and ack —
-        // there is nothing to retry against.
-        for (const msg of batch.messages) {
-          console.error("[queue/click-tracking-dlq] dead letter", msg);
-        }
-        batch.ackAll();
+        // R-16: Without an internal token / cron host we have no durable sink.
+        // Do NOT ack — retry so messages remain in the queue until config is fixed.
+        // Log the situation loudly so operators notice the misconfiguration.
+        console.error(
+          "[queue/click-tracking-dlq] INTERNAL_API_TOKEN or CRON_HOST missing — " +
+            "refusing to ACK DLQ messages without durable persistence. " +
+            "Retrying batch. Fix configuration to prevent data loss.",
+        );
+        batch.retryAll({ delaySeconds: 300 });
       }
       return;
     }

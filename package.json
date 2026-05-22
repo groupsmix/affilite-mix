@@ -32,6 +32,7 @@
     "setup-supabase-auth": "tsx scripts/setup-supabase-auth.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test:mutate": "stryker run",
     "prepare": "husky"
   },
   "lint-staged": {
