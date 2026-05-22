@@ -205,12 +205,12 @@ export function validateAffiliateDomain(url: string): DomainValidationResult {
   const registrable = extractRegistrableDomain(hostname);
   const allowed = getAllowedDomains();
 
-  // Check exact hostname, registrable domain, or subdomain of an allowed domain
+  // Check exact hostname, registrable domain, or subdomain of allowed domain
   const isAllowed =
     allowed.has(hostname) ||
     allowed.has(registrable) ||
-    // Check if hostname is a subdomain of an explicitly allowed domain
-    Array.from(allowed).some((d) => hostname.endsWith(`.${d}`));
+    // Check if hostname is a subdomain of an explicitly allowed registrable domain
+    Array.from(allowed).some((d) => !d.endsWith(".") && hostname.endsWith(`.${d}`));
 
   if (isAllowed) {
     return { allowed: true, domain: hostname };
