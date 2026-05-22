@@ -263,11 +263,19 @@ export async function validateExternalUrl(
  * Use this for high-risk fetches where the URL comes from untrusted
  * input and the response is used in a security-sensitive context.
  */
+/** Maximum number of redirects to follow before aborting (P-02). */
+const MAX_REDIRECT_HOPS = 10;
+
 export async function safeFetchWithRedirectValidation(
   urlString: string,
   options?: RequestInit,
   allowPrivateIPs = false,
+  _hopsRemaining: number = MAX_REDIRECT_HOPS,
 ): Promise<Response> {
+  if (_hopsRemaining <= 0) {
+    throw new Error("SSRF guard: too many redirects");
+  }
+
   const result = await validateExternalUrl(urlString, allowPrivateIPs);
   if (!result.valid) {
     logger.warn("SSRF blocked", { url: urlString, reason: result.error });
@@ -290,7 +298,7 @@ export async function safeFetchWithRedirectValidation(
         throw new Error(`SSRF guard on redirect: ${redirectResult.error}`);
       }
       // Re-fetch the redirect target with the same validation
-      return safeFetchWithRedirectValidation(location, options, allowPrivateIPs);
+      return safeFetchWithRedirectValidation(location, options, allowPrivateIPs, _hopsRemaining - 1);
     }
   }
 
