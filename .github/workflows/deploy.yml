@@ -76,7 +76,7 @@ env:
   # in package.json so local `npm run preview` / `npm run deploy` and CI
   # run the same wrangler. Bump deliberately when upgrading
   # @opennextjs/cloudflare.
-  WRANGLER_VERSION: "4.85.0"
+  WRANGLER_VERSION: "4.93.1"
 
   # ── Build-time only ────────────────────────────────────────────────
   # NEXT_PUBLIC_* vars are inlined by Next.js at bundle time.
