@@ -49,6 +49,31 @@ function stripNullBytes(v: string): string {
   return v.replace(/\0/g, "");
 }
 
+/**
+ * A14-05: NFC-normalise a user-supplied string.
+ *
+ * Unicode allows the same visible character to be represented in multiple
+ * ways (e.g. é as U+00E9 vs e + U+0301).  Without normalisation an attacker
+ * can register "admin@example.com" and a visually identical lookalike
+ * "admiñ@example.com" as separate identities.  Normalising to NFC (Canonical
+ * Decomposition, followed by Canonical Composition) collapses equivalent
+ * codepoint sequences so comparisons and uniqueness checks work correctly.
+ *
+ * Applied to all free-text fields (name, description, title, etc.).
+ * NOT applied to opaque tokens, UUIDs, or slugs where NFC has no meaning.
+ */
+function nfcNormalize(v: string): string {
+  return v.normalize("NFC");
+}
+
+/**
+ * Sanitize a free-text field: strip null bytes then NFC-normalize.
+ * Use this instead of bare stripNullBytes() on human-readable text fields.
+ */
+function sanitizeText(v: string): string {
+  return nfcNormalize(stripNullBytes(v));
+}
+
 const SLUG_RE = /^[a-z0-9-]+$/;
 
 function isSlug(v: unknown): v is string {
@@ -377,12 +402,12 @@ export function validateCreateProduct(
 
   return {
     data: {
-      name: stripNullBytes(body.name),
+      name: sanitizeText(body.name),
       slug: body.slug,
-      description: isString(body.description) ? stripNullBytes(body.description) : "",
+      description: isString(body.description) ? sanitizeText(body.description) : "",
       affiliate_url: isString(body.affiliate_url) ? body.affiliate_url : "",
       image_url: isString(body.image_url) ? body.image_url : "",
-      image_alt: isString(body.image_alt) ? stripNullBytes(body.image_alt) : "",
+      image_alt: isString(body.image_alt) ? sanitizeText(body.image_alt) : "",
       price: isString(body.price) ? body.price : "",
       price_amount: isNumber(body.price_amount) ? body.price_amount : null,
       price_currency: isString(body.price_currency) ? body.price_currency : "USD",
@@ -502,9 +527,9 @@ export function validateUpdateProduct(
   if (!isUuid(body.id)) return { data: null, errors: { id: "id must be a valid UUID" } };
 
   const data: UpdateProductInput = { id: body.id };
-  if (isString(body.name)) data.name = stripNullBytes(body.name);
+  if (isString(body.name)) data.name = sanitizeText(body.name);
   if (isString(body.slug)) data.slug = body.slug;
-  if (isString(body.description)) data.description = stripNullBytes(body.description);
+  if (isString(body.description)) data.description = sanitizeText(body.description);
   if (isString(body.affiliate_url)) data.affiliate_url = body.affiliate_url;
   if (isString(body.image_url)) data.image_url = body.image_url;
   if (isString(body.image_alt)) data.image_alt = body.image_alt;
@@ -602,16 +627,16 @@ export function validateCreateContent(
 
   return {
     data: {
-      title: stripNullBytes(body.title),
+      title: sanitizeText(body.title),
       slug: body.slug,
-      body: isString(body.body) ? stripNullBytes(body.body) : "",
-      excerpt: isString(body.excerpt) ? stripNullBytes(body.excerpt) : "",
+      body: isString(body.body) ? sanitizeText(body.body) : "",
+      excerpt: isString(body.excerpt) ? sanitizeText(body.excerpt) : "",
       featured_image: isString(body.featured_image) ? body.featured_image : "",
       type: isContentType(body.type) ? body.type : "article",
       status: isContentStatus(body.status) ? body.status : "draft",
       category_id: isUuid(body.category_id) ? body.category_id : null,
-      tags: isStringArray(body.tags) ? body.tags.map(stripNullBytes) : [],
-      author: isString(body.author) ? stripNullBytes(body.author) : null,
+      tags: isStringArray(body.tags) ? body.tags.map(sanitizeText) : [],
+      author: isString(body.author) ? sanitizeText(body.author) : null,
       publish_at: isString(body.publish_at) && body.publish_at !== "" ? body.publish_at : null,
       meta_title: isString(body.meta_title) && body.meta_title !== "" ? body.meta_title : null,
       meta_description:

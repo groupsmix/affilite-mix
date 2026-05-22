@@ -17,6 +17,11 @@ import type {
 } from "@/types/database";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 
+// A23-01: Explicit column lists for all three tables in this DAL.
+const ROLE_COLUMNS = "id, name, label, description, is_system, created_at" as const;
+const PERMISSION_COLUMNS = "id, feature, action, description" as const;
+const USER_SITE_ROLE_COLUMNS = "id, user_id, site_id, role_id, created_at" as const;
+
 interface AdminRoleLookup {
   role: string;
 }
@@ -30,7 +35,10 @@ export async function listRoles(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<RoleRow[]> {
   const sb = await getClient();
-  const { data, error } = await sb.from("roles").select("*").order("name", { ascending: true });
+  const { data, error } = await sb
+    .from("roles")
+    .select(ROLE_COLUMNS)
+    .order("name", { ascending: true });
 
   if (error) throw error;
   return assertRows<RoleRow>(data);
@@ -42,7 +50,7 @@ export async function getRoleByName(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<RoleRow | null> {
   const sb = await getClient();
-  const { data, error } = await sb.from("roles").select("*").eq("name", name).single();
+  const { data, error } = await sb.from("roles").select(ROLE_COLUMNS).eq("name", name).single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<RoleRow>(data);
@@ -59,7 +67,7 @@ export async function listPermissions(
   const sb = await getClient();
   const { data, error } = await sb
     .from("permissions")
-    .select("*")
+    .select(PERMISSION_COLUMNS)
     .order("feature", { ascending: true });
 
   if (error) throw error;
@@ -83,7 +91,7 @@ export async function getPermissionsForRole(
 
   const { data: perms, error: permError } = await sb
     .from("permissions")
-    .select("*")
+    .select(PERMISSION_COLUMNS)
     .in("id", permIds);
 
   if (permError) throw permError;
@@ -102,7 +110,7 @@ export async function listUserSiteRoles(
   const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
-    .select("*")
+    .select(USER_SITE_ROLE_COLUMNS)
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
 
@@ -118,7 +126,7 @@ export async function listSiteUserRoles(
   const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
-    .select("*")
+    .select(USER_SITE_ROLE_COLUMNS)
     .eq("site_id", siteId)
     .order("created_at", { ascending: true });
 
@@ -135,7 +143,7 @@ export const getUserSiteRole = cache(async function getUserSiteRole(
   const sb = await getClient();
   const { data, error } = await sb
     .from("user_site_roles")
-    .select("*")
+    .select(USER_SITE_ROLE_COLUMNS)
     .eq("user_id", userId)
     .eq("site_id", siteId)
     .single();

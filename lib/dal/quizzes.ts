@@ -50,6 +50,11 @@ export interface QuizSubmissionRow {
 
 const QUIZ_TABLE = "quizzes";
 const SUBMISSION_TABLE = "quiz_submissions";
+// A23-01: Explicit column lists prevent future sensitive columns from leaking.
+const QUIZ_COLUMNS =
+  "id, site_id, slug, title, description, steps, result_config, is_active, created_at, updated_at" as const;
+const SUBMISSION_COLUMNS =
+  "id, quiz_id, site_id, session_id, email, answers, result_tags, status, completed_at, created_at, updated_at" as const;
 
 /** Get active quiz by slug */
 export async function getQuizBySlug(
@@ -61,7 +66,7 @@ export async function getQuizBySlug(
 
   const { data, error } = await sb
     .from(QUIZ_TABLE)
-    .select("*")
+    .select(QUIZ_COLUMNS)
     .eq("site_id", siteId)
     .eq("slug", slug)
     .eq("is_active", true)
@@ -80,7 +85,7 @@ export async function listQuizzes(
 
   const { data, error } = await sb
     .from(QUIZ_TABLE)
-    .select("*")
+    .select(QUIZ_COLUMNS)
     .eq("site_id", siteId)
     .eq("is_active", true)
     .order("created_at", { ascending: false });
@@ -155,7 +160,11 @@ export async function getQuizSubmission(
 ): Promise<QuizSubmissionRow | null> {
   const sb = await getClient();
 
-  const { data, error } = await sb.from(SUBMISSION_TABLE).select("*").eq("id", id).maybeSingle();
+  const { data, error } = await sb
+    .from(SUBMISSION_TABLE)
+    .select(SUBMISSION_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
 
   if (error) throw error;
   return rowOrNull<QuizSubmissionRow>(data);

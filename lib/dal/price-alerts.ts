@@ -16,6 +16,10 @@ export interface PriceAlertRow {
 }
 
 const TABLE = "price_alerts";
+// A23-01: Explicit column list. Note: email is PII — callers that don't need
+// it should pass a narrower column string rather than this full constant.
+const ALL_COLUMNS =
+  "id, product_id, site_id, email, target_price, currency, is_active, triggered_at, created_at, updated_at" as const;
 
 /** Subscribe to a price-drop alert */
 export async function createPriceAlert(
@@ -45,7 +49,7 @@ export async function getPriceAlert(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .eq("product_id", productId)
     .eq("email", email)
     .eq("is_active", true)
@@ -65,7 +69,7 @@ export async function listAlertsByEmail(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .eq("email", email)
     .eq("site_id", siteId)
     .eq("is_active", true)
@@ -85,7 +89,7 @@ export async function findTriggeredAlerts(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .eq("product_id", productId)
     .eq("is_active", true)
     .gte("target_price", currentPrice);
