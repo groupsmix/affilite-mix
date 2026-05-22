@@ -265,7 +265,7 @@
 // - SUPABASE_URL: The REST API URL for the Supabase project
 // - SUPABASE_SERVICE_ROLE_KEY: The service_role JWT for the Supabase project
 // - JWT_SECRET: A strong 256-bit secure random string for signing admin sessions
-// - STRIPE_SECRET_KEY: Restricted API key (rk_live_...) — do NOT use legacy sk_live_ keys
+// - STRIPE_SECRET_KEY: Restricted API key (rk_live_...) — do NOT use legacy full-access keys
 // - STRIPE_WEBHOOK_SECRET: Live mode Stripe webhook signing secret (whsec_...)
 // - INTERNAL_API_TOKEN: Shared secret between Cloudflare Queue and the API
 // - CRON_SECRET: Shared secret between Cloudflare Cron and the API
