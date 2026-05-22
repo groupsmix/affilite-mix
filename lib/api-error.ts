@@ -59,6 +59,21 @@ function defaultCodeForStatus(status: number): ApiErrorCode {
  * The optional `code` parameter lets callers supply a specific error code;
  * when omitted, a sensible default is inferred from the HTTP status.
  */
+/**
+ * R-15: In production, only include `details` when it passes the public
+ * error schema check (plain validation-error objects). Arbitrary internal
+ * data is stripped to prevent accidental exposure of stack traces,
+ * internal IDs, or upstream response bodies.
+ */
+function isPublicDetails(details: unknown): boolean {
+  if (details === null || details === undefined) return false;
+  if (typeof details !== "object" || Array.isArray(details)) return false;
+  // Allow Record<string, string> (validation errors) through
+  return Object.values(details as Record<string, unknown>).every(
+    (v) => typeof v === "string" || typeof v === "number" || typeof v === "boolean",
+  );
+}
+
 export function apiError(
   status: number,
   message: string,
@@ -70,7 +85,13 @@ export function apiError(
     error: message,
     code: code ?? defaultCodeForStatus(status),
   };
-  if (details !== undefined) body.details = details;
+  if (details !== undefined) {
+    // R-15: Only pass through safe, flat validation detail objects in production.
+    // In non-production, always include details for developer convenience.
+    if (process.env.NODE_ENV !== "production" || isPublicDetails(details)) {
+      body.details = details;
+    }
+  }
   return NextResponse.json(body, { status, headers });
 }
 

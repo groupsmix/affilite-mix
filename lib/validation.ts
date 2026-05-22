@@ -663,8 +663,10 @@ export function validateUpdateContent(
   if (body.body !== undefined && !isString(body.body)) {
     errors.body = "body must be a string";
   }
-  if (body.body !== undefined && isString(body.body) && body.body.length > 500_000) {
-    errors.body = "body must be less than 500,000 characters";
+  // RC-03: Align with sanitizeHtml()'s MAX_INPUT_LENGTH to prevent 500 errors
+  // when PATCH sends content between 100k-500k that the sanitizer rejects.
+  if (body.body !== undefined && isString(body.body) && body.body.length > MAX_CONTENT_BODY_LENGTH) {
+    errors.body = `body must be less than ${MAX_CONTENT_BODY_LENGTH.toLocaleString()} characters`;
   }
   if (body.type !== undefined && !isContentType(body.type)) {
     errors.type = "type must be one of: article, review, comparison, guide, blog";

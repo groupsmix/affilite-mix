@@ -188,17 +188,21 @@ export const DELETE = withAuthz(
   "delete",
   async (request: NextRequest, { session, siteId }) => {
     let id: string | null = null;
-    try {
-      const body = await request.json();
-      id = body?.id ?? null;
-    } catch {
-      // fallback to query params for backward compatibility
+    const rawOrError = await parseJsonBody(request);
+    if (rawOrError instanceof NextResponse) {
+      // JSON parse failed — fallback to query params for backward compatibility
+    } else {
+      id = typeof rawOrError.id === "string" ? rawOrError.id : null;
     }
     if (!id) {
       id = request.nextUrl.searchParams.get("id");
     }
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+    // RC-05: Validate UUID format before hitting the database
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
     }
 
     try {

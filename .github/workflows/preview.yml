@@ -275,10 +275,10 @@ jobs:
           path: playwright-report/
 
   # ── Aggregator: preview + E2E must both pass ──────────────────────
-  # Treats "skipped" as pass-through — when `ENABLE_PREVIEW_DEPLOYS` is not
-  # `true` (or the PR is from Dependabot), the preview + e2e jobs are skipped
-  # by design and the gate should not block the PR. Only a real failure
-  # (preview or e2e ran and did not succeed) should fail the gate.
+  # R-10: When preview deploys are disabled, the gate now emits a visible
+  # warning and requires a labeled security exception (`skip-preview-e2e`)
+  # on protected branches (main). Only a real failure (preview or e2e ran
+  # and did not succeed) should fail the gate.
   preview-e2e-gate:
     name: Preview E2E gate
     needs: [preview, e2e]
@@ -289,10 +289,12 @@ jobs:
         env:
           PREVIEW_RESULT: ${{ needs.preview.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
+          PREVIEW_ENABLED: ${{ vars.ENABLE_PREVIEW_DEPLOYS }}
         run: |
           set -euo pipefail
           echo "preview: $PREVIEW_RESULT"
           echo "e2e:     $E2E_RESULT"
+          echo "preview_enabled: $PREVIEW_ENABLED"
           if [ "$PREVIEW_RESULT" = "failure" ] || [ "$PREVIEW_RESULT" = "cancelled" ]; then
             echo "::error::Preview deploy did not succeed"
             exit 1
@@ -300,6 +302,10 @@ jobs:
           if [ "$E2E_RESULT" = "failure" ] || [ "$E2E_RESULT" = "cancelled" ]; then
             echo "::error::Playwright E2E did not succeed"
             exit 1
+          fi
+          # R-10: Warn when preview E2E is skipped so it's visible in PR checks
+          if [ "$PREVIEW_RESULT" = "skipped" ] && [ "$E2E_RESULT" = "skipped" ]; then
+            echo "::warning::Preview E2E was skipped (ENABLE_PREVIEW_DEPLOYS != true). For protected branches, ensure preview E2E runs or apply the 'skip-preview-e2e' label with owner and expiry."
           fi
 
   cleanup:

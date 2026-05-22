@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { getInternalToken } from "@/lib/internal-auth";
+import { getInternalTokenFor } from "@/lib/internal-auth";
 import { timingSafeCompare } from "@/lib/cron-auth";
 import { getTenantClient } from "@/lib/supabase-server";
 import { CONTENT_TAGS, siteTag, type ContentTag } from "@/lib/cache-tags";
@@ -16,21 +16,21 @@ import { checkRateLimit } from "@/lib/rate-limit";
  * Secured via INTERNAL_API_TOKEN env var — pass it in the Authorization header:
  *   Authorization: Bearer <INTERNAL_API_TOKEN>
  *
- * Body (all optional):
+ * Body:
  *   {
  *     "tags":    ["content", "products"],          // defaults to all three kinds
- *     "site_id": "<uuid>"                          // scope to one site; omit = all active sites
+ *     "site_id": "<uuid>",                         // REQUIRED: scope to one site
+ *     "scope":   "all_sites"                       // break-glass: omit site_id + set scope to purge all
  *   }
  *
  * Tags are always emitted in their site-scoped form (`content:<site_id>`).
- * A request with no `site_id` fans out across every active site, replacing
- * the previous behavior of a single global tag that invalidated every site's
- * cache at once.
+ * R-02: `site_id` is now required by default. All-site purge requires
+ * explicit `scope: "all_sites"` to prevent accidental fanout.
  */
 export async function POST(request: NextRequest) {
   let expected: string;
   try {
-    expected = getInternalToken();
+    expected = getInternalTokenFor("internal");
   } catch {
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
 
   let kinds: ContentTag[] = [...CONTENT_TAGS];
   let siteId: string | null = null;
+  let scope: string | null = null;
 
   try {
     const body = await request.json();
@@ -80,15 +81,22 @@ export async function POST(request: NextRequest) {
     if (typeof body.site_id === "string" && body.site_id.length > 0) {
       siteId = body.site_id;
     }
+    if (typeof body.scope === "string") {
+      scope = body.scope;
+    }
   } catch {
     // No body or invalid JSON — use defaults.
   }
 
-  // Resolve target site IDs. Either a single explicit one or every active site.
+  // R-02: Require site_id by default. All-site purge requires an explicit
+  // `scope: "all_sites"` field to prevent accidental cache fanout from a
+  // leaked token. This acts as a break-glass mechanism.
   let siteIds: string[];
+
   if (siteId) {
     siteIds = [siteId];
-  } else {
+  } else if (scope === "all_sites") {
+    // Explicit break-glass: caller acknowledges all-site fanout
     const sb = await getTenantClient();
     const { data: sites, error } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: revalidate webhook uses privileged client; gated by shared secret
@@ -101,6 +109,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     siteIds = (sites ?? []).map((s) => s.id);
+  } else {
+    return NextResponse.json(
+      { error: "site_id is required. For all-site purge, pass scope: \"all_sites\" explicitly." },
+      { status: 400 },
+    );
   }
 
   const revalidated: string[] = [];
