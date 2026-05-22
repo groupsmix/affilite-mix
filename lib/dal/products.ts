@@ -323,6 +323,9 @@ export async function searchProducts(
   return assertRows<ProductRow>(data);
 }
 
+/** D-01: Maximum number of names per IN clause to prevent oversized queries. */
+const MAX_IN_NAMES = 100;
+
 export async function listProductsByNames(
   siteId: string,
   names: string[],
@@ -330,13 +333,20 @@ export async function listProductsByNames(
 ): Promise<Pick<ProductRow, "id" | "name" | "image_url" | "image_alt">[]> {
   if (names.length === 0) return [];
   const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select("id, name, image_url, image_alt")
-    .eq("site_id", siteId)
-    .in("name", names);
-  if (error) throw error;
-  return assertRows<Pick<ProductRow, "id" | "name" | "image_url" | "image_alt">>(data);
+  // D-01: Paginate large name lists to avoid massive IN clauses
+  const capped = names.slice(0, MAX_IN_NAMES);
+  const results: Pick<ProductRow, "id" | "name" | "image_url" | "image_alt">[] = [];
+  for (let i = 0; i < capped.length; i += MAX_IN_NAMES) {
+    const batch = capped.slice(i, i + MAX_IN_NAMES);
+    const { data, error } = await sb
+      .from(TABLE)
+      .select("id, name, image_url, image_alt")
+      .eq("site_id", siteId)
+      .in("name", batch);
+    if (error) throw error;
+    results.push(...assertRows<Pick<ProductRow, "id" | "name" | "image_url" | "image_alt">>(data));
+  }
+  return results;
 }
 
 export async function listFeaturedProducts(siteId: string, limit = 6): Promise<ProductRow[]> {

@@ -100,7 +100,13 @@ export function isSafeUrl(value: string): boolean {
   // Strip all ASCII tab, newline and carriage-return characters (anywhere
   // in the string — the URL parser removes them globally), then trim
   // leading/trailing C0 controls and spaces.
-  const trimmed = value.replace(/[\t\n\r]/g, "").replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, "");
+  // P-01: Use iterative trimming instead of ReDoS-prone regex for C0 controls
+  let trimmed = value.replace(/[\t\n\r]/g, "");
+  let start = 0;
+  let end = trimmed.length;
+  while (start < end && trimmed.charCodeAt(start) <= 0x20) start++;
+  while (end > start && trimmed.charCodeAt(end - 1) <= 0x20) end--;
+  trimmed = trimmed.slice(start, end);
   if (trimmed.length === 0) return false;
 
   // Relative URLs and same-page anchors never specify a scheme.
