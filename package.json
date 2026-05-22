@@ -30,6 +30,7 @@
     "drain-dlq": "tsx scripts/drain-dlq.ts",
     "seed": "tsx scripts/seed.ts",
     "setup-supabase-auth": "tsx scripts/setup-supabase-auth.ts",
+    "test:mutation": "stryker run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:mutate": "stryker run",
@@ -106,6 +107,9 @@
     "size-limit": "^12.1.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.0",
+    "@stryker-mutator/core": "^8.6.0",
+    "@stryker-mutator/vitest-runner": "^8.6.0",
+    "@stryker-mutator/typescript-checker": "^8.6.0",
     "vitest": "^4.1.5"
   },
   "overrides": {

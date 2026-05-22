@@ -665,7 +665,11 @@ export function validateUpdateContent(
   }
   // RC-03: Align with sanitizeHtml()'s MAX_INPUT_LENGTH to prevent 500 errors
   // when PATCH sends content between 100k-500k that the sanitizer rejects.
-  if (body.body !== undefined && isString(body.body) && body.body.length > MAX_CONTENT_BODY_LENGTH) {
+  if (
+    body.body !== undefined &&
+    isString(body.body) &&
+    body.body.length > MAX_CONTENT_BODY_LENGTH
+  ) {
     errors.body = `body must be less than ${MAX_CONTENT_BODY_LENGTH.toLocaleString()} characters`;
   }
   if (body.type !== undefined && !isContentType(body.type)) {

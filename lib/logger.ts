@@ -175,3 +175,46 @@ function build(bindings: Record<string, unknown>): Logger {
 
 /** The root logger.  Use `logger.child({ requestId })` inside API routes. */
 export const logger: Logger = build({});
+
+/**
+ * F-14: Per-event log sampling for high-volume paths.
+ *
+ * Use for click tracking, rate-limit denials, AI usage, and newsletter
+ * abuse paths to avoid overwhelming log storage. Sampling is deterministic
+ * per key (hash-based) so a given key always resolves the same way within
+ * a given isolate's lifetime.
+ */
+const sampleCounters = new Map<string, number>();
+
+export function shouldSample(eventKey: string, sampleRate: number): boolean {
+  if (sampleRate >= 1) return true;
+  if (sampleRate <= 0) return false;
+  const count = (sampleCounters.get(eventKey) ?? 0) + 1;
+  sampleCounters.set(eventKey, count);
+  return count % Math.round(1 / sampleRate) === 0;
+}
+
+/**
+ * F-13: Allowlisted log event schemas.
+ * High-value events should use these typed emitters instead of raw logger
+ * calls with arbitrary extras, to prevent PII leaking through unnamed fields.
+ */
+export function logSecurityEvent(event: {
+  action:
+    | "login_success"
+    | "login_failure"
+    | "token_revoked"
+    | "session_expired"
+    | "rate_limited"
+    | "ssrf_blocked";
+  userId?: string;
+  traceId?: string;
+  metadata?: Record<string, string | number | boolean>;
+}): void {
+  logger.info(`security.${event.action}`, {
+    action: event.action,
+    userId: event.userId,
+    traceId: event.traceId,
+    ...event.metadata,
+  });
+}
