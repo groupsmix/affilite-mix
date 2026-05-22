@@ -32,43 +32,39 @@ export interface DlqEntry {
 
 /**
  * Write a failed webhook event to the durable DLQ table.
- * Best-effort — logs but does not throw on DB errors.
+ *
+ * R2-01: This function now THROWS on failure so that callers cannot
+ * silently ACK a webhook when the DLQ write did not persist. The caller
+ * (webhook route) must catch and return a 500 to trigger Stripe retry.
  *
  * Note: site_id scoping is intentionally omitted — Stripe webhook events
  * are platform-level and do not carry tenant context. The webhook_dlq
  * table is not RLS-protected; access is restricted via service-role only.
  */
 export async function writeToDlq(entry: DlqEntry): Promise<void> {
-  try {
-    const sb = getPrivilegedSupabaseClient();
-    const { error } = await sb.from("webhook_dlq").upsert(
-      {
-        event_id: entry.event_id,
-        event_type: entry.event_type,
-        payload: entry.payload,
-        error_message: entry.error_message,
-        attempts: entry.attempts,
-        status: "pending",
-      },
-      { onConflict: "event_id" },
-    );
-    if (error) {
-      logger.error("Failed to write webhook event to DLQ table", {
-        event_id: entry.event_id,
-        dbError: error.message,
-      });
-    } else {
-      logger.info("Webhook event written to DLQ", {
-        event_id: entry.event_id,
-        event_type: entry.event_type,
-      });
-    }
-  } catch (err) {
-    logger.error("DLQ write exception", {
+  const sb = getPrivilegedSupabaseClient();
+  const { error } = await sb.from("webhook_dlq").upsert(
+    {
       event_id: entry.event_id,
-      error: err instanceof Error ? err.message : String(err),
+      event_type: entry.event_type,
+      payload: entry.payload,
+      error_message: entry.error_message,
+      attempts: entry.attempts,
+      status: "pending",
+    },
+    { onConflict: "event_id" },
+  );
+  if (error) {
+    logger.error("Failed to write webhook event to DLQ table", {
+      event_id: entry.event_id,
+      dbError: error.message,
     });
+    throw new Error(`DLQ write failed for event ${entry.event_id}: ${error.message}`);
   }
+  logger.info("Webhook event written to DLQ", {
+    event_id: entry.event_id,
+    event_type: entry.event_type,
+  });
 }
 
 /**

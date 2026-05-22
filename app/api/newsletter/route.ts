@@ -11,6 +11,7 @@ import { hashNewsletterToken } from "@/lib/newsletter-token";
 import { escapeAttribute, escapeHtml, safeHexColor, safeHref } from "@/lib/email-templates/escape";
 import { logger } from "@/lib/logger";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
+import { t } from "@/lib/i18n";
 
 /**
  * Build a branded HTML email for newsletter confirmation.
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
       logger.info("[api/newsletter] Honeypot triggered");
       return NextResponse.json({
         ok: true,
-        message: "Please check your email to confirm your subscription.",
+        message: t("newsletter.check_email"),
       });
     }
 
@@ -148,7 +149,7 @@ export async function POST(request: Request) {
 
     if (existing) {
       if (existing.status === "active" && existing.confirmed_at) {
-        return NextResponse.json({ ok: true, message: "You are already subscribed." });
+        return NextResponse.json({ ok: true, message: t("newsletter.already_subscribed") });
       }
       const unsubscribeToken = crypto.randomUUID();
       const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
@@ -230,7 +231,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           from: fromEmail,
           to: [email],
-          subject: `Confirm your subscription to ${site.name}`,
+          subject: t("newsletter.confirm_subject").replace("{siteName}", site.name),
           html: emailHtml,
           text: `Thanks for subscribing to ${site.name}!\n\nPlease confirm your email by visiting the link below:\n${confirmUrl}\n\nIf you did not sign up, you can safely ignore this email.\n\n© ${new Date().getFullYear()} ${site.name} — ${site.domain}`,
         }),
@@ -248,7 +249,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      message: "Please check your email to confirm your subscription.",
+      message: t("newsletter.check_email"),
     });
   } catch (err) {
     captureException(err, { context: "[api/newsletter] POST failed:" });

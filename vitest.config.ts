@@ -25,13 +25,23 @@ export default defineConfig({
         "node_modules/**",
         "scripts/**",
       ],
-      // Coverage ratchets — set to current levels to prevent regression.
-      // Raise as more tests are added; do not lower without documenting why.
+      // R2-06: Coverage ratchets — raised from baseline and per-directory gates
+      // added for critical security paths. Do not lower without documenting why.
       thresholds: {
-        statements: 21,
-        branches: 18,
-        functions: 17,
-        lines: 21,
+        statements: 40,
+        branches: 35,
+        functions: 35,
+        lines: 40,
+        // Per-directory gates for critical code paths (target ≥80% branches)
+        "lib/auth*": { statements: 80, branches: 80, functions: 80, lines: 80 },
+        "lib/authz*": { statements: 80, branches: 80, functions: 80, lines: 80 },
+        "lib/rate-limit*": { statements: 80, branches: 80, functions: 80, lines: 80 },
+        "lib/quotas*": { statements: 80, branches: 80, functions: 80, lines: 80 },
+        "lib/stripe-webhook*": { statements: 80, branches: 80, functions: 80, lines: 80 },
+        "lib/stripe-event-processor*": { statements: 80, branches: 80, functions: 80, lines: 80 },
+        "lib/ai/**": { statements: 80, branches: 80, functions: 80, lines: 80 },
+        "lib/dal/webhook-dlq*": { statements: 80, branches: 80, functions: 80, lines: 80 },
+        "lib/sanitize-html*": { statements: 80, branches: 80, functions: 80, lines: 80 },
       },
     },
   },

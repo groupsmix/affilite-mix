@@ -145,8 +145,42 @@ export async function parseJsonBody(
     }
   }
 
+  // RC-NOW-01: When Content-Length is absent (chunked/lengthless bodies), read
+  // the body manually with a size cap to prevent memory exhaustion before parsing.
   try {
-    return (await request.json()) as Record<string, unknown>;
+    let rawText: string;
+    if (!contentLength) {
+      const reader = request.body?.getReader();
+      if (!reader) {
+        return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
+      }
+      const chunks: Uint8Array[] = [];
+      let totalBytes = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        totalBytes += value.byteLength;
+        if (totalBytes > MAX_JSON_BODY_BYTES) {
+          reader.cancel();
+          return apiError(413, "Request body too large", undefined, undefined, "PAYLOAD_TOO_LARGE");
+        }
+        chunks.push(value);
+      }
+      const merged = new Uint8Array(totalBytes);
+      let offset = 0;
+      for (const chunk of chunks) {
+        merged.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      rawText = new TextDecoder().decode(merged);
+    } else {
+      rawText = await request.text();
+    }
+    const parsed = JSON.parse(rawText);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
+    }
+    return parsed as Record<string, unknown>;
   } catch {
     return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
   }
