@@ -33,6 +33,7 @@
     "test:mutation": "stryker run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test:mutate": "stryker run",
     "prepare": "husky"
   },
   "lint-staged": {

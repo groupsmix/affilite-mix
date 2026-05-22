@@ -37,19 +37,17 @@ export interface DlqEntry {
 export async function writeToDlq(entry: DlqEntry): Promise<void> {
   try {
     const sb = getPrivilegedSupabaseClient();
-    const { error } = await sb
-      .from("webhook_dlq")
-      .upsert(
-        {
-          event_id: entry.event_id,
-          event_type: entry.event_type,
-          payload: entry.payload,
-          error_message: entry.error_message,
-          attempts: entry.attempts,
-          status: "pending",
-        },
-        { onConflict: "event_id" },
-      );
+    const { error } = await sb.from("webhook_dlq").upsert(
+      {
+        event_id: entry.event_id,
+        event_type: entry.event_type,
+        payload: entry.payload,
+        error_message: entry.error_message,
+        attempts: entry.attempts,
+        status: "pending",
+      },
+      { onConflict: "event_id" },
+    );
     if (error) {
       logger.error("Failed to write webhook event to DLQ table", {
         event_id: entry.event_id,

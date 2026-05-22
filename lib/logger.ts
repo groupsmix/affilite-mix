@@ -124,12 +124,36 @@ const DENIED_LOG_FIELDS = new Set([
   "pin",
 ]);
 
+/**
+ * R-14: Pattern-based PII detection supplements the exact-match denylist.
+ * This catches compound field names like `customerEmail`, `user_token_value`,
+ * or `paymentCard` that the flat denylist would miss.
+ */
+const PII_PATTERNS = [
+  /email/i,
+  /token/i,
+  /secret/i,
+  /password/i,
+  /credential/i,
+  /card(?:_?num)/i,
+  /cvv|cvc/i,
+  /ssn|social.?security/i,
+  /private.?key/i,
+  /api.?key/i,
+];
+
+function isPiiKey(key: string): boolean {
+  if (DENIED_LOG_FIELDS.has(key.toLowerCase())) return true;
+  return PII_PATTERNS.some((pattern) => pattern.test(key));
+}
+
 function jsonReplacer(key: string, value: unknown): unknown {
   if (value instanceof Error) {
     return { message: value.message, name: value.name, stack: value.stack };
   }
-  // F-OBS-02: Redact denied PII fields
-  if (DENIED_LOG_FIELDS.has(key.toLowerCase())) {
+  // R-14: Pattern-based redaction catches compound PII keys that the
+  // flat denylist would miss (e.g. customerEmail, user_token_value).
+  if (isPiiKey(key)) {
     return "[REDACTED]";
   }
   // F-026: Tighten IP truncation logic to catch all common IP keys
@@ -176,7 +200,13 @@ export function shouldSample(eventKey: string, sampleRate: number): boolean {
  * calls with arbitrary extras, to prevent PII leaking through unnamed fields.
  */
 export function logSecurityEvent(event: {
-  action: "login_success" | "login_failure" | "token_revoked" | "session_expired" | "rate_limited" | "ssrf_blocked";
+  action:
+    | "login_success"
+    | "login_failure"
+    | "token_revoked"
+    | "session_expired"
+    | "rate_limited"
+    | "ssrf_blocked";
   userId?: string;
   traceId?: string;
   metadata?: Record<string, string | number | boolean>;
