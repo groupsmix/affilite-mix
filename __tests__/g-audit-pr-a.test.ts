@@ -264,8 +264,8 @@ describe("G-11 — deploy.yml drift gates", () => {
 
 describe("G-17 — click-tracking failPolicy", () => {
   const src = read("app/api/track/click/route.ts");
-  it("is 'grace', not 'open'", () => {
-    expect(src).toMatch(/failPolicy:\s*"grace"/);
+  it("is 'closed', not 'open'", () => {
+    expect(src).toMatch(/failPolicy:\s*"closed"/);
     expect(src).not.toMatch(/failPolicy:\s*"open"/);
   });
 });
