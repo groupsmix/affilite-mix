@@ -13,6 +13,10 @@ export interface RecordClickInput {
   referrer?: string;
   click_id?: string;
   is_internal?: boolean;
+  /** A162: /24 IP prefix only (e.g. "203.0.113"). Full IP is never stored. */
+  ip_prefix?: string;
+  /** A158: HMAC fingerprint for 24h dedup. Not raw PII. */
+  fingerprint?: string;
 }
 
 export interface ClickDateWindow {
@@ -81,6 +85,10 @@ export async function recordClick(
     referrer: input.referrer ?? "",
     ...(input.click_id ? { click_id: input.click_id } : {}),
     is_internal: input.is_internal ?? false,
+    // A162: Only the /24 prefix is stored — full IP is never persisted.
+    ...(input.ip_prefix ? { ip_prefix: input.ip_prefix } : {}),
+    // A158: HMAC fingerprint for 24h dedup audit trail. Not raw PII.
+    ...(input.fingerprint ? { fingerprint: input.fingerprint } : {}),
   };
 
   const { error } = await sb.from(TABLE).insert(row);

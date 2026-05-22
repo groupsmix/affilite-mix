@@ -49,6 +49,28 @@ export async function POST(request: NextRequest) {
     captureException(err, { context: "[cron/data-retention] affiliate_clicks failed:" });
   }
 
+  // A162: Minimize IP data — null out ip_prefix and fingerprint after 30 days.
+  // The full affiliate_click row is kept for commission reconciliation (up to 365d),
+  // but the privacy-sensitive /24 prefix and dedup fingerprint are erased at 30d.
+  try {
+    const ipMinimizeDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const { error: ipMinErr } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+      .from("affiliate_clicks")
+      .update({ ip_prefix: null, fingerprint: null })
+      .lt("created_at", ipMinimizeDate.toISOString())
+      .not("ip_prefix", "is", null);
+
+    if (ipMinErr) throw ipMinErr;
+    results.affiliate_clicks_ip_minimize = { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    results.affiliate_clicks_ip_minimize = { success: false, error: msg };
+    captureException(err, {
+      context: "[cron/data-retention] affiliate_clicks ip_prefix minimize failed:",
+    });
+  }
+
   // FIX-11 (F-016): Transactional audit_log purge via Postgres RPC.
   // The previous fetch→archive→delete was non-transactional: if the delete
   // failed after a successful R2 archive, rows were lost without a hot-table
