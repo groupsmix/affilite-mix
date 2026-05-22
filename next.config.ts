@@ -45,6 +45,15 @@ const nextConfig: NextConfig = {
   // Cloudflare Pages deployment via @opennextjs/cloudflare
   headers: async () => [
     {
+      // FP-01: stricter Referrer-Policy on the password-reset route so the
+      // reset token in the query string cannot leak via the Referer header.
+      source: "/admin/reset-password",
+      headers: [
+        { key: "Referrer-Policy", value: "no-referrer" },
+        { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, private" },
+      ],
+    },
+    {
       source: "/(.*)",
       headers: [
         { key: "X-Frame-Options", value: "DENY" },
