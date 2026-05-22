@@ -5,7 +5,7 @@
  * quotas, webhooks, and tenant scoping. Mutation score must be ≥80% for
  * these modules to ensure tests truly validate the logic, not just execute it.
  */
-export default {
+const config = {
   testRunner: "vitest",
   checkers: ["typescript"],
   tsconfigFile: "tsconfig.json",
@@ -37,3 +37,5 @@ export default {
   timeoutMS: 60000,
   concurrency: 4,
 };
+
+export default config;
