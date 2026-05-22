@@ -13,11 +13,7 @@ export const viewport: Viewport = {
   themeColor: "#0a0a0a",
 };
 
-export default function ResetPasswordLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ResetPasswordLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <meta name="referrer" content="no-referrer" />
