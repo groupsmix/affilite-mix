@@ -1,0 +1,37 @@
+name: Gradual Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      smoke_host:
+        description: "Host to run smoke tests against"
+        required: true
+        type: string
+      percentage:
+        description: "Traffic percentage for canary"
+        required: false
+        default: "10"
+        type: string
+
+jobs:
+  deploy-gradual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Deploy canary
+        run: |
+          echo "Deploying canary at ${{ inputs.percentage }}%"
+      - name: Post-deploy smoke tests
+        run: |
+          SMOKE_HOST="${{ inputs.smoke_host }}"
+          curl -sf "https://${SMOKE_HOST}/" > /dev/null
+          curl -sf "https://${SMOKE_HOST}/api/health" > /dev/null
+          curl -sf "https://${SMOKE_HOST}/sitemap.xml" > /dev/null
+          curl -sf "https://${SMOKE_HOST}/robots.txt" > /dev/null
+          curl -sf "https://${SMOKE_HOST}/admin/login" > /dev/null
+          echo "All smoke tests passed"

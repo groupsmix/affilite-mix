@@ -1,0 +1,30 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: "Deployment ID to rollback to"
+        required: true
+        type: string
+      environment:
+        description: "Target environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rollback deployment
+        run: |
+          echo "Rolling back to deployment: ${{ inputs.deployment_id }}"
+          npx wrangler rollback --message "Rollback to ${{ inputs.deployment_id }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ENVIRONMENT: ${{ inputs.environment }}
