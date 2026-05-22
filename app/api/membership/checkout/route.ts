@@ -7,6 +7,7 @@ import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
 import { logger } from "@/lib/logger";
 import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
+import { parseJsonBody } from "@/lib/api-error";
 
 /**
  * POST /api/membership/checkout
@@ -49,12 +50,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { email?: string; tier?: string; turnstileToken?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request);
+  if (parsed instanceof NextResponse) return parsed;
+  const body = parsed as { email?: string; tier?: string; turnstileToken?: string };
 
   // A-3: Turnstile verification. In dev with no secret configured the
   // helper short-circuits to success; in production an unset secret is
@@ -76,7 +74,7 @@ export async function POST(request: NextRequest) {
   // A-2: validate tier against an allowlist *before* resolving a price.
   // We never trust the raw body value for price selection.
   const requestedTier = body.tier ?? "insider";
-  if (!/^[a-zA-Z0-9_-]+$/.test(requestedTier)) {
+  if (requestedTier.length > 64 || !/^[a-zA-Z0-9_-]+$/.test(requestedTier)) {
     return NextResponse.json({ error: "Invalid tier format" }, { status: 400 });
   }
   const tier = requestedTier;
