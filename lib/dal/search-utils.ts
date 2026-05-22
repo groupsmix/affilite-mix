@@ -9,7 +9,9 @@ export function escapeLike(value: string): string {
  * Each token is sanitised to prevent tsquery syntax errors.
  */
 export function toTsquery(raw: string): string {
+  // P-05: Cap input length to prevent O(n) processing on massive strings
   return raw
+    .slice(0, 500)
     .replace(/[^\p{L}\p{N}\s]/gu, "") // strip punctuation
     .split(/\s+/)
     .filter(Boolean)
