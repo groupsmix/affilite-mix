@@ -358,7 +358,7 @@ function SiteCardView({
                       </TooltipTrigger>
 
                       <TooltipContent side="left">
-                        Static-config sites are managed in config/sites/.
+                        Static-config sites cannot be deleted from the admin UI.
                       </TooltipContent>
                     </Tooltip>
                   ) : (
