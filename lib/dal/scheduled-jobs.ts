@@ -5,6 +5,9 @@ import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 const TABLE = "scheduled_jobs";
 const LIST_COLUMNS =
   "id, site_id, job_type, target_id, scheduled_for, status, executed_at, error, created_at" as const;
+// A23-01: Full row including payload (used only when the job needs to be executed)
+const ALL_COLUMNS =
+  "id, site_id, job_type, target_id, scheduled_for, status, payload, executed_at, error, created_at" as const;
 
 export interface ScheduledJobRow {
   id: string;
@@ -102,7 +105,7 @@ export async function getScheduledJobById(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .eq("site_id", siteId)
     .eq("id", jobId)
     .single();

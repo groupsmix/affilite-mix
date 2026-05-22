@@ -13,6 +13,10 @@ const TABLE = "sites";
 // Columns needed for list views (excludes heavy JSON blobs like ad_config, custom_css)
 const LIST_COLUMNS =
   "id, slug, name, domain, language, direction, is_active, monetization_type, logo_url, favicon_url, meta_title, meta_description, og_image_url, created_at, updated_at" as const;
+// A23-01: Explicit full-row column list — prevents future sensitive columns from
+// leaking automatically when callers receive a complete SiteRow.
+const ALL_COLUMNS =
+  "id, slug, name, domain, language, direction, is_active, monetization_type, est_revenue_per_click, ad_config, theme, logo_url, favicon_url, nav_items, footer_nav, features, meta_title, meta_description, og_image_url, social_links, created_at, updated_at" as const;
 
 /* ------------------------------------------------------------------ */
 /*  Read operations (with unstable_cache)                              */
@@ -50,7 +54,7 @@ export async function getSiteRowById(
   if (shouldSkipDbCall()) return null;
 
   const sb = await getClient();
-  const { data, error } = await sb.from(TABLE).select("*").eq("id", id).single();
+  const { data, error } = await sb.from(TABLE).select(ALL_COLUMNS).eq("id", id).single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<SiteRow>(data);
@@ -64,7 +68,7 @@ export async function getSiteRowBySlugWithClient(
   if (shouldSkipDbCall()) return null;
 
   const sb = await getClient();
-  const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
+  const { data, error } = await sb.from(TABLE).select(ALL_COLUMNS).eq("slug", slug).single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<SiteRow>(data);
@@ -85,7 +89,7 @@ export const getSiteRowByDomain = unstable_cache(
     if (shouldSkipDbCall()) return null;
 
     const sb = await getTenantClient();
-    const { data, error } = await sb.from(TABLE).select("*").eq("domain", domain).single();
+    const { data, error } = await sb.from(TABLE).select(ALL_COLUMNS).eq("domain", domain).single();
 
     if (error && error.code !== "PGRST116") throw error;
     return rowOrNull<SiteRow>(data);

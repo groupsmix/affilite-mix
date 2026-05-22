@@ -15,6 +15,9 @@ export interface ProductAffiliateLinkRow {
 }
 
 const TABLE = "product_affiliate_links";
+// A23-01: Explicit column list — update when columns are added to this table.
+const ALL_COLUMNS =
+  "id, product_id, network, geo, url, weight, is_active, created_at, updated_at" as const;
 
 /** List active affiliate links for a product, ordered by weight descending */
 export async function listProductAffiliateLinks(
@@ -25,7 +28,7 @@ export async function listProductAffiliateLinks(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .eq("product_id", productId)
     .eq("is_active", true)
     .order("weight", { ascending: false });
@@ -43,7 +46,7 @@ export async function listAllProductAffiliateLinks(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .eq("product_id", productId)
     .order("weight", { ascending: false });
 
