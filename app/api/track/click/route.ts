@@ -17,7 +17,7 @@ import { verifyToken } from "@/lib/auth";
 const CLICK_RATE_LIMIT = {
   maxRequests: 60,
   windowMs: 60 * 1000,
-  failPolicy: "grace" as const,
+  failPolicy: "closed" as const,
 };
 
 async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
