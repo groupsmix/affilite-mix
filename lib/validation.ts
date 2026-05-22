@@ -41,6 +41,11 @@ function toStringOrNull(v: unknown): string | null {
   return isString(v) && v !== "" ? v : null;
 }
 
+/** V-03: Strip null bytes from string inputs to prevent truncation attacks */
+function stripNullBytes(v: string): string {
+  return v.replace(/\0/g, "");
+}
+
 const SLUG_RE = /^[a-z0-9-]+$/;
 
 function isSlug(v: unknown): v is string {
@@ -342,6 +347,24 @@ export function validateCreateProduct(
   if (body.category_id !== undefined && body.category_id !== null && !isUuid(body.category_id)) {
     errors.category_id = "category_id must be a valid UUID or null";
   }
+  // V-04: Validate price_currency as ISO 4217 (3 uppercase letters)
+  if (
+    body.price_currency !== undefined &&
+    body.price_currency !== "" &&
+    isString(body.price_currency) &&
+    !/^[A-Z]{3}$/.test(body.price_currency)
+  ) {
+    errors.price_currency = "price_currency must be a valid ISO 4217 code (3 uppercase letters)";
+  }
+  // V-05: Validate deal_expires_at as a parseable date
+  if (
+    body.deal_expires_at !== undefined &&
+    isString(body.deal_expires_at) &&
+    body.deal_expires_at !== "" &&
+    isNaN(Date.parse(body.deal_expires_at))
+  ) {
+    errors.deal_expires_at = "deal_expires_at must be a valid ISO date string";
+  }
 
   if (Object.keys(errors).length > 0) return { data: null, errors };
 
@@ -351,12 +374,12 @@ export function validateCreateProduct(
 
   return {
     data: {
-      name: body.name,
+      name: stripNullBytes(body.name),
       slug: body.slug,
-      description: isString(body.description) ? body.description : "",
+      description: isString(body.description) ? stripNullBytes(body.description) : "",
       affiliate_url: isString(body.affiliate_url) ? body.affiliate_url : "",
       image_url: isString(body.image_url) ? body.image_url : "",
-      image_alt: isString(body.image_alt) ? body.image_alt : "",
+      image_alt: isString(body.image_alt) ? stripNullBytes(body.image_alt) : "",
       price: isString(body.price) ? body.price : "",
       price_amount: isNumber(body.price_amount) ? body.price_amount : null,
       price_currency: isString(body.price_currency) ? body.price_currency : "USD",
@@ -454,13 +477,31 @@ export function validateUpdateProduct(
   ) {
     errors.description = "description must be a string and under 100,000 characters";
   }
+  // V-04: Validate price_currency as ISO 4217 (3 uppercase letters)
+  if (
+    body.price_currency !== undefined &&
+    body.price_currency !== "" &&
+    isString(body.price_currency) &&
+    !/^[A-Z]{3}$/.test(body.price_currency)
+  ) {
+    errors.price_currency = "price_currency must be a valid ISO 4217 code (3 uppercase letters)";
+  }
+  // V-05: Validate deal_expires_at as a parseable date
+  if (
+    body.deal_expires_at !== undefined &&
+    isString(body.deal_expires_at) &&
+    body.deal_expires_at !== "" &&
+    isNaN(Date.parse(body.deal_expires_at))
+  ) {
+    errors.deal_expires_at = "deal_expires_at must be a valid ISO date string";
+  }
   if (Object.keys(errors).length > 0) return { data: null, errors };
   if (!isUuid(body.id)) return { data: null, errors: { id: "id must be a valid UUID" } };
 
   const data: UpdateProductInput = { id: body.id };
-  if (isString(body.name)) data.name = body.name;
+  if (isString(body.name)) data.name = stripNullBytes(body.name);
   if (isString(body.slug)) data.slug = body.slug;
-  if (isString(body.description)) data.description = body.description;
+  if (isString(body.description)) data.description = stripNullBytes(body.description);
   if (isString(body.affiliate_url)) data.affiliate_url = body.affiliate_url;
   if (isString(body.image_url)) data.image_url = body.image_url;
   if (isString(body.image_alt)) data.image_alt = body.image_alt;
@@ -535,6 +576,12 @@ export function validateCreateContent(
   }
   if (body.tags !== undefined && !Array.isArray(body.tags)) {
     errors.tags = "tags must be an array of strings";
+  } else if (Array.isArray(body.tags)) {
+    if (body.tags.length > 50) {
+      errors.tags = "tags must contain at most 50 items";
+    } else if (body.tags.some((t: unknown) => typeof t !== "string" || t.length > 100)) {
+      errors.tags = "each tag must be a string of at most 100 characters";
+    }
   }
 
   if (
@@ -552,16 +599,16 @@ export function validateCreateContent(
 
   return {
     data: {
-      title: body.title,
+      title: stripNullBytes(body.title),
       slug: body.slug,
-      body: isString(body.body) ? body.body : "",
-      excerpt: isString(body.excerpt) ? body.excerpt : "",
+      body: isString(body.body) ? stripNullBytes(body.body) : "",
+      excerpt: isString(body.excerpt) ? stripNullBytes(body.excerpt) : "",
       featured_image: isString(body.featured_image) ? body.featured_image : "",
       type: isContentType(body.type) ? body.type : "article",
       status: isContentStatus(body.status) ? body.status : "draft",
       category_id: isUuid(body.category_id) ? body.category_id : null,
-      tags: isStringArray(body.tags) ? body.tags : [],
-      author: isString(body.author) ? body.author : null,
+      tags: isStringArray(body.tags) ? body.tags.map(stripNullBytes) : [],
+      author: isString(body.author) ? stripNullBytes(body.author) : null,
       publish_at: isString(body.publish_at) && body.publish_at !== "" ? body.publish_at : null,
       meta_title: isString(body.meta_title) && body.meta_title !== "" ? body.meta_title : null,
       meta_description:
