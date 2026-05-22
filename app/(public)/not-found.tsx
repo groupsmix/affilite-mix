@@ -46,7 +46,7 @@ export default async function PublicNotFound() {
           href="/search"
           className="inline-flex min-h-[44px] items-center rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
         >
-          {isArabic ? "البحث" : "Search"}
+          {isArabic ? "ابحث" : "Search"}
         </Link>
       </div>
     </div>
