@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
       secure: IS_SECURE_COOKIE,
       sameSite: "strict",
       path: "/",
-      maxAge: 60 * 60 * 8, // 8 hours (matches JWT expiry)
+      maxAge: 60 * 60 * 4, // 4 hours (matches JWT expiry)
     });
 
     // A-012: set a separate binding cookie so the JWT cannot be replayed

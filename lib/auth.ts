@@ -7,6 +7,7 @@ import { getJwtSecret, getJwtSecretPrevious, getJwtKid } from "@/lib/jwt-secret"
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
 import { isTokenRevoked } from "@/lib/jwt-revocation";
+import { timingSafeEqual } from "@/lib/internal-hmac";
 
 const COOKIE_NAME = "nh_admin_token";
 /** Cookie tracking last admin activity for idle-timeout enforcement */
@@ -332,7 +333,8 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   // binding cookie) cannot replay the session.
   if (payload.bnd) {
     const bindingCookie = cookieStore.get(BINDING_COOKIE)?.value;
-    if (bindingCookie !== payload.bnd) {
+    // A-05: constant-time comparison to prevent timing oracle on binding cookie
+    if (!timingSafeEqual(bindingCookie ?? "", payload.bnd as string)) {
       logger.warn("Admin session rejected: binding cookie mismatch (possible token replay)", {
         userId: payload.userId,
       });
