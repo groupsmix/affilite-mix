@@ -242,14 +242,22 @@ jobs:
           fi
           echo "All API routes use centralized IP extraction."
 
-      - name: Verify Stripe uses Restricted API Keys (F-033)
+      - name: Verify Stripe uses Restricted API Keys (F-033, R-18)
         run: |
-          # FIX-15 (F-033): Stripe legacy sk_live_ / sk_test_ keys grant full account
-          # access. Restricted API Keys (rk_live_ / rk_test_) limit permissions
-          # to only the operations this app needs. This check ensures the
-          # .env.example and documentation reference only restricted keys.
+          # FIX-15 (F-033) + R-18: Stripe legacy sk_live_ / sk_test_ keys grant full
+          # account access. Restricted API Keys (rk_live_ / rk_test_) limit permissions
+          # to only the operations this app needs. This check ensures config files
+          # reference only restricted keys. Now fails (not just warns).
+          VIOLATIONS=""
           if grep -qE 'sk_live_|sk_test_' .env.example 2>/dev/null; then
-            echo "::warning::Legacy Stripe key prefix (sk_live_/sk_test_) found in .env.example — migrate to Restricted API Keys (rk_live_/rk_test_)."
+            VIOLATIONS="$VIOLATIONS .env.example"
+          fi
+          if grep -qE 'sk_live_|sk_test_' wrangler.jsonc 2>/dev/null; then
+            VIOLATIONS="$VIOLATIONS wrangler.jsonc"
+          fi
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Legacy Stripe key prefix (sk_live_/sk_test_) found in:$VIOLATIONS — migrate to Restricted API Keys (rk_live_/rk_test_)."
+            exit 1
           fi
           echo "Stripe API key prefix check passed."
 
@@ -294,7 +302,7 @@ jobs:
           fi
 
       - name: Upload SBOM Artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom
           path: sbom.json

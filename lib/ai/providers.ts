@@ -363,7 +363,11 @@ export async function generateWithFallback(
               ? recordUsage(options.siteId, "ai_tokens", totalTokens)
               : Promise.resolve(),
             microUsd > 0
-              ? recordUsage(options.siteId, "ai_cost_micro_usd", costToMicroUsd(microUsd / 1_000_000))
+              ? recordUsage(
+                  options.siteId,
+                  "ai_cost_micro_usd",
+                  costToMicroUsd(microUsd / 1_000_000),
+                )
               : Promise.resolve(),
           ]);
         } catch {

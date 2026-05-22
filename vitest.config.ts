@@ -28,10 +28,10 @@ export default defineConfig({
       // F-01: Per-directory thresholds for critical paths (auth, payments,
       // rate-limit, AI, tenant isolation) at ≥80%. Global baseline ratchets.
       thresholds: {
-        statements: 19,
-        branches: 16,
-        functions: 14,
-        lines: 19,
+        statements: 35,
+        branches: 30,
+        functions: 28,
+        lines: 35,
         "lib/auth.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
         "lib/rate-limit.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
         "lib/authz.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },

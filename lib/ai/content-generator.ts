@@ -227,7 +227,10 @@ export async function generateTopicSuggestions(
   // F-24: Screen niche input through the same moderation as article generation
   const inputCheck = moderateInput(niche);
   if (!inputCheck.passed) {
-    throw new ContentModerationError(`[ai] Topic input moderation failed: ${inputCheck.reason}`, "input");
+    throw new ContentModerationError(
+      `[ai] Topic input moderation failed: ${inputCheck.reason}`,
+      "input",
+    );
   }
 
   const prompt = `Suggest ${count} compelling ${contentType} topics for a website about "${niche}".
@@ -243,7 +246,10 @@ Output each topic on its own line, numbered 1-${count}. No other text.`;
   // F-24: Screen output for prohibited content
   const outputCheck = moderateOutput(text);
   if (!outputCheck.passed) {
-    throw new ContentModerationError(`[ai] Topic output moderation failed: ${outputCheck.reason}`, "output");
+    throw new ContentModerationError(
+      `[ai] Topic output moderation failed: ${outputCheck.reason}`,
+      "output",
+    );
   }
 
   const topics = text

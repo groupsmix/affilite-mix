@@ -29,6 +29,7 @@ The following directories/files require full audit artifacts:
 ## CI Enforcement
 
 The `check` workflow validates:
+
 - Branch protection rules are active (attach evidence per F-16)
 - SBOM is generated and uploaded (F-17)
 - Coverage thresholds per critical path (F-01)
@@ -37,6 +38,7 @@ The `check` workflow validates:
 ## Audit Evidence Bundle
 
 Per-release, maintain in `docs/audit-evidence/`:
+
 - Exported branch protection screenshots
 - SBOM artifact from the release build
 - Restore test reports with RTO/RPO results

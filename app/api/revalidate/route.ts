@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { getInternalToken } from "@/lib/internal-auth";
+import { getInternalTokenFor } from "@/lib/internal-auth";
 import { timingSafeCompare } from "@/lib/cron-auth";
 import { getTenantClient } from "@/lib/supabase-server";
 import { CONTENT_TAGS, siteTag, type ContentTag } from "@/lib/cache-tags";
@@ -16,21 +16,21 @@ import { checkRateLimit } from "@/lib/rate-limit";
  * Secured via INTERNAL_API_TOKEN env var — pass it in the Authorization header:
  *   Authorization: Bearer <INTERNAL_API_TOKEN>
  *
- * Body (all optional):
+ * Body:
  *   {
  *     "tags":    ["content", "products"],          // defaults to all three kinds
- *     "site_id": "<uuid>"                          // scope to one site; omit = all active sites
+ *     "site_id": "<uuid>",                         // REQUIRED: scope to one site
+ *     "scope":   "all_sites"                       // break-glass: omit site_id + set scope to purge all
  *   }
  *
  * Tags are always emitted in their site-scoped form (`content:<site_id>`).
- * A request with no `site_id` fans out across every active site, replacing
- * the previous behavior of a single global tag that invalidated every site's
- * cache at once.
+ * R-02: `site_id` is now required by default. All-site purge requires
+ * explicit `scope: "all_sites"` to prevent accidental fanout.
  */
 export async function POST(request: NextRequest) {
   let expected: string;
   try {
-    expected = getInternalToken();
+    expected = getInternalTokenFor("internal");
   } catch {
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
 
   let kinds: ContentTag[] = [...CONTENT_TAGS];
   let siteId: string | null = null;
+  let scope: string | null = null;
 
   try {
     const body = await request.json();
@@ -82,6 +83,9 @@ export async function POST(request: NextRequest) {
     if (typeof body.site_id === "string" && body.site_id.length > 0) {
       siteId = body.site_id;
     }
+    if (typeof body.scope === "string") {
+      scope = body.scope;
+    }
   } catch {
     // No body or invalid JSON — use defaults.
   }
@@ -90,31 +94,38 @@ export async function POST(request: NextRequest) {
   // break-glass token (REVALIDATE_ALL_SITES_TOKEN) with stricter rate limits.
   // This limits blast radius if the standard INTERNAL_API_TOKEN is leaked.
   let siteIds: string[];
+
   if (siteId) {
     siteIds = [siteId];
   } else {
     const allSitesToken = process.env.REVALIDATE_ALL_SITES_TOKEN;
-    if (allSitesToken && allSitesToken !== expected) {
-      // Standard token cannot do all-sites revalidation — require the break-glass token
-      const bearerIsAllSites = bearer === allSitesToken;
-      if (!bearerIsAllSites) {
-        return NextResponse.json(
-          { error: "site_id is required. Use REVALIDATE_ALL_SITES_TOKEN for cross-site invalidation." },
-          { status: 400 },
-        );
-      }
-      // Stricter rate limit for all-sites revalidation
-      const allSitesRl = await checkRateLimit("revalidate:all-sites", {
-        maxRequests: 5,
-        windowMs: 60_000,
-        failPolicy: "closed" as const,
-      });
-      if (!allSitesRl.allowed) {
-        return NextResponse.json(
-          { error: "Rate limit exceeded for all-sites revalidation", retryAfterMs: allSitesRl.retryAfterMs },
-          { status: 429, headers: { "Retry-After": String(Math.ceil(allSitesRl.retryAfterMs / 1000)) } },
-        );
-      }
+    // Standard token cannot do all-sites revalidation — require the break-glass token
+    const bearerIsAllSites = allSitesToken && bearer === allSitesToken;
+    if (!bearerIsAllSites) {
+      return NextResponse.json(
+        {
+          error: "site_id is required. Use REVALIDATE_ALL_SITES_TOKEN for cross-site invalidation.",
+        },
+        { status: 400 },
+      );
+    }
+    // Stricter rate limit for all-sites revalidation
+    const allSitesRl = await checkRateLimit("revalidate:all-sites", {
+      maxRequests: 5,
+      windowMs: 60_000,
+      failPolicy: "closed" as const,
+    });
+    if (!allSitesRl.allowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded for all-sites revalidation",
+          retryAfterMs: allSitesRl.retryAfterMs,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(allSitesRl.retryAfterMs / 1000)) },
+        },
+      );
     }
     const sb = await getTenantClient();
     const { data: sites, error } = await sb

@@ -14,6 +14,8 @@ export default {
   },
   mutate: [
     "lib/auth.ts",
+    "lib/internal-auth.ts",
+    "lib/cron-auth.ts",
     "lib/rate-limit.ts",
     "lib/authz.ts",
     "lib/quotas.ts",
