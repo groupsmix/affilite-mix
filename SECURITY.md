@@ -14,7 +14,7 @@ If you discover a security vulnerability, please report it responsibly.
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, please email **security@groupsmix.com** with:
+Instead, please email **security@groupsmix.com** with (for abuse / fraud reports use **abuse@groupsmix.com**):
 
 1. A description of the vulnerability
 2. Steps to reproduce the issue

@@ -14,6 +14,73 @@ import { logger } from "@/lib/logger";
 import { isOriginAllowed } from "@/lib/security/allowed-origins";
 import { verifyToken } from "@/lib/auth";
 
+/**
+ * A162: Extract the /24 prefix from an IP address for privacy-preserving analytics.
+ * IPv4: "203.0.113.42" → "203.0.113"
+ * IPv6: "2001:db8::1"  → "2001:db8::" (first 48 bits / 3 groups)
+ * Returns null for unrecognized formats.
+ */
+function getIpPrefix(ip: string): string | null {
+  if (!ip) return null;
+  // IPv4
+  if (ip.includes(".")) {
+    const parts = ip.split(".");
+    if (parts.length === 4) return parts.slice(0, 3).join(".");
+  }
+  // IPv6 — keep first 3 colon-separated groups
+  if (ip.includes(":")) {
+    const groups = ip.split(":");
+    return groups.slice(0, 3).join(":") + "::";
+  }
+  return null;
+}
+
+/**
+ * A158: Compute a privacy-preserving click fingerprint for 24-hour dedup.
+ * Inputs: HMAC key + site_id + content_slug (campaign) + ip_prefix + UA hash.
+ * The fingerprint is an HMAC — no raw PII leaves this function.
+ */
+async function computeClickFingerprint(
+  hmacKey: string,
+  siteId: string,
+  contentSlug: string,
+  ipPrefix: string,
+  userAgent: string,
+): Promise<string> {
+  const encoder = new TextEncoder();
+  const uaHashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(userAgent));
+  const uaHash = Array.from(new Uint8Array(uaHashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 16); // truncated — sufficient for dedup, not reversible to UA
+  const payload = `${siteId}\x1F${contentSlug}\x1F${ipPrefix}\x1F${uaHash}`;
+  return computeHmac(hmacKey, "click-dedup", "click-dedup", payload);
+}
+
+/**
+ * A158: Check KV for a dedup key. Returns true if this click is a duplicate
+ * within the 24-hour window. Writes the dedup key on a cache miss.
+ * Fail-open: any KV error allows the click through.
+ */
+async function isDuplicateClick(
+  fingerprint: string,
+  siteId: string,
+  contentSlug: string,
+): Promise<boolean> {
+  try {
+    const kv = (process.env as any).APP_CACHE_KV as any;
+    if (!kv) return false;
+    const dedupKey = `click-dedup\x1F${siteId}\x1F${contentSlug}\x1F${fingerprint}`;
+    const existing = await kv.get(dedupKey);
+    if (existing !== null) return true;
+    // 24-hour TTL — matches the dedup window from A158
+    await kv.put(dedupKey, "1", { expirationTtl: 86400 });
+    return false;
+  } catch {
+    return false; // fail-open: never drop a legitimate click due to KV error
+  }
+}
+
 const CLICK_RATE_LIMIT = {
   maxRequests: 60,
   windowMs: 60 * 1000,
@@ -196,15 +263,51 @@ async function handleClick(request: NextRequest) {
     }
 
     const isInternal = await hasValidAdminSession(request);
+    const contentSlug = searchParams.get("t") ?? "";
+
+    // A162: Store only the /24 prefix — full IP is never written to DB.
+    const ipPrefix = getIpPrefix(ip) ?? "";
+
+    // A158: Compute fingerprint and check 24h dedup window for non-internal clicks.
+    let fingerprint: string | undefined;
+    if (!isInternal && hmacKey) {
+      try {
+        const userAgent = request.headers.get("user-agent") ?? "";
+        fingerprint = await computeClickFingerprint(
+          hmacKey,
+          siteId,
+          contentSlug,
+          ipPrefix,
+          userAgent,
+        );
+        const isDup = await isDuplicateClick(fingerprint, siteId, contentSlug);
+        if (isDup) {
+          // Duplicate click within 24h window: still redirect but don't count it.
+          logger.info("[track/click] duplicate click suppressed", {
+            site_id: siteId,
+            content_slug: contentSlug,
+          });
+          return NextResponse.redirect(destinationUrl, 302);
+        }
+      } catch (fingerprintErr) {
+        // Fail-open: fingerprint errors must not drop legitimate clicks
+        captureException(fingerprintErr, {
+          context: "[api/track/click] fingerprint computation failed",
+        });
+        fingerprint = undefined;
+      }
+    }
 
     void runAfterResponse(
       publishClick({
         site_id: siteId,
         product_name: cachedData.name,
         affiliate_url: destinationUrl,
-        content_slug: searchParams.get("t") ?? "",
+        content_slug: contentSlug,
         referrer: sanitizedReferrer,
         is_internal: isInternal,
+        ip_prefix: ipPrefix || undefined,
+        fingerprint,
       }),
       { context: "[api/track/click] publishClick" },
     );

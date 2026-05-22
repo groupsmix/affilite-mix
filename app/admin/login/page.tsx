@@ -36,11 +36,18 @@ export default function AdminLoginPage() {
 
   const [error, setError] = useState("");
 
+  const [warning, setWarning] = useState("");
+
   const [loading, setLoading] = useState(false);
 
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const [showForgot, setShowForgot] = useState(false);
+
+  // A154: Two-factor authentication state
+  const [requires2fa, setRequires2fa] = useState(false);
+
+  const [totpToken, setTotpToken] = useState("");
 
   const router = useRouter();
 
@@ -59,20 +66,50 @@ export default function AdminLoginPage() {
 
     setError("");
 
+    setWarning("");
+
+    const body: Record<string, unknown> = { email: email || undefined, password, turnstileToken };
+
+    // A154: Include TOTP token on second step
+    if (requires2fa) {
+      body.totp_token = totpToken;
+    }
+
     const res = await fetchWithCsrf("/api/auth/login", {
       method: "POST",
 
       headers: { "Content-Type": "application/json" },
 
-      body: JSON.stringify({ email: email || undefined, password, turnstileToken }),
+      body: JSON.stringify(body),
     });
 
     if (res.ok) {
+      const data = await res.json();
+
+      // A154: Advisory breached-password notice — do not block login
+      if (data.password_breached) {
+        setWarning(
+          "Your password was found in a known data breach. Please change it after signing in.",
+        );
+      }
+
       router.push("/admin");
     } else {
       const data = await res.json();
 
+      // A154: Server signals TOTP is required — show the second-factor step
+      if (res.status === 200 && data.requires_2fa) {
+        setRequires2fa(true);
+        setLoading(false);
+        return;
+      }
+
       setError(data.error ?? "Login failed");
+
+      // If TOTP attempt failed, clear the token so the user can retry
+      if (requires2fa) {
+        setTotpToken("");
+      }
     }
 
     setLoading(false);
@@ -86,7 +123,11 @@ export default function AdminLoginPage() {
             <h1 className="text-2xl font-bold">Admin Login</h1>
           </CardTitle>
 
-          <CardDescription>Sign in to manage all your sites from one dashboard.</CardDescription>
+          <CardDescription>
+            {requires2fa
+              ? "Enter the 6-digit code from your authenticator app."
+              : "Sign in to manage all your sites from one dashboard."}
+          </CardDescription>
         </CardHeader>
 
         <form
@@ -101,56 +142,110 @@ export default function AdminLoginPage() {
               </Alert>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            {warning && (
+              <Alert className="bg-yellow-50 border-yellow-200 text-yellow-800">
+                <AlertDescription>{warning}</AlertDescription>
+              </Alert>
+            )}
 
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
-                autoComplete="email"
-              />
-            </div>
+            {!requires2fa ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@example.com"
+                    autoComplete="email"
+                  />
+                </div>
 
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
 
-            <TurnstileWidget onVerify={handleTurnstileToken} onExpire={handleTurnstileExpire} />
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+                </div>
 
-            <Button type="submit" disabled={loading} className="w-full">
+                <TurnstileWidget onVerify={handleTurnstileToken} onExpire={handleTurnstileExpire} />
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="totp">Authenticator Code</Label>
+
+                <Input
+                  id="totp"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  value={totpToken}
+                  onChange={(e) => setTotpToken(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  required
+                />
+
+                <p className="text-xs text-muted-foreground">
+                  Open your authenticator app and enter the 6-digit code.
+                </p>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading || (!requires2fa && !turnstileToken)}
+              className="w-full"
+            >
               {loading ? (
                 <>
                   <Loader2 className="animate-spin" aria-hidden="true" />
-                  Signing in...
+                  {requires2fa ? "Verifying..." : "Signing in..."}
                 </>
+              ) : requires2fa ? (
+                "Verify Code"
               ) : (
                 "Sign in"
               )}
             </Button>
+
+            {requires2fa && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRequires2fa(false);
+                  setTotpToken("");
+                  setError("");
+                }}
+                className="w-full text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                ← Back to login
+              </button>
+            )}
           </CardContent>
         </form>
 
-        <CardFooter className="justify-center">
-          <button
-            type="button"
-            onClick={() => setShowForgot(true)}
-            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-          >
-            Forgot your password?
-          </button>
-        </CardFooter>
+        {!requires2fa && (
+          <CardFooter className="justify-center">
+            <button
+              type="button"
+              onClick={() => setShowForgot(true)}
+              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Forgot your password?
+            </button>
+          </CardFooter>
+        )}
       </Card>
 
       {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
