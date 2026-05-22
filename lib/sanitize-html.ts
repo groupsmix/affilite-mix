@@ -111,6 +111,9 @@ export function isSafeUrl(value: string): boolean {
 
   // Relative URLs and same-page anchors never specify a scheme.
   if (trimmed.startsWith("#")) return true;
+  // AM-13: Reject protocol-relative URLs (//evil.example/x) which browsers
+  // resolve to the current page's protocol, enabling external resource loading.
+  if (trimmed.startsWith("//")) return false;
   if (trimmed.startsWith("/")) return true;
 
   // Detect an explicit scheme. The regex matches the URL scheme grammar
@@ -202,7 +205,7 @@ function buildAttrs(tag: string, raw: Record<string, string>): string {
  * - Forces rel="noopener noreferrer nofollow" on all <a> tags
  * - Removes event handler attributes (on*)
  */
-const MAX_INPUT_LENGTH = 100_000; // 100KB is generous for any blog comment or typical article
+export const MAX_INPUT_LENGTH = 100_000; // Shared constant — also used by lib/validation.ts
 
 export function sanitizeHtml(html: string): string {
   if (!html) return html;

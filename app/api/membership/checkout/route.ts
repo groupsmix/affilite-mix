@@ -6,6 +6,7 @@ import { getActiveMembership } from "@/lib/dal/memberships";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
 import { logger } from "@/lib/logger";
+import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
 
 /**
  * POST /api/membership/checkout
@@ -66,9 +67,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!body.email || !body.email.includes("@")) {
+  if (!body.email || !isValidEmail(body.email)) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
   }
+  // AM-09: Normalize email to prevent casing-based duplicate memberships
+  body.email = normalizeEmail(body.email);
 
   // A-2: validate tier against an allowlist *before* resolving a price.
   // We never trust the raw body value for price selection.
@@ -100,7 +103,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Already an active member" }, { status: 409 });
     }
 
-    const appUrl = process.env.APP_URL || `https://${request.headers.get("host")}`;
+    // AM-09: Require APP_URL in production; never derive redirect URLs from Host header
+    const appUrl = process.env.APP_URL;
+    if (!appUrl) {
+      if (process.env.NODE_ENV === "production") {
+        logger.error("APP_URL not configured in production");
+        return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
+      }
+      // Dev fallback only
+    }
+    const baseUrl = appUrl || `https://${request.headers.get("host")}`;
 
     // Create Stripe Checkout session via API (no SDK dependency needed)
     const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
@@ -114,8 +126,8 @@ export async function POST(request: NextRequest) {
         customer_email: body.email,
         "line_items[0][price]": priceId,
         "line_items[0][quantity]": "1",
-        success_url: `${appUrl}/membership/welcome?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appUrl}/membership`,
+        success_url: `${baseUrl}/membership/welcome?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/membership`,
         "metadata[site_id]": siteId,
         "metadata[tier]": tier,
         "subscription_data[metadata][site_id]": siteId,

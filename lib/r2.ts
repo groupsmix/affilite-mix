@@ -330,7 +330,7 @@ export async function getUploadUrl(
   // follow-up; the primitive is already exposed.
   if (options.siteId) {
     await assertQuota(options.siteId, "r2_storage_bytes", contentLength);
-    void recordUsage(options.siteId, "r2_storage_bytes", contentLength);
+    await recordUsage(options.siteId, "r2_storage_bytes", contentLength);
   }
 
   const stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;
