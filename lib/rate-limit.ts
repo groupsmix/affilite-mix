@@ -506,7 +506,8 @@ export async function checkRateLimit(
   // requires "closed" policy, reject immediately rather than falling
   // back to per-isolate memory which is trivially bypassable.
   if (isProduction && config.failPolicy === "closed" && !doNs && !kv) {
-    const msg = "[rate-limit] RATE_LIMITER_DO and RATE_LIMIT_KV both missing in production for closed-policy route.";
+    const msg =
+      "[rate-limit] RATE_LIMITER_DO and RATE_LIMIT_KV both missing in production for closed-policy route.";
     if (!kvUnavailableAlerted) {
       kvUnavailableAlerted = true;
       console.error(msg);

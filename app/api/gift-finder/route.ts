@@ -65,8 +65,15 @@ export async function GET(request: NextRequest) {
   ) {
     return NextResponse.json({ error: "Query parameters exceed maximum length" }, { status: 400 });
   }
-  if (!SAFE_PARAM_RE.test(rawOccasion) || !SAFE_PARAM_RE.test(rawRecipient) || !SAFE_PARAM_RE.test(rawStyle)) {
-    return NextResponse.json({ error: "Query parameters contain invalid characters" }, { status: 400 });
+  if (
+    !SAFE_PARAM_RE.test(rawOccasion) ||
+    !SAFE_PARAM_RE.test(rawRecipient) ||
+    !SAFE_PARAM_RE.test(rawStyle)
+  ) {
+    return NextResponse.json(
+      { error: "Query parameters contain invalid characters" },
+      { status: 400 },
+    );
   }
 
   const occasion = rawOccasion.toLowerCase();
