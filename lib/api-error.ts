@@ -131,52 +131,52 @@ const MAX_JSON_BODY_BYTES = 1_048_576;
  * Safely parse the JSON body of a request.
  * Returns the parsed body on success, or a 400/413 NextResponse on failure.
  *
- * AM-03: Checks Content-Length before calling request.json() to prevent
- * large payloads from consuming memory/CPU before validation.
+ * RC-RECHECK-01: Always streams the body with a byte cap regardless of whether
+ * Content-Length is present. This prevents oversized payloads from being parsed
+ * even when Content-Length is missing, spoofed, or chunked-encoded.
  */
 export async function parseJsonBody(
   request: Request,
 ): Promise<Record<string, unknown> | NextResponse> {
   const contentLength = request.headers.get("content-length");
+
   if (contentLength) {
     const len = Number.parseInt(contentLength, 10);
-    if (Number.isFinite(len) && len > MAX_JSON_BODY_BYTES) {
+    if (!Number.isFinite(len) || len > MAX_JSON_BODY_BYTES) {
       return apiError(413, "Request body too large", undefined, undefined, "PAYLOAD_TOO_LARGE");
     }
   }
 
-  // RC-NOW-01: When Content-Length is absent (chunked/lengthless bodies), read
-  // the body manually with a size cap to prevent memory exhaustion before parsing.
-  try {
-    let rawText: string;
-    if (!contentLength) {
-      const reader = request.body?.getReader();
-      if (!reader) {
-        return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
-      }
-      const chunks: Uint8Array[] = [];
-      let totalBytes = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        totalBytes += value.byteLength;
-        if (totalBytes > MAX_JSON_BODY_BYTES) {
-          reader.cancel();
-          return apiError(413, "Request body too large", undefined, undefined, "PAYLOAD_TOO_LARGE");
-        }
-        chunks.push(value);
-      }
-      const merged = new Uint8Array(totalBytes);
-      let offset = 0;
-      for (const chunk of chunks) {
-        merged.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
-      rawText = new TextDecoder().decode(merged);
-    } else {
-      rawText = await request.text();
+  if (!request.body) {
+    return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    received += value.byteLength;
+    if (received > MAX_JSON_BODY_BYTES) {
+      reader.cancel();
+      return apiError(413, "Request body too large", undefined, undefined, "PAYLOAD_TOO_LARGE");
     }
-    const parsed = JSON.parse(rawText);
+
+    chunks.push(value);
+  }
+
+  const body = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    const parsed = JSON.parse(new TextDecoder().decode(body));
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
     }
