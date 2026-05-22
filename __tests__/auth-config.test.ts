@@ -147,8 +147,7 @@ describe("jwt-secret config guard", () => {
     // A2-02: DEV_ONLY_JWT_SECRET is no longer exported; compare against the
     // documented literal so this test keeps working without re-exporting the
     // secret constant.
-    const { resolveJwtSecret, __resetJwtSecretCacheForTests } =
-      await import("@/lib/jwt-secret");
+    const { resolveJwtSecret, __resetJwtSecretCacheForTests } = await import("@/lib/jwt-secret");
     __resetJwtSecretCacheForTests();
     expect(resolveJwtSecret({ NODE_ENV: "development" } as NodeJS.ProcessEnv)).toBe(
       "__dev_only_insecure_jwt_secret__",
