@@ -161,7 +161,7 @@ export async function parseJsonBody(
 
     received += value.byteLength;
     if (received > MAX_JSON_BODY_BYTES) {
-      reader.cancel();
+      void reader.cancel();
       return apiError(413, "Request body too large", undefined, undefined, "PAYLOAD_TOO_LARGE");
     }
 

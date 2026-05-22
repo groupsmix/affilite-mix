@@ -29,7 +29,8 @@ const EN_MESSAGES: Record<string, string> = {
   "newsletter.already_subscribed": "You are already subscribed.",
   "newsletter.check_email": "Please check your email to confirm your subscription.",
   "newsletter.confirm_heading": "Confirm your subscription",
-  "newsletter.confirm_thanks": "Thanks for subscribing to {siteName}! Please confirm your email address by clicking the button below.",
+  "newsletter.confirm_thanks":
+    "Thanks for subscribing to {siteName}! Please confirm your email address by clicking the button below.",
   "newsletter.confirm_button": "Confirm my subscription",
   "newsletter.confirm_link_hint": "Or copy and paste this link:",
   "newsletter.confirm_ignore": "If you did not sign up, you can safely ignore this email.",
@@ -51,7 +52,8 @@ const AR_MESSAGES: Record<string, string> = {
   "newsletter.already_subscribed": "أنت مشترك بالفعل.",
   "newsletter.check_email": "يرجى التحقق من بريدك الإلكتروني لتأكيد اشتراكك.",
   "newsletter.confirm_heading": "تأكيد اشتراكك",
-  "newsletter.confirm_thanks": "شكراً لاشتراكك في {siteName}! يرجى تأكيد عنوان بريدك الإلكتروني بالنقر على الزر أدناه.",
+  "newsletter.confirm_thanks":
+    "شكراً لاشتراكك في {siteName}! يرجى تأكيد عنوان بريدك الإلكتروني بالنقر على الزر أدناه.",
   "newsletter.confirm_button": "تأكيد اشتراكي",
   "newsletter.confirm_link_hint": "أو انسخ والصق هذا الرابط:",
   "newsletter.confirm_ignore": "إذا لم تسجل، يمكنك تجاهل هذا البريد بأمان.",

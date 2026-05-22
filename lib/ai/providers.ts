@@ -372,7 +372,12 @@ export async function generateWithFallback(
           accountingOps.push({
             resource: "ai_cost_micro_usd",
             amount: microUsd,
-            fn: () => recordUsage(options.siteId!, "ai_cost_micro_usd", costToMicroUsd(microUsd / 1_000_000)),
+            fn: () =>
+              recordUsage(
+                options.siteId!,
+                "ai_cost_micro_usd",
+                costToMicroUsd(microUsd / 1_000_000),
+              ),
           });
         }
         for (const op of accountingOps) {
