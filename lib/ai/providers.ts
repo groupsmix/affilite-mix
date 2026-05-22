@@ -348,26 +348,27 @@ export async function generateWithFallback(
     try {
       const text = await provider.generate(safePrompt, safeSystemPrompt);
       if (options.siteId) {
-        // Fire-and-forget usage accounting. We record the *actual* output
-        // tokens (estimated from the response) plus the input estimate,
-        // along with a USD cost derived from the resolved provider's
-        // price card. recordUsage swallows KV failures.
+        // F-25: Await usage accounting to prevent cost-accounting drift.
+        // If recording fails, log a warning but don't fail the generation
+        // so users aren't blocked by infrastructure issues.
         const outputTokenEstimate = estimateTokens(text);
         const totalTokens = inputTokenEstimate + outputTokenEstimate;
         const microUsd =
           Math.ceil((inputTokenEstimate * provider.pricing.inputMicroUsdPer1k) / 1000) +
           Math.ceil((outputTokenEstimate * provider.pricing.outputMicroUsdPer1k) / 1000);
-        // We deliberately swallow this — accounting must never
-        // resurface as a generation error.
-        void Promise.allSettled([
-          recordUsage(options.siteId, "ai_requests", 1),
-          totalTokens > 0
-            ? recordUsage(options.siteId, "ai_tokens", totalTokens)
-            : Promise.resolve(),
-          microUsd > 0
-            ? recordUsage(options.siteId, "ai_cost_micro_usd", costToMicroUsd(microUsd / 1_000_000))
-            : Promise.resolve(),
-        ]);
+        try {
+          await Promise.allSettled([
+            recordUsage(options.siteId, "ai_requests", 1),
+            totalTokens > 0
+              ? recordUsage(options.siteId, "ai_tokens", totalTokens)
+              : Promise.resolve(),
+            microUsd > 0
+              ? recordUsage(options.siteId, "ai_cost_micro_usd", costToMicroUsd(microUsd / 1_000_000))
+              : Promise.resolve(),
+          ]);
+        } catch {
+          // F-25: Log but don't throw — accounting failures must never break generation
+        }
       }
       return { text, provider: provider.name, model: provider.model };
     } catch (err) {
@@ -380,7 +381,11 @@ export async function generateWithFallback(
     }
   }
 
-  throw new Error(`All AI providers failed:\n${errors.join("\n")}`);
+  // F-26: Normalize provider errors to internal codes. Log full diagnostics
+  // server-side but expose only a generic message to callers.
+  const internalError = new Error("AI generation unavailable: all providers failed");
+  (internalError as any).providerErrors = errors; // Available to server-side logging
+  throw internalError;
 }
 
 /** Get list of available (configured) providers */

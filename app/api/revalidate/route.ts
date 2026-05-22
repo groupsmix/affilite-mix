@@ -47,9 +47,11 @@ export async function POST(request: NextRequest) {
   // already INTERNAL_API_TOKEN-gated, but a leaked token could be
   // weaponised into a cache-invalidation flood that hammers the
   // origin DB on every revalidation. Cap to 30 calls / minute.
+  // F-20: Use fail-closed policy so leaked tokens can't bypass during outages.
   const rl = await checkRateLimit("revalidate:internal-token", {
     maxRequests: 30,
     windowMs: 60_000,
+    failPolicy: "closed" as const,
   });
   if (!rl.allowed) {
     return NextResponse.json(
@@ -84,11 +86,36 @@ export async function POST(request: NextRequest) {
     // No body or invalid JSON — use defaults.
   }
 
-  // Resolve target site IDs. Either a single explicit one or every active site.
+  // F-20: Require site_id by default. All-sites revalidation requires a separate
+  // break-glass token (REVALIDATE_ALL_SITES_TOKEN) with stricter rate limits.
+  // This limits blast radius if the standard INTERNAL_API_TOKEN is leaked.
   let siteIds: string[];
   if (siteId) {
     siteIds = [siteId];
   } else {
+    const allSitesToken = process.env.REVALIDATE_ALL_SITES_TOKEN;
+    if (allSitesToken && allSitesToken !== expected) {
+      // Standard token cannot do all-sites revalidation — require the break-glass token
+      const bearerIsAllSites = bearer === allSitesToken;
+      if (!bearerIsAllSites) {
+        return NextResponse.json(
+          { error: "site_id is required. Use REVALIDATE_ALL_SITES_TOKEN for cross-site invalidation." },
+          { status: 400 },
+        );
+      }
+      // Stricter rate limit for all-sites revalidation
+      const allSitesRl = await checkRateLimit("revalidate:all-sites", {
+        maxRequests: 5,
+        windowMs: 60_000,
+        failPolicy: "closed" as const,
+      });
+      if (!allSitesRl.allowed) {
+        return NextResponse.json(
+          { error: "Rate limit exceeded for all-sites revalidation", retryAfterMs: allSitesRl.retryAfterMs },
+          { status: 429, headers: { "Retry-After": String(Math.ceil(allSitesRl.retryAfterMs / 1000)) } },
+        );
+      }
+    }
     const sb = await getTenantClient();
     const { data: sites, error } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: revalidate webhook uses privileged client; gated by shared secret

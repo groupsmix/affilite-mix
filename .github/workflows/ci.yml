@@ -268,10 +268,30 @@ jobs:
           }
           echo "Lockfile integrity verified."
 
-      - name: Generate SBOM (P2-7)
+      - name: "F-06: TODO/FIXME/HACK/XXX audit"
         run: |
-          # P2-7: Generate Software Bill of Materials for the release.
+          # F-06: Fail on new TODO/FIXME/HACK/XXX unless linked to an issue with expiry.
+          # Pattern: TODO(#123, 2025-06-01) or FIXME(#456, 2025-12-31)
+          set -euo pipefail
+          VIOLATIONS=$(grep -rn --include='*.ts' --include='*.tsx' -E '\b(TODO|FIXME|HACK|XXX)\b' lib/ app/ \
+            | grep -vE '\b(TODO|FIXME|HACK|XXX)\(#[0-9]+,\s*[0-9]{4}-[0-9]{2}-[0-9]{2}\)' \
+            | grep -v 'node_modules' \
+            | grep -v '.test.' || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Unlinked TODO/FIXME/HACK/XXX found. Each must reference an issue and expiry date: TODO(#123, 2025-12-31)"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "All TODO/FIXME/HACK/XXX markers are properly linked."
+
+      - name: "F-17: Generate SBOM (mandatory)"
+        run: |
+          # F-17: SBOM generation is a release blocker. Fail the build on generation failure.
           npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.json --spec-version 1.5
+          if [ ! -f sbom.json ] || [ ! -s sbom.json ]; then
+            echo "::error::SBOM generation produced empty or missing file — build blocked."
+            exit 1
+          fi
 
       - name: Upload SBOM Artifact
         uses: actions/upload-artifact@v7

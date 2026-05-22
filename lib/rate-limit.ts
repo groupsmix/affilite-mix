@@ -471,8 +471,9 @@ export async function checkRateLimit(
     return { allowed: false, remaining: 0, retryAfterMs: config.windowMs };
   }
 
-  // AM-07: In production, fail closed immediately for security-critical routes
-  // when neither DO nor KV bindings are available.
+  // F-18/F-19: In production, fail closed immediately for security-critical
+  // routes when neither DO nor KV bindings are available. The in-memory
+  // fallback is per-isolate and trivially bypassable across isolates.
   const isProduction =
     process.env.NODE_ENV === "production" ||
     (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers");

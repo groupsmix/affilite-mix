@@ -1,5 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// F-03: In CI, fail fast if E2E_BASE_URL is not configured. E2E depends on a
+// deployed preview target; running against a non-existent localhost wastes CI time.
+if (process.env.CI && !process.env.E2E_BASE_URL) {
+  throw new Error(
+    "E2E_BASE_URL is required in CI. Set it to a preview deployment URL or disable E2E in this workflow.",
+  );
+}
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,

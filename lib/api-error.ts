@@ -59,6 +59,43 @@ function defaultCodeForStatus(status: number): ApiErrorCode {
  * The optional `code` parameter lets callers supply a specific error code;
  * when omitted, a sensible default is inferred from the HTTP status.
  */
+/**
+ * F-10: Redact potentially sensitive details before including in client responses.
+ * Only allow primitive values and arrays of primitives. Strips anything that
+ * looks like a stack trace, upstream error message, or nested object.
+ */
+function redactDetails(details: unknown): unknown {
+  if (details === null || details === undefined) return undefined;
+  if (typeof details === "string") {
+    // Strip stack traces and internal paths
+    if (details.includes("\n    at ") || details.includes("/node_modules/")) {
+      return "Internal error details redacted";
+    }
+    return details.length > 500 ? details.slice(0, 500) + "…" : details;
+  }
+  if (typeof details === "number" || typeof details === "boolean") return details;
+  if (Array.isArray(details)) {
+    // Only allow arrays of strings (e.g. validation error lists)
+    return details
+      .filter((item): item is string => typeof item === "string")
+      .map((s) => (s.length > 200 ? s.slice(0, 200) + "…" : s));
+  }
+  if (typeof details === "object") {
+    // Allow flat objects with string/number values (validation errors)
+    const safe: Record<string, string | number> = {};
+    for (const [key, val] of Object.entries(details as Record<string, unknown>)) {
+      if (typeof val === "string") {
+        safe[key] = val.length > 200 ? val.slice(0, 200) + "…" : val;
+      } else if (typeof val === "number") {
+        safe[key] = val;
+      }
+      // Skip nested objects, functions, etc.
+    }
+    return Object.keys(safe).length > 0 ? safe : undefined;
+  }
+  return undefined;
+}
+
 export function apiError(
   status: number,
   message: string,
@@ -70,7 +107,9 @@ export function apiError(
     error: message,
     code: code ?? defaultCodeForStatus(status),
   };
-  if (details !== undefined) body.details = details;
+  // F-10: Redact details to prevent leaking upstream diagnostics
+  const redacted = redactDetails(details);
+  if (redacted !== undefined) body.details = redacted;
   return NextResponse.json(body, { status, headers });
 }
 

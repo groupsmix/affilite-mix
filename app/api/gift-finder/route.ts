@@ -8,7 +8,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 
 /** 30 gift-finder requests per minute per IP
- * P0-5: failPolicy: "closed" — AI endpoints incur provider costs per call.
+ * P0-5: failPolicy: "closed" — database-driven recommendation endpoint.
+ * Note: Despite early design docs, this endpoint uses DB queries with
+ * relevance scoring, NOT AI provider calls. No per-call AI costs apply.
  */
 const GIFT_FINDER_RATE_LIMIT = {
   maxRequests: 30,

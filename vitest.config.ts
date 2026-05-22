@@ -25,14 +25,23 @@ export default defineConfig({
         "node_modules/**",
         "scripts/**",
       ],
-      // T-01: Raised from 14-18% baseline toward 60% target.
-      // Current measured coverage is ~20/17/15/20. Ratchet up as coverage
-      // improves; do not lower without documenting why.
+      // F-01: Per-directory thresholds for critical paths (auth, payments,
+      // rate-limit, AI, tenant isolation) at ≥80%. Global baseline ratchets.
       thresholds: {
         statements: 19,
         branches: 16,
         functions: 14,
         lines: 19,
+        "lib/auth.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
+        "lib/rate-limit.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
+        "lib/authz.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
+        "lib/quotas.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
+        "lib/stripe-webhook.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
+        "lib/stripe-event-processor.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
+        "lib/ai/content-moderation.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
+        "lib/ai/prompt-sanitization.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
+        "lib/sanitize-html.ts": { statements: 85, branches: 80, functions: 85, lines: 85 },
+        "lib/ssrf-guard.ts": { statements: 80, branches: 75, functions: 80, lines: 80 },
       },
     },
   },
