@@ -217,7 +217,7 @@ describe("Audit-3 regression locks", () => {
     const route = read("app/api/revalidate/route.ts");
 
     it("uses INTERNAL_API_TOKEN, not the shared CRON secret", () => {
-      expect(route).toMatch(/getInternalToken\(\)/);
+      expect(route).toMatch(/getInternalTokenFor\(/);
       expect(route).not.toMatch(/verifyCronAuth\(/);
     });
 

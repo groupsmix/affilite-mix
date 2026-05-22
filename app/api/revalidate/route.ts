@@ -47,9 +47,11 @@ export async function POST(request: NextRequest) {
   // already INTERNAL_API_TOKEN-gated, but a leaked token could be
   // weaponised into a cache-invalidation flood that hammers the
   // origin DB on every revalidation. Cap to 30 calls / minute.
+  // F-20: Use fail-closed policy so leaked tokens can't bypass during outages.
   const rl = await checkRateLimit("revalidate:internal-token", {
     maxRequests: 30,
     windowMs: 60_000,
+    failPolicy: "closed" as const,
   });
   if (!rl.allowed) {
     return NextResponse.json(
@@ -88,15 +90,43 @@ export async function POST(request: NextRequest) {
     // No body or invalid JSON — use defaults.
   }
 
-  // R-02: Require site_id by default. All-site purge requires an explicit
-  // `scope: "all_sites"` field to prevent accidental cache fanout from a
-  // leaked token. This acts as a break-glass mechanism.
+  // F-20: Require site_id by default. All-sites revalidation requires a separate
+  // break-glass token (REVALIDATE_ALL_SITES_TOKEN) with stricter rate limits.
+  // This limits blast radius if the standard INTERNAL_API_TOKEN is leaked.
   let siteIds: string[];
 
   if (siteId) {
     siteIds = [siteId];
-  } else if (scope === "all_sites") {
-    // Explicit break-glass: caller acknowledges all-site fanout
+  } else {
+    const allSitesToken = process.env.REVALIDATE_ALL_SITES_TOKEN;
+    // Standard token cannot do all-sites revalidation — require the break-glass token
+    const bearerIsAllSites = allSitesToken && bearer === allSitesToken;
+    if (!bearerIsAllSites) {
+      return NextResponse.json(
+        {
+          error: "site_id is required. Use REVALIDATE_ALL_SITES_TOKEN for cross-site invalidation.",
+        },
+        { status: 400 },
+      );
+    }
+    // Stricter rate limit for all-sites revalidation
+    const allSitesRl = await checkRateLimit("revalidate:all-sites", {
+      maxRequests: 5,
+      windowMs: 60_000,
+      failPolicy: "closed" as const,
+    });
+    if (!allSitesRl.allowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded for all-sites revalidation",
+          retryAfterMs: allSitesRl.retryAfterMs,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(allSitesRl.retryAfterMs / 1000)) },
+        },
+      );
+    }
     const sb = await getTenantClient();
     const { data: sites, error } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: revalidate webhook uses privileged client; gated by shared secret
@@ -109,11 +139,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     siteIds = (sites ?? []).map((s) => s.id);
-  } else {
-    return NextResponse.json(
-      { error: "site_id is required. For all-site purge, pass scope: \"all_sites\" explicitly." },
-      { status: 400 },
-    );
   }
 
   const revalidated: string[] = [];

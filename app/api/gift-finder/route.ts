@@ -8,7 +8,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 
 /** 30 gift-finder requests per minute per IP
- * P0-5: failPolicy: "closed" — AI endpoints incur provider costs per call.
+ * P0-5: failPolicy: "closed" — database-driven recommendation endpoint.
+ * Note: Despite early design docs, this endpoint uses DB queries with
+ * relevance scoring, NOT AI provider calls. No per-call AI costs apply.
  */
 const GIFT_FINDER_RATE_LIMIT = {
   maxRequests: 30,
@@ -65,8 +67,15 @@ export async function GET(request: NextRequest) {
   ) {
     return NextResponse.json({ error: "Query parameters exceed maximum length" }, { status: 400 });
   }
-  if (!SAFE_PARAM_RE.test(rawOccasion) || !SAFE_PARAM_RE.test(rawRecipient) || !SAFE_PARAM_RE.test(rawStyle)) {
-    return NextResponse.json({ error: "Query parameters contain invalid characters" }, { status: 400 });
+  if (
+    !SAFE_PARAM_RE.test(rawOccasion) ||
+    !SAFE_PARAM_RE.test(rawRecipient) ||
+    !SAFE_PARAM_RE.test(rawStyle)
+  ) {
+    return NextResponse.json(
+      { error: "Query parameters contain invalid characters" },
+      { status: 400 },
+    );
   }
 
   const occasion = rawOccasion.toLowerCase();

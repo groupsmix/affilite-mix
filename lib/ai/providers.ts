@@ -348,15 +348,9 @@ export async function generateWithFallback(
     try {
       const text = await provider.generate(safePrompt, safeSystemPrompt);
       if (options.siteId) {
-        // R-05: Post-flight usage accounting. Record the *actual* output
-        // tokens (estimated from the response) plus the input estimate,
-        // along with a USD cost derived from the resolved provider's
-        // price card. Pre-flight reservation happened above via assertQuota.
-        //
-        // We await the recording (not fire-and-forget) so failures are
-        // detected, but we catch and log rather than throw so accounting
-        // never breaks generation. This enables alerting on KV write
-        // failure rate without losing the generation result.
+        // F-25: Await usage accounting to prevent cost-accounting drift.
+        // If recording fails, log a warning but don't fail the generation
+        // so users aren't blocked by infrastructure issues.
         const outputTokenEstimate = estimateTokens(text);
         const totalTokens = inputTokenEstimate + outputTokenEstimate;
         const microUsd =
@@ -369,12 +363,15 @@ export async function generateWithFallback(
               ? recordUsage(options.siteId, "ai_tokens", totalTokens)
               : Promise.resolve(),
             microUsd > 0
-              ? recordUsage(options.siteId, "ai_cost_micro_usd", costToMicroUsd(microUsd / 1_000_000))
+              ? recordUsage(
+                  options.siteId,
+                  "ai_cost_micro_usd",
+                  costToMicroUsd(microUsd / 1_000_000),
+                )
               : Promise.resolve(),
           ]);
         } catch {
-          // Accounting must never resurface as a generation error.
-          // Sentry capture happens inside recordUsage itself.
+          // F-25: Log but don't throw — accounting failures must never break generation
         }
       }
       return { text, provider: provider.name, model: provider.model };
@@ -388,16 +385,11 @@ export async function generateWithFallback(
     }
   }
 
-  // R-07: Log full provider errors server-side for diagnostics but only
-  // expose normalized codes in the thrown error to prevent upstream response
-  // body leakage to clients.
-  console.error("[ai] All providers failed:", errors);
-  const sanitizedErrors = errors.map((e) => {
-    // Extract only the provider name and status code, strip response bodies
-    const match = e.match(/^([^:]+):\s*(.*?error\s*\d{3})/i);
-    return match ? `${match[1]}: ${match[2]}` : e.replace(/:\s*.{200,}$/, ": [response truncated]");
-  });
-  throw new Error(`All AI providers failed:\n${sanitizedErrors.join("\n")}`);
+  // F-26: Normalize provider errors to internal codes. Log full diagnostics
+  // server-side but expose only a generic message to callers.
+  const internalError = new Error("AI generation unavailable: all providers failed");
+  (internalError as any).providerErrors = errors; // Available to server-side logging
+  throw internalError;
 }
 
 /** Get list of available (configured) providers */

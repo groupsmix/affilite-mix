@@ -18,10 +18,34 @@ import { SYSTEM_PROMPT_HARDENING_PREAMBLE } from "./prompt-sanitization";
 /*  Prohibited content patterns (lifted from cron route)              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * F-22/F-23: Broadened prohibited content patterns.
+ * Covers additional categories: self-harm, CSAM, terrorism, weapons,
+ * drugs/controlled substances, fraud/scams, and multilingual variants.
+ */
 const PROHIBITED_PATTERNS: ReadonlyArray<RegExp> = [
+  // Original patterns
   /\b(phishing|malware|exploit|ransomware)\b/i,
   /\b(illegal.*download|crack(ed|s)?.*software)\b/i,
   /\b(hate\s*speech|incit(e|ing)\s*violence)\b/i,
+  // F-23: Self-harm and suicide promotion
+  /\b(suicide\s*(method|instruction|how\s*to)|self[- ]?harm\s*(guide|tutorial))\b/i,
+  // F-23: CSAM / child exploitation
+  /\b(child\s*(porn|exploitation|abuse)|underage|minors?\s*(sexual|nude|explicit))\b/i,
+  // F-23: Terrorism and extremism
+  /\b(bomb\s*mak(e|ing)|terrorist\s*attack|jihad(i|ist)?\s*(manual|guide|training))\b/i,
+  /\b(white\s*supremac(y|ist)|ethnic\s*cleansing|genocide\s*(how|instruction))\b/i,
+  // F-23: Weapons and dangerous items
+  /\b(3d\s*print(ed)?\s*gun|ghost\s*gun\s*(build|make)|undetectable\s*weapon)\b/i,
+  // F-23: Drugs and controlled substances
+  /\b(synthe(size|tic)\s*(meth|fentanyl|heroin)|cook(ing)?\s*meth)\b/i,
+  // F-23: Fraud and scams
+  /\b(credit\s*card\s*(fraud|skim)|identity\s*theft\s*(guide|how)|money\s*launder(ing)?)\b/i,
+  // F-23: Multilingual variants (Arabic)
+  /إرهاب|تفجير|قنبلة|استغلال\s*الأطفال/,
+  // F-23: Obfuscation attempts (zero-width characters, leetspeak common patterns)
+  /\bp[h4]1sh[i1]ng\b/i,
+  /\bm[a@]lw[a@]re\b/i,
 ];
 
 /**
