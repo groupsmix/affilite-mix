@@ -211,6 +211,9 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
 /**
  * Generate multiple topic suggestions for a given niche.
  *
+ * F-24/F-29: Now routes through the same moderation pipeline as article
+ * generation (input moderation on niche, output moderation on suggestions).
+ *
  * `siteId` is optional so existing callers (admin scripts) keep working;
  * when provided the call is gated by the per-tenant quota primitives
  * documented in `docs/per-tenant-quotas.md`.
@@ -221,6 +224,12 @@ export async function generateTopicSuggestions(
   count: number = 5,
   siteId?: string,
 ): Promise<{ topics: string[]; provider: string }> {
+  // F-24: Screen niche input through the same moderation as article generation
+  const inputCheck = moderateInput(niche);
+  if (!inputCheck.passed) {
+    throw new ContentModerationError(`[ai] Topic input moderation failed: ${inputCheck.reason}`, "input");
+  }
+
   const prompt = `Suggest ${count} compelling ${contentType} topics for a website about "${niche}".
 Each topic should be:
 - SEO-friendly and searchable
@@ -230,6 +239,12 @@ Each topic should be:
 Output each topic on its own line, numbered 1-${count}. No other text.`;
 
   const { text, provider } = await generateWithFallback(prompt, undefined, { siteId });
+
+  // F-24: Screen output for prohibited content
+  const outputCheck = moderateOutput(text);
+  if (!outputCheck.passed) {
+    throw new ContentModerationError(`[ai] Topic output moderation failed: ${outputCheck.reason}`, "output");
+  }
 
   const topics = text
     .split("\n")

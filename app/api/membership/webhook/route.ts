@@ -3,6 +3,7 @@ import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
 import { constructStripeEvent, prewarmStripeWebhookKey } from "@/lib/stripe-webhook";
 import { getStripeClient } from "@/lib/stripe-client";
+import { writeToDlq } from "@/lib/dal/webhook-dlq";
 
 let _prewarmed = false;
 
@@ -111,9 +112,13 @@ export async function POST(request: NextRequest) {
 
     if (attempts >= 3) {
       logger.error("Stripe webhook max retries reached, acking to stop loop", { id: event.id });
-      logger.error("Stripe webhook DLQ payload", {
-        id: event.id,
+      // F-21: Write to durable DLQ table for replay tooling and reconciliation
+      await writeToDlq({
+        event_id: event.id,
+        event_type: event.type,
         payload: redactStripePayloadForLogs(rawBody),
+        error_message: err instanceof Error ? err.message : String(err),
+        attempts,
       });
       return NextResponse.json({ received: true, dlq: true });
     }
