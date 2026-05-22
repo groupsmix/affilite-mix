@@ -8,6 +8,8 @@ import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
 import { isTokenRevoked } from "@/lib/jwt-revocation";
 import { timingSafeEqual } from "@/lib/internal-hmac";
+// A6-03: use purpose-derived HMAC sub-key instead of the raw JWT secret
+import { deriveHmacKey } from "@/lib/hmac-key";
 
 const COOKIE_NAME = "nh_admin_token";
 /** Cookie tracking last admin activity for idle-timeout enforcement */
@@ -42,15 +44,9 @@ const DUMMY_PASSWORD_HASH = "$2b$10$FIQMYsgSk2SAqMvHOeYvCeFGj1FfTGeQC3aghyI97o73
 
 const HMAC_ENCODER = new TextEncoder();
 
-/** Import the JWT secret as an HMAC-SHA256 key. */
+/** Derive a purpose-specific HMAC key for activity-cookie signing (A6-03). */
 async function getActivityHmacKey(): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    "raw",
-    HMAC_ENCODER.encode(getJwtSecret()),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign", "verify"],
-  );
+  return deriveHmacKey("activity-cookie", ["sign", "verify"]);
 }
 
 function bytesToHex(bytes: ArrayBuffer): string {
@@ -150,6 +146,10 @@ export async function authenticateUser(
 
   const { valid, needsRehash } = await verifyPassword(password, hashToCheck);
 
+  // SECURITY: Both conditions MUST remain here. Removing `!user` would turn
+  // DUMMY_PASSWORD_HASH into a universal backdoor — any unknown email combined
+  // with the dummy hash's plaintext would authenticate successfully.
+  // See audit finding A2-01 / CWE-798.
   if (!user || !valid) return null;
 
   // Transparent rehash: upgrade legacy PBKDF2 hashes to bcrypt on successful login

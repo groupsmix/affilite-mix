@@ -7,8 +7,11 @@ import { shouldSkipDbCall } from "@/lib/db-available";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "products";
+// A23-01: Full explicit column list. Update this constant (and ProductRow in
+// types/database.ts) whenever a column is added so select("*") never silently
+// over-returns new sensitive columns.
 const LIST_COLUMNS =
-  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, created_at, updated_at" as const;
+  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, created_at, updated_at" as const;
 
 export type ProductSortColumn =
   | "name"
@@ -172,7 +175,7 @@ export async function getProductById(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("id", id)
     .single();
@@ -185,7 +188,7 @@ export async function getProductBySlug(siteId: string, slug: string): Promise<Pr
   const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("slug", slug)
     .single();
@@ -200,7 +203,7 @@ export const getProductBySlugPublic = unstable_cache(
     const sb = getAnonClient();
     const { data, error } = await sb
       .from(TABLE)
-      .select("*")
+      .select(LIST_COLUMNS)
       .eq("site_id", siteId)
       .eq("slug", slug)
       .single();

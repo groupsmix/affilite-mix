@@ -5,16 +5,11 @@
  * is detected on read. Format: base64(value.signature).
  */
 
-import { getJwtSecret } from "@/lib/jwt-secret";
+// A6-03: use purpose-derived HMAC sub-key instead of the raw JWT secret
+import { deriveHmacKey } from "@/lib/hmac-key";
 
 async function getHmacKey(usage: KeyUsage[]): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(getJwtSecret()),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    usage,
-  );
+  return deriveHmacKey("signed-cookie", usage);
 }
 
 async function hmacSign(data: string): Promise<string> {
