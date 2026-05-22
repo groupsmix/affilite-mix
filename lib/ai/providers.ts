@@ -106,8 +106,8 @@ class CloudflareAIProvider implements AIProvider {
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Cloudflare AI error ${res.status}: ${text}`);
+      // R2-05: Redact upstream response body to prevent leaking provider diagnostics
+      throw new Error(`Cloudflare AI error: status=${res.status}`);
     }
 
     const data = (await res.json()) as { result?: { response?: string } };
@@ -152,8 +152,8 @@ class GeminiProvider implements AIProvider {
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Gemini error ${res.status}: ${text}`);
+      // R2-05: Redact upstream response body to prevent leaking provider diagnostics
+      throw new Error(`Gemini error: status=${res.status}`);
     }
 
     const data = (await res.json()) as {
@@ -204,8 +204,8 @@ class GroqProvider implements AIProvider {
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Groq error ${res.status}: ${text}`);
+      // R2-05: Redact upstream response body to prevent leaking provider diagnostics
+      throw new Error(`Groq error: status=${res.status}`);
     }
 
     const data = (await res.json()) as {
@@ -256,8 +256,8 @@ class CohereProvider implements AIProvider {
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Cohere error ${res.status}: ${text}`);
+      // R2-05: Redact upstream response body to prevent leaking provider diagnostics
+      throw new Error(`Cohere error: status=${res.status}`);
     }
 
     const data = (await res.json()) as {
@@ -348,30 +348,49 @@ export async function generateWithFallback(
     try {
       const text = await provider.generate(safePrompt, safeSystemPrompt);
       if (options.siteId) {
-        // F-25: Await usage accounting to prevent cost-accounting drift.
-        // If recording fails, log a warning but don't fail the generation
-        // so users aren't blocked by infrastructure issues.
+        // R2-04: Await usage accounting sequentially to ensure durability.
+        // If any recording fails, log a structured warning with full context
+        // so operators can reconcile from logs. Generation is never blocked.
         const outputTokenEstimate = estimateTokens(text);
         const totalTokens = inputTokenEstimate + outputTokenEstimate;
         const microUsd =
           Math.ceil((inputTokenEstimate * provider.pricing.inputMicroUsdPer1k) / 1000) +
           Math.ceil((outputTokenEstimate * provider.pricing.outputMicroUsdPer1k) / 1000);
-        try {
-          await Promise.allSettled([
-            recordUsage(options.siteId, "ai_requests", 1),
-            totalTokens > 0
-              ? recordUsage(options.siteId, "ai_tokens", totalTokens)
-              : Promise.resolve(),
-            microUsd > 0
-              ? recordUsage(
-                  options.siteId,
-                  "ai_cost_micro_usd",
-                  costToMicroUsd(microUsd / 1_000_000),
-                )
-              : Promise.resolve(),
-          ]);
-        } catch {
-          // F-25: Log but don't throw — accounting failures must never break generation
+        const accountingOps: Array<{
+          resource: string;
+          amount: number;
+          fn: () => Promise<void>;
+        }> = [
+          { resource: "ai_requests", amount: 1, fn: () => recordUsage(options.siteId!, "ai_requests", 1) },
+        ];
+        if (totalTokens > 0) {
+          accountingOps.push({
+            resource: "ai_tokens",
+            amount: totalTokens,
+            fn: () => recordUsage(options.siteId!, "ai_tokens", totalTokens),
+          });
+        }
+        if (microUsd > 0) {
+          accountingOps.push({
+            resource: "ai_cost_micro_usd",
+            amount: microUsd,
+            fn: () => recordUsage(options.siteId!, "ai_cost_micro_usd", costToMicroUsd(microUsd / 1_000_000)),
+          });
+        }
+        for (const op of accountingOps) {
+          try {
+            await op.fn();
+          } catch (accErr) {
+            // R2-04: Structured log for accounting reconciliation — includes
+            // all context needed to replay the failed write.
+            console.error("[ai/providers] accounting write failed", {
+              siteId: options.siteId,
+              resource: op.resource,
+              amount: op.amount,
+              provider: provider.name,
+              error: accErr instanceof Error ? accErr.message : String(accErr),
+            });
+          }
         }
       }
       return { text, provider: provider.name, model: provider.model };
@@ -385,10 +404,13 @@ export async function generateWithFallback(
     }
   }
 
-  // F-26: Normalize provider errors to internal codes. Log full diagnostics
-  // server-side but expose only a generic message to callers.
+  // R2-05 / F-26: Normalize provider errors to internal codes. Log diagnostics
+  // server-side with only provider name and status code — no raw response bodies.
   const internalError = new Error("AI generation unavailable: all providers failed");
-  (internalError as any).providerErrors = errors; // Available to server-side logging
+  // Only store provider name + normalized error code, not raw upstream text
+  (internalError as any).providerErrors = errors.map((e) =>
+    e.replace(/: status=\d+.*$/, (m) => m.split("\n")[0]),
+  );
   throw internalError;
 }
 

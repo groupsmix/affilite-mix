@@ -257,7 +257,18 @@ async function readCounter(
   window: string,
 ): Promise<number> {
   const kv = getKVNamespace();
-  if (!kv) return 0;
+  if (!kv) {
+    // RC-NOW-04 / R2-03: In production, missing KV namespace must fail closed
+    // for AI generation resources to prevent unbounded cost exposure.
+    const isProduction = process.env.NODE_ENV === "production";
+    const aiResources: QuotaResource[] = ["ai_tokens", "ai_cost_micro_usd", "ai_requests"];
+    if (isProduction && aiResources.includes(resource)) {
+      throw new Error(
+        `Quota KV namespace not bound — failing closed for ${resource} in production.`,
+      );
+    }
+    return 0;
+  }
   try {
     const key = kvKey(siteId, resource, window);
     const data = (await kv.get(key, "json")) as CounterShape | null;
@@ -291,7 +302,14 @@ async function writeCounter(
   count: number,
 ): Promise<void> {
   const kv = getKVNamespace();
-  if (!kv) return;
+  if (!kv) {
+    // RC-NOW-04: Log missing KV for write operations; read path handles fail-closed.
+    captureMessage(
+      `quotas.writeCounter: KV namespace not bound (siteId=${siteId} resource=${resource})`,
+      "warning",
+    );
+    return;
+  }
   try {
     const key = kvKey(siteId, resource, window);
     const ttl = windowTtlSeconds(RESOURCE_META[resource].window);

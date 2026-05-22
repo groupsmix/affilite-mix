@@ -112,14 +112,26 @@ export async function POST(request: NextRequest) {
 
     if (attempts >= 3) {
       logger.error("Stripe webhook max retries reached, acking to stop loop", { id: event.id });
-      // F-21: Write to durable DLQ table for replay tooling and reconciliation
-      await writeToDlq({
-        event_id: event.id,
-        event_type: event.type,
-        payload: redactStripePayloadForLogs(rawBody),
-        error_message: err instanceof Error ? err.message : String(err),
-        attempts,
-      });
+      // R2-01: Write to durable DLQ table. If DLQ write fails, do NOT ACK —
+      // return 500 so Stripe retries, preserving the event until persistence succeeds.
+      try {
+        await writeToDlq({
+          event_id: event.id,
+          event_type: event.type,
+          payload: redactStripePayloadForLogs(rawBody),
+          error_message: err instanceof Error ? err.message : String(err),
+          attempts,
+        });
+      } catch (dlqErr) {
+        logger.error("DLQ persistence failed — refusing to ACK webhook", {
+          id: event.id,
+          dlqError: dlqErr instanceof Error ? dlqErr.message : String(dlqErr),
+        });
+        return NextResponse.json(
+          { error: "DLQ persistence failed" },
+          { status: 500 },
+        );
+      }
       return NextResponse.json({ received: true, dlq: true });
     }
 
