@@ -1,0 +1,30 @@
+name: Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Target URL for load testing"
+        required: true
+        type: string
+      duration:
+        description: "Test duration (e.g. 30s, 1m)"
+        required: false
+        default: "30s"
+        type: string
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run load test
+        run: bash scripts/load-test.sh
+        env:
+          TARGET_URL: ${{ inputs.target_url }}
+          DURATION: ${{ inputs.duration }}
