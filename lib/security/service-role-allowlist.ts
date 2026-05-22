@@ -78,6 +78,12 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // can't resolve. The webhook route is gated by Stripe-signature
   // verification (lib/stripe-webhook.ts) before this DAL is reached.
   "lib/dal/stripe-events.ts",
+
+  // F-21: Webhook dead-letter queue persists failed Stripe events for
+  // replay tooling. Uses service-role because webhook context has no
+  // tenant-scoped session. Gated by Stripe-signature verification in
+  // the parent webhook route (app/api/membership/webhook/route.ts).
+  "lib/dal/webhook-dlq.ts",
 ] as const;
 
 export type ServiceRoleAllowlistedPath = (typeof SERVICE_ROLE_IMPORT_ALLOWLIST)[number];
