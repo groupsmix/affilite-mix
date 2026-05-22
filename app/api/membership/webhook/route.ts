@@ -127,10 +127,7 @@ export async function POST(request: NextRequest) {
           id: event.id,
           dlqError: dlqErr instanceof Error ? dlqErr.message : String(dlqErr),
         });
-        return NextResponse.json(
-          { error: "DLQ persistence failed" },
-          { status: 500 },
-        );
+        return NextResponse.json({ error: "DLQ persistence failed" }, { status: 500 });
       }
       return NextResponse.json({ received: true, dlq: true });
     }
