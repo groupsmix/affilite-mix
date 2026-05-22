@@ -53,16 +53,26 @@ jobs:
           set -euo pipefail
 
           if [ -z "${CF_ZONE_ID:-}" ]; then
-            echo "::warning::CF_ZONE_ID not set — using hardcoded zone domain for scan"
-            ZONE_ID="$CF_ZONE_ID"
+            echo "::warning::CF_ZONE_ID secret not set — cannot enumerate DNS records."
+            echo "Add CF_ZONE_ID to GitHub → Settings → Secrets and variables → Actions"
+            echo "Find it in Cloudflare Dashboard → your zone → Overview → Zone ID"
+            touch /tmp/subdomains.txt
+            exit 0
           fi
 
           # Fetch all DNS records from the zone
-          curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=CNAME&per_page=200" \
+          RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=CNAME&per_page=200" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            | jq -r '.result[].name' \
-            > /tmp/subdomains.txt
+            -H "Content-Type: application/json")
+
+          # Validate API response before parsing with jq
+          if ! echo "$RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
+            echo "::error::Cloudflare API returned an error:"
+            echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
+            exit 1
+          fi
+
+          echo "$RESPONSE" | jq -r '.result[]?.name // empty' > /tmp/subdomains.txt
 
           echo "Found $(wc -l < /tmp/subdomains.txt) CNAME records to scan"
           cat /tmp/subdomains.txt
