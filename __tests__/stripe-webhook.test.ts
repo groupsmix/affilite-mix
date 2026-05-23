@@ -40,7 +40,6 @@ describe("Stripe Webhook Signature Verification (F-050)", () => {
       });
 
       // Test that empty signature fails
-      const signature = "";
       const webhookSecret = "whsec_test_secret";
 
       // Basic crypto test to verify HMAC works

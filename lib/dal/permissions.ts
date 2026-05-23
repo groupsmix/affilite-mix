@@ -6,7 +6,6 @@
  */
 
 import { cache } from "react";
-import { getTenantClient } from "@/lib/supabase-server";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import type {
   RoleRow,

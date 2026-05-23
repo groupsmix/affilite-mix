@@ -1,4 +1,4 @@
-import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
+import { getAnonClient } from "@/lib/supabase-server";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";

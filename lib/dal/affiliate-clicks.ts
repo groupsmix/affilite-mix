@@ -1,4 +1,3 @@
-import { getTenantClient } from "@/lib/supabase-server";
 import type { AffiliateClickRow } from "@/types/database";
 import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";

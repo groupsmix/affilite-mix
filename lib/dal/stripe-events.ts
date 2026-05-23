@@ -1,4 +1,3 @@
-import { getTenantClient } from "@/lib/supabase-server";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 

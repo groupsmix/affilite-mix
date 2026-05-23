@@ -67,7 +67,6 @@ export async function POST(request: NextRequest) {
 
   let kinds: ContentTag[] = [...CONTENT_TAGS];
   let siteId: string | null = null;
-  let scope: string | null = null;
 
   try {
     const body = await request.json();
@@ -83,9 +82,9 @@ export async function POST(request: NextRequest) {
     if (typeof body.site_id === "string" && body.site_id.length > 0) {
       siteId = body.site_id;
     }
-    if (typeof body.scope === "string") {
-      scope = body.scope;
-    }
+    // Note: `body.scope` is documented in the header comment but never
+    // consumed — all-sites revalidation is gated by absence of `site_id`
+    // plus the REVALIDATE_ALL_SITES_TOKEN break-glass header.
   } catch {
     // No body or invalid JSON — use defaults.
   }

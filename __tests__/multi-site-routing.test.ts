@@ -9,15 +9,7 @@
  * - Default site selection
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  getSiteByDomain,
-  getSiteById,
-  allSites,
-  isWildcardSubdomain,
-  extractSubdomain,
-  toSiteRow,
-  WILDCARD_PARENT_DOMAINS,
-} from "@/config/sites";
+import { getSiteByDomain, getSiteById, allSites, isWildcardSubdomain, extractSubdomain, toSiteRow } from "@/config/sites";
 
 afterEach(() => {
   vi.unstubAllEnvs();

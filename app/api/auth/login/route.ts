@@ -131,7 +131,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Per-email rate limiting — prevents brute-force from rotating IPs
-    const normalized = normalizeEmail(email);
     // F-032 + F-007: Strip '+' alias tags and hash email to prevent rate-limit
     // bypass and avoid PII in operational metadata (KV keys, logs, dashboards).
     const rateLimitEmail = await hashEmailForRateLimit(email);

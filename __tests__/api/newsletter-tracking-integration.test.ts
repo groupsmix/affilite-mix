@@ -17,11 +17,6 @@ vi.mock("@/lib/sentry", () => ({
 
 // Mock Supabase service client
 const mockFrom = vi.fn();
-const mockSelect = vi.fn();
-const mockInsert = vi.fn();
-const mockUpdate = vi.fn();
-const mockEq = vi.fn();
-const mockSingle = vi.fn();
 
 vi.mock("@/lib/supabase-server", () => ({
   getServiceClient: vi.fn(() => ({

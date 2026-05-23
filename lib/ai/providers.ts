@@ -8,15 +8,7 @@
 
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { assembleSystemPrompt, sanitizePrompt } from "./prompt-sanitization";
-import {
-  assertQuota,
-  reserveQuota,
-  releaseQuota,
-  costToMicroUsd,
-  estimateTokens,
-  recordUsage,
-  QuotaExceededError,
-} from "@/lib/quotas";
+import { reserveQuota, releaseQuota, costToMicroUsd, estimateTokens, recordUsage, QuotaExceededError } from "@/lib/quotas";
 
 export interface AIProvider {
   name: string;

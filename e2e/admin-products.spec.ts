@@ -2,7 +2,6 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Admin Products Page", () => {
   test("should redirect unauthenticated users to login", async ({ page }) => {
-    const response = await page.goto("/admin/products");
 
     // Should either redirect to login or show an auth error
     await expect(page).toHaveURL(/\/admin\/login|\/admin/);
@@ -33,7 +32,6 @@ test.describe("Admin Products Page", () => {
 
     // The page may redirect to login if not authenticated
     // If we land on the product form, verify fields exist
-    const nameInput = page.locator('input[type="text"]').first();
     const isLoginPage = await page
       .locator("text=Admin Login")
       .isVisible()

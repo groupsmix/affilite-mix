@@ -1,4 +1,3 @@
-import { getTenantClient } from "@/lib/supabase-server";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface DashboardStats {
