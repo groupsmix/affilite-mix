@@ -108,10 +108,34 @@ export function captureException(error: unknown, context?: Record<string, unknow
     }
   }
   // Always log to console as well for Cloudflare's built-in log stream.
-  // SECURITY: strip CR/LF from context string values before logging so a
-  // user-controlled value cannot inject a fake log line into Cloudflare's
-  // log stream (CodeQL js/log-injection).
-  console.error("[error]", error, sanitizeLogContext(context));
+  // SECURITY: strip CR/LF from BOTH the error and context string values
+  // before logging so a user-controlled value cannot inject a fake log
+  // line into Cloudflare's log stream (CodeQL js/log-injection).
+  console.error("[error]", sanitizeForLog(error), sanitizeLogContext(context));
+}
+
+/**
+ * Sanitize a logged value: replace CR/LF with a single space in strings,
+ * recurse into plain object fields, and convert Errors to a sanitized
+ * `{ name, message, stack }` shape.
+ */
+function sanitizeForLog(value: unknown): unknown {
+  if (value == null) return value;
+  if (typeof value === "string") return value.replace(/[\r\n]+/g, " ");
+  if (value instanceof Error) {
+    return {
+      name: value.name.replace(/[\r\n]+/g, " "),
+      message: value.message.replace(/[\r\n]+/g, " "),
+      stack: typeof value.stack === "string" ? value.stack.replace(/[\r\n]+/g, " ") : undefined,
+    };
+  }
+  if (typeof value !== "object") return value;
+  // Plain object — shallow-sanitize string fields only.
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = typeof v === "string" ? v.replace(/[\r\n]+/g, " ") : v;
+  }
+  return out;
 }
 
 /** Replace CR/LF with spaces in all string fields of a context object. */
