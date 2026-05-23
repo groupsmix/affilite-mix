@@ -37,12 +37,21 @@ services:
       timeout: 5s
       retries: 20
     environment:
-      POSTGRES_PASSWORD: postgres
+      # DOC32-005: Use env vars so secrets aren't committed in plaintext.
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-postgres}
       POSTGRES_DB: postgres
-      JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      # DOC32-004: Same pattern for JWT secret
+      JWT_SECRET: ${LOCAL_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
       JWT_EXP: 3600
+    # DOC32-009: Bind to localhost only — prevents network-adjacent access
     ports:
-      - "54322:5432"
+      - "127.0.0.1:54322:5432"
+    # DOC32-007: Resource limits prevent container-level DoS
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
     volumes:
       - supabase-db-data:/var/lib/postgresql/data
       # Apply project migrations on first boot.  `docker-entrypoint-initdb.d`
@@ -57,13 +66,25 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    # DOC32-007: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     environment:
-      PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres
+      PGRST_DB_URI: postgres://postgres:${LOCAL_DB_PASSWORD:-postgres}@db:5432/postgres
       PGRST_DB_SCHEMAS: public,storage,graphql_public
       PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      PGRST_JWT_SECRET: ${LOCAL_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
       PGRST_DB_USE_LEGACY_GUCS: "false"
-      PGRST_APP_SETTINGS_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      PGRST_APP_SETTINGS_JWT_SECRET: ${LOCAL_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
       PGRST_APP_SETTINGS_JWT_EXP: "3600"
 
   kong:
@@ -71,10 +92,23 @@ services:
     depends_on:
       - rest
     restart: unless-stopped
+    # DOC32-008: Kong healthcheck
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    # DOC32-007: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     ports:
       # Mirrors the Supabase CLI default local endpoint so test configs
       # that assume `http://localhost:54321` work out of the box.
-      - "54321:8000"
+      # DOC32-009: Bind to localhost only
+      - "127.0.0.1:54321:8000"
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml

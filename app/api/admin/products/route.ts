@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { productsTag } from "@/lib/cache-tags";
-import { listProducts, createProduct, updateProduct, deleteProduct } from "@/lib/dal/products";
+import {
+  listProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  ConflictError,
+} from "@/lib/dal/products";
 import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
-import { withAuthz } from "@/lib/authz";
+import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 
 export const GET = withAuthz("products", "view", async (request: NextRequest, { siteId }) => {
@@ -15,10 +21,19 @@ export const GET = withAuthz("products", "view", async (request: NextRequest, { 
   const pagination = parsePagination(searchParams);
   if (pagination instanceof NextResponse) return pagination;
 
+  // SECURITY-FIX: Validate category_id format to prevent NoSQL/query injection (T1-006)
+  const categoryId = searchParams.get("category_id") ?? undefined;
+  if (
+    categoryId &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId)
+  ) {
+    return NextResponse.json({ error: "category_id must be a valid UUID" }, { status: 400 });
+  }
+
   try {
     const products = await listProducts({
       siteId,
-      categoryId: searchParams.get("category_id") ?? undefined,
+      categoryId,
       status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
       limit: pagination.limit,
       offset: pagination.offset,
@@ -110,6 +125,26 @@ export const PATCH = withAuthz(
     }
 
     const { id, ...updates } = parsed.data;
+
+    // SECURITY-FIX: Validate UUID format for id (IDOR-002)
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
+    }
+
+    // ISO18-003 / IDOR defense-in-depth: verify the product belongs to the
+    // active tenant before allowing mutation (CWE-639).
+    const authzResult = await authorizeResource({
+      session,
+      feature: "products",
+      action: "edit",
+      resourceType: "product",
+      resourceId: id,
+      expectedSiteId: siteId,
+    });
+    if (!authzResult.ok) {
+      return authorizationErrorResponse(authzResult);
+    }
+
     // G-01: validate URL fields on edit too (not just create).
     const urlErr = validateAdminUrlFields({
       ...(updates.affiliate_url !== undefined && { affiliate_url: updates.affiliate_url }),
@@ -118,8 +153,12 @@ export const PATCH = withAuthz(
     if (urlErr) {
       return NextResponse.json({ error: urlErr.error }, { status: 400 });
     }
+
+    // ISO18-001: Extract version for optimistic locking.
+    const expectedVersion = typeof rawOrError.version === "number" ? rawOrError.version : undefined;
+
     try {
-      const product = await updateProduct(siteId, id, updates);
+      const product = await updateProduct(siteId, id, updates, undefined, expectedVersion);
       void revalidateTag(productsTag(siteId));
       void recordAuditEvent({
         site_id: siteId,
@@ -131,6 +170,17 @@ export const PATCH = withAuthz(
       });
       return NextResponse.json(product);
     } catch (err) {
+      if (err instanceof ConflictError) {
+        // A95-001: Log conflict to Sentry so a 409 spike triggers an alert
+        // indicating stale-state bugs in the admin UI.
+        captureException(err, {
+          context: "[api/admin/products] PATCH optimistic lock conflict (409)",
+          productId: id,
+          siteId,
+          level: "warning",
+        });
+        return NextResponse.json({ error: err.message, code: "CONFLICT" }, { status: 409 });
+      }
       captureException(err, { context: "[api/admin/products] PATCH update failed:" });
       return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
     }
@@ -157,6 +207,20 @@ export const DELETE = withAuthz(
     // RC-05: Validate UUID format before hitting the database
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
+    }
+
+    // ISO18-003 / IDOR defense-in-depth: verify the product belongs to the
+    // active tenant before allowing deletion (CWE-639).
+    const authzResult = await authorizeResource({
+      session,
+      feature: "products",
+      action: "delete",
+      resourceType: "product",
+      resourceId: id,
+      expectedSiteId: siteId,
+    });
+    if (!authzResult.ok) {
+      return authorizationErrorResponse(authzResult);
     }
 
     try {

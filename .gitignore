@@ -77,3 +77,4 @@ supabase/.temp/
 gitleaks
 gitleaks_*.tar.gz
 gitleaks_*.zip
+coverage/
