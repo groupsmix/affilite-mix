@@ -39,6 +39,8 @@ vi.mock("@/lib/dal/admin-users", () => ({
     totp_enabled: false,
     totp_secret: null,
   }),
+  updateAdminUser: vi.fn().mockResolvedValue({}),
+  incrementLoginFailedAttempts: vi.fn().mockResolvedValue({ attempts: 1, locked: false }),
 }));
 
 // ── Helpers ──────────────────────────────────────────────────────
