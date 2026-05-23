@@ -102,7 +102,7 @@ ${featuresArray}
   // (CodeQL js/file-system-race).
   try {
     fs.writeFileSync(configPath, fileContent, { encoding: "utf-8", flag: "wx" });
-  } catch (err) {
+  } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === "EEXIST") {
       console.error(`\n❌  ${configPath} already exists. Aborting.`);
       process.exit(1);
