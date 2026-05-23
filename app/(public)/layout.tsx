@@ -9,8 +9,6 @@ import type { SiteThemeConfig, LayoutVariant } from "./components/theme-provider
 import CookieConsentCmp from "./components/cookie-consent-cmp";
 import { Toaster } from "sonner";
 import { logger } from "@/lib/logger";
-import { headers } from "next/headers";
-import { NONCE_HEADER } from "@/lib/csp";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -51,10 +49,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
-  // H-10: pull the per-request CSP nonce set by middleware so the
-  // ThemeProvider's inline <style> can be allow-listed without needing
-  // `'unsafe-inline'` in style-src.
-  const hdrs = await headers();
+  // TODO(#453, 2026-07-31): wire the per-request CSP nonce from middleware
+  // (`NONCE_HEADER`) into ThemeProvider's inline <style> so style-src can
+  // drop `'unsafe-inline'`. The previous `const hdrs = await headers()` was
+  // never consumed — the ThemeProvider client component would need a
+  // `nonce` prop first.
 
   // Read DB row for dynamic theme overrides, nav items, and footer nav
   let dbTheme: Partial<SiteThemeConfig> = {};

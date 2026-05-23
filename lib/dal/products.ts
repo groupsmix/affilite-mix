@@ -11,7 +11,7 @@ const TABLE = "products";
 // types/database.ts) whenever a column is added so select("*") never silently
 // over-returns new sensitive columns.
 const LIST_COLUMNS =
-  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, created_at, updated_at" as const;
+  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at" as const;
 
 export type ProductSortColumn =
   | "name"
@@ -215,8 +215,21 @@ export const getProductBySlugPublic = unstable_cache(
   { revalidate: 60, tags: ["products"] },
 );
 
+/**
+ * ISO18-001: Optimistic locking — if `expectedVersion` is supplied, the update
+ * will only succeed when the current row's `version` matches. On mismatch a
+ * ConflictError is thrown so the caller can inform the user about the stale write.
+ */
+export class ConflictError extends Error {
+  public readonly code = "CONFLICT";
+  constructor(message = "Concurrent modification detected — please refresh and retry") {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
 export async function createProduct(
-  input: Omit<ProductRow, "id" | "created_at" | "updated_at">,
+  input: Omit<ProductRow, "id" | "created_at" | "updated_at" | "version">,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductRow> {
   const sb = await getClient();
@@ -226,7 +239,7 @@ export async function createProduct(
 }
 
 export async function bulkCreateProducts(
-  inputs: Omit<ProductRow, "id" | "created_at" | "updated_at">[],
+  inputs: Omit<ProductRow, "id" | "created_at" | "updated_at" | "version">[],
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductRow[]> {
   if (inputs.length === 0) return [];
@@ -239,19 +252,37 @@ export async function bulkCreateProducts(
 export async function updateProduct(
   siteId: string,
   id: string,
-  input: Partial<Omit<ProductRow, "id" | "site_id" | "created_at" | "updated_at">>,
+  input: Partial<Omit<ProductRow, "id" | "site_id" | "created_at" | "updated_at" | "version">>,
   getClient: DalClientGetter = defaultDalClientGetter,
+  /** ISO18-001: Pass the version the client last read to enable optimistic lock. */
+  expectedVersion?: number,
 ): Promise<ProductRow> {
   const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .update(input)
-    .eq("site_id", siteId)
-    .eq("id", id)
-    .select()
-    .single();
 
-  if (error) throw error;
+  // P0-FIX (A97): Never set version to a literal value from the client.
+  // When expectedVersion is supplied, filter on it to detect conflicts.
+  // The version column is always incremented atomically via a DB trigger
+  // (or fallback: version = version + 1 via RPC). When no expectedVersion
+  // is supplied, we simply don't filter on version (no optimistic lock).
+  let query = sb.from(TABLE).update(input).eq("site_id", siteId).eq("id", id);
+
+  // ISO18-001: When the caller supplies an expected version, add it as a
+  // filter. If the row's version differs (concurrent edit) the update will
+  // match zero rows and PostgREST returns PGRST116.
+  if (expectedVersion !== undefined) {
+    query = query.eq("version", expectedVersion);
+  }
+
+  const { data, error } = await query.select().single();
+
+  if (error) {
+    // PGRST116 = "JSON object requested, multiple (or no) rows returned"
+    // When optimistic lock is active, this means the version didn't match.
+    if (error.code === "PGRST116" && expectedVersion !== undefined) {
+      throw new ConflictError();
+    }
+    throw error;
+  }
   return assertRow<ProductRow>(data, "Product");
 }
 

@@ -218,9 +218,11 @@ export async function createToken(payload: AdminPayload, request?: Request): Pro
  * mismatch returns null so the session is treated as invalid.
  */
 export async function verifyToken(token: string, request?: Request): Promise<AdminPayload | null> {
+  // SECURITY-FIX: Specify allowed algorithms to prevent algorithm confusion (JWT-001 / CWE-347)
   const jwtOpts = {
     audience: "affilite-mix-admin",
     issuer: "affilite-mix-auth",
+    algorithms: ["HS256"] as string[],
   };
 
   let payload: Record<string, unknown> | null = null;

@@ -125,6 +125,8 @@ export interface ProductRow {
   deal_expires_at: string | null;
   pros: string;
   cons: string;
+  /** ISO18-001: Optimistic locking version — incremented on every update. */
+  version: number;
   created_at: string;
   updated_at: string;
 }
