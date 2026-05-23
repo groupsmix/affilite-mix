@@ -50,7 +50,14 @@ function nicheNotFoundResponse(request: NextRequest): NextResponse {
  * Also handles CSRF protection for state-changing API routes.
  */
 async function innerMiddleware(request: NextRequest) {
-  const { pathname, hostname } = request.nextUrl;
+  const { pathname } = request.nextUrl;
+  let { hostname } = request.nextUrl;
+
+  // SECURITY-FIX: Sanitize hostname to prevent prototype pollution and path traversal
+  // in KV key construction (T1-001, T1-003 / CWE-1321, CWE-22)
+  if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i.test(hostname) || hostname.length > 253) {
+    return nicheNotFoundResponse(request);
+  }
 
   // ── Maintenance mode (A-023 / F-PERF-02) ──────────────
   // Checked early so every route (including API) can be taken offline

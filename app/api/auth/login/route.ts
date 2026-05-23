@@ -61,6 +61,17 @@ async function isBreachedPassword(password: string): Promise<boolean> {
 }
 
 /**
+ * SECURITY-FIX: Global rate limit for all login attempts across all IPs (D3-001 / CWE-400).
+ * Prevents distributed bcrypt CPU exhaustion: 1000 IPs x 3/15min = 3000 bcrypt ops.
+ * Cap at 100 login attempts per minute globally to bound total CPU spend.
+ */
+const LOGIN_RATE_LIMIT_GLOBAL = {
+  maxRequests: 100,
+  windowMs: 60 * 1000,
+  failPolicy: "closed" as const,
+};
+
+/**
  * G-50: 3 login attempts per 15 minutes per IP.
  * Tightened from 5/15min after dropping bcrypt to cost-10, so the per-IP
  * guess budget stays roughly equivalent to the old cost-12 setup.
@@ -91,6 +102,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // SECURITY-FIX: Global rate limit to prevent distributed bcrypt CPU exhaustion (D3-001)
+    const globalRl = await checkRateLimit("login:global", LOGIN_RATE_LIMIT_GLOBAL);
+    if (!globalRl.allowed) {
+      return apiError(429, "Too many login attempts. Try again later.", undefined, {
+        "Retry-After": String(Math.ceil(globalRl.retryAfterMs / 1000)),
+        ...rateLimitHeaders(LOGIN_RATE_LIMIT_GLOBAL, globalRl),
+      });
+    }
+
     const ip = getClientIp(request);
     const rl = await checkRateLimit(`login:${ip}`, LOGIN_RATE_LIMIT_IP);
     if (!rl.allowed) {
