@@ -120,7 +120,8 @@ function findAllMatches(
   fullHtml: string,
 ): MatchPosition[] {
   const positions: MatchPosition[] = [];
-  const pattern = new RegExp(`(?<=>|^)([^<]*?)\\b(${escapedName})\\b`, "gi");
+  // escapedName is already escaped by injectProductLinks, so it's safe to use in RegExp
+  const pattern = new RegExp(`(?:^|>)([^<]*?)\\b(${escapedName})\\b`, "gi");
 
   for (const seg of segments) {
     if (seg.isAnchor) continue;

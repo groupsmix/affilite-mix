@@ -71,10 +71,15 @@ export function SandboxedAd({ adCode, provider, className }: SandboxedAdProps) {
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
+      // SEC-12: Validate postMessage origin to prevent cross-origin attacks.
+      // The iframe uses srcdoc (no separate origin) so we check the source matches
+      // the iframe's content window rather than relying on origin string.
       if (
         event.source === iframeRef.current?.contentWindow &&
         event.data?.type === "__ad_resize" &&
-        typeof event.data.height === "number"
+        typeof event.data.height === "number" &&
+        event.data.height > 0 &&
+        event.data.height < 10000 // Sanity check: reasonable ad height
       ) {
         setHeight(event.data.height);
       }

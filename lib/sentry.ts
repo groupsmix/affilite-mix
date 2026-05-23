@@ -108,7 +108,7 @@ export function captureException(error: unknown, context?: Record<string, unknow
     }
   }
   // Always log to console as well for Cloudflare's built-in log stream
-  console.error("[error]", error, context ?? "");
+  console.error("[error]", String(error), context ?? "");
 }
 
 /**

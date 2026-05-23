@@ -22,9 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - name: Rollback deployment
-        run: |
-          echo "Rolling back to deployment: ${{ inputs.deployment_id }}"
-          npx wrangler rollback --message "Rollback to ${{ inputs.deployment_id }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ENVIRONMENT: ${{ inputs.environment }}
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+        run: |
+          echo "Rolling back to deployment: $DEPLOYMENT_ID"
+          npx wrangler rollback --message "Rollback to $DEPLOYMENT_ID"

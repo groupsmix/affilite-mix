@@ -48,14 +48,14 @@ export async function POST(request: NextRequest) {
           // Strip PII from document URL
           document_url:
             typeof violation.document_uri === "string"
-              ? violation.document_uri.replace(/[\?#].*$/, "").slice(0, 200)
+              ? violation.document_uri.replace(/[?#].*$/, "").slice(0, 200)
               : undefined,
           violated_directive: violation["violated-directive"],
           blocked_uri: violation["blocked-uri"],
           original_policy: violation["original-policy"],
           referrer:
             typeof violation.referrer === "string"
-              ? violation.referrer.replace(/[\?#].*$/, "").slice(0, 200)
+              ? violation.referrer.replace(/[?#].*$/, "").slice(0, 200)
               : undefined,
         },
       },

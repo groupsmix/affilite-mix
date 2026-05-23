@@ -24,11 +24,14 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Deploy canary
+        env:
+          PERCENTAGE: ${{ inputs.percentage }}
         run: |
-          echo "Deploying canary at ${{ inputs.percentage }}%"
+          echo "Deploying canary at ${PERCENTAGE}%"
       - name: Post-deploy smoke tests
+        env:
+          SMOKE_HOST: ${{ inputs.smoke_host }}
         run: |
-          SMOKE_HOST="${{ inputs.smoke_host }}"
           curl -sf "https://${SMOKE_HOST}/" > /dev/null
           curl -sf "https://${SMOKE_HOST}/api/health" > /dev/null
           curl -sf "https://${SMOKE_HOST}/sitemap.xml" > /dev/null
