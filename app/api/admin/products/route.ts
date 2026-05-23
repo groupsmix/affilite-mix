@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { productsTag } from "@/lib/cache-tags";
-import { listProducts, createProduct, updateProduct, deleteProduct } from "@/lib/dal/products";
+import { listProducts, createProduct, updateProduct, deleteProduct, ConflictError } from "@/lib/dal/products";
 import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
 import { withAuthz } from "@/lib/authz";
+import { authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 
 export const GET = withAuthz("products", "view", async (request: NextRequest, { siteId }) => {
@@ -110,6 +111,23 @@ export const PATCH = withAuthz(
     }
 
     const { id, ...updates } = parsed.data;
+
+    // ISO18-003 / IDOR defense-in-depth: verify the product belongs to the
+    // active tenant before allowing mutation. This closes the TOCTOU gap where
+    // a product could be moved between the withAuthz site check and the actual
+    // update, and prevents cross-tenant writes via ID guessing.
+    const authzResult = await authorizeResource({
+      session,
+      feature: "products",
+      action: "edit",
+      resourceType: "product",
+      resourceId: id,
+      expectedSiteId: siteId,
+    });
+    if (!authzResult.ok) {
+      return authorizationErrorResponse(authzResult);
+    }
+
     // G-01: validate URL fields on edit too (not just create).
     const urlErr = validateAdminUrlFields({
       ...(updates.affiliate_url !== undefined && { affiliate_url: updates.affiliate_url }),
@@ -118,8 +136,14 @@ export const PATCH = withAuthz(
     if (urlErr) {
       return NextResponse.json({ error: urlErr.error }, { status: 400 });
     }
+    // ISO18-001: Extract version for optimistic locking. When supplied by the
+    // client (from the last GET), concurrent edits are detected and rejected
+    // with 409 instead of silently overwriting.
+    const expectedVersion =
+      typeof rawOrError.version === "number" ? rawOrError.version : undefined;
+
     try {
-      const product = await updateProduct(siteId, id, updates);
+      const product = await updateProduct(siteId, id, updates, undefined, expectedVersion);
       void revalidateTag(productsTag(siteId));
       void recordAuditEvent({
         site_id: siteId,
@@ -131,6 +155,12 @@ export const PATCH = withAuthz(
       });
       return NextResponse.json(product);
     } catch (err) {
+      if (err instanceof ConflictError) {
+        return NextResponse.json(
+          { error: err.message, code: "CONFLICT" },
+          { status: 409 },
+        );
+      }
       captureException(err, { context: "[api/admin/products] PATCH update failed:" });
       return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
     }
@@ -157,6 +187,21 @@ export const DELETE = withAuthz(
     // RC-05: Validate UUID format before hitting the database
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
+    }
+
+    // ISO18-003 / IDOR defense-in-depth: verify the product belongs to the
+    // active tenant before allowing deletion. Prevents cross-tenant deletes
+    // via ID guessing even though deleteProduct filters by siteId.
+    const authzResult = await authorizeResource({
+      session,
+      feature: "products",
+      action: "delete",
+      resourceType: "product",
+      resourceId: id,
+      expectedSiteId: siteId,
+    });
+    if (!authzResult.ok) {
+      return authorizationErrorResponse(authzResult);
     }
 
     try {
