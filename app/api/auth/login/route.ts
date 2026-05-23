@@ -16,7 +16,7 @@ import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { ACTIVITY_COOKIE, BINDING_COOKIE } from "@/lib/auth";
 import { logger } from "@/lib/logger";
-import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
+import { getAdminUserByEmail, updateAdminUser, incrementLoginFailedAttempts } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
@@ -135,12 +135,23 @@ export async function POST(request: NextRequest) {
       return apiError(403, turnstileResult.error ?? "Captcha verification failed");
     }
 
+    // SECURITY-FIX: Length limit on email to prevent CPU waste (V14-001 / CWE-1284)
+    if (email && email.length > 320) {
+      return apiError(400, "Email exceeds maximum length");
+    }
+
     if (!email || !isValidEmail(email)) {
       return apiError(400, "Valid email is required");
     }
 
     if (!password) {
       return apiError(400, "password is required");
+    }
+
+    // SECURITY-FIX: Length limit on password before bcrypt (V14-005 / CWE-1284)
+    // Bcrypt truncates at 72 bytes; anything longer wastes CPU parsing the body.
+    if (password.length > 128) {
+      return apiError(400, "Password exceeds maximum length");
     }
 
     // A153: Block disposable / throwaway email addresses on the admin login path too
@@ -179,15 +190,9 @@ export async function POST(request: NextRequest) {
     const authResult = await authenticateUser(email, password);
     if (!authResult) {
       if (userRecord) {
-        const attempts = (userRecord.login_failed_attempts || 0) + 1;
-        const updates: { login_failed_attempts: number; login_locked_until?: string | null } = {
-          login_failed_attempts: attempts,
-        };
-        if (attempts >= 10) {
-          updates.login_locked_until = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-        }
+        // SECURITY-FIX: Use atomic increment to prevent race condition (R10-004 / CWE-362)
         try {
-          await updateAdminUser(userRecord.id, updates);
+          await incrementLoginFailedAttempts(userRecord.id, 10, 60 * 60 * 1000);
         } catch (e: any) {
           // Ignore missing column errors if the 00096 migration hasn't run yet
           if (e.code !== "42703") {
