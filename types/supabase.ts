@@ -461,6 +461,12 @@ export interface Database {
           content_slug: string;
           referrer: string;
           created_at: string;
+          // A158/A162: privacy fields added in migration
+          // 2026052301_affiliate_clicks_privacy.sql. Nulled by the
+          // data-retention cron after 30 days (ip_prefix) and 24 hours
+          // (fingerprint).
+          ip_prefix: string | null;
+          fingerprint: string | null;
         };
         Insert: {
           id?: string;
@@ -471,6 +477,8 @@ export interface Database {
           content_slug?: string;
           referrer?: string;
           created_at?: string;
+          ip_prefix?: string | null;
+          fingerprint?: string | null;
         };
         Update: {
           id?: string;
@@ -481,6 +489,8 @@ export interface Database {
           content_slug?: string;
           referrer?: string;
           created_at?: string;
+          ip_prefix?: string | null;
+          fingerprint?: string | null;
         };
         Relationships: [
           {
