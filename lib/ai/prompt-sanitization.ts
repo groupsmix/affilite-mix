@@ -73,11 +73,11 @@ const CONTROL_TOKEN_PATTERNS: ReadonlyArray<RegExp> = [
   /(^|\n)\s*(?:system|assistant|developer)\s*:\s*/gi,
   // A115 audit fix: Multilingual role-impersonation variants.
   // Arabic: نظام (system), مساعد (assistant), مطور (developer)
-  /(^|\n)\s*(?:\u0646\u0638\u0627\u0645|\u0645\u0633\u0627\u0639\u062F|\u0645\u0637\u0648\u0631)\s*[::\uFF1A]\s*/gim,
+  /(^|\n)\s*(?:\u0646\u0638\u0627\u0645|\u0645\u0633\u0627\u0639\u062F|\u0645\u0637\u0648\u0631)\s*[:\uFF1A]\s*/gim,
   // Cyrillic: система (system), ассистент (assistant), разработчик (developer)
-  /(^|\n)\s*(?:\u0441\u0438\u0441\u0442\u0435\u043C\u0430|\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043D\u0442|\u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A)\s*[::\uFF1A]\s*/gim,
+  /(^|\n)\s*(?:\u0441\u0438\u0441\u0442\u0435\u043C\u0430|\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043D\u0442|\u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A)\s*[:\uFF1A]\s*/gim,
   // Chinese: 系统 (system), 助手 (assistant), 开发者 (developer)
-  /(^|\n)\s*(?:\u7CFB\u7EDF|\u52A9\u624B|\u5F00\u53D1\u8005)\s*[::\uFF1A]\s*/gim,
+  /(^|\n)\s*(?:\u7CFB\u7EDF|\u52A9\u624B|\u5F00\u53D1\u8005)\s*[:\uFF1A]\s*/gim,
 ];
 
 /** Bytes a tokenizer may interpret as a message boundary. */
