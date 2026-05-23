@@ -1,6 +1,5 @@
-import { getTenantClient } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
-import { assertRows, hasNumberProp } from "./type-guards";
+import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "ad_impressions";

@@ -5,7 +5,6 @@
  * Flags can be toggled without code deploy.
  */
 
-import { getTenantClient } from "@/lib/supabase-server";
 import type { SiteFeatureFlagRow } from "@/types/database";
 import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";

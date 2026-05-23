@@ -23,7 +23,6 @@ const HeroProductCta = dynamic(() =>
   import("../../components/hero-product-cta").then((m) => m.HeroProductCta),
 );
 import { ProsCons } from "../../components/pros-cons";
-import { GiftWorthinessScore } from "../../components/gift-worthiness-score";
 import {
   JsonLd,
   articleJsonLd,

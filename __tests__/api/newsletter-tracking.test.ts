@@ -105,7 +105,9 @@ describe("click tracking rate limiting", () => {
 
 describe("cron authentication", () => {
   it("rejects missing authorization header", () => {
-    const authHeader = null;
+    // Widen the type so the comparison with a Bearer string is a valid
+    // string-vs-string check (CodeQL js/comparison-between-incompatible-types).
+    const authHeader: string | null = null;
     const cronSecret = "test-secret";
     const isValid = authHeader === `Bearer ${cronSecret}`;
     expect(isValid).toBe(false);

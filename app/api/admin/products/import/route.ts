@@ -1,6 +1,6 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
-import { createProduct, bulkCreateProducts } from "@/lib/dal/products";
+import { bulkCreateProducts } from "@/lib/dal/products";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { validateAdminUrl } from "@/lib/admin-url-guard";

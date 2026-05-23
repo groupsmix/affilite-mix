@@ -8,7 +8,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   validateCreateCategory,
-  validateUpdateCategory,
   validateCreateProduct,
   validateUpdateProduct,
   validateCreateContent,

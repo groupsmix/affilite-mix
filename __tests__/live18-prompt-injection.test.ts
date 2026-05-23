@@ -18,7 +18,7 @@
  *   - the admin caller routes user content through `generateContent` /
  *     `generateWithFallback` rather than calling a provider directly.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
