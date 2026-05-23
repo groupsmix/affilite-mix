@@ -198,6 +198,13 @@ export async function authorizeResource(
     return { ok: false, status: 401, reason: "Unauthorized" };
   }
 
+  // SECURITY-FIX: Runtime validation that resourceType is a known key (T1-002 / CWE-89)
+  // TypeScript enums are erased at runtime; an attacker can pass arbitrary strings.
+  const validTypes = Object.keys(RESOURCE_TABLES);
+  if (!validTypes.includes(opts.resourceType)) {
+    return { ok: false, status: 403, reason: "Unknown resource type" };
+  }
+
   const table = RESOURCE_TABLES[opts.resourceType];
   if (!table) {
     return { ok: false, status: 403, reason: "Unknown resource type" };

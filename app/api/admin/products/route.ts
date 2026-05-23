@@ -7,7 +7,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
-import { withAuthz } from "@/lib/authz";
+import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 
 export const GET = withAuthz("products", "view", async (request: NextRequest, { siteId }) => {
@@ -15,10 +15,16 @@ export const GET = withAuthz("products", "view", async (request: NextRequest, { 
   const pagination = parsePagination(searchParams);
   if (pagination instanceof NextResponse) return pagination;
 
+  // SECURITY-FIX: Validate category_id format to prevent NoSQL/query injection (T1-006)
+  const categoryId = searchParams.get("category_id") ?? undefined;
+  if (categoryId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId)) {
+    return NextResponse.json({ error: "category_id must be a valid UUID" }, { status: 400 });
+  }
+
   try {
     const products = await listProducts({
       siteId,
-      categoryId: searchParams.get("category_id") ?? undefined,
+      categoryId,
       status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
       limit: pagination.limit,
       offset: pagination.offset,
@@ -110,6 +116,23 @@ export const PATCH = withAuthz(
     }
 
     const { id, ...updates } = parsed.data;
+
+    // SECURITY-FIX: Validate UUID format for id (IDOR-002)
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
+    }
+
+    // SECURITY-FIX: Verify product belongs to this site before update (IDOR-002 / CWE-639)
+    const authz = await authorizeResource({
+      session,
+      feature: "products",
+      action: "edit",
+      resourceType: "product",
+      resourceId: id,
+      expectedSiteId: siteId,
+    });
+    if (!authz.ok) return authorizationErrorResponse(authz);
+
     // G-01: validate URL fields on edit too (not just create).
     const urlErr = validateAdminUrlFields({
       ...(updates.affiliate_url !== undefined && { affiliate_url: updates.affiliate_url }),
@@ -158,6 +181,17 @@ export const DELETE = withAuthz(
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
     }
+
+    // SECURITY-FIX: Verify product belongs to this site before delete (IDOR-001 / CWE-639)
+    const authz = await authorizeResource({
+      session,
+      feature: "products",
+      action: "delete",
+      resourceType: "product",
+      resourceId: id,
+      expectedSiteId: siteId,
+    });
+    if (!authz.ok) return authorizationErrorResponse(authz);
 
     try {
       await deleteProduct(siteId, id);
