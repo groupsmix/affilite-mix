@@ -142,6 +142,57 @@ export async function updateAdminUser(
   return assertRow<AdminUserRow>(data, "AdminUser");
 }
 
+/**
+ * SECURITY-FIX: Atomically increment login_failed_attempts to prevent race condition (R10-004 / CWE-362).
+ * Uses Supabase RPC to perform atomic increment and conditional lockout in a single DB round-trip.
+ * Falls back to non-atomic update if the RPC function doesn't exist yet.
+ */
+export async function incrementLoginFailedAttempts(
+  id: string,
+  lockoutThreshold: number = 10,
+  lockoutDurationMs: number = 60 * 60 * 1000,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<{ attempts: number; locked: boolean }> {
+  const sb = await getClient();
+
+  // Try atomic RPC first (requires DB function: increment_login_failed_attempts)
+  try {
+    const { data, error } = await sb.rpc("increment_login_failed_attempts", {
+      user_id: id,
+      lockout_threshold: lockoutThreshold,
+      lockout_duration_ms: lockoutDurationMs,
+    });
+    if (!error && data) {
+      return { attempts: data.attempts, locked: data.locked };
+    }
+    // RPC not available — fall through to non-atomic path
+  } catch {
+    // RPC function doesn't exist yet — use fallback
+  }
+
+  // Fallback: non-atomic read-then-write (acceptable until migration runs)
+  const { data: user, error: readErr } = await sb
+    .from(TABLE)
+    .select("login_failed_attempts")
+    .eq("id", id)
+    .single();
+
+  if (readErr) throw readErr;
+
+  const attempts = ((user as any)?.login_failed_attempts ?? 0) + 1;
+  const updates: { login_failed_attempts: number; login_locked_until?: string | null } = {
+    login_failed_attempts: attempts,
+  };
+  if (attempts >= lockoutThreshold) {
+    updates.login_locked_until = new Date(Date.now() + lockoutDurationMs).toISOString();
+  }
+
+  const { error: writeErr } = await sb.from(TABLE).update(updates).eq("id", id);
+  if (writeErr) throw writeErr;
+
+  return { attempts, locked: attempts >= lockoutThreshold };
+}
+
 /** Delete an admin user */
 export async function deleteAdminUser(
   id: string,
