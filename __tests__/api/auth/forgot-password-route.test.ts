@@ -110,7 +110,16 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     capturedResendBody = null;
     originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn().mockImplementation(async (url: string | URL, init?: RequestInit) => {
-      if (String(url).includes("api.resend.com")) {
+      // Match by parsed hostname so a URL like https://evil/api.resend.com/...
+      // cannot accidentally route to the Resend mock branch
+      // (CodeQL js/incomplete-url-substring-sanitization).
+      let host = "";
+      try {
+        host = new URL(String(url)).hostname;
+      } catch {
+        host = "";
+      }
+      if (host === "api.resend.com") {
         capturedResendBody = JSON.parse(init?.body as string);
         return new Response(JSON.stringify({ id: "email-123" }), { status: 200 });
       }

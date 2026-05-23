@@ -45,17 +45,19 @@ export async function POST(request: NextRequest) {
       level: "warning" as const,
       contexts: {
         csp_violation: {
-          // Strip PII from document URL
+          // Strip PII from document URL.
+          // SECURITY: using split() instead of a `[?#].*$` regex avoids a
+          // polynomial-ReDoS shape on long attacker-controlled inputs.
           document_url:
             typeof violation.document_uri === "string"
-              ? violation.document_uri.replace(/[\?#].*$/, "").slice(0, 200)
+              ? violation.document_uri.split(/[?#]/, 1)[0].slice(0, 200)
               : undefined,
           violated_directive: violation["violated-directive"],
           blocked_uri: violation["blocked-uri"],
           original_policy: violation["original-policy"],
           referrer:
             typeof violation.referrer === "string"
-              ? violation.referrer.replace(/[\?#].*$/, "").slice(0, 200)
+              ? violation.referrer.split(/[?#]/, 1)[0].slice(0, 200)
               : undefined,
         },
       },
