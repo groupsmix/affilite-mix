@@ -222,7 +222,7 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   const jwtOpts = {
     audience: "affilite-mix-admin",
     issuer: "affilite-mix-auth",
-    algorithms: ["HS256"] as const,
+    algorithms: ["HS256"] as string[],
   };
 
   let payload: Record<string, unknown> | null = null;
