@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/dal/admin-users", () => ({
   getAdminUserByEmail: vi.fn(),
   updateAdminUser: vi.fn(),
+  incrementLoginFailedAttempts: vi.fn().mockResolvedValue({ attempts: 1, locked: false }),
 }));
 
 // Spy on verifyPassword so we can assert it is always invoked.

@@ -47,6 +47,9 @@ const tableRows: Record<string, Row[]> = {
   ],
 };
 
+/** Set this to a truthy value to make the next maybeSingle() return an error. */
+let forceDbError: { message: string; code: string } | null = null;
+
 function fakeFrom(table: string) {
   const rows = tableRows[table] ?? [];
   return {
@@ -58,6 +61,11 @@ function fakeFrom(table: string) {
       return this;
     },
     async maybeSingle() {
+      if (forceDbError) {
+        const err = forceDbError;
+        forceDbError = null;
+        return { data: null, error: err };
+      }
       const id = (this as { _id?: string })._id;
       const row = rows.find((r) => r.id === id);
       return { data: row ?? null, error: null };
@@ -111,6 +119,7 @@ describe("authorizeResource — cross-tenant negative paths", () => {
     for (const k of Object.keys(memberships)) delete memberships[k];
     for (const k of Object.keys(globalRoles)) delete globalRoles[k];
     currentSession = null;
+    forceDbError = null;
   });
 
   it("rejects an unauthenticated caller (missing site context)", async () => {
@@ -290,6 +299,68 @@ describe("authorizeResource — cross-tenant negative paths", () => {
     if (!result.ok) {
       expect([403, 404]).toContain(result.status);
     }
+  });
+});
+
+// ── Tests: authorizeResource — circuit breaker & validation branches ──
+
+describe("authorizeResource — circuit breaker and input validation branches", () => {
+  beforeEach(() => {
+    for (const k of Object.keys(memberships)) delete memberships[k];
+    for (const k of Object.keys(globalRoles)) delete globalRoles[k];
+    currentSession = null;
+  });
+
+  it("returns 404 when the DB lookup returns an error (circuit breaker catch path)", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+
+    // Force Supabase to return an error so the circuit breaker's catch fires
+    forceDbError = { message: "connection refused", code: "PGRST000" };
+
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "products",
+      action: "edit",
+      resourceType: "product",
+      resourceId: "product-on-A",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(404);
+  });
+
+  it("returns 404 when resourceId is an empty string", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "products",
+      action: "edit",
+      resourceType: "product",
+      resourceId: "",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(404);
+  });
+
+  it("returns 404 when resourceId is not a string", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "products",
+      action: "edit",
+      resourceType: "product",
+      resourceId: 12345 as unknown as string,
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(404);
   });
 });
 
