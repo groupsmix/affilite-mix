@@ -35,6 +35,7 @@ import type { PermissionFeature, PermissionAction } from "@/types/database";
 import { apiError } from "./api-error";
 import { requireAdmin } from "./admin-guard";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getCircuitBreaker } from "@/lib/ai/circuit-breaker";
 
 export type AuthenticatedRouteHandler = (
   request: NextRequest,
@@ -198,6 +199,13 @@ export async function authorizeResource(
     return { ok: false, status: 401, reason: "Unauthorized" };
   }
 
+  // SECURITY-FIX: Runtime validation that resourceType is a known key (T1-002 / CWE-89)
+  // TypeScript enums are erased at runtime; an attacker can pass arbitrary strings.
+  const validTypes = Object.keys(RESOURCE_TABLES);
+  if (!validTypes.includes(opts.resourceType)) {
+    return { ok: false, status: 403, reason: "Unknown resource type" };
+  }
+
   const table = RESOURCE_TABLES[opts.resourceType];
   if (!table) {
     return { ok: false, status: 403, reason: "Unknown resource type" };
@@ -207,14 +215,22 @@ export async function authorizeResource(
     return { ok: false, status: 404, reason: "Resource not found" };
   }
 
-  const sb = getPrivilegedSupabaseClient();
-  const { data, error } = await sb
-    .from(table)
-    .select("site_id")
-    .eq("id", opts.resourceId)
-    .maybeSingle();
+  // A98/A99: Circuit breaker around privileged DB call to prevent cascade
+  // failure if the Supabase primary is degraded or down.
+  const cb = getCircuitBreaker("authorizeResource", {
+    failureThreshold: 5,
+    recoveryTimeoutMs: 30_000,
+  });
 
-  if (error) {
+  let data: { site_id: string } | null = null;
+  try {
+    data = await cb.execute(async () => {
+      const sb = getPrivilegedSupabaseClient();
+      const result = await sb.from(table).select("site_id").eq("id", opts.resourceId).maybeSingle();
+      if (result.error) throw result.error;
+      return result.data as { site_id: string } | null;
+    });
+  } catch {
     // Don't differentiate "row missing" from "lookup error" to the caller —
     // both must look the same so cross-tenant ids cannot be probed.
     return { ok: false, status: 404, reason: "Resource not found" };
