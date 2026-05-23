@@ -73,7 +73,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Validate email format
+  // Validate email format.
+  // SECURITY: bound length before regex to prevent polynomial-ReDoS via
+  // long crafted inputs (the `[^\s@]+...[^\s@]+` shape can backtrack
+  // quadratically). 254 is the RFC 5321 SMTP path length cap.
+  if (typeof body.user_email !== "string" || body.user_email.length > 254) {
+    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+  }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(body.user_email)) {
     return NextResponse.json({ error: "Invalid email format" }, { status: 400 });

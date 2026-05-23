@@ -71,10 +71,20 @@ export function SandboxedAd({ adCode, provider, className }: SandboxedAdProps) {
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
+      // SEC-12: Validate postMessage origin to prevent cross-origin attacks.
+      // The iframe uses srcdoc without `allow-same-origin`, so its posts
+      // arrive from a unique opaque origin which serialises as the literal
+      // string "null". We check BOTH the source (must be our iframe's
+      // window) AND the origin (must be the opaque "null") so a different
+      // window cannot spoof a resize message.
+      // See https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
       if (
         event.source === iframeRef.current?.contentWindow &&
+        event.origin === "null" &&
         event.data?.type === "__ad_resize" &&
-        typeof event.data.height === "number"
+        typeof event.data.height === "number" &&
+        event.data.height > 0 &&
+        event.data.height < 10000 // Sanity check: reasonable ad height
       ) {
         setHeight(event.data.height);
       }
