@@ -6,7 +6,13 @@
  * verifying HTTP status codes, response bodies, and error handling.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { validateCreateCategory, validateCreateProduct, validateUpdateProduct, validateCreateContent, validateUpdateContent } from "@/lib/validation";
+import {
+  validateCreateCategory,
+  validateCreateProduct,
+  validateUpdateProduct,
+  validateCreateContent,
+  validateUpdateContent,
+} from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 
 // ── Mock Supabase client builder ────────────────────────────────
