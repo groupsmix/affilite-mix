@@ -49,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
-  // TODO(H-10): wire the per-request CSP nonce from middleware
+  // TODO(#453, 2026-07-31): wire the per-request CSP nonce from middleware
   // (`NONCE_HEADER`) into ThemeProvider's inline <style> so style-src can
   // drop `'unsafe-inline'`. The previous `const hdrs = await headers()` was
   // never consumed — the ThemeProvider client component would need a
