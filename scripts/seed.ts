@@ -127,12 +127,7 @@ async function seedCategories(siteIds: Map<string, string>) {
       });
 
       if (error) {
-        console.error(
-          '  Failed to seed category "%s" for %s:',
-          cat.slug,
-          slug,
-          error.message,
-        );
+        console.error('  Failed to seed category "%s" for %s:', cat.slug, slug, error.message);
       }
     }
     console.log('  Seeded categories for "%s"', slug);
@@ -217,12 +212,7 @@ async function seedProducts(siteIds: Map<string, string>) {
       });
 
       if (error) {
-        console.error(
-          '  Failed to seed product "%s" for %s:',
-          prod.slug,
-          slug,
-          error.message,
-        );
+        console.error('  Failed to seed product "%s" for %s:', prod.slug, slug, error.message);
       }
     }
     console.log('  Seeded products for "%s"', slug);
@@ -272,12 +262,7 @@ async function seedContent(siteIds: Map<string, string>) {
       });
 
       if (error) {
-        console.error(
-          '  Failed to seed content "%s" for %s:',
-          article.slug,
-          slug,
-          error.message,
-        );
+        console.error('  Failed to seed content "%s" for %s:', article.slug, slug, error.message);
       }
     }
     console.log('  Seeded content for "%s"', slug);

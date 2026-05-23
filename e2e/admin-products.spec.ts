@@ -2,7 +2,6 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Admin Products Page", () => {
   test("should redirect unauthenticated users to login", async ({ page }) => {
-
     // Should either redirect to login or show an auth error
     await expect(page).toHaveURL(/\/admin\/login|\/admin/);
   });
