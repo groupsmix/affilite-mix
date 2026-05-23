@@ -97,12 +97,18 @@ ${featuresArray}
   const configDir = path.resolve(__dirname, "../config/sites");
   const configPath = path.join(configDir, `${id}.ts`);
 
-  if (fs.existsSync(configPath)) {
-    console.error(`\n❌  ${configPath} already exists. Aborting.`);
-    process.exit(1);
+  // SECURITY: use the "wx" flag for an atomic check-and-create. The
+  // previous `existsSync` + `writeFileSync` pattern was a TOCTOU race
+  // (CodeQL js/file-system-race).
+  try {
+    fs.writeFileSync(configPath, fileContent, { encoding: "utf-8", flag: "wx" });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      console.error(`\n❌  ${configPath} already exists. Aborting.`);
+      process.exit(1);
+    }
+    throw err;
   }
-
-  fs.writeFileSync(configPath, fileContent, "utf-8");
   console.log(`\n✅  Created ${configPath}`);
 
   // Update index.ts

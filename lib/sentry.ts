@@ -107,8 +107,23 @@ export function captureException(error: unknown, context?: Record<string, unknow
       sentryCaptureException(error, { data: context });
     }
   }
-  // Always log to console as well for Cloudflare's built-in log stream
-  console.error("[error]", String(error), context ?? "");
+  // Always log to console as well for Cloudflare's built-in log stream.
+  // SECURITY: strip CR/LF from context string values before logging so a
+  // user-controlled value cannot inject a fake log line into Cloudflare's
+  // log stream (CodeQL js/log-injection).
+  console.error("[error]", error, sanitizeLogContext(context));
+}
+
+/** Replace CR/LF with spaces in all string fields of a context object. */
+function sanitizeLogContext(context: unknown): unknown {
+  if (context == null) return "";
+  if (typeof context === "string") return context.replace(/[\r\n]+/g, " ");
+  if (typeof context !== "object") return context;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(context as Record<string, unknown>)) {
+    out[k] = typeof v === "string" ? v.replace(/[\r\n]+/g, " ") : v;
+  }
+  return out;
 }
 
 /**
