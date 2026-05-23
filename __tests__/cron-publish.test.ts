@@ -7,7 +7,7 @@
  * - Scheduled content publishing criteria
  * - Expired product archiving criteria
  */
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { NextRequest } from "next/server";
 

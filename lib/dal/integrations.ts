@@ -5,7 +5,6 @@
  * integration providers and per-site integration instances.
  */
 
-import { getTenantClient } from "@/lib/supabase-server";
 import type { IntegrationProviderRow, SiteIntegrationRow } from "@/types/database";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";

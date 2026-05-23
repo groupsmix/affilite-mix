@@ -125,18 +125,24 @@ const worker = {
           const body = await res.text();
           if (res.ok) {
             console.log(
-              `[scheduled] cron=${controller.cron} -- ${path} responded ${res.status}:`,
+              "[scheduled] cron=%s -- %s responded %s:",
+              controller.cron,
+              path,
+              res.status,
               body,
             );
           } else {
             console.error(
-              `[scheduled] cron=${controller.cron} -- ${path} failed ${res.status}:`,
+              "[scheduled] cron=%s -- %s failed %s:",
+              controller.cron,
+              path,
+              res.status,
               body,
             );
           }
         })
         .catch((err: unknown) => {
-          console.error(`[scheduled] cron=${controller.cron} -- fetch error:`, err);
+          console.error("[scheduled] cron=%s -- fetch error:", controller.cron, err);
         }),
     );
   },
@@ -190,7 +196,8 @@ const worker = {
               } else {
                 const bodyText = await res.text().catch(() => "");
                 console.error(
-                  `[queue/click-tracking-dlq] DLQ persistence returned ${res.status} — retrying batch:`,
+                  "[queue/click-tracking-dlq] DLQ persistence returned %s — retrying batch:",
+                  res.status,
                   bodyText,
                 );
                 batch.retryAll();

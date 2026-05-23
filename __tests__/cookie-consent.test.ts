@@ -8,9 +8,8 @@
  * - Feature flag gating of cookie consent per site
  * - Cross-tab consent synchronization via localStorage
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { getTrackingUrl } from "@/lib/tracking-url";
-import { getCookieValue } from "@/lib/cookie-utils";
 import { allSites, toSiteRow } from "@/config/sites";
 
 // ── Cookie consent constants ──────────────────────────────────

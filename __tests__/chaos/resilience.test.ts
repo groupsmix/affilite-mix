@@ -6,7 +6,7 @@
  * weekly chaos workflow and can also be triggered manually.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
 describe("Chaos: graceful degradation", () => {
   it("audit-log recordAuditEvent does not throw when DB is unreachable", async () => {

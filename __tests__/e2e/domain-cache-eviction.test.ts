@@ -11,8 +11,6 @@ describe("Domain Cache Eviction (Synthetic Deploy-Time)", () => {
     // 3. Update the site in the database to is_active=false
     // 4. Poll the domain until it returns 404 (or the test times out after e.g., 65 seconds)
 
-    const maxWaitTimeMs = 65000;
-    const testDomain = "synthetic-test-domain-eviction.local";
 
     // Simulate the assertion that the cache honors the 60s TTL
     const cacheEvicted = true; // Mocking the eventual 404 response

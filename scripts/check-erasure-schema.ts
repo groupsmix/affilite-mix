@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { requireEnvInProduction } from "../lib/env";
 
 /**
  * F-DB-04: Ensure `erase_user` RPC stays in sync with schema.
@@ -8,16 +7,10 @@ import { requireEnvInProduction } from "../lib/env";
  * the `erase_user` RPC. If there's drift, CI fails.
  */
 
-const KNOWN_TABLES_WITH_EMAIL = new Set([
-  "admin_users",
-  "newsletter_subscribers",
-  "users", // if any
-  // ... add known tables here that erase_user handles
-]);
-
-// Actually, we can read the 00088_erase_user_rpc.sql directly from the filesystem
-// to see what tables it touches, but a simpler way is just to manually
-// list what we know it *should* touch.
+// NOTE: The previous `KNOWN_TABLES_WITH_EMAIL` constant was never wired up —
+// the real schema-drift comparison would query `information_schema` and diff
+// against the tables touched by `00088_erase_user_rpc.sql`. The implementation
+// below is a placeholder.
 
 async function main() {
   // Only runs if SUPABASE_URL is available
@@ -31,7 +24,7 @@ async function main() {
     process.env.SUPABASE_SERVICE_ROLE_KEY,
   );
 
-  const { data, error } = await sb.rpc("query_information_schema_emails" as any);
+  const { data: _data, error } = await sb.rpc("query_information_schema_emails" as any);
 
   if (error) {
     // If the rpc doesn't exist, we can fallback to raw REST if supported or just skip

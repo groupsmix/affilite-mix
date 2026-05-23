@@ -6,7 +6,6 @@
  * which modules are enabled for each site in the database.
  */
 
-import { getTenantClient } from "@/lib/supabase-server";
 import type { SiteModuleRow } from "@/types/database";
 import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";

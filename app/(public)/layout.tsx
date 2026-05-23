@@ -55,7 +55,6 @@ export default async function PublicLayout({ children }: { children: React.React
   // ThemeProvider's inline <style> can be allow-listed without needing
   // `'unsafe-inline'` in style-src.
   const hdrs = await headers();
-  const nonce = hdrs.get(NONCE_HEADER) ?? undefined;
 
   // Read DB row for dynamic theme overrides, nav items, and footer nav
   let dbTheme: Partial<SiteThemeConfig> = {};

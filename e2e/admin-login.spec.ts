@@ -18,7 +18,6 @@ test.describe("Admin Login Page", () => {
 
     // The form requires password (HTML required attribute), or the API returns an error
     // Wait for either a validation message or an API error
-    const errorBanner = page.locator(".bg-red-50");
     const passwordInput = page.locator('input[type="password"]');
 
     // password input has "required" attribute, so form won't submit

@@ -8,7 +8,7 @@
  * They require a running Supabase instance (integration tests) or mock
  * the DAL layer for unit-level assertions.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 // Mock the Supabase server module so the DAL never touches a real network.
 // Each chain-style method is a no-op that returns the chain itself; awaiting
@@ -37,7 +37,6 @@ vi.mock("@/lib/supabase-server", () => {
 });
 
 // Fixture site IDs — these represent two completely separate tenants
-const SITE_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const SITE_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 
 describe("Tenant Isolation", () => {

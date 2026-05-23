@@ -78,7 +78,7 @@ async function upsertSites(): Promise<Map<string, string>> {
       .single();
 
     if (error) {
-      console.error(`  Failed to create site "${site.slug}":`, error.message);
+      console.error('  Failed to create site "%s":', site.slug, error.message);
       continue;
     }
     siteIds.set(site.slug, data.id);
@@ -127,10 +127,15 @@ async function seedCategories(siteIds: Map<string, string>) {
       });
 
       if (error) {
-        console.error(`  Failed to seed category "${cat.slug}" for ${slug}:`, error.message);
+        console.error(
+          '  Failed to seed category "%s" for %s:',
+          cat.slug,
+          slug,
+          error.message,
+        );
       }
     }
-    console.log(`  Seeded categories for "${slug}"`);
+    console.log('  Seeded categories for "%s"', slug);
   }
 }
 
@@ -212,10 +217,15 @@ async function seedProducts(siteIds: Map<string, string>) {
       });
 
       if (error) {
-        console.error(`  Failed to seed product "${prod.slug}" for ${slug}:`, error.message);
+        console.error(
+          '  Failed to seed product "%s" for %s:',
+          prod.slug,
+          slug,
+          error.message,
+        );
       }
     }
-    console.log(`  Seeded products for "${slug}"`);
+    console.log('  Seeded products for "%s"', slug);
   }
 }
 
@@ -262,10 +272,15 @@ async function seedContent(siteIds: Map<string, string>) {
       });
 
       if (error) {
-        console.error(`  Failed to seed content "${article.slug}" for ${slug}:`, error.message);
+        console.error(
+          '  Failed to seed content "%s" for %s:',
+          article.slug,
+          slug,
+          error.message,
+        );
       }
     }
-    console.log(`  Seeded content for "${slug}"`);
+    console.log('  Seeded content for "%s"', slug);
   }
 }
 

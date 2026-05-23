@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withAuthzDynamic, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { getPageById, updatePage, deletePage } from "@/lib/dal/pages";
 import { sanitizeHtml } from "@/lib/sanitize-html";

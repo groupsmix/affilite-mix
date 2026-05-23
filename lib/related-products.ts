@@ -1,4 +1,3 @@
-import { getTenantClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
 
