@@ -25,6 +25,7 @@ function makeProduct(overrides: Partial<ProductRow> = {}): ProductRow {
     deal_expires_at: null,
     pros: "",
     cons: "",
+    version: 1,
     created_at: "",
     updated_at: "",
     ...overrides,
