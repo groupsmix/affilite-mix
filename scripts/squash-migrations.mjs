@@ -17,7 +17,7 @@
  */
 
 import { readdir, readFile, writeFile } from "node:fs/promises";
-import { join, basename } from "node:path";
+import { join } from "node:path";
 
 const MIGRATIONS_DIR = "supabase/migrations";
 const DEFAULT_OUT = "supabase/migrations/baseline.sql";

@@ -1,4 +1,4 @@
-import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
+import { getAnonClient } from "@/lib/supabase-server";
 import { isSupabaseConfigured } from "@/lib/db-available";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { PageRow } from "@/types/database";

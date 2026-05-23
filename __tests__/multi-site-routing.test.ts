@@ -16,7 +16,6 @@ import {
   isWildcardSubdomain,
   extractSubdomain,
   toSiteRow,
-  WILDCARD_PARENT_DOMAINS,
 } from "@/config/sites";
 
 afterEach(() => {

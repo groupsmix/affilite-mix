@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
+import { getAnonClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";

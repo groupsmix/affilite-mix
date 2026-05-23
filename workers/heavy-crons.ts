@@ -85,13 +85,13 @@ const worker = {
         .then(async (res: Response) => {
           const body = await res.text();
           if (res.ok) {
-            console.log(`[heavy-crons] ${job.name} responded ${res.status}:`, body);
+            console.log("[heavy-crons] %s responded %s:", job.name, res.status, body);
           } else {
-            console.error(`[heavy-crons] ${job.name} failed ${res.status}:`, body);
+            console.error("[heavy-crons] %s failed %s:", job.name, res.status, body);
           }
         })
         .catch((err: unknown) => {
-          console.error(`[heavy-crons] ${job.name} fetch error:`, err);
+          console.error("[heavy-crons] %s fetch error:", job.name, err);
         }),
     );
   },

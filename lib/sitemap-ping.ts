@@ -16,10 +16,10 @@ export async function pingSitemapIndexers(sitemapUrl: string): Promise<void> {
       try {
         const res = await safeFetch(url, { method: "GET" });
         if (!res.ok) {
-          console.warn(`Sitemap ping failed for ${url}: ${res.status}`);
+          console.warn("Sitemap ping failed for %s: %s", url, res.status);
         }
       } catch (err) {
-        console.warn(`Sitemap ping error for ${url}:`, err);
+        console.warn("Sitemap ping error for %s:", url, err);
       }
     }),
   );

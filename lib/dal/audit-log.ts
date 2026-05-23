@@ -1,5 +1,3 @@
-import { truncateIp } from "../get-client-ip";
-import { getTenantClient } from "@/lib/supabase-server";
 import { escapeLike } from "./search-utils";
 import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";

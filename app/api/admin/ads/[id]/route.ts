@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withAuthzDynamic, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { updateAdPlacement, deleteAdPlacement } from "@/lib/dal/ad-placements";
 import { recordAuditEvent } from "@/lib/audit-log";

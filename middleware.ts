@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSiteByDomain } from "@/config/sites";
-import { validateCsrfToken, generateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
-import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { validateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { getMiddlewareSiteRowByDomain } from "@/lib/middleware-site-lookup";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
 import { buildCspHeader, generateCspNonce, NONCE_HEADER, buildReportToHeader } from "@/lib/csp";
@@ -471,11 +470,10 @@ async function innerMiddleware(request: NextRequest) {
   }
 
   // ── Inject x-site-id and trace-id headers into request ──
+  // siteId is guaranteed non-null at this point: the `if (!siteId)` guard
+  // above returns `nicheNotFoundResponse(request)` for the falsy case.
   const requestHeaders = new Headers(request.headers);
-  if (siteId) {
-    requestHeaders.set("x-site-id", siteId);
-  }
-
+  requestHeaders.set("x-site-id", siteId);
   requestHeaders.set(TRACE_ID_HEADER, traceId);
 
   // ── CSP nonce generation (H-10) ─────────────────────

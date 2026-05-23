@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
 import { getUploadUrl, isR2Configured, R2_MAX_UPLOAD_BYTES, sanitizeOriginalName } from "@/lib/r2";
 import { captureException } from "@/lib/sentry";

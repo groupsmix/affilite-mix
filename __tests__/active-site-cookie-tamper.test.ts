@@ -3,7 +3,7 @@
  *
  * Validates that signed cookie values reject tampering.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { signCookieValue, verifyCookieValue } from "@/lib/signed-cookie";
 
 // Mock the JWT secret

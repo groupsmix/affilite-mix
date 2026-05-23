@@ -1,4 +1,3 @@
-import { getTenantClient } from "@/lib/supabase-server";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { AdPlacementRow, AdPlacementType } from "@/types/database";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";

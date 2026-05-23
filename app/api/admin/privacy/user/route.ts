@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { withAuthz } from "@/lib/authz";
 import { getTenantClient } from "@/lib/supabase-server";

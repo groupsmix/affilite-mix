@@ -147,7 +147,7 @@ describe.skipIf(!shouldRunSupabaseIntegration)("Newsletter Flow Integration", ()
 
     // Try to unsubscribe with fake token
     const fakeToken = crypto.randomUUID();
-    const { data, error } = await sb
+    const { data, error: _error } = await sb
       .from("newsletter_subscribers")
       .update({ status: "unsubscribed" })
       .eq("unsubscribe_token", fakeToken)
