@@ -130,16 +130,12 @@ describe("validateGeneratedLinks", () => {
   });
 
   it("passes for allowed domains (Amazon)", () => {
-    const result = validateGeneratedLinks(
-      '<a href="https://www.amazon.com/product/123">Buy</a>',
-    );
+    const result = validateGeneratedLinks('<a href="https://www.amazon.com/product/123">Buy</a>');
     expect(result.valid).toBe(true);
   });
 
   it("passes for allowed domains (Wikipedia)", () => {
-    const result = validateGeneratedLinks(
-      '<a href="https://en.wikipedia.org/wiki/Watch">Wiki</a>',
-    );
+    const result = validateGeneratedLinks('<a href="https://en.wikipedia.org/wiki/Watch">Wiki</a>');
     expect(result.valid).toBe(true);
   });
 
