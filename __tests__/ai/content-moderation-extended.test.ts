@@ -103,7 +103,9 @@ describe("containsRegulatoryTerms", () => {
   });
 
   it("detects multiple terms", () => {
-    const result = containsRegulatoryTerms("FDA approved and CE certified product, clinically proven");
+    const result = containsRegulatoryTerms(
+      "FDA approved and CE certified product, clinically proven",
+    );
     expect(result.length).toBeGreaterThanOrEqual(3);
   });
 
@@ -115,7 +117,9 @@ describe("containsRegulatoryTerms", () => {
 
 describe("moderateOutputExtended", () => {
   it("passes clean content without warnings", () => {
-    const result = moderateOutputExtended("A great watch review with nice features and good quality.");
+    const result = moderateOutputExtended(
+      "A great watch review with nice features and good quality.",
+    );
     expect(result.passed).toBe(true);
     expect(result.regulatoryWarnings).toBeUndefined();
   });
@@ -136,7 +140,9 @@ describe("moderateOutputExtended", () => {
   });
 
   it("fails when secrets detected", () => {
-    const result = moderateOutputExtended("Use sk-abcdefghijklmnopqrstuvwxyz1234567890 for API access");
+    const result = moderateOutputExtended(
+      "Use sk-abcdefghijklmnopqrstuvwxyz1234567890 for API access",
+    );
     expect(result.passed).toBe(false);
     expect(result.reason).toContain("secrets");
   });
