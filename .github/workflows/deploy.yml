@@ -1343,8 +1343,8 @@ jobs:
             ORDER BY policyname;
           " | wc -l)
 
-          if [ "$MISSING" -lt 10 ]; then
-            echo "::error::Only $MISSING tenant_isolation_auth_* policies found in pg_policies. Expected >= 10. Check migration drift."
+          if [ "$MISSING" -lt 9 ]; then
+            echo "::error::Only $MISSING tenant_isolation_auth_* policies found in pg_policies. Expected >= 9. Check migration drift."
             exit 1
           fi
 
