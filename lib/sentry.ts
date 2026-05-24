@@ -1,4 +1,5 @@
 import { truncateIp } from "./get-client-ip";
+import { redactLogContext } from "./log-redaction";
 /**
  * Sentry error monitoring helpers for Cloudflare Workers.
  *
@@ -111,7 +112,7 @@ export function captureException(error: unknown, context?: Record<string, unknow
   // SECURITY: strip CR/LF from BOTH the error and context string values
   // before logging so a user-controlled value cannot inject a fake log
   // line into Cloudflare's log stream (CodeQL js/log-injection).
-  console.error("[error]", sanitizeForLog(error), sanitizeLogContext(context));
+  console.error("[error]", sanitizeForLog(error), redactLogContext(context));
 }
 
 /**
@@ -133,18 +134,6 @@ function sanitizeForLog(value: unknown): unknown {
   // Plain object — shallow-sanitize string fields only.
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    out[k] = typeof v === "string" ? v.replace(/[\r\n]+/g, " ") : v;
-  }
-  return out;
-}
-
-/** Replace CR/LF with spaces in all string fields of a context object. */
-function sanitizeLogContext(context: unknown): unknown {
-  if (context == null) return "";
-  if (typeof context === "string") return context.replace(/[\r\n]+/g, " ");
-  if (typeof context !== "object") return context;
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(context as Record<string, unknown>)) {
     out[k] = typeof v === "string" ? v.replace(/[\r\n]+/g, " ") : v;
   }
   return out;

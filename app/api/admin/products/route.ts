@@ -16,6 +16,7 @@ import { parsePagination } from "@/lib/pagination";
 import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isUsableUuid } from "@/lib/security/uuid";
 
 export const GET = withAuthz(
   "products",
@@ -43,10 +44,7 @@ export const GET = withAuthz(
 
     // SECURITY-FIX: Validate category_id format to prevent NoSQL/query injection (T1-006)
     const categoryId = searchParams.get("category_id") ?? undefined;
-    if (
-      categoryId &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId)
-    ) {
+    if (categoryId && !isUsableUuid(categoryId)) {
       return NextResponse.json({ error: "category_id must be a valid UUID" }, { status: 400 });
     }
 
@@ -182,7 +180,7 @@ export const PATCH = withAuthz(
     const { id, version: _clientVersion, ...updates } = parsed.data;
 
     // SECURITY-FIX: Validate UUID format for id (IDOR-002)
-    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    if (!id || !isUsableUuid(id)) {
       return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
     }
 
@@ -238,7 +236,14 @@ export const PATCH = withAuthz(
           siteId,
           level: "warning",
         });
-        return NextResponse.json({ error: err.message, code: "CONFLICT" }, { status: 409 });
+        return NextResponse.json(
+          {
+            error: err.message,
+            code: "CONFLICT",
+            hint: "Refresh the product and retry with the latest version.",
+          },
+          { status: 409, headers: { "Retry-After": "0" } },
+        );
       }
       captureException(err, { context: "[api/admin/products] PATCH update failed:" });
       return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
@@ -280,7 +285,7 @@ export const DELETE = withAuthz(
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
     // RC-05: Validate UUID format before hitting the database
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    if (!isUsableUuid(id)) {
       return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
     }
 
