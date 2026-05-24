@@ -1319,9 +1319,13 @@ jobs:
       - name: Verify RLS policy baseline
         run: |
           set -euo pipefail
-          DB_URL="${{ secrets.SUPABASE_DB_URL }}"
+          # Prefer pooler URL (IPv4-reachable); fall back to direct URL.
+          DB_URL="${{ secrets.SUPABASE_DB_POOLER_URL }}"
           if [ -z "$DB_URL" ]; then
-            echo "::warning::SUPABASE_DB_URL not set — skipping RLS policy baseline check"
+            DB_URL="${{ secrets.SUPABASE_DB_URL }}"
+          fi
+          if [ -z "$DB_URL" ]; then
+            echo "::warning::SUPABASE_DB_POOLER_URL and SUPABASE_DB_URL not set — skipping RLS policy baseline check"
             exit 0
           fi
 
