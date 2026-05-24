@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
 CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
 
 -- Auto-update updated_at
+DROP TRIGGER IF EXISTS admin_users_updated_at ON admin_users;
 CREATE TRIGGER admin_users_updated_at
   BEFORE UPDATE ON admin_users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

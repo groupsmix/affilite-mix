@@ -320,14 +320,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS site_modules_updated_at ON site_modules;
 CREATE TRIGGER site_modules_updated_at
   BEFORE UPDATE ON site_modules
   FOR EACH ROW EXECUTE FUNCTION update_generic_updated_at();
 
+DROP TRIGGER IF EXISTS site_feature_flags_updated_at ON site_feature_flags;
 CREATE TRIGGER site_feature_flags_updated_at
   BEFORE UPDATE ON site_feature_flags
   FOR EACH ROW EXECUTE FUNCTION update_generic_updated_at();
 
+DROP TRIGGER IF EXISTS site_integrations_updated_at ON site_integrations;
 CREATE TRIGGER site_integrations_updated_at
   BEFORE UPDATE ON site_integrations
   FOR EACH ROW EXECUTE FUNCTION update_generic_updated_at();

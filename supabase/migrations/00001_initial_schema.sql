@@ -181,10 +181,12 @@ CREATE INDEX IF NOT EXISTS idx_audit_site ON audit_log(site_id, created_at DESC)
 -- DB-BUG-02: products and content tables have updated_at columns but no
 -- trigger to auto-update them. Without these triggers, updated_at stays
 -- at the insert-time value forever, making audit trails unreliable.
+DROP TRIGGER IF EXISTS products_updated_at ON products;
 CREATE TRIGGER products_updated_at
   BEFORE UPDATE ON products
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS content_updated_at ON content;
 CREATE TRIGGER content_updated_at
   BEFORE UPDATE ON content
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
