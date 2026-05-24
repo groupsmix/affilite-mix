@@ -14,5 +14,6 @@ CREATE INDEX IF NOT EXISTS idx_shared_content_source ON shared_content(source_si
 -- RLS
 ALTER TABLE shared_content ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "shared_content_service_all" ON shared_content;
 CREATE POLICY "shared_content_service_all" ON shared_content
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

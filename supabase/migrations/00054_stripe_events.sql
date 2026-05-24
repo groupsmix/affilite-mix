@@ -16,5 +16,6 @@ CREATE INDEX IF NOT EXISTS idx_stripe_events_received_at
 
 -- RLS: only the service role may read/write (no public access).
 ALTER TABLE stripe_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_stripe_events" ON stripe_events;
 CREATE POLICY "service_role_stripe_events" ON stripe_events
   FOR ALL TO service_role USING (true) WITH CHECK (true);

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS niche_templates (
 -- RLS
 ALTER TABLE niche_templates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "niche_templates_service_all" ON niche_templates;
 CREATE POLICY "niche_templates_service_all" ON niche_templates
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 

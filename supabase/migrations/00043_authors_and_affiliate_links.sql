@@ -57,8 +57,10 @@ ON CONFLICT DO NOTHING;
 ALTER TABLE authors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_affiliate_links ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS authors_service_all ON authors;
 CREATE POLICY authors_service_all ON authors
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS product_affiliate_links_service_all ON product_affiliate_links;
 CREATE POLICY product_affiliate_links_service_all ON product_affiliate_links
   FOR ALL TO service_role USING (true) WITH CHECK (true);

@@ -56,6 +56,9 @@ ALTER TABLE experiments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE experiment_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE experiment_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_experiments" ON experiments;
 CREATE POLICY "service_role_experiments" ON experiments FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_exp_assignments" ON experiment_assignments;
 CREATE POLICY "service_role_exp_assignments" ON experiment_assignments FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_exp_events" ON experiment_events;
 CREATE POLICY "service_role_exp_events" ON experiment_events FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

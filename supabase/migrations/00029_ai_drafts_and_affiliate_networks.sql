@@ -28,6 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_ai_drafts_site_created ON ai_drafts(site_id, crea
 -- RLS for ai_drafts (admin-only, no public access)
 ALTER TABLE ai_drafts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS ai_drafts_service_all ON ai_drafts;
 CREATE POLICY ai_drafts_service_all ON ai_drafts
   FOR ALL
   USING (true)
@@ -53,6 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_affiliate_networks_site ON affiliate_networks(sit
 -- RLS for affiliate_networks (admin-only, no public access)
 ALTER TABLE affiliate_networks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS affiliate_networks_service_all ON affiliate_networks;
 CREATE POLICY affiliate_networks_service_all ON affiliate_networks
   FOR ALL
   USING (true)

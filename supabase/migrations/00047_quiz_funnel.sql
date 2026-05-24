@@ -77,7 +77,11 @@ ALTER TABLE quiz_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE drip_campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE drip_enrollments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_quizzes" ON quizzes;
 CREATE POLICY "service_role_quizzes" ON quizzes FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_quiz_submissions" ON quiz_submissions;
 CREATE POLICY "service_role_quiz_submissions" ON quiz_submissions FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_drip_campaigns" ON drip_campaigns;
 CREATE POLICY "service_role_drip_campaigns" ON drip_campaigns FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_drip_enrollments" ON drip_enrollments;
 CREATE POLICY "service_role_drip_enrollments" ON drip_enrollments FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
