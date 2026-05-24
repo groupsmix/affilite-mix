@@ -125,6 +125,9 @@ export async function recordAuditEvent(
 
   if (error) {
     console.error("[audit-log] Insert failed, retrying once:", error.message);
+    // A74-F2: Apply a short jittered delay before retry to avoid
+    // hammering Supabase during congestion. Base 100ms + up to 100ms jitter.
+    await new Promise((r) => setTimeout(r, 100 + Math.random() * 100));
     const { error: retryError } = await sb.from("audit_log").insert(row);
     if (retryError) {
       console.error("[audit-log] Retry also failed:", retryError.message);
