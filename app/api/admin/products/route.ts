@@ -124,7 +124,9 @@ export const PATCH = withAuthz(
       );
     }
 
-    const { id, ...updates } = parsed.data;
+    // SECURITY-FIX: Exclude version from updates to prevent it leaking into the SQL UPDATE payload.
+    // The DB trigger manages the version column server-side; client-supplied version is only for optimistic lock check.
+    const { id, version: _clientVersion, ...updates } = parsed.data;
 
     // SECURITY-FIX: Validate UUID format for id (IDOR-002)
     if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
@@ -155,7 +157,11 @@ export const PATCH = withAuthz(
     }
 
     // ISO18-001: Extract version for optimistic locking.
-    const expectedVersion = typeof rawOrError.version === "number" ? rawOrError.version : undefined;
+    // Use the schema-validated version (positive integer) rather than raw body to prevent type confusion.
+    const expectedVersion =
+      typeof _clientVersion === "number" && Number.isInteger(_clientVersion) && _clientVersion > 0
+        ? _clientVersion
+        : undefined;
 
     try {
       const product = await updateProduct(siteId, id, updates, undefined, expectedVersion);
