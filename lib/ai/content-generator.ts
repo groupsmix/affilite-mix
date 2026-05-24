@@ -5,6 +5,7 @@
 
 import { generateWithFallback } from "./providers";
 import { moderateInput, moderateOutput } from "./content-moderation";
+import { sanitizePrompt } from "./prompt-sanitization";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
@@ -64,8 +65,13 @@ function buildPrompt(input: GenerateContentInput): string {
   const keywordStr = input.keywords?.length
     ? `\nTarget keywords: ${input.keywords.join(", ")}`
     : "";
-  const productsStr = input.productNames?.length
-    ? `\nProducts to cover: ${input.productNames.join(", ")}`
+  // A101-F5: Sanitize each productName individually before joining to prevent
+  // delimiter-breaking characters or role-impersonation in individual items.
+  const sanitizedProducts = input.productNames?.map((name) =>
+    sanitizePrompt(name, { maxChars: 200, label: "productName" }),
+  );
+  const productsStr = sanitizedProducts?.length
+    ? `\nProducts to cover: ${sanitizedProducts.join(", ")}`
     : "";
 
   return `Write a ${input.contentType} about "${input.topic}" for ${input.siteName} (${input.niche}).
