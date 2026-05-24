@@ -80,6 +80,18 @@ vi.mock("@/lib/server-only/service-role", () => ({
   }),
 }));
 
+// Mock requireAdmin for withAuthz / withAuthzDynamic tests
+let requireAdminResult: {
+  error?: unknown;
+  session: AdminPayload | null;
+  dbSiteId: string | null;
+  siteSlug: string | null;
+} = { session: null, dbSiteId: null, siteSlug: null };
+
+vi.mock("@/lib/admin-guard", () => ({
+  requireAdmin: async () => requireAdminResult,
+}));
+
 // hasPermission: super_admin / owner bypass mirrored from real impl,
 // otherwise grant only when the user has a membership for the queried
 // site_id (set up per test).
@@ -379,5 +391,208 @@ describe("authorizationErrorResponse", () => {
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error).toMatch(/active site/i);
+  });
+});
+
+// ── Tests: withAuthz ─────────────────────────────────────────────
+
+describe("withAuthz — route handler guard", () => {
+  beforeEach(() => {
+    for (const k of Object.keys(memberships)) delete memberships[k];
+    for (const k of Object.keys(globalRoles)) delete globalRoles[k];
+    currentSession = null;
+    forceDbError = null;
+  });
+
+  it("returns auth error when requireAdmin fails", async () => {
+    const errorResponse = new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    requireAdminResult = { error: errorResponse, session: null, dbSiteId: null, siteSlug: null };
+    const { withAuthz } = await import("@/lib/authz");
+
+    const handler = vi.fn();
+    const wrappedHandler = withAuthz("content", "view", handler);
+    const result = await wrappedHandler(new Request("http://localhost/api/test") as never);
+
+    expect(result).toBe(errorResponse);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when session has no userId", async () => {
+    requireAdminResult = {
+      session: { userId: "", email: "x@test.com", role: "admin" } as AdminPayload,
+      dbSiteId: SITE_A,
+      siteSlug: "site-a",
+    };
+    const { withAuthz } = await import("@/lib/authz");
+
+    const handler = vi.fn();
+    const wrappedHandler = withAuthz("content", "view", handler);
+    const result = await wrappedHandler(new Request("http://localhost/api/test") as never);
+
+    expect(result.status).toBe(401);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when user lacks permission", async () => {
+    requireAdminResult = {
+      session: makeSession("user-a"),
+      dbSiteId: SITE_A,
+      siteSlug: "site-a",
+    };
+    // No membership for user-a on SITE_A
+    const { withAuthz } = await import("@/lib/authz");
+
+    const handler = vi.fn();
+    const wrappedHandler = withAuthz("content", "view", handler);
+    const result = await wrappedHandler(new Request("http://localhost/api/test") as never);
+
+    expect(result.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("calls handler when authorized", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    requireAdminResult = {
+      session: makeSession("user-a"),
+      dbSiteId: SITE_A,
+      siteSlug: "site-a",
+    };
+    const { withAuthz } = await import("@/lib/authz");
+
+    const mockResponse = new Response("ok", { status: 200 });
+    const handler = vi.fn().mockResolvedValue(mockResponse);
+    const wrappedHandler = withAuthz("content", "view", handler);
+    const result = await wrappedHandler(new Request("http://localhost/api/test") as never);
+
+    expect(handler).toHaveBeenCalled();
+    expect(result).toBe(mockResponse);
+  });
+});
+
+// ── Tests: withAuthzDynamic ──────────────────────────────────────
+
+describe("withAuthzDynamic — dynamic route handler guard", () => {
+  beforeEach(() => {
+    for (const k of Object.keys(memberships)) delete memberships[k];
+    for (const k of Object.keys(globalRoles)) delete globalRoles[k];
+    currentSession = null;
+    forceDbError = null;
+  });
+
+  it("returns auth error when requireAdmin fails", async () => {
+    const errorResponse = new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    requireAdminResult = { error: errorResponse, session: null, dbSiteId: null, siteSlug: null };
+    const { withAuthzDynamic } = await import("@/lib/authz");
+
+    const handler = vi.fn();
+    const wrappedHandler = withAuthzDynamic("content", "view", handler);
+    const result = await wrappedHandler(new Request("http://localhost/api/test") as never, {
+      params: Promise.resolve({ id: "abc" }),
+    });
+
+    expect(result).toBe(errorResponse);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when session has no userId", async () => {
+    requireAdminResult = {
+      session: { userId: "", email: "x@test.com", role: "admin" } as AdminPayload,
+      dbSiteId: SITE_A,
+      siteSlug: "site-a",
+    };
+    const { withAuthzDynamic } = await import("@/lib/authz");
+
+    const handler = vi.fn();
+    const wrappedHandler = withAuthzDynamic("content", "view", handler);
+    const result = await wrappedHandler(new Request("http://localhost/api/test") as never, {
+      params: Promise.resolve({ id: "abc" }),
+    });
+
+    expect(result.status).toBe(401);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when user lacks permission", async () => {
+    requireAdminResult = {
+      session: makeSession("user-a"),
+      dbSiteId: SITE_A,
+      siteSlug: "site-a",
+    };
+    const { withAuthzDynamic } = await import("@/lib/authz");
+
+    const handler = vi.fn();
+    const wrappedHandler = withAuthzDynamic("content", "view", handler);
+    const result = await wrappedHandler(new Request("http://localhost/api/test") as never, {
+      params: Promise.resolve({ id: "abc" }),
+    });
+
+    expect(result.status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("calls handler with resolved params when authorized", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    requireAdminResult = {
+      session: makeSession("user-a"),
+      dbSiteId: SITE_A,
+      siteSlug: "site-a",
+    };
+    const { withAuthzDynamic } = await import("@/lib/authz");
+
+    const mockResponse = new Response("ok", { status: 200 });
+    const handler = vi.fn().mockResolvedValue(mockResponse);
+    const wrappedHandler = withAuthzDynamic("content", "view", handler);
+    const result = await wrappedHandler(new Request("http://localhost/api/test") as never, {
+      params: Promise.resolve({ id: "abc" }),
+    });
+
+    expect(handler).toHaveBeenCalled();
+    expect(handler.mock.calls[0][1].params).toEqual({ id: "abc" });
+    expect(result).toBe(mockResponse);
+  });
+});
+
+// ── Tests: authorizeResourceForCurrentSession ────────────────────
+
+describe("authorizeResourceForCurrentSession", () => {
+  beforeEach(() => {
+    for (const k of Object.keys(memberships)) delete memberships[k];
+    for (const k of Object.keys(globalRoles)) delete globalRoles[k];
+    currentSession = null;
+    forceDbError = null;
+  });
+
+  it("returns failure when no session is active", async () => {
+    currentSession = null;
+    const { authorizeResourceForCurrentSession } = await import("@/lib/authz");
+
+    const result = await authorizeResourceForCurrentSession({
+      feature: "content",
+      action: "view",
+      resourceType: "page",
+      resourceId: "page-on-A",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(401);
+  });
+
+  it("returns success with session and siteId when authorized", async () => {
+    currentSession = makeSession("user-a");
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResourceForCurrentSession } = await import("@/lib/authz");
+
+    const result = await authorizeResourceForCurrentSession({
+      feature: "content",
+      action: "view",
+      resourceType: "page",
+      resourceId: "page-on-A",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.siteId).toBe(SITE_A);
+      expect(result.session).toBeDefined();
+    }
   });
 });
