@@ -191,6 +191,7 @@
   // defaults NODE_ENV to "production" but the Next.js shim may not propagate it.
   "vars": {
     "NODE_ENV": "production",
+    "ENABLE_TURNSTILE": "true",
   },
   // Workers observability (logs, errors, metrics in CF dashboard)
   "observability": {
