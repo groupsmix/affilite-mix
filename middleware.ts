@@ -508,11 +508,16 @@ async function innerMiddleware(request: NextRequest) {
   // Echo the trace ID on the response so clients/devtools can correlate.
   response.headers.set(TRACE_ID_HEADER, traceId);
 
-  // ── Security headers (AUDIT-FIX) ──────────────────────
+  // ── Security headers (AUDIT-FIX A31-A60 rec #2) ──────────────────────
+  // HSTS: enforce HTTPS with preload (2-year max-age per OWASP recommendation).
   // Referrer-Policy: prevent affiliate URL leakage in referrer headers.
   // Permissions-Policy: restrict browser features not needed by the app.
   // X-Content-Type-Options: prevent MIME-type sniffing.
   // X-Frame-Options: prevent clickjacking (belt-and-suspenders with CSP frame-ancestors).
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains; preload",
+  );
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Permissions-Policy",

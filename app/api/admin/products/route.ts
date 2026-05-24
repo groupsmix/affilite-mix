@@ -15,8 +15,22 @@ import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
 import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
+import { checkRateLimit } from "@/lib/rate-limit";
 
-export const GET = withAuthz("products", "view", async (request: NextRequest, { siteId }) => {
+export const GET = withAuthz("products", "view", async (request: NextRequest, { siteId, session }) => {
+  // A31-A60 rec #1: Per-user rate limiting on admin product endpoints
+  const rl = await checkRateLimit(`admin:products:get:${session.userId}`, {
+    maxRequests: 100,
+    windowMs: 60_000,
+    failPolicy: "open" as const,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) } },
+    );
+  }
+
   const { searchParams } = request.nextUrl;
   const pagination = parsePagination(searchParams);
   if (pagination instanceof NextResponse) return pagination;
@@ -50,6 +64,19 @@ export const POST = withAuthz(
   "products",
   "create",
   async (request: NextRequest, { session, siteId }) => {
+    // A31-A60 rec #1: Per-user rate limiting on admin product mutations
+    const rl = await checkRateLimit(`admin:products:mutate:${session.userId}`, {
+      maxRequests: 30,
+      windowMs: 60_000,
+      failPolicy: "closed" as const,
+    });
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) } },
+      );
+    }
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
     const parsed = validateCreateProduct(rawOrError);
@@ -114,6 +141,19 @@ export const PATCH = withAuthz(
   "products",
   "edit",
   async (request: NextRequest, { session, siteId }) => {
+    // A31-A60 rec #1: Per-user rate limiting on admin product mutations
+    const rl = await checkRateLimit(`admin:products:mutate:${session.userId}`, {
+      maxRequests: 30,
+      windowMs: 60_000,
+      failPolicy: "closed" as const,
+    });
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) } },
+      );
+    }
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
     const parsed = validateUpdateProduct(rawOrError);
@@ -197,6 +237,19 @@ export const DELETE = withAuthz(
   "products",
   "delete",
   async (request: NextRequest, { session, siteId }) => {
+    // A31-A60 rec #1: Per-user rate limiting on admin product mutations
+    const rl = await checkRateLimit(`admin:products:mutate:${session.userId}`, {
+      maxRequests: 30,
+      windowMs: 60_000,
+      failPolicy: "closed" as const,
+    });
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) } },
+      );
+    }
+
     let id: string | null = null;
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) {
