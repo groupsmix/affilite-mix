@@ -204,7 +204,10 @@ export default function AdminLoginPage() {
 
             <Button
               type="submit"
-              disabled={loading || (!requires2fa && !turnstileToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)}
+              disabled={
+                loading ||
+                (!requires2fa && !turnstileToken && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)
+              }
               className="w-full"
             >
               {loading ? (

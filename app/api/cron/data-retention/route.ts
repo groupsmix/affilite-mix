@@ -41,11 +41,12 @@ export async function POST(request: NextRequest) {
     const clicksDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
     // Load checkpoint cursor — resume from last processed ID
-    const { data: checkpoint } = await sb
+    const { data: checkpoint } = (await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
       .from("cron_state")
-      .select("last_id")
+      .select("*")
       .eq("job_name", "data-retention:clicks")
-      .single();
+      .single()) as { data: { last_id?: string | null } | null };
 
     let totalDeleted = 0;
     let lastId = checkpoint?.last_id ?? "";
@@ -86,20 +87,34 @@ export async function POST(request: NextRequest) {
       lastId = ids[ids.length - 1];
 
       // Persist checkpoint after each batch
-      await sb.from("cron_state").upsert(
-        { job_name: "data-retention:clicks", last_id: lastId, updated_at: new Date().toISOString() },
-        { onConflict: "job_name" },
-      );
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+      await sb
+        .from("cron_state")
+        .upsert(
+          {
+            job_name: "data-retention:clicks",
+            last_id: lastId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "job_name" },
+        );
 
       if (batch.length < BATCH_SIZE) hasMore = false;
     }
 
     // Clear checkpoint on successful completion
     if (!hasMore) {
-      await sb.from("cron_state").upsert(
-        { job_name: "data-retention:clicks", last_id: null, updated_at: new Date().toISOString() },
-        { onConflict: "job_name" },
-      );
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+      await sb
+        .from("cron_state")
+        .upsert(
+          {
+            job_name: "data-retention:clicks",
+            last_id: null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "job_name" },
+        );
     }
 
     results.affiliate_clicks = { success: true, deleted: totalDeleted };
