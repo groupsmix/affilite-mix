@@ -514,10 +514,7 @@ async function innerMiddleware(request: NextRequest) {
   // Permissions-Policy: restrict browser features not needed by the app.
   // X-Content-Type-Options: prevent MIME-type sniffing.
   // X-Frame-Options: prevent clickjacking (belt-and-suspenders with CSP frame-ancestors).
-  response.headers.set(
-    "Strict-Transport-Security",
-    "max-age=63072000; includeSubDomains; preload",
-  );
+  response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Permissions-Policy",
