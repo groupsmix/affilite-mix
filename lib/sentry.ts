@@ -112,7 +112,7 @@ export function captureException(error: unknown, context?: Record<string, unknow
   // SECURITY: strip CR/LF from BOTH the error and context string values
   // before logging so a user-controlled value cannot inject a fake log
   // line into Cloudflare's log stream (CodeQL js/log-injection).
-  console.error("[error]", sanitizeForLog(error), sanitizeLogContext(context));
+  console.error("[error]", sanitizeForLog(error), redactLogContext(context));
 }
 
 /**

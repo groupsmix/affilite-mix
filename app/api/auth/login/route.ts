@@ -140,7 +140,12 @@ export async function POST(request: NextRequest) {
 
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
-    const { email: rawEmail, password, turnstileToken, totp_token } = bodyOrError as {
+    const {
+      email: rawEmail,
+      password,
+      turnstileToken,
+      totp_token,
+    } = bodyOrError as {
       email?: string;
       password?: string;
       turnstileToken?: string;
