@@ -1025,6 +1025,7 @@ jobs:
           [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix > /dev/null 2>&1       || true
           [ -n "$_SENTRY_DSN" ]       && echo "$_SENTRY_DSN"       | npx --yes wrangler@${WRANGLER_VERSION} secret put SENTRY_DSN --name affilite-mix > /dev/null 2>&1           || true
           [ -n "$_TURNSTILE_KEY" ]    && echo "$_TURNSTILE_KEY"    | npx --yes wrangler@${WRANGLER_VERSION} secret put TURNSTILE_SECRET_KEY --name affilite-mix > /dev/null 2>&1 || true
+          [ -n "$_TURNSTILE_SITE_KEY" ] && echo "$_TURNSTILE_SITE_KEY" | npx --yes wrangler@${WRANGLER_VERSION} secret put NEXT_PUBLIC_TURNSTILE_SITE_KEY --name affilite-mix > /dev/null 2>&1 || true
           [ -n "$_NL_FROM" ]          && echo "$_NL_FROM"          | npx --yes wrangler@${WRANGLER_VERSION} secret put NEWSLETTER_FROM_EMAIL --name affilite-mix > /dev/null 2>&1 || true
 
           echo "Setting optional AI provider secrets..."
@@ -1068,6 +1069,7 @@ jobs:
           _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
           _CRON_HOST: ${{ secrets.CRON_HOST }}
           _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          _TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
           _NL_FROM: ${{ secrets.NEWSLETTER_FROM_EMAIL }}
           _CF_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_API_TOKEN }}
           _GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
