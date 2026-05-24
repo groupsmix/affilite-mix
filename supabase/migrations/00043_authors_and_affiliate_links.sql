@@ -15,14 +15,14 @@ CREATE TABLE IF NOT EXISTS authors (
   UNIQUE (site_id, slug)
 );
 
-CREATE INDEX idx_authors_site ON authors(site_id);
-CREATE INDEX idx_authors_active ON authors(site_id, is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_authors_site ON authors(site_id);
+CREATE INDEX IF NOT EXISTS idx_authors_active ON authors(site_id, is_active) WHERE is_active = true;
 
 -- Add author_id FK to content (nullable — existing content has no author yet)
 ALTER TABLE content
   ADD COLUMN IF NOT EXISTS author_id UUID REFERENCES authors(id) ON DELETE SET NULL;
 
-CREATE INDEX idx_content_author ON content(author_id) WHERE author_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_content_author ON content(author_id) WHERE author_id IS NOT NULL;
 
 -- Backfill: for rows that have a text `author` value, we leave them as-is.
 -- The text `author` column is kept for backward compatibility during migration.
@@ -41,8 +41,8 @@ CREATE TABLE IF NOT EXISTS product_affiliate_links (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_product_affiliate_links_product ON product_affiliate_links(product_id);
-CREATE INDEX idx_product_affiliate_links_active ON product_affiliate_links(product_id, is_active)
+CREATE INDEX IF NOT EXISTS idx_product_affiliate_links_product ON product_affiliate_links(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_affiliate_links_active ON product_affiliate_links(product_id, is_active)
   WHERE is_active = true;
 
 -- Migrate existing affiliate_url values into the new table.
