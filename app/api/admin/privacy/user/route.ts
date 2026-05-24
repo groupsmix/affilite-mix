@@ -108,6 +108,30 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
       details: { target_email_hash: hashEmail(email) },
     });
 
+    // A62-F1: GDPR Art. 20 data portability — support CSV format
+    const format = searchParams.get("format");
+    if (format === "csv") {
+      const csvRows: string[] = [];
+      csvRows.push("table,id,email,created_at,data_json");
+      for (const [table, rows] of Object.entries(exportPayload.data)) {
+        for (const row of rows as Record<string, unknown>[]) {
+          const id = String(row.id ?? "");
+          const rowEmail = String(row.email ?? row.user_email ?? "");
+          const createdAt = String(row.created_at ?? "");
+          const dataJson = JSON.stringify(row).replace(/"/g, '""');
+          csvRows.push(`"${table}","${id}","${rowEmail}","${createdAt}","${dataJson}"`);
+        }
+      }
+      const csvContent = csvRows.join("\n");
+      return new NextResponse(csvContent, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="data-export-${lowerEmail.replace(/[^a-z0-9]/g, "_")}.csv"`,
+        },
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       export: exportPayload,
