@@ -87,8 +87,8 @@ export async function POST(request: NextRequest) {
       lastId = ids[ids.length - 1];
 
       // Persist checkpoint after each batch
-      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
       await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
         .from("cron_state")
         .upsert(
           {
@@ -104,8 +104,8 @@ export async function POST(request: NextRequest) {
 
     // Clear checkpoint on successful completion
     if (!hasMore) {
-      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
       await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
         .from("cron_state")
         .upsert(
           {
