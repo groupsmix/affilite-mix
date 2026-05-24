@@ -204,10 +204,15 @@ ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 
 -- Public read access for published content (anon key)
+DROP POLICY IF EXISTS "Public can read sites" ON sites;
 CREATE POLICY "Public can read sites" ON sites FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can read categories" ON categories;
 CREATE POLICY "Public can read categories" ON categories FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can read active products" ON products;
 CREATE POLICY "Public can read active products" ON products FOR SELECT USING (status = 'active');
+DROP POLICY IF EXISTS "Public can read published content" ON content;
 CREATE POLICY "Public can read published content" ON content FOR SELECT USING (status = 'published');
+DROP POLICY IF EXISTS "Public can read content_products" ON content_products;
 CREATE POLICY "Public can read content_products" ON content_products FOR SELECT USING (true);
 
 -- DB-SEC-01: The affiliate_clicks table needs an INSERT policy for the
@@ -215,13 +220,15 @@ CREATE POLICY "Public can read content_products" ON content_products FOR SELECT 
 -- a scoped JWT, not the service role) can write rows. Without this, any
 -- click recording path that goes through getTenantClient() silently fails
 -- because RLS blocks the INSERT.
+DROP POLICY IF EXISTS "Authenticated can insert clicks" ON affiliate_clicks;
 CREATE POLICY "Authenticated can insert clicks" ON affiliate_clicks
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 -- DB-SEC-02: The audit_log table needs an INSERT policy for the
 -- authenticated role for the same reason as clicks above.
+DROP POLICY IF EXISTS "Authenticated can insert audit_log" ON audit_log;
 CREATE POLICY "Authenticated can insert audit_log" ON audit_log
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 -- Service role bypass (for admin operations via service_role key)
 -- The service_role key bypasses RLS by default in Supabase.
