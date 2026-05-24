@@ -17,48 +17,55 @@ import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-export const GET = withAuthz("products", "view", async (request: NextRequest, { siteId, session }) => {
-  // A31-A60 rec #1: Per-user rate limiting on admin product endpoints
-  const rl = await checkRateLimit(`admin:products:get:${session.userId}`, {
-    maxRequests: 100,
-    windowMs: 60_000,
-    failPolicy: "open" as const,
-  });
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) } },
-    );
-  }
-
-  const { searchParams } = request.nextUrl;
-  const pagination = parsePagination(searchParams);
-  if (pagination instanceof NextResponse) return pagination;
-
-  // SECURITY-FIX: Validate category_id format to prevent NoSQL/query injection (T1-006)
-  const categoryId = searchParams.get("category_id") ?? undefined;
-  if (
-    categoryId &&
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId)
-  ) {
-    return NextResponse.json({ error: "category_id must be a valid UUID" }, { status: 400 });
-  }
-
-  try {
-    const products = await listProducts({
-      siteId,
-      categoryId,
-      status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
-      limit: pagination.limit,
-      offset: pagination.offset,
+export const GET = withAuthz(
+  "products",
+  "view",
+  async (request: NextRequest, { siteId, session }) => {
+    // A31-A60 rec #1: Per-user rate limiting on admin product endpoints
+    const rl = await checkRateLimit(`admin:products:get:${session.userId}`, {
+      maxRequests: 100,
+      windowMs: 60_000,
+      failPolicy: "open" as const,
     });
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) },
+        },
+      );
+    }
 
-    return NextResponse.json(products);
-  } catch (err) {
-    captureException(err, { context: "[api/admin/products] GET failed:" });
-    return NextResponse.json({ error: "Failed to list products" }, { status: 500 });
-  }
-});
+    const { searchParams } = request.nextUrl;
+    const pagination = parsePagination(searchParams);
+    if (pagination instanceof NextResponse) return pagination;
+
+    // SECURITY-FIX: Validate category_id format to prevent NoSQL/query injection (T1-006)
+    const categoryId = searchParams.get("category_id") ?? undefined;
+    if (
+      categoryId &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId)
+    ) {
+      return NextResponse.json({ error: "category_id must be a valid UUID" }, { status: 400 });
+    }
+
+    try {
+      const products = await listProducts({
+        siteId,
+        categoryId,
+        status: (searchParams.get("status") as "draft" | "active" | "archived") ?? undefined,
+        limit: pagination.limit,
+        offset: pagination.offset,
+      });
+
+      return NextResponse.json(products);
+    } catch (err) {
+      captureException(err, { context: "[api/admin/products] GET failed:" });
+      return NextResponse.json({ error: "Failed to list products" }, { status: 500 });
+    }
+  },
+);
 
 export const POST = withAuthz(
   "products",
@@ -73,7 +80,10 @@ export const POST = withAuthz(
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many requests" },
-        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) } },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) },
+        },
       );
     }
 
@@ -150,7 +160,10 @@ export const PATCH = withAuthz(
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many requests" },
-        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) } },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) },
+        },
       );
     }
 
@@ -246,7 +259,10 @@ export const DELETE = withAuthz(
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many requests" },
-        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) } },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) },
+        },
       );
     }
 
