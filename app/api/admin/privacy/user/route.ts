@@ -128,7 +128,13 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
           const createdAt = String(row.created_at ?? "");
           const dataJson = JSON.stringify(row);
           csvRows.push(
-            [escapeCsv(table), escapeCsv(id), escapeCsv(rowEmail), escapeCsv(createdAt), escapeCsv(dataJson)].join(","),
+            [
+              escapeCsv(table),
+              escapeCsv(id),
+              escapeCsv(rowEmail),
+              escapeCsv(createdAt),
+              escapeCsv(dataJson),
+            ].join(","),
           );
         }
       }
