@@ -227,7 +227,6 @@ describe("sanitizeHtml", () => {
     });
   });
 
-
   describe("class attribute filtering", () => {
     it("allows language-* classes on code elements", () => {
       const input = '<code class="language-typescript">x</code>';
