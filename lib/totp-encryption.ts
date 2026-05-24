@@ -17,7 +17,10 @@
 
 import { logger } from "@/lib/logger";
 
-const ENCRYPTION_PREFIX = "enc:v1:";
+const ENCRYPTION_PREFIX_V1 = "enc:v1:";
+const ENCRYPTION_PREFIX_V2 = "enc:v2:";
+/** Current prefix used for new encryptions */
+const ENCRYPTION_PREFIX = ENCRYPTION_PREFIX_V2;
 
 /**
  * Derive a 256-bit AES-GCM key from the raw env secret.
@@ -47,8 +50,20 @@ async function deriveKey(rawSecret: string): Promise<CryptoKey> {
   );
 }
 
+/**
+ * A100-05: Key-versioned envelope encryption.
+ *
+ * Supports key rotation by checking TOTP_ENCRYPTION_KEY (current) and
+ * TOTP_ENCRYPTION_KEY_PREVIOUS (prior key for decryption only).
+ * New encryptions always use the current key (v2 prefix).
+ * Decryption tries the current key first, then falls back to the previous key.
+ */
 function getEncryptionKey(): string | null {
   return process.env.TOTP_ENCRYPTION_KEY?.trim() || null;
+}
+
+function getPreviousEncryptionKey(): string | null {
+  return process.env.TOTP_ENCRYPTION_KEY_PREVIOUS?.trim() || null;
 }
 
 /**
@@ -86,34 +101,72 @@ export async function encryptTotpSecret(plaintext: string): Promise<string> {
 /**
  * Decrypt a TOTP secret from storage.
  *
- * Handles both encrypted (`enc:v1:...`) and legacy plaintext values
+ * A100-05: Supports key-versioned envelope encryption. Tries the current key
+ * first, then falls back to the previous key (TOTP_ENCRYPTION_KEY_PREVIOUS).
+ * Handles encrypted (`enc:v1:...`, `enc:v2:...`) and legacy plaintext values
  * so existing un-encrypted rows keep working until re-enrolled.
  */
 export async function decryptTotpSecret(stored: string): Promise<string> {
   // Legacy plaintext — return as-is
-  if (!stored.startsWith(ENCRYPTION_PREFIX)) {
+  if (!stored.startsWith(ENCRYPTION_PREFIX_V1) && !stored.startsWith(ENCRYPTION_PREFIX_V2)) {
     return stored;
   }
 
+  // Determine which prefix was used to extract the payload
+  const prefix = stored.startsWith(ENCRYPTION_PREFIX_V2)
+    ? ENCRYPTION_PREFIX_V2
+    : ENCRYPTION_PREFIX_V1;
+
   const rawKey = getEncryptionKey();
-  if (!rawKey) {
+  const previousKey = getPreviousEncryptionKey();
+
+  if (!rawKey && !previousKey) {
     throw new Error(
       "[totp-encryption] Cannot decrypt TOTP secret: TOTP_ENCRYPTION_KEY is not configured. " +
         "The stored value is encrypted but the decryption key is missing.",
     );
   }
 
-  const b64 = stored.slice(ENCRYPTION_PREFIX.length);
+  const b64 = stored.slice(prefix.length);
   const combined = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
   // First 12 bytes are the IV, remainder is ciphertext + GCM tag
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
-  const key = await deriveKey(rawKey);
-  const plainBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+  // Try current key first
+  if (rawKey) {
+    try {
+      const key = await deriveKey(rawKey);
+      const plainBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+      return new TextDecoder().decode(plainBytes);
+    } catch {
+      // Current key failed — try previous key below
+    }
+  }
 
-  return new TextDecoder().decode(plainBytes);
+  // Fall back to previous key (rotation support)
+  if (previousKey) {
+    try {
+      const key = await deriveKey(previousKey);
+      const plainBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+      return new TextDecoder().decode(plainBytes);
+    } catch {
+      // Both keys failed
+    }
+  }
+
+  throw new Error(
+    "[totp-encryption] Cannot decrypt TOTP secret: neither current nor previous key could decrypt the value.",
+  );
+}
+
+/**
+ * A100-05: Check if a stored secret needs re-encryption with the current key.
+ * Returns true if the secret uses v1 prefix or was encrypted with a previous key.
+ */
+export function needsReEncryption(stored: string): boolean {
+  return stored.startsWith(ENCRYPTION_PREFIX_V1);
 }
 
 /**

@@ -150,6 +150,17 @@ export const CSRF_EXEMPT_ROUTES: readonly CsrfExemptRoute[] = [
     ],
     owner: "@groupsmix/engineering",
   },
+  {
+    path: "/api/consent/log",
+    reason: "Cookie consent banner fires from CMP script before session cookie is available.",
+    compensatingControls: [
+      "Per-IP rate-limit: 5 requests per minute (A100-10).",
+      "Body size capped at 4 KB.",
+      "Schema validation: requires `categories` object.",
+      "IP is hashed before storage for privacy.",
+    ],
+    owner: "@groupsmix/security",
+  },
 ] as const;
 
 const csrfExemptSet = new Set<string>(CSRF_EXEMPT_ROUTES.map((r) => r.path));

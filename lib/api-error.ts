@@ -87,13 +87,22 @@ export function apiError(
  */
 /**
  * Safely parse the JSON body of a request.
- * Returns the parsed body on success, or a 400 NextResponse on failure.
+ * Returns the parsed body on success, or a 400/413 NextResponse on failure.
+ *
+ * A100-12: Enforces per-endpoint body size limit as defense-in-depth
+ * independent of the middleware Content-Length check.
  */
 export async function parseJsonBody(
   request: Request,
+  options?: { maxBodyBytes?: number },
 ): Promise<Record<string, unknown> | NextResponse> {
+  const maxBytes = options?.maxBodyBytes ?? 100 * 1024; // 100KB default per A100-17
   try {
-    return (await request.json()) as Record<string, unknown>;
+    const text = await request.text();
+    if (text.length > maxBytes) {
+      return apiError(413, "Request body too large", undefined, undefined, "PAYLOAD_TOO_LARGE");
+    }
+    return JSON.parse(text) as Record<string, unknown>;
   } catch {
     return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
   }
