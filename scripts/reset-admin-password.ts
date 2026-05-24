@@ -71,4 +71,4 @@ async function resetPassword() {
   }
 }
 
-resetPassword();
+void resetPassword();
