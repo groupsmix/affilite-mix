@@ -9,7 +9,10 @@ export const watchToolsSite = defineSite({
   description:
     "Expert watch gift guides and reviews — honest ratings and a proprietary Gift-Worthiness Score to help you pick the perfect watch.",
 
-  colors: { primary: "#1B2A4A", accent: "#C9A96E", accentText: "#8B6914" },
+  // A68-F1: Darkened accent from #C9A96E (2.6:1 contrast on white) to #8B6914
+  // which passes WCAG 2.2 AA 4.5:1 requirement for normal text. The original
+  // gold is retained as accentLight for decorative/large-text contexts only.
+  colors: { primary: "#1B2A4A", accent: "#8B6914", accentText: "#6B4F0F", accentLight: "#C9A96E" },
   fonts: "classic",
   homepage: "cinematic",
 

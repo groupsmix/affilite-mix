@@ -188,7 +188,7 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
             <div className="flex shrink-0 gap-2">
               <button
                 onClick={handleReject}
-                className="min-h-[36px] rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
+                className="min-h-[36px] rounded-lg border-2 border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-100"
               >
                 {t.reject}
               </button>
@@ -245,10 +245,12 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
                   </table>
                 )}
               </div>
+              {/* A69-F1: EDPB equal-prominence requirement — reject and accept buttons
+                must have the same size, font weight, and visual hierarchy */}
               <div className="flex w-full shrink-0 flex-col gap-3 sm:flex-row md:w-auto">
                 <button
                   onClick={handleReject}
-                  className="min-h-[44px] rounded-xl border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-50"
+                  className="min-h-[44px] rounded-xl border-2 border-gray-700 px-6 py-3 text-sm font-semibold text-gray-700 transition-all duration-300 hover:bg-gray-100"
                 >
                   {t.reject}
                 </button>

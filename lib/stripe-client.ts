@@ -46,10 +46,10 @@ export async function getStripeClient(secretKey: string): Promise<Stripe> {
 
   const Ctor = _stripeCtor;
   const client = new Ctor(secretKey, {
-    // Match the prior call sites: `null` opts out of pinning an
-    // apiVersion. The SDK's typings require a literal version string,
-    // so we cast through `any` rather than introducing a brittle pin.
-    apiVersion: null as any,
+    // A65-F2: Pin Stripe API version to prevent unexpected breaking changes
+    // when Stripe updates the account's default version. Test webhook
+    // compatibility before bumping this value.
+    apiVersion: "2024-12-18.acacia" as any,
     appInfo: { name: "affilite-mix" },
     httpClient: Ctor.createFetchHttpClient(),
   });
