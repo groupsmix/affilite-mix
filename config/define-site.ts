@@ -121,6 +121,11 @@ export interface SiteInput {
      * Defaults to accent if omitted (only safe when accent already passes).
      */
     accentText?: string;
+    /**
+     * Lighter/original accent variant for decorative or large-text contexts
+     * where WCAG AA normal-text contrast is not required (3:1 suffices).
+     */
+    accentLight?: string;
   };
 
   /* ── Optional overrides (all have smart defaults) ─────────── */
