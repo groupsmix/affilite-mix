@@ -147,7 +147,7 @@ describe("Tenant Isolation", () => {
       // Should be encrypted (prefixed)
       expect(isTotpSecretEncrypted(encrypted)).toBe(true);
       expect(encrypted).not.toBe(plaintext);
-      expect(encrypted.startsWith("enc:v1:")).toBe(true);
+      expect(encrypted.startsWith("enc:v2:")).toBe(true);
 
       // Should decrypt back to original
       const decrypted = await decryptTotpSecret(encrypted);

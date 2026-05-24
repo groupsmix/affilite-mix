@@ -162,6 +162,11 @@ describe("GET /api/newsletter/unsubscribe – abuse paths", () => {
 
   it("redirects with error when token is invalid (no matching row)", async () => {
     mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: null }),
+        }),
+      }),
       update: () => ({
         eq: () => ({
           select: () => Promise.resolve({ data: [], error: null }),

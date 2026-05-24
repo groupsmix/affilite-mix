@@ -470,6 +470,21 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     sensitiveFields: ["token", "newPassword"],
   },
 
+  // --- Consent routes --------------------------------------------------------
+  {
+    path: "/api/consent/log",
+    methods: ["POST"],
+    auth: "public",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: true,
+    csrf: false,
+    requestSchema: "{ categories: Record<string, boolean>; action?: string }",
+    responseSchema: "Ok",
+    sensitiveFields: ["ip"],
+    notes: "A100-10: Rate-limited consent log. CSRF-exempt (CMP fires before session).",
+  },
+
   // --- Community routes -----------------------------------------------------
   {
     path: "/api/community/comments",
