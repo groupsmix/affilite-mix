@@ -102,7 +102,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // A100-09: Constant-time delay to prevent email enumeration via timing.
+    // Regardless of whether the user exists, we ensure the response takes
+    // at least 200ms from this point to mask DB lookup timing differences.
+    const authStart = Date.now();
     const authResult = await authenticateUser(email, password);
+    const elapsed = Date.now() - authStart;
+    const minDelayMs = 200;
+    if (elapsed < minDelayMs) {
+      await new Promise((resolve) => setTimeout(resolve, minDelayMs - elapsed));
+    }
     if (!authResult) {
       return apiError(401, "Invalid credentials");
     }

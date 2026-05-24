@@ -552,11 +552,22 @@ async function innerMiddleware(request: NextRequest) {
   return response;
 }
 
+// A100-06: Request-level timeout for the entire middleware execution.
+// If KV/DB calls hang, abort after 5s rather than consuming Worker CPU
+// until the 30s hard timeout.
+const MIDDLEWARE_TIMEOUT_MS = 5_000;
+
 // F-FE-02: Wrap middleware in a try/catch to prevent a single unhandled
 // exception (e.g. from URL parsing or KV) from taking down the entire site.
 export async function middleware(request: NextRequest) {
   try {
-    return await innerMiddleware(request);
+    const result = await Promise.race([
+      innerMiddleware(request),
+      new Promise<NextResponse>((_, reject) =>
+        setTimeout(() => reject(new Error("Middleware timeout exceeded")), MIDDLEWARE_TIMEOUT_MS),
+      ),
+    ]);
+    return result;
   } catch (err) {
     captureException(err, { context: "middleware.unhandled_exception" });
 

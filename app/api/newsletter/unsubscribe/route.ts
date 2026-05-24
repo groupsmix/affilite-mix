@@ -5,7 +5,7 @@ import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { hashNewsletterToken } from "@/lib/newsletter-token";
+import { hashNewsletterToken, isUnsubscribeTokenExpired } from "@/lib/newsletter-token";
 
 /** 10 unsubscribe requests per 15 minutes per IP.
  * SEC-17: failPolicy "closed" — unsubscribe tokens are bearer secrets. */
@@ -54,11 +54,31 @@ export async function GET(request: NextRequest) {
     // B-02: Hash the incoming token before lookup — DB stores SHA-256 hashes
     const tokenHash = await hashNewsletterToken(token);
 
+    // A100-11: Validate token expiry before processing unsubscribe
+    const { data: subscriber } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
+      .from("newsletter_subscribers")
+      .select("id, token_issued_at")
+      .eq("unsubscribe_token", tokenHash)
+      .single();
+
+    if (!subscriber) {
+      return NextResponse.redirect(
+        new URL("/newsletter/unsubscribed?error=invalid_token", request.url),
+      );
+    }
+
+    if (isUnsubscribeTokenExpired((subscriber as any).token_issued_at)) {
+      return NextResponse.redirect(
+        new URL("/newsletter/unsubscribed?error=token_expired", request.url),
+      );
+    }
+
     const { data, error } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
       .update({ status: "unsubscribed" })
-      .eq("unsubscribe_token", tokenHash)
+      .eq("id", subscriber.id)
       .select("id");
 
     if (error) {
@@ -69,7 +89,6 @@ export async function GET(request: NextRequest) {
     }
 
     if (!data || data.length === 0) {
-      // No row matched — treat as an invalid token rather than silently succeeding.
       return NextResponse.redirect(
         new URL("/newsletter/unsubscribed?error=invalid_token", request.url),
       );
