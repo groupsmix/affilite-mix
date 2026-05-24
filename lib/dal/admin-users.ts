@@ -1,5 +1,6 @@
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { logger } from "@/lib/logger";
 
 export interface AdminUserRow {
   id: string;
@@ -169,6 +170,11 @@ export async function incrementLoginFailedAttempts(
   } catch {
     // RPC function doesn't exist yet — use fallback
   }
+
+  // EL-004 / FP-003: Surface degraded lockout path for operators (deploy migration first).
+  logger.warn("increment_login_failed_attempts RPC unavailable; using non-atomic fallback", {
+    userId: id,
+  });
 
   // Fallback: non-atomic read-then-write (acceptable until migration runs)
   const { data: user, error: readErr } = await sb

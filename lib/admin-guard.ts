@@ -106,7 +106,12 @@ export async function requireAdmin(): Promise<AdminResult> {
   }
 
   // SECURITY-FIX: Validate siteSlug format to prevent KV key injection (I5-004 / CWE-22)
-  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/i.test(siteSlug) || siteSlug.length > 63) {
+  // Minimum 3 chars rejects degenerate slugs like "a-" (audit V4-006).
+  if (
+    !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/i.test(siteSlug) ||
+    siteSlug.length < 3 ||
+    siteSlug.length > 63
+  ) {
     return {
       error: NextResponse.json({ error: "Invalid site" }, { status: 400 }),
       session: null,

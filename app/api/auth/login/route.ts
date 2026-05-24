@@ -10,7 +10,13 @@ import { computeRequestBinding } from "@/lib/jwt-binding";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
-import { isValidEmail, normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
+import {
+  isValidEmail,
+  normalizeEmail,
+  hashEmailForRateLimit,
+  sanitizeEmailInput,
+  MAX_EMAIL_LENGTH,
+} from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
@@ -69,8 +75,16 @@ async function isBreachedPassword(password: string): Promise<boolean> {
  * Prevents distributed bcrypt CPU exhaustion: 1000 IPs x 3/15min = 3000 bcrypt ops.
  * Cap at 100 login attempts per minute globally to bound total CPU spend.
  */
+function parsePositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw === "") return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/** Configurable via LOGIN_RATE_LIMIT_GLOBAL_MAX (audit P7-002 / F10-002). */
 const LOGIN_RATE_LIMIT_GLOBAL = {
-  maxRequests: 100,
+  maxRequests: parsePositiveIntEnv("LOGIN_RATE_LIMIT_GLOBAL_MAX", 100),
   windowMs: 60 * 1000,
   failPolicy: "closed" as const,
 };
@@ -126,12 +140,13 @@ export async function POST(request: NextRequest) {
 
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
-    const { email, password, turnstileToken, totp_token } = bodyOrError as {
+    const { email: rawEmail, password, turnstileToken, totp_token } = bodyOrError as {
       email?: string;
       password?: string;
       turnstileToken?: string;
       totp_token?: string;
     };
+    const email = typeof rawEmail === "string" ? sanitizeEmailInput(rawEmail) : rawEmail;
 
     // Verify Turnstile token (skipped in dev if not configured)
     const turnstileResult = await verifyTurnstile(turnstileToken, ip);
@@ -139,8 +154,8 @@ export async function POST(request: NextRequest) {
       return apiError(403, turnstileResult.error ?? "Captcha verification failed");
     }
 
-    // SECURITY-FIX: Length limit on email to prevent CPU waste (V14-001 / CWE-1284)
-    if (email && email.length > 320) {
+    // SECURITY-FIX: RFC 5321 length cap + null-byte strip (IV-001 / CWE-1284)
+    if (email && email.length > MAX_EMAIL_LENGTH) {
       return apiError(400, "Email exceeds maximum length");
     }
 
