@@ -132,13 +132,28 @@ describe("lib/quotas — per-tenant ceilings", () => {
     expect(cumulative.windowKey).toBe("cumulative");
   });
 
-  it("estimateTokens approximates 4 chars per token", async () => {
+  it("estimateTokens approximates 4 chars per token for Latin text", async () => {
     const { estimateTokens, costToMicroUsd } = await import("@/lib/quotas");
     expect(estimateTokens("")).toBe(0);
     expect(estimateTokens("abcd")).toBe(1);
     expect(estimateTokens("abcde")).toBe(2);
     expect(costToMicroUsd(0.000123)).toBe(123);
     expect(costToMicroUsd(-1)).toBe(0);
+  });
+
+  it("estimateTokens uses chars/3 for non-Latin text (A114-F2)", async () => {
+    const { estimateTokens } = await import("@/lib/quotas");
+    // Arabic text (>30% non-Latin) should use chars/3 ratio
+    const arabicText = "مرحبا بالعالم هذا نص عربي طويل بما فيه الكفاية"; // Arabic text
+    const result = estimateTokens(arabicText);
+    const expectedWithChars3 = Math.ceil(arabicText.length / 3);
+    expect(result).toBe(expectedWithChars3);
+
+    // Mixed text with <30% non-Latin should still use chars/4
+    const mostlyLatin = "This is mostly English text with a few Arabic words مرحبا";
+    const latinResult = estimateTokens(mostlyLatin);
+    const expectedWithChars4 = Math.ceil(mostlyLatin.length / 4);
+    expect(latinResult).toBe(expectedWithChars4);
   });
 
   it("getUsageSnapshot returns counters for every resource", async () => {
