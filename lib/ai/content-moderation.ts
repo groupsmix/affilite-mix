@@ -79,8 +79,9 @@ const SECRET_PATTERNS: ReadonlyArray<RegExp> = [
   /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/,
   // GitHub tokens (classic and fine-grained)
   /\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b/,
-  // Cloudflare API tokens
-  /\b[A-Za-z0-9_-]{40}\b/,
+  // A108-F2: Narrowed Cloudflare API token pattern — require contextual keywords nearby
+  // to avoid false positives on base64 content, CSS hashes, or UUIDs.
+  /\b[A-Za-z0-9_-]{40}\b(?=.*\b(?:token|key|secret|bearer|authorization|cloudflare)\b)/i,
 ];
 
 /**
@@ -116,6 +117,81 @@ export interface ModerationResult {
 }
 
 /**
+ * A108-F3: Dedicated refusal audit log. Logs all moderation rejections
+ * with structured data for security dashboarding and abuse-trend detection.
+ */
+export interface ModerationRejectionEvent {
+  action: "ai_moderation_reject";
+  phase: "input" | "output";
+  reason: string;
+  siteId?: string;
+  topic?: string;
+  timestamp: string;
+}
+
+const rejectionLog: ModerationRejectionEvent[] = [];
+
+/**
+ * Log a moderation rejection event. In production this should write to
+ * an audit_log table or external logging service; for now we capture it
+ * in-memory and expose it via `getModerationRejections()` for observability.
+ */
+export function logModerationRejection(
+  phase: "input" | "output",
+  reason: string,
+  context?: { siteId?: string; topic?: string },
+): void {
+  const event: ModerationRejectionEvent = {
+    action: "ai_moderation_reject",
+    phase,
+    reason,
+    siteId: context?.siteId,
+    topic: context?.topic?.slice(0, 100), // Truncate for logging
+    timestamp: new Date().toISOString(),
+  };
+  rejectionLog.push(event);
+  // Keep at most 1000 events in-memory to prevent unbounded growth
+  if (rejectionLog.length > 1000) rejectionLog.shift();
+  // Also emit to structured console for log aggregation pipelines
+  console.warn("[ai_moderation_reject]", JSON.stringify(event));
+}
+
+/** Expose recent moderation rejections for admin observability endpoints. */
+export function getModerationRejections(): ReadonlyArray<ModerationRejectionEvent> {
+  return rejectionLog;
+}
+
+/**
+ * A115-F1: Regulatory term detection. Flags content containing regulatory
+ * claims (FDA, CE, ISO, etc.) that require mandatory manual verification
+ * before publishing to prevent false advertising liability.
+ */
+const REGULATORY_TERMS: ReadonlyArray<RegExp> = [
+  /\bFDA[\s-]?approved\b/i,
+  /\bFDA[\s-]?cleared\b/i,
+  /\bCE[\s-]?certified\b/i,
+  /\bCE[\s-]?marked?\b/i,
+  /\bISO[\s-]?\d{3,5}[\s-]?certified\b/i,
+  /\bFTC[\s-]?recommended\b/i,
+  /\bFTC[\s-]?approved\b/i,
+  /\bUL[\s-]?listed\b/i,
+  /\bmedical[\s-]?grade\b/i,
+  /\bclinically[\s-]?proven\b/i,
+  /\bpatented\b/i,
+  /\bclass[\s-]?action\b/i,
+  /\brecall(ed)?\b/i,
+];
+
+export function containsRegulatoryTerms(text: string): string[] {
+  const found: string[] = [];
+  for (const pattern of REGULATORY_TERMS) {
+    const match = text.match(pattern);
+    if (match) found.push(match[0]);
+  }
+  return found;
+}
+
+/**
  * Screen user-supplied input (topic, keywords) for prohibited content.
  * This runs BEFORE the LLM call so we can reject early.
  */
@@ -139,4 +215,23 @@ export function moderateOutput(text: string): ModerationResult {
     return { passed: false, reason: "Output appears to contain leaked secrets or system prompt" };
   }
   return { passed: true };
+}
+
+/**
+ * A115-F1: Extended output moderation that also checks for regulatory claims
+ * and returns warnings (non-blocking) alongside pass/fail.
+ */
+export interface ExtendedModerationResult extends ModerationResult {
+  /** Regulatory terms found that require manual verification. */
+  regulatoryWarnings?: string[];
+}
+
+export function moderateOutputExtended(text: string): ExtendedModerationResult {
+  const base = moderateOutput(text);
+  if (!base.passed) return base;
+  const regulatoryWarnings = containsRegulatoryTerms(text);
+  return {
+    ...base,
+    regulatoryWarnings: regulatoryWarnings.length > 0 ? regulatoryWarnings : undefined,
+  };
 }

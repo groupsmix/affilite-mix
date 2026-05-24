@@ -48,7 +48,7 @@ describe("generateWithFallback returns model metadata", () => {
 
     expect(result.text).toBe("hello");
     expect(result.provider).toBe("Google Gemini");
-    expect(result.model).toBe("gemini-1.5-flash");
+    expect(result.model).toBe("gemini-1.5-flash-002");
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 

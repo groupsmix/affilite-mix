@@ -124,7 +124,8 @@ class CloudflareAIProvider implements AIProvider {
 
 class GeminiProvider implements AIProvider {
   name = "Google Gemini";
-  model = "gemini-1.5-flash";
+  // A107-F1: Pin to explicit versioned model ID to prevent silent drift.
+  model = "gemini-1.5-flash-002";
   // gemini-1.5-flash list price (≤128k context) — keep in sync with
   // https://ai.google.dev/gemini-api/docs/pricing.
   pricing = { inputMicroUsdPer1k: 75, outputMicroUsdPer1k: 300 };
@@ -135,7 +136,7 @@ class GeminiProvider implements AIProvider {
 
   async generate(prompt: string, systemPrompt?: string): Promise<string> {
     const cfg = getProviderConfig();
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent`;
 
     // A101-F2: Use Gemini's native system_instruction parameter instead of
     // concatenating system+user into a single turn. This preserves proper
@@ -230,7 +231,8 @@ class GroqProvider implements AIProvider {
 
 class CohereProvider implements AIProvider {
   name = "Cohere";
-  model = "command-r";
+  // A107-F1: Pin to explicit versioned model ID to prevent silent drift.
+  model = "command-r-08-2024";
   // Cohere command-r list price; see https://cohere.com/pricing.
   pricing = { inputMicroUsdPer1k: 150, outputMicroUsdPer1k: 600 };
 
@@ -322,11 +324,54 @@ export interface GenerateOptions {
  * call is gated by `lib/quotas.ts` and may throw `QuotaExceededError`
  * before any provider is contacted.
  */
+/**
+ * A114-F1: Global daily AI cost ceiling. When aggregate AI spending across
+ * all tenants exceeds this threshold, all AI generation is disabled to
+ * protect against quota bypass bugs or misconfigured tenant limits.
+ *
+ * Configured via AI_GLOBAL_DAILY_CEILING_USD env var (default: 50 USD).
+ */
+function getGlobalDailyCeilingMicroUsd(): number {
+  const raw = process.env.AI_GLOBAL_DAILY_CEILING_USD;
+  const usd = raw ? Number(raw) : 50;
+  if (!Number.isFinite(usd) || usd <= 0) return 50_000_000; // $50 default
+  return Math.round(usd * 1_000_000);
+}
+
+/** In-memory daily cost tracker. Resets on new UTC day. */
+let globalDailyCost = { date: "", microUsd: 0 };
+
+function getGlobalDailyTracker(): { microUsd: number; date: string } {
+  const today = new Date().toISOString().slice(0, 10);
+  if (globalDailyCost.date !== today) {
+    globalDailyCost = { date: today, microUsd: 0 };
+  }
+  return globalDailyCost;
+}
+
+function recordGlobalCost(microUsd: number): void {
+  const tracker = getGlobalDailyTracker();
+  tracker.microUsd += microUsd;
+}
+
+export class GlobalCostCeilingError extends Error {
+  constructor() {
+    super("AI generation disabled: global daily cost ceiling reached");
+    this.name = "GlobalCostCeilingError";
+  }
+}
+
 export async function generateWithFallback(
   prompt: string,
   systemPrompt?: string,
   options: GenerateOptions = {},
 ): Promise<{ text: string; provider: string; model: string }> {
+  // A114-F1: Check global daily cost ceiling before any work.
+  const tracker = getGlobalDailyTracker();
+  if (tracker.microUsd >= getGlobalDailyCeilingMicroUsd()) {
+    throw new GlobalCostCeilingError();
+  }
+
   const safePrompt = sanitizePrompt(prompt);
   const safeSystemPrompt = assembleSystemPrompt(systemPrompt);
 
@@ -399,6 +444,12 @@ export async function generateWithFallback(
           }
         }
       }
+      // A114-F1: Track global daily cost for circuit-breaker protection.
+      const globalCostIncrement =
+        Math.ceil((inputTokenEstimate * provider.pricing.inputMicroUsdPer1k) / 1000) +
+        Math.ceil((estimateTokens(text) * provider.pricing.outputMicroUsdPer1k) / 1000);
+      recordGlobalCost(globalCostIncrement);
+
       return { text, provider: provider.name, model: provider.model };
     } catch (err) {
       // QuotaExceededError must propagate immediately — we don't want to

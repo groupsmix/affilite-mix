@@ -116,6 +116,10 @@ export function isSafeUrl(value: string): boolean {
   if (trimmed.startsWith("//")) return false;
   if (trimmed.startsWith("/")) return true;
 
+  // A112-F2: Explicitly block data: URIs which could embed SVG with script
+  // via <img src="data:image/svg+xml,..."> even within allowlisted tags.
+  if (trimmed.toLowerCase().startsWith("data:")) return false;
+
   // Detect an explicit scheme. The regex matches the URL scheme grammar
   // (alpha, followed by alpha/digit/+/-/.) — identical to how browsers
   // parse the leading component of a URL.
