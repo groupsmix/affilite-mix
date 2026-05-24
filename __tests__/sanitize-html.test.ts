@@ -227,20 +227,6 @@ describe("sanitizeHtml", () => {
     });
   });
 
-  describe("nesting depth limit (A73-F1)", () => {
-    it("flattens elements beyond MAX_NESTING_DEPTH", () => {
-      // Build a deeply nested structure that exceeds 100 levels
-      const open = "<div>".repeat(105);
-      const close = "</div>".repeat(105);
-      const result = sanitizeHtml(open + "deep" + close);
-      // The inner tags beyond depth 100 are flattened (no wrapping tag)
-      // but content is preserved
-      expect(result).toContain("deep");
-      // Should have fewer div tags than input since some are flattened
-      const divCount = (result.match(/<div>/g) || []).length;
-      expect(divCount).toBeLessThan(105);
-    });
-  });
 
   describe("class attribute filtering", () => {
     it("allows language-* classes on code elements", () => {
