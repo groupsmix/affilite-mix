@@ -21,6 +21,7 @@ CREATE INDEX idx_site_modules_site ON site_modules(site_id);
 CREATE INDEX idx_site_modules_enabled ON site_modules(site_id, is_enabled) WHERE is_enabled = true;
 
 ALTER TABLE site_modules ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "site_modules_public_read" ON site_modules;
 CREATE POLICY "site_modules_public_read" ON site_modules FOR SELECT USING (true);
 
 -- ── Site Feature Flags ─────────────────────────────────────────────────
@@ -39,6 +40,7 @@ CREATE TABLE IF NOT EXISTS site_feature_flags (
 CREATE INDEX idx_site_feature_flags_site ON site_feature_flags(site_id);
 
 ALTER TABLE site_feature_flags ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "site_feature_flags_public_read" ON site_feature_flags;
 CREATE POLICY "site_feature_flags_public_read" ON site_feature_flags FOR SELECT USING (true);
 
 -- ── Roles ──────────────────────────────────────────────────────────────
@@ -53,6 +55,7 @@ CREATE TABLE IF NOT EXISTS roles (
 );
 
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "roles_public_read" ON roles;
 CREATE POLICY "roles_public_read" ON roles FOR SELECT USING (true);
 
 -- Seed system roles
@@ -79,6 +82,7 @@ CREATE TABLE IF NOT EXISTS permissions (
 );
 
 ALTER TABLE permissions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "permissions_public_read" ON permissions;
 CREATE POLICY "permissions_public_read" ON permissions FOR SELECT USING (true);
 
 -- Seed permissions: feature.action pairs
@@ -135,6 +139,7 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 );
 
 ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "role_permissions_public_read" ON role_permissions;
 CREATE POLICY "role_permissions_public_read" ON role_permissions FOR SELECT USING (true);
 
 -- Assign permissions to roles using a DO block
@@ -262,6 +267,7 @@ CREATE TABLE IF NOT EXISTS integration_providers (
 );
 
 ALTER TABLE integration_providers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "integration_providers_public_read" ON integration_providers;
 CREATE POLICY "integration_providers_public_read" ON integration_providers FOR SELECT USING (true);
 
 -- Seed built-in integration providers

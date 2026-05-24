@@ -34,4 +34,5 @@ CREATE INDEX IF NOT EXISTS idx_deals_product
 
 -- RLS
 ALTER TABLE deals ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_deals" ON deals;
 CREATE POLICY "service_role_deals" ON deals FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

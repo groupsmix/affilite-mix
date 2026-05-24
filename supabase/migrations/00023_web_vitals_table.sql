@@ -18,8 +18,10 @@ CREATE INDEX IF NOT EXISTS idx_web_vitals_name_created
 -- RLS: allow inserts from anon (beacon) and reads from service role
 ALTER TABLE web_vitals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow anonymous inserts" ON web_vitals;
 CREATE POLICY "Allow anonymous inserts" ON web_vitals
   FOR INSERT TO anon WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow service role full access" ON web_vitals;
 CREATE POLICY "Allow service role full access" ON web_vitals
   FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

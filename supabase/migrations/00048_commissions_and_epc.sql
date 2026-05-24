@@ -57,5 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_product_epc_product
 ALTER TABLE commissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_epc_stats ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_commissions" ON commissions;
 CREATE POLICY "service_role_commissions" ON commissions FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_product_epc" ON product_epc_stats;
 CREATE POLICY "service_role_product_epc" ON product_epc_stats FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

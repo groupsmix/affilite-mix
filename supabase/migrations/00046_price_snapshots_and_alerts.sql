@@ -49,11 +49,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_price_alerts_unique_sub
 ALTER TABLE price_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "service_role_price_snapshots" ON price_snapshots;
 CREATE POLICY "service_role_price_snapshots" ON price_snapshots
   FOR ALL TO service_role
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "service_role_price_alerts" ON price_alerts;
 CREATE POLICY "service_role_price_alerts" ON price_alerts
   FOR ALL TO service_role
   USING (auth.role() = 'service_role')

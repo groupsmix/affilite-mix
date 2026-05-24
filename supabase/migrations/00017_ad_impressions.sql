@@ -15,5 +15,6 @@ CREATE INDEX IF NOT EXISTS idx_ad_impressions_placement ON ad_impressions(ad_pla
 -- RLS
 ALTER TABLE ad_impressions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "ad_impressions_service_all" ON ad_impressions;
 CREATE POLICY "ad_impressions_service_all" ON ad_impressions
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

@@ -33,4 +33,5 @@ CREATE INDEX IF NOT EXISTS idx_memberships_site_status
 
 -- RLS
 ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_memberships" ON memberships;
 CREATE POLICY "service_role_memberships" ON memberships FOR ALL TO service_role USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');

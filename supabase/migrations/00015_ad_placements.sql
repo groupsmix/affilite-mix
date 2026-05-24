@@ -18,8 +18,10 @@ CREATE INDEX IF NOT EXISTS idx_ad_placements_active ON ad_placements(site_id, is
 -- RLS
 ALTER TABLE ad_placements ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "ad_placements_public_read" ON ad_placements;
 CREATE POLICY "ad_placements_public_read" ON ad_placements
   FOR SELECT USING (is_active = true);
 
+DROP POLICY IF EXISTS "ad_placements_service_all" ON ad_placements;
 CREATE POLICY "ad_placements_service_all" ON ad_placements
   FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
