@@ -26,9 +26,7 @@ export async function getMiddlewareSiteRowByDomain(
   return singleFlight(`site-lookup:${domain}`, () => _fetchSiteRowByDomain(domain));
 }
 
-async function _fetchSiteRowByDomain(
-  domain: string,
-): Promise<MiddlewareSiteRow | null> {
+async function _fetchSiteRowByDomain(domain: string): Promise<MiddlewareSiteRow | null> {
   const supabaseUrl = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL");
   const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
