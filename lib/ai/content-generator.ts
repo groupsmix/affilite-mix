@@ -4,9 +4,15 @@
  */
 
 import { generateWithFallback } from "./providers";
-import { moderateInput, moderateOutput } from "./content-moderation";
+import {
+  moderateInput,
+  moderateOutput,
+  moderateOutputExtended,
+  logModerationRejection,
+} from "./content-moderation";
 import { sanitizePrompt } from "./prompt-sanitization";
 import { sanitizeHtml } from "@/lib/sanitize-html";
+import { validateOutputFormat, validateGeneratedLinks } from "./output-validation";
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
 
@@ -30,8 +36,10 @@ export interface GeneratedContent {
   metaDescription: string;
   contentType: AIContentType;
   provider: string;
-  /** Model identifier used by the provider (e.g. "gemini-1.5-flash") */
+  /** Model identifier used by the provider (e.g. "gemini-1.5-flash-002") */
   model: string;
+  /** A115-F1: Regulatory terms found that require manual verification before publishing. */
+  regulatoryWarnings?: string[];
 }
 
 const SYSTEM_PROMPTS: Record<AIContentType, string> = {
@@ -183,6 +191,11 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
   // A107: Screen user-supplied input before calling the LLM.
   const inputCheck = moderateInput(input.topic, input.keywords);
   if (!inputCheck.passed) {
+    // A108-F3: Log moderation rejection to audit trail.
+    logModerationRejection("input", inputCheck.reason!, {
+      siteId: input.siteId,
+      topic: input.topic,
+    });
     throw new ContentModerationError(`[ai] Input moderation failed: ${inputCheck.reason}`, "input");
   }
 
@@ -192,12 +205,34 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
   const { text, provider, model } = await generateWithFallback(prompt, systemPrompt, {
     siteId: input.siteId,
   });
+
+  // A115-F3 / A106-F1: Output format validation — reject responses that don't
+  // conform to the expected TITLE:/EXCERPT:/META_ prefix structure. This catches
+  // jailbreak attempts that produce non-article output.
+  const formatCheck = validateOutputFormat(text);
+  if (!formatCheck.valid) {
+    logModerationRejection("output", `Format validation failed: ${formatCheck.reason}`, {
+      siteId: input.siteId,
+      topic: input.topic,
+    });
+    throw new ContentModerationError(
+      `[ai] Output format validation failed: ${formatCheck.reason}`,
+      "output",
+    );
+  }
+
   const parsed = parseResponse(text, input.contentType);
 
-  // A108: Screen model output for prohibited content and leaked secrets.
+  // A108: Screen model output for prohibited content, leaked secrets, and
+  // regulatory claims (A115-F1).
   const combinedOutput = `${parsed.title} ${parsed.excerpt} ${parsed.body}`;
-  const outputCheck = moderateOutput(combinedOutput);
+  const outputCheck = moderateOutputExtended(combinedOutput);
   if (!outputCheck.passed) {
+    // A108-F3: Log moderation rejection to audit trail.
+    logModerationRejection("output", outputCheck.reason!, {
+      siteId: input.siteId,
+      topic: input.topic,
+    });
     throw new ContentModerationError(
       `[ai] Output moderation failed: ${outputCheck.reason}`,
       "output",
@@ -208,10 +243,35 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
   // This prevents stored XSS if any render path skips render-time sanitization.
   const sanitizedBody = sanitizeHtml(parsed.body);
 
+  // A115-F2: Post-generation link validator — check all href domains in
+  // generated content against allowed domains. Flags phishing links.
+  const linkCheck = validateGeneratedLinks(sanitizedBody);
+  if (!linkCheck.valid) {
+    logModerationRejection(
+      "output",
+      `Suspicious links detected: ${linkCheck.flaggedDomains.join(", ")}`,
+      {
+        siteId: input.siteId,
+        topic: input.topic,
+      },
+    );
+    throw new ContentModerationError(
+      `[ai] Generated content contains unrecognized link domains: ${linkCheck.flaggedDomains.join(", ")}`,
+      "output",
+    );
+  }
+
   // A109: Prepend AI-generated watermark to the body.
   const watermarkedBody = `${AI_GENERATED_WATERMARK}${sanitizedBody}`;
 
-  return { ...parsed, body: watermarkedBody, provider, model };
+  return {
+    ...parsed,
+    body: watermarkedBody,
+    provider,
+    model,
+    // A115-F1: Include regulatory warnings so admin UI can surface them.
+    ...(outputCheck.regulatoryWarnings && { regulatoryWarnings: outputCheck.regulatoryWarnings }),
+  };
 }
 
 /**

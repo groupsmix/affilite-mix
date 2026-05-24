@@ -494,11 +494,19 @@ export async function getUsageSnapshot(siteId: string): Promise<QuotaUsageSnapsh
  * provider) should be fed into `recordUsage` to keep the counter in
  * sync with reality.
  *
- * Heuristic: ~4 chars per token (OpenAI's published estimate).
+ * A114-F2: Uses language-aware heuristic. Arabic/CJK text averages ~2-3
+ * characters per token (not 4) due to complex scripts. We detect non-Latin
+ * content and adjust the ratio accordingly to avoid underestimating costs.
  */
 export function estimateTokens(text: string): number {
   if (!text) return 0;
-  return Math.ceil(text.length / 4);
+  // A114-F2: Detect proportion of non-Latin characters (Arabic, CJK, etc.)
+  // and use a more conservative estimate (chars/3 instead of chars/4).
+  const nonLatinChars = text.replace(/[\x00-\x7F]/g, "").length;
+  const nonLatinRatio = nonLatinChars / text.length;
+  // If >30% non-Latin, use chars/3; otherwise use chars/4
+  const charsPerToken = nonLatinRatio > 0.3 ? 3 : 4;
+  return Math.ceil(text.length / charsPerToken);
 }
 
 /**
