@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS categories (
   UNIQUE (site_id, slug)
 );
 
-CREATE INDEX idx_categories_site ON categories(site_id);
+CREATE INDEX IF NOT EXISTS idx_categories_site ON categories(site_id);
 
 -- ── Products ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS products (
@@ -72,10 +72,10 @@ CREATE TABLE IF NOT EXISTS products (
   UNIQUE (site_id, slug)
 );
 
-CREATE INDEX idx_products_site ON products(site_id);
-CREATE INDEX idx_products_status ON products(site_id, status);
-CREATE INDEX idx_products_featured ON products(site_id, featured) WHERE featured = true;
-CREATE INDEX idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_site ON products(site_id);
+CREATE INDEX IF NOT EXISTS idx_products_status ON products(site_id, status);
+CREATE INDEX IF NOT EXISTS idx_products_featured ON products(site_id, featured) WHERE featured = true;
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 
 -- ── Content ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS content (
@@ -102,13 +102,13 @@ CREATE TABLE IF NOT EXISTS content (
   UNIQUE (site_id, slug)
 );
 
-CREATE INDEX idx_content_site ON content(site_id);
-CREATE INDEX idx_content_status ON content(site_id, status);
-CREATE INDEX idx_content_type ON content(site_id, type);
-CREATE INDEX idx_content_category ON content(category_id);
+CREATE INDEX IF NOT EXISTS idx_content_site ON content(site_id);
+CREATE INDEX IF NOT EXISTS idx_content_status ON content(site_id, status);
+CREATE INDEX IF NOT EXISTS idx_content_type ON content(site_id, type);
+CREATE INDEX IF NOT EXISTS idx_content_category ON content(category_id);
 
 -- Full-text search index for content
-CREATE INDEX idx_content_fts ON content
+CREATE INDEX IF NOT EXISTS idx_content_fts ON content
   USING gin(to_tsvector('english', coalesce(title, '') || ' ' || coalesce(excerpt, '') || ' ' || coalesce(body, '')));
 
 -- ── Content ↔ Product link table ─────────────────────────────────────
@@ -131,8 +131,8 @@ CREATE TABLE IF NOT EXISTS affiliate_clicks (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_clicks_site ON affiliate_clicks(site_id);
-CREATE INDEX idx_clicks_created ON affiliate_clicks(site_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_clicks_site ON affiliate_clicks(site_id);
+CREATE INDEX IF NOT EXISTS idx_clicks_created ON affiliate_clicks(site_id, created_at DESC);
 
 -- ── Admin Users ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS admin_users (
@@ -160,8 +160,8 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   UNIQUE (site_id, email)
 );
 
-CREATE INDEX idx_newsletter_site ON newsletter_subscribers(site_id);
-CREATE INDEX idx_newsletter_token ON newsletter_subscribers(confirmation_token) WHERE confirmation_token IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_newsletter_site ON newsletter_subscribers(site_id);
+CREATE INDEX IF NOT EXISTS idx_newsletter_token ON newsletter_subscribers(confirmation_token) WHERE confirmation_token IS NOT NULL;
 
 -- ── Audit Log ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_audit_site ON audit_log(site_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_site ON audit_log(site_id, created_at DESC);
 
 -- ── Auto-update triggers ─────────────────────────────────────────────
 -- DB-BUG-02: products and content tables have updated_at columns but no
