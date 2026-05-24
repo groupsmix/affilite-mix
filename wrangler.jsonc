@@ -192,6 +192,7 @@
   "vars": {
     "NODE_ENV": "production",
     "ENABLE_TURNSTILE": "true",
+    "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAADAMPNw7Ryyf-6Uq",
   },
   // Workers observability (logs, errors, metrics in CF dashboard)
   "observability": {
