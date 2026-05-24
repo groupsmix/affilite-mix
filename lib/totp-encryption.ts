@@ -134,9 +134,7 @@ export async function decryptTotpSecret(stored: string): Promise<string> {
     version = 1;
     b64 = stored.slice(ENCRYPTION_PREFIX_V1.length);
   } else {
-    throw new Error(
-      "[totp-encryption] Unknown encryption version prefix in stored TOTP secret.",
-    );
+    throw new Error("[totp-encryption] Unknown encryption version prefix in stored TOTP secret.");
   }
 
   if (!rawKey) {
