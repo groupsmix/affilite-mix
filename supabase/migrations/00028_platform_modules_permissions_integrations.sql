@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS site_modules (
   UNIQUE (site_id, module_key)
 );
 
-CREATE INDEX idx_site_modules_site ON site_modules(site_id);
-CREATE INDEX idx_site_modules_enabled ON site_modules(site_id, is_enabled) WHERE is_enabled = true;
+CREATE INDEX IF NOT EXISTS idx_site_modules_site ON site_modules(site_id);
+CREATE INDEX IF NOT EXISTS idx_site_modules_enabled ON site_modules(site_id, is_enabled) WHERE is_enabled = true;
 
 ALTER TABLE site_modules ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "site_modules_public_read" ON site_modules;
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS site_feature_flags (
   UNIQUE (site_id, flag_key)
 );
 
-CREATE INDEX idx_site_feature_flags_site ON site_feature_flags(site_id);
+CREATE INDEX IF NOT EXISTS idx_site_feature_flags_site ON site_feature_flags(site_id);
 
 ALTER TABLE site_feature_flags ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "site_feature_flags_public_read" ON site_feature_flags;
@@ -246,8 +246,8 @@ CREATE TABLE IF NOT EXISTS user_site_roles (
   UNIQUE (user_id, site_id)
 );
 
-CREATE INDEX idx_user_site_roles_user ON user_site_roles(user_id);
-CREATE INDEX idx_user_site_roles_site ON user_site_roles(site_id);
+CREATE INDEX IF NOT EXISTS idx_user_site_roles_user ON user_site_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_site_roles_site ON user_site_roles(site_id);
 
 ALTER TABLE user_site_roles ENABLE ROW LEVEL SECURITY;
 
@@ -313,7 +313,7 @@ CREATE TABLE IF NOT EXISTS site_integrations (
   UNIQUE (site_id, provider_key)
 );
 
-CREATE INDEX idx_site_integrations_site ON site_integrations(site_id);
+CREATE INDEX IF NOT EXISTS idx_site_integrations_site ON site_integrations(site_id);
 
 ALTER TABLE site_integrations ENABLE ROW LEVEL SECURITY;
 

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS stripe_event_failures (
 );
 
 -- Index for replay tooling (find unresolved failures)
-CREATE INDEX idx_stripe_event_failures_unresolved
+CREATE INDEX IF NOT EXISTS idx_stripe_event_failures_unresolved
   ON stripe_event_failures (created_at DESC)
   WHERE resolved_at IS NULL;
 
