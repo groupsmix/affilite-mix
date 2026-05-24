@@ -428,6 +428,7 @@ export function validateCreateProduct(
 
 export interface UpdateProductInput {
   id: string;
+  version?: number;
   name?: string;
   slug?: string;
   description?: string;
@@ -457,6 +458,26 @@ export function validateUpdateProduct(
   if (!isUuid(body.id)) {
     errors.id = "id must be a valid UUID";
   }
+
+  // A1-A30 audit rec #2: Validate version field for optimistic locking
+  if (
+    body.version !== undefined &&
+    (!isNumber(body.version) || !Number.isInteger(body.version) || body.version < 1)
+  ) {
+    errors.version = "version must be a positive integer";
+  }
+
+  // A1-A30 audit rec #3: Explicitly reject server-managed fields from update payload
+  if (body.site_id !== undefined) {
+    errors.site_id = "site_id cannot be modified via update";
+  }
+  if (body.created_at !== undefined) {
+    errors.created_at = "created_at cannot be modified via update";
+  }
+  if (body.updated_at !== undefined) {
+    errors.updated_at = "updated_at cannot be modified via update";
+  }
+
   if (
     body.name !== undefined &&
     (!isString(body.name) || body.name.length < 1 || body.name.length > 200)
@@ -527,6 +548,10 @@ export function validateUpdateProduct(
   if (!isUuid(body.id)) return { data: null, errors: { id: "id must be a valid UUID" } };
 
   const data: UpdateProductInput = { id: body.id };
+  // A1-A30 rec #2: Pass validated version for optimistic locking
+  if (isNumber(body.version) && Number.isInteger(body.version) && body.version >= 1) {
+    data.version = body.version;
+  }
   if (isString(body.name)) data.name = sanitizeText(body.name);
   if (isString(body.slug)) data.slug = body.slug;
   if (isString(body.description)) data.description = sanitizeText(body.description);

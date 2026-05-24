@@ -74,10 +74,10 @@ CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_products_site_status ON products(site_id, status);
 CREATE INDEX IF NOT EXISTS idx_products_site_status_created ON products(site_id, status, created_at DESC);
 
--- A17-002: Covering index so `authorizeResource` can do an index-only scan
--- instead of fetching the heap page for site_id.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_id_site_id
-  ON products(id) INCLUDE (site_id);
+-- A17-002: Covering index for authz resource lookup (index-only scan).
+-- Moved to 2026052303_split_concurrent_indexes.sql with
+-- `supabase:no-transaction` directive because CREATE INDEX CONCURRENTLY
+-- cannot execute inside a transaction block.
 
 -- ============================================================================
 -- SC16-005: CHECK constraint on products.status
@@ -94,9 +94,8 @@ END $$;
 
 -- ============================================================================
 -- SC16-006: Unique constraint on admin_users email (case-insensitive)
+-- Moved to 2026052303_split_concurrent_indexes.sql (requires no-transaction).
 -- ============================================================================
-CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_admin_users_email_lower
-  ON admin_users(LOWER(email));
 
 -- ============================================================================
 -- SC16-007: Indexes for audit_events table
@@ -113,5 +112,5 @@ CREATE INDEX IF NOT EXISTS idx_admin_site_memberships_site ON admin_site_members
 
 -- ============================================================================
 -- Additional: Unique index on sites.domain
+-- Moved to 2026052303_split_concurrent_indexes.sql (requires no-transaction).
 -- ============================================================================
-CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_sites_domain ON sites(domain) WHERE domain IS NOT NULL;
