@@ -158,6 +158,16 @@ const RESOURCE_TABLES = {
 
 export type AuthorizedResourceType = keyof typeof RESOURCE_TABLES;
 
+/** Hoisted allowlist for authorizeResource (audit P7-001). */
+const VALID_RESOURCE_TYPES = Object.keys(RESOURCE_TABLES) as AuthorizedResourceType[];
+
+function parseAuthzEnvInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw === "") return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 export type AuthorizationFailure = {
   ok: false;
   status: 401 | 403 | 404;
@@ -201,8 +211,7 @@ export async function authorizeResource(
 
   // SECURITY-FIX: Runtime validation that resourceType is a known key (T1-002 / CWE-89)
   // TypeScript enums are erased at runtime; an attacker can pass arbitrary strings.
-  const validTypes = Object.keys(RESOURCE_TABLES);
-  if (!validTypes.includes(opts.resourceType)) {
+  if (!VALID_RESOURCE_TYPES.includes(opts.resourceType)) {
     return { ok: false, status: 403, reason: "Unknown resource type" };
   }
 
@@ -217,9 +226,10 @@ export async function authorizeResource(
 
   // A98/A99: Circuit breaker around privileged DB call to prevent cascade
   // failure if the Supabase primary is degraded or down.
+  // F10-001: Threshold/recovery configurable for production traffic (default 10 / 30s).
   const cb = getCircuitBreaker("authorizeResource", {
-    failureThreshold: 5,
-    recoveryTimeoutMs: 30_000,
+    failureThreshold: parseAuthzEnvInt("AUTHZ_CIRCUIT_BREAKER_FAILURE_THRESHOLD", 10),
+    recoveryTimeoutMs: parseAuthzEnvInt("AUTHZ_CIRCUIT_BREAKER_RECOVERY_MS", 30_000),
   });
 
   let data: { site_id: string } | null = null;

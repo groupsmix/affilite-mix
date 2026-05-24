@@ -5,7 +5,8 @@
  */
 
 // Re-export shared email validation from the canonical utility module (task 18.6)
-export { isValidEmail } from "./validate-email";
+export { isValidEmail, MAX_EMAIL_LENGTH, sanitizeEmailInput } from "./validate-email";
+import { isUsableUuid } from "./security/uuid";
 
 // AM-04: Use shared max content body length from sanitizer to prevent mismatch
 import { MAX_INPUT_LENGTH as MAX_CONTENT_BODY_LENGTH } from "./sanitize-html";
@@ -81,7 +82,7 @@ function isSlug(v: unknown): v is string {
 }
 
 function isUuid(v: unknown): v is string {
-  return isString(v) && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+  return isUsableUuid(v);
 }
 
 function isUrl(v: unknown): v is string {
@@ -476,6 +477,21 @@ export function validateUpdateProduct(
   }
   if (body.updated_at !== undefined) {
     errors.updated_at = "updated_at cannot be modified via update";
+  }
+  // MA-001: Reject privilege / identity fields (mass-assignment hardening)
+  for (const field of [
+    "role",
+    "roles",
+    "is_verified",
+    "is_admin",
+    "permissions",
+    "user_id",
+    "login_failed_attempts",
+    "login_locked_until",
+  ] as const) {
+    if (body[field] !== undefined) {
+      errors[field] = `${field} cannot be modified via update`;
+    }
   }
 
   if (

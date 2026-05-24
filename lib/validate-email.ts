@@ -1,9 +1,18 @@
+/** RFC 5321 maximum path length for an email address (audit IV-001). */
+export const MAX_EMAIL_LENGTH = 254;
+
 /**
  * Shared email validation utility.
  * Centralizes the email regex used across newsletter signup, admin user creation, etc.
  */
 export function isValidEmail(email: string): boolean {
+  if (email.length > MAX_EMAIL_LENGTH) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/** Strip null bytes before length/format checks (audit IV-001 / CWE-1284). */
+export function sanitizeEmailInput(email: string): string {
+  return email.replace(/\0/g, "");
 }
 
 /**
