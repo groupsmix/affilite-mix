@@ -273,9 +273,10 @@ describe("generateWithFallback wires the guard in", () => {
     expect(sentText).not.toContain("<|im_start|>");
     expect(sentText).not.toContain("<|im_end|>");
     expect(sentText).toContain("the real question");
-    // Hardening preamble must always be prepended to the system prompt
-    // even when the caller did not supply one.
-    expect(sentText).toContain(SYSTEM_PROMPT_HARDENING_PREAMBLE);
+    // Hardening preamble is sent via Gemini's native system_instruction field
+    // (A101-F2 role separation), not concatenated into the user content turn.
+    const systemInstructionText = body.system_instruction?.parts?.[0]?.text as string;
+    expect(systemInstructionText).toContain(SYSTEM_PROMPT_HARDENING_PREAMBLE);
   });
 
   it("strips zero-width characters before control-token detection", async () => {

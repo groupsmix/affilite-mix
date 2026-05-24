@@ -192,38 +192,44 @@ export function sanitizePrompt(input: string, options: SanitizePromptOptions = {
   //    always indicates padding-style amplification.
   out = out.replace(/\n{5,}/g, "\n\n\n\n");
 
-  // 3b. A101-F3: Detect base64-encoded content (potential encoded injection).
-  //     Flag prompts containing what appears to be encoded content.
-  if (BASE64_PATTERN.test(out)) {
-    // Strip the suspicious base64 content rather than rejecting outright,
-    // as some legitimate product names may trigger this.
-    out = out.replace(/[A-Za-z0-9+/]{40,}={0,2}/g, "[encoded-content-removed]");
-  }
-
-  // 3c. A101-F1: Detect natural-language instruction override attempts.
-  //     Replace all override phrases with a neutralized marker so the model
-  //     sees them as data rather than instructions.
-  for (const pattern of INSTRUCTION_OVERRIDE_PATTERNS) {
-    out = out.replace(pattern, "[instruction-override-attempt-removed]");
-  }
-
   // 4. Trim and validate.
   const trimmed = out.trim();
   if (trimmed.length === 0) {
     throw new Error(`[ai] ${options.label ?? "prompt"} is empty after sanitization`);
   }
 
-  // 5. Cap length. We truncate AFTER stripping so the cap reflects
-  //    the bytes the model actually sees. The truncation marker is
-  //    only appended when the cap is large enough to leave room for
-  //    it; for very small caps we hard-cut so the output never
-  //    exceeds `cap`.
+  // 5. Cap length first so injection-pattern scans below only operate on
+  //    the characters the model will actually see. The truncation marker is
+  //    only appended when the cap is large enough to leave room for it;
+  //    for very small caps we hard-cut so the output never exceeds `cap`.
   const cap = options.maxChars ?? getMaxPromptChars();
-  if (trimmed.length <= cap) return trimmed;
+  let capped: string;
+  if (trimmed.length <= cap) {
+    capped = trimmed;
+  } else if (cap <= TRUNCATION_MARKER.length) {
+    capped = trimmed.slice(0, cap);
+  } else {
+    capped = `${trimmed.slice(0, cap - TRUNCATION_MARKER.length)}${TRUNCATION_MARKER}`;
+  }
 
-  if (cap <= TRUNCATION_MARKER.length) return trimmed.slice(0, cap);
+  // 5b. A101-F3: Detect base64-encoded content (potential encoded injection).
+  //     Runs after truncation so a long repeated-char input is already capped
+  //     and the replacement cannot shrink it below the truncation threshold.
+  let result = capped;
+  if (BASE64_PATTERN.test(result)) {
+    // Strip the suspicious base64 content rather than rejecting outright,
+    // as some legitimate product names may trigger this.
+    result = result.replace(/[A-Za-z0-9+/]{40,}={0,2}/g, "[encoded-content-removed]");
+  }
 
-  return `${trimmed.slice(0, cap - TRUNCATION_MARKER.length)}${TRUNCATION_MARKER}`;
+  // 5c. A101-F1: Detect natural-language instruction override attempts.
+  //     Replace all override phrases with a neutralized marker so the model
+  //     sees them as data rather than instructions.
+  for (const pattern of INSTRUCTION_OVERRIDE_PATTERNS) {
+    result = result.replace(pattern, "[instruction-override-attempt-removed]");
+  }
+
+  return result;
 }
 
 /**
