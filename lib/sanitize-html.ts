@@ -211,6 +211,14 @@ function buildAttrs(tag: string, raw: Record<string, string>): string {
  */
 export const MAX_INPUT_LENGTH = 100_000; // Shared constant — also used by lib/validation.ts
 
+/**
+ * A73-F1: Maximum allowed nesting depth for HTML elements. Deeply nested
+ * structures (e.g., 10,000 nested divs) cause O(n*depth) CPU consumption
+ * in the parser. Elements beyond this depth are flattened (their content
+ * is preserved but the wrapping tag is dropped).
+ */
+export const MAX_NESTING_DEPTH = 100;
+
 export function sanitizeHtml(html: string): string {
   if (!html) return html;
 
@@ -225,6 +233,11 @@ export function sanitizeHtml(html: string): string {
   // would leak its CSS body as plain text even though the <style> wrapper is stripped.
   let suppressDepth = 0;
 
+  // A73-F1: Track current nesting depth to prevent CPU exhaustion from
+  // deeply nested HTML. Tags beyond MAX_NESTING_DEPTH are flattened.
+  let currentDepth = 0;
+  let depthExceededCount = 0;
+
   const parser = new Parser(
     {
       onopentag(name, attribs) {
@@ -232,6 +245,16 @@ export function sanitizeHtml(html: string): string {
         if (!ALLOWED_TAGS.has(raw)) {
           if (!VOID_TAGS.has(raw)) suppressDepth++;
           return;
+        }
+
+        // A73-F1: Reject excessively nested elements — flatten them to prevent
+        // O(n*depth) CPU consumption on malicious deeply-nested input.
+        if (!VOID_TAGS.has(raw)) {
+          currentDepth++;
+          if (currentDepth > MAX_NESTING_DEPTH) {
+            depthExceededCount++;
+            return;
+          }
         }
 
         // Remap h1 → h2 so user content doesn't break page heading hierarchy
@@ -257,6 +280,18 @@ export function sanitizeHtml(html: string): string {
           return;
         }
         if (VOID_TAGS.has(raw)) return;
+
+        // A73-F1: Track depth reduction. If this tag was flattened on open,
+        // just decrement without emitting a close tag.
+        if (!VOID_TAGS.has(raw)) {
+          if (currentDepth > MAX_NESTING_DEPTH) {
+            currentDepth--;
+            depthExceededCount = Math.max(0, depthExceededCount - 1);
+            return;
+          }
+          currentDepth--;
+        }
+
         const tag = HEADING_REMAP[raw] ?? raw;
         chunks.push(`</${tag}>`);
       },

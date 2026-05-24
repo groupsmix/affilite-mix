@@ -587,11 +587,38 @@ async function innerMiddleware(request: NextRequest) {
   return response;
 }
 
+/**
+ * A100-06: Middleware-level request timeout. If the entire middleware
+ * execution (KV reads, DB lookups, rate-limit checks, CORS validation)
+ * takes longer than this, return 503 immediately rather than consuming
+ * Worker CPU time until the platform hard-kills at 30s.
+ */
+const MIDDLEWARE_TIMEOUT_MS = 5000;
+
 // F-FE-02: Wrap middleware in a try/catch to prevent a single unhandled
 // exception (e.g. from URL parsing or KV) from taking down the entire site.
 export async function middleware(request: NextRequest) {
   try {
-    return await innerMiddleware(request);
+    // A100-06: Race the middleware against a timeout to prevent a single
+    // hanging external call from consuming the full Worker CPU budget.
+    const timeoutPromise = new Promise<NextResponse>((resolve) => {
+      setTimeout(() => {
+        resolve(
+          NextResponse.json(
+            { error: "Gateway Timeout", code: "MIDDLEWARE_TIMEOUT" },
+            {
+              status: 503,
+              headers: {
+                "Retry-After": "5",
+                "Cache-Control": "no-store",
+              },
+            },
+          ),
+        );
+      }, MIDDLEWARE_TIMEOUT_MS);
+    });
+
+    return await Promise.race([innerMiddleware(request), timeoutPromise]);
   } catch (err) {
     captureException(err, { context: "middleware.unhandled_exception" });
 

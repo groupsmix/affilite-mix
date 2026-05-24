@@ -221,6 +221,107 @@ describe("sanitizeHtml", () => {
     }
   });
 
+  describe("heading remapping", () => {
+    it("remaps h1 to h2", () => {
+      expect(sanitizeHtml("<h1>Title</h1>")).toBe("<h2>Title</h2>");
+    });
+  });
+
+  describe("class attribute filtering", () => {
+    it("allows language-* classes on code elements", () => {
+      const input = '<code class="language-typescript">x</code>';
+      expect(sanitizeHtml(input)).toContain('class="language-typescript"');
+    });
+
+    it("allows text alignment classes on div elements", () => {
+      const input = '<div class="text-center">x</div>';
+      expect(sanitizeHtml(input)).toContain('class="text-center"');
+    });
+
+    it("strips disallowed class values", () => {
+      const input = '<div class="evil-class">x</div>';
+      expect(sanitizeHtml(input)).toBe("<div>x</div>");
+    });
+
+    it("filters mixed allowed and disallowed classes", () => {
+      const input = '<div class="text-left evil language-js">x</div>';
+      expect(sanitizeHtml(input)).toContain('class="text-left language-js"');
+    });
+  });
+
+  describe("buildAttrs edge cases", () => {
+    it("strips user-supplied rel on anchor tags", () => {
+      const input = '<a href="https://example.com" rel="opener">x</a>';
+      const result = sanitizeHtml(input);
+      expect(result).toContain('rel="noopener noreferrer nofollow"');
+      expect(result).not.toContain('opener"');
+    });
+
+    it("preserves allowed attrs like colspan on td", () => {
+      const input = '<td colspan="2">x</td>';
+      expect(sanitizeHtml(input)).toContain('colspan="2"');
+    });
+
+    it("preserves scope on th", () => {
+      const input = '<th scope="col">x</th>';
+      expect(sanitizeHtml(input)).toContain('scope="col"');
+    });
+
+    it("preserves start and type on ol", () => {
+      const input = '<ol start="5" type="a"><li>x</li></ol>';
+      expect(sanitizeHtml(input)).toContain('start="5"');
+    });
+
+    it("preserves cite on blockquote", () => {
+      const input = '<blockquote cite="https://example.com">x</blockquote>';
+      expect(sanitizeHtml(input)).toContain('cite="https://example.com"');
+    });
+  });
+
+  describe("isSafeUrl edge cases", () => {
+    it("returns false for non-string input", () => {
+      expect(isSafeUrl(null as unknown as string)).toBe(false);
+      expect(isSafeUrl(undefined as unknown as string)).toBe(false);
+      expect(isSafeUrl(123 as unknown as string)).toBe(false);
+    });
+
+    it("returns false for empty string after trimming", () => {
+      expect(isSafeUrl("   ")).toBe(false);
+      expect(isSafeUrl("\t\n\r")).toBe(false);
+    });
+
+    it("blocks protocol-relative URLs (//)", () => {
+      expect(isSafeUrl("//evil.example.com/x")).toBe(false);
+    });
+
+    it("allows relative paths without scheme", () => {
+      expect(isSafeUrl("foo/bar.html")).toBe(true);
+      expect(isSafeUrl("../page")).toBe(true);
+    });
+  });
+
+  describe("MAX_INPUT_LENGTH", () => {
+    it("throws when input exceeds maximum length", () => {
+      const longInput = "x".repeat(100_001);
+      expect(() => sanitizeHtml(longInput)).toThrow("exceeds maximum allowed length");
+    });
+  });
+
+  describe("suppress depth for disallowed non-void tags", () => {
+    it("suppresses text inside nested disallowed tags", () => {
+      const input = "<style><div>hidden</div></style><p>visible</p>";
+      const result = sanitizeHtml(input);
+      expect(result).not.toContain("hidden");
+      expect(result).toContain("<p>visible</p>");
+    });
+
+    it("handles disallowed void tags without incrementing suppress depth", () => {
+      const input = "<input /><p>visible</p>";
+      const result = sanitizeHtml(input);
+      expect(result).toBe("<p>visible</p>");
+    });
+  });
+
   describe("data: URI variants in img src", () => {
     const dataUris: Array<[string, string]> = [
       ["plain data:image/svg", '<img src="data:image/svg+xml,<svg onload=alert(1)>" />'],
