@@ -78,8 +78,6 @@ const CONTROL_TOKEN_PATTERNS: ReadonlyArray<RegExp> = [
   /(^|\n)\s*(?:\u0441\u0438\u0441\u0442\u0435\u043C\u0430|\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043D\u0442|\u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A)\s*[:\uFF1A]\s*/gim,
   // Chinese: 系统 (system), 助手 (assistant), 开发者 (developer)
   /(^|\n)\s*(?:\u7CFB\u7EDF|\u52A9\u624B|\u5F00\u53D1\u8005)\s*[:\uFF1A]\s*/gim,
-];
-
   // A101-F6: Expanded multilingual role-impersonation patterns.
   // Japanese: システム (system), アシスタント (assistant), 開発者 (developer)
   /(^|\n)\s*(?:\u30B7\u30B9\u30C6\u30E0|\u30A2\u30B7\u30B9\u30BF\u30F3\u30C8|\u958B\u767A\u8005)\s*[:\uFF1A]\s*/gim,
@@ -122,15 +120,15 @@ const BASE64_PATTERN = /[A-Za-z0-9+/]{40,}={0,2}/;
  * prompt using conversational language rather than control tokens.
  */
 const INSTRUCTION_OVERRIDE_PATTERNS: ReadonlyArray<RegExp> = [
-  /ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/i,
-  /disregard\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/i,
-  /forget\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/i,
-  /override\s+(the\s+)?(system|previous|above)\s+(prompt|instructions?|rules?)/i,
-  /you\s+are\s+now\s+(a|an|in)\s+(new|different|unrestricted|jailbroken)/i,
-  /the\s+(above|previous)\s+instructions?\s+(are|were)\s+(wrong|incorrect|fake|outdated)/i,
-  /new\s+instructions?:\s*/i,
-  /actually[,.]?\s*(you\s+should|your\s+real|the\s+real)\s/i,
-  /do\s+not\s+follow\s+(the\s+)?(system|previous|above)/i,
+  /ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/gi,
+  /disregard\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/gi,
+  /forget\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/gi,
+  /override\s+(the\s+)?(system|previous|above)\s+(prompt|instructions?|rules?)/gi,
+  /you\s+are\s+now\s+(a|an|in)\s+(new|different|unrestricted|jailbroken)/gi,
+  /the\s+(above|previous)\s+instructions?\s+(are|were)\s+(wrong|incorrect|fake|outdated)/gi,
+  /new\s+instructions?:\s*/gi,
+  /actually[,.]?\s*(you\s+should|your\s+real|the\s+real)\s/gi,
+  /do\s+not\s+follow\s+(the\s+)?(system|previous|above)/gi,
 ];
 
 /**
@@ -203,12 +201,10 @@ export function sanitizePrompt(input: string, options: SanitizePromptOptions = {
   }
 
   // 3c. A101-F1: Detect natural-language instruction override attempts.
-  //     Replace the override phrase with a neutralized marker so the model
-  //     sees it as data rather than an instruction.
+  //     Replace all override phrases with a neutralized marker so the model
+  //     sees them as data rather than instructions.
   for (const pattern of INSTRUCTION_OVERRIDE_PATTERNS) {
-    if (pattern.test(out)) {
-      out = out.replace(pattern, "[instruction-override-attempt-removed]");
-    }
+    out = out.replace(pattern, "[instruction-override-attempt-removed]");
   }
 
   // 4. Trim and validate.
