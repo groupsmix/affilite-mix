@@ -7,11 +7,61 @@ import { captureException } from "@/lib/sentry";
 import crypto from "crypto";
 
 /**
+ * A100-10: In-memory rate limiter for consent log endpoint.
+ * Limits to 5 requests per IP per 60 seconds to prevent bot flooding
+ * of the consent_log table. Uses a simple sliding-window approach.
+ */
+const CONSENT_RATE_LIMIT = 5;
+const CONSENT_RATE_WINDOW_MS = 60_000;
+const consentRateLimitMap = new Map<string, number[]>();
+
+// Periodic cleanup to prevent unbounded memory growth
+let lastCleanup = Date.now();
+function cleanupRateLimitMap() {
+  const now = Date.now();
+  if (now - lastCleanup < CONSENT_RATE_WINDOW_MS) return;
+  lastCleanup = now;
+  const cutoff = now - CONSENT_RATE_WINDOW_MS;
+  for (const [key, timestamps] of consentRateLimitMap) {
+    const valid = timestamps.filter((t) => t > cutoff);
+    if (valid.length === 0) {
+      consentRateLimitMap.delete(key);
+    } else {
+      consentRateLimitMap.set(key, valid);
+    }
+  }
+  // Hard cap: prevent unbounded growth even under distributed attack
+  if (consentRateLimitMap.size > 10_000) {
+    consentRateLimitMap.clear();
+  }
+}
+
+function isConsentRateLimited(ip: string): boolean {
+  cleanupRateLimitMap();
+  const now = Date.now();
+  const cutoff = now - CONSENT_RATE_WINDOW_MS;
+  const timestamps = consentRateLimitMap.get(ip) ?? [];
+  const valid = timestamps.filter((t) => t > cutoff);
+  if (valid.length >= CONSENT_RATE_LIMIT) {
+    return true;
+  }
+  valid.push(now);
+  consentRateLimitMap.set(ip, valid);
+  return false;
+}
+
+/**
  * POST /api/consent/log
  * OF-04: Server-side consent proof logging.
  * Records every CMP consent decision so we can prove lawful basis at audit time.
  */
 export async function POST(request: NextRequest) {
+  // A100-10: Rate limit consent log to prevent bot flooding.
+  const clientIp = getClientIp(request) ?? "unknown";
+  if (isConsentRateLimited(clientIp)) {
+    return apiError(429, "Too many consent log requests");
+  }
+
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;
 
