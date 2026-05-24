@@ -137,7 +137,16 @@ class GeminiProvider implements AIProvider {
     const cfg = getProviderConfig();
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
 
-    const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+    // A101-F2: Use Gemini's native system_instruction parameter instead of
+    // concatenating system+user into a single turn. This preserves proper
+    // role separation so user input cannot escape the system prompt boundary.
+    const requestBody: Record<string, unknown> = {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 4096 },
+    };
+    if (systemPrompt) {
+      requestBody.system_instruction = { parts: [{ text: systemPrompt }] };
+    }
 
     const res = await fetchWithTimeout(url, {
       method: "POST",
@@ -145,10 +154,7 @@ class GeminiProvider implements AIProvider {
         "Content-Type": "application/json",
         "x-goog-api-key": cfg.geminiApiKey!,
       },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        generationConfig: { maxOutputTokens: 4096 },
-      }),
+      body: JSON.stringify(requestBody),
       timeoutMs: 15000,
     });
 
