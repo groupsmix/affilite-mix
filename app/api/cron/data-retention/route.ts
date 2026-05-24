@@ -10,6 +10,9 @@ import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 
+// A82-F1: Batch size for cursor-based processing to survive interruptions
+const BATCH_SIZE = 5000;
+
 /**
  * POST /api/cron/data-retention — GDPR Data Retention
  * Designed to be called daily via Cloudflare Cron Trigger.
@@ -33,16 +36,73 @@ export async function POST(request: NextRequest) {
 
   // F-DATA-01: Extended affiliate_clicks retention to 365 days to avoid
   // breaking commission reconciliation (CJ etc. post 30–180 days post-click).
+  // A82-F1: Cursor-based batch processing so interrupted runs resume where they stopped.
   try {
     const clicksDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-    const { error: clicksError } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
-      .from("affiliate_clicks")
-      .delete()
-      .lt("created_at", clicksDate.toISOString());
 
-    if (clicksError) throw clicksError;
-    results.affiliate_clicks = { success: true };
+    // Load checkpoint cursor — resume from last processed ID
+    const { data: checkpoint } = await sb
+      .from("cron_state")
+      .select("last_id")
+      .eq("job_name", "data-retention:clicks")
+      .single();
+
+    let totalDeleted = 0;
+    let lastId = checkpoint?.last_id ?? "";
+    let hasMore = true;
+
+    while (hasMore) {
+      // Fetch a batch of IDs to delete
+      let query = sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
+        .from("affiliate_clicks")
+        .select("id")
+        .lt("created_at", clicksDate.toISOString())
+        .order("id", { ascending: true })
+        .limit(BATCH_SIZE);
+
+      if (lastId) {
+        query = query.gt("id", lastId);
+      }
+
+      const { data: batch, error: fetchErr } = await query;
+      if (fetchErr) throw fetchErr;
+
+      if (!batch || batch.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      const ids = batch.map((r: { id: string }) => r.id);
+      const { error: delErr } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
+        .from("affiliate_clicks")
+        .delete()
+        .in("id", ids);
+
+      if (delErr) throw delErr;
+
+      totalDeleted += ids.length;
+      lastId = ids[ids.length - 1];
+
+      // Persist checkpoint after each batch
+      await sb.from("cron_state").upsert(
+        { job_name: "data-retention:clicks", last_id: lastId, updated_at: new Date().toISOString() },
+        { onConflict: "job_name" },
+      );
+
+      if (batch.length < BATCH_SIZE) hasMore = false;
+    }
+
+    // Clear checkpoint on successful completion
+    if (!hasMore) {
+      await sb.from("cron_state").upsert(
+        { job_name: "data-retention:clicks", last_id: null, updated_at: new Date().toISOString() },
+        { onConflict: "job_name" },
+      );
+    }
+
+    results.affiliate_clicks = { success: true, deleted: totalDeleted };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     results.affiliate_clicks = { success: false, error: msg };

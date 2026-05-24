@@ -1,4 +1,5 @@
 import { requireEnvInProduction } from "@/lib/env";
+import { singleFlight } from "@/lib/single-flight";
 
 export interface MiddlewareSiteRow {
   id?: string;
@@ -14,8 +15,18 @@ export interface MiddlewareSiteRow {
  * that path pulls in `next/headers`, auth helpers, bcrypt, and other Node/server
  * modules. Query Supabase REST directly with the anon key instead; public RLS
  * already allows reads of active site rows only.
+ *
+ * A75-F1: Wrapped in single-flight to prevent cache stampede. When a cached
+ * site row expires and multiple concurrent requests hit this function for the
+ * same domain, only one DB lookup is triggered — the rest coalesce on its result.
  */
 export async function getMiddlewareSiteRowByDomain(
+  domain: string,
+): Promise<MiddlewareSiteRow | null> {
+  return singleFlight(`site-lookup:${domain}`, () => _fetchSiteRowByDomain(domain));
+}
+
+async function _fetchSiteRowByDomain(
   domain: string,
 ): Promise<MiddlewareSiteRow | null> {
   const supabaseUrl = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_URL");

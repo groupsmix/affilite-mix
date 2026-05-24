@@ -323,13 +323,18 @@ export async function listActiveProducts(
   return assertRows<ProductRow>(data);
 }
 
+/** A73-F2: Cap search query length to prevent expensive trigram query plans. */
+const MAX_SEARCH_QUERY_LENGTH = 200;
+
 export async function searchProducts(
   siteId: string,
   query: string,
   limit = 20,
 ): Promise<ProductRow[]> {
+  // A73-F2: Truncate overly long search queries to prevent expensive DB plans
+  const trimmedQuery = query.slice(0, MAX_SEARCH_QUERY_LENGTH);
   const sb = getAnonClient();
-  const tsq = toTsquery(query);
+  const tsq = toTsquery(trimmedQuery);
 
   if (tsq) {
     const { data, error } = await sb
@@ -349,7 +354,7 @@ export async function searchProducts(
     .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "active")
-    .ilike("name", `%${escapeLike(query)}%`)
+    .ilike("name", `%${escapeLike(trimmedQuery)}%`)
     .order("score", { ascending: false, nullsFirst: false })
     .limit(limit);
 

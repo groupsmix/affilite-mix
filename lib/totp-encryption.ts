@@ -1,5 +1,5 @@
 /**
- * B-01: Envelope encryption for TOTP shared secrets at rest.
+ * B-01 / A100-05: Envelope encryption for TOTP shared secrets at rest.
  *
  * TOTP secrets stored in the database must be encrypted so a DB dump,
  * backup exfiltration, or service-role key leak does not compromise
@@ -10,21 +10,28 @@
  * module falls back to plaintext with a loud warning so local
  * development is not blocked.
  *
+ * A100-05: Key rotation support via versioned envelope. The ciphertext
+ * prefix encodes the key version (e.g. `enc:v1:`, `enc:v2:`). When
+ * TOTP_ENCRYPTION_KEY_V2 is set, new encryptions use v2. Decryption
+ * supports both v1 and v2 so existing secrets remain readable during
+ * rotation. On next successful login, the secret is transparently
+ * re-encrypted with the latest key version.
+ *
  * Algorithm: AES-256-GCM via Web Crypto API (compatible with
- * Cloudflare Workers and Node 18+). The ciphertext is stored as
- * `enc:v1:<base64(iv + ciphertext + tag)>`.
+ * Cloudflare Workers and Node 18+).
  */
 
 import { logger } from "@/lib/logger";
 
-const ENCRYPTION_PREFIX = "enc:v1:";
+const ENCRYPTION_PREFIX_V1 = "enc:v1:";
+const ENCRYPTION_PREFIX_V2 = "enc:v2:";
 
 /**
  * Derive a 256-bit AES-GCM key from the raw env secret.
  * Uses HKDF with SHA-256 so the env var does not need to be exactly
  * 32 bytes — any reasonable secret length works.
  */
-async function deriveKey(rawSecret: string): Promise<CryptoKey> {
+async function deriveKey(rawSecret: string, version: number): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -37,7 +44,9 @@ async function deriveKey(rawSecret: string): Promise<CryptoKey> {
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: encoder.encode("affilite-mix-totp-v1"),
+      // Use version-specific salt to ensure distinct derived keys even if
+      // the raw secret is accidentally reused across versions.
+      salt: encoder.encode(`affilite-mix-totp-v${version}`),
       info: encoder.encode("totp-secret-encryption"),
     },
     keyMaterial,
@@ -47,19 +56,36 @@ async function deriveKey(rawSecret: string): Promise<CryptoKey> {
   );
 }
 
-function getEncryptionKey(): string | null {
+function getEncryptionKeyV1(): string | null {
   return process.env.TOTP_ENCRYPTION_KEY?.trim() || null;
+}
+
+function getEncryptionKeyV2(): string | null {
+  return process.env.TOTP_ENCRYPTION_KEY_V2?.trim() || null;
+}
+
+/**
+ * Determine the latest key version available for encryption.
+ * V2 takes precedence when set; otherwise falls back to V1.
+ */
+function getLatestKeyInfo(): { version: number; rawKey: string; prefix: string } | null {
+  const v2 = getEncryptionKeyV2();
+  if (v2) return { version: 2, rawKey: v2, prefix: ENCRYPTION_PREFIX_V2 };
+  const v1 = getEncryptionKeyV1();
+  if (v1) return { version: 1, rawKey: v1, prefix: ENCRYPTION_PREFIX_V1 };
+  return null;
 }
 
 /**
  * Encrypt a TOTP secret for storage.
  *
- * Returns the encrypted string prefixed with `enc:v1:` so the decrypt
- * path can distinguish encrypted from legacy plaintext values.
+ * Returns the encrypted string prefixed with `enc:v{N}:` so the decrypt
+ * path can distinguish encrypted from legacy plaintext values and select
+ * the correct decryption key.
  */
 export async function encryptTotpSecret(plaintext: string): Promise<string> {
-  const rawKey = getEncryptionKey();
-  if (!rawKey) {
+  const keyInfo = getLatestKeyInfo();
+  if (!keyInfo) {
     logger.warn(
       "[totp-encryption] TOTP_ENCRYPTION_KEY not set — storing TOTP secret in plaintext. " +
         "This is acceptable in dev/test but MUST be configured in production.",
@@ -67,7 +93,7 @@ export async function encryptTotpSecret(plaintext: string): Promise<string> {
     return plaintext;
   }
 
-  const key = await deriveKey(rawKey);
+  const key = await deriveKey(keyInfo.rawKey, keyInfo.version);
   const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for AES-GCM
   const encoded = new TextEncoder().encode(plaintext);
 
@@ -80,37 +106,53 @@ export async function encryptTotpSecret(plaintext: string): Promise<string> {
 
   // Base64-encode for safe DB storage
   const b64 = btoa(String.fromCharCode(...combined));
-  return `${ENCRYPTION_PREFIX}${b64}`;
+  return `${keyInfo.prefix}${b64}`;
 }
 
 /**
  * Decrypt a TOTP secret from storage.
  *
- * Handles both encrypted (`enc:v1:...`) and legacy plaintext values
+ * Handles encrypted (`enc:v1:...`, `enc:v2:...`) and legacy plaintext values
  * so existing un-encrypted rows keep working until re-enrolled.
  */
 export async function decryptTotpSecret(stored: string): Promise<string> {
   // Legacy plaintext — return as-is
-  if (!stored.startsWith(ENCRYPTION_PREFIX)) {
+  if (!stored.startsWith("enc:")) {
     return stored;
   }
 
-  const rawKey = getEncryptionKey();
+  let rawKey: string | null;
+  let version: number;
+  let b64: string;
+
+  if (stored.startsWith(ENCRYPTION_PREFIX_V2)) {
+    rawKey = getEncryptionKeyV2();
+    version = 2;
+    b64 = stored.slice(ENCRYPTION_PREFIX_V2.length);
+  } else if (stored.startsWith(ENCRYPTION_PREFIX_V1)) {
+    rawKey = getEncryptionKeyV1();
+    version = 1;
+    b64 = stored.slice(ENCRYPTION_PREFIX_V1.length);
+  } else {
+    throw new Error(
+      "[totp-encryption] Unknown encryption version prefix in stored TOTP secret.",
+    );
+  }
+
   if (!rawKey) {
     throw new Error(
-      "[totp-encryption] Cannot decrypt TOTP secret: TOTP_ENCRYPTION_KEY is not configured. " +
+      `[totp-encryption] Cannot decrypt TOTP secret: TOTP_ENCRYPTION_KEY${version > 1 ? `_V${version}` : ""} is not configured. ` +
         "The stored value is encrypted but the decryption key is missing.",
     );
   }
 
-  const b64 = stored.slice(ENCRYPTION_PREFIX.length);
   const combined = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
   // First 12 bytes are the IV, remainder is ciphertext + GCM tag
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
-  const key = await deriveKey(rawKey);
+  const key = await deriveKey(rawKey, version);
   const plainBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
 
   return new TextDecoder().decode(plainBytes);
@@ -120,5 +162,23 @@ export async function decryptTotpSecret(stored: string): Promise<string> {
  * Check whether a stored TOTP secret is already encrypted.
  */
 export function isTotpSecretEncrypted(stored: string): boolean {
-  return stored.startsWith(ENCRYPTION_PREFIX);
+  return stored.startsWith("enc:");
+}
+
+/**
+ * A100-05: Check whether a stored secret needs re-encryption with the latest key.
+ * Returns true if the secret is either plaintext or encrypted with an older key version.
+ */
+export function needsReEncryption(stored: string): boolean {
+  const keyInfo = getLatestKeyInfo();
+  if (!keyInfo) return false; // No key configured, can't re-encrypt
+
+  // Plaintext needs encryption
+  if (!stored.startsWith("enc:")) return true;
+
+  // Already on latest version
+  if (stored.startsWith(keyInfo.prefix)) return false;
+
+  // Encrypted with older version — needs rotation
+  return true;
 }
