@@ -78,6 +78,13 @@ const CONTROL_TOKEN_PATTERNS: ReadonlyArray<RegExp> = [
   /(^|\n)\s*(?:\u0441\u0438\u0441\u0442\u0435\u043C\u0430|\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043D\u0442|\u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A)\s*[:\uFF1A]\s*/gim,
   // Chinese: 系统 (system), 助手 (assistant), 开发者 (developer)
   /(^|\n)\s*(?:\u7CFB\u7EDF|\u52A9\u624B|\u5F00\u53D1\u8005)\s*[:\uFF1A]\s*/gim,
+  // A101-F6: Expanded multilingual role-impersonation patterns.
+  // Japanese: システム (system), アシスタント (assistant), 開発者 (developer)
+  /(^|\n)\s*(?:\u30B7\u30B9\u30C6\u30E0|\u30A2\u30B7\u30B9\u30BF\u30F3\u30C8|\u958B\u767A\u8005)\s*[:\uFF1A]\s*/gim,
+  // Korean: 시스템 (system), 어시스턴트 (assistant), 개발자 (developer)
+  /(^|\n)\s*(?:\uC2DC\uC2A4\uD15C|\uC5B4\uC2DC\uC2A4\uD134\uD2B8|\uAC1C\uBC1C\uC790)\s*[:\uFF1A]\s*/gim,
+  // Hindi: सिस्टम (system), सहायक (assistant), डेवलपर (developer)
+  /(^|\n)\s*(?:\u0938\u093F\u0938\u094D\u091F\u092E|\u0938\u0939\u093E\u092F\u0915|\u0921\u0947\u0935\u0932\u092A\u0930)\s*[:\uFF1A]\s*/gim,
 ];
 
 /** Bytes a tokenizer may interpret as a message boundary. */
@@ -99,6 +106,30 @@ const FORBIDDEN_CHARS = /[\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\uFFFE
 
 const INVISIBLE_CHARS =
   /[\u00AD\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060\uFEFF\uFE00-\uFE0F]|\uDB40[\uDC00-\uDC7F]/g;
+
+/**
+ * A101-F3: Detect base64-encoded content that may contain hidden instructions.
+ * Base64 strings longer than 40 chars are suspicious in the context of a
+ * content generation prompt (legitimate topics/keywords don't need encoding).
+ */
+const BASE64_PATTERN = /[A-Za-z0-9+/]{40,}={0,2}/;
+
+/**
+ * A101-F1: Natural-language instruction override patterns.
+ * These detect common jailbreak phrases that attempt to override the system
+ * prompt using conversational language rather than control tokens.
+ */
+const INSTRUCTION_OVERRIDE_PATTERNS: ReadonlyArray<RegExp> = [
+  /ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/gi,
+  /disregard\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/gi,
+  /forget\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?)/gi,
+  /override\s+(the\s+)?(system|previous|above)\s+(prompt|instructions?|rules?)/gi,
+  /you\s+are\s+now\s+(a|an|in)\s+(new|different|unrestricted|jailbroken)/gi,
+  /the\s+(above|previous)\s+instructions?\s+(are|were)\s+(wrong|incorrect|fake|outdated)/gi,
+  /new\s+instructions?:\s*/gi,
+  /actually[,.]?\s*(you\s+should|your\s+real|the\s+real)\s/gi,
+  /do\s+not\s+follow\s+(the\s+)?(system|previous|above)/gi,
+];
 
 /**
  * Reads the optional environment override and returns the effective
@@ -167,17 +198,38 @@ export function sanitizePrompt(input: string, options: SanitizePromptOptions = {
     throw new Error(`[ai] ${options.label ?? "prompt"} is empty after sanitization`);
   }
 
-  // 5. Cap length. We truncate AFTER stripping so the cap reflects
-  //    the bytes the model actually sees. The truncation marker is
-  //    only appended when the cap is large enough to leave room for
-  //    it; for very small caps we hard-cut so the output never
-  //    exceeds `cap`.
+  // 5. Cap length first so injection-pattern scans below only operate on
+  //    the characters the model will actually see. The truncation marker is
+  //    only appended when the cap is large enough to leave room for it;
+  //    for very small caps we hard-cut so the output never exceeds `cap`.
   const cap = options.maxChars ?? getMaxPromptChars();
-  if (trimmed.length <= cap) return trimmed;
+  let capped: string;
+  if (trimmed.length <= cap) {
+    capped = trimmed;
+  } else if (cap <= TRUNCATION_MARKER.length) {
+    capped = trimmed.slice(0, cap);
+  } else {
+    capped = `${trimmed.slice(0, cap - TRUNCATION_MARKER.length)}${TRUNCATION_MARKER}`;
+  }
 
-  if (cap <= TRUNCATION_MARKER.length) return trimmed.slice(0, cap);
+  // 5b. A101-F3: Detect base64-encoded content (potential encoded injection).
+  //     Runs after truncation so a long repeated-char input is already capped
+  //     and the replacement cannot shrink it below the truncation threshold.
+  let result = capped;
+  if (BASE64_PATTERN.test(result)) {
+    // Strip the suspicious base64 content rather than rejecting outright,
+    // as some legitimate product names may trigger this.
+    result = result.replace(/[A-Za-z0-9+/]{40,}={0,2}/g, "[encoded-content-removed]");
+  }
 
-  return `${trimmed.slice(0, cap - TRUNCATION_MARKER.length)}${TRUNCATION_MARKER}`;
+  // 5c. A101-F1: Detect natural-language instruction override attempts.
+  //     Replace all override phrases with a neutralized marker so the model
+  //     sees them as data rather than instructions.
+  for (const pattern of INSTRUCTION_OVERRIDE_PATTERNS) {
+    result = result.replace(pattern, "[instruction-override-attempt-removed]");
+  }
+
+  return result;
 }
 
 /**
