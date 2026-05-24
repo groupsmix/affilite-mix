@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     const { data: subscriber } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
-      .select("id, token_issued_at")
+      .select("id, created_at")
       .eq("unsubscribe_token", tokenHash)
       .single();
 
@@ -68,7 +68,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (isUnsubscribeTokenExpired((subscriber as any).token_issued_at)) {
+    // A100-11: Use created_at as proxy for token issuance time
+    // (token is generated at subscription time)
+    if (isUnsubscribeTokenExpired(subscriber.created_at)) {
       return NextResponse.redirect(
         new URL("/newsletter/unsubscribed?error=token_expired", request.url),
       );

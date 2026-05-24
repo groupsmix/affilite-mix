@@ -9,6 +9,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
+type TableName = keyof Database["public"]["Tables"] & string;
+
 /**
  * Returns a scoped query helper that enforces site_id filtering on every query.
  * Use this in cron jobs instead of raw service-role queries to prevent
@@ -20,26 +22,23 @@ export function scopedCronQuery(client: SupabaseClient<Database>, siteId: string
   }
 
   return {
-    from<T extends keyof Database["public"]["Tables"]>(table: T) {
-      return client.from(table).select().eq("site_id" as any, siteId);
+    from(table: TableName) {
+      return (client.from as any)(table).select().eq("site_id", siteId);
     },
 
     /** Select with custom columns */
-    select<T extends keyof Database["public"]["Tables"]>(table: T, columns: string) {
-      return client.from(table).select(columns).eq("site_id" as any, siteId);
+    select(table: TableName, columns: string) {
+      return (client.from as any)(table).select(columns).eq("site_id", siteId);
     },
 
     /** Update with forced site_id scope */
-    update<T extends keyof Database["public"]["Tables"]>(
-      table: T,
-      values: Record<string, unknown>,
-    ) {
-      return client.from(table).update(values as any).eq("site_id" as any, siteId);
+    update(table: TableName, values: Record<string, unknown>) {
+      return (client.from as any)(table).update(values).eq("site_id", siteId);
     },
 
     /** Delete with forced site_id scope */
-    delete<T extends keyof Database["public"]["Tables"]>(table: T) {
-      return client.from(table).delete().eq("site_id" as any, siteId);
+    delete(table: TableName) {
+      return (client.from as any)(table).delete().eq("site_id", siteId);
     },
 
     /** The raw site_id for manual queries that need it */
