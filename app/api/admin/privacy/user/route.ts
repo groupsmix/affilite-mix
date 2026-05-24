@@ -111,6 +111,14 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
     // A62-F1: GDPR Art. 20 data portability — support CSV format
     const format = searchParams.get("format");
     if (format === "csv") {
+      /** Properly escape a CSV field value (RFC 4180). */
+      function escapeCsv(val: string): string {
+        if (val.includes(",") || val.includes('"') || val.includes("\n") || val.includes("\r")) {
+          return `"${val.replace(/"/g, '""')}"`;
+        }
+        return val;
+      }
+
       const csvRows: string[] = [];
       csvRows.push("table,id,email,created_at,data_json");
       for (const [table, rows] of Object.entries(exportPayload.data)) {
@@ -118,8 +126,10 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
           const id = String(row.id ?? "");
           const rowEmail = String(row.email ?? row.user_email ?? "");
           const createdAt = String(row.created_at ?? "");
-          const dataJson = JSON.stringify(row).replace(/"/g, '""');
-          csvRows.push(`"${table}","${id}","${rowEmail}","${createdAt}","${dataJson}"`);
+          const dataJson = JSON.stringify(row);
+          csvRows.push(
+            [escapeCsv(table), escapeCsv(id), escapeCsv(rowEmail), escapeCsv(createdAt), escapeCsv(dataJson)].join(","),
+          );
         }
       }
       const csvContent = csvRows.join("\n");
