@@ -398,7 +398,7 @@ resource "cloudflare_logpush_job" "worker_logs" {
   output_options = {
     # A41: Minimised field list — excludes request bodies, cookies, and
     # query strings that may contain PII. Only Event, Outcome, and
-   # Exceptions are included for debugging; Logs is excluded.
+    # Exceptions are included for debugging; Logs is excluded.
     field_names      = ["Event", "EventTimestampMs", "Outcome", "Exceptions"]
     timestamp_format = "rfc3339"
     output_type      = "ndjson"
@@ -408,8 +408,8 @@ resource "cloudflare_logpush_job" "worker_logs" {
       enabled = true
       regexes = [
         "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", # Email
-        "\\b\\d{3}-\\d{2}-\\d{4}\\b",                    # SSN
-        "\\b\\d{4}[ -]?\\d{4}[ -]?\\d{4}[ -]?\\d{4}\\b", # Credit card
+        "\\b\\d{3}-\\d{2}-\\d{4}\\b",                      # SSN
+        "\\b\\d{4}[ -]?\\d{4}[ -]?\\d{4}[ -]?\\d{4}\\b",   # Credit card
       ]
     }
   }

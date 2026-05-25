@@ -313,7 +313,7 @@ jobs:
       # a GitHub Actions artifact and should be attached to releases.
       - name: Generate SLSA provenance attestation (A34)
         id: provenance
-        uses: actions/attest-build-provenance@766857f052e363bfa9f25d2d1f9480f3801a8ce5 # v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: |
             sbom.json
@@ -321,7 +321,7 @@ jobs:
 
       - name: Sign SBOM with cosign (A34)
         if: github.ref == 'refs/heads/main'
-        uses: sigstore/cosign-installer@34528306bb537f7036f23871fdcb4709059dc260 # v3.8.2
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
       - name: Cosign sign SBOM (A34)
         if: github.ref == 'refs/heads/main'
         run: |

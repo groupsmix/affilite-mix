@@ -19,15 +19,15 @@ requests to:
 The application SHOULD enforce an outbound allowlist for all
 `fetch()` calls. Approved destinations:
 
-| Service | Hostname | Purpose |
-|---|---|---|
-| Supabase | `*.supabase.co` | Database API |
-| Stripe | `api.stripe.com` | Payment processing |
-| Resend | `api.resend.com` | Email delivery |
-| Cloudflare AI | `*.cloudflare.com` | AI inference |
-| Sentry | `*.sentry.io` | Error reporting |
-| R2 | `*.r2.cloudflarestorage.com` | Object storage |
-| External images | `m.media-amazon.com` | Product images |
+| Service         | Hostname                     | Purpose            |
+| --------------- | ---------------------------- | ------------------ |
+| Supabase        | `*.supabase.co`              | Database API       |
+| Stripe          | `api.stripe.com`             | Payment processing |
+| Resend          | `api.resend.com`             | Email delivery     |
+| Cloudflare AI   | `*.cloudflare.com`           | AI inference       |
+| Sentry          | `*.sentry.io`                | Error reporting    |
+| R2              | `*.r2.cloudflarestorage.com` | Object storage     |
+| External images | `m.media-amazon.com`         | Product images     |
 
 ### Enforcement
 
@@ -70,6 +70,7 @@ curl https://<domain>/api/internal/webhook?url=http://127.0.0.1:8080/admin
 ## Future: Zero-Trust Egress
 
 Consider Cloudflare Gateway for per-Worker egress policies with:
+
 - Domain-based allowlists
 - TLS inspection
 - DLP scanning on outbound data
