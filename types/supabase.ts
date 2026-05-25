@@ -2467,6 +2467,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      db_now: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
       get_top_products: {
         Args: { p_site_id: string; p_since: string; p_limit: number };
         Returns: { product_name: string; click_count: number }[];
