@@ -33,7 +33,11 @@ import { logger } from "@/lib/logger";
 type AuthMode = "per-site" | "all-sites";
 
 /** A98-64: Determine which token to validate against */
-function determineAuthMode(bearer: string, internalToken: string, allSitesToken?: string): AuthMode | null {
+function determineAuthMode(
+  bearer: string,
+  internalToken: string,
+  allSitesToken?: string,
+): AuthMode | null {
   const encoder = new TextEncoder();
   if (timingSafeCompare(encoder.encode(bearer), encoder.encode(internalToken))) {
     return "per-site";
@@ -71,7 +75,8 @@ export async function POST(request: NextRequest) {
   // cache-invalidation flood that hammers the origin DB on every revalidation.
   // Cap to 30 calls / minute for per-site, 5/min for all-sites.
   // F-20: Use fail-closed policy so leaked tokens can't bypass during outages.
-  const rateLimitKey = authMode === "all-sites" ? "revalidate:all-sites" : "revalidate:internal-token";
+  const rateLimitKey =
+    authMode === "all-sites" ? "revalidate:all-sites" : "revalidate:internal-token";
   const rateLimitConfig =
     authMode === "all-sites"
       ? { maxRequests: 5, windowMs: 60_000, failPolicy: "closed" as const }
@@ -140,7 +145,8 @@ export async function POST(request: NextRequest) {
     // Per-site token without site_id — reject
     return NextResponse.json(
       {
-        error: "site_id is required for per-site revalidation. Use REVALIDATE_ALL_SITES_TOKEN for cross-site invalidation.",
+        error:
+          "site_id is required for per-site revalidation. Use REVALIDATE_ALL_SITES_TOKEN for cross-site invalidation.",
       },
       { status: 400 },
     );
