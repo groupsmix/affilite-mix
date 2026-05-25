@@ -7,13 +7,17 @@
 # network so they can be brought up / torn down around test runs.
 #
 # Usage:
-#   docker compose up -d              # start stack
+#   docker compose --env-file .env.local up -d   # start stack (.env.local is NOT loaded automatically)
 #   TEST_WITH_SUPABASE=1 \
 #   NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321 \
 #   NEXT_PUBLIC_SUPABASE_ANON_KEY=$LOCAL_SUPABASE_ANON_KEY \
 #   SUPABASE_SERVICE_ROLE_KEY=$LOCAL_SUPABASE_SERVICE_ROLE_KEY \
 #     npm run test:integration
-#   docker compose down -v            # stop + wipe volumes
+#   docker compose --env-file .env.local down -v # stop + wipe volumes
+#
+# NOTE: Docker Compose does NOT automatically load .env.local for variable
+# substitution — only .env is loaded by default. Always pass --env-file .env.local
+# explicitly, or export the variables into your shell before running compose.
 #
 # A32/A38: SECURITY REQUIREMENTS:
 #   1. All images are pinned by SHA256 digest (immutable).
@@ -30,9 +34,9 @@ services:
       com.affilite-mix.service: "postgres"
       com.affilite-mix.environment: "local-dev"
     # A32: Image pinned by SHA256 digest for immutability.
-    # Digest: sha256:71a9c59d5f6d7f,... (supabase/postgres:15.6.1.144)
-    # To update: docker pull supabase/postgres:17 && docker inspect --format='{{index .RepoDigests 0}}' supabase/postgres:17
-    image: supabase/postgres@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    # Digest: sha256:9ce3d997e303d7be5941f40c6fa595131432f87ce94349c415034fa260ae6ea7 (supabase/postgres:15.14.1.129)
+    # To update: docker pull supabase/postgres:15.14.1.129 && docker inspect --format='{{index .RepoDigests 0}}' supabase/postgres:15.14.1.129
+    image: supabase/postgres:15.14.1.129@sha256:9ce3d997e303d7be5941f40c6fa595131432f87ce94349c415034fa260ae6ea7
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
@@ -79,7 +83,8 @@ services:
       com.affilite-mix.service: "postgrest"
       com.affilite-mix.environment: "local-dev"
     # A32: Image pinned by SHA256 digest.
-    image: postgrest/postgrest@sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
+    # Digest: sha256:54000f24847d01a2c2302e0041cf0618b875c57fb48507d743cfa9aaa50bf43c (postgrest/postgrest:v14.12)
+    image: postgrest/postgrest:v14.12@sha256:54000f24847d01a2c2302e0041cf0618b875c57fb48507d743cfa9aaa50bf43c
     depends_on:
       db:
         condition: service_healthy
@@ -113,7 +118,8 @@ services:
       com.affilite-mix.service: "kong"
       com.affilite-mix.environment: "local-dev"
     # A32: Image pinned by SHA256 digest.
-    image: kong@sha256:b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3
+    # Digest: sha256:a2b2ec9964bba34065943e8be1d56791a4a06b7b0c10222f05564b372ca87840 (kong:3.9.1)
+    image: kong:3.9.1@sha256:a2b2ec9964bba34065943e8be1d56791a4a06b7b0c10222f05564b372ca87840
     depends_on:
       - rest
     restart: unless-stopped

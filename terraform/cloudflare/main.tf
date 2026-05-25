@@ -85,6 +85,12 @@ variable "worker_origin_hostname" {
     condition     = can(regex("^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$", var.worker_origin_hostname))
     error_message = "worker_origin_hostname must be a valid DNS hostname."
   }
+  validation {
+    # A31: The origin must not equal the proxied apex domain — routing through the
+    # front door creates a loop and defeats the least-privilege origin model.
+    condition     = var.worker_origin_hostname != var.zone_domain
+    error_message = "worker_origin_hostname must not be the proxied apex domain (var.zone_domain). Use a dedicated, unproxied origin hostname instead."
+  }
 }
 
 variable "logpush_destination_conf" {
@@ -124,7 +130,7 @@ variable "waf_managed_rulesets" {
   }))
   default = [
     { ruleset_id = "efb7b8c949ac4650a09736fc376e9aee" }, # Cloudflare Managed Ruleset
-    { ruleset_id = "4809eaeb9da840b49d5cdd4321b7cb48" }, # Cloudflare OWASP Core Ruleset
+    { ruleset_id = "4814384a9e5d4991b9815dcfc25d2f1f" }, # Cloudflare OWASP Core Ruleset
   ]
   description = "Managed WAF rulesets to enable. Default includes Cloudflare Managed Rules and OWASP Core Ruleset."
 }
@@ -176,7 +182,10 @@ resource "cloudflare_zone_setting" "always_use_https" {
 resource "cloudflare_zone_setting" "min_tls_version" {
   zone_id    = var.zone_id
   setting_id = "min_tls_version"
-  value      = "1.2"
+  # A31: Enforce TLS 1.3-only. Setting tls_1_3 = "on" merely enables negotiation;
+  # min_tls_version = "1.3" is required to actually block TLS 1.2 clients.
+  # Ref: https://developers.cloudflare.com/ssl/edge-certificates/additional-options/minimum-tls/
+  value = "1.3"
 }
 
 # A31/A36: Explicitly request TLS 1.3 (0-RTT disabled for replay safety).
@@ -389,6 +398,9 @@ resource "cloudflare_ruleset" "cache_rules" {
 # request bodies and sensitive headers.
 
 resource "cloudflare_logpush_job" "worker_logs" {
+  # A41: Must use the logpush-scoped provider; the default provider is rebound
+  # to var.waf_api_token and a WAF-only token cannot manage Logpush jobs.
+  provider         = cloudflare.logpush
   account_id       = var.cloudflare_account_id
   name             = "workers-logpush"
   dataset          = "workers_trace_events"

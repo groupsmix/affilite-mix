@@ -16,7 +16,7 @@
 | RESEND_API_KEY            | Production  | 180 days         |              |               |
 | TURNSTILE_SECRET_KEY      | Production  | 180 days         |              |               |
 | SOCKET_SECURITY_API_KEY   | CI          | 180 days         |              |               |
-| GITHUB_TOKEN (Terraform)  | CI          | 90 days          |              |               |
+| GITHUB_TOKEN (Terraform)  | CI          | 90 days          |              | DEPRECATED (A35): Migrate to GitHub App auth. Once migrated, remove this entry and rotate the GitHub App private key instead. |
 
 ## Rotation Procedure
 

@@ -43,6 +43,14 @@ const ALLOWED_HOSTS = new Set([
   // ... etc
 ]);
 
+// SecurityError is not a built-in; define it (or use the built-in Error class).
+class SecurityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SecurityError";
+  }
+}
+
 function guardFetch(url: string): void {
   const hostname = new URL(url).hostname;
   if (!ALLOWED_HOSTS.has(hostname)) {

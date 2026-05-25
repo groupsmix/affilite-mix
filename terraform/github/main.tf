@@ -141,8 +141,9 @@ variable "required_review_count" {
   # A34: Require 2 reviewers to prevent single-actor merges.
   default = 2
   validation {
-    condition     = var.required_review_count >= 1
-    error_message = "required_review_count must be at least 1."
+    # A34: 2 is the enforced minimum — 1 reviewer allows single-actor merges.
+    condition     = var.required_review_count >= 2
+    error_message = "required_review_count must be at least 2 (A34: prevents single-actor merges)."
   }
 }
 
@@ -158,24 +159,42 @@ variable "break_glass_team_slug" {
 }
 
 # A35: Break-glass policy requires MFA/SSO for all bypass actors.
-# This variable enforces that break-glass access is only granted to
-# team members with MFA enabled.
+# NOTE: This variable is DOCUMENTATION-ONLY — flipping it does not change
+# any Terraform resource. The GitHub API/rulesets API has no native "require
+# MFA for bypass actors" mechanism; the control must be enforced at the
+# organization level via GitHub Organization SSO/MFA policy settings
+# (Organization Settings -> Authentication security -> Require two-factor
+# authentication). Audit break-glass team membership regularly.
 variable "break_glass_require_mfa" {
   type        = bool
-  description = "A35: Require MFA/SSO for break-glass team members. If true, the ruleset will include a bypass_actor restriction requiring MFA. This is enforced via organization-level SSO/MFA policies outside Terraform."
+  description = "A35: Documents that MFA is required for break-glass team members. Enforcement is via GitHub Org-level 2FA policy — this variable does not change any Terraform resource."
   default     = true
 }
 
 # A35: Configure the GitHub provider to use GitHub App authentication
 # when available, falling back to PAT for legacy compatibility.
+#
+# IMPORTANT: The GitHub provider blocks token-based auth when an app_auth {}
+# block is present — even if all three app fields are null. We therefore use
+# a dynamic block so the app_auth stanza only appears when all three GitHub
+# App inputs are actually supplied. This ensures the PAT path works correctly
+# during migration and in environments that haven't yet provisioned an App.
 provider "github" {
   owner = var.github_owner
 
-  # GitHub App auth takes precedence when all three fields are set.
-  app_auth {
-    id              = var.github_app_id != "" ? var.github_app_id : null
-    installation_id = var.github_app_installation_id != "" ? var.github_app_installation_id : null
-    pem_file        = var.github_app_pem_file != "" ? var.github_app_pem_file : null
+  # Only render app_auth when all three required fields are provided.
+  # If any field is missing, the block is omitted and token auth is used instead.
+  dynamic "app_auth" {
+    for_each = (
+      var.github_app_id != "" &&
+      var.github_app_installation_id != "" &&
+      var.github_app_pem_file != ""
+    ) ? [1] : []
+    content {
+      id              = var.github_app_id
+      installation_id = var.github_app_installation_id
+      pem_file        = var.github_app_pem_file
+    }
   }
 
   # Fallback to PAT when GitHub App auth is not configured.

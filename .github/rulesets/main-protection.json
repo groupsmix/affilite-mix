@@ -5,11 +5,12 @@
     "the policy via `gh api` without running Terraform. See",
     "docs/github-branch-protection.md for the full policy specification.",
     "",
-    "Apply with:",
-    "  jq 'del(._comment)' .github/rulesets/main-protection.json | \\",
+    "Apply with (strips all _comment fields recursively):",
+    "  jq 'walk(if type == \"object\" then del(._comment) else . end)' \\",
+    "    .github/rulesets/main-protection.json |",
     "    gh api -X POST repos/groupsmix/affilite-mix/rulesets --input -",
     "",
-    "Bypass actors are intentionally an empty list — admin / maintainer",
+    "Bypass actors are intentionally an empty list - admin / maintainer",
     "bypass is disabled. The Terraform module exposes a",
     "`break_glass_team_slug` variable for teams that want to grant",
     "PR-mode bypass to a documented incident-response team. To match",
@@ -22,19 +23,29 @@
   "bypass_actors": [],
   "conditions": {
     "ref_name": {
-      "include": ["refs/heads/main"],
+      "include": [
+        "refs/heads/main"
+      ],
       "exclude": []
     }
   },
   "rules": [
-    { "type": "deletion" },
-    { "type": "non_fast_forward" },
-    { "type": "required_linear_history" },
-    { "type": "required_signatures" },
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "required_linear_history"
+    },
+    {
+      "type": "required_signatures"
+    },
     {
       "type": "pull_request",
       "parameters": {
-        "_comment": "A34: Single source of truth — this value must match terraform/github/main.tf var.required_review_count (default 2).",
+        "_comment": "A34: Single source of truth \u2014 this value must match terraform/github/main.tf var.required_review_count (default 2).",
         "required_approving_review_count": 2,
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": true,
@@ -47,16 +58,36 @@
       "parameters": {
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
-          { "context": "check" },
-          { "context": "Required checks" },
-          { "context": "RLS audit (E-6)" },
-          { "context": "DB type drift (E-5)" },
-          { "context": "Terraform validate" },
-          { "context": "Dependency review" },
-          { "context": "Secret leak prevention" },
-          { "context": "License compliance" },
-          { "context": "npm audit (high / critical)" },
-          { "context": "Preview E2E gate" }
+          {
+            "context": "check"
+          },
+          {
+            "context": "Required checks"
+          },
+          {
+            "context": "RLS audit (E-6)"
+          },
+          {
+            "context": "DB type drift (E-5)"
+          },
+          {
+            "context": "Terraform validate"
+          },
+          {
+            "context": "Dependency review"
+          },
+          {
+            "context": "Secret leak prevention"
+          },
+          {
+            "context": "License compliance"
+          },
+          {
+            "context": "npm audit (high / critical)"
+          },
+          {
+            "context": "Preview E2E gate"
+          }
         ]
       }
     }
