@@ -26,6 +26,11 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(async () => ({ allowed: true, remaining: 30, retryAfterMs: 0 })),
 }));
 
+vi.mock("@/lib/supabase-server", () => ({
+  getTenantClient: vi.fn(async () => ({ from: vi.fn() })),
+  getServiceClient: vi.fn(() => ({ from: vi.fn() })),
+}));
+
 vi.mock("@/lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
@@ -37,7 +42,11 @@ vi.mock("@/lib/cache-tags", () => ({
 
 vi.mock("next/cache", () => ({
   revalidateTag: vi.fn(),
+  unstable_cache: vi.fn((fn) => fn),
 }));
+
+// Import determineAuthMode after mocks are set up
+import { determineAuthMode } from "@/app/api/revalidate/route";
 
 describe("A98-64: All-sites revalidation token logic", () => {
   const originalEnv = process.env;
@@ -52,19 +61,16 @@ describe("A98-64: All-sites revalidation token logic", () => {
   });
 
   it("determineAuthMode should accept per-site token", () => {
-    const { determineAuthMode } = require("@/app/api/revalidate/route");
     const mode = determineAuthMode("internal-test-token", "internal-test-token", "all-sites-token");
     expect(mode).toBe("per-site");
   });
 
   it("determineAuthMode should accept all-sites token", () => {
-    const { determineAuthMode } = require("@/app/api/revalidate/route");
     const mode = determineAuthMode("all-sites-token", "internal-test-token", "all-sites-token");
     expect(mode).toBe("all-sites");
   });
 
   it("determineAuthMode should reject invalid token", () => {
-    const { determineAuthMode } = require("@/app/api/revalidate/route");
     const mode = determineAuthMode("invalid-token", "internal-test-token", "all-sites-token");
     expect(mode).toBeNull();
   });
