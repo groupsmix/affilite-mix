@@ -140,6 +140,17 @@ describe("GET /api/track/click — Sec-Fetch analytics security (A3-002)", () =>
     expect(mockPublishClick).toHaveBeenCalledTimes(1);
   });
 
+  it("redirects and DOES call publishClick for same-site navigation", async () => {
+    const req = makeGetRequest({
+      "sec-fetch-site": "same-site",
+      "sec-fetch-dest": "document",
+    });
+    const res = await GET(req);
+
+    expect(res.status).toBe(302);
+    expect(mockPublishClick).toHaveBeenCalledTimes(1);
+  });
+
   it("redirects but does NOT call publishClick when Sec-Fetch-Dest is image (even if site is same-origin)", async () => {
     const req = makeGetRequest({
       "sec-fetch-site": "same-origin",

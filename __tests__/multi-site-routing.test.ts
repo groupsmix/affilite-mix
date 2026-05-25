@@ -112,6 +112,7 @@ describe("localhost routing (development)", () => {
 
   it("does NOT resolve localhost in production", () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_LOCALHOST_FALLBACK_IN_PROD", "");
     expect(getSiteByDomain("localhost")).toBeUndefined();
   });
 });
