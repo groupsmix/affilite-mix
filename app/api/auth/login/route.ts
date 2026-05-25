@@ -296,9 +296,12 @@ export async function POST(request: NextRequest) {
         }
 
         if (!totp_token) {
+          // AUDIT-FIX A3-004: Return a generic challenge state that does NOT
+          // reveal whether the account has 2FA enrolled. The UI can prompt
+          // for a TOTP code without the response body confirming enrollment.
           return NextResponse.json(
-            { requires_2fa: true },
-            { status: 200, headers: rateLimitHeaders(LOGIN_RATE_LIMIT_IP, rl) },
+            { challenge: "2fa_required" },
+            { status: 202, headers: rateLimitHeaders(LOGIN_RATE_LIMIT_IP, rl) },
           );
         }
         // Separate tight rate limit for TOTP brute-forcing (5 attempts per 5 mins per email)

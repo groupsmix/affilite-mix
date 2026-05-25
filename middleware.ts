@@ -137,13 +137,14 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
     }
   }
 
-  // ── Request body size guard (AUDIT-FIX) ────────────────
+  // ── Request body size guard (AUDIT-FIX A1-002) ─────────
   // Reject excessively large request bodies early to prevent Worker CPU
   // and memory exhaustion. The Content-Length header is checked before
   // any body parsing happens. Routes that need larger payloads (e.g.
   // CSV import) enforce their own tighter limits downstream.
   const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
-  if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method)) {
+  const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+  if (UNSAFE_METHODS.has(request.method)) {
     const contentLength = request.headers.get("content-length");
     const transferEncoding = (request.headers.get("transfer-encoding") || "").toLowerCase();
     // FP-07: reject requests that try to bypass the size guard by omitting
@@ -160,6 +161,17 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
           status: 411,
           headers: { "Content-Type": "application/json" },
         },
+      );
+    }
+    // AUDIT-FIX A1-002: For unsafe methods, require Content-Length unless
+    // the route is an explicitly allowlisted streaming endpoint. Requests
+    // with no Content-Length and no Transfer-Encoding: chunked can bypass
+    // the size guard behind some HTTP/2/proxy paths.
+    const STREAMING_ALLOWLIST = new Set(["/api/admin/upload"]);
+    if (!contentLength && !STREAMING_ALLOWLIST.has(pathname)) {
+      return new NextResponse(
+        JSON.stringify({ error: "Length required", code: "LENGTH_REQUIRED" }),
+        { status: 411, headers: { "Content-Type": "application/json" } },
       );
     }
     if (contentLength) {
@@ -190,14 +202,9 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   const gpcEnabled = request.headers.get("sec-gpc") === "1";
 
   // ── Trailing-slash normalization (SA9) ─────────────────
-  // Redirect /foo/ → /foo to prevent duplicate canonical URLs.
-  // Skip the root path "/" and Next.js internals.
-  if (pathname !== "/" && pathname.endsWith("/") && !pathname.startsWith("/api/")) {
-    // Use new URL() pattern to properly preserve query strings
-    const url = new URL(request.url);
-    url.pathname = pathname.replace(/\/+$/, "");
-    return NextResponse.redirect(url, 308);
-  }
+  // DEFERRED: moved after site resolution so the redirect uses the
+  // canonical verified hostname rather than the attacker-supplied Host.
+  // See the slash-normalization block below (after `if (!siteId)`).
 
   // ── CORS preflight (OPTIONS) ───────────────────────────
   // Respond to preflight requests early with the correct allow-list.
@@ -481,6 +488,20 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
 
   if (!siteId) {
     return nicheNotFoundResponse(request);
+  }
+
+  // ── Trailing-slash normalization (SA9) — AFTER site resolution ──
+  // AUDIT-FIX A1-001/A2-001: Force canonical hostname so an attacker
+  // cannot reflect an arbitrary Host header into the Location header.
+  // Only runs once we have a verifiedSite (or static config site).
+  if (pathname !== "/" && pathname.endsWith("/") && !pathname.startsWith("/api/")) {
+    const url = request.nextUrl.clone();
+    // Force the canonical domain from the verified site resolution above
+    if (verifiedSite?.domain) {
+      url.hostname = verifiedSite.domain;
+    }
+    url.pathname = pathname.replace(/\/+$/, "");
+    return NextResponse.redirect(url, 308);
   }
 
   // ── CSRF protection for state-changing API routes ─────

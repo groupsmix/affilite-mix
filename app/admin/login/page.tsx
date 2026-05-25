@@ -83,6 +83,17 @@ export default function AdminLoginPage() {
       body: JSON.stringify(body),
     });
 
+    // A1-001: Server returns 202 when TOTP 2FA is required — check BEFORE res.ok
+    // because 202 is in the 2xx range and would otherwise enter the success branch.
+    if (res.status === 202) {
+      const data = await res.json();
+      if (data.challenge === "2fa_required") {
+        setRequires2fa(true);
+        setLoading(false);
+        return;
+      }
+    }
+
     if (res.ok) {
       const data = await res.json();
 
@@ -96,13 +107,6 @@ export default function AdminLoginPage() {
       router.push("/admin");
     } else {
       const data = await res.json();
-
-      // A154: Server signals TOTP is required — show the second-factor step
-      if (res.status === 200 && data.requires_2fa) {
-        setRequires2fa(true);
-        setLoading(false);
-        return;
-      }
 
       setError(data.error ?? "Login failed");
 

@@ -98,7 +98,7 @@ async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
   }
 }
 
-async function handleClick(request: NextRequest) {
+async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean } = {}) {
   try {
     const hmacKey = process.env.CLICK_CACHE_HMAC_KEY;
     if (process.env.NODE_ENV === "production" && !hmacKey) {
@@ -268,49 +268,53 @@ async function handleClick(request: NextRequest) {
     // A162: Store only the /24 prefix — full IP is never written to DB.
     const ipPrefix = getIpPrefix(ip) ?? "";
 
-    // A158: Compute fingerprint and check 24h dedup window for non-internal clicks.
-    let fingerprint: string | undefined;
-    if (!isInternal && hmacKey) {
-      try {
-        const userAgent = request.headers.get("user-agent") ?? "";
-        fingerprint = await computeClickFingerprint(
-          hmacKey,
-          siteId,
-          contentSlug,
-          ipPrefix,
-          userAgent,
-        );
-        const isDup = await isDuplicateClick(fingerprint, siteId, contentSlug);
-        if (isDup) {
-          // Duplicate click within 24h window: still redirect but don't count it.
-          logger.info("[track/click] duplicate click suppressed", {
-            site_id: siteId,
-            content_slug: contentSlug,
+    // AUDIT-FIX A3-002: Skip analytics mutations for cross-site GET requests.
+    // POST (sendBeacon) still records clicks because it passes Origin validation.
+    if (!opts.skipAnalytics) {
+      // A158: Compute fingerprint and check 24h dedup window for non-internal clicks.
+      let fingerprint: string | undefined;
+      if (!isInternal && hmacKey) {
+        try {
+          const userAgent = request.headers.get("user-agent") ?? "";
+          fingerprint = await computeClickFingerprint(
+            hmacKey,
+            siteId,
+            contentSlug,
+            ipPrefix,
+            userAgent,
+          );
+          const isDup = await isDuplicateClick(fingerprint, siteId, contentSlug);
+          if (isDup) {
+            // Duplicate click within 24h window: still redirect but don't count it.
+            logger.info("[track/click] duplicate click suppressed", {
+              site_id: siteId,
+              content_slug: contentSlug,
+            });
+            return NextResponse.redirect(destinationUrl, 302);
+          }
+        } catch (fingerprintErr) {
+          // Fail-open: fingerprint errors must not drop legitimate clicks
+          captureException(fingerprintErr, {
+            context: "[api/track/click] fingerprint computation failed",
           });
-          return NextResponse.redirect(destinationUrl, 302);
+          fingerprint = undefined;
         }
-      } catch (fingerprintErr) {
-        // Fail-open: fingerprint errors must not drop legitimate clicks
-        captureException(fingerprintErr, {
-          context: "[api/track/click] fingerprint computation failed",
-        });
-        fingerprint = undefined;
       }
-    }
 
-    void runAfterResponse(
-      publishClick({
-        site_id: siteId,
-        product_name: cachedData.name,
-        affiliate_url: destinationUrl,
-        content_slug: contentSlug,
-        referrer: sanitizedReferrer,
-        is_internal: isInternal,
-        ip_prefix: ipPrefix || undefined,
-        fingerprint,
-      }),
-      { context: "[api/track/click] publishClick" },
-    );
+      void runAfterResponse(
+        publishClick({
+          site_id: siteId,
+          product_name: cachedData.name,
+          affiliate_url: destinationUrl,
+          content_slug: contentSlug,
+          referrer: sanitizedReferrer,
+          is_internal: isInternal,
+          ip_prefix: ipPrefix || undefined,
+          fingerprint,
+        }),
+        { context: "[api/track/click] publishClick" },
+      );
+    }
 
     return NextResponse.redirect(destinationUrl, 302);
   } catch (err) {
@@ -319,8 +323,12 @@ async function handleClick(request: NextRequest) {
   }
 }
 
+// AUDIT-FIX A3-002: GET requests may be triggered cross-site (image tags,
+// prefetch, etc.) without user activation. We still redirect for
+// top-level navigation compatibility, but we skip analytics mutation
+// (click logging / KV dedup writes) to prevent cross-site tracking.
 export async function GET(request: NextRequest) {
-  return handleClick(request);
+  return handleClick(request, { skipAnalytics: true });
 }
 
 export async function POST(request: NextRequest) {
