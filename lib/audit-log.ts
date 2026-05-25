@@ -17,7 +17,21 @@ export interface AuditEvent {
 // PII / secrets from leaking into the audit trail.
 const AUDIT_DETAIL_ALLOWLIST: Record<string, string[]> = {
   // Product fields that are safe to audit
-  product: ["name", "slug", "status", "category_id", "price", "price_amount", "price_currency", "merchant", "score", "featured", "cta_text", "deal_text", "deal_expires_at"],
+  product: [
+    "name",
+    "slug",
+    "status",
+    "category_id",
+    "price",
+    "price_amount",
+    "price_currency",
+    "merchant",
+    "score",
+    "featured",
+    "cta_text",
+    "deal_text",
+    "deal_expires_at",
+  ],
   // Content fields
   content: ["title", "slug", "status", "publish_at"],
   // Page fields
@@ -31,7 +45,10 @@ const AUDIT_DETAIL_ALLOWLIST: Record<string, string[]> = {
 };
 
 /** A8-005: Redact sensitive fields from audit details based on an allowlist. */
-function redactAuditDetails(entityType: string, details: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+function redactAuditDetails(
+  entityType: string,
+  details: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
   if (!details) return undefined;
   const allowed = AUDIT_DETAIL_ALLOWLIST[entityType];
   // If no allowlist is defined for this entity type, only permit a small
