@@ -412,7 +412,7 @@ jobs:
         # release cannot change `supabase gen types` output without a
         # deliberate code change. Bump deliberately via Renovate /
         # Dependabot; do NOT switch back to `version: latest`.
-        uses: supabase/setup-cli@df56b21da46c98abb12a9804e4fb1f657773e333 # v1
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v1
         with:
           version: 2.45.5
       - name: Check DB types drift
