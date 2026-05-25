@@ -22,7 +22,6 @@ const MAX_KEYWORDS_COUNT = 50;
 const MAX_KEYWORD_LENGTH = 100;
 /** AUDIT-FIX A4-002: Field length limits. */
 const MAX_TITLE_LENGTH = 200;
-const MAX_SLUG_LENGTH = 120;
 const MAX_EXCERPT_LENGTH = 500;
 const MAX_META_LENGTH = 200;
 const MAX_BODY_LENGTH = 100_000; // matches MAX_INPUT_LENGTH in sanitize-html
@@ -230,13 +229,26 @@ export const PATCH = withAuthz(
             review_state: "published",
           });
 
-          await updateAIDraft(siteId, id, { status: "published" });
+          const publishedDraft = await updateAIDraft(siteId, id, { status: "published" });
+          if (!publishedDraft) {
+            return NextResponse.json({ error: "Draft not found after publish" }, { status: 404 });
+          }
+
+          void recordAuditEvent({
+            site_id: siteId,
+            actor: session.email ?? session.userId ?? "admin",
+            action: "publish",
+            entity_type: "ai_draft",
+            entity_id: id,
+          });
+
+          return NextResponse.json(publishedDraft);
         }
 
         void recordAuditEvent({
           site_id: siteId,
           actor: session.email ?? session.userId ?? "admin",
-          action: action === "publish" ? "publish" : "approve",
+          action: "approve",
           entity_type: "ai_draft",
           entity_id: id,
         });
@@ -250,6 +262,11 @@ export const PATCH = withAuthz(
           reviewed_at: new Date().toISOString(),
           reviewed_by: session.email ?? session.userId ?? "admin",
         });
+
+        // A3-003: updateAIDraft returns null when draft doesn't exist
+        if (!draft) {
+          return NextResponse.json({ error: "Draft not found" }, { status: 404 });
+        }
 
         void recordAuditEvent({
           site_id: siteId,

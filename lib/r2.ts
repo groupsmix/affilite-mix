@@ -30,7 +30,7 @@
  *     before the object is ever visible at R2_PUBLIC_URL.
  */
 
-import { reserveQuota, releaseQuota } from "@/lib/quotas";
+import { reserveQuota, releaseQuota as releaseR2Quota } from "@/lib/quotas";
 
 // ── Lightweight AWS Signature V4 presigner ────────────────────────────
 
@@ -326,46 +326,58 @@ export async function getUploadUrl(
   // upload completes (or by the janitor reconcile job for abandoned
   // uploads). This prevents unbounded quota consumption from presigns
   // that are never followed through.
+  const quotaReserved = !!options.siteId;
   if (options.siteId) {
     await reserveQuota(options.siteId, "r2_storage_bytes", contentLength);
   }
 
-  const stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;
-  const publicKey = stagingKey; // Promotion preserves the key path.
-  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
+  // A3-004: Release reserved quota on any failure after reservation so we don't
+  // permanently consume quota for uploads that never materialise.
+  try {
+    const stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;
+    const publicKey = stagingKey; // Promotion preserves the key path.
+    const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
 
-  const originalName = sanitizeOriginalName(options.originalName);
+    const originalName = sanitizeOriginalName(options.originalName);
 
-  const uploadUrl = await presignPutUrl({
-    endpoint,
-    bucket: env.privateBucket,
-    key: stagingKey,
-    accessKeyId: env.accessKeyId,
-    secretAccessKey: env.secretAccessKey,
-    region: "auto",
-    contentType,
-    contentLength,
-    originalName: originalName ?? undefined,
-    expiresIn: 300,
-  });
+    const uploadUrl = await presignPutUrl({
+      endpoint,
+      bucket: env.privateBucket,
+      key: stagingKey,
+      accessKeyId: env.accessKeyId,
+      secretAccessKey: env.secretAccessKey,
+      region: "auto",
+      contentType,
+      contentLength,
+      originalName: originalName ?? undefined,
+      expiresIn: 300,
+    });
 
-  const requiredHeaders: Record<string, string> = {
-    "Content-Type": contentType,
-    "Content-Length": String(contentLength),
-  };
-  if (originalName) {
-    requiredHeaders["x-amz-meta-original-name"] = originalName;
+    const requiredHeaders: Record<string, string> = {
+      "Content-Type": contentType,
+      "Content-Length": String(contentLength),
+    };
+    if (originalName) {
+      requiredHeaders["x-amz-meta-original-name"] = originalName;
+    }
+
+    return {
+      uploadUrl,
+      stagingKey,
+      stagingBucket: env.privateBucket,
+      publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${publicKey}`,
+      publicKey,
+      requiredHeaders,
+      maxBytes: R2_MAX_UPLOAD_BYTES,
+    };
+  } catch (err) {
+    if (quotaReserved && options.siteId) {
+      await releaseR2Quota(options.siteId, "r2_storage_bytes", contentLength).catch(() => {
+        // Best-effort — don't mask the original error
+      });
+    }
+    throw err;
   }
-
-  return {
-    uploadUrl,
-    stagingKey,
-    stagingBucket: env.privateBucket,
-    publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${publicKey}`,
-    publicKey,
-    requiredHeaders,
-    maxBytes: R2_MAX_UPLOAD_BYTES,
-  };
 }
 
 /** Check whether R2 credentials are configured */
