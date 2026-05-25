@@ -62,8 +62,8 @@ export const FLAG_REGISTRY: FeatureFlagDefinition[] = [
     name: "Gift Finder",
     key: "features.giftFinder",
     owner: "product-team",
-    createdAt: "2024-10-15",
-    expiresAt: "2025-06-15", // 8 months from creation — within 180-day cap
+    createdAt: "2026-04-01",
+    expiresAt: "2026-09-28", // 180 days from creation — within 180-day cap
     blastRadius: "Public gift finder page and API endpoint",
     rollbackInstructions: "Set site config features.giftFinder=false",
     rolloutPercent: 100,

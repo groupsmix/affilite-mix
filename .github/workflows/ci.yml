@@ -24,6 +24,12 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # A34: attest-build-provenance and cosign require OIDC token + attestation
+    # write access. Scoped to this job only — global permissions stay read-only.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
@@ -307,6 +313,30 @@ jobs:
           name: sbom
           path: sbom.json
 
+      # A34: SLSA provenance attestation and artifact signing.
+      # Generates a signed provenance statement for the SBOM and build
+      # artifacts using Sigstore/cosign. The attestation is uploaded as
+      # a GitHub Actions artifact and should be attached to releases.
+      - name: Generate SLSA provenance attestation (A34)
+        id: provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          # Next.js builds to .next/, not dist/. Attest SBOM + build ID.
+          subject-path: |
+            sbom.json
+            .next/BUILD_ID
+
+      - name: Sign SBOM with cosign (A34)
+        if: github.ref == 'refs/heads/main'
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
+      - name: Cosign sign SBOM (A34)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cosign sign-blob --yes \
+            --output-signature sbom.json.sig \
+            --output-certificate sbom.json.crt \
+            sbom.json
+
       - name: Wrangler dry-run check (F-035)
         # `wrangler.jsonc` references `.open-next/assets` and
         # `workers/custom-worker.ts` imports the generated
@@ -354,6 +384,32 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
+      - name: Apply pending security hardening migrations to staging
+        # A31-A44: PR adds REVOKE migrations that must be applied to staging
+        # before the audit runs. The deploy workflow only runs on main push,
+        # so CI must apply them here to keep the audit gate meaningful on PRs.
+        # All migrations in this step are idempotent (DO blocks, REVOKE is
+        # a no-op if the grant doesn't exist).
+        env:
+          STAGING_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_POOLER_URL || secrets.STAGING_SUPABASE_DB_URL }}
+        run: |
+          if [ -z "${STAGING_SUPABASE_DB_URL:-}" ]; then
+            echo "No staging DB URL — skipping pre-audit migration apply."
+            exit 0
+          fi
+          # Test connectivity first — skip silently if staging is unreachable.
+          if ! psql "$STAGING_SUPABASE_DB_URL" -c "SELECT 1" -t -A -X >/dev/null 2>&1; then
+            echo "::warning::Staging DB unreachable — skipping pre-audit migration apply."
+            exit 0
+          fi
+          echo "Applying pending security hardening migrations to staging…"
+          for f in supabase/migrations/2026052601_revoke_anon_grants_fix_rls.sql; do
+            if [ -f "$f" ]; then
+              echo "  → $f"
+              psql "$STAGING_SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -X -f "$f"
+            fi
+          done
+          echo "Done."
       - name: Run db-audit
         id: audit-result
         env:

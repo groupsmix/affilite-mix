@@ -33,7 +33,7 @@ import { logger } from "@/lib/logger";
 type AuthMode = "per-site" | "all-sites";
 
 /** A98-64: Determine which token to validate against */
-function determineAuthMode(
+export function determineAuthMode(
   bearer: string,
   internalToken: string,
   allSitesToken?: string,

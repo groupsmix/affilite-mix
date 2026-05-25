@@ -8,6 +8,7 @@ import { getAdminSession } from "@/lib/auth";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
+import { authzPrimaryRead } from "@/lib/read-after-write";
 
 // A7-005: HMAC signing/verification for the x-site-id fallback header.
 // Derives a signing key from SUPABASE_JWT_SECRET so no new secret is required.
@@ -118,12 +119,15 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
           if (session.role === "super_admin") {
             siteId = dbSite.id;
           } else {
-            const { data: membership } = await priv
-              .from("admin_site_memberships")
-              .select("id")
-              .eq("admin_user_id", session.userId)
-              .eq("site_id", dbSite.id)
-              .single();
+            // A30-006: Primary read for authz — membership check must not see stale replica data
+            const { data: membership } = await authzPrimaryRead(() =>
+              priv
+                .from("admin_site_memberships")
+                .select("id")
+                .eq("admin_user_id", session.userId)
+                .eq("site_id", dbSite.id)
+                .single(),
+            );
             if (membership) {
               siteId = dbSite.id;
             }

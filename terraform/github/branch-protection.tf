@@ -13,6 +13,10 @@ data "github_team" "break_glass" {
   slug  = var.break_glass_team_slug
 }
 
+# A35: Enforce MFA/SSO for the break-glass team via organization policy.
+# This is a documentation resource — actual MFA enforcement is done at
+# the organization level via SSO + required MFA. The ruleset below
+# documents the requirement in the bypass actor comment.
 resource "github_repository_ruleset" "main_protection" {
   name        = "main-protection"
   repository  = var.repository
@@ -36,6 +40,14 @@ resource "github_repository_ruleset" "main_protection" {
   # the team must still open a PR, but they can self-merge it without a
   # second reviewer in an emergency. Every bypass shows up in the audit
   # log.
+  #
+  # A35: Break-glass bypass requires:
+  #   1. Team membership is restricted to on-call engineers only.
+  #   2. All team members MUST have MFA enabled (enforced via org SSO).
+  #   3. Every bypass is logged in the GitHub audit log.
+  #   4. Bypass approvals require written justification in the PR description.
+  #   5. Post-incident, the bypass reason is reviewed in the next security
+  #      standup (within 48 hours).
   # ---------------------------------------------------------------------------
   dynamic "bypass_actors" {
     for_each = var.break_glass_team_slug == null ? [] : [1]
@@ -59,6 +71,8 @@ resource "github_repository_ruleset" "main_protection" {
     required_signatures = true
 
     # 3. PR review requirements.
+    # A34: required_review_count defaults to 2 (single source of truth
+    # with .github/rulesets/main-protection.json).
     pull_request {
       required_approving_review_count   = var.required_review_count
       dismiss_stale_reviews_on_push     = true
@@ -85,4 +99,26 @@ resource "github_repository_ruleset" "main_protection" {
 output "ruleset_id" {
   value       = github_repository_ruleset.main_protection.id
   description = "Numeric ID of the managed ruleset (used by `gh api` for evidence export)."
+}
+
+# A35: Output the break-glass policy requirements as documentation.
+output "break_glass_policy" {
+  value       = <<-EOT
+    A35 BREAK-GLASS POLICY:
+    =======================
+    1. BREAK_GLASS_TEAM: ${var.break_glass_team_slug != null ? var.break_glass_team_slug : "(disabled — no bypass allowed)"}
+    2. BYPASS_MODE: pull_request (must open PR, can self-merge)
+    3. MFA_REQUIRED: ${var.break_glass_require_mfa ? "YES (enforced via org SSO)" : "WARNING: MFA not enforced"}
+    4. AUDIT_LOG: Every bypass is recorded in GitHub audit log
+    5. POST-INCIDENT REVIEW: Required within 48 hours of any bypass
+    6. MEMBERSHIP AUDIT: Review team membership monthly
+
+    SSO/MFA must be configured at the organization level; Terraform
+    cannot enforce MFA on individual users. Ensure:
+      - Organization Settings → Authentication security →
+        Require two-factor authentication = ENABLED
+      - Organization Settings → SAML single sign-on →
+        Require SAML SSO authentication = ENABLED (if using SSO)
+  EOT
+  description = "A35: Break-glass policy documentation and MFA requirements."
 }
