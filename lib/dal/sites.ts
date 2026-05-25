@@ -189,7 +189,7 @@ export async function deactivateSite(
 }
 
 /** Hard-delete a site — requires super_admin role.
- * 
+ *
  * A27-001: Hard delete is restricted to super_admin for maintenance only.
  * Regular deletion should use deactivateSite() (soft-delete via is_active=false).
  * This prevents accidental data loss and preserves referential integrity.
@@ -202,7 +202,7 @@ export async function deleteSite(
   // A27-001: Only super_admin may hard-delete; regular admins must use soft-delete
   if (callerRole !== "super_admin") {
     throw new Error(
-      "Hard delete requires super_admin role. Use deactivateSite() for soft deletion."
+      "Hard delete requires super_admin role. Use deactivateSite() for soft deletion.",
     );
   }
   const sb = await getClient();

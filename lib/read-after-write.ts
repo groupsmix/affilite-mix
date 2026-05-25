@@ -38,9 +38,7 @@ export const DEFAULT_MAX_STALENESS_MS = 5_000;
  * returns "primary" for strict consistency, but the hook point exists
  * for future replica routing.
  */
-export function routeForReadAfterWrite(
-  opts: ReadAfterWriteOptions = {},
-): "primary" | "replica" {
+export function routeForReadAfterWrite(opts: ReadAfterWriteOptions = {}): "primary" | "replica" {
   const { consistency = "strict" } = opts;
   if (consistency === "strict") {
     return "primary";
@@ -58,9 +56,7 @@ export function routeForReadAfterWrite(
  * When async replication is introduced, this becomes an async waiter
  * that polls the replica until the write is visible or timeout.
  */
-export async function awaitWriteVisibility(
-  _opts: ReadAfterWriteOptions = {},
-): Promise<void> {
+export async function awaitWriteVisibility(_opts: ReadAfterWriteOptions = {}): Promise<void> {
   // Single-primary: writes are immediately visible.
   // Future: implement replication-lag polling here.
   return;
@@ -103,9 +99,10 @@ export async function readAfterWrite<T>(
  * Returns a read strategy for queries that can tolerate some staleness.
  * When replicas are introduced, this routes to replica with a freshness check.
  */
-export function boundedStalenessRead(
-  maxStalenessMs: number = DEFAULT_MAX_STALENESS_MS,
-): { route: "primary" | "replica"; maxStalenessMs: number } {
+export function boundedStalenessRead(maxStalenessMs: number = DEFAULT_MAX_STALENESS_MS): {
+  route: "primary" | "replica";
+  maxStalenessMs: number;
+} {
   // Conservative default: use primary until replica lag monitoring is in place
   return { route: "primary", maxStalenessMs };
 }
