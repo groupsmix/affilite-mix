@@ -16,6 +16,28 @@ export type ContentSortColumn =
   | "created_at"
   | "updated_at";
 
+/** AUDIT-FIX A5-005: Runtime allowlist for sort columns.
+ *  TypeScript unions are erased at runtime; an attacker can pass
+ *  arbitrary strings via query params. This array is used to validate
+ *  the sortBy parameter before it reaches the query builder.
+ */
+const SORT_COLUMNS: ContentSortColumn[] = [
+  "title",
+  "publish_at",
+  "status",
+  "author",
+  "created_at",
+  "updated_at",
+];
+
+/** AUDIT-FIX A5-005: Validate that a user-provided sort column is in the allowlist.
+ *  Returns the column if valid, or the default (created_at) if not.
+ */
+export function sanitizeSortColumn(raw: string | undefined): ContentSortColumn {
+  if (!raw) return "created_at";
+  return SORT_COLUMNS.includes(raw as ContentSortColumn) ? (raw as ContentSortColumn) : "created_at";
+}
+
 export interface ListContentOptions {
   siteId: string;
   /** Single content type filter. Legacy — prefer `types` for multi-select. */
@@ -51,7 +73,8 @@ export async function listContent(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ContentRow[]> {
   const sb = await getClient();
-  const sortColumn: ContentSortColumn = opts.sortBy ?? "created_at";
+  // AUDIT-FIX A5-005: Runtime allowlist validation for sort column
+  const sortColumn = sanitizeSortColumn(opts.sortBy);
   const ascending = opts.sortDirection === "asc";
 
   let query = sb

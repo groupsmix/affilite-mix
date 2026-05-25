@@ -106,24 +106,48 @@ async function innerMiddleware(request: NextRequest) {
     }
   }
 
-  // ── Request body size guard (AUDIT-FIX) ────────────────
+  // ── Request body size guard (AUDIT-FIX A7-001 / A10-002 / A11-001) ────────────────
   // Reject excessively large request bodies early to prevent Worker CPU
   // and memory exhaustion. The Content-Length header is checked before
   // any body parsing happens. Routes that need larger payloads (e.g.
   // CSV import) enforce their own tighter limits downstream.
+  //
+  // AUDIT-FIX A7-001: FAIL CLOSED on missing Content-Length for unsafe methods.
+  // Previously, requests without Content-Length bypassed the guard and
+  // reached JSON parsers, allowing memory exhaustion via chunked encoding
+  // or HTTP/2 smuggling. Now we require Content-Length for all non-safe
+  // methods, returning 411 Length Required.
   const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
   if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method)) {
     const contentLength = request.headers.get("content-length");
     const transferEncoding = (request.headers.get("transfer-encoding") || "").toLowerCase();
-    // FP-07: reject requests that try to bypass the size guard by omitting
-    // Content-Length and using chunked transfer encoding, or by lying about
-    // the size. We rely on Cloudflare to normalize headers in production but
-    // defend in depth here so the 10 MB intent is actually enforced.
-    if (!contentLength && transferEncoding.includes("chunked")) {
+
+    // AUDIT-FIX A7-001: Require Content-Length for all non-safe methods
+    // This closes the bypass where missing Content-Length allowed huge
+    // bodies to reach JSON parsers.
+    if (!contentLength) {
+      // Only allow chunked encoding to pass through if it has a valid length
+      if (transferEncoding.includes("chunked")) {
+        return new NextResponse(
+          JSON.stringify({
+            error: "Length required",
+            code: "LENGTH_REQUIRED",
+            message: "Content-Length header is required. Chunked transfer without explicit length is not supported.",
+          }),
+          {
+            status: 411,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+      // AUDIT-FIX: For non-chunked requests without Content-Length, we
+      // still enforce the limit by requiring the header. This prevents
+      // HTTP/2 smuggling and proxy normalization bypasses.
       return new NextResponse(
         JSON.stringify({
           error: "Length required",
           code: "LENGTH_REQUIRED",
+          message: "Content-Length header is required for this request method.",
         }),
         {
           status: 411,
@@ -131,23 +155,22 @@ async function innerMiddleware(request: NextRequest) {
         },
       );
     }
-    if (contentLength) {
-      const parsed = parseInt(contentLength, 10);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        return new NextResponse(
-          JSON.stringify({ error: "Invalid Content-Length", code: "BAD_REQUEST" }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        );
-      }
-      if (parsed > MAX_BODY_BYTES) {
-        return new NextResponse(
-          JSON.stringify({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" }),
-          {
-            status: 413,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-      }
+
+    const parsed = parseInt(contentLength, 10);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      return new NextResponse(
+        JSON.stringify({ error: "Invalid Content-Length", code: "BAD_REQUEST" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    if (parsed > MAX_BODY_BYTES) {
+      return new NextResponse(
+        JSON.stringify({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" }),
+        {
+          status: 413,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
   }
 
@@ -158,15 +181,20 @@ async function innerMiddleware(request: NextRequest) {
   // enforcement (Sephora settlement, 2023).
   const gpcEnabled = request.headers.get("sec-gpc") === "1";
 
-  // ── Trailing-slash normalization (SA9) ─────────────────
-  // Redirect /foo/ → /foo to prevent duplicate canonical URLs.
-  // Skip the root path "/" and Next.js internals.
-  if (pathname !== "/" && pathname.endsWith("/") && !pathname.startsWith("/api/")) {
-    // Use new URL() pattern to properly preserve query strings
-    const url = new URL(request.url);
-    url.pathname = pathname.replace(/\/+$/, "");
-    return NextResponse.redirect(url, 308);
-  }
+  // AUDIT-FIX A9-002 / A10-003 / A11-001: Trailing-slash normalization
+  // MOVED after site verification.
+  //
+  // Previously the redirect happened before site resolution, which meant
+  // an attacker-controlled Host header could cause an open redirect:
+  //   Host: attacker.com
+  //   GET /foo/ → 308 to https://attacker.com/foo
+  //
+  // Now we defer the redirect until AFTER the site is verified. The
+  // redirect target uses the verified canonical domain, not the raw
+  // request hostname.
+  //
+  // Note: The redirect check is now at the end of the site resolution
+  // section below.
 
   // ── CORS preflight (OPTIONS) ───────────────────────────
   // Respond to preflight requests early with the correct allow-list.
@@ -445,6 +473,27 @@ async function innerMiddleware(request: NextRequest) {
     return nicheNotFoundResponse(request);
   }
 
+  // ── AUDIT-FIX A9-002 / A10-003 / A11-001: Trailing-slash normalization ─────────────────
+  // Now performed AFTER site verification. The redirect uses the verified
+  // canonical domain from `verifiedSite`, NOT the raw request hostname.
+  //
+  // This closes the open redirect vulnerability where an attacker-controlled
+  // Host header could redirect to an arbitrary domain:
+  //   Before: redirect to request.url (attacker.com) — EXPLOITABLE
+  //   After:  redirect to verified canonical domain — SAFE
+  //
+  // Skip the root path "/" and Next.js internals.
+  if (pathname !== "/" && pathname.endsWith("/") && !pathname.startsWith("/api/")) {
+    // AUDIT-FIX: Build the redirect URL from the verified site domain
+    // rather than the raw request URL. This prevents Host-header open redirects.
+    const canonicalOrigin = verifiedSite
+      ? `https://${verifiedSite.domain}`
+      : request.nextUrl.origin;
+    const cleanPath = pathname.replace(/\/+$/, "");
+    const redirectUrl = new URL(cleanPath + request.nextUrl.search, canonicalOrigin);
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
   // ── CSRF protection for state-changing API routes ─────
   const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
   if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
@@ -624,7 +673,7 @@ export async function middleware(request: NextRequest) {
 
     // Fallback: If it's an API route, return 500 JSON.
     // Otherwise, return a soft-failed request so the Next.js app can still render
-    // a basic page (e.g. not-found or an un-branded homepage).
+    // a basic page (e.g. not-found or an unbranded homepage).
     if (request.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "Internal Server Error" },
