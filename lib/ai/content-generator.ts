@@ -16,6 +16,18 @@ import { validateOutputFormat, validateGeneratedLinks } from "./output-validatio
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
 
+/** AUDIT-FIX A11-003: Maximum input sizes for AI generation.
+ *  These caps prevent token/cost amplification and prompt injection.
+ */
+export const AI_GENERATE_LIMITS = {
+  maxTopicLength: 500,
+  maxKeywordCount: 20,
+  maxKeywordLength: 100,
+  maxKeywordsTotalChars: 500,
+  maxProductNameLength: 200,
+  maxProductNamesCount: 10,
+} as const;
+
 export interface GenerateContentInput {
   siteId: string;
   siteName: string;
@@ -188,6 +200,36 @@ export class ContentModerationError extends Error {
  * is prepended to every generated body for EU AI Act Art. 50 compliance.
  */
 export async function generateContent(input: GenerateContentInput): Promise<GeneratedContent> {
+  // AUDIT-FIX A11-003: Input size caps to prevent cost/token amplification.
+  // These are defense-in-depth in addition to the route-level validation.
+  if (input.topic.length > AI_GENERATE_LIMITS.maxTopicLength) {
+    throw new ContentModerationError(
+      `[ai] Topic exceeds maximum length of ${AI_GENERATE_LIMITS.maxTopicLength} characters`,
+      "input",
+    );
+  }
+  if (input.keywords && input.keywords.length > AI_GENERATE_LIMITS.maxKeywordCount) {
+    throw new ContentModerationError(
+      `[ai] Maximum ${AI_GENERATE_LIMITS.maxKeywordCount} keywords allowed`,
+      "input",
+    );
+  }
+  if (input.keywords) {
+    const totalKwChars = input.keywords.reduce((sum, k) => sum + k.length, 0);
+    if (totalKwChars > AI_GENERATE_LIMITS.maxKeywordsTotalChars) {
+      throw new ContentModerationError(
+        `[ai] Total keyword length exceeds ${AI_GENERATE_LIMITS.maxKeywordsTotalChars} characters`,
+        "input",
+      );
+    }
+  }
+  if (input.productNames && input.productNames.length > AI_GENERATE_LIMITS.maxProductNamesCount) {
+    throw new ContentModerationError(
+      `[ai] Maximum ${AI_GENERATE_LIMITS.maxProductNamesCount} product names allowed`,
+      "input",
+    );
+  }
+
   // A107: Screen user-supplied input before calling the LLM.
   const inputCheck = moderateInput(input.topic, input.keywords);
   if (!inputCheck.passed) {
@@ -202,9 +244,21 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
   const systemPrompt = SYSTEM_PROMPTS[input.contentType];
   const prompt = buildPrompt(input);
 
-  const { text, provider, model } = await generateWithFallback(prompt, systemPrompt, {
-    siteId: input.siteId,
-  });
+  // AUDIT-FIX A11-003: Provider timeout prevents hanging requests.
+  // The timeout is configurable via env var; default is 30 seconds.
+  const timeoutMs = Number(process.env.AI_GENERATE_TIMEOUT_MS ?? "30000");
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+
+  const { text, provider, model } = await Promise.race([
+    generateWithFallback(prompt, systemPrompt, {
+      siteId: input.siteId,
+    }),
+    new Promise<never>((_, reject) => {
+      timeoutSignal.addEventListener("abort", () =>
+        reject(new Error(`[ai] Generation timed out after ${timeoutMs}ms`)),
+      );
+    }),
+  ]);
 
   // A115-F3 / A106-F1: Output format validation — reject responses that don't
   // conform to the expected TITLE:/EXCERPT:/META_ prefix structure. This catches
