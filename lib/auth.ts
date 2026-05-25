@@ -22,6 +22,11 @@ const BINDING_COOKIE = "nh_admin_binding";
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const EXPIRY = "4h"; // F-SEC-03: Reduced from 8h to limit exposure
 
+/** A28-005: Maximum acceptable JWT issue-time future skew (30 seconds).
+ * Tokens issued more than this far in the future are rejected,
+ * protecting against wrong-edge-clock scenarios. */
+const JWT_MAX_FUTURE_SKEW_S = 30;
+
 /**
  * Dummy bcrypt hash used to equalize timing between known and unknown users.
  *
@@ -233,6 +238,21 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   try {
     const result = await jwtVerify(token, getSecretKey(), jwtOpts);
     payload = result.payload as Record<string, unknown>;
+
+    // A28-005: Reject tokens issued too far in the future (wrong edge clock)
+    const iat = payload.iat;
+    if (typeof iat === "number") {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const futureSkew = iat - nowSec;
+      if (futureSkew > JWT_MAX_FUTURE_SKEW_S) {
+        logger.warn("JWT rejected: issued-at too far in the future (clock skew?)", {
+          futureSkewSec: futureSkew,
+          iat,
+          nowSec,
+        });
+        return null;
+      }
+    }
   } catch (err) {
     if (!(err instanceof joseErrors.JOSEError)) throw err;
     const prevKey = getPreviousSecretKey();

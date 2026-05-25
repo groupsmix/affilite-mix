@@ -15,6 +15,7 @@ import type {
   PermissionAction,
 } from "@/types/database";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { authzPrimaryRead } from "@/lib/read-after-write";
 
 // A23-01: Explicit column lists for all three tables in this DAL.
 const ROLE_COLUMNS = "id, name, label, description, is_system, created_at" as const;
@@ -252,18 +253,22 @@ export async function hasPermission(
   action: PermissionAction,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<boolean> {
-  const globalRole = await getGlobalRole(userId, getClient);
+  // A30-006: Authz reads must use primary to prevent stale replica data
+  // from incorrectly granting/revoking access
+  const globalRole = await authzPrimaryRead(() => getGlobalRole(userId, getClient));
 
   // Super admin and owner bypass all permission checks
   if (globalRole === "super_admin" || globalRole === "owner") return true;
 
-  // 2. Check site-scoped role
-  const userSiteRole = await getUserSiteRole(userId, siteId, getClient);
+  // 2. Check site-scoped role — also primary read for authz consistency
+  const userSiteRole = await authzPrimaryRead(() => getUserSiteRole(userId, siteId, getClient));
   if (!userSiteRole) {
     // No site-scoped role assigned: deny access.
     return false;
   }
 
   // 3. Check if the assigned role has the requested permission
-  return await getRolePermissionCheck(userSiteRole.role_id, feature, action, getClient);
+  return await authzPrimaryRead(() =>
+    getRolePermissionCheck(userSiteRole.role_id, feature, action, getClient),
+  );
 }
