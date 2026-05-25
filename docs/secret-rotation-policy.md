@@ -5,17 +5,17 @@
 
 ## Secret Inventory
 
-| Secret                    | Environment | Rotation Cadence | Last Rotated | Next Rotation |
-| ------------------------- | ----------- | ---------------- | ------------ | ------------- |
-| CLOUDFLARE_API_TOKEN      | Production  | 90 days          |              |               |
-| SUPABASE_SERVICE_ROLE_KEY | Production  | 90 days          |              |               |
-| JWT_SECRET                | Production  | 180 days         |              |               |
-| CRON_SECRET               | Production  | 90 days          |              |               |
-| INTERNAL_API_TOKEN        | Production  | 90 days          |              |               |
-| STRIPE_SECRET_KEY         | Production  | 90 days          |              |               |
-| RESEND_API_KEY            | Production  | 180 days         |              |               |
-| TURNSTILE_SECRET_KEY      | Production  | 180 days         |              |               |
-| SOCKET_SECURITY_API_KEY   | CI          | 180 days         |              |               |
+| Secret                    | Environment | Rotation Cadence | Last Rotated | Next Rotation                                                                                                                 |
+| ------------------------- | ----------- | ---------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| CLOUDFLARE_API_TOKEN      | Production  | 90 days          |              |                                                                                                                               |
+| SUPABASE_SERVICE_ROLE_KEY | Production  | 90 days          |              |                                                                                                                               |
+| JWT_SECRET                | Production  | 180 days         |              |                                                                                                                               |
+| CRON_SECRET               | Production  | 90 days          |              |                                                                                                                               |
+| INTERNAL_API_TOKEN        | Production  | 90 days          |              |                                                                                                                               |
+| STRIPE_SECRET_KEY         | Production  | 90 days          |              |                                                                                                                               |
+| RESEND_API_KEY            | Production  | 180 days         |              |                                                                                                                               |
+| TURNSTILE_SECRET_KEY      | Production  | 180 days         |              |                                                                                                                               |
+| SOCKET_SECURITY_API_KEY   | CI          | 180 days         |              |                                                                                                                               |
 | GITHUB_TOKEN (Terraform)  | CI          | 90 days          |              | DEPRECATED (A35): Migrate to GitHub App auth. Once migrated, remove this entry and rotate the GitHub App private key instead. |
 
 ## Rotation Procedure
