@@ -650,13 +650,16 @@ jobs:
           CRON_SECRET: ci-test-cron-secret
       - name: Wait for server to be ready
         run: npx wait-on http://localhost:3000 --timeout 60000
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
       - name: Run k6 load tests
-        uses: grafana/k6-action@v0.3.1
-        with:
-          filename: load-test.js
+        run: k6 run load-test.js
         env:
+          CI: "true"
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
-          # A87: Fail on any check failure, not just HTTP 500
           K6_NO_THRESHOLDS: "false"
 
   # ── Chaos test gate (A86) ──────────────────────────────────────────
