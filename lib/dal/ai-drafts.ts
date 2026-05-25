@@ -294,7 +294,7 @@ export async function publishAIDraftTransactional(
     throw error;
   }
 
-  const result = (data as unknown) as {
+  const result = data as unknown as {
     ok: boolean;
     id: string;
     status: string;
@@ -350,7 +350,11 @@ async function publishAIDraftFallback(
     .maybeSingle();
 
   if (existing) {
-    return { ok: false, error: `Content with slug "${draft.slug}" already exists`, code: "DUPLICATE_SLUG" };
+    return {
+      ok: false,
+      error: `Content with slug "${draft.slug}" already exists`,
+      code: "DUPLICATE_SLUG",
+    };
   }
 
   // Insert content

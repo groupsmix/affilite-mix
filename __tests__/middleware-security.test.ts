@@ -66,11 +66,7 @@ describe("Middleware body size guard (A7-001 / A10-002)", () => {
 
 describe("Middleware Host header validation (A9-002)", () => {
   it("rejects hostnames with path traversal", () => {
-    const badHostnames = [
-      "../etc/passwd",
-      "foo/../../bar",
-      "example.com/../evil",
-    ];
+    const badHostnames = ["../etc/passwd", "foo/../../bar", "example.com/../evil"];
 
     const hostnameRegex = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i;
 

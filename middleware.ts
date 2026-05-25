@@ -132,7 +132,8 @@ async function innerMiddleware(request: NextRequest) {
           JSON.stringify({
             error: "Length required",
             code: "LENGTH_REQUIRED",
-            message: "Content-Length header is required. Chunked transfer without explicit length is not supported.",
+            message:
+              "Content-Length header is required. Chunked transfer without explicit length is not supported.",
           }),
           {
             status: 411,

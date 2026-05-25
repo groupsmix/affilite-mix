@@ -35,7 +35,9 @@ const SORT_COLUMNS: ContentSortColumn[] = [
  */
 export function sanitizeSortColumn(raw: string | undefined): ContentSortColumn {
   if (!raw) return "created_at";
-  return SORT_COLUMNS.includes(raw as ContentSortColumn) ? (raw as ContentSortColumn) : "created_at";
+  return SORT_COLUMNS.includes(raw as ContentSortColumn)
+    ? (raw as ContentSortColumn)
+    : "created_at";
 }
 
 export interface ListContentOptions {
