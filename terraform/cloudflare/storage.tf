@@ -99,9 +99,9 @@ variable "r2_replication_enabled" {
 # are not yet available as first-class Terraform resources.
 resource "null_resource" "r2_bucket_hardening" {
   triggers = {
-    worker_logs_bucket   = cloudflare_r2_bucket.worker_logs.name
+    worker_logs_bucket    = cloudflare_r2_bucket.worker_logs.name
     next_inc_cache_bucket = cloudflare_r2_bucket.next_inc_cache.name
-    worm_enabled         = var.r2_worm_enabled
+    worm_enabled          = var.r2_worm_enabled
   }
 
   provisioner "local-exec" {
@@ -161,8 +161,8 @@ resource "null_resource" "r2_bucket_hardening" {
 # Cloudflare REST API directly and includes a post-apply verification step.
 resource "null_resource" "r2_lifecycle" {
   triggers = {
-    retention_days = var.r2_log_retention_days
-    worker_logs_bucket  = cloudflare_r2_bucket.worker_logs.name
+    retention_days        = var.r2_log_retention_days
+    worker_logs_bucket    = cloudflare_r2_bucket.worker_logs.name
     next_inc_cache_bucket = cloudflare_r2_bucket.next_inc_cache.name
   }
 

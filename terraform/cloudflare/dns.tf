@@ -54,10 +54,10 @@ variable "worker_custom_domains" {
 
 variable "dns_records" {
   type = map(object({
-    name     = string
-    type     = string
-    content  = string
-    ttl      = optional(number, 1) # 1 = automatic
+    name    = string
+    type    = string
+    content = string
+    ttl     = optional(number, 1) # 1 = automatic
     # A39: Default to proxied=true for public web records.
     # Any record with proxied=false must include an exception comment.
     proxied  = optional(bool, true)

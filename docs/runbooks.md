@@ -4,12 +4,12 @@
 
 ## SLO Definitions
 
-| Service | SLO Target | Error Budget | Burn-Rate Alert |
-|---|---|---|---|
-| Worker HTTP 5xx rate | < 5% over 5 min | 0.1% / month | `worker_5xx_alert` |
-| Worker CPU time | < 50 ms p99 | 100 ms p99 | `worker_cpu_time_alert` |
-| Queue consumer lag | < 60 seconds | 5 min | `queue_backlog_alert` |
-| Click-tracking durability | 99.9% | 0.1% | DLQ depth monitor |
+| Service                   | SLO Target      | Error Budget | Burn-Rate Alert         |
+| ------------------------- | --------------- | ------------ | ----------------------- |
+| Worker HTTP 5xx rate      | < 5% over 5 min | 0.1% / month | `worker_5xx_alert`      |
+| Worker CPU time           | < 50 ms p99     | 100 ms p99   | `worker_cpu_time_alert` |
+| Queue consumer lag        | < 60 seconds    | 5 min        | `queue_backlog_alert`   |
+| Click-tracking durability | 99.9%           | 0.1%         | DLQ depth monitor       |
 
 ## Alert Response
 
@@ -40,13 +40,13 @@
 
 ### RTO / RPO Targets
 
-| Scenario | RTO | RPO |
-|---|---|---|
-| Worker failure (code bug) | 10 min (rollback) | 0 (stateless) |
-| KV namespace loss | 30 min (restore from backup) | 1 hour |
-| R2 bucket loss | 1 hour (cross-region replica) | 15 min |
-| Supabase outage | 2 hours (failover to read replica) | 5 min |
-| Complete account loss | 4 hours (Terraform rebuild) | 1 hour |
+| Scenario                  | RTO                                | RPO           |
+| ------------------------- | ---------------------------------- | ------------- |
+| Worker failure (code bug) | 10 min (rollback)                  | 0 (stateless) |
+| KV namespace loss         | 30 min (restore from backup)       | 1 hour        |
+| R2 bucket loss            | 1 hour (cross-region replica)      | 15 min        |
+| Supabase outage           | 2 hours (failover to read replica) | 5 min         |
+| Complete account loss     | 4 hours (Terraform rebuild)        | 1 hour        |
 
 ### DR Procedures
 
@@ -82,22 +82,22 @@ wrangler kv:namespace restore --namespace-id=<id> --from=<backup>
 
 ### DR Drill Log
 
-| Date | Scenario | RTO Achieved | Notes |
-|---|---|---|---|
-| (Schedule first drill) | | | |
+| Date                   | Scenario | RTO Achieved | Notes |
+| ---------------------- | -------- | ------------ | ----- |
+| (Schedule first drill) |          |              |       |
 
 ## Cron Job Runbook
 
 ### Schedule (all UTC)
 
-| Cron | Frequency | Handler | Max Runtime |
-|---|---|---|---|
-| `*/5 * * * *` | Every 5 min | `/api/cron/publish` | 2 min |
-| `0 1 * * *` | Daily 1 AM | `/api/cron/stripe-sync` | 10 min |
-| `0 3 * * *` | Daily 3 AM | `/api/cron/sitemap-refresh` | 5 min |
-| `0 4 * * *` | Daily 4 AM | `/api/cron/data-retention` | 30 min |
-| `0 6 * * *` | Daily 6 AM | `/api/cron/epc-recompute` | 15 min |
-| `0 * * * *` | Hourly | `/api/cron/expire-deals` | 2 min |
+| Cron          | Frequency   | Handler                     | Max Runtime |
+| ------------- | ----------- | --------------------------- | ----------- |
+| `*/5 * * * *` | Every 5 min | `/api/cron/publish`         | 2 min       |
+| `0 1 * * *`   | Daily 1 AM  | `/api/cron/stripe-sync`     | 10 min      |
+| `0 3 * * *`   | Daily 3 AM  | `/api/cron/sitemap-refresh` | 5 min       |
+| `0 4 * * *`   | Daily 4 AM  | `/api/cron/data-retention`  | 30 min      |
+| `0 6 * * *`   | Daily 6 AM  | `/api/cron/epc-recompute`   | 15 min      |
+| `0 * * * *`   | Hourly      | `/api/cron/expire-deals`    | 2 min       |
 
 ### Daylight Saving
 

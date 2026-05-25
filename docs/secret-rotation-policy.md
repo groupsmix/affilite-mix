@@ -5,18 +5,18 @@
 
 ## Secret Inventory
 
-| Secret | Environment | Rotation Cadence | Last Rotated | Next Rotation |
-|---|---|---|---|---|
-| CLOUDFLARE_API_TOKEN | Production | 90 days | | |
-| SUPABASE_SERVICE_ROLE_KEY | Production | 90 days | | |
-| JWT_SECRET | Production | 180 days | | |
-| CRON_SECRET | Production | 90 days | | |
-| INTERNAL_API_TOKEN | Production | 90 days | | |
-| STRIPE_SECRET_KEY | Production | 90 days | | |
-| RESEND_API_KEY | Production | 180 days | | |
-| TURNSTILE_SECRET_KEY | Production | 180 days | | |
-| SOCKET_SECURITY_API_KEY | CI | 180 days | | |
-| GITHUB_TOKEN (Terraform) | CI | 90 days | | |
+| Secret                    | Environment | Rotation Cadence | Last Rotated | Next Rotation |
+| ------------------------- | ----------- | ---------------- | ------------ | ------------- |
+| CLOUDFLARE_API_TOKEN      | Production  | 90 days          |              |               |
+| SUPABASE_SERVICE_ROLE_KEY | Production  | 90 days          |              |               |
+| JWT_SECRET                | Production  | 180 days         |              |               |
+| CRON_SECRET               | Production  | 90 days          |              |               |
+| INTERNAL_API_TOKEN        | Production  | 90 days          |              |               |
+| STRIPE_SECRET_KEY         | Production  | 90 days          |              |               |
+| RESEND_API_KEY            | Production  | 180 days         |              |               |
+| TURNSTILE_SECRET_KEY      | Production  | 180 days         |              |               |
+| SOCKET_SECURITY_API_KEY   | CI          | 180 days         |              |               |
+| GITHUB_TOKEN (Terraform)  | CI          | 90 days          |              |               |
 
 ## Rotation Procedure
 
@@ -29,28 +29,32 @@ Secrets marked with `[AUTO]` are rotated automatically via GitHub Actions:
 name: Secret Rotation
 on:
   schedule:
-    - cron: "0 0 1 */3 *"  # First of every 3rd month
+    - cron: "0 0 1 */3 *" # First of every 3rd month
 ```
 
 ### Manual Rotation Steps
 
 1. **Generate new secret** using cryptographically secure random:
+
    ```bash
    openssl rand -hex 64  # For 256-bit secrets
    openssl rand -hex 32  # For 128-bit secrets
    ```
 
 2. **Update in Cloudflare Dashboard** (or via API):
+
    ```bash
    echo -n "new-secret-value" | wrangler secret put SECRET_NAME
    ```
 
 3. **Update GitHub Secrets** (if CI uses it):
+
    ```bash
    gh secret set SECRET_NAME --body "new-secret-value"
    ```
 
 4. **Verify the new secret works** before revoking the old one:
+
    ```bash
    curl -H "Authorization: Bearer new-secret" https://<domain>/api/health
    ```
@@ -98,6 +102,7 @@ on:
 ### Vault Integration (Planned)
 
 Migrate to HashiCorp Vault or Cloudflare Secrets Store for:
+
 - Automatic rotation without code changes
 - Dynamic short-lived credentials
 - Fine-grained access policies
@@ -105,9 +110,9 @@ Migrate to HashiCorp Vault or Cloudflare Secrets Store for:
 
 ## Compliance Mapping
 
-| Requirement | Control | Evidence |
-|---|---|---|
-| SOC 2 CC6.1 | 90-day rotation | Rotation schedule + audit log |
-| SOC 2 CC6.2 | Break-glass logging | break-glass-access.yml runs |
-| SOC 2 CC7.2 | Secret compromise response | Incident response playbook |
-| GDPR Art. 32 | Encryption key rotation | JWT_SECRET rotation log |
+| Requirement  | Control                    | Evidence                      |
+| ------------ | -------------------------- | ----------------------------- |
+| SOC 2 CC6.1  | 90-day rotation            | Rotation schedule + audit log |
+| SOC 2 CC6.2  | Break-glass logging        | break-glass-access.yml runs   |
+| SOC 2 CC7.2  | Secret compromise response | Incident response playbook    |
+| GDPR Art. 32 | Encryption key rotation    | JWT_SECRET rotation log       |

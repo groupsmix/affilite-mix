@@ -105,8 +105,7 @@ services:
       PGRST_JWT_SECRET:
         ${LOCAL_JWT_SECRET:?ERROR: LOCAL_JWT_SECRET is required. Create .env.local with LOCAL_JWT_SECRET=your-64-char-secret}
       PGRST_DB_USE_LEGACY_GUCS: "false"
-      PGRST_APP_SETTINGS_JWT_SECRET:
-        ${LOCAL_JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_SECRET: ${LOCAL_JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: "3600"
 
   kong:
