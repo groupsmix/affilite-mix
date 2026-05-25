@@ -7,6 +7,7 @@ import { headers, cookies } from "next/headers";
 import { getAdminSession } from "@/lib/auth";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
+import { authzPrimaryRead } from "@/lib/read-after-write";
 
 // Environment variables are resolved lazily (inside functions) so that
 // module evaluation during `next build` does not throw when the vars
@@ -90,12 +91,15 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
           if (session.role === "super_admin") {
             siteId = dbSite.id;
           } else {
-            const { data: membership } = await priv
-              .from("admin_site_memberships")
-              .select("id")
-              .eq("admin_user_id", session.userId)
-              .eq("site_id", dbSite.id)
-              .single();
+            // A30-006: Primary read for authz — membership check must not see stale replica data
+            const { data: membership } = await authzPrimaryRead(() =>
+              priv
+                .from("admin_site_memberships")
+                .select("id")
+                .eq("admin_user_id", session.userId)
+                .eq("site_id", dbSite.id)
+                .single(),
+            );
             if (membership) {
               siteId = dbSite.id;
             }

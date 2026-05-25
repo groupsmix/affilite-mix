@@ -47,7 +47,22 @@ export async function POST(request: NextRequest) {
   }
 
   const sb = getPrivilegedSupabaseClient();
-  const now = new Date().toISOString();
+  // A28-003: Use DB now() for scheduling decisions instead of worker clock.
+  // Edge clock skew can cause early/late publishing. DB is the authoritative time source.
+  const { data: dbNowResult } = await sb.rpc("db_now");
+  const dbNow = (dbNowResult as string | null) ?? new Date().toISOString();
+  // Also capture worker time for drift detection logging
+  const workerNow = new Date().toISOString();
+  const clockSkewMs = Math.abs(new Date(dbNow).getTime() - new Date(workerNow).getTime());
+  if (clockSkewMs > 30_000) {
+    console.warn(JSON.stringify({
+      metric: "cron.clock_skew",
+      skew_ms: clockSkewMs,
+      db_now: dbNow,
+      worker_now: workerNow,
+      msg: `Worker clock skew ${clockSkewMs}ms detected — using DB time for scheduling`,
+    }));
+  }
   const results: Record<string, unknown> = {};
 
   // 1. Publish scheduled content (only explicitly scheduled items with publish_at <= now)
@@ -57,7 +72,7 @@ export async function POST(request: NextRequest) {
     .select("id, title, slug")
     .eq("status", "scheduled")
     .not("publish_at", "is", null)
-    .lte("publish_at", now)
+    .lte("publish_at", dbNow)
     .overrideTypes<Pick<ContentRow, "id" | "title" | "slug">[]>();
 
   if (contentError) {
@@ -96,14 +111,14 @@ export async function POST(request: NextRequest) {
   // 2. Archive expired content (published with deal_expires_at in the past â€” future field)
   // Currently content doesn't have deal_expires_at, so this is a no-op placeholder
 
-  // 3. Archive expired products (active with deal_expires_at <= now)
+  // 3. Archive expired products (active with deal_expires_at <= dbNow)
   const { data: expiredProducts, error: expiredError } = await sb
     // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
     .from("products")
     .select("id, name, slug")
     .eq("status", "active")
     .not("deal_expires_at", "is", null)
-    .lte("deal_expires_at", now)
+    .lte("deal_expires_at", dbNow)
     .overrideTypes<Pick<ProductRow, "id" | "name" | "slug">[]>();
 
   if (expiredError) {
