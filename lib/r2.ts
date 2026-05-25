@@ -30,7 +30,7 @@
  *     before the object is ever visible at R2_PUBLIC_URL.
  */
 
-import { assertQuota, recordUsage } from "@/lib/quotas";
+import { reserveQuota, releaseQuota } from "@/lib/quotas";
 
 // ── Lightweight AWS Signature V4 presigner ────────────────────────────
 
@@ -320,17 +320,14 @@ export async function getUploadUrl(
     throw new Error(`Upload exceeds the ${R2_MAX_UPLOAD_BYTES / (1024 * 1024)}MB limit`);
   }
 
-  // Per-tenant storage ceiling (G-42). The check is best-effort — if KV
-  // is unreachable, `lib/quotas.ts` fails open. We record the bytes
-  // BEFORE issuing the presign, even though the upload may never
-  // complete: pessimistic accounting keeps the counter conservative
-  // and matches how billing already works in `wait-until.ts` flows.
-  // A finalize step in `/api/admin/upload/finalize` is the right place
-  // to reconcile counters against actual upload completion in a
-  // follow-up; the primitive is already exposed.
+  // AUDIT-FIX A1-007: Per-tenant storage ceiling (G-42). Use atomic
+  // reservation so concurrent requests see the reserved capacity. The
+  // reservation is released by `/api/admin/upload/finalize` when the
+  // upload completes (or by the janitor reconcile job for abandoned
+  // uploads). This prevents unbounded quota consumption from presigns
+  // that are never followed through.
   if (options.siteId) {
-    await assertQuota(options.siteId, "r2_storage_bytes", contentLength);
-    await recordUsage(options.siteId, "r2_storage_bytes", contentLength);
+    await reserveQuota(options.siteId, "r2_storage_bytes", contentLength);
   }
 
   const stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;
