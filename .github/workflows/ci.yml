@@ -474,33 +474,159 @@ jobs:
       - name: terraform validate
         run: terraform -chdir=terraform/cloudflare validate
 
+  # ── Integration test gate (A86) ───────────────────────────────────
+  # F-11: Integration tests are required to pass before merge.
+  # They exercise DB + KV interactions that unit tests mock.
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          JWT_SECRET: ci-test-secret
+          INTERNAL_API_TOKEN: ci-test-internal-token
+          CRON_SECRET: ci-test-cron-secret
+
+  # ── E2E test gate (A86) ────────────────────────────────────────────
+  # Playwright E2E tests across Chromium, Firefox, and WebKit.
+  # A87: Do not rely on retries to mask flake — each test must pass cleanly.
+  e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install chromium firefox webkit
+      - name: Run E2E tests (all browsers)
+        run: npm run test:e2e
+        env:
+          CI: true
+          # A87: Zero retries in CI — flake must be fixed, not retried
+          PLAYWRIGHT_RETRIES: "0"
+
+  # ── Load test gate (A86) ───────────────────────────────────────────
+  # k6 load tests to validate critical paths under 100x traffic.
+  # A87: Assertions must verify correct behavior, not just "not 500".
+  load:
+    name: Load tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Run k6 load tests
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: load-test.js
+        env:
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+          # A87: Fail on any check failure, not just HTTP 500
+          K6_NO_THRESHOLDS: "false"
+
+  # ── Chaos test gate (A86) ──────────────────────────────────────────
+  # Simulates AZ loss, KV outage, and partial cache failures.
+  chaos:
+    name: Chaos tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run chaos tests
+        run: npm run test:chaos
+        env:
+          CHAOS_TEST_ENABLED: "true"
+
+  # ── Mutation test gate (A86/A88) ───────────────────────────────────
+  # Stryker mutation testing ensures tests catch semantic changes.
+  # Runs on PRs targeting main to validate test quality.
+  mutation:
+    name: Mutation tests
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run Stryker mutation tests
+        run: npm run test:mutation
+        env:
+          STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
+
   # ── Cross-workflow required gates ──────────────────────────────────
   # Branch protection should require ALL of the following check names:
   #
   #   1. "Required checks"    (this workflow — lint/test/typecheck/build)
-  #   2. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
-  #   3. "npm audit (high / critical)"  (security.yml)
-  #   4. "License compliance"           (security.yml)
-  #   5. "Dependency review"            (security.yml, PRs only)
+  #   2. "Integration tests"  (integration job above)
+  #   3. "E2E tests"          (e2e job above)
+  #   4. "Load tests"         (load job above)
+  #   5. "Chaos tests"        (chaos job above)
+  #   6. "Mutation tests"     (mutation job above, PRs to main only)
+  #   7. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
+  #   8. "npm audit (high / critical)"  (security.yml)
+  #   9. "License compliance"           (security.yml)
+  #  10. "Dependency review"            (security.yml, PRs only)
   #
   # GitHub Actions `needs` cannot cross workflow boundaries, so each
   # workflow exposes its own gate job with a stable name.  Configure
-  # all five names as required status checks in repo Settings →
+  # all ten names as required status checks in repo Settings →
   # Branches → Branch protection rules → Require status checks.
 
   required-checks:
     name: Required checks
-    needs: [check]
+    needs: [check, integration, e2e, load, chaos]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Verify required jobs succeeded
         env:
           CHECK_RESULT: ${{ needs.check.result }}
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          LOAD_RESULT: ${{ needs.load.result }}
+          CHAOS_RESULT: ${{ needs.chaos.result }}
         run: |
           set -euo pipefail
           echo "check: $CHECK_RESULT"
+          echo "integration: $INTEGRATION_RESULT"
+          echo "e2e: $E2E_RESULT"
+          echo "load: $LOAD_RESULT"
+          echo "chaos: $CHAOS_RESULT"
           if [ "$CHECK_RESULT" != "success" ]; then
             echo "::error::Required 'check' job did not succeed"
+            exit 1
+          fi
+          if [ "$INTEGRATION_RESULT" != "success" ]; then
+            echo "::error::Required 'integration' job did not succeed"
+            exit 1
+          fi
+          if [ "$E2E_RESULT" != "success" ]; then
+            echo "::error::Required 'e2e' job did not succeed"
+            exit 1
+          fi
+          if [ "$LOAD_RESULT" != "success" ]; then
+            echo "::error::Required 'load' job did not succeed"
+            exit 1
+          fi
+          if [ "$CHAOS_RESULT" != "success" ]; then
+            echo "::error::Required 'chaos' job did not succeed"
             exit 1
           fi

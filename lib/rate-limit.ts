@@ -236,21 +236,39 @@ async function checkRateLimitKV(
 //   2. Add the binding to wrangler.jsonc under [kv_namespaces]
 //   3. Verify with: wrangler kv:key list --namespace-id=<ID>
 
+/** A98-51: Memory entry with timestamps and last-access tracking for LRU. */
 interface MemoryRateLimitEntry {
   timestamps: number[];
+  /** Epoch ms of last access — drives LRU eviction when cap is hit. */
+  lastAccess: number;
 }
 
 const memoryStore = new Map<string, MemoryRateLimitEntry>();
 
 /**
  * A75/A78: Hard cap on in-memory rate-limit entries to prevent unbounded
- * memory growth between cleanup intervals. When the cap is hit, the oldest
- * entries (by insertion order, which Map preserves) are evicted.
+ * memory growth between cleanup intervals. When the cap is hit, entries
+ * are evicted by least-recently-used (LRU) order, not FIFO insertion order.
  */
 const MEMORY_STORE_MAX_ENTRIES = 10_000;
 
 const CLEANUP_INTERVAL_MS = 60_000;
 let lastCleanup = Date.now();
+
+/** A98-51: Evict the least-recently-used entries until we're under the cap. */
+function lruEvict(excess: number): void {
+  // Collect entries with their lastAccess time
+  const entries: { key: string; lastAccess: number }[] = [];
+  for (const [key, entry] of memoryStore) {
+    entries.push({ key, lastAccess: entry.lastAccess });
+  }
+  // Sort by lastAccess ascending (least recently used first)
+  entries.sort((a, b) => a.lastAccess - b.lastAccess);
+  // Evict the least recently used entries
+  for (let i = 0; i < Math.min(excess, entries.length); i++) {
+    memoryStore.delete(entries[i].key);
+  }
+}
 
 function cleanupMemory(windowMs: number) {
   const now = Date.now();
@@ -265,15 +283,10 @@ function cleanupMemory(windowMs: number) {
     }
   }
 
-  // A75: If still over cap after expiry cleanup, LRU-evict oldest entries.
+  // A75/A98-51: If still over cap after expiry cleanup, true-LRU eviction.
   if (memoryStore.size > MEMORY_STORE_MAX_ENTRIES) {
     const excess = memoryStore.size - MEMORY_STORE_MAX_ENTRIES;
-    let evicted = 0;
-    for (const key of memoryStore.keys()) {
-      if (evicted >= excess) break;
-      memoryStore.delete(key);
-      evicted++;
-    }
+    lruEvict(excess);
   }
 }
 
@@ -287,13 +300,15 @@ function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitRe
   if (!entry) {
     // A75: Enforce hard cap before inserting new entries.
     if (memoryStore.size >= MEMORY_STORE_MAX_ENTRIES) {
-      // Evict the oldest entry (first key in insertion order).
-      const firstKey = memoryStore.keys().next().value;
-      if (firstKey !== undefined) memoryStore.delete(firstKey);
+      // A98-51: Evict the single least-recently-used entry.
+      lruEvict(1);
     }
-    entry = { timestamps: [] };
+    entry = { timestamps: [], lastAccess: now };
     memoryStore.set(key, entry);
   }
+
+  // A98-51: Update last-access time on every touch
+  entry.lastAccess = now;
 
   entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
 

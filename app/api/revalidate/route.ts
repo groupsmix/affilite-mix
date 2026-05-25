@@ -6,6 +6,7 @@ import { getTenantClient } from "@/lib/supabase-server";
 import { CONTENT_TAGS, siteTag, type ContentTag } from "@/lib/cache-tags";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/revalidate — On-demand cache revalidation webhook.
@@ -13,24 +14,40 @@ import { checkRateLimit } from "@/lib/rate-limit";
  * Call this after admin content changes to propagate updates immediately
  * instead of waiting for the ISR revalidation interval (1 hour).
  *
- * Secured via INTERNAL_API_TOKEN env var — pass it in the Authorization header:
- *   Authorization: Bearer <INTERNAL_API_TOKEN>
+ * Authentication:
+ *   Per-site revalidation: Authorization: Bearer <INTERNAL_API_TOKEN>
+ *   All-sites revalidation: Authorization: Bearer <REVALIDATE_ALL_SITES_TOKEN>
  *
  * Body:
  *   {
  *     "tags":    ["content", "products"],          // defaults to all three kinds
- *     "site_id": "<uuid>",                         // REQUIRED: scope to one site
- *     "scope":   "all_sites"                       // break-glass: omit site_id + set scope to purge all
+ *     "site_id": "<uuid>"                          // REQUIRED for per-site scope
  *   }
  *
  * Tags are always emitted in their site-scoped form (`content:<site_id>`).
  * R-02: `site_id` is now required by default. All-site purge requires
- * explicit `scope: "all_sites"` to prevent accidental fanout.
+ * the REVALIDATE_ALL_SITES_TOKEN break-glass token.
  */
+
+/** A98-64: Supported revalidation auth modes */
+type AuthMode = "per-site" | "all-sites";
+
+/** A98-64: Determine which token to validate against */
+function determineAuthMode(bearer: string, internalToken: string, allSitesToken?: string): AuthMode | null {
+  const encoder = new TextEncoder();
+  if (timingSafeCompare(encoder.encode(bearer), encoder.encode(internalToken))) {
+    return "per-site";
+  }
+  if (allSitesToken && timingSafeCompare(encoder.encode(bearer), encoder.encode(allSitesToken))) {
+    return "all-sites";
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
-  let expected: string;
+  let internalToken: string;
   try {
-    expected = getInternalTokenFor("internal");
+    internalToken = getInternalTokenFor("internal");
   } catch {
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
@@ -38,21 +55,29 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization") ?? "";
   const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : "";
 
-  const encoder = new TextEncoder();
-  if (!bearer || !timingSafeCompare(encoder.encode(bearer), encoder.encode(expected))) {
+  const allSitesToken = process.env.REVALIDATE_ALL_SITES_TOKEN;
+
+  // A98-64: Validate bearer against either token independently.
+  // The standard INTERNAL_API_TOKEN allows per-site revalidation only.
+  // The separate REVALIDATE_ALL_SITES_TOKEN allows all-sites revalidation.
+  // These tokens MUST be different in production for blast-radius containment.
+  const authMode = determineAuthMode(bearer, internalToken, allSitesToken);
+  if (!authMode) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // F-005: rate-limit cache invalidation per-token. The endpoint is
-  // already INTERNAL_API_TOKEN-gated, but a leaked token could be
-  // weaponised into a cache-invalidation flood that hammers the
-  // origin DB on every revalidation. Cap to 30 calls / minute.
+  // already token-gated, but a leaked token could be weaponised into a
+  // cache-invalidation flood that hammers the origin DB on every revalidation.
+  // Cap to 30 calls / minute for per-site, 5/min for all-sites.
   // F-20: Use fail-closed policy so leaked tokens can't bypass during outages.
-  const rl = await checkRateLimit("revalidate:internal-token", {
-    maxRequests: 30,
-    windowMs: 60_000,
-    failPolicy: "closed" as const,
-  });
+  const rateLimitKey = authMode === "all-sites" ? "revalidate:all-sites" : "revalidate:internal-token";
+  const rateLimitConfig =
+    authMode === "all-sites"
+      ? { maxRequests: 5, windowMs: 60_000, failPolicy: "closed" as const }
+      : { maxRequests: 30, windowMs: 60_000, failPolicy: "closed" as const };
+
+  const rl = await checkRateLimit(rateLimitKey, rateLimitConfig);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Rate limit exceeded", retryAfterMs: rl.retryAfterMs },
@@ -82,50 +107,19 @@ export async function POST(request: NextRequest) {
     if (typeof body.site_id === "string" && body.site_id.length > 0) {
       siteId = body.site_id;
     }
-    // Note: `body.scope` is documented in the header comment but never
-    // consumed — all-sites revalidation is gated by absence of `site_id`
-    // plus the REVALIDATE_ALL_SITES_TOKEN break-glass header.
   } catch {
     // No body or invalid JSON — use defaults.
   }
 
-  // F-20: Require site_id by default. All-sites revalidation requires a separate
-  // break-glass token (REVALIDATE_ALL_SITES_TOKEN) with stricter rate limits.
-  // This limits blast radius if the standard INTERNAL_API_TOKEN is leaked.
+  // A98-64: Route authorization — per-site token requires site_id;
+  // all-sites token can do cross-site purge.
   let siteIds: string[];
 
   if (siteId) {
+    // Both tokens can do per-site revalidation
     siteIds = [siteId];
-  } else {
-    const allSitesToken = process.env.REVALIDATE_ALL_SITES_TOKEN;
-    // Standard token cannot do all-sites revalidation — require the break-glass token
-    const bearerIsAllSites = allSitesToken && bearer === allSitesToken;
-    if (!bearerIsAllSites) {
-      return NextResponse.json(
-        {
-          error: "site_id is required. Use REVALIDATE_ALL_SITES_TOKEN for cross-site invalidation.",
-        },
-        { status: 400 },
-      );
-    }
-    // Stricter rate limit for all-sites revalidation
-    const allSitesRl = await checkRateLimit("revalidate:all-sites", {
-      maxRequests: 5,
-      windowMs: 60_000,
-      failPolicy: "closed" as const,
-    });
-    if (!allSitesRl.allowed) {
-      return NextResponse.json(
-        {
-          error: "Rate limit exceeded for all-sites revalidation",
-          retryAfterMs: allSitesRl.retryAfterMs,
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(Math.ceil(allSitesRl.retryAfterMs / 1000)) },
-        },
-      );
-    }
+  } else if (authMode === "all-sites") {
+    // Stricter rate limit already applied above for all-sites token
     const sb = await getTenantClient();
     const { data: sites, error } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: revalidate webhook uses privileged client; gated by shared secret
@@ -138,6 +132,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     siteIds = (sites ?? []).map((s) => s.id);
+    logger.info("[api/revalidate] All-sites revalidation executed", {
+      site_count: siteIds.length,
+      tag_count: kinds.length,
+    });
+  } else {
+    // Per-site token without site_id — reject
+    return NextResponse.json(
+      {
+        error: "site_id is required for per-site revalidation. Use REVALIDATE_ALL_SITES_TOKEN for cross-site invalidation.",
+      },
+      { status: 400 },
+    );
   }
 
   const revalidated: string[] = [];

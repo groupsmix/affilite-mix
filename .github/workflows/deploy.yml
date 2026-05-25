@@ -573,13 +573,41 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       # ── Skip entire migrate-production stage if requested ──────────
+      # A89/A98-68: SKIP_DB_MIGRATIONS is a production-impacting bypass.
+      # It requires a ticket reference and expiry to prevent permanent
+      # skipping that leads to schema/code drift.
       - name: Check skip flag
         id: skip-check
         env:
           _SKIP: ${{ vars.SKIP_DB_MIGRATIONS }}
+          _SKIP_TICKET: ${{ vars.SKIP_DB_MIGRATIONS_TICKET }}
+          _SKIP_EXPIRES: ${{ vars.SKIP_DB_MIGRATIONS_EXPIRES }}
         run: |
           if [ "${_SKIP:-}" = "true" ]; then
+            # Require ticket reference for audit trail
+            if [ -z "${_SKIP_TICKET:-}" ]; then
+              echo "::error::SKIP_DB_MIGRATIONS=true requires SKIP_DB_MIGRATIONS_TICKET to be set."
+              echo "::error::Set it to the incident or change ticket URL authorizing this override."
+              exit 1
+            fi
+            # Require expiry timestamp
+            if [ -z "${_SKIP_EXPIRES:-}" ]; then
+              echo "::error::SKIP_DB_MIGRATIONS=true requires SKIP_DB_MIGRATIONS_EXPIRES to be set."
+              echo "::error::Set it to an ISO 8601 UTC datetime after which the override is invalid."
+              exit 1
+            fi
+            # Check if the override has expired
+            EXPIRES_EPOCH=$(date -d "$_SKIP_EXPIRES" +%s 2>/dev/null || echo "0")
+            NOW_EPOCH=$(date +%s)
+            if [ "$EXPIRES_EPOCH" -le "$NOW_EPOCH" ]; then
+              echo "::error::SKIP_DB_MIGRATIONS has expired (was: $_SKIP_EXPIRES)."
+              echo "::error::Remove SKIP_DB_MIGRATIONS or set a new expiry after confirming migrations are safe."
+              exit 1
+            fi
             echo "::warning::SKIP_DB_MIGRATIONS=true — skipping DB migration stage"
+            echo "::warning::Override ticket: $_SKIP_TICKET"
+            echo "::warning::Override expires: $_SKIP_EXPIRES"
+            echo "::notice title=DB Migration Skip Active::SKIP_DB_MIGRATIONS=true was used by ${{ github.actor }} in workflow run ${{ github.run_id }}. Ticket: $_SKIP_TICKET. Expires: $_SKIP_EXPIRES. Ensure migrations are applied promptly."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"

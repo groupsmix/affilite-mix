@@ -18,6 +18,15 @@ import { getAppCacheKV } from "@/lib/runtime-env";
 
 const CSP_HEADER = "Content-Security-Policy";
 
+/** A98-49: Throw if the request has been aborted, so downstream work stops. */
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    const err = new Error("Middleware aborted due to timeout");
+    err.name = "AbortError";
+    throw err;
+  }
+}
+
 // F-PERF-02: Per-isolate maintenance mode cache (30s TTL)
 let _maintenanceCacheValue = false;
 let _maintenanceCacheExpiry = 0;
@@ -44,14 +53,34 @@ function nicheNotFoundResponse(request: NextRequest): NextResponse {
 }
 
 /**
+ * A98-52: Canonicalize a hostname for use as a cache key.
+ * - Lowercases (DNS is case-insensitive)
+ * - Removes trailing dot (FQDN form → canonical)
+ * - Strips port number
+ *
+ * This prevents cache fragmentation from equivalent hostnames
+ * like "Example.COM", "example.com.", and "example.com:443".
+ */
+function canonicalizeHostname(hostname: string): string {
+  return hostname.toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
+}
+
+/**
  * Middleware: resolves domain → site_id and injects x-site-id header.
  * Supports wildcard subdomain routing — any *.wristnerd.xyz subdomain
  * is automatically resolved via DB lookup.
  * Also handles CSRF protection for state-changing API routes.
+ *
+ * A98-49: Accepts an AbortSignal so the timeout wrapper can cancel
+ * downstream async work (KV reads, DB lookups) when the deadline fires.
  */
-async function innerMiddleware(request: NextRequest) {
+async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   const { pathname } = request.nextUrl;
   let { hostname } = request.nextUrl;
+
+  // A98-52: Canonicalize hostname before any cache key usage.
+  // This prevents cache fragmentation from DNS-equivalent forms.
+  hostname = canonicalizeHostname(hostname);
 
   // SECURITY-FIX: Sanitize hostname to prevent prototype pollution and path traversal
   // in KV key construction (T1-001, T1-003 / CWE-1321, CWE-22)
@@ -81,10 +110,12 @@ async function innerMiddleware(request: NextRequest) {
       });
     }
     try {
+      throwIfAborted(signal);
       if (_maintenanceCacheExpiry < Date.now()) {
         const kv = getAppCacheKV();
         if (kv) {
           const kvMaintenance = await kv.get("maintenance_mode");
+          throwIfAborted(signal);
           _maintenanceCacheValue =
             kvMaintenance?.toLowerCase() === "1" || kvMaintenance?.toLowerCase() === "true";
         }
@@ -243,6 +274,9 @@ async function innerMiddleware(request: NextRequest) {
     ? { slug: site.id, domain: site.domain, aliases: site.aliases }
     : null;
 
+  // A98-49: Check abort before expensive DB/KV operations
+  throwIfAborted(signal);
+
   // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
   // Skip the DB lookup for *.localhost in non-production — dev only, no DB calls.
   //
@@ -281,6 +315,7 @@ async function innerMiddleware(request: NextRequest) {
     // wave still reaches the DB. Cap at 30 hostname resolutions per IP per
     // minute — legitimate users with a few tabs open won't hit this.
     try {
+      throwIfAborted(signal);
       const clientIp = request.headers.get("cf-connecting-ip") ?? "unknown";
       const rlResult = await checkRateLimit(`hostname-resolve:${clientIp}`, {
         maxRequests: 30,
@@ -335,6 +370,7 @@ async function innerMiddleware(request: NextRequest) {
       let isNegativeCached = false;
       let priorMissCount = 0;
       try {
+        throwIfAborted(signal);
         const kv = getAppCacheKV();
         if (kv) {
           // Check negative cache first — short-circuits the DB lookup
@@ -381,7 +417,9 @@ async function innerMiddleware(request: NextRequest) {
         return nicheNotFoundResponse(request);
       }
 
+      throwIfAborted(signal);
       const row = cachedRow || (await getMiddlewareSiteRowByDomain(hostname));
+      throwIfAborted(signal);
       if (row && !cachedRow) {
         try {
           const kv = getAppCacheKV();
@@ -598,11 +636,17 @@ const MIDDLEWARE_TIMEOUT_MS = 5000;
 // F-FE-02: Wrap middleware in a try/catch to prevent a single unhandled
 // exception (e.g. from URL parsing or KV) from taking down the entire site.
 export async function middleware(request: NextRequest) {
+  // A98-49: AbortController lets us cancel downstream KV/DB work when the
+  // timeout fires. Without this, the inner middleware continues running
+  // after Promise.race resolves, multiplying load during outages.
+  const abortController = new AbortController();
+
   try {
     // A100-06: Race the middleware against a timeout to prevent a single
     // hanging external call from consuming the full Worker CPU budget.
     const timeoutPromise = new Promise<NextResponse>((resolve) => {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        abortController.abort();
         resolve(
           NextResponse.json(
             { error: "Gateway Timeout", code: "MIDDLEWARE_TIMEOUT" },
@@ -616,10 +660,28 @@ export async function middleware(request: NextRequest) {
           ),
         );
       }, MIDDLEWARE_TIMEOUT_MS);
+
+      // Clean up timer if the inner middleware wins the race
+      abortController.signal.addEventListener("abort", () => clearTimeout(timer));
     });
 
-    return await Promise.race([innerMiddleware(request), timeoutPromise]);
+    return await Promise.race([innerMiddleware(request, abortController.signal), timeoutPromise]);
   } catch (err) {
+    // A98-49: Swallow AbortError — it means the timeout fired and we already
+    // returned 503. Other errors are genuine and should be reported.
+    if (err instanceof Error && err.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Gateway Timeout", code: "MIDDLEWARE_TIMEOUT" },
+        {
+          status: 503,
+          headers: {
+            "Retry-After": "5",
+            "Cache-Control": "no-store",
+          },
+        },
+      );
+    }
+
     captureException(err, { context: "middleware.unhandled_exception" });
 
     // Fallback: If it's an API route, return 500 JSON.

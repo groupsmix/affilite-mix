@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
 import { runAfterResponse } from "@/lib/wait-until";
-import { isOriginAllowed } from "@/lib/security/allowed-origins";
+import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
 
 /** 120 ad impression requests per minute per IP.
  * SEC-15: failPolicy "closed" prevents impression fraud during KV outages. */
@@ -20,14 +20,12 @@ const IMPRESSION_RATE_LIMIT = {
 /** POST /api/track/impression — record an ad impression from the public site */
 export async function POST(request: NextRequest) {
   try {
-    // FRESH-04: enforce Origin allow-list on this CSRF-exempt beacon endpoint.
-    // The CSRF-exempt registry documents this as a compensating control; the
-    // middleware cannot attach a CSRF token to sendBeacon() calls, so we
-    // validate the request Origin against the per-site allow-list instead.
-    // Pattern mirrors /api/vitals (G-47 / isOriginAllowed).
+    // A97: enforce strict per-site Origin validation on this CSRF-exempt beacon endpoint.
+    // Uses isOriginAllowedForSite (not the global allow-list) to prevent cross-tenant
+    // telemetry spoofing. Only origins belonging to the resolved target site are allowed.
     const origin = request.headers.get("origin");
     const siteIdHeader = request.headers.get("x-site-id");
-    if (!isOriginAllowed(origin, request.headers.get("host"), siteIdHeader)) {
+    if (!isOriginAllowedForSite(origin, siteIdHeader, request.headers.get("host"))) {
       return NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
     }
 

@@ -5,7 +5,12 @@ import { captureException } from "@/lib/sentry";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { hashNewsletterToken } from "@/lib/newsletter-token";
+import {
+  hashNewsletterToken,
+  isTokenWithinExpiry,
+  getTokenRemainingTtlSeconds,
+} from "@/lib/newsletter-token";
+import { logger } from "@/lib/logger";
 
 /** 10 unsubscribe requests per 15 minutes per IP.
  * SEC-17: failPolicy "closed" — unsubscribe tokens are bearer secrets. */
@@ -53,6 +58,28 @@ export async function GET(request: NextRequest) {
     // even though nothing was actually unsubscribed.
     // B-02: Hash the incoming token before lookup — DB stores SHA-256 hashes
     const tokenHash = await hashNewsletterToken(token);
+
+    // A98-59: Fetch the row first to validate token expiry before unsubscribing.
+    // This prevents expired tokens from being accepted.
+    const { data: subscriber, error: fetchErr } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
+      .from("newsletter_subscribers")
+      .select("id, created_at")
+      .eq("unsubscribe_token", tokenHash)
+      .single();
+
+    // A98-59: Validate token has not expired
+    if (subscriber && !isTokenWithinExpiry(subscriber.created_at)) {
+      logger.warn("[api/newsletter/unsubscribe] Rejected expired unsubscribe token", {
+        subscriber_id: subscriber.id,
+        token_age_days: Math.floor(
+          (Date.now() - new Date(subscriber.created_at).getTime()) / (1000 * 60 * 60 * 24),
+        ),
+      });
+      return NextResponse.redirect(
+        new URL("/newsletter/unsubscribed?error=expired_token", request.url),
+      );
+    }
 
     const { data, error } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
@@ -123,6 +150,34 @@ export async function POST(request: NextRequest) {
     }
 
     const sb = await getTenantClient();
+
+    // A98-59: Validate token expiry before unsubscribing.
+    // Fetch the row first to check created_at.
+    const { data: subscriber, error: fetchErr } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
+      .from("newsletter_subscribers")
+      .select("id, created_at")
+      .eq("site_id", siteId)
+      .eq("email", email)
+      .eq("unsubscribe_token", await hashNewsletterToken(unsubscribeToken))
+      .single();
+
+    if (fetchErr || !subscriber) {
+      // Don't reveal whether email or token was wrong
+      return NextResponse.json({ error: "Invalid unsubscribe token" }, { status: 403 });
+    }
+
+    if (!isTokenWithinExpiry(subscriber.created_at)) {
+      const remaining = getTokenRemainingTtlSeconds(subscriber.created_at);
+      logger.warn("[api/newsletter/unsubscribe] Rejected expired POST unsubscribe token", {
+        subscriber_id: subscriber.id,
+        remaining_seconds: remaining,
+      });
+      return NextResponse.json(
+        { error: "Unsubscribe token has expired. Please request a new one." },
+        { status: 410 },
+      );
+    }
 
     const { data, error } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
