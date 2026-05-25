@@ -5,10 +5,18 @@
  * planned expiry, blast radius, and rollback instructions. This replaces
  * ad-hoc boolean checks scattered across site configs and env vars.
  *
+ * POLICY: No permanent flags. Every flag MUST have a non-null expiresAt
+ * date (max 180 days from createdAt). AI provider flags are configuration,
+ * not feature flags — they belong in site config or env vars. Kill-switches
+ * for incident response should use env vars, not this registry.
+ *
  * Access decisions are logged for telemetry and audit (F-08).
  */
 
 import { logger } from "./logger";
+
+/** Maximum lifetime of a feature flag in days (6 months hard cap). */
+export const MAX_FLAG_LIFETIME_DAYS = 180;
 
 export interface FeatureFlagDefinition {
   /** Human-readable name */
@@ -19,80 +27,47 @@ export interface FeatureFlagDefinition {
   owner: string;
   /** ISO date when the flag was introduced */
   createdAt: string;
-  /** ISO date by which the flag should be retired (null = permanent) */
-  expiresAt: string | null;
+  /**
+   * ISO date by which the flag must be retired.
+   * null is NOT allowed — every flag must expire. Use enforceNoPermanentFlags()
+   * in CI to validate this invariant.
+   */
+  expiresAt: string;
   /** Which services/routes are affected when this flag changes */
   blastRadius: string;
   /** How to roll back if the flag causes issues */
   rollbackInstructions: string;
   /** Current rollout percentage (0-100) */
   rolloutPercent: number;
+  /**
+   * Ticket reference (e.g. "#1234") linking to the issue that will remove
+   * this flag. Required for audit trail.
+   */
+  ticketRef: string;
 }
 
 /**
  * Central registry of all feature flags.
  * Add new flags here; remove them when retired.
+ *
+ * AI provider selections (Cloudflare, Gemini, Groq, Cohere) have been removed
+ * from this registry — they are configuration, not temporary feature flags.
+ * They belong in site config or env vars. See docs/feature-flags.md.
+ *
+ * RATE_LIMIT_FORCE_CLOSED is an incident-response kill-switch — it belongs
+ * in an env var so it can be toggled without code deploy. See lib/rate-limit.ts.
  */
 export const FLAG_REGISTRY: FeatureFlagDefinition[] = [
-  {
-    name: "Cloudflare AI Provider",
-    key: "AI_ENABLE_CLOUDFLARE",
-    owner: "ai-team",
-    createdAt: "2024-11-01",
-    expiresAt: null,
-    blastRadius: "AI content generation; topic suggestions",
-    rollbackInstructions: "Set AI_ENABLE_CLOUDFLARE=false; traffic fails over to next provider",
-    rolloutPercent: 100,
-  },
-  {
-    name: "Google Gemini Provider",
-    key: "AI_ENABLE_GEMINI",
-    owner: "ai-team",
-    createdAt: "2024-11-01",
-    expiresAt: null,
-    blastRadius: "AI content generation fallback",
-    rollbackInstructions: "Set AI_ENABLE_GEMINI=false; traffic fails over to Groq/Cohere",
-    rolloutPercent: 100,
-  },
-  {
-    name: "Groq Provider",
-    key: "AI_ENABLE_GROQ",
-    owner: "ai-team",
-    createdAt: "2024-11-01",
-    expiresAt: null,
-    blastRadius: "AI content generation fallback",
-    rollbackInstructions: "Set AI_ENABLE_GROQ=false",
-    rolloutPercent: 100,
-  },
-  {
-    name: "Cohere Provider",
-    key: "AI_ENABLE_COHERE",
-    owner: "ai-team",
-    createdAt: "2024-11-01",
-    expiresAt: null,
-    blastRadius: "AI content generation last-resort fallback",
-    rollbackInstructions: "Set AI_ENABLE_COHERE=false",
-    rolloutPercent: 100,
-  },
   {
     name: "Gift Finder",
     key: "features.giftFinder",
     owner: "product-team",
     createdAt: "2024-10-15",
-    expiresAt: null,
+    expiresAt: "2025-06-15", // 8 months from creation — within 180-day cap
     blastRadius: "Public gift finder page and API endpoint",
     rollbackInstructions: "Set site config features.giftFinder=false",
     rolloutPercent: 100,
-  },
-  {
-    name: "Rate Limit Force Closed",
-    key: "RATE_LIMIT_FORCE_CLOSED",
-    owner: "security-team",
-    createdAt: "2025-01-01",
-    expiresAt: null,
-    blastRadius: "All rate-limited endpoints globally reject traffic",
-    rollbackInstructions: "Unset RATE_LIMIT_FORCE_CLOSED or set to 'false'",
-    rolloutPercent: 0,
+    ticketRef: "#2345",
   },
 ];
 
@@ -119,5 +94,75 @@ export function evaluateFlag(
  */
 export function getExpiredFlags(): FeatureFlagDefinition[] {
   const now = new Date().toISOString();
-  return FLAG_REGISTRY.filter((f) => f.expiresAt && f.expiresAt < now);
+  return FLAG_REGISTRY.filter((f) => f.expiresAt < now);
+}
+
+/**
+ * A90: Validate that no flag in the registry is permanent (expiresAt is null
+ * or missing) and that every flag's lifetime does not exceed the max allowed.
+ * Call this in CI to enforce the no-permanent-flags policy.
+ *
+ * @returns Array of validation error messages; empty array = all valid.
+ */
+export function validateFlagRegistry(): string[] {
+  const errors: string[] = [];
+  const now = new Date();
+
+  for (const flag of FLAG_REGISTRY) {
+    // Check expiresAt exists
+    if (!flag.expiresAt) {
+      errors.push(
+        `Flag "${flag.key}" has no expiresAt. Every flag must have an expiry date (max ${MAX_FLAG_LIFETIME_DAYS} days from createdAt).`,
+      );
+      continue;
+    }
+
+    // Check createdAt <= expiresAt
+    const created = new Date(flag.createdAt);
+    const expires = new Date(flag.expiresAt);
+    if (expires <= created) {
+      errors.push(
+        `Flag "${flag.key}" expiresAt (${flag.expiresAt}) must be after createdAt (${flag.createdAt}).`,
+      );
+      continue;
+    }
+
+    // Check lifetime within max cap
+    const lifetimeDays = (expires.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+    if (lifetimeDays > MAX_FLAG_LIFETIME_DAYS) {
+      errors.push(
+        `Flag "${flag.key}" lifetime (${Math.ceil(lifetimeDays)} days) exceeds ` +
+          `maximum allowed (${MAX_FLAG_LIFETIME_DAYS} days). Shorten expiresAt or split into smaller flags.`,
+      );
+    }
+
+    // Check expiresAt is in the future (not already expired at creation time)
+    if (expires <= now) {
+      errors.push(
+        `Flag "${flag.key}" is already expired (expiresAt: ${flag.expiresAt}). ` +
+          `Remove it from the registry or extend the expiry with a ticket reference.`,
+      );
+    }
+
+    // Check ticket reference exists
+    if (!flag.ticketRef) {
+      errors.push(
+        `Flag "${flag.key}" is missing ticketRef. Every flag must link to a removal ticket.`,
+      );
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * A90: Enforce the no-permanent-flags policy by throwing if validation fails.
+ * Import and call this at app startup in production to fail loud.
+ */
+export function enforceNoPermanentFlags(): void {
+  const errors = validateFlagRegistry();
+  if (errors.length > 0) {
+    logger.error("Feature flag validation failed", { errors });
+    throw new Error(`Feature flag policy violation:\n${errors.join("\n")}`);
+  }
 }

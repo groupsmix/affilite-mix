@@ -51,6 +51,45 @@ function isConsentRateLimited(ip: string): boolean {
 }
 
 /**
+ * A98-62: Valid IAB TCF / GPP consent categories.
+ * Rejects unknown categories to prevent malformed consent payloads
+ * from polluting the consent_log table.
+ */
+const VALID_CONSENT_CATEGORIES = new Set([
+  "necessary",
+  "functional",
+  "analytics",
+  "advertising",
+  "personalization",
+  "security",
+  "performance",
+]);
+
+/** A98-62: Maximum number of categories per consent payload. */
+const MAX_CATEGORIES = 10;
+/** A98-62: Maximum banner_version length. */
+const MAX_BANNER_VERSION_LENGTH = 64;
+
+/**
+ * A98-62: Validate consent categories are known and well-formed.
+ * Returns null if valid, or an error message string if invalid.
+ */
+function validateConsentCategories(categories: unknown): string | null {
+  if (!Array.isArray(categories)) return "categories must be an array";
+  if (categories.length === 0) return "categories cannot be empty";
+  if (categories.length > MAX_CATEGORIES)
+    return `categories exceeds maximum of ${MAX_CATEGORIES}`;
+
+  for (const cat of categories) {
+    if (typeof cat !== "string") return "each category must be a string";
+    if (!VALID_CONSENT_CATEGORIES.has(cat.toLowerCase())) {
+      return `unknown consent category: ${cat}`;
+    }
+  }
+  return null;
+}
+
+/**
  * POST /api/consent/log
  * OF-04: Server-side consent proof logging.
  * Records every CMP consent decision so we can prove lawful basis at audit time.
@@ -77,6 +116,24 @@ export async function POST(request: NextRequest) {
     return apiError(400, "site_id, categories, and banner_version are required");
   }
 
+  // A98-62: Strict category validation before persistence.
+  const categoryError = validateConsentCategories(categories);
+  if (categoryError) {
+    return apiError(400, `Invalid consent categories: ${categoryError}`);
+  }
+
+  // A98-62: Validate banner_version is a non-empty string within length limits.
+  if (
+    typeof banner_version !== "string" ||
+    banner_version.trim().length === 0 ||
+    banner_version.length > MAX_BANNER_VERSION_LENGTH
+  ) {
+    return apiError(
+      400,
+      `banner_version must be a non-empty string with max ${MAX_BANNER_VERSION_LENGTH} chars`,
+    );
+  }
+
   // OF-04: accept either a UUID or a site slug from the CMP. Resolving server-
   // side avoids leaking the UUID to the client and tolerates older banner
   // builds that still post the slug.
@@ -101,8 +158,9 @@ export async function POST(request: NextRequest) {
     const { error } = await sb.from("consent_log").insert({
       site_id: resolvedSiteId,
       subject_id: subject_id ?? null,
-      categories,
-      banner_version,
+      // A98-62: Store categories as lowercase for consistent querying
+      categories: categories.map((c) => c.toLowerCase()),
+      banner_version: banner_version.trim(),
       gpc: gpc ?? false,
       ua_hash: uaHash,
       ip_truncated: ipTruncated,

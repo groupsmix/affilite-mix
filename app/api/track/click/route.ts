@@ -11,7 +11,7 @@ import { runAfterResponse } from "@/lib/wait-until";
 import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
-import { isOriginAllowed } from "@/lib/security/allowed-origins";
+import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
 import { verifyToken } from "@/lib/auth";
 
 /**
@@ -326,7 +326,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin");
   const siteId = request.headers.get("x-site-id");
-  if (!isOriginAllowed(origin, request.headers.get("host"), siteId)) {
+  // A97: Use strict per-site origin validation for click tracking.
+  // Prevents cross-tenant telemetry spoofing from other allowed origins.
+  if (!isOriginAllowedForSite(origin, siteId, request.headers.get("host"))) {
     return new NextResponse("Forbidden origin", { status: 403 });
   }
   return handleClick(request);

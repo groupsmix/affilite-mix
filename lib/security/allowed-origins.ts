@@ -15,6 +15,7 @@
  *   - Localhost ports in development.
  */
 import { allSites, getSiteById, getSiteByDomain } from "@/config/sites";
+import { logger } from "@/lib/logger";
 
 /** Localhost dev origins permitted only when NODE_ENV !== "production". */
 const DEV_LOCALHOST_ORIGINS = ["http://localhost:3000", "http://localhost:3001"];
@@ -117,6 +118,29 @@ export function buildVerifiedSiteRef(
 }
 
 /**
+ * A97: Build the CORS allow-list scoped to a single verified site ONLY.
+ * Unlike getAllowedOrigins() which returns all static + verified origins,
+ * this returns only origins belonging to the resolved target site.
+ * Use this for tenant-scoped telemetry endpoints (click, impression)
+ * to prevent cross-tenant origin spoofing.
+ */
+export function getSiteScopedOrigins(verifiedSite?: VerifiedSiteRef | null): string[] {
+  const origins: string[] = [];
+  if (verifiedSite) {
+    origins.push(`https://${verifiedSite.domain}`);
+    if (verifiedSite.aliases) {
+      for (const alias of verifiedSite.aliases) {
+        origins.push(`https://${alias}`);
+      }
+    }
+  }
+  if (process.env.NODE_ENV === "development") {
+    origins.push(...DEV_LOCALHOST_ORIGINS);
+  }
+  return origins;
+}
+
+/**
  * Validate the `Origin` header against the allow-list.
  *
  * Used by CSRF-exempt public POST endpoints (e.g. `/api/vitals`) to make
@@ -137,4 +161,38 @@ export function isOriginAllowed(
   const canonicalOrigin = origin.toLowerCase().replace(/\/$/, "");
   const verified = buildVerifiedSiteRef(host, siteId);
   return getAllowedOrigins(verified).includes(canonicalOrigin);
+}
+
+/**
+ * A97: Strict per-site origin validation for telemetry endpoints.
+ * Only allows origins that belong to the resolved target site — NOT
+ * all sites in the platform. This prevents cross-tenant telemetry spoofing
+ * where an attacker on one allowed origin writes to another tenant's
+ * click/impression endpoint.
+ *
+ * @param origin - The Origin header from the request
+ * @param siteId - The x-site-id header (middleware-resolved target site)
+ * @param host - The request Host header
+ * @returns true if origin belongs to the resolved target site
+ */
+export function isOriginAllowedForSite(
+  origin: string | null | undefined,
+  siteId: string | null | undefined,
+  host: string | null,
+): boolean {
+  if (!origin || !siteId) return false;
+  const canonicalOrigin = origin.toLowerCase().replace(/\/$/, "");
+  const verified = buildVerifiedSiteRef(host, siteId);
+  // A97: Use site-scoped origins, not the global allow-list
+  const siteOrigins = getSiteScopedOrigins(verified);
+  const allowed = siteOrigins.includes(canonicalOrigin);
+  if (!allowed) {
+    logger.warn("[security] Cross-tenant origin rejected for telemetry", {
+      origin: canonicalOrigin,
+      site_id: siteId,
+      host,
+      allowed_origins: siteOrigins,
+    });
+  }
+  return allowed;
 }
