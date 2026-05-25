@@ -46,7 +46,7 @@ vi.mock("next/cache", () => ({
 }));
 
 // Import determineAuthMode after mocks are set up
-import { determineAuthMode } from "@/app/api/revalidate/route";
+import { determineAuthMode } from "@/lib/revalidate-auth";
 
 describe("A98-64: All-sites revalidation token logic", () => {
   const originalEnv = process.env;

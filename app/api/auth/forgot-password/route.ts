@@ -123,12 +123,16 @@ export async function POST(request: Request) {
           language: site.language,
           direction: site.direction,
         });
-      } catch (urlErr) {
-        // A8-001: Never log URLs that contain tokens
-        captureException(urlErr, {
-          context: "[api/auth/forgot-password] reset URL failed safeHref validation",
-          extra: { domain: site.domain },
-        });
+      } catch {
+        // A8-001: Never log URLs that contain tokens — capture a sanitized
+        // error with only safe metadata (tenant domain, no URL/token).
+        captureException(
+          new Error("[api/auth/forgot-password] reset URL failed safeHref validation"),
+          {
+            context: "[api/auth/forgot-password] reset URL failed safeHref validation",
+            extra: { domain: site.domain },
+          },
+        );
         return successResponse;
       }
       const res = await fetch("https://api.resend.com/emails", {

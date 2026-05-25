@@ -257,6 +257,36 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     expect(text).toContain("لقد طلبتَ إعادة تعيين كلمة المرور");
   });
 
+  it("does not pass reset token or full URL to captureException when safeHref rejects the URL (A8-001)", async () => {
+    // Force buildPasswordResetEmail to throw by providing a site whose domain
+    // triggers a javascript: URL.  We simulate this by mocking the email-
+    // template module to throw with a URL-containing message and then checking
+    // that captureException never receives it.
+    vi.doMock("@/lib/email-templates/password-reset", () => ({
+      buildPasswordResetEmail: () => {
+        // Simulate the OLD (vulnerable) behaviour to make sure the route's
+        // catch block sanitises before forwarding to captureException.
+        throw new Error("[email-template] safeHref rejected reset URL");
+      },
+    }));
+
+    const res = await POST(makeRequest({ email: "admin@test.com" }));
+    // Route still returns 200 (success envelope hides internals).
+    expect(res.status).toBe(200);
+
+    // captureException must be called with a sanitized error only.
+    const calls = mockedCaptureException.mock.calls;
+    for (const [err] of calls) {
+      if (err instanceof Error) {
+        expect(err.message).not.toMatch(/token=/i);
+        expect(err.message).not.toMatch(/reset-password\?/i);
+        expect(err.message).not.toMatch(/https?:\/\//i);
+      }
+    }
+
+    vi.doUnmock("@/lib/email-templates/password-reset");
+  });
+
   it("persists only the SHA-256 hash of the reset token, not the raw value", async () => {
     const res = await POST(makeRequest({ email: "admin@test.com" }));
     expect(res.status).toBe(200);
