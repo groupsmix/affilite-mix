@@ -301,19 +301,26 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         }
       }
 
-      void runAfterResponse(
-        publishClick({
-          site_id: siteId,
-          product_name: cachedData.name,
-          affiliate_url: destinationUrl,
-          content_slug: contentSlug,
-          referrer: sanitizedReferrer,
-          is_internal: isInternal,
-          ip_prefix: ipPrefix || undefined,
-          fingerprint,
-        }),
-        { context: "[api/track/click] publishClick" },
-      );
+      const clickPromise = publishClick({
+        site_id: siteId,
+        product_name: cachedData.name,
+        affiliate_url: destinationUrl,
+        content_slug: contentSlug,
+        referrer: sanitizedReferrer,
+        is_internal: isInternal,
+        ip_prefix: ipPrefix || undefined,
+        fingerprint,
+      });
+      // In edge runtime (Cloudflare Workers) the response is streamed without
+      // waiting; everywhere else we await to ensure the write completes before
+      // the process exits (important for tests and serverless cold-shutdown).
+      if (typeof (globalThis as any).__CLOUDFLARE_WORKERS__ !== "undefined") {
+        void runAfterResponse(clickPromise, { context: "[api/track/click] publishClick" });
+      } else {
+        await clickPromise.catch((err: unknown) =>
+          captureException(err, { context: "[api/track/click] publishClick" }),
+        );
+      }
     }
 
     return NextResponse.redirect(destinationUrl, 302);
@@ -324,11 +331,16 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
 }
 
 // AUDIT-FIX A3-002: GET requests may be triggered cross-site (image tags,
-// prefetch, etc.) without user activation. We still redirect for
-// top-level navigation compatibility, but we skip analytics mutation
-// (click logging / KV dedup writes) to prevent cross-site tracking.
+// prefetch, etc.) without user activation. Skip analytics only when the
+// request is clearly cross-site (missing or mismatched Sec-Fetch-Site).
+// Top-level navigations from newsletter links MUST still record clicks.
 export async function GET(request: NextRequest) {
-  return handleClick(request, { skipAnalytics: true });
+  const secFetchSite = request.headers.get("sec-fetch-site");
+  // "none" = direct navigation (e.g. from email), "same-origin" = same site
+  // Only skip analytics for cross-site embeds ("cross-site") or prefetch
+  const skipAnalytics =
+    secFetchSite === "cross-site" || request.headers.get("sec-fetch-dest") === "image";
+  return handleClick(request, { skipAnalytics });
 }
 
 export async function POST(request: NextRequest) {

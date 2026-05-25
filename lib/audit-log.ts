@@ -31,13 +31,17 @@ const AUDIT_DETAIL_ALLOWLIST: Record<string, string[]> = {
     "cta_text",
     "deal_text",
     "deal_expires_at",
+    // Change-tracking metadata
+    "field",
+    "oldValue",
+    "newValue",
   ],
   // Content fields
-  content: ["title", "slug", "status", "publish_at"],
+  content: ["title", "slug", "status", "publish_at", "field", "oldValue", "newValue"],
   // Page fields
-  page: ["title", "slug", "status"],
+  page: ["title", "slug", "status", "field", "oldValue", "newValue"],
   // Category fields
-  category: ["name", "slug", "status"],
+  category: ["name", "slug", "status", "field", "oldValue", "newValue"],
   // Upload fields
   upload: ["contentType", "fileSize"],
   // Auth events
