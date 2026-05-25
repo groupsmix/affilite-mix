@@ -111,7 +111,7 @@ export function buildPasswordResetEmail(input: PasswordResetEmailInput): Passwor
   // rendering so users can copy-paste the exact link from their email client.
   const safeUrl = safeHref(input.resetUrl);
   if (safeUrl === null) {
-    throw new Error(`[email-template] Invalid reset URL: ${input.resetUrl}`);
+    throw new Error("[email-template] safeHref rejected reset URL");
   }
 
   const html = renderHtml({

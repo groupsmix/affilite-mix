@@ -97,4 +97,27 @@ describe("buildPasswordResetEmail", () => {
     expect(email.html).not.toContain('"><img src=x>');
     expect(email.html).toContain("&quot;&gt;&lt;img src=x&gt;");
   });
+
+  it("throws a generic error (no token/URL) when reset URL is rejected by safeHref (A5-002)", () => {
+    // javascript: URLs are rejected by safeHref.
+    const badUrl = "javascript:alert(document.cookie)";
+    let thrown: Error | undefined;
+    try {
+      buildPasswordResetEmail({
+        resetUrl: badUrl,
+        siteName: "Test",
+        language: "en",
+        direction: "ltr",
+      });
+    } catch (err) {
+      thrown = err as Error;
+    }
+    expect(thrown).toBeDefined();
+    // Error message must NOT contain the URL or any token fragment.
+    expect(thrown!.message).not.toContain(badUrl);
+    expect(thrown!.message).not.toContain("javascript");
+    expect(thrown!.message).not.toContain("alert");
+    // Must use the prescribed generic message.
+    expect(thrown!.message).toBe("[email-template] safeHref rejected reset URL");
+  });
 });

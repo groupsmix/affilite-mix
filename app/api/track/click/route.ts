@@ -331,15 +331,20 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
 }
 
 // AUDIT-FIX A3-002: GET requests may be triggered cross-site (image tags,
-// prefetch, etc.) without user activation. Skip analytics only when the
-// request is clearly cross-site (missing or mismatched Sec-Fetch-Site).
-// Top-level navigations from newsletter links MUST still record clicks.
+// prefetch, embed, etc.) without user activation. Only top-level trusted
+// navigations ("none", "same-origin", "same-site") may record analytics.
+// Missing Sec-Fetch-Site means the browser did not send the header at all
+// (e.g. prefetch pipelines, crawlers) — treat as untrusted.
 export async function GET(request: NextRequest) {
   const secFetchSite = request.headers.get("sec-fetch-site");
-  // "none" = direct navigation (e.g. from email), "same-origin" = same site
-  // Only skip analytics for cross-site embeds ("cross-site") or prefetch
-  const skipAnalytics =
-    secFetchSite === "cross-site" || request.headers.get("sec-fetch-dest") === "image";
+  const secFetchDest = request.headers.get("sec-fetch-dest");
+  // Only "none" (direct nav / email link) or same-origin/same-site navigations
+  // are trusted top-level user actions.
+  const trustedNavigation =
+    secFetchSite === "none" || secFetchSite === "same-origin" || secFetchSite === "same-site";
+  // Skip analytics for image/prefetch/embed sub-resource requests even if
+  // they somehow arrive with a trusted site value.
+  const skipAnalytics = !trustedNavigation || secFetchDest === "image";
   return handleClick(request, { skipAnalytics });
 }
 
