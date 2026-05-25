@@ -112,13 +112,13 @@ resource "null_resource" "r2_bucket_hardening" {
       # --- Public-access-block on both buckets ---
       echo "Applying public-access-block to ${cloudflare_r2_bucket.worker_logs.name}..."
       curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/policy/public-access" \
-        -H "Authorization: Bearer ${var.r2_lifecycle_token}" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
         -H "Content-Type: application/json" \
         -d '{"public_access": "forbidden"}' || echo "WARN: public-access-block API not yet available for worker_logs (expected for non-GA features)"
 
       echo "Applying public-access-block to ${cloudflare_r2_bucket.next_inc_cache.name}..."
       curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.next_inc_cache.name}/policy/public-access" \
-        -H "Authorization: Bearer ${var.r2_lifecycle_token}" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
         -H "Content-Type: application/json" \
         -d '{"public_access": "forbidden"}' || echo "WARN: public-access-block API not yet available for next_inc_cache"
 
@@ -126,7 +126,7 @@ resource "null_resource" "r2_bucket_hardening" {
       if [ "${var.r2_worm_enabled}" = "true" ]; then
         echo "Enabling WORM / Object Lock on ${cloudflare_r2_bucket.worker_logs.name}..."
         curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/lock" \
-          -H "Authorization: Bearer ${var.r2_lifecycle_token}" \
+          -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
           -H "Content-Type: application/json" \
           -d '{
             "enabled": true,
@@ -140,7 +140,7 @@ resource "null_resource" "r2_bucket_hardening" {
       # --- Enable versioning on worker_logs bucket ---
       echo "Enabling versioning on ${cloudflare_r2_bucket.worker_logs.name}..."
       curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/versioning" \
-        -H "Authorization: Bearer ${var.r2_lifecycle_token}" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
         -H "Content-Type: application/json" \
         -d '{"status": "enabled"}' || echo "WARN: Versioning API not yet available"
 
@@ -197,7 +197,7 @@ resource "null_resource" "r2_lifecycle" {
       }
 JSON
       curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/lifecycle" \
-        -H "Authorization: Bearer ${var.r2_lifecycle_token}" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
         -H "Content-Type: application/json" \
         -d "@$RULE_FILE" || {
           echo "WARN: Lifecycle API failed; falling back to wrangler CLI"
@@ -231,7 +231,7 @@ JSON
       }
 JSON
       curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.next_inc_cache.name}/lifecycle" \
-        -H "Authorization: Bearer ${var.r2_lifecycle_token}" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
         -H "Content-Type: application/json" \
         -d "@$CACHE_RULE_FILE" || {
           echo "WARN: Lifecycle API failed for cache bucket; falling back to wrangler CLI"
@@ -245,7 +245,7 @@ JSON
       for BUCKET in "${cloudflare_r2_bucket.worker_logs.name}" "${cloudflare_r2_bucket.next_inc_cache.name}"; do
         echo "Checking lifecycle on $BUCKET..."
         curl -sS "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/$BUCKET/lifecycle" \
-          -H "Authorization: Bearer ${var.r2_lifecycle_token}" | \
+          -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | \
           jq -e '.result.rules | length > 0' || echo "WARNING: No lifecycle rules found for $BUCKET — manual verification required"
       done
 
