@@ -9,6 +9,8 @@
  * `SiteDefinition.language` value to it.
  */
 
+import { escapeHtml, escapeAttribute, safeHref } from "./escape";
+
 export type EmailLocale = "en" | "ar";
 
 interface PasswordResetCopy {
@@ -29,7 +31,7 @@ interface PasswordResetCopy {
   /** Footer paragraph reassuring uninvolved recipients. */
   readonly disclaimer: string;
   /** Plain-text body builder for clients that strip HTML. */
-  readonly plainText: (resetUrl: string) => string;
+  readonly plainText: (resetUrl: string, siteName: string) => string;
 }
 
 const PASSWORD_RESET_COPY: Record<EmailLocale, PasswordResetCopy> = {
@@ -43,8 +45,10 @@ const PASSWORD_RESET_COPY: Record<EmailLocale, PasswordResetCopy> = {
     buttonLabel: "Reset Password",
     copyHint: "Or copy and paste this link:",
     disclaimer: "If you did not request this reset, you can safely ignore this email.",
-    plainText: (resetUrl) =>
-      `You requested a password reset.\n\nClick the link below to reset your password:\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you did not request this, you can safely ignore this email.`,
+    plainText: (resetUrl, siteName) => {
+      const safeName = siteName.replace(/[<&>"']/g, " ");
+      return `You requested a password reset for ${safeName}.\n\nClick the link below to reset your password:\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you did not request this, you can safely ignore this email.`;
+    },
   },
   ar: {
     subject: "طلب إعادة تعيين كلمة المرور",
@@ -56,8 +60,10 @@ const PASSWORD_RESET_COPY: Record<EmailLocale, PasswordResetCopy> = {
     buttonLabel: "إعادة تعيين كلمة المرور",
     copyHint: "أو انسخ هذا الرابط والصقه:",
     disclaimer: "إذا لم تطلب إعادة التعيين، يمكنك تجاهل هذه الرسالة بأمان.",
-    plainText: (resetUrl) =>
-      `لقد طلبتَ إعادة تعيين كلمة المرور.\n\nاضغط على الرابط أدناه لإعادة تعيين كلمة المرور الخاصة بك:\n${resetUrl}\n\nهذا الرابط صالح لمدة ساعة واحدة.\n\nإذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة بأمان.`,
+    plainText: (resetUrl, siteName) => {
+      const safeName = siteName.replace(/[<&>"']/g, " ");
+      return `لقد طلبتَ إعادة تعيين كلمة المرور لـ ${safeName}.\n\nاضغط على الرابط أدناه لإعادة تعيين كلمة المرور الخاصة بك:\n${resetUrl}\n\nهذا الرابط صالح لمدة ساعة واحدة.\n\nإذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة بأمان.`;
+    },
   },
 };
 
@@ -93,16 +99,20 @@ export interface PasswordResetEmail {
  * The HTML output sets `lang` and `dir` on the root `<html>` element so
  * mail clients render Arabic right-to-left correctly.
  */
-export function buildPasswordResetEmail(input: PasswordResetEmailInput): PasswordResetEmail {
+export function buildPasswordResetEmail(input: PasswordResetEmailInput): PasswordResetEmail | null {
   const locale = pickEmailLocale(input.language);
   const copy = PASSWORD_RESET_COPY[locale];
   const dir: "ltr" | "rtl" = input.direction === "rtl" ? "rtl" : "ltr";
   const lang = locale === "ar" ? "ar" : "en";
   const year = new Date().getFullYear();
 
+  // A5-002: Validate the reset URL before building the email
+  const safeUrl = safeHref(input.resetUrl);
+  if (safeUrl === null) return null;
+
   const html = renderHtml({
     copy,
-    resetUrl: input.resetUrl,
+    resetUrl: safeUrl,
     siteName: input.siteName,
     dir,
     lang,
@@ -112,7 +122,7 @@ export function buildPasswordResetEmail(input: PasswordResetEmailInput): Passwor
   return {
     subject: copy.subject,
     html,
-    text: copy.plainText(input.resetUrl),
+    text: copy.plainText(safeUrl, input.siteName),
     locale,
   };
 }

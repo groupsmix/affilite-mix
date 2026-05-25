@@ -198,14 +198,21 @@ export async function POST(request: Request) {
     );
 
     if (emailHtml === null) {
+      // A8-001: Never log URLs that contain tokens
       logger.error("[newsletter] buildConfirmationEmail returned null — safeHref rejected URL", {
         siteId: site.id,
+        domain: site.domain,
       });
       captureException(new Error("buildConfirmationEmail: safeHref rejected confirmation URL"), {
         context: "[api/newsletter] confirmation URL failed safeHref validation",
       });
       return apiError(503, "Newsletter email is temporarily unavailable. Please try again later.");
     }
+
+    // A5-001: Build a plain-text email that also escapes the site name and domain.
+    const safeTextSiteName = site.name.replace(/[<&>"']/g, " ");
+    const safeTextDomain = site.domain.replace(/[<&>"']/g, " ");
+    const emailText = `Thanks for subscribing to ${safeTextSiteName}!\n\nPlease confirm your email by visiting the link below:\n${confirmUrl}\n\nIf you did not sign up, you can safely ignore this email.\n\n© ${new Date().getFullYear()} ${safeTextSiteName} — ${safeTextDomain}`;
 
     if (!resendKey) {
       if (isProd) {
@@ -233,7 +240,7 @@ export async function POST(request: Request) {
           to: [email],
           subject: t("newsletter.confirm_subject").replace("{siteName}", site.name),
           html: emailHtml,
-          text: `Thanks for subscribing to ${site.name}!\n\nPlease confirm your email by visiting the link below:\n${confirmUrl}\n\nIf you did not sign up, you can safely ignore this email.\n\n© ${new Date().getFullYear()} ${site.name} — ${site.domain}`,
+          text: emailText,
         }),
       });
       if (!res.ok) {

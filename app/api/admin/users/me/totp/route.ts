@@ -65,7 +65,12 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     captureException(err, { context: "[api/admin/users/me/totp] enrollment failed" });
-    return NextResponse.json({ error: "Failed to set up 2FA" }, { status: 500 });
+    // A6-002 / A7-007: Provide a clear error when TOTP encryption key is missing
+    const message =
+      err instanceof Error && err.message.includes("TOTP_ENCRYPTION_KEY not set")
+        ? "2FA encryption is not configured. Contact your administrator."
+        : "Failed to set up 2FA";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
