@@ -62,8 +62,25 @@ gh workflow run rollback.yml -f version=<git-sha>
 ```bash
 # List available snapshots
 scripts/cf-security-snapshot.sh --list-backups
-# Restore from latest snapshot
-wrangler kv:namespace restore --namespace-id=<id> --from=<backup>
+
+# NOTE: `wrangler kv:namespace restore` is NOT a supported Wrangler command.
+# KV does not support bulk restore natively. To restore from a backup snapshot
+# (JSON file produced by cf-security-snapshot.sh or a manual export), use
+# the Cloudflare KV bulk write API:
+#
+#   BACKUP_FILE=<path-to-backup.json>
+#   NAMESPACE_ID=<id>
+#   CF_ACCOUNT_ID=<account-id>
+#
+#   # Restore all keys from the backup via the KV bulk write endpoint:
+#   curl -s -X PUT \
+#     "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/storage/kv/namespaces/$NAMESPACE_ID/bulk" \
+#     -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+#     -H "Content-Type: application/json" \
+#     -d "@$BACKUP_FILE"
+#
+# The backup file must be a JSON array of { key, value, expiration?, metadata? }
+# objects as produced by the KV list + read export script.
 ```
 
 #### R2 Bucket Recovery

@@ -282,7 +282,10 @@
 // - STRIPE_SECRET_KEY: Restricted API key (rk_live_...) — do NOT use legacy full-access keys
 // - STRIPE_WEBHOOK_SECRET: Live mode Stripe webhook signing secret (whsec_...)
 // - INTERNAL_API_TOKEN: Shared secret between Cloudflare Queue and the API
-// - CRON_SECRET: Shared secret between Cloudflare Cron and the API
+// - CRON_SECRET: DEPRECATED in production (A43). Per-trigger secrets are used
+//   instead (CRON_PUBLISH_SECRET, CRON_STRIPE_SYNC_SECRET, etc. — see the
+//   A43 cron trigger documentation above). CRON_SECRET may still be set in
+//   local dev / staging for convenience but MUST NOT be relied upon in production.
 // - TURNSTILE_SECRET_KEY: Cloudflare Turnstile secret
 // - APP_URL: Canonical app URL for absolute URLs (e.g. password reset links)
 // - RESEND_API_KEY: Resend API key for outbound emails

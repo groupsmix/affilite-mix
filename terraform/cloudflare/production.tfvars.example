@@ -60,13 +60,19 @@ dns_records = {
     name    = "wristnerd.xyz"
     type    = "TXT"
     content = "v=spf1 include:_spf.google.com include:amazonses.com ~all"
-    comment = "A210: SPF - authorize legitimate mail senders"
+    # A39: proxied MUST be false — SPF/DMARC/DKIM TXT records must be
+    # DNS-visible to receiving MTAs. Proxying hides them and breaks email auth.
+    # The dns_records variable now defaults proxied=true, so this is required.
+    proxied = false
+    comment = "A210/A39: SPF - authorize legitimate mail senders. DNS-only (unproxied) by design."
   }
   "dmarc-wristnerd" = {
     name    = "_dmarc.wristnerd.xyz"
     type    = "TXT"
     content = "v=DMARC1; p=reject; rua=mailto:dmarc-reports@wristnerd.xyz; ruf=mailto:dmarc-forensics@wristnerd.xyz; adkim=s; aspf=s; pct=100"
-    comment = "A210: DMARC - reject unauthenticated mail, strict alignment"
+    # A39: proxied MUST be false — DMARC TXT records must be DNS-visible.
+    proxied = false
+    comment = "A210/A39: DMARC - reject unauthenticated mail, strict alignment. DNS-only (unproxied) by design."
   }
   # DKIM is typically configured by the mail provider (Resend, Google Workspace,
   # etc.) which provides the specific selector and public key. Add a record like:
@@ -87,7 +93,7 @@ waf_blocked_countries = ["KP", "IR", "SY"]
 # Uncomment to customise; empty list disables managed rules.
 # waf_managed_rulesets = [
 #   { ruleset_id = "efb7b8c949ac4650a09736fc376e9aee" },  # Cloudflare Managed Ruleset
-#   { ruleset_id = "4809eaeb9da840b49d5cdd4321b7cb48" },  # Cloudflare OWASP Core Ruleset
+#   { ruleset_id = "4814384a9e5d4991b9815dcfc25d2f1f" },  # Cloudflare OWASP Core Ruleset
 # ]
 
 # ── R2 location hint ──────────────────────────────────────────────────
@@ -95,5 +101,11 @@ r2_default_location   = "WNAM"
 worker_logs_bucket_name = "workers-logpush"
 
 # A37: R2 hardening settings.
+# WARNING: r2_worm_enabled = true applies WORM (Write Once Read Many) /
+# Object Lock to the worker_logs bucket. Once enabled, objects become
+# IMMUTABLE for the retention period and CANNOT be deleted or overwritten.
+# This prevents log tampering but also prevents log rotation and may
+# increase storage costs. Understand the compliance implications before enabling.
+# Only disable if your organization's log retention policy explicitly permits it.
 r2_worm_enabled       = true
 r2_replication_enabled = false  # Enable once R2 replication GA is available
