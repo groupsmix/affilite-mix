@@ -90,7 +90,10 @@ export const POST = withAuthz("upload", "create", async (request, { siteId }) =>
     // the placeholder zero-UUID — without this, every upload presign
     // event was attributed to a non-existent site and the per-tenant
     // audit query ignored them entirely.
-    void recordAuditEvent({
+    // AUDIT-FIX A1-006: Await the audit event for security-sensitive presign
+    // operations so the audit record is durably written before the presign
+    // URL is returned to the client.
+    await recordAuditEvent({
       site_id: siteId,
       actor: "admin-upload",
       action: "upload_presign",
