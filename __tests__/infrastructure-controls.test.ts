@@ -134,7 +134,7 @@ describe("Risk-15: Branch protection", () => {
   it("CI defines required checks gate job", () => {
     const ci = readFile(".github/workflows/ci.yml");
     expect(ci).toContain("Required checks");
-    expect(ci).toContain("needs: [check]");
+    expect(ci).toContain("needs: [check, integration, e2e, load, chaos]");
   });
 });
 
