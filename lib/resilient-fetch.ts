@@ -18,7 +18,6 @@
 
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { getCircuitBreaker, CircuitOpenError } from "@/lib/ai/circuit-breaker";
-import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 
 // ── Configuration ────────────────────────────────────────────────────
