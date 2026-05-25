@@ -2,7 +2,11 @@
  * Tests for A98-59: Newsletter token expiry validation.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 import {
   isTokenWithinExpiry,
   getTokenRemainingTtlSeconds,
@@ -22,10 +26,8 @@ describe("A98-59: Newsletter token expiry", () => {
         Date.now() - 1000 * 60 * 60 * 24 * (DEFAULT_TOKEN_TTL_DAYS + 1),
       ).toISOString();
       // In production, this should be false
-      const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      vi.stubEnv("NODE_ENV", "production");
       expect(isTokenWithinExpiry(created)).toBe(false);
-      process.env.NODE_ENV = originalEnv;
     });
 
     it("respects custom TTL", () => {
@@ -43,17 +45,13 @@ describe("A98-59: Newsletter token expiry", () => {
     });
 
     it("rejects null in production", () => {
-      const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      vi.stubEnv("NODE_ENV", "production");
       expect(isTokenWithinExpiry(null)).toBe(false);
-      process.env.NODE_ENV = originalEnv;
     });
 
     it("rejects malformed dates", () => {
-      const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      vi.stubEnv("NODE_ENV", "production");
       expect(isTokenWithinExpiry("not-a-date")).toBe(false);
-      process.env.NODE_ENV = originalEnv;
     });
   });
 
