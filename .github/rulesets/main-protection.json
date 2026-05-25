@@ -34,7 +34,8 @@
     {
       "type": "pull_request",
       "parameters": {
-        "required_approving_review_count": 1,
+        "_comment": "A34: Single source of truth — this value must match terraform/github/main.tf var.required_review_count (default 2).",
+        "required_approving_review_count": 2,
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": true,
         "require_last_push_approval": true,

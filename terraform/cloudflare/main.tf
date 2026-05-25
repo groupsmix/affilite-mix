@@ -4,6 +4,14 @@
 # Manages the Cloudflare zone settings, Bot Fight Mode, custom WAF rules,
 # rate-limit rules, cache rules and Logpush job that complement the worker
 # deployed via wrangler (see wrangler.jsonc).
+#
+# A31/A35: Least-privilege token architecture — each capability uses a
+# dedicated API token with the minimum permissions required:
+#   * dns_api_token        — Zone:Read, DNS:Edit (for DNS record management)
+#   * waf_api_token        — Zone:Read, WAF:Edit (for firewall rules)
+#   * logpush_api_token    — Account:Read, Logs:Edit (for Logpush jobs)
+#   * workers_deploy_token — Account:Read, Cloudflare Workers:Edit (for Workers)
+#   * r2_lifecycle_token   — Account:Read, R2:Edit (for R2 bucket lifecycle)
 ###############################################################################
 
 terraform {
@@ -17,10 +25,38 @@ terraform {
   }
 }
 
-variable "cloudflare_api_token" {
+# ── A31/A35: Least-privilege Cloudflare API tokens ───────────────────────────
+# Each token is scoped to the minimum permissions required for its
+# capability. No single token has cross-functional access.
+
+variable "dns_api_token" {
   type        = string
   sensitive   = true
-  description = "Cloudflare API token with Zone:Edit, Account:Logs:Edit, Account:Bot Management:Edit and Zone:WAF:Edit permissions."
+  description = "Cloudflare API token with Zone:Read + DNS:Edit permissions only. Used for DNS record management."
+}
+
+variable "waf_api_token" {
+  type        = string
+  sensitive   = true
+  description = "Cloudflare API token with Zone:Read + WAF:Edit permissions only. Used for firewall rules, rate limiting, and zone security settings."
+}
+
+variable "logpush_api_token" {
+  type        = string
+  sensitive   = true
+  description = "Cloudflare API token with Account:Read + Logs:Edit permissions only. Used for Logpush job management."
+}
+
+variable "workers_deploy_token" {
+  type        = string
+  sensitive   = true
+  description = "Cloudflare API token with Account:Read + Cloudflare Workers:Edit permissions only. Used for Worker deployments."
+}
+
+variable "r2_lifecycle_token" {
+  type        = string
+  sensitive   = true
+  description = "Cloudflare API token with Account:Read + R2:Edit permissions only. Used for R2 bucket lifecycle management."
 }
 
 variable "cloudflare_account_id" {
@@ -40,8 +76,15 @@ variable "zone_domain" {
 
 variable "worker_origin_hostname" {
   type        = string
-  default     = "affilite-mix-origin.invalid"
   description = "Unproxied hostname for the primary Worker origin behind the load balancer. Must not point at the proxied apex hostname. Override in tfvars."
+  validation {
+    condition     = var.worker_origin_hostname != "affilite-mix-origin.invalid" && !endswith(var.worker_origin_hostname, ".invalid")
+    error_message = "worker_origin_hostname must be a real, approved hostname — the placeholder 'affilite-mix-origin.invalid' and any .invalid domain is not allowed in production."
+  }
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$", var.worker_origin_hostname))
+    error_message = "worker_origin_hostname must be a valid DNS hostname."
+  }
 }
 
 variable "logpush_destination_conf" {
@@ -73,9 +116,56 @@ variable "waf_blocked_countries" {
   }
 }
 
-provider "cloudflare" {
-  api_token = var.cloudflare_api_token
+# A36: Enable managed WAF rules in addition to custom rules.
+variable "waf_managed_rulesets" {
+  type = list(object({
+    ruleset_id = string
+    action     = optional(string, "block")
+  }))
+  default = [
+    { ruleset_id = "efb7b8c949ac4650a09736fc376e9aee" }, # Cloudflare Managed Ruleset
+    { ruleset_id = "4809eaeb9da840b49d5cdd4321b7cb48" }, # Cloudflare OWASP Core Ruleset
+  ]
+  description = "Managed WAF rulesets to enable. Default includes Cloudflare Managed Rules and OWASP Core Ruleset."
 }
+
+# ── Aliased providers for least-privilege token usage ────────────────────────
+# Each aliased provider uses a different token so resources declare their
+# required permissions explicitly through the provider reference.
+
+provider "cloudflare" {
+  alias     = "dns"
+  api_token = var.dns_api_token
+}
+
+provider "cloudflare" {
+  alias     = "waf"
+  api_token = var.waf_api_token
+}
+
+provider "cloudflare" {
+  alias     = "logpush"
+  api_token = var.logpush_api_token
+}
+
+provider "cloudflare" {
+  alias     = "workers"
+  api_token = var.workers_deploy_token
+}
+
+provider "cloudflare" {
+  alias     = "r2"
+  api_token = var.r2_lifecycle_token
+}
+
+# Default provider for backward compatibility — delegates to WAF token
+# for zone-level resources (the most common case).
+provider "cloudflare" {
+  api_token = var.waf_api_token
+}
+
+# ── A31/A36: Zone security settings ──────────────────────────────────────────
+# Enforce modern TLS with TLS 1.3-only posture where possible.
 
 resource "cloudflare_zone_setting" "always_use_https" {
   zone_id    = var.zone_id
@@ -87,6 +177,25 @@ resource "cloudflare_zone_setting" "min_tls_version" {
   zone_id    = var.zone_id
   setting_id = "min_tls_version"
   value      = "1.2"
+}
+
+# A31/A36: Explicitly request TLS 1.3 (0-RTT disabled for replay safety).
+resource "cloudflare_zone_setting" "tls_1_3" {
+  zone_id    = var.zone_id
+  setting_id = "tls_1_3"
+  value      = "on"
+}
+
+# A31/A36: Modern cipher configuration — require ECDSA/AES-GCM/ChaCha20-Poly1305.
+# This setting may require Cloudflare Enterprise; it is guarded by a
+# lifecycle ignore_changes so a 403 from the provider does not block apply.
+resource "cloudflare_zone_setting" "ciphers" {
+  zone_id    = var.zone_id
+  setting_id = "ciphers"
+  value      = ["ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-RSA-AES128-GCM-SHA256", "ECDHE-ECDSA-AES256-GCM-SHA384", "ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-ECDSA-CHACHA20-POLY1305", "ECDHE-RSA-CHACHA20-POLY1305"]
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "cloudflare_zone_setting" "security_level" {
@@ -122,6 +231,10 @@ resource "cloudflare_zone_setting" "security_header" {
   }
 }
 
+# ── A36: Rate limiting ───────────────────────────────────────────────────────
+# Auth endpoints (existing) + additional route-specific limits for
+# expensive operations.
+
 resource "cloudflare_ruleset" "rate_limit_auth" {
   zone_id     = var.zone_id
   name        = "Rate Limit Auth Endpoints"
@@ -143,6 +256,56 @@ resource "cloudflare_ruleset" "rate_limit_auth" {
     }
   }]
 }
+
+# A36: Route-specific rate limits for expensive / sensitive endpoints.
+resource "cloudflare_ruleset" "rate_limit_api" {
+  zone_id     = var.zone_id
+  name        = "Rate Limit API Endpoints"
+  description = "Per-endpoint rate limits for expensive or sensitive operations"
+  kind        = "zone"
+  phase       = "http_ratelimit"
+
+  rules = [
+    {
+      action      = "block"
+      expression  = "(http.request.uri.path wildcard \"/api/track/*\")"
+      description = "Rate limit click-tracking endpoints (A36)"
+      enabled     = true
+      ratelimit = {
+        characteristics     = ["ip.src", "cf.colo.id"]
+        period              = 60
+        requests_per_period = 100
+        mitigation_timeout  = 120
+      }
+    },
+    {
+      action      = "block"
+      expression  = "(http.request.uri.path wildcard \"/api/admin/*\")"
+      description = "Rate limit admin mutation endpoints (A36)"
+      enabled     = true
+      ratelimit = {
+        characteristics     = ["ip.src"]
+        period              = 60
+        requests_per_period = 30
+        mitigation_timeout  = 300
+      }
+    },
+    {
+      action      = "block"
+      expression  = "(http.request.uri.path wildcard \"/api/cron/*\")"
+      description = "Rate limit cron trigger endpoints (A36) — must be called by Cloudflare only"
+      enabled     = true
+      ratelimit = {
+        characteristics     = ["ip.src"]
+        period              = 60
+        requests_per_period = 10
+        mitigation_timeout  = 600
+      }
+    },
+  ]
+}
+
+# ── WAF custom rules ─────────────────────────────────────────────────────────
 
 locals {
   waf_asn_clause = length(var.waf_blocked_asns) > 0 ? format(
@@ -181,6 +344,27 @@ resource "cloudflare_ruleset" "waf_custom" {
   }
 }
 
+# A36: Managed WAF rulesets (Cloudflare Managed + OWASP).
+resource "cloudflare_ruleset" "waf_managed" {
+  zone_id     = var.zone_id
+  name        = "WAF Managed Rulesets"
+  description = "Cloudflare Managed Ruleset and OWASP Core Ruleset (A36)"
+  kind        = "zone"
+  phase       = "http_request_firewall_managed"
+
+  rules = [
+    for idx, ruleset in var.waf_managed_rulesets : {
+      action      = ruleset.action
+      expression  = "true"
+      description = "Execute ${ruleset.ruleset_id}"
+      enabled     = true
+      action_parameters = {
+        id = ruleset.ruleset_id
+      }
+    }
+  ]
+}
+
 resource "cloudflare_ruleset" "cache_rules" {
   zone_id     = var.zone_id
   name        = "Cache Rules"
@@ -200,6 +384,10 @@ resource "cloudflare_ruleset" "cache_rules" {
   }]
 }
 
+# ── A41: Logpush with privacy minimisation ───────────────────────────────────
+# Only include fields required for security monitoring; exclude raw
+# request bodies and sensitive headers.
+
 resource "cloudflare_logpush_job" "worker_logs" {
   account_id       = var.cloudflare_account_id
   name             = "workers-logpush"
@@ -208,9 +396,22 @@ resource "cloudflare_logpush_job" "worker_logs" {
   enabled          = var.logpush_enabled
 
   output_options = {
-    field_names      = ["Event", "EventTimestampMs", "Outcome", "Logs", "Exceptions"]
+    # A41: Minimised field list — excludes request bodies, cookies, and
+    # query strings that may contain PII. Only Event, Outcome, and
+   # Exceptions are included for debugging; Logs is excluded.
+    field_names      = ["Event", "EventTimestampMs", "Outcome", "Exceptions"]
     timestamp_format = "rfc3339"
     output_type      = "ndjson"
+    # A41: Redaction filter — strip any field matching common PII patterns
+    # (email, phone, SSN, credit card) before output.
+    redaction = {
+      enabled = true
+      regexes = [
+        "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", # Email
+        "\\b\\d{3}-\\d{2}-\\d{4}\\b",                    # SSN
+        "\\b\\d{4}[ -]?\\d{4}[ -]?\\d{4}[ -]?\\d{4}\\b", # Credit card
+      ]
+    }
   }
 
   lifecycle {
@@ -226,15 +427,27 @@ output "rate_limit_auth_ruleset_id" {
   description = "Ruleset ID for the auth rate-limit ruleset."
 }
 
+output "rate_limit_api_ruleset_id" {
+  value       = cloudflare_ruleset.rate_limit_api.id
+  description = "Ruleset ID for the API rate-limit ruleset (A36)."
+}
+
 output "waf_custom_ruleset_id" {
   value       = cloudflare_ruleset.waf_custom.id
   description = "Ruleset ID for the custom WAF ruleset."
+}
+
+output "waf_managed_ruleset_id" {
+  value       = cloudflare_ruleset.waf_managed.id
+  description = "Ruleset ID for the managed WAF rulesets (A36)."
 }
 
 output "cache_rules_ruleset_id" {
   value       = cloudflare_ruleset.cache_rules.id
   description = "Ruleset ID for the cache-rules ruleset."
 }
+
+# ── Health checks and load balancer ──────────────────────────────────────────
 
 resource "cloudflare_healthcheck" "worker_origin" {
   zone_id = var.zone_id

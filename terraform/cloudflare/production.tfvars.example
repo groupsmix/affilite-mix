@@ -2,9 +2,33 @@
 # NEVER commit real secrets to source control; use:
 #   terraform apply -var-file=production.tfvars
 
-cloudflare_api_token      = ""  # Scoped API token (see main.tf description)
-cloudflare_account_id     = ""  # Your Cloudflare account ID
-zone_id                   = ""  # Zone ID for the production domain
+# A31/A35: Least-privilege Cloudflare API tokens.
+# Create separate tokens in the Cloudflare Dashboard:
+#   My Profile → API Tokens → Create Token → Custom token
+#
+# Required token permissions:
+#   dns_api_token        — Zone:Read + DNS:Edit
+#   waf_api_token        — Zone:Read + WAF:Edit + Zone Settings:Edit
+#   logpush_api_token    — Account:Read + Logs:Edit
+#   workers_deploy_token — Account:Read + Cloudflare Workers:Edit
+#   r2_lifecycle_token   — Account:Read + R2:Edit
+
+dns_api_token         = ""
+waf_api_token         = ""
+logpush_api_token     = ""
+workers_deploy_token  = ""
+r2_lifecycle_token    = ""
+cloudflare_account_id = ""  # Your Cloudflare account ID
+zone_id               = ""  # Zone ID for the production domain
+
+# ── Worker origin hostname ─────────────────────────────────────────────
+# A31: Must be a real, approved hostname. The placeholder
+# affilite-mix-origin.invalid is rejected by Terraform validation.
+worker_origin_hostname = "origin.your-domain.com"
+
+# ── A42: Billing & queue alerts ────────────────────────────────────────
+billing_alert_threshold_usd   = 100   # Daily spend alert threshold
+queue_backlog_alert_threshold = 1000  # Queue depth alert threshold
 
 # ── FIX-01: Alerts & Logpush ──────────────────────────────────────────
 # Set alerts_enabled = true after provisioning at least one notification
@@ -59,6 +83,17 @@ dns_records = {
 waf_blocked_asns      = []
 waf_blocked_countries = ["KP", "IR", "SY"]
 
+# A36: Enable managed WAF rulesets (default: Cloudflare Managed + OWASP).
+# Uncomment to customise; empty list disables managed rules.
+# waf_managed_rulesets = [
+#   { ruleset_id = "efb7b8c949ac4650a09736fc376e9aee" },  # Cloudflare Managed Ruleset
+#   { ruleset_id = "4809eaeb9da840b49d5cdd4321b7cb48" },  # Cloudflare OWASP Core Ruleset
+# ]
+
 # ── R2 location hint ──────────────────────────────────────────────────
 r2_default_location   = "WNAM"
 worker_logs_bucket_name = "workers-logpush"
+
+# A37: R2 hardening settings.
+r2_worm_enabled       = true
+r2_replication_enabled = false  # Enable once R2 replication GA is available

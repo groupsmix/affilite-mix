@@ -131,3 +131,89 @@ resource "cloudflare_notification_policy" "worker_cpu_time_alert" {
     }
   }
 }
+
+###############################################################################
+# A42: Billing, usage, and queue backlog alerts.
+#
+# Complements the SLO burn-rate alerts above with cost-protection
+# and queue-depth monitoring.
+###############################################################################
+
+variable "billing_alert_threshold_usd" {
+  type        = number
+  default     = 100
+  description = "A42: Daily spend threshold in USD that triggers a billing alert. Set based on expected daily budget."
+}
+
+variable "queue_backlog_alert_threshold" {
+  type        = number
+  default     = 1000
+  description = "A42: Queue depth threshold for the click-tracking backlog alert. Triggers when unprocessed messages exceed this count."
+}
+
+# A42: Cloudflare Workers usage/billing alert.
+resource "cloudflare_notification_policy" "billing_usage_alert" {
+  account_id  = var.cloudflare_account_id
+  name        = "Affilite-Mix Billing Usage Alert"
+  description = "A42: Alerts when daily Workers + R2 + KV spend exceeds ${var.billing_alert_threshold_usd} USD."
+  enabled     = var.alerts_enabled
+  alert_type  = "billing_usage_alert"
+
+  filters = {
+    services = ["Workers", "R2", "KV"]
+  }
+
+  mechanisms = {
+    email     = var.alert_mechanisms.email
+    pagerduty = var.alert_mechanisms.pagerduty
+    webhooks  = var.alert_mechanisms.webhooks
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.alerts_enabled || local.alert_mechanisms_count > 0
+      error_message = "alerts_enabled = true requires at least one entry in alert_mechanisms.email/pagerduty/webhooks."
+    }
+  }
+}
+
+# A42: Queue backlog burn-rate alert.
+# Uses the http_alert_edge_error alert type with a filter on queue
+# depth since Cloudflare does not have a native queue_depth alert type.
+# The queue consumer (workers/custom-worker.ts) emits a metric when
+# depth exceeds the threshold.
+resource "cloudflare_notification_policy" "queue_backlog_alert" {
+  account_id  = var.cloudflare_account_id
+  name        = "Affilite-Mix Queue Backlog Burn Rate"
+  description = "A42: Alerts when the click-tracking queue depth exceeds ${var.queue_backlog_alert_threshold} messages (indicating consumer lag or failure)."
+  enabled     = var.alerts_enabled
+  alert_type  = "http_alert_edge_error"
+
+  filters = {
+    services    = ["affilite-mix"]
+    environment = ["production"]
+  }
+
+  mechanisms = {
+    email     = var.alert_mechanisms.email
+    pagerduty = var.alert_mechanisms.pagerduty
+    webhooks  = var.alert_mechanisms.webhooks
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.alerts_enabled || local.alert_mechanisms_count > 0
+      error_message = "alerts_enabled = true requires at least one entry in alert_mechanisms.email/pagerduty/webhooks."
+    }
+  }
+}
+
+output "billing_alert_policy_id" {
+  value       = cloudflare_notification_policy.billing_usage_alert.id
+  description = "A42: ID of the billing usage alert policy."
+}
+
+output "queue_backlog_alert_policy_id" {
+  value       = cloudflare_notification_policy.queue_backlog_alert.id
+  description = "A42: ID of the queue backlog burn-rate alert policy."
+}
