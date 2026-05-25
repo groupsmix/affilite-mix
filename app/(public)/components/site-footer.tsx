@@ -25,7 +25,7 @@ export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProp
           {/* Footer nav sections (from config) */}
           {Object.entries(site.footerNav).map(([section, items]) => (
             <div key={section}>
-              <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
+              <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-600">
                 {section}
               </h4>
               <ul className="space-y-1">
@@ -54,7 +54,7 @@ export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProp
           {/* Dynamic footer nav from DB */}
           {dbFooterNav && dbFooterNav.length > 0 && (
             <div>
-              <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
+              <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-600">
                 {site?.language === "ar" ? "الصفحات" : "Pages"}
               </h4>
               <ul className="space-y-1">
@@ -90,19 +90,19 @@ export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProp
 
         {/* Monetization disclosure */}
         <div className="mt-8 border-t border-gray-200 pt-6">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-600">
             {site.monetizationType === "ads"
               ? site.language === "ar"
                 ? "يتم تمويل هذا الموقع عبر الإعلانات."
                 : "This site is supported by advertising."
               : site.affiliateDisclosure}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
             <span>
               &copy; {new Date().getFullYear()} {site.name}
             </span>
             <span aria-hidden="true">&middot;</span>
-            <Link href="/privacy" className="hover:text-gray-600">
+            <Link href="/privacy" className="hover:text-gray-900">
               {site.language === "ar" ? "سياسة الخصوصية" : "Privacy Policy"}
             </Link>
             <span aria-hidden="true">&middot;</span>
