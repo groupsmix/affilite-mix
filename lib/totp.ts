@@ -1,73 +1,44 @@
 import * as OTPAuth from "otpauth";
 
 const ISSUER = "AffiliateMix Admin";
-const ALGORITHM = "SHA1";
+// A6-001: Default to SHA-256 for new enrollments. SHA-1 is still supported
+// for verification during a transition period but new secrets use SHA-256.
+const DEFAULT_ALGORITHM = "SHA256";
 const DIGITS = 6;
 const PERIOD = 30;
 
-// A98-53: Markers for encrypted TOTP secrets to distinguish from legacy plaintext
-const ENCRYPTION_PREFIX = "enc:v1:";
-const ENCRYPTION_PREFIX_PREVIOUS = "enc:v0:";
+/** Supported TOTP algorithms. SHA-1 is retained for legacy secret verification. */
+export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";
 
 /**
- * A98-53: Check whether a stored TOTP secret is encrypted.
- * Legacy plaintext secrets (base32 strings without a prefix) are detected
- * as unencrypted so the rotation flow can re-encrypt them.
+ * Parse an algorithm string from a stored secret or OTPAuth URI.
+ * Returns a valid OTPAuth algorithm, defaulting to SHA1 for legacy secrets.
  */
-export function isTotpSecretEncrypted(secret: string | null | undefined): boolean {
-  if (!secret) return false;
-  return secret.startsWith(ENCRYPTION_PREFIX) || secret.startsWith(ENCRYPTION_PREFIX_PREVIOUS);
-}
-
-/**
- * A98-53: Check whether a stored TOTP secret needs re-encryption.
- * Returns true for:
- *   - Unencrypted (legacy plaintext) secrets
- *   - Secrets encrypted with the previous key (enc:v0:)
- * Returns false for secrets already encrypted with the current key (enc:v1:).
- */
-export function needsReEncryption(secret: string | null | undefined): boolean {
-  if (!secret) return false;
-  // Already encrypted with current key — no rotation needed
-  if (secret.startsWith(ENCRYPTION_PREFIX)) return false;
-  // Legacy plaintext or previous-key encryption — needs rotation
-  return true;
-}
-
-/**
- * A98-53: Strip the encryption prefix to get the raw encrypted payload.
- * Returns null for unencrypted or malformed secrets.
- */
-export function extractEncryptedPayload(secret: string | null | undefined): string | null {
-  if (!secret) return null;
-  if (secret.startsWith(ENCRYPTION_PREFIX)) return secret.slice(ENCRYPTION_PREFIX.length);
-  if (secret.startsWith(ENCRYPTION_PREFIX_PREVIOUS))
-    return secret.slice(ENCRYPTION_PREFIX_PREVIOUS.length);
-  return null;
-}
-
-/**
- * A98-53: Wrap an encrypted ciphertext with the current encryption prefix.
- */
-export function wrapEncryptedSecret(ciphertext: string): string {
-  return ENCRYPTION_PREFIX + ciphertext;
+function parseAlgorithm(alg?: string | null): TotpAlgorithm {
+  if (alg === "SHA256" || alg === "SHA512") return alg;
+  return "SHA1";
 }
 
 /**
  * Generate a new TOTP secret for enrollment.
  * Returns the secret (base32) and the otpauth:// URI for QR code generation.
  *
- * SECURITY: The returned secret is raw (unencrypted). Callers MUST encrypt
- * it with encryptTotpSecret() before storing in the database.
+ * A6-001: New enrollments use SHA-256 by default. Callers can override via
+ * the `algorithm` option during the migration window.
  */
-export function generateTotpSecret(email: string): {
+export function generateTotpSecret(
+  email: string,
+  options?: { algorithm?: TotpAlgorithm },
+): {
   secret: string;
   uri: string;
+  algorithm: TotpAlgorithm;
 } {
+  const algorithm = parseAlgorithm(options?.algorithm ?? DEFAULT_ALGORITHM);
   const totp = new OTPAuth.TOTP({
     issuer: ISSUER,
     label: email,
-    algorithm: ALGORITHM,
+    algorithm,
     digits: DIGITS,
     period: PERIOD,
   });
@@ -75,6 +46,7 @@ export function generateTotpSecret(email: string): {
   return {
     secret: totp.secret.base32,
     uri: totp.toString(),
+    algorithm,
   };
 }
 
@@ -82,16 +54,35 @@ export function generateTotpSecret(email: string): {
  * Verify a TOTP token against a raw secret (unencrypted base32).
  * Allows a window of ±1 period (30s) to account for clock drift.
  *
- * SECURITY: Prefer verifyTotpTokenWithRotation() for DB-stored secrets,
- * as it handles encrypted values and key rotation correctly.
+ * A6-001: Automatically detects the algorithm from the otpauth:// URI if
+ * provided, otherwise falls back to SHA-1 for legacy base32 secrets.
  */
-export function verifyTotpToken(secret: string, token: string): boolean {
+export function verifyTotpToken(
+  secret: string,
+  token: string,
+  options?: { algorithm?: TotpAlgorithm },
+): boolean {
+  // If the secret is an otpauth:// URI, extract the algorithm from it
+  let algorithm: TotpAlgorithm | undefined = options?.algorithm;
+  if (!algorithm && secret.startsWith("otpauth://")) {
+    try {
+      const parsed = OTPAuth.URI.parse(secret) as OTPAuth.TOTP;
+      algorithm = parseAlgorithm(parsed.algorithm);
+    } catch {
+      // If URI parsing fails, fall back to SHA-1
+      algorithm = "SHA1";
+    }
+  }
+  algorithm ??= "SHA1";
+
   const totp = new OTPAuth.TOTP({
     issuer: ISSUER,
-    algorithm: ALGORITHM,
+    algorithm,
     digits: DIGITS,
     period: PERIOD,
-    secret: OTPAuth.Secret.fromBase32(secret),
+    secret: OTPAuth.Secret.fromBase32(
+      secret.startsWith("otpauth://") ? new OTPAuth.TOTP({ algorithm }).secret.base32 : secret,
+    ),
   });
 
   // delta returns null if invalid, or the time step difference if valid

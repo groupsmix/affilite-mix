@@ -15,6 +15,7 @@ import {
   recordUnknownHostKvAccess,
 } from "@/lib/security/unknown-host-guard";
 import { getAppCacheKV } from "@/lib/runtime-env";
+import { signSiteIdFallback } from "@/lib/supabase-server";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -519,6 +520,12 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // above returns `nicheNotFoundResponse(request)` for the falsy case.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-site-id", siteId);
+  // A7-005: Sign the site-id header so downstream getTenantClient() can
+  // verify it came from middleware, not from a spoofed client request.
+  const siteIdSig = await signSiteIdFallback(siteId);
+  if (siteIdSig) {
+    requestHeaders.set("x-site-id-sig", siteIdSig);
+  }
   requestHeaders.set(TRACE_ID_HEADER, traceId);
 
   // ── CSP nonce generation (H-10) ─────────────────────

@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     captureException(contentError, {
       context: "[api/cron/publish] Failed to fetch scheduled content:",
     });
-    return NextResponse.json({ error: contentError.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch scheduled content" }, { status: 500 });
   }
 
   const contentSitesToInvalidate = new Set<string>();
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       captureException(updateError, { context: "[api/cron/publish] Failed to publish content:" });
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to publish content" }, { status: 500 });
     }
     for (const row of updated ?? []) {
       if (row.site_id) contentSitesToInvalidate.add(row.site_id);
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     captureException(expiredError, {
       context: "[api/cron/publish] Failed to fetch expired products:",
     });
-    return NextResponse.json({ error: expiredError.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch expired products" }, { status: 500 });
   }
 
   const productSitesToInvalidate = new Set<string>();
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
     if (archiveError) {
       captureException(archiveError, { context: "[api/cron/publish] Failed to archive products:" });
-      return NextResponse.json({ error: archiveError.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to archive products" }, { status: 500 });
     }
     for (const row of archived ?? []) {
       if (row.site_id) productSitesToInvalidate.add(row.site_id);

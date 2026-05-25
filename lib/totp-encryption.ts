@@ -86,6 +86,13 @@ function getLatestKeyInfo(): { version: number; rawKey: string; prefix: string }
 export async function encryptTotpSecret(plaintext: string): Promise<string> {
   const keyInfo = getLatestKeyInfo();
   if (!keyInfo) {
+    // A6-002 / A7-07: Fail closed in production — never store TOTP secrets plaintext
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "[totp-encryption] TOTP_ENCRYPTION_KEY not set in production — " +
+          "refusing to store TOTP secret in plaintext. Set TOTP_ENCRYPTION_KEY to enable MFA.",
+      );
+    }
     logger.warn(
       "[totp-encryption] TOTP_ENCRYPTION_KEY not set — storing TOTP secret in plaintext. " +
         "This is acceptable in dev/test but MUST be configured in production.",

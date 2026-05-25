@@ -30,7 +30,8 @@
  *     before the object is ever visible at R2_PUBLIC_URL.
  */
 
-import { assertQuota, recordUsage } from "@/lib/quotas";
+import { reserveQuota, releaseQuota } from "@/lib/quotas";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 // ── Lightweight AWS Signature V4 presigner ────────────────────────────
 
@@ -320,20 +321,25 @@ export async function getUploadUrl(
     throw new Error(`Upload exceeds the ${R2_MAX_UPLOAD_BYTES / (1024 * 1024)}MB limit`);
   }
 
-  // Per-tenant storage ceiling (G-42). The check is best-effort — if KV
-  // is unreachable, `lib/quotas.ts` fails open. We record the bytes
-  // BEFORE issuing the presign, even though the upload may never
-  // complete: pessimistic accounting keeps the counter conservative
-  // and matches how billing already works in `wait-until.ts` flows.
-  // A finalize step in `/api/admin/upload/finalize` is the right place
-  // to reconcile counters against actual upload completion in a
-  // follow-up; the primitive is already exposed.
+  // Per-tenant storage ceiling (G-42 / A10-004).
+  // Use reserveQuota to atomically check+reserve capacity so concurrent
+  // requests don't over-commit. If the presign fails, release the reservation.
+  let quotaReserved = false;
   if (options.siteId) {
-    await assertQuota(options.siteId, "r2_storage_bytes", contentLength);
-    await recordUsage(options.siteId, "r2_storage_bytes", contentLength);
+    await reserveQuota(options.siteId, "r2_storage_bytes", contentLength);
+    quotaReserved = true;
   }
 
-  const stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;
+  let stagingKey: string;
+  try {
+    stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;
+  } catch (err) {
+    // A10-004: Release the quota reservation if key generation fails
+    if (quotaReserved && options.siteId) {
+      await releaseQuota(options.siteId, "r2_storage_bytes", contentLength).catch(() => undefined);
+    }
+    throw err;
+  }
   const publicKey = stagingKey; // Promotion preserves the key path.
   const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
 
@@ -469,9 +475,10 @@ export async function fetchStagingBytes(stagingKey: string, byteCount = 32): Pro
     secretAccessKey: env.secretAccessKey,
     region: "auto",
   });
-  const res = await fetch(signed.url, {
+  const res = await fetchWithTimeout(signed.url, {
     method: "GET",
     headers: { ...signed.headers, Range: `bytes=0-${byteCount - 1}` },
+    timeoutMs: 15000,
   });
   if (!res.ok && res.status !== 206) {
     throw new Error(`R2 staging read failed: ${res.status}`);
@@ -501,7 +508,7 @@ export async function headStagingObject(stagingKey: string): Promise<number | nu
     secretAccessKey: env.secretAccessKey,
     region: "auto",
   });
-  const res = await fetch(signed.url, { method: "HEAD", headers: signed.headers });
+  const res = await fetchWithTimeout(signed.url, { method: "HEAD", headers: signed.headers, timeoutMs: 15000 });
   if (!res.ok) return null;
   const len = res.headers.get("content-length");
   if (!len) return null;
@@ -542,13 +549,14 @@ export async function promoteToPublicBucket(
   // so browsers render images normally but don't execute any non-image content.
   // The filename from the staging key is sanitized to the UUID.<ext> portion.
   const filename = stagingKey.split("/").pop() ?? stagingKey;
-  const res = await fetch(signed.url, {
+  const res = await fetchWithTimeout(signed.url, {
     method: "PUT",
     headers: {
       ...signed.headers,
       "Content-Type": contentType,
       "Content-Disposition": `inline; filename="${filename}"`,
     },
+    timeoutMs: 30000,
   });
   if (!res.ok) {
     throw new Error(`R2 promote failed: ${res.status}`);
@@ -582,7 +590,7 @@ async function deleteFromBucket(bucket: string, key: string): Promise<void> {
     secretAccessKey: env.secretAccessKey,
     region: "auto",
   });
-  const res = await fetch(signed.url, { method: "DELETE", headers: signed.headers });
+  const res = await fetchWithTimeout(signed.url, { method: "DELETE", headers: signed.headers, timeoutMs: 15000 });
   if (!res.ok && res.status !== 204 && res.status !== 404) {
     throw new Error(`R2 delete failed: ${res.status}`);
   }
