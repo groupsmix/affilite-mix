@@ -297,7 +297,9 @@ export async function resilientFetch(
   });
 
   if (lastError instanceof Error) throw lastError;
-  throw new Error(`resilientFetch failed after ${opts.maxRetries + 1} attempts: ${String(lastError)}`);
+  throw new Error(
+    `resilientFetch failed after ${opts.maxRetries + 1} attempts: ${String(lastError)}`,
+  );
 }
 
 // ── Convenience wrappers ─────────────────────────────────────────────
@@ -313,11 +315,7 @@ export function resilientPost(
   body: BodyInit,
   options?: ResilientFetchOptions,
 ): Promise<Response> {
-  return resilientFetch(
-    url,
-    { method: "POST", body },
-    { idempotencyKey: true, ...options },
-  );
+  return resilientFetch(url, { method: "POST", body }, { idempotencyKey: true, ...options });
 }
 
 /** POST JSON with idempotency key, content-type header, and resilience defaults. */

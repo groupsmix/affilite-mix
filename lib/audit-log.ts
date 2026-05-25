@@ -110,10 +110,7 @@ async function writeToDlq(event: AuditEvent): Promise<void> {
  * should set `awaitDurable: true` so the audit write blocks and failures throw.
  * Non-critical callers may omit the option (fire-and-forget).
  */
-export async function recordAuditEvent(
-  event: AuditEvent,
-  options?: AuditOptions,
-): Promise<void> {
+export async function recordAuditEvent(event: AuditEvent, options?: AuditOptions): Promise<void> {
   const getClient = options?.getClient ?? defaultDalClientGetter;
   const awaitDurable = options?.awaitDurable ?? false;
 
