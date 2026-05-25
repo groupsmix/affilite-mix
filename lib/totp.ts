@@ -41,7 +41,8 @@ export function needsReEncryption(secret: string | null | undefined): boolean {
 export function extractEncryptedPayload(secret: string | null | undefined): string | null {
   if (!secret) return null;
   if (secret.startsWith(ENCRYPTION_PREFIX)) return secret.slice(ENCRYPTION_PREFIX.length);
-  if (secret.startsWith(ENCRYPTION_PREFIX_PREVIOUS)) return secret.slice(ENCRYPTION_PREFIX_PREVIOUS.length);
+  if (secret.startsWith(ENCRYPTION_PREFIX_PREVIOUS))
+    return secret.slice(ENCRYPTION_PREFIX_PREVIOUS.length);
   return null;
 }
 

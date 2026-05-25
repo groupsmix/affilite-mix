@@ -34,20 +34,12 @@ describe("A97: Cross-tenant origin validation", () => {
 
   describe("isOriginAllowedForSite", () => {
     it("allows origin belonging to the target site", () => {
-      const allowed = isOriginAllowedForSite(
-        "https://site-a.com",
-        "site-a",
-        "site-a.com",
-      );
+      const allowed = isOriginAllowedForSite("https://site-a.com", "site-a", "site-a.com");
       expect(allowed).toBe(true);
     });
 
     it("rejects origin from a different site (cross-tenant)", () => {
-      const allowed = isOriginAllowedForSite(
-        "https://site-b.com",
-        "site-a",
-        "site-a.com",
-      );
+      const allowed = isOriginAllowedForSite("https://site-b.com", "site-a", "site-a.com");
       expect(allowed).toBe(false);
     });
 

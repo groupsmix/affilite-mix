@@ -77,8 +77,7 @@ const MAX_BANNER_VERSION_LENGTH = 64;
 function validateConsentCategories(categories: unknown): string | null {
   if (!Array.isArray(categories)) return "categories must be an array";
   if (categories.length === 0) return "categories cannot be empty";
-  if (categories.length > MAX_CATEGORIES)
-    return `categories exceeds maximum of ${MAX_CATEGORIES}`;
+  if (categories.length > MAX_CATEGORIES) return `categories exceeds maximum of ${MAX_CATEGORIES}`;
 
   for (const cat of categories) {
     if (typeof cat !== "string") return "each category must be a string";

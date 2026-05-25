@@ -41,9 +41,10 @@ describe("A90: Feature flags policy", () => {
         const created = new Date(flag.createdAt).getTime();
         const expires = new Date(flag.expiresAt).getTime();
         const days = (expires - created) / (1000 * 60 * 60 * 24);
-        expect(days, `Flag ${flag.key} lifetime ${days}d exceeds ${MAX_FLAG_LIFETIME_DAYS}d`).toBeLessThanOrEqual(
-          MAX_FLAG_LIFETIME_DAYS,
-        );
+        expect(
+          days,
+          `Flag ${flag.key} lifetime ${days}d exceeds ${MAX_FLAG_LIFETIME_DAYS}d`,
+        ).toBeLessThanOrEqual(MAX_FLAG_LIFETIME_DAYS);
       }
     });
   });

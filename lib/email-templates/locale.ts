@@ -107,7 +107,8 @@ const EN_STRINGS: EmailStrings = {
     "Use the verification code below to complete your login. This code will expire in 15 minutes.",
   loginButton: "Verify login",
   loginCodeLabel: "Your verification code:",
-  loginExpiryNotice: (minutes: number) => `This code expires in ${pluralize(minutes, "en", { one: "{count} minute", other: "{count} minutes" })}.`,
+  loginExpiryNotice: (minutes: number) =>
+    `This code expires in ${pluralize(minutes, "en", { one: "{count} minute", other: "{count} minutes" })}.`,
 };
 
 const AR_STRINGS: EmailStrings = {
@@ -139,8 +140,7 @@ const AR_STRINGS: EmailStrings = {
   // --- Login ---
   loginSubject: "رمز التحقق من تسجيل الدخول",
   loginHeading: "تحقق من تسجيل الدخول",
-  loginBody:
-    "استخدم رمز التحقق أدناه لإكمال تسجيل الدخول. ينتهي صلاحية هذا الرمز خلال 15 دقيقة.",
+  loginBody: "استخدم رمز التحقق أدناه لإكمال تسجيل الدخول. ينتهي صلاحية هذا الرمز خلال 15 دقيقة.",
   loginButton: "تأكيد تسجيل الدخول",
   loginCodeLabel: "رمز التحقق الخاص بك:",
   loginExpiryNotice: (minutes: number) =>
