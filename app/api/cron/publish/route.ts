@@ -55,13 +55,15 @@ export async function POST(request: NextRequest) {
   const workerNow = new Date().toISOString();
   const clockSkewMs = Math.abs(new Date(dbNow).getTime() - new Date(workerNow).getTime());
   if (clockSkewMs > 30_000) {
-    console.warn(JSON.stringify({
-      metric: "cron.clock_skew",
-      skew_ms: clockSkewMs,
-      db_now: dbNow,
-      worker_now: workerNow,
-      msg: `Worker clock skew ${clockSkewMs}ms detected — using DB time for scheduling`,
-    }));
+    console.warn(
+      JSON.stringify({
+        metric: "cron.clock_skew",
+        skew_ms: clockSkewMs,
+        db_now: dbNow,
+        worker_now: workerNow,
+        msg: `Worker clock skew ${clockSkewMs}ms detected — using DB time for scheduling`,
+      }),
+    );
   }
   const results: Record<string, unknown> = {};
 
