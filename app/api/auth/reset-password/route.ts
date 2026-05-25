@@ -42,8 +42,11 @@ export async function POST(request: Request) {
     const token = ((bodyOrError.token as string) ?? "").trim();
     const password = (bodyOrError.password as string) ?? "";
 
-    if (!token) {
-      return NextResponse.json({ error: "Reset token is required" }, { status: 400 });
+    // AUDIT-FIX A4-003: Validate token format (URL-safe base64 or hex,
+    // 32-256 chars) before hashing / DB lookup to prevent DoS from
+    // huge tokens and to reject obviously malformed input early.
+    if (!token || !/^[A-Za-z0-9_-]{32,256}$/.test(token)) {
+      return NextResponse.json({ error: "Invalid or missing reset token" }, { status: 400 });
     }
 
     const policyResult = validatePasswordPolicy(password);

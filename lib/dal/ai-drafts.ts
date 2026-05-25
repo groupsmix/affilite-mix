@@ -92,7 +92,8 @@ export async function createAIDraft(
   return assertRow<AIDraftRow>(data, "AIDraft");
 }
 
-/** Update an AI draft (e.g. approve/reject) */
+/** Update an AI draft (e.g. approve/reject).
+ *  AUDIT-FIX A3-003: Returns null when no row matches (cross-tenant IDOR probe). */
 export async function updateAIDraft(
   siteId: string,
   id: string,
@@ -111,7 +112,7 @@ export async function updateAIDraft(
     >
   >,
   getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<AIDraftRow> {
+): Promise<AIDraftRow | null> {
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
@@ -119,10 +120,10 @@ export async function updateAIDraft(
     .eq("site_id", siteId)
     .eq("id", id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
-  return assertRow<AIDraftRow>(data, "AIDraft");
+  return rowOrNull<AIDraftRow>(data);
 }
 
 /** Delete an AI draft */
