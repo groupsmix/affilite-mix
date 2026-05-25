@@ -74,14 +74,15 @@ describe("A98-53: TOTP encryption and rotation", () => {
 
   describe("verifyTotpTokenWithRotation", () => {
     it("verifies with current encryption key", async () => {
-      const { secret } = generateTotpSecret("test@example.com");
+      const { secret, algorithm } = generateTotpSecret("test@example.com");
       const encrypted = "enc:v1:" + secret;
       const decryptFn = async (cipher: string) => cipher; // no-op decrypt
 
-      // Generate a valid token
-      const { verifyTotpToken: verifyRaw } = await import("@/lib/totp");
-      const totp = new (await import("otpauth")).TOTP({
-        secret: (await import("otpauth")).Secret.fromBase32(secret),
+      // Generate a valid token using the SAME algorithm used at enrollment
+      const OTPAuth = await import("otpauth");
+      const totp = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(secret),
+        algorithm,
       });
       const token = totp.generate();
 
@@ -90,15 +91,18 @@ describe("A98-53: TOTP encryption and rotation", () => {
     });
 
     it("verifies with previous encryption key fallback", async () => {
-      const { secret } = generateTotpSecret("test@example.com");
+      const { secret, algorithm } = generateTotpSecret("test@example.com");
       const encrypted = "enc:v0:" + secret;
       const decryptFn = async (cipher: string, usePrevious: boolean) => {
         if (usePrevious) return cipher;
         return null;
       };
 
-      const totp = new (await import("otpauth")).TOTP({
-        secret: (await import("otpauth")).Secret.fromBase32(secret),
+      // Generate a valid token using the SAME algorithm used at enrollment
+      const OTPAuth = await import("otpauth");
+      const totp = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(secret),
+        algorithm,
       });
       const token = totp.generate();
 

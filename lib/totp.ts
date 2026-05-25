@@ -116,27 +116,30 @@ export function verifyTotpToken(
   token: string,
   options?: { algorithm?: TotpAlgorithm },
 ): boolean {
-  // If the secret is an otpauth:// URI, extract the algorithm from it
+  // If the secret is an otpauth:// URI, extract both the algorithm and secret from it
   let algorithm: TotpAlgorithm | undefined = options?.algorithm;
-  if (!algorithm && secret.startsWith("otpauth://")) {
+  let secretBase32 = secret;
+  if (secret.startsWith("otpauth://")) {
     try {
       const parsed = OTPAuth.URI.parse(secret) as OTPAuth.TOTP;
-      algorithm = parseAlgorithm(parsed.algorithm);
+      if (!algorithm) algorithm = parseAlgorithm(parsed.algorithm);
+      // A6-001: Use the secret from the parsed URI, not a newly generated random one
+      secretBase32 = parsed.secret.base32;
     } catch {
-      // If URI parsing fails, fall back to SHA-1
-      algorithm = "SHA1";
+      // If URI parsing fails, fall back to SHA-256 (matches enrollment default)
+      algorithm ??= DEFAULT_ALGORITHM;
     }
   }
-  algorithm ??= "SHA1";
+  // A6-001: Default to SHA-256 to match generateTotpSecret's default — SHA-1 would
+  // silently break all new enrollments (SHA-256) when no algorithm is specified.
+  algorithm ??= DEFAULT_ALGORITHM;
 
   const totp = new OTPAuth.TOTP({
     issuer: ISSUER,
     algorithm,
     digits: DIGITS,
     period: PERIOD,
-    secret: OTPAuth.Secret.fromBase32(
-      secret.startsWith("otpauth://") ? new OTPAuth.TOTP({ algorithm }).secret.base32 : secret,
-    ),
+    secret: OTPAuth.Secret.fromBase32(secretBase32),
   });
 
   // delta returns null if invalid, or the time step difference if valid
