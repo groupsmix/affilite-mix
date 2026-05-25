@@ -76,7 +76,7 @@ export function isValidUUID(id: string): boolean {
 /** AUDIT-FIX A5-002: Validate content_type against the allowlist.
  * Returns the content type if valid, undefined otherwise.
  */
-function sanitizeContentType(raw: string | undefined): string | undefined {
+export function sanitizeContentType(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   return VALID_CONTENT_TYPES.has(raw) ? raw : undefined;
 }

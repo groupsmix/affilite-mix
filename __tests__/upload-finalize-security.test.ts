@@ -12,13 +12,7 @@
  * These tests validate the upload validation pipeline that prevents
  * malicious files from reaching the public bucket.
  */
-import { describe, it, expect, vi } from "vitest";
-import {
-  deleteStagingObject,
-  fetchStagingBytes,
-  headStagingObject,
-  promoteToPublicBucket,
-} from "@/lib/r2";
+import { describe, it, expect } from "vitest";
 
 // ── Staging Key Validation ────────────────────────────────────
 

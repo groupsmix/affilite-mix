@@ -12,7 +12,7 @@
  *
  * These tests validate the authorization boundary between edit and publish.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { isValidUUID, sanitizeContentType } from "@/lib/dal/ai-drafts";
 import { validateGenerateInput } from "@/app/api/admin/ai-content/route";
 
@@ -100,7 +100,6 @@ describe("AI Draft publish authorization (A6-001 / A9-001)", () => {
   });
 
   it("allows publish role to publish", () => {
-    const hasEdit = true;
     const hasPublish = true;
 
     const canPublish = hasPublish;
