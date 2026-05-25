@@ -97,6 +97,7 @@ export const POST = withAuthz("upload", "create", async (request, { siteId }) =>
       entity_type: "upload",
       entity_id: presigned.stagingKey,
       details: { contentType, fileSize, originalName },
+      sensitivity: "high",
     });
 
     const res = NextResponse.json({

@@ -1,7 +1,7 @@
 import * as OTPAuth from "otpauth";
 
 const ISSUER = "AffiliateMix Admin";
-const ALGORITHM = "SHA1";
+const ALGORITHM = "SHA256";
 const DIGITS = 6;
 const PERIOD = 30;
 

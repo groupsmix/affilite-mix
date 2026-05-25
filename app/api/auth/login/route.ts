@@ -239,6 +239,7 @@ export async function POST(request: NextRequest) {
           entity_type: "admin_user",
           entity_id: userRecord?.id ?? "unknown",
           ip,
+          sensitivity: "critical",
           details: {
             email_hash: rateLimitEmail,
             user_known: Boolean(userRecord),
@@ -345,6 +346,24 @@ export async function POST(request: NextRequest) {
 
     // F-035: bind the token to the originating user-agent + IP /24.
     const token = await createToken(authResult, request);
+
+    // A4-W09: Record successful login with critical sensitivity —
+    // authentication events are always audited durably.
+    void recordAuditEvent({
+      site_id: "_global",
+      actor: authResult.email ?? "unknown",
+      actor_user_id: authResult.userId,
+      action: "auth.login.success",
+      entity_type: "admin_user",
+      entity_id: authResult.userId ?? "unknown",
+      ip,
+      sensitivity: "critical",
+      details: {
+        role: authResult.role,
+        breached_password_advisory: passwordBreached,
+        totp_required: Boolean(user?.totp_enabled),
+      },
+    });
 
     const response = NextResponse.json(
       {

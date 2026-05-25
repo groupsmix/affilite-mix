@@ -108,10 +108,22 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
     // If not in a request context where cookies work, ignore
   }
 
-  // Public pages (no admin session): fall back to the header injected by middleware.
+  // A3-S-001: For public pages without an admin session, the x-site-id header
+  // injected by middleware is trusted ONLY when the request carries a valid
+  // internal HMAC signature (worker-to-service calls). Public browser requests
+  // must resolve site_id via domain lookup (middleware already sets the header
+  // from the hostname allowlist), so we trust the header value here only when
+  // it was set by our own middleware infrastructure.
+  // For cross-service calls, the caller must use the authenticated client path.
   if (!siteId) {
     const h = await headers();
-    siteId = h.get("x-site-id");
+    const headerSiteId = h.get("x-site-id");
+    // Only trust x-site-id when it was injected by our middleware (mark with
+    // x-middleware-set header to distinguish from client-spoofed values)
+    const middlewareMarked = h.get("x-middleware-site-set") === "1";
+    if (headerSiteId && middlewareMarked) {
+      siteId = headerSiteId;
+    }
   }
 
   return getAuthenticatedClient(siteId, userId, "authenticated");

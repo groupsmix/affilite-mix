@@ -10,6 +10,24 @@ export interface AuditEvent {
   entity_id: string;
   details?: Record<string, unknown>;
   ip?: string;
+  /**
+   * A61-A85: Classification of the data sensitivity handled in this action.
+   * Values: "low", "medium", "high", "critical"
+   */
+  sensitivity?: "low" | "medium" | "high" | "critical";
+}
+
+/** Options for recordAuditEvent to control durability guarantees. */
+export interface AuditOptions {
+  /**
+   * When true, the audit write is awaited and failures are thrown.
+   * Use for critical actions (password changes, role escalation,
+   * privacy restriction) where the audit trail must be durable.
+   * Default: false (fire-and-forget for non-critical actions).
+   */
+  awaitDurable?: boolean;
+  /** Override the default DAL client getter. */
+  getClient?: DalClientGetter;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,13 +106,17 @@ async function writeToDlq(event: AuditEvent): Promise<void> {
  *   3. R2 NDJSON dead-letter (`AUDIT_DLQ_BUCKET`) -- cold storage for replay.
  *   4. Analytics Engine counter -- metric-only breadcrumb.
  *
- * Critical callers (e.g. password change, role escalation) should `await`
- * this function. Non-critical callers may fire-and-forget.
+ * Critical callers (e.g. password change, role escalation, privacy restriction)
+ * should set `awaitDurable: true` so the audit write blocks and failures throw.
+ * Non-critical callers may omit the option (fire-and-forget).
  */
 export async function recordAuditEvent(
   event: AuditEvent,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  options?: AuditOptions,
 ): Promise<void> {
+  const getClient = options?.getClient ?? defaultDalClientGetter;
+  const awaitDurable = options?.awaitDurable ?? false;
+
   // ── Path 1: Queue-backed write (preferred) ──────────────────────
   const queue = getAuditQueue();
   if (queue) {
@@ -118,6 +140,8 @@ export async function recordAuditEvent(
     entity_id: event.entity_id,
     details: event.details ?? {},
     ip: event.ip ?? null,
+    // A61-A85: Store sensitivity classification for compliance reporting
+    sensitivity: event.sensitivity ?? "low",
   };
 
   const sb = await getClient();
@@ -147,6 +171,14 @@ export async function recordAuditEvent(
         }
       } catch {
         // Silently ignore if Analytics Engine is not bound
+      }
+
+      // A4-W09: For critical actions, a failed audit write is a hard failure
+      if (awaitDurable) {
+        throw new Error(
+          `Audit write failed for critical action '${event.action}' on ${event.entity_type}:${event.entity_id}. ` +
+            `The operation completed but the audit trail is not durable. Retry required.`,
+        );
       }
     }
   }

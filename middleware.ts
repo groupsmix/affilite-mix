@@ -254,6 +254,19 @@ async function innerMiddleware(request: NextRequest) {
   // "closed". Must be exact "1" — keep it inert on any other value.
   const hostWithoutPort = hostname.includes(":") ? hostname.split(":")[0] : hostname;
   const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
+  // A2-002: In production, ALLOW_LOCALHOST_FALLBACK_IN_PROD is an explicit
+  // opt-in for CI/testing only. Emit a loud warning so operators know this
+  // bypass is active. Never set this in real production deployments.
+  if (process.env.NODE_ENV === "production" && allowLocalhostInProd) {
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        metric: "ALLOW_LOCALHOST_FALLBACK_IN_PROD_active",
+        msg: "SECURITY WARNING: ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 in production — localhost fallback is enabled. Remove this flag for production deployments.",
+        host: hostWithoutPort,
+      }),
+    );
+  }
   const isLocalhostDev =
     (process.env.NODE_ENV !== "production" || allowLocalhostInProd) &&
     (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost"));
@@ -479,8 +492,11 @@ async function innerMiddleware(request: NextRequest) {
   // ── Inject x-site-id and trace-id headers into request ──
   // siteId is guaranteed non-null at this point: the `if (!siteId)` guard
   // above returns `nicheNotFoundResponse(request)` for the falsy case.
+  // A3-S-001: Set x-middleware-site-set to mark this header as trusted
+  // (injected by our own middleware, not spoofed by the client).
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-site-id", siteId);
+  requestHeaders.set("x-middleware-site-set", "1");
   requestHeaders.set(TRACE_ID_HEADER, traceId);
 
   // ── CSP nonce generation (H-10) ─────────────────────
