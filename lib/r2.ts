@@ -508,7 +508,11 @@ export async function headStagingObject(stagingKey: string): Promise<number | nu
     secretAccessKey: env.secretAccessKey,
     region: "auto",
   });
-  const res = await fetchWithTimeout(signed.url, { method: "HEAD", headers: signed.headers, timeoutMs: 15000 });
+  const res = await fetchWithTimeout(signed.url, {
+    method: "HEAD",
+    headers: signed.headers,
+    timeoutMs: 15000,
+  });
   if (!res.ok) return null;
   const len = res.headers.get("content-length");
   if (!len) return null;
@@ -590,7 +594,11 @@ async function deleteFromBucket(bucket: string, key: string): Promise<void> {
     secretAccessKey: env.secretAccessKey,
     region: "auto",
   });
-  const res = await fetchWithTimeout(signed.url, { method: "DELETE", headers: signed.headers, timeoutMs: 15000 });
+  const res = await fetchWithTimeout(signed.url, {
+    method: "DELETE",
+    headers: signed.headers,
+    timeoutMs: 15000,
+  });
   if (!res.ok && res.status !== 204 && res.status !== 404) {
     throw new Error(`R2 delete failed: ${res.status}`);
   }
