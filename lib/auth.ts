@@ -37,11 +37,31 @@ const JWT_MAX_FUTURE_SKEW_S = 30;
  * This is a bcrypt hash of a random string that is never used as a real
  * password; it exists purely to produce a bcrypt-verification workload of
  * the same order of magnitude as a normal login.
+ *
+ * A6-006: The cost factor is injected at build time from the same source as
+ * lib/password.ts (BCRYPT_ROUNDS = 10). If the two values drift, timing
+ * differences reappear. We generate the hash prefix dynamically so the cost
+ * always matches.
  */
-// G-50: cost-10 bcrypt hash of a random throwaway string. Kept in sync with
-// BCRYPT_ROUNDS in lib/password.ts so dummy-hash verify work matches real
-// login work (timing equalization).
-const DUMMY_PASSWORD_HASH = "$2b$10$FIQMYsgSk2SAqMvHOeYvCeFGj1FfTGeQC3aghyI97o73Xda0uV4x2";
+function buildDummyHashPrefix(): string {
+  // Import bcrypt at runtime to read the configured cost factor
+  const rounds = process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 10;
+  if (!Number.isFinite(rounds) || rounds < 4 || rounds > 31) {
+    // Defensive: invalid cost → fall back to the known-safe default
+    return "$2b$10$";
+  }
+  // bcrypt encodes cost as a zero-padded 2-digit decimal between $2b$ and $
+  return `$2b$${String(rounds).padStart(2, "0")}$`;
+}
+
+// A6-006: Hash suffix — a known-random fragment that is never a valid password.
+// The full hash is only used for timing equalization; verification always fails.
+const DUMMY_HASH_SUFFIX = "FIQMYsgSk2SAqMvHOeYvCeFGj1FfTGeQC3aghyI97o73Xda0uV4x2";
+
+/** A6-006: Lazily assembled dummy hash so the cost factor always matches BCRYPT_ROUNDS. */
+function getDummyPasswordHash(): string {
+  return `${buildDummyHashPrefix()}${DUMMY_HASH_SUFFIX}`;
+}
 
 // ---------------------------------------------------------------------------
 // G-15: HMAC-signed activity timestamps
@@ -147,7 +167,7 @@ export async function authenticateUser(
   // the email is missing or the user is not found, so the total time spent
   // hashing does not leak whether an account exists for the given email.
   const user = email ? await getAdminUserByEmail(email) : null;
-  const hashToCheck = user?.password_hash ?? DUMMY_PASSWORD_HASH;
+  const hashToCheck = user?.password_hash ?? getDummyPasswordHash();
 
   const { valid, needsRehash } = await verifyPassword(password, hashToCheck);
 

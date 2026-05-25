@@ -112,12 +112,23 @@ export async function POST(request: Request) {
       const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? fallbackFromEmail;
       // Locale-aware email body so Arabic-language tenants receive
       // translated, RTL-marked content (G-24).
+      // A5-002: safeHref validation happens inside buildPasswordResetEmail
       const emailPayload = buildPasswordResetEmail({
         resetUrl,
         siteName: site.name,
         language: site.language,
         direction: site.direction,
       });
+      // A5-002: safeHref rejected the URL — this should never happen for a
+      // domain-built URL, but if it does we must not send a malformed email.
+      if (emailPayload === null) {
+        // A8-001: Never log URLs that contain tokens
+        captureException(new Error("buildPasswordResetEmail: safeHref rejected reset URL"), {
+          context: "[api/auth/forgot-password] reset URL failed safeHref validation",
+          extra: { domain: site.domain },
+        });
+        return successResponse;
+      }
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {

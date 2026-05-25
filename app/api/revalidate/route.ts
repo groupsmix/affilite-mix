@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       .overrideTypes<{ id: string }[]>();
     if (error) {
       captureException(error, { context: "[api/revalidate] Failed to list active sites:" });
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to list active sites" }, { status: 500 });
     }
     siteIds = (sites ?? []).map((s) => s.id);
     logger.info("[api/revalidate] All-sites revalidation executed", {
