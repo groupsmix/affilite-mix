@@ -555,6 +555,8 @@ jobs:
   # ── E2E test gate (A86) ────────────────────────────────────────────
   # Playwright E2E tests across Chromium, Firefox, and WebKit.
   # A87: Do not rely on retries to mask flake — each test must pass cleanly.
+  # playwright.config.ts requires E2E_BASE_URL when CI=true; we build the
+  # Next.js app and start it locally so the tests have a live server.
   e2e:
     name: E2E tests
     runs-on: ubuntu-latest
@@ -565,12 +567,33 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build Next.js for E2E
+        run: npm run build
+        env:
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+      - name: Start Next.js server
+        run: npm run start &
+        env:
+          PORT: 3000
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          JWT_SECRET: ci-test-secret
+          INTERNAL_API_TOKEN: ci-test-internal-token
+          CRON_SECRET: ci-test-cron-secret
+      - name: Wait for server to be ready
+        run: npx wait-on http://localhost:3000 --timeout 60000
       - name: Install Playwright browsers
         run: npx playwright install chromium firefox webkit
       - name: Run E2E tests (all browsers)
         run: npm run test:e2e
         env:
           CI: true
+          E2E_BASE_URL: http://localhost:3000
           # A87: Zero retries in CI — flake must be fixed, not retried
           PLAYWRIGHT_RETRIES: "0"
 
