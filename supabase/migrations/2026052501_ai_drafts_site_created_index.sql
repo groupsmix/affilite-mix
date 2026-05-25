@@ -36,18 +36,10 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_ai_drafts_site_status_created
 -- If this index creation fails due to existing duplicates, run:
 --   SELECT site_id, slug, COUNT(*) FROM ai_drafts GROUP BY site_id, slug HAVING COUNT(*) > 1;
 -- Then deduplicate before re-running this migration.
-DO $$
-BEGIN
-  -- Only add the constraint if there are no duplicates
-  IF NOT EXISTS (
-    SELECT 1 FROM ai_drafts
-    GROUP BY site_id, slug
-    HAVING COUNT(*) > 1
-    LIMIT 1
-  ) THEN
-    CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_ai_drafts_site_slug_unique
-      ON ai_drafts (site_id, slug);
-  ELSE
-    RAISE NOTICE 'Cannot create unique index: duplicate (site_id, slug) pairs exist. Clean duplicates first.';
-  END IF;
-END $$;
+--
+-- IMPORTANT: CREATE INDEX CONCURRENTLY cannot run inside a transaction block
+-- (including DO $$ blocks). Duplicate-guarding is handled by IF NOT EXISTS —
+-- if duplicates exist this statement will fail loudly, which is correct
+-- fail-closed behavior. Check for duplicates before running if concerned.
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_ai_drafts_site_slug_unique
+  ON ai_drafts (site_id, slug);

@@ -5,6 +5,7 @@ import {
   createAIDraft,
   updateAIDraft,
   deleteAIDraft,
+  getAIDraftById,
   isValidUUID,
   publishAIDraftTransactional,
 } from "@/lib/dal/ai-drafts";
@@ -43,7 +44,7 @@ const AI_GENERATE_RATE_LIMIT = {
 /** AUDIT-FIX A9-003: Schema validation for AI generation input.
  *  Returns { valid: false, error: string } or { valid: true, sanitized }.
  */
-function validateGenerateInput(body: Record<string, unknown>):
+export function validateGenerateInput(body: Record<string, unknown>):
   | { valid: false; error: string }
   | {
       valid: true;
@@ -322,12 +323,13 @@ export const PATCH = withAuthz(
           details: { contentId: publishResult.contentId },
         });
 
-        // Return the updated draft
-        const { listAIDrafts: listOne } = await import("@/lib/dal/ai-drafts");
-        const updated = await listOne({ siteId, status: undefined, limit: 1 });
+        // A5-002: Fetch the specific just-published draft by id, not "most recent"
+        const publishedDraft = await getAIDraftById(siteId, id);
+        if (!publishedDraft) {
+          return NextResponse.json({ error: "Draft not found after publish" }, { status: 404 });
+        }
         return NextResponse.json({
-          ...updated[0],
-          status: "published" as const,
+          ...publishedDraft,
           _publishedContentId: publishResult.contentId,
         });
       }

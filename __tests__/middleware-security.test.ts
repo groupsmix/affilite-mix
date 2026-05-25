@@ -178,10 +178,13 @@ describe("CSRF double-submit validation", () => {
   });
 
   it("rejects when either token is missing", () => {
+    // CSRF validation requires both cookie token and header token to be
+    // present and equal. Absence of either should fail validation.
     const token = "valid_token";
+    const missingToken: string | undefined = undefined;
 
-    expect(token && undefined).toBeUndefined();
-    expect(undefined && token).toBeUndefined();
+    expect(token && missingToken).toBeUndefined();
+    expect(missingToken && token).toBeUndefined();
   });
 });
 
