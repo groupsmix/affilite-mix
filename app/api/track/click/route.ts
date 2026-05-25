@@ -342,9 +342,10 @@ export async function GET(request: NextRequest) {
   // are trusted top-level user actions.
   const trustedNavigation =
     secFetchSite === "none" || secFetchSite === "same-origin" || secFetchSite === "same-site";
-  // Skip analytics for image/prefetch/embed sub-resource requests even if
-  // they somehow arrive with a trusted site value.
-  const skipAnalytics = !trustedNavigation || secFetchDest === "image";
+  // Skip analytics for any non-document sub-resource request even if it
+  // somehow arrives with a trusted site value.
+  const skipAnalytics =
+    !trustedNavigation || (secFetchDest !== null && secFetchDest !== "document");
   return handleClick(request, { skipAnalytics });
 }
 
