@@ -132,14 +132,16 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      # A34: Pin the Socket.dev CLI version for reproducibility.
+      # Update via Renovate/Dependabot after reviewing the changelog.
       - name: Socket Security scan
-        run: npx --yes @socketsecurity/cli@latest scan --strict
+        run: npx --yes @socketsecurity/cli@3.2.0 scan --strict
         env:
           SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
-        # Continue on error if the API key is not configured (unblocks forks).
-        # The job still surfaces the output; set SOCKET_SECURITY_API_KEY secret
-        # in repo Settings → Secrets to enforce blocking mode.
-        continue-on-error: ${{ secrets.SOCKET_SECURITY_API_KEY == '' || secrets.SOCKET_SECURITY_API_KEY == null }}
+        # A34: Fail on protected branches (main) when API key is missing.
+        # Forks and feature branches are allowed to skip for contributor
+        # convenience, but the main branch must have the key configured.
+        continue-on-error: ${{ github.ref != 'refs/heads/main' && (secrets.SOCKET_SECURITY_API_KEY == '' || secrets.SOCKET_SECURITY_API_KEY == null) }}
 
   codeql:
     name: CodeQL SAST

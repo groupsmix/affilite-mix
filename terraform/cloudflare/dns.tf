@@ -54,11 +54,13 @@ variable "worker_custom_domains" {
 
 variable "dns_records" {
   type = map(object({
-    name     = string
-    type     = string
-    content  = string
-    ttl      = optional(number, 1) # 1 = automatic
-    proxied  = optional(bool, false)
+    name    = string
+    type    = string
+    content = string
+    ttl     = optional(number, 1) # 1 = automatic
+    # A39: Default to proxied=true for public web records.
+    # Any record with proxied=false must include an exception comment.
+    proxied  = optional(bool, true)
     comment  = optional(string)
     priority = optional(number)
   }))
@@ -74,58 +76,72 @@ variable "dns_records" {
     # ── A144: Email authentication ─────────────────────────────────────
     # SPF: authorise Resend as the only legitimate sender (~all = softfail,
     # tighten to -all after ≥30 days of clean DMARC aggregate reports).
+    # A39: proxied=false required — TXT records for email auth must not
+    # be proxied or they will not be visible to receiving MTAs.
     "spf" = {
       name    = "@"
       type    = "TXT"
       content = "v=spf1 include:_spf.resend.com ~all"
       ttl     = 300
-      comment = "A144: SPF — authorises Resend. Tighten to -all after DMARC monitoring."
+      proxied = false
+      comment = "A144/A39: SPF — authorises Resend. Tighten to -all after DMARC monitoring. DNS-only (unproxied) by design."
     }
 
     # DMARC: p=reject, 100% coverage, strict alignment, aggregate + forensic reports.
     # Replace zone_domain placeholder with your actual domain in tfvars.
+    # A39: proxied=false required — DMARC records must be DNS-visible.
     "dmarc" = {
       name    = "_dmarc"
       type    = "TXT"
       content = "v=DMARC1; p=reject; sp=reject; pct=100; adkim=s; aspf=s; fo=1"
       ttl     = 300
-      comment = "A144: DMARC p=reject, 100% coverage. Add rua/ruf mailto: in tfvars."
+      proxied = false
+      comment = "A144/A39: DMARC p=reject, 100% coverage. Add rua/ruf mailto: in tfvars. DNS-only (unproxied) by design."
     }
 
     # ── A145: DNS hardening ────────────────────────────────────────────
     # CAA: only Let's Encrypt may issue certificates for this zone.
+    # A39: proxied=false required — CAA records must be DNS-visible for
+    # certificate authorities to read them.
     "caa-issue" = {
       name    = "@"
       type    = "CAA"
       content = "0 issue \"letsencrypt.org\""
       ttl     = 3600
-      comment = "A145: CAA — restrict cert issuance to Let's Encrypt."
+      proxied = false
+      comment = "A145/A39: CAA — restrict cert issuance to Let's Encrypt. DNS-only (unproxied) by design."
     }
 
+    # A39: proxied=false required — CAA records must be DNS-visible.
     "caa-issuewild" = {
       name    = "@"
       type    = "CAA"
       content = "0 issuewild \";\""
       ttl     = 3600
-      comment = "A145: CAA — block wildcard cert issuance from all CAs."
+      proxied = false
+      comment = "A145/A39: CAA — block wildcard cert issuance from all CAs. DNS-only (unproxied) by design."
     }
 
     # MTA-STS discovery record — id= must change whenever the policy changes.
+    # A39: proxied=false required — MTA-STS TXT records must be DNS-visible.
     "mta-sts" = {
       name    = "_mta-sts"
       type    = "TXT"
       content = "v=STSv1; id=20260515000000;"
       ttl     = 300
-      comment = "A145: MTA-STS discovery. Update id= after every policy change."
+      proxied = false
+      comment = "A145/A39: MTA-STS discovery. Update id= after every policy change. DNS-only (unproxied) by design."
     }
 
     # TLS-RPT: receive JSON reports when a sending MTA cannot establish TLS.
+    # A39: proxied=false required — TLS-RPT records must be DNS-visible.
     "tls-rpt" = {
       name    = "_smtp._tls"
       type    = "TXT"
       content = "v=TLSRPTv1; rua=mailto:tls-reports@wristnerd.xyz"
       ttl     = 300
-      comment = "A145: TLS-RPT — SMTP TLS failure reporting."
+      proxied = false
+      comment = "A145/A39: TLS-RPT — SMTP TLS failure reporting. DNS-only (unproxied) by design."
     }
   }
 }
