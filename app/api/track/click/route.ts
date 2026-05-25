@@ -145,18 +145,30 @@ async function handleClick(request: NextRequest) {
           cachedData = null;
         }
         if (cachedData?._hmac) {
-          const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
-          const expectedHmac = await computeHmac(hmacKey || "", "cache", "cache", bodyForHmac);
-          cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
-          if (!cacheHmacValid) {
+          // A3-T-001: Fail closed — reject signed cache entries when HMAC key is missing in production
+          if (!hmacKey && process.env.NODE_ENV === "production") {
             console.error(
               JSON.stringify({
-                metric: "affiliate_cache_hmac_mismatch",
+                metric: "affiliate_cache_hmac_key_missing",
                 cacheKey,
-                msg: "KV-cached affiliate URL failed HMAC check — possible cache poisoning",
+                msg: "Signed cache entry rejected: CLICK_CACHE_HMAC_KEY missing in production",
               }),
             );
             cachedData = null;
+          } else if (hmacKey) {
+            const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
+            const expectedHmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
+            cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
+            if (!cacheHmacValid) {
+              console.error(
+                JSON.stringify({
+                  metric: "affiliate_cache_hmac_mismatch",
+                  cacheKey,
+                  msg: "KV-cached affiliate URL failed HMAC check — possible cache poisoning",
+                }),
+              );
+              cachedData = null;
+            }
           }
         }
       }
@@ -174,6 +186,10 @@ async function handleClick(request: NextRequest) {
       const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
       let hmacSigned = false;
       try {
+        // A3-T-001: Reject signing with empty HMAC key in production
+        if (!hmacKey && process.env.NODE_ENV === "production") {
+          throw new Error("CLICK_CACHE_HMAC_KEY missing in production — refusing to cache unsigned affiliate payload");
+        }
         cachedData._hmac = await computeHmac(hmacKey || "", "cache", "cache", bodyForHmac);
         hmacSigned = true;
       } catch (hmacErr) {

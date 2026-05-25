@@ -29,7 +29,7 @@ describe("Chaos: graceful degradation", () => {
           entity_type: "test",
           entity_id: "1",
         },
-        () => Promise.resolve(failClient as any),
+        { getClient: () => Promise.resolve(failClient as any) },
       ),
     ).resolves.not.toThrow();
   });
