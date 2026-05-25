@@ -7,6 +7,7 @@
  *  3. Sec-Fetch-Site: none (direct/email nav) → redirect + publishClick called.
  *  4. Sec-Fetch-Site: same-origin → redirect + publishClick called.
  *  5. Sec-Fetch-Dest: image (even with trusted site) → publishClick NOT called.
+ *  6. Sec-Fetch-Dest: empty (even with trusted site) → publishClick NOT called.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -143,6 +144,17 @@ describe("GET /api/track/click — Sec-Fetch analytics security (A3-002)", () =>
     const req = makeGetRequest({
       "sec-fetch-site": "same-origin",
       "sec-fetch-dest": "image",
+    });
+    const res = await GET(req);
+
+    expect(res.status).toBe(302);
+    expect(mockPublishClick).not.toHaveBeenCalled();
+  });
+
+  it("redirects but does NOT call publishClick when Sec-Fetch-Dest is empty (even if site is same-origin)", async () => {
+    const req = makeGetRequest({
+      "sec-fetch-site": "same-origin",
+      "sec-fetch-dest": "empty",
     });
     const res = await GET(req);
 

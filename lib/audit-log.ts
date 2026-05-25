@@ -31,17 +31,14 @@ const AUDIT_DETAIL_ALLOWLIST: Record<string, string[]> = {
     "cta_text",
     "deal_text",
     "deal_expires_at",
-    // Change-tracking metadata
     "field",
-    "oldValue",
-    "newValue",
   ],
   // Content fields
-  content: ["title", "slug", "status", "publish_at", "field", "oldValue", "newValue"],
+  content: ["title", "slug", "status", "publish_at", "field"],
   // Page fields
-  page: ["title", "slug", "status", "field", "oldValue", "newValue"],
+  page: ["title", "slug", "status", "field"],
   // Category fields
-  category: ["name", "slug", "status", "field", "oldValue", "newValue"],
+  category: ["name", "slug", "status", "field"],
   // Upload fields
   upload: ["contentType", "fileSize"],
   // Auth events
@@ -67,6 +64,11 @@ function redactAuditDetails(
   const redacted: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in details) redacted[key] = details[key];
+  }
+  const changedField = details.field;
+  if (typeof changedField === "string" && allowed.includes(changedField)) {
+    if ("oldValue" in details) redacted.oldValue = details.oldValue;
+    if ("newValue" in details) redacted.newValue = details.newValue;
   }
   return redacted;
 }
