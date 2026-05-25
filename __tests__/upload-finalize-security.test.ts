@@ -49,8 +49,7 @@ describe("Upload finalize staging key validation (A8-002)", () => {
   });
 
   it("rejects non-matching extensions", () => {
-    const svgKey =
-      "uploads/2024/01/15/550e8400-e29b-41d4-a716-446655440000.svg";
+    const svgKey = "uploads/2024/01/15/550e8400-e29b-41d4-a716-446655440000.svg";
     expect(STAGING_KEY_REGEX.test(svgKey)).toBe(false);
   });
 
@@ -80,9 +79,7 @@ describe("Magic-byte validation (A8-002)", () => {
   });
 
   it("validates PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A", () => {
-    const pngBytes = new Uint8Array([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-    ]);
+    const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
     expect(pngBytes[0]).toBe(0x89);
     expect(pngBytes[1]).toBe(0x50);
     expect(pngBytes[2]).toBe(0x4e);
@@ -105,8 +102,7 @@ describe("Magic-byte validation (A8-002)", () => {
 
   it("validates WebP magic bytes: RIFF....WEBP", () => {
     const webpBytes = new Uint8Array([
-      0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00,
-      0x57, 0x45, 0x42, 0x50,
+      0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
     ]);
     expect(webpBytes[0]).toBe(0x52); // 'R'
     expect(webpBytes[1]).toBe(0x49); // 'I'
@@ -120,8 +116,7 @@ describe("Magic-byte validation (A8-002)", () => {
 
   it("validates AVIF magic bytes: ftypavif", () => {
     const avifBytes = new Uint8Array([
-      0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70,
-      0x61, 0x76, 0x69, 0x66,
+      0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66,
     ]);
     expect(avifBytes[4]).toBe(0x66); // 'f'
     expect(avifBytes[5]).toBe(0x74); // 't'
@@ -135,9 +130,9 @@ describe("Magic-byte validation (A8-002)", () => {
 
   it("rejects SVG prefix: <?xml or <svg", () => {
     const svgPrefixes = [
-      "<?xml version=\"1.0\"?>",
-      "<svg xmlns=\"http://www.w3.org/2000/svg\">",
-      "<SVG height=\"100\">",
+      '<?xml version="1.0"?>',
+      '<svg xmlns="http://www.w3.org/2000/svg">',
+      '<SVG height="100">',
     ];
 
     for (const prefix of svgPrefixes) {
