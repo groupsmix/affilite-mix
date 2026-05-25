@@ -205,7 +205,14 @@ export interface Database {
           image_alt: string;
           pros: string;
           cons: string;
-          price: string;
+          /**
+           * @deprecated Column was renamed to `price_label` in migration 00089.
+           * This alias is kept in types only while app code is migrated.
+           * The DB column no longer exists. See lib/dal/products.ts LIST_COLUMNS.
+           */
+          price?: string;
+          /** Migration 00089: display price label (renamed from `price`). */
+          price_label: string;
           price_amount: number | null;
           price_currency: string;
           merchant: string;
@@ -218,6 +225,8 @@ export interface Database {
           deal_expires_at: string | null;
           created_at: string;
           updated_at: string;
+          /** Migration 2026052302: optimistic-locking version (ISO18-001). */
+          version: number;
         };
         Insert: {
           id?: string;
@@ -230,7 +239,9 @@ export interface Database {
           image_alt?: string;
           pros?: string;
           cons?: string;
+          /** @deprecated Use `price_label`. DB column was renamed in migration 00089. */
           price?: string;
+          price_label?: string;
           price_amount?: number | null;
           price_currency?: string;
           merchant?: string;
@@ -243,6 +254,7 @@ export interface Database {
           deal_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          version?: number;
         };
         Update: {
           id?: string;
@@ -255,7 +267,9 @@ export interface Database {
           image_alt?: string;
           pros?: string;
           cons?: string;
+          /** @deprecated Use `price_label`. DB column was renamed in migration 00089. */
           price?: string;
+          price_label?: string;
           price_amount?: number | null;
           price_currency?: string;
           merchant?: string;
@@ -268,6 +282,7 @@ export interface Database {
           deal_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          version?: number;
         };
         Relationships: [
           {
@@ -467,6 +482,8 @@ export interface Database {
           // (fingerprint).
           ip_prefix: string | null;
           fingerprint: string | null;
+          /** Migration 00097 (A158): true when the click originated from a logged-in admin. */
+          is_internal: boolean | null;
         };
         Insert: {
           id?: string;
@@ -479,6 +496,7 @@ export interface Database {
           created_at?: string;
           ip_prefix?: string | null;
           fingerprint?: string | null;
+          is_internal?: boolean | null;
         };
         Update: {
           id?: string;
@@ -491,6 +509,7 @@ export interface Database {
           created_at?: string;
           ip_prefix?: string | null;
           fingerprint?: string | null;
+          is_internal?: boolean | null;
         };
         Relationships: [
           {
@@ -578,6 +597,10 @@ export interface Database {
           totp_verified_at: string | null;
           totp_failed_attempts: number;
           totp_locked_until: string | null;
+          /** Migration 00096 (A208/T1531): brute-force lockout counter. */
+          login_failed_attempts: number;
+          /** Migration 00096 (A208/T1531): account locked until this timestamp. */
+          login_locked_until: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -595,6 +618,8 @@ export interface Database {
           totp_verified_at?: string | null;
           totp_failed_attempts?: number;
           totp_locked_until?: string | null;
+          login_failed_attempts?: number;
+          login_locked_until?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -612,6 +637,8 @@ export interface Database {
           totp_verified_at?: string | null;
           totp_failed_attempts?: number;
           totp_locked_until?: string | null;
+          login_failed_attempts?: number;
+          login_locked_until?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2223,16 +2250,20 @@ export interface Database {
           stripe_event_id: string;
           event_type: string;
           received_at: string;
+          /** Migration 00081 (S-06): server-side insert timestamp. */
+          created_at: string;
         };
         Insert: {
           stripe_event_id: string;
           event_type: string;
           received_at?: string;
+          created_at?: string;
         };
         Update: {
           stripe_event_id?: string;
           event_type?: string;
           received_at?: string;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -2255,6 +2286,354 @@ export interface Database {
           payload?: Record<string, unknown>;
           error_message?: string | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+
+      subject_restrictions: {
+        Row: {
+          id: string;
+          site_id: string;
+          email: string;
+          restricted_at: string;
+          reason: string | null;
+          lifted_at: string | null;
+          created_by: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          email: string;
+          restricted_at?: string;
+          reason?: string | null;
+          lifted_at?: string | null;
+          created_by: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          email?: string;
+          restricted_at?: string;
+          reason?: string | null;
+          lifted_at?: string | null;
+          created_by?: string;
+        };
+        Relationships: [];
+      };
+
+      cron_state: {
+        Row: {
+          job_name: string;
+          last_processed_at: string | null;
+          last_id: string | null;
+          cursor: Record<string, unknown>;
+          updated_at: string;
+        };
+        Insert: {
+          job_name: string;
+          last_processed_at?: string | null;
+          last_id?: string | null;
+          cursor?: Record<string, unknown>;
+          updated_at?: string;
+        };
+        Update: {
+          job_name?: string;
+          last_processed_at?: string | null;
+          last_id?: string | null;
+          cursor?: Record<string, unknown>;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+
+      consent_log: {
+        Row: {
+          id: number;
+          site_id: string;
+          subject_id: string | null;
+          categories: string[];
+          banner_version: string;
+          gpc: boolean;
+          ua_hash: string;
+          ip_truncated: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          site_id: string;
+          subject_id?: string | null;
+          categories: string[];
+          banner_version: string;
+          gpc?: boolean;
+          ua_hash: string;
+          ip_truncated: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          site_id?: string;
+          subject_id?: string | null;
+          categories?: string[];
+          banner_version?: string;
+          gpc?: boolean;
+          ua_hash?: string;
+          ip_truncated?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+
+      webhook_dlq: {
+        Row: {
+          id: string;
+          event_id: string;
+          event_type: string;
+          payload: Record<string, unknown>;
+          error_message: string | null;
+          attempts: number;
+          status: string;
+          created_at: string;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          event_type: string;
+          payload: Record<string, unknown>;
+          error_message?: string | null;
+          attempts?: number;
+          status?: string;
+          created_at?: string;
+          resolved_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          event_type?: string;
+          payload?: Record<string, unknown>;
+          error_message?: string | null;
+          attempts?: number;
+          status?: string;
+          created_at?: string;
+          resolved_at?: string | null;
+        };
+        Relationships: [];
+      };
+
+      stripe_event_failures: {
+        Row: {
+          id: string;
+          event_id: string;
+          event_type: string;
+          payload: Record<string, unknown>;
+          error_message: string | null;
+          attempts: number;
+          created_at: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          event_type: string;
+          payload?: Record<string, unknown>;
+          error_message?: string | null;
+          attempts?: number;
+          created_at?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          event_type?: string;
+          payload?: Record<string, unknown>;
+          error_message?: string | null;
+          attempts?: number;
+          created_at?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Relationships: [];
+      };
+    };
+
+      /** Migration 00084 (S-09): internal migration tracking table. Service-role only. */
+      _migrations_applied: {
+        Row: Record<string, unknown>;
+        Insert: Record<string, unknown>;
+        Update: Record<string, unknown>;
+        Relationships: [];
+      };
+
+      /** Migration 2026050106 (OF-04): server-side consent proof records. */
+      consent_log: {
+        Row: {
+          id: number;
+          site_id: string;
+          subject_id: string | null;
+          categories: string[];
+          banner_version: string;
+          gpc: boolean;
+          ua_hash: string;
+          ip_truncated: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          site_id: string;
+          subject_id?: string | null;
+          categories: string[];
+          banner_version: string;
+          gpc?: boolean;
+          ua_hash: string;
+          ip_truncated: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          site_id?: string;
+          subject_id?: string | null;
+          categories?: string[];
+          banner_version?: string;
+          gpc?: boolean;
+          ua_hash?: string;
+          ip_truncated?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+
+      /** Migration 2026050104 (OF-16): unified cron checkpoint table. */
+      cron_state: {
+        Row: {
+          job_name: string;
+          last_processed_at: string | null;
+          last_id: string | null;
+          cursor: Record<string, unknown>;
+          updated_at: string;
+        };
+        Insert: {
+          job_name: string;
+          last_processed_at?: string | null;
+          last_id?: string | null;
+          cursor?: Record<string, unknown>;
+          updated_at?: string;
+        };
+        Update: {
+          job_name?: string;
+          last_processed_at?: string | null;
+          last_id?: string | null;
+          cursor?: Record<string, unknown>;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+
+      /** Migration 2026052202 (R-03): durable Stripe webhook DLQ. */
+      stripe_event_failures: {
+        Row: {
+          id: string;
+          event_id: string;
+          event_type: string;
+          payload: Record<string, unknown>;
+          error_message: string | null;
+          attempts: number;
+          created_at: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          event_type: string;
+          payload?: Record<string, unknown>;
+          error_message?: string | null;
+          attempts?: number;
+          created_at?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          event_type?: string;
+          payload?: Record<string, unknown>;
+          error_message?: string | null;
+          attempts?: number;
+          created_at?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Relationships: [];
+      };
+
+      /** Migration 2026050102 (OF-02): GDPR Art. 18 right-to-restriction records. */
+      subject_restrictions: {
+        Row: {
+          id: string;
+          site_id: string;
+          email: string;
+          restricted_at: string;
+          reason: string | null;
+          lifted_at: string | null;
+          created_by: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          email: string;
+          restricted_at?: string;
+          reason?: string | null;
+          lifted_at?: string | null;
+          created_by: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          email?: string;
+          restricted_at?: string;
+          reason?: string | null;
+          lifted_at?: string | null;
+          created_by?: string;
+        };
+        Relationships: [];
+      };
+
+      /** Migration 2026052203 (R2-02): durable Dead Letter Queue for failed webhook events. */
+      webhook_dlq: {
+        Row: {
+          id: string;
+          event_id: string;
+          event_type: string;
+          payload: Record<string, unknown>;
+          error_message: string | null;
+          attempts: number;
+          status: "pending" | "replayed" | "resolved";
+          created_at: string;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          event_type: string;
+          payload: Record<string, unknown>;
+          error_message?: string | null;
+          attempts?: number;
+          status?: "pending" | "replayed" | "resolved";
+          created_at?: string;
+          resolved_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          event_type?: string;
+          payload?: Record<string, unknown>;
+          error_message?: string | null;
+          attempts?: number;
+          status?: "pending" | "replayed" | "resolved";
+          created_at?: string;
+          resolved_at?: string | null;
         };
         Relationships: [];
       };
