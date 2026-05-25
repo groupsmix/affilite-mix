@@ -27,7 +27,7 @@ export function SiteHeader({ site, dbNavItems }: SiteHeaderProps) {
           <ActiveNavLinks nav={nav} />
           <Link
             href="/search"
-            className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
+            className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
             aria-label={site.language === "ar" ? "بحث" : "Search"}
           >
             <svg

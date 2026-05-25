@@ -603,10 +603,12 @@ jobs:
           JWT_SECRET: ci-test-secret
           INTERNAL_API_TOKEN: ci-test-internal-token
           CRON_SECRET: ci-test-cron-secret
+          STRIPE_WEBHOOK_SECRET: whsec_ci_test_placeholder
+          STRIPE_SECRET_KEY: sk_test_ci_placeholder
       - name: Wait for server to be ready
         run: npx wait-on http://localhost:3000 --timeout 60000
       - name: Install Playwright browsers
-        run: npx playwright install chromium firefox webkit
+        run: npx playwright install --with-deps chromium firefox webkit
       - name: Run E2E tests (all browsers)
         run: npm run test:e2e
         env:
@@ -623,6 +625,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build Next.js for load tests
+        run: npm run build
+        env:
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+      - name: Start Next.js server
+        run: npm run start &
+        env:
+          PORT: 3000
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          JWT_SECRET: ci-test-secret
+          INTERNAL_API_TOKEN: ci-test-internal-token
+          CRON_SECRET: ci-test-cron-secret
+      - name: Wait for server to be ready
+        run: npx wait-on http://localhost:3000 --timeout 60000
       - name: Run k6 load tests
         uses: grafana/k6-action@v0.3.1
         with:
