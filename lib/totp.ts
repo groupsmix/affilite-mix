@@ -1,7 +1,11 @@
 import * as OTPAuth from "otpauth";
 
 const ISSUER = "AffiliateMix Admin";
-const ALGORITHM = "SHA256";
+// A61-001: Keep SHA-1 for backwards compatibility with existing enrollments.
+// Existing users' authenticator apps are configured with SHA-1 (encoded in the
+// otpauth:// URI at enrollment time). Changing to SHA-256 here without a
+// migration path would lock out all currently enrolled admin users.
+const ALGORITHM = "SHA1";
 const DIGITS = 6;
 const PERIOD = 30;
 

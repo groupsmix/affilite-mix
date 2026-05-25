@@ -180,7 +180,7 @@ async function resolveCommissions(
             commission_amount: report.commission_amount,
           },
         },
-        () => sb,
+        { getClient: () => sb },
       );
     }
   }
