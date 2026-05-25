@@ -12,6 +12,61 @@ export interface AuditEvent {
   ip?: string;
 }
 
+// A8-005: Schema-based audit redaction allowlist.
+// Fields not in this allowlist are redacted from audit details to prevent
+// PII / secrets from leaking into the audit trail.
+const AUDIT_DETAIL_ALLOWLIST: Record<string, string[]> = {
+  // Product fields that are safe to audit
+  product: [
+    "name",
+    "slug",
+    "status",
+    "category_id",
+    "price",
+    "price_amount",
+    "price_currency",
+    "merchant",
+    "score",
+    "featured",
+    "cta_text",
+    "deal_text",
+    "deal_expires_at",
+  ],
+  // Content fields
+  content: ["title", "slug", "status", "publish_at"],
+  // Page fields
+  page: ["title", "slug", "status"],
+  // Category fields
+  category: ["name", "slug", "status"],
+  // Upload fields
+  upload: ["contentType", "fileSize"],
+  // Auth events
+  admin_user: ["role"],
+};
+
+/** A8-005: Redact sensitive fields from audit details based on an allowlist. */
+function redactAuditDetails(
+  entityType: string,
+  details: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!details) return undefined;
+  const allowed = AUDIT_DETAIL_ALLOWLIST[entityType];
+  // If no allowlist is defined for this entity type, only permit a small
+  // default set of safe fields to prevent accidental PII leakage.
+  if (!allowed) {
+    const defaultSafe: Record<string, unknown> = {};
+    for (const key of ["name", "slug", "status", "id"]) {
+      if (key in details) defaultSafe[key] = details[key];
+    }
+    return defaultSafe;
+  }
+  const redacted: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (key in details) redacted[key] = details[key];
+  }
+  return redacted;
+}
+
 // ---------------------------------------------------------------------------
 // G-06: Queue + DLQ types
 // ---------------------------------------------------------------------------
@@ -109,6 +164,8 @@ export async function recordAuditEvent(
   }
 
   // ── Path 2: Direct Supabase insert with single retry ────────────
+  // A8-005: Redact sensitive fields from audit details before persistence
+  const redactedDetails = redactAuditDetails(event.entity_type, event.details) ?? {};
   const row = {
     site_id: event.site_id,
     actor: event.actor,
@@ -116,7 +173,7 @@ export async function recordAuditEvent(
     action: event.action,
     entity_type: event.entity_type,
     entity_id: event.entity_id,
-    details: event.details ?? {},
+    details: redactedDetails,
     ip: event.ip ?? null,
   };
 

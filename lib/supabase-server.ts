@@ -7,7 +7,35 @@ import { headers, cookies } from "next/headers";
 import { getAdminSession } from "@/lib/auth";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
+import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { authzPrimaryRead } from "@/lib/read-after-write";
+
+// A7-005: HMAC signing/verification for the x-site-id fallback header.
+// Derives a signing key from SUPABASE_JWT_SECRET so no new secret is required.
+const SITE_ID_SIGN_VERSION = "v1";
+
+/** A7-005: Sign the site-id fallback header value for middleware to set. */
+export async function signSiteIdFallback(siteId: string): Promise<string | null> {
+  const secret = process.env.SUPABASE_JWT_SECRET;
+  if (!secret) return null;
+  try {
+    const sig = await computeHmac(secret, "site-id-fallback", SITE_ID_SIGN_VERSION, siteId);
+    return sig;
+  } catch {
+    return null;
+  }
+}
+
+/** A7-005: Verify the HMAC signature on the x-site-id fallback header. */
+async function verifySiteIdSignature(siteId: string, signature: string | null): Promise<boolean> {
+  // If no signature is present, reject the fallback in production.
+  if (!signature) {
+    return process.env.NODE_ENV !== "production";
+  }
+  const expected = await signSiteIdFallback(siteId);
+  if (!expected) return process.env.NODE_ENV !== "production";
+  return timingSafeEqual(signature, expected);
+}
 
 // Environment variables are resolved lazily (inside functions) so that
 // module evaluation during `next build` does not throw when the vars
@@ -113,9 +141,15 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
   }
 
   // Public pages (no admin session): fall back to the header injected by middleware.
+  // A7-005: Verify the x-site-id header is HMAC-signed by middleware to prevent
+  // tenant fixation via a spoofed x-site-id header (when no active-site cookie exists).
   if (!siteId) {
     const h = await headers();
-    siteId = h.get("x-site-id");
+    const rawSiteId = h.get("x-site-id");
+    const siteIdSig = h.get("x-site-id-sig");
+    if (rawSiteId && (await verifySiteIdSignature(rawSiteId, siteIdSig))) {
+      siteId = rawSiteId;
+    }
   }
 
   return getAuthenticatedClient(siteId, userId, "authenticated");

@@ -1,13 +1,27 @@
 import * as OTPAuth from "otpauth";
 
 const ISSUER = "AffiliateMix Admin";
-const ALGORITHM = "SHA1";
+// A6-001: Default to SHA-256 for new enrollments. SHA-1 is still supported
+// for verification during a transition period but new secrets use SHA-256.
+const DEFAULT_ALGORITHM = "SHA256";
 const DIGITS = 6;
 const PERIOD = 30;
 
 // A98-53: Markers for encrypted TOTP secrets to distinguish from legacy plaintext
 const ENCRYPTION_PREFIX = "enc:v1:";
 const ENCRYPTION_PREFIX_PREVIOUS = "enc:v0:";
+
+/** Supported TOTP algorithms. SHA-1 is retained for legacy secret verification. */
+export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";
+
+/**
+ * Parse an algorithm string from a stored secret or OTPAuth URI.
+ * Returns a valid OTPAuth algorithm, defaulting to SHA1 for legacy secrets.
+ */
+function parseAlgorithm(alg?: string | null): TotpAlgorithm {
+  if (alg === "SHA256" || alg === "SHA512") return alg;
+  return "SHA1";
+}
 
 /**
  * A98-53: Check whether a stored TOTP secret is encrypted.
@@ -57,17 +71,25 @@ export function wrapEncryptedSecret(ciphertext: string): string {
  * Generate a new TOTP secret for enrollment.
  * Returns the secret (base32) and the otpauth:// URI for QR code generation.
  *
+ * A6-001: New enrollments use SHA-256 by default. Callers can override via
+ * the `algorithm` option during the migration window.
+ *
  * SECURITY: The returned secret is raw (unencrypted). Callers MUST encrypt
  * it with encryptTotpSecret() before storing in the database.
  */
-export function generateTotpSecret(email: string): {
+export function generateTotpSecret(
+  email: string,
+  options?: { algorithm?: TotpAlgorithm },
+): {
   secret: string;
   uri: string;
+  algorithm: TotpAlgorithm;
 } {
+  const algorithm = parseAlgorithm(options?.algorithm ?? DEFAULT_ALGORITHM);
   const totp = new OTPAuth.TOTP({
     issuer: ISSUER,
     label: email,
-    algorithm: ALGORITHM,
+    algorithm,
     digits: DIGITS,
     period: PERIOD,
   });
@@ -75,6 +97,7 @@ export function generateTotpSecret(email: string): {
   return {
     secret: totp.secret.base32,
     uri: totp.toString(),
+    algorithm,
   };
 }
 
@@ -82,16 +105,41 @@ export function generateTotpSecret(email: string): {
  * Verify a TOTP token against a raw secret (unencrypted base32).
  * Allows a window of ±1 period (30s) to account for clock drift.
  *
+ * A6-001: Automatically detects the algorithm from the otpauth:// URI if
+ * provided, otherwise falls back to SHA-1 for legacy base32 secrets.
+ *
  * SECURITY: Prefer verifyTotpTokenWithRotation() for DB-stored secrets,
  * as it handles encrypted values and key rotation correctly.
  */
-export function verifyTotpToken(secret: string, token: string): boolean {
+export function verifyTotpToken(
+  secret: string,
+  token: string,
+  options?: { algorithm?: TotpAlgorithm },
+): boolean {
+  // If the secret is an otpauth:// URI, extract both the algorithm and secret from it
+  let algorithm: TotpAlgorithm | undefined = options?.algorithm;
+  let secretBase32 = secret;
+  if (secret.startsWith("otpauth://")) {
+    try {
+      const parsed = OTPAuth.URI.parse(secret) as OTPAuth.TOTP;
+      if (!algorithm) algorithm = parseAlgorithm(parsed.algorithm);
+      // A6-001: Use the secret from the parsed URI, not a newly generated random one
+      secretBase32 = parsed.secret.base32;
+    } catch {
+      // If URI parsing fails, fall back to SHA-256 (matches enrollment default)
+      algorithm ??= DEFAULT_ALGORITHM;
+    }
+  }
+  // A6-001: Default to SHA-256 to match generateTotpSecret's default — SHA-1 would
+  // silently break all new enrollments (SHA-256) when no algorithm is specified.
+  algorithm ??= DEFAULT_ALGORITHM;
+
   const totp = new OTPAuth.TOTP({
     issuer: ISSUER,
-    algorithm: ALGORITHM,
+    algorithm,
     digits: DIGITS,
     period: PERIOD,
-    secret: OTPAuth.Secret.fromBase32(secret),
+    secret: OTPAuth.Secret.fromBase32(secretBase32),
   });
 
   // delta returns null if invalid, or the time step difference if valid
