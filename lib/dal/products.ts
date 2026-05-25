@@ -184,6 +184,26 @@ export async function getProductById(
   return rowOrNull<ProductRow>(data);
 }
 
+/** A27-003: Admin-only getter that can see all products regardless of status.
+ * Public-facing code must use getProductById() or getProductBySlugPublic()
+ * which enforce active-product filtering via RLS + explicit status checks. */
+export async function getProductByIdAdmin(
+  siteId: string,
+  id: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ProductRow | null> {
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select(LIST_COLUMNS)
+    .eq("site_id", siteId)
+    .eq("id", id)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return rowOrNull<ProductRow>(data);
+}
+
 export async function getProductBySlug(siteId: string, slug: string): Promise<ProductRow | null> {
   const sb = getAnonClient();
   const { data, error } = await sb

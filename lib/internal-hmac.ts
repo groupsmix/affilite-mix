@@ -24,8 +24,16 @@
 
 import { logger } from "@/lib/logger";
 
-/** Maximum clock skew tolerance in milliseconds (5 minutes). */
+/** Maximum clock skew tolerance in milliseconds (5 minutes).
+ * A28-005: HMAC timestamp validation allows 5-min skew. For JWT refresh,
+ * the auth module has its own handling — keep this conservative for
+ * internal endpoint security. */
 const MAX_TIMESTAMP_SKEW_MS = 5 * 60 * 1000;
+
+/** A28-005: Maximum acceptable future skew — requests "from the future"
+ * are rejected more aggressively than past skew (which could be benign
+ * slow delivery). */
+const MAX_FUTURE_SKEW_MS = 60_000; // 1 minute
 
 /** Header names. */
 export const HMAC_HEADERS = {
@@ -143,6 +151,16 @@ export async function verifyInternalHmac(
   const skew = Math.abs(now - ts);
   if (skew > MAX_TIMESTAMP_SKEW_MS) {
     return { valid: false, reason: `Timestamp skew ${skew}ms exceeds ${MAX_TIMESTAMP_SKEW_MS}ms` };
+  }
+
+  // A28-005: Reject requests "from the future" more aggressively.
+  // A request with ts > now + MAX_FUTURE_SKEW_MS suggests a compromised
+  // sender clock or replay with a forged future timestamp.
+  if (ts > now + MAX_FUTURE_SKEW_MS) {
+    logger.warn("Internal HMAC future timestamp rejected", { 
+      ts, now, future_skew_ms: ts - now 
+    });
+    return { valid: false, reason: `Future timestamp ${ts - now}ms ahead of server clock` };
   }
 
   // 2. Nonce replay check

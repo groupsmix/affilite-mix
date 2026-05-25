@@ -26,6 +26,27 @@ function isNumber(v: unknown): v is number {
   return typeof v === "number" && !Number.isNaN(v);
 }
 
+/** A29-001: Parse a decimal string into a number with scale validation.
+ * Rejects values that would lose precision as JS numbers or exceed DB scale.
+ * Accepts: "9.99", "1000.00", "0.10". Rejects: "9.999" (scale > 2), "not-a-number" */
+function parseDecimalMoney(v: unknown): number | null {
+  if (typeof v !== "string" && typeof v !== "number") return null;
+  const str = typeof v === "number" ? v.toString() : v.trim();
+  if (!str || str === "") return null;
+  // Allow optional leading sign, digits, optional decimal with up to 2 places
+  if (!/^-?\d+(\.\d{1,2})?$/.test(str)) return null;
+  const num = Number(str);
+  if (!Number.isFinite(num)) return null;
+  // A29-001: Validate range fits NUMERIC(12,2)
+  if (num < 0 || num > 999999999.99) return null;
+  return num;
+}
+
+/** A29-001: Check if a value is a valid decimal money string or number */
+function isDecimalMoney(v: unknown): v is number {
+  return parseDecimalMoney(v) !== null;
+}
+
 function isBoolean(v: unknown): v is boolean {
   return typeof v === "boolean";
 }
@@ -112,6 +133,53 @@ function isStringArray(v: unknown): v is string[] {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A29-005: Currency-specific rounding policy
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Currency rounding modes. Most currencies use half-up;
+ * JPY/KRW/CLP/ISK are zero-decimal and always round to integer. */
+export type RoundingMode = "half-up" | "zero-decimal";
+
+interface CurrencyRoundingPolicy {
+  mode: RoundingMode;
+  decimals: number;
+}
+
+/** Per-currency rounding policies. Extend as needed. */
+const CURRENCY_POLICIES: Readonly<Record<string, CurrencyRoundingPolicy>> = {
+  USD: { mode: "half-up", decimals: 2 },
+  EUR: { mode: "half-up", decimals: 2 },
+  GBP: { mode: "half-up", decimals: 2 },
+  CAD: { mode: "half-up", decimals: 2 },
+  AUD: { mode: "half-up", decimals: 2 },
+  CHF: { mode: "half-up", decimals: 2 },
+  // Zero-decimal currencies (no fractional units)
+  JPY: { mode: "zero-decimal", decimals: 0 },
+  KRW: { mode: "zero-decimal", decimals: 0 },
+  CLP: { mode: "zero-decimal", decimals: 0 },
+  ISK: { mode: "zero-decimal", decimals: 0 },
+  BHD: { mode: "half-up", decimals: 3 }, // 3-decimal currency
+  OMR: { mode: "half-up", decimals: 3 },
+  JOD: { mode: "half-up", decimals: 3 },
+};
+
+/** Get the rounding policy for a currency. Defaults to half-up with 2 decimals. */
+export function getCurrencyRoundingPolicy(currency: string): CurrencyRoundingPolicy {
+  return CURRENCY_POLICIES[currency.toUpperCase()] ?? { mode: "half-up", decimals: 2 };
+}
+
+/** Round a monetary amount according to the currency's policy. */
+export function roundMoney(amount: number, currency: string): number {
+  const policy = getCurrencyRoundingPolicy(currency);
+  const factor = 10 ** policy.decimals;
+  if (policy.mode === "zero-decimal") {
+    return Math.round(amount); // always integer
+  }
+  // half-up: round to nearest, ties away from zero
+  return Math.round(amount * factor) / factor;
 }
 
 // ── Enum type guards ─────────────────────────────────────
@@ -360,6 +428,13 @@ export function validateCreateProduct(
   if (body.price !== undefined && !isString(body.price)) {
     errors.price = "price must be a string";
   }
+  // A29-001: Accept decimal strings for price_amount; validate scale/precision
+  if (body.price_amount !== undefined && body.price_amount !== null) {
+    const parsedAmount = parseDecimalMoney(body.price_amount);
+    if (parsedAmount === null) {
+      errors.price_amount = "price_amount must be a valid decimal with at most 2 decimal places (e.g., 9.99) between 0 and 999999999.99";
+    }
+  }
   if (body.merchant !== undefined && !isString(body.merchant)) {
     errors.merchant = "merchant must be a string";
   }
@@ -410,7 +485,8 @@ export function validateCreateProduct(
       image_url: isString(body.image_url) ? body.image_url : "",
       image_alt: isString(body.image_alt) ? sanitizeText(body.image_alt) : "",
       price: isString(body.price) ? body.price : "",
-      price_amount: isNumber(body.price_amount) ? body.price_amount : null,
+      // A29-001: Parse decimal strings for precise money handling
+      price_amount: parseDecimalMoney(body.price_amount),
       price_currency: isString(body.price_currency) ? body.price_currency : "USD",
       merchant: toString(body.merchant),
       score: toNumberOrNull(body.score),
@@ -534,6 +610,13 @@ export function validateUpdateProduct(
   if (body.category_id !== undefined && body.category_id !== null && !isUuid(body.category_id)) {
     errors.category_id = "category_id must be a valid UUID or null";
   }
+  // A29-001: Validate price_amount as decimal string in updates too
+  if (body.price_amount !== undefined && body.price_amount !== null) {
+    const parsedAmount = parseDecimalMoney(body.price_amount);
+    if (parsedAmount === null) {
+      errors.price_amount = "price_amount must be a valid decimal with at most 2 decimal places (e.g., 9.99) between 0 and 999999999.99";
+    }
+  }
 
   if (
     body.description !== undefined &&
@@ -575,8 +658,9 @@ export function validateUpdateProduct(
   if (isString(body.image_url)) data.image_url = body.image_url;
   if (isString(body.image_alt)) data.image_alt = body.image_alt;
   if (isString(body.price)) data.price = body.price;
+  // A29-001: Parse decimal strings for precise money handling
   if (body.price_amount !== undefined) {
-    data.price_amount = isNumber(body.price_amount) ? body.price_amount : null;
+    data.price_amount = parseDecimalMoney(body.price_amount);
   }
   if (isString(body.price_currency)) data.price_currency = body.price_currency;
   if (isString(body.merchant)) data.merchant = body.merchant;
