@@ -7,6 +7,10 @@ const DEFAULT_ALGORITHM = "SHA256";
 const DIGITS = 6;
 const PERIOD = 30;
 
+// A98-53: Markers for encrypted TOTP secrets to distinguish from legacy plaintext
+const ENCRYPTION_PREFIX = "enc:v1:";
+const ENCRYPTION_PREFIX_PREVIOUS = "enc:v0:";
+
 /** Supported TOTP algorithms. SHA-1 is retained for legacy secret verification. */
 export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";
 
@@ -20,11 +24,58 @@ function parseAlgorithm(alg?: string | null): TotpAlgorithm {
 }
 
 /**
+ * A98-53: Check whether a stored TOTP secret is encrypted.
+ * Legacy plaintext secrets (base32 strings without a prefix) are detected
+ * as unencrypted so the rotation flow can re-encrypt them.
+ */
+export function isTotpSecretEncrypted(secret: string | null | undefined): boolean {
+  if (!secret) return false;
+  return secret.startsWith(ENCRYPTION_PREFIX) || secret.startsWith(ENCRYPTION_PREFIX_PREVIOUS);
+}
+
+/**
+ * A98-53: Check whether a stored TOTP secret needs re-encryption.
+ * Returns true for:
+ *   - Unencrypted (legacy plaintext) secrets
+ *   - Secrets encrypted with the previous key (enc:v0:)
+ * Returns false for secrets already encrypted with the current key (enc:v1:).
+ */
+export function needsReEncryption(secret: string | null | undefined): boolean {
+  if (!secret) return false;
+  // Already encrypted with current key — no rotation needed
+  if (secret.startsWith(ENCRYPTION_PREFIX)) return false;
+  // Legacy plaintext or previous-key encryption — needs rotation
+  return true;
+}
+
+/**
+ * A98-53: Strip the encryption prefix to get the raw encrypted payload.
+ * Returns null for unencrypted or malformed secrets.
+ */
+export function extractEncryptedPayload(secret: string | null | undefined): string | null {
+  if (!secret) return null;
+  if (secret.startsWith(ENCRYPTION_PREFIX)) return secret.slice(ENCRYPTION_PREFIX.length);
+  if (secret.startsWith(ENCRYPTION_PREFIX_PREVIOUS))
+    return secret.slice(ENCRYPTION_PREFIX_PREVIOUS.length);
+  return null;
+}
+
+/**
+ * A98-53: Wrap an encrypted ciphertext with the current encryption prefix.
+ */
+export function wrapEncryptedSecret(ciphertext: string): string {
+  return ENCRYPTION_PREFIX + ciphertext;
+}
+
+/**
  * Generate a new TOTP secret for enrollment.
  * Returns the secret (base32) and the otpauth:// URI for QR code generation.
  *
  * A6-001: New enrollments use SHA-256 by default. Callers can override via
  * the `algorithm` option during the migration window.
+ *
+ * SECURITY: The returned secret is raw (unencrypted). Callers MUST encrypt
+ * it with encryptTotpSecret() before storing in the database.
  */
 export function generateTotpSecret(
   email: string,
@@ -56,6 +107,9 @@ export function generateTotpSecret(
  *
  * A6-001: Automatically detects the algorithm from the otpauth:// URI if
  * provided, otherwise falls back to SHA-1 for legacy base32 secrets.
+ *
+ * SECURITY: Prefer verifyTotpTokenWithRotation() for DB-stored secrets,
+ * as it handles encrypted values and key rotation correctly.
  */
 export function verifyTotpToken(
   secret: string,
