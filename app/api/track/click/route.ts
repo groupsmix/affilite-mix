@@ -188,7 +188,9 @@ async function handleClick(request: NextRequest) {
       try {
         // A3-T-001: Reject signing with empty HMAC key in production
         if (!hmacKey && process.env.NODE_ENV === "production") {
-          throw new Error("CLICK_CACHE_HMAC_KEY missing in production — refusing to cache unsigned affiliate payload");
+          throw new Error(
+            "CLICK_CACHE_HMAC_KEY missing in production — refusing to cache unsigned affiliate payload",
+          );
         }
         cachedData._hmac = await computeHmac(hmacKey || "", "cache", "cache", bodyForHmac);
         hmacSigned = true;
