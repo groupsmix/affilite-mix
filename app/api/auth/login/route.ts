@@ -121,12 +121,17 @@ export async function POST(request: NextRequest) {
 
   try {
     // SECURITY-FIX: Global rate limit to prevent distributed bcrypt CPU exhaustion (D3-001)
-    const globalRl = await checkRateLimit("login:global", LOGIN_RATE_LIMIT_GLOBAL);
-    if (!globalRl.allowed) {
-      return apiError(429, "Too many login attempts. Try again later.", undefined, {
-        "Retry-After": String(Math.ceil(globalRl.retryAfterMs / 1000)),
-        ...rateLimitHeaders(LOGIN_RATE_LIMIT_GLOBAL, globalRl),
-      });
+    // OPS: temporary kill switch via LOGIN_RATE_LIMIT_GLOBAL_DISABLED=true.
+    // Use during incidents when the underlying limiter (DO/KV) is failing-closed.
+    // Per-IP (3/15min) and per-email (10/15min) limits still apply.
+    if (process.env.LOGIN_RATE_LIMIT_GLOBAL_DISABLED !== "true") {
+      const globalRl = await checkRateLimit("login:global", LOGIN_RATE_LIMIT_GLOBAL);
+      if (!globalRl.allowed) {
+        return apiError(429, "Too many login attempts. Try again later.", undefined, {
+          "Retry-After": String(Math.ceil(globalRl.retryAfterMs / 1000)),
+          ...rateLimitHeaders(LOGIN_RATE_LIMIT_GLOBAL, globalRl),
+        });
+      }
     }
 
     const ip = getClientIp(request);

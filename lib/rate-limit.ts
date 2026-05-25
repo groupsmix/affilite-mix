@@ -471,6 +471,15 @@ export async function checkRateLimit(
     return { allowed: false, remaining: 0, retryAfterMs: config.windowMs };
   }
 
+  // OPS: emergency force-open kill switch. When set, every rate-limited
+  // request is allowed through. Use when the underlying limiter (DO/KV) is
+  // misconfigured and fail-closed is locking out legitimate users.
+  // Higher-level controls (Cloudflare WAF, Turnstile) should be relied on
+  // while this is enabled.
+  if (process.env.RATE_LIMIT_FORCE_OPEN === "true") {
+    return { allowed: true, remaining: config.maxRequests, retryAfterMs: 0 };
+  }
+
   // F-18/F-19: In production, fail closed immediately for security-critical
   // routes when neither DO nor KV bindings are available. The in-memory
   // fallback is per-isolate and trivially bypassable across isolates.
