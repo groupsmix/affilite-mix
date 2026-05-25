@@ -98,10 +98,7 @@ async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
   }
 }
 
-async function handleClick(
-  request: NextRequest,
-  opts: { skipAnalytics?: boolean } = {},
-) {
+async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean } = {}) {
   try {
     const hmacKey = process.env.CLICK_CACHE_HMAC_KEY;
     if (process.env.NODE_ENV === "production" && !hmacKey) {

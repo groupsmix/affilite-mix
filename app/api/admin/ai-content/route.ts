@@ -282,8 +282,7 @@ export const PATCH = withAuthz(
         if (!SLUG_REGEX.test(slug)) {
           return NextResponse.json(
             {
-              error:
-                "slug must be 1-120 lowercase alphanumeric characters and hyphens only",
+              error: "slug must be 1-120 lowercase alphanumeric characters and hyphens only",
             },
             { status: 400 },
           );
