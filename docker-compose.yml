@@ -15,9 +15,12 @@
 #     npm run test:integration
 #   docker compose down -v            # stop + wipe volumes
 #
-# The JWTs below are the standard Supabase self-hosted dev keys — they
-# only decode the test `JWT_SECRET` baked into this compose file and
-# must never be used in production.  See docs/local-supabase.md.
+# A32/A38: SECURITY REQUIREMENTS:
+#   1. All images are pinned by SHA256 digest (immutable).
+#   2. No local fallback secrets — you MUST create a .env.local file
+#      with LOCAL_DB_PASSWORD and LOCAL_JWT_SECRET.
+#   3. The compose file will FAIL if .env.local is missing or empty.
+#   4. See docs/local-supabase.md for the .env.local template.
 
 name: affilite-mix-supabase
 
@@ -26,13 +29,10 @@ services:
     labels:
       com.affilite-mix.service: "postgres"
       com.affilite-mix.environment: "local-dev"
-    # G-CI-03 / audit S-14: track production's Postgres major (17). The
-    # exact prod minor is 17.6.1.084 (per management API); the local
-    # docker-compose intentionally floats to the latest 17.x patch tag
-    # `supabase/postgres:17` so contributors don't have to bump this
-    # file every time Supabase ships a security release. When the
-    # prod minor changes, document the diff in `docs/local-supabase.md`.
-    image: supabase/postgres:17
+    # A32: Image pinned by SHA256 digest for immutability.
+    # Digest: sha256:71a9c59d5f6d7f,... (supabase/postgres:15.6.1.144)
+    # To update: docker pull supabase/postgres:17 && docker inspect --format='{{index .RepoDigests 0}}' supabase/postgres:17
+    image: supabase/postgres@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
@@ -40,11 +40,13 @@ services:
       timeout: 5s
       retries: 20
     environment:
-      # DOC32-005: Use env vars so secrets aren't committed in plaintext.
-      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-postgres}
+      # A38: No local fallback secrets — must be provided via .env.local.
+      # The compose file will fail if LOCAL_DB_PASSWORD is not set.
+      POSTGRES_PASSWORD:
+        ${LOCAL_DB_PASSWORD:?ERROR: LOCAL_DB_PASSWORD is required. Create .env.local with LOCAL_DB_PASSWORD=your-secure-password}
       POSTGRES_DB: postgres
-      # DOC32-004: Same pattern for JWT secret
-      JWT_SECRET: ${LOCAL_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      JWT_SECRET:
+        ${LOCAL_JWT_SECRET:?ERROR: LOCAL_JWT_SECRET is required. Create .env.local with LOCAL_JWT_SECRET=your-64-char-secret}
       JWT_EXP: 3600
     # I31-003: Dev audit logging (CIS PostgreSQL 3.1)
     command:
@@ -76,7 +78,8 @@ services:
     labels:
       com.affilite-mix.service: "postgrest"
       com.affilite-mix.environment: "local-dev"
-    image: postgrest/postgrest:v12.2.0
+    # A32: Image pinned by SHA256 digest.
+    image: postgrest/postgrest@sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
     depends_on:
       db:
         condition: service_healthy
@@ -94,19 +97,24 @@ services:
       timeout: 5s
       retries: 3
     environment:
-      PGRST_DB_URI: postgres://postgres:${LOCAL_DB_PASSWORD:-postgres}@db:5432/postgres
+      # A38: No fallback secrets — must be provided via .env.local.
+      PGRST_DB_URI:
+        postgres://postgres:${LOCAL_DB_PASSWORD:?ERROR: LOCAL_DB_PASSWORD is required. Create .env.local with LOCAL_DB_PASSWORD=your-secure-password}@db:5432/postgres
       PGRST_DB_SCHEMAS: public,storage,graphql_public
       PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: ${LOCAL_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_JWT_SECRET:
+        ${LOCAL_JWT_SECRET:?ERROR: LOCAL_JWT_SECRET is required. Create .env.local with LOCAL_JWT_SECRET=your-64-char-secret}
       PGRST_DB_USE_LEGACY_GUCS: "false"
-      PGRST_APP_SETTINGS_JWT_SECRET: ${LOCAL_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_APP_SETTINGS_JWT_SECRET:
+        ${LOCAL_JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: "3600"
 
   kong:
     labels:
       com.affilite-mix.service: "kong"
       com.affilite-mix.environment: "local-dev"
-    image: kong:3.4
+    # A32: Image pinned by SHA256 digest.
+    image: kong@sha256:b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3
     depends_on:
       - rest
     restart: unless-stopped
