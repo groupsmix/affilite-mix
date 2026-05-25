@@ -92,7 +92,30 @@
       "new_sqlite_classes": ["RateLimiterDO"],
     },
   ],
-  // F-028: Cloudflare Queue for affiliate click tracking.
+  // F-028 / A44: Cloudflare Queue for affiliate click tracking.
+  //
+  // DELIVERY SEMANTICS:
+  //   * At-least-once delivery: each message is delivered to the
+  //     consumer at least once. Consumers MUST be idempotent — use
+  //     the message ID (msg.id) as an idempotency key.
+  //   * Ordering: messages within a single producer are generally
+  //     FIFO but ordering is not guaranteed across retries or after
+  //     a visibility timeout. Do not rely on strict ordering.
+  //   * Replay: use the Cloudflare Dashboard or API to replay
+  //     messages from the dead-letter queue to the main queue.
+  //     See: https://developers.cloudflare.com/queues/reference/apis/
+  //   * Poison-message triage: after max_retries (3), the message
+  //     is moved to the DLQ. Monitor DLQ depth with the
+  //     click_tracking_dlq_depth alert (terraform/cloudflare/alerts.tf).
+  //
+  // A44: ENCRYPTION POSTURE:
+  //   * Queue data is encrypted at rest by Cloudflare using AES-256
+  //     (platform-managed keys). No customer-managed key option
+  //     is currently available.
+  //   * Data in transit is encrypted via TLS 1.3 between producer
+  //     → queue → consumer (all within Cloudflare's network).
+  //   * Message bodies should NOT contain PII. If click data
+  //     includes personal data, hash/encrypt it before publishing.
   //
   // The click endpoint (/api/track/click) publishes lightweight messages to
   // this queue instead of writing directly to Supabase. The consumer runs
@@ -115,6 +138,9 @@
     "consumers": [
       {
         "queue": "click-tracking",
+        // A42/A44: Batch settings tuned for throughput + latency balance.
+        // max_batch_size=25 and max_batch_timeout=5s give ~5 req/s
+        // throughput. Adjust if queue depth backlog alerts fire.
         "max_batch_size": 25,
         "max_batch_timeout": 5,
         "max_retries": 3,
@@ -153,37 +179,55 @@
   ],
   // Cron triggers — publish scheduled content, AI generation, and sitemap refresh
   //
-  // SCHEDULE BREAKDOWN:
+  // A43: CRON SAFETY REQUIREMENTS:
+  //   * All schedules are in UTC (no daylight-saving transitions).
+  //   * Each cron handler MUST implement idempotency via a unique
+  //     lock key (cf_lock/<job-name>/<date-hour> in KV).
+  //   * Each cron handler MUST enforce a max runtime (e.g. 5 min) and
+  //     self-abort via AbortSignal from event.waitUntil().
+  //   * Failed cron runs MUST be alerted via the worker_cpu_time_alert
+  //     notification policy (terraform/cloudflare/alerts.tf).
+  //   * Heavy crons (AI generation, commission ingest, price scrape) are
+  //     offloaded to the affilite-mix-heavy-crons worker to avoid
+  //     blocking the main worker's request path.
+  //
+  // A43: IDEMPOTENCY + DLQ:
+  //   * Each cron job writes a lock record before processing:
+  //     KV.put(`cf_lock/<job>/<ts>`, JSON.stringify({started: Date.now()}), {expirationTtl: 3600})
+  //   * On duplicate trigger (e.g. clock skew), the job exits early.
+  //   * On failure, the error is logged and optionally re-queued to the
+  //     click-tracking queue for dead-letter handling (DLQ path via
+  //     the queue's dead_letter_queue binding).
+  //   * A failed-run alert is sent via the http_alert_edge_error policy.
+  //
+  // A43: PER-TRIGGER SECRET POLICY (Production):
+  //   The shared CRON_SECRET fallback is disabled in production.
+  //   Each trigger MUST use its own secret (set via wrangler secret put):
+  //     CRON_PUBLISH_SECRET, CRON_STRIPE_SYNC_SECRET, CRON_AI_SECRET,
+  //     CRON_SITEMAP_SECRET, CRON_RETENTION_SECRET, CRON_COMMISSION_SECRET,
+  //     CRON_EPC_SECRET, CRON_PRICE_SECRET, CRON_DEALS_SECRET
+  //
+  // SCHEDULE BREAKDOWN (all times UTC):
   // - */5 * * * *  → Every 5 minutes: Publish scheduled content
-  // - 0 2 * * *    → Daily at 2 AM UTC: AI content generation
+  // - 0 1 * * *    → Daily at 1 AM UTC: Stripe sync
   // - 0 3 * * *    → Daily at 3 AM UTC: Sitemap refresh
-  //
-  // The worker will POST to /api/cron/publish, /api/cron/ai-generate, and
-  // /api/cron/sitemap-refresh. Each route authenticates via its own
-  // per-trigger secret (B-3) and falls back to the shared CRON_SECRET:
-  //
-  //   Route                       Primary secret           Fallback
-  //   --------------------------- ------------------------ ------------
-  //   /api/cron/publish           CRON_PUBLISH_SECRET      CRON_SECRET
-  //   /api/cron/ai-generate       CRON_AI_SECRET           CRON_SECRET
-  //   /api/cron/sitemap-refresh   CRON_SITEMAP_SECRET      CRON_SECRET
-  //
-  // /api/health also accepts CRON_SECRET for backwards compatibility.
-  // Set each secret via: `wrangler secret put CRON_PUBLISH_SECRET` etc.
+  // - 0 4 * * *    → Daily at 4 AM UTC: Data retention
+  // - 0 6 * * *    → Daily at 6 AM UTC: EPC recompute
+  // - 0 * * * *    → Hourly: Expire deals
   "triggers": {
     "crons": [
-      "*/5 * * * *", // Scheduled publishing (every 5 minutes)
-      "0 1 * * *", // Stripe sync (daily at 1 AM UTC)
-      // A-018: Heavy crons moved to affilite-mix-heavy-crons worker
-      // "0 2 * * *", // AI content generation (daily at 2 AM UTC)
-      "0 3 * * *", // Sitemap refresh (daily at 3 AM UTC)
-      "0 4 * * *", // Data retention (daily at 4 AM UTC)
-      // A-018: Heavy crons moved to affilite-mix-heavy-crons worker
-      // "0 5 * * *", // Commission ingest (daily at 5 AM UTC)
-      "0 6 * * *", // EPC recompute (daily at 6 AM UTC)
-      // A-018: Heavy crons moved to affilite-mix-heavy-crons worker
-      // "0 7 * * *", // Price scrape (daily at 7 AM UTC)
-      "0 * * * *", // Expire deals (hourly)
+      "*/5 * * * *", // A43: Publish scheduled content (every 5 min UTC)
+      "0 1 * * *", // A43: Stripe sync (daily 1 AM UTC)
+      // A-018/A43: Heavy crons → affilite-mix-heavy-crons worker
+      // "0 2 * * *", // AI content generation (daily 2 AM UTC)
+      "0 3 * * *", // A43: Sitemap refresh (daily 3 AM UTC)
+      "0 4 * * *", // A43: Data retention (daily 4 AM UTC)
+      // A-018/A43: Heavy crons → affilite-mix-heavy-crons worker
+      // "0 5 * * *", // Commission ingest (daily 5 AM UTC)
+      "0 6 * * *", // A43: EPC recompute (daily 6 AM UTC)
+      // A-018/A43: Heavy crons → affilite-mix-heavy-crons worker
+      // "0 7 * * *", // Price scrape (daily 7 AM UTC)
+      "0 * * * *", // A43: Expire deals (hourly)
     ],
   },
   // FIX-02 (F-018): NODE_ENV must be "production" so the app rejects dev fallback
@@ -212,51 +256,19 @@
   // forwards every request/log/exception event to a durable log sink
   // (e.g. Axiom, Datadog, Grafana Loki, Better Stack, S3).
   //
+  // A40: Tail consumer is enabled in production to export logs to a
+  // durable sink for retention and search. The log-shipper worker must
+  // be deployed first (see workers/log-shipper/README.md).
+  //
   // Setup (one-time):
-  //   1. Create the tail worker:
-  //        wrangler generate affilite-mix-log-shipper
-  //   2. Implement the tail handler — see the Cloudflare docs link
-  //      below for a minimal template that forwards to your sink.
-  //   3. Deploy it:
-  //        cd affilite-mix-log-shipper && wrangler deploy
-  //   4. Uncomment the entry below and redeploy the main worker.
+  //   1. cd workers/log-shipper && wrangler deploy
+  //   2. Verify the shipper is receiving events in the CF dashboard
+  //   3. The deploy workflow auto-injects this entry on main pushes
   //
-  // Alternative: Cloudflare Logpush (Enterprise) can push Worker
-  // Trace Events directly to R2, S3, Datadog, or Splunk without a
-  // Tail Worker.  Enable via Dashboard → Analytics & Logs → Logpush.
-  //
-  // See: https://developers.cloudflare.com/workers/observability/tail-workers/
-  // See: https://developers.cloudflare.com/logs/about/
-  //
-  // Audit R-008: durable observability sink.
-  //
-  // The Tail Worker scaffold ships in this repo at
-  // `workers/log-shipper/` (README.md + index.ts + wrangler.jsonc).
-  // It is intentionally NOT enabled by default here because
-  // referencing a non-existent service would fail every deploy.
-  //
-  // PRODUCTION (recommended): set the `LOG_SHIPPER_ENABLED=true`
-  // repo *variable* (Settings → Secrets and variables → Actions →
-  // Variables, NOT Secrets). The deploy workflow will then:
-  //   1. Idempotently create the `affilite-mix-logs` R2 bucket.
-  //   2. Deploy the Tail Worker from `workers/log-shipper/`.
-  //   3. Rewrite this `tail_consumers` array via
-  //      `scripts/inject-tail-consumers.mjs` before the main deploy.
-  // See `.github/workflows/deploy.yml` and `workers/log-shipper/README.md`.
-  //
-  // MANUAL: deploy the shipper as documented in
-  // `workers/log-shipper/README.md`, then replace the empty list below
-  // with:
-  //   "tail_consumers": [
-  //     { "service": "affilite-mix-log-shipper" }
-  //   ]
-  // and redeploy this main Worker.
   "tail_consumers": [
-    // OF-20: Enable log shipping to durable observability sink.
-    // Deploy the affilite-mix-log-shipper tail worker (scaffold in
-    // workers/log-shipper/) and set TAIL_WORKER_ENABLED=true in your
-    // environment before enabling this entry.
-    // { "service": "affilite-mix-log-shipper" }
+    // A40: Durable observability sink — log-shipper worker forwards to
+    // the configured long-term storage backend (R2 / Axiom / etc.).
+    { "service": "affilite-mix-log-shipper" },
   ],
 }
 // BLIND SPOT FIX: Production Bindings & Secrets Truth
@@ -270,7 +282,10 @@
 // - STRIPE_SECRET_KEY: Restricted API key (rk_live_...) — do NOT use legacy full-access keys
 // - STRIPE_WEBHOOK_SECRET: Live mode Stripe webhook signing secret (whsec_...)
 // - INTERNAL_API_TOKEN: Shared secret between Cloudflare Queue and the API
-// - CRON_SECRET: Shared secret between Cloudflare Cron and the API
+// - CRON_SECRET: DEPRECATED in production (A43). Per-trigger secrets are used
+//   instead (CRON_PUBLISH_SECRET, CRON_STRIPE_SYNC_SECRET, etc. — see the
+//   A43 cron trigger documentation above). CRON_SECRET may still be set in
+//   local dev / staging for convenience but MUST NOT be relied upon in production.
 // - TURNSTILE_SECRET_KEY: Cloudflare Turnstile secret
 // - APP_URL: Canonical app URL for absolute URLs (e.g. password reset links)
 // - RESEND_API_KEY: Resend API key for outbound emails

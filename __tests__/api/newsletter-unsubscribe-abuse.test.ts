@@ -85,7 +85,17 @@ describe("POST /api/newsletter/unsubscribe – abuse paths", () => {
   });
 
   it("returns 403 when unsubscribe_token does not match", async () => {
+    // A98-59: mock now needs to handle the preflight select (expiry check) AND the update
     mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: null, error: { code: "PGRST116" } }),
+            }),
+          }),
+        }),
+      }),
       update: () => ({
         eq: () => ({
           eq: () => ({
@@ -111,7 +121,21 @@ describe("POST /api/newsletter/unsubscribe – abuse paths", () => {
 
   it("email + site_id alone cannot unsubscribe (token required)", async () => {
     const updateSpy = vi.fn();
+    // A98-59: mock the preflight select (returns fresh subscriber) + the update chain
     mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: { id: "sub-1", created_at: new Date(Date.now() - 60_000).toISOString() },
+                  error: null,
+                }),
+            }),
+          }),
+        }),
+      }),
       update: (...args: unknown[]) => {
         updateSpy(...args);
         return {
@@ -161,7 +185,13 @@ describe("GET /api/newsletter/unsubscribe – abuse paths", () => {
   });
 
   it("redirects with error when token is invalid (no matching row)", async () => {
+    // A98-59: mock the preflight select (no subscriber) + the update chain (no rows)
     mockFrom.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: null }),
+        }),
+      }),
       update: () => ({
         eq: () => ({
           select: () => Promise.resolve({ data: [], error: null }),

@@ -23,6 +23,10 @@
 # Terraform module for steady-state management; use the JSON template
 # (with `gh api`) when bootstrapping a fork or restoring from a backup.
 #
+# A35: Authentication uses a GitHub App installation token scoped only to
+# repository and ruleset permissions, instead of a PAT with broad
+# `repo` + `admin:org` scopes.
+#
 # State backend is intentionally left unset — wire up the team's preferred
 # backend (Terraform Cloud, S3, etc.) before running `terraform init` for
 # real.
@@ -39,10 +43,52 @@ terraform {
   }
 }
 
+# A35: Use a GitHub App installation token instead of a PAT.
+# The GitHub App must be granted only these permissions:
+#   * Repository permissions:
+#     - Administration: read (for reading repo settings)
+#     - Contents: read (for reading repo content)
+#   * Organization permissions:
+#     - Administration: read (for reading organization settings)
+#   * Required for ruleset management:
+#     - Repository permissions → Administration: write
+#     - Organization permissions → Administration: read
+#
+# To create a GitHub App:
+#   1. Organization Settings → Developer settings → GitHub Apps → New
+#   2. Grant ONLY the permissions listed above
+#   3. Install the app on the target repository
+#   4. Generate a private key and use it to create an installation token
+variable "github_app_id" {
+  type        = string
+  description = "GitHub App ID for the Terraform management app. Used with github_app_installation_id and github_app_pem_file for authentication."
+  default     = ""
+}
+
+variable "github_app_installation_id" {
+  type        = string
+  description = "GitHub App installation ID for the target repository."
+  default     = ""
+}
+
+variable "github_app_pem_file" {
+  type        = string
+  sensitive   = true
+  description = "PEM content of the GitHub App private key. Used to sign JWT for installation token."
+  default     = ""
+}
+
+# A35: Fallback to fine-grained PAT with minimal scopes only when
+# GitHub App auth is not available (legacy / migration path).
+# This PAT must have ONLY:
+#   * repo (full control of repository) — for ruleset management
+#   * admin:org (read) — for reading team data
+# DEPRECATED: Migrate to GitHub App authentication.
 variable "github_token" {
   type        = string
   sensitive   = true
-  description = "GitHub PAT or app token with `repo` + `admin:org` ruleset write scopes for the target repository."
+  description = "DEPRECATED (A35): Fine-grained PAT with repo + admin:org read scopes. Use github_app_id + github_app_installation_id + github_app_pem_file instead."
+  default     = ""
 }
 
 variable "github_owner" {
@@ -86,11 +132,19 @@ variable "required_status_checks" {
   ]
 }
 
+# A34: Reconcile reviewer policy — both JSON ruleset and Terraform now
+# require 2 approvals. The JSON ruleset at .github/rulesets/main-protection.json
+# previously required 1; this variable default is the single source of truth.
 variable "required_review_count" {
   type        = number
-  description = "Number of approving PR reviews required."
-  # OF-09: Require at least 2 reviewers to prevent single-actor merges.
+  description = "Number of approving PR reviews required. Must match .github/rulesets/main-protection.json required_approving_review_count."
+  # A34: Require 2 reviewers to prevent single-actor merges.
   default = 2
+  validation {
+    # A34: 2 is the enforced minimum — 1 reviewer allows single-actor merges.
+    condition     = var.required_review_count >= 2
+    error_message = "required_review_count must be at least 2 (A34: prevents single-actor merges)."
+  }
 }
 
 variable "break_glass_team_slug" {
@@ -104,7 +158,45 @@ variable "break_glass_team_slug" {
   default     = null
 }
 
+# A35: Break-glass policy requires MFA/SSO for all bypass actors.
+# NOTE: This variable is DOCUMENTATION-ONLY — flipping it does not change
+# any Terraform resource. The GitHub API/rulesets API has no native "require
+# MFA for bypass actors" mechanism; the control must be enforced at the
+# organization level via GitHub Organization SSO/MFA policy settings
+# (Organization Settings -> Authentication security -> Require two-factor
+# authentication). Audit break-glass team membership regularly.
+variable "break_glass_require_mfa" {
+  type        = bool
+  description = "A35: Documents that MFA is required for break-glass team members. Enforcement is via GitHub Org-level 2FA policy — this variable does not change any Terraform resource."
+  default     = true
+}
+
+# A35: Configure the GitHub provider to use GitHub App authentication
+# when available, falling back to PAT for legacy compatibility.
+#
+# IMPORTANT: The GitHub provider blocks token-based auth when an app_auth {}
+# block is present — even if all three app fields are null. We therefore use
+# a dynamic block so the app_auth stanza only appears when all three GitHub
+# App inputs are actually supplied. This ensures the PAT path works correctly
+# during migration and in environments that haven't yet provisioned an App.
 provider "github" {
-  token = var.github_token
   owner = var.github_owner
+
+  # Only render app_auth when all three required fields are provided.
+  # If any field is missing, the block is omitted and token auth is used instead.
+  dynamic "app_auth" {
+    for_each = (
+      var.github_app_id != "" &&
+      var.github_app_installation_id != "" &&
+      var.github_app_pem_file != ""
+    ) ? [1] : []
+    content {
+      id              = var.github_app_id
+      installation_id = var.github_app_installation_id
+      pem_file        = var.github_app_pem_file
+    }
+  }
+
+  # Fallback to PAT when GitHub App auth is not configured.
+  token = (var.github_app_id == "" || var.github_app_installation_id == "" || var.github_app_pem_file == "") ? var.github_token : null
 }

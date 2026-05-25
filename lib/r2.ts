@@ -321,60 +321,64 @@ export async function getUploadUrl(
     throw new Error(`Upload exceeds the ${R2_MAX_UPLOAD_BYTES / (1024 * 1024)}MB limit`);
   }
 
-  // Per-tenant storage ceiling (G-42 / A10-004).
-  // Use reserveQuota to atomically check+reserve capacity so concurrent
-  // requests don't over-commit. If the presign fails, release the reservation.
-  let quotaReserved = false;
+  // AUDIT-FIX A1-007 / A10-004: Per-tenant storage ceiling (G-42). Use atomic
+  // reservation so concurrent requests see the reserved capacity. The
+  // reservation is released by `/api/admin/upload/finalize` when the
+  // upload completes (or by the janitor reconcile job for abandoned
+  // uploads). This prevents unbounded quota consumption from presigns
+  // that are never followed through.
+  const quotaReserved = !!options.siteId;
   if (options.siteId) {
     await reserveQuota(options.siteId, "r2_storage_bytes", contentLength);
-    quotaReserved = true;
   }
 
-  let stagingKey: string;
+  // A3-004: Release reserved quota on any failure after reservation so we don't
+  // permanently consume quota for uploads that never materialise.
   try {
-    stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;
+    const stagingKey = `${todayPrefix()}/${crypto.randomUUID()}.${ext}`;
+    const publicKey = stagingKey; // Promotion preserves the key path.
+    const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
+
+    const originalName = sanitizeOriginalName(options.originalName);
+
+    const uploadUrl = await presignPutUrl({
+      endpoint,
+      bucket: env.privateBucket,
+      key: stagingKey,
+      accessKeyId: env.accessKeyId,
+      secretAccessKey: env.secretAccessKey,
+      region: "auto",
+      contentType,
+      contentLength,
+      originalName: originalName ?? undefined,
+      expiresIn: 300,
+    });
+
+    const requiredHeaders: Record<string, string> = {
+      "Content-Type": contentType,
+      "Content-Length": String(contentLength),
+    };
+    if (originalName) {
+      requiredHeaders["x-amz-meta-original-name"] = originalName;
+    }
+
+    return {
+      uploadUrl,
+      stagingKey,
+      stagingBucket: env.privateBucket,
+      publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${publicKey}`,
+      publicKey,
+      requiredHeaders,
+      maxBytes: R2_MAX_UPLOAD_BYTES,
+    };
   } catch (err) {
-    // A10-004: Release the quota reservation if key generation fails
     if (quotaReserved && options.siteId) {
-      await releaseQuota(options.siteId, "r2_storage_bytes", contentLength).catch(() => undefined);
+      await releaseQuota(options.siteId, "r2_storage_bytes", contentLength).catch(() => {
+        // Best-effort — don't mask the original error
+      });
     }
     throw err;
   }
-  const publicKey = stagingKey; // Promotion preserves the key path.
-  const endpoint = `https://${env.accountId}.r2.cloudflarestorage.com`;
-
-  const originalName = sanitizeOriginalName(options.originalName);
-
-  const uploadUrl = await presignPutUrl({
-    endpoint,
-    bucket: env.privateBucket,
-    key: stagingKey,
-    accessKeyId: env.accessKeyId,
-    secretAccessKey: env.secretAccessKey,
-    region: "auto",
-    contentType,
-    contentLength,
-    originalName: originalName ?? undefined,
-    expiresIn: 300,
-  });
-
-  const requiredHeaders: Record<string, string> = {
-    "Content-Type": contentType,
-    "Content-Length": String(contentLength),
-  };
-  if (originalName) {
-    requiredHeaders["x-amz-meta-original-name"] = originalName;
-  }
-
-  return {
-    uploadUrl,
-    stagingKey,
-    stagingBucket: env.privateBucket,
-    publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${publicKey}`,
-    publicKey,
-    requiredHeaders,
-    maxBytes: R2_MAX_UPLOAD_BYTES,
-  };
 }
 
 /** Check whether R2 credentials are configured */
