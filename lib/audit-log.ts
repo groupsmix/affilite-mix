@@ -66,7 +66,11 @@ function redactAuditDetails(
     if (key in details) redacted[key] = details[key];
   }
   const changedField = details.field;
-  if (typeof changedField === "string" && allowed.includes(changedField)) {
+  if (
+    typeof changedField === "string" &&
+    changedField !== "field" &&
+    allowed.includes(changedField)
+  ) {
     if ("oldValue" in details) redacted.oldValue = details.oldValue;
     if ("newValue" in details) redacted.newValue = details.newValue;
   }

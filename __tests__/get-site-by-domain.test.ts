@@ -24,6 +24,7 @@ describe("getSiteByDomain", () => {
 
   it("returns undefined for localhost in production", () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_LOCALHOST_FALLBACK_IN_PROD", "");
     expect(getSiteByDomain("localhost")).toBeUndefined();
   });
 
@@ -75,6 +76,7 @@ describe("getSiteByDomain", () => {
 
   it("does not resolve <slug>.localhost in production", () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_LOCALHOST_FALLBACK_IN_PROD", "");
     expect(getSiteByDomain("arabic-tools.localhost")).toBeUndefined();
     expect(getSiteByDomain("arabic-tools.localhost:3000")).toBeUndefined();
   });

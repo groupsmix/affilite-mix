@@ -330,7 +330,7 @@ describe("POST /api/track/click (integration)", () => {
       id: "prod-1",
       name: "Beacon Product",
       slug: "beacon-product",
-      affiliate_url: "https://example.com/affiliate",
+      affiliate_url: "https://amazon.com/affiliate",
     });
 
     const { POST } = await import("@/app/api/track/click/route");
@@ -350,7 +350,7 @@ describe("POST /api/track/click (integration)", () => {
     const res = await POST(req);
 
     expect(res.status).toBe(302);
-    expect(res.headers.get("Location")).toBe("https://example.com/affiliate");
+    expect(res.headers.get("Location")).toBe("https://amazon.com/affiliate");
   });
 });
 
