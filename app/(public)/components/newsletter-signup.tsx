@@ -3,14 +3,11 @@
 import { useState, useCallback } from "react";
 import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
-import { useTheme } from "./theme-provider";
-
 interface NewsletterSignupProps {
   siteLanguage?: string;
 }
 
 export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps) {
-  const theme = useTheme();
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState(""); // A157: honeypot field
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -141,8 +138,8 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
           <button
             type="submit"
             disabled={status === "loading"}
+            data-accent-bg
             className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
-            style={{ backgroundColor: theme.accentTextColor }}
           >
             {status === "loading" ? (isAr ? "جاري..." : "...") : isAr ? "اشترك" : "Subscribe"}
           </button>

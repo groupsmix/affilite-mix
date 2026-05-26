@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { getCookieValue } from "@/lib/cookie-utils";
-import { useTheme } from "./theme-provider";
 
 type ConsentState = "pending" | "accepted" | "rejected";
 
@@ -102,8 +101,6 @@ const translations = {
 
 export default function CookieConsent({ language = "en", domain = "" }: CookieConsentProps) {
   const t = language === "ar" ? translations.ar : translations.en;
-  const theme = useTheme();
-  const accentBg = theme.accentTextColor;
   const [consent, setConsent] = useState<ConsentState>("pending");
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -158,17 +155,20 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
     };
   }, [visible, consent]);
 
-  if (consent !== "pending" || !visible) return null;
+  if (consent !== "pending") return null;
 
   return (
     <>
       {/* Spacer to prevent banner from covering page content */}
-      {bannerHeight > 0 && <div style={{ height: bannerHeight }} />}
+      {visible && bannerHeight > 0 && <div style={{ height: bannerHeight }} />}
       <div
         ref={bannerRef}
         role="dialog"
         aria-label="Cookie consent"
-        className="fixed inset-x-0 bottom-0 z-50 p-2 sm:p-4 md:p-6"
+        aria-hidden={!visible}
+        className={`fixed inset-x-0 bottom-0 z-50 p-2 sm:p-4 md:p-6 transition-all duration-500 ${
+          visible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0 pointer-events-none"
+        }`}
       >
         <div
           className="mx-auto max-w-4xl rounded-xl border border-gray-200 bg-white p-3 shadow-2xl sm:rounded-2xl sm:p-6 md:p-8"
@@ -197,8 +197,8 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
               </button>
               <button
                 onClick={handleAccept}
+                data-accent-bg
                 className="min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all duration-300 hover:opacity-90"
-                style={{ backgroundColor: accentBg }}
               >
                 {t.accept}
               </button>
@@ -215,7 +215,7 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
                   <Link
                     href="/privacy"
                     className="underline transition-colors hover:text-gray-900"
-                    style={{ color: accentBg }}
+                    style={{ color: "var(--color-accent-text, #059669)" }}
                   >
                     {t.privacy}
                   </Link>
@@ -259,8 +259,8 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
                 </button>
                 <button
                   onClick={handleAccept}
+                  data-accent-bg
                   className="min-h-[44px] rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:opacity-90"
-                  style={{ backgroundColor: accentBg }}
                 >
                   {t.accept}
                 </button>
