@@ -116,6 +116,7 @@ export function ImageUploader({
         const finalized = (await finalizeRes.json()) as { publicUrl: string };
         onChange(finalized.publicUrl);
       } catch {
+        // fail-open: best-effort
         setError("Upload failed. You can paste an image URL instead.");
       } finally {
         setUploading(false);

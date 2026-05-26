@@ -132,6 +132,7 @@ export function CategoryForm({ category }: { category?: CategoryRow }) {
         toast.error(msg);
       }
     } catch {
+      // fail-open: best-effort
       const msg = "Failed to save";
       setFormError(msg);
       toast.error(msg);

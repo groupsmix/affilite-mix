@@ -30,6 +30,7 @@ export default async function AppleIcon() {
         }
       }
     } catch {
+      // fail-open: best-effort
       // Fall through to generated icon
     }
   }
@@ -44,6 +45,7 @@ export default async function AppleIcon() {
         if (t?.primary_color) bgColor = t.primary_color;
       }
     } catch {
+      // fail-open: best-effort
       // Use config color
     }
   }

@@ -566,6 +566,7 @@ export function SiteManager() {
         setActiveSiteId(data.activeSiteId ?? null);
       }
     } catch {
+      // fail-open: best-effort
       // ignore — stays null
     }
   }, []);
@@ -582,6 +583,7 @@ export function SiteManager() {
         setStats(data.stats ?? {});
       }
     } catch {
+      // fail-open: best-effort
       // leave stats empty; cards will show —
     }
 
@@ -678,12 +680,14 @@ export function SiteManager() {
             message = data.error;
           }
         } catch {
+          // fail-open: best-effort
           // Non-JSON error body — keep default message.
         }
 
         toast.error(message);
       }
     } catch {
+      // fail-open: best-effort
       toast.error("Failed to delete site");
     } finally {
       setDeleting(false);

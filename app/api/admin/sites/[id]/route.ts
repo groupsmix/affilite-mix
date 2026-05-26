@@ -8,6 +8,7 @@ import { captureException } from "@/lib/sentry";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
 import { parseJsonBody } from "@/lib/api-error";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
+import { getAppCacheKV } from "@/lib/runtime-env";
 
 const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
@@ -113,13 +114,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // A-024: Purge Next.js ISR + KV caches when site metadata changes or is disabled.
     revalidateTag("sites");
     try {
-      const kv = (process.env as any).APP_CACHE_KV as any;
+      const kv = getAppCacheKV();
       if (kv && site) {
         await kv.delete(`site-domain:${site.domain}`).catch(() => {});
         await kv.delete(`site-slug:${site.slug}`).catch(() => {});
         await kv.delete(`admin-guard:site-slug:${site.slug}`).catch(() => {});
       }
     } catch {
+      // fail-open: best-effort
       // Ignore KV purge errors — cache will expire naturally.
     }
 
@@ -165,12 +167,13 @@ export async function DELETE(
     // A-024: Purge caches before deletion so stale site data doesn't persist.
     revalidateTag("sites");
     try {
-      const kv = (process.env as any).APP_CACHE_KV as any;
+      const kv = getAppCacheKV();
       if (kv) {
         await kv.delete(`site-domain-miss:*`).catch(() => {});
         await kv.delete(`admin-guard:site-slug:*`).catch(() => {});
       }
     } catch {
+      // fail-open: best-effort
       // Ignore KV purge errors.
     }
 

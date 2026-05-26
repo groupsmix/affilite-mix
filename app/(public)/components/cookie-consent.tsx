@@ -38,6 +38,7 @@ function setConsentCookie(value: "accepted" | "rejected", domain: string) {
   try {
     localStorage.setItem(storageKey, value);
   } catch {
+    // fail-open: best-effort
     // localStorage may be unavailable (e.g. private browsing)
   }
 }
@@ -287,6 +288,7 @@ export function resetCookieConsent(domain?: string) {
   try {
     localStorage.removeItem(storageKey);
   } catch {
+    // fail-open: best-effort
     // localStorage may be unavailable
   }
   // Reload the page so the banner re-renders

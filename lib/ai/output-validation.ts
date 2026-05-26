@@ -165,6 +165,7 @@ export function validateGeneratedLinks(html: string): LinkValidationResult {
       const url = new URL(href);
       domain = url.hostname.toLowerCase();
     } catch {
+      // fail-open: best-effort
       // Malformed URL — flag it
       flaggedDomains.push(href.slice(0, 50));
       continue;

@@ -13,14 +13,33 @@
 export interface CloudflareKVBinding {
   get(key: string): Promise<string | null>;
   get(key: string, type: "text"): Promise<string | null>;
-  get(key: string, type: "json"): Promise<any>; // any is intentional -- KV JSON can be anything
+  get(key: string, type: "json"): Promise<unknown>;
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+/** Minimal Queue binding interface for audit-log and click queues. */
+export interface CloudflareQueueBinding {
+  send(message: unknown): Promise<void>;
+}
+
+/** Minimal R2 bucket interface for DLQ/storage bindings. */
+export interface CloudflareR2Binding {
+  put(key: string, value: string | ReadableStream | ArrayBuffer): Promise<unknown>;
+}
+
+/** Minimal Analytics Engine binding interface. */
+export interface CloudflareAnalyticsEngineBinding {
+  writeDataPoint(event: { blobs?: string[]; doubles?: number[]; indexes?: string[] }): void;
 }
 
 /** Typed accessor for Cloudflare Worker runtime bindings on process.env. */
 export interface RuntimeEnv {
   APP_CACHE_KV?: CloudflareKVBinding;
   RATE_LIMIT_KV?: CloudflareKVBinding;
+  AUDIT_QUEUE?: CloudflareQueueBinding;
+  AUDIT_DLQ_BUCKET?: CloudflareR2Binding;
+  ANALYTICS_ENGINE?: CloudflareAnalyticsEngineBinding;
   // Standard env vars (strings)
   [key: string]: unknown;
 }

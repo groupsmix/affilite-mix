@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
   try {
     internalToken = getInternalTokenFor("internal");
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
 
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
       siteId = body.site_id;
     }
   } catch {
+    // fail-open: best-effort
     // No body or invalid JSON — use defaults.
   }
 
@@ -146,16 +148,13 @@ export async function POST(request: NextRequest) {
   // stdout so the Tail Worker (when LOG_SHIPPER_ENABLED=true) ships the
   // event to durable storage. Sentry breadcrumbs would not retain
   // enough volume for cache-purge auditing.
-  console.log(
-    JSON.stringify({
-      event: "cache.revalidate",
-      kinds,
-      site_id: siteId,
-      site_count: siteIds.length,
-      tag_count: revalidated.length,
-      timestamp: new Date().toISOString(),
-    }),
-  );
+  logger.info("cache.revalidate", {
+    event: "cache.revalidate",
+    kinds,
+    site_id: siteId,
+    site_count: siteIds.length,
+    tag_count: revalidated.length,
+  });
 
   return NextResponse.json({
     ok: true,

@@ -53,6 +53,7 @@ async function resolveSiteDomain(siteSlug: string): Promise<string | null> {
     const dbRow = await getSiteRowBySlug(siteSlug);
     return dbRow?.domain ?? null;
   } catch {
+    // fail-open: best-effort
     return null;
   }
 }

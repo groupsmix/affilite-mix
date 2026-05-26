@@ -131,6 +131,7 @@ function fireTrackingBeacon(slug: string) {
       fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
     }
   } catch {
+    // fail-open: best-effort
     // Tracking failure should never block navigation
   }
 }
@@ -161,6 +162,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
       const data = await res.json();
       setResults(data.results ?? []);
     } catch {
+      // fail-open: best-effort
       setError("Something went wrong while fetching recommendations. Please try again.");
       setResults([]);
     } finally {

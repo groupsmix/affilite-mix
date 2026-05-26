@@ -73,6 +73,7 @@ export async function GET(
         return apiError(400, "Invalid affiliate URL scheme");
       }
     } catch {
+      // fail-open: best-effort
       logger.error("[r/shortcode] rejected redirect: malformed URL", {
         siteId,
         shortcode,

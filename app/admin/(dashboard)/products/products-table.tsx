@@ -82,6 +82,7 @@ function formatPrice(row: ProductsTableRow): string {
         maximumFractionDigits: 2,
       }).format(amount);
     } catch {
+      // fail-open: best-effort
       return `${amount} ${currency}`;
     }
   }
@@ -156,6 +157,7 @@ function RowActions({ row }: { row: ProductsTableRow }) {
       await navigator.clipboard.writeText(row.affiliate_url);
       toast.success("Affiliate URL copied");
     } catch {
+      // fail-open: best-effort
       toast.error("Failed to copy affiliate URL");
     }
   }

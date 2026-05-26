@@ -20,6 +20,7 @@ export async function generateViewport(): Promise<Viewport> {
     const themeColor = site.theme?.primaryColor || "#1e293b";
     return { themeColor };
   } catch {
+    // fail-open: best-effort
     return { themeColor: "#1e293b" };
   }
 }

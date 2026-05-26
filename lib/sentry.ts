@@ -89,9 +89,10 @@ export function captureException(error: unknown, context?: Record<string, unknow
     context &&
     context.user &&
     typeof context.user === "object" &&
-    (context.user as any).ip_address
+    (context.user as Record<string, unknown>).ip_address
   ) {
-    (context.user as any).ip_address = truncateIp((context.user as any).ip_address);
+    const user = context.user as Record<string, unknown>;
+    user.ip_address = truncateIp(user.ip_address as string);
   }
   if (isInitialized()) {
     try {
@@ -102,6 +103,7 @@ export function captureException(error: unknown, context?: Record<string, unknow
         sentryCaptureException(error, { data: context });
       });
     } catch {
+      // fail-open: best-effort
       if (context?.traceId && typeof context.traceId === "string") {
         setTag("traceId", context.traceId);
       }
@@ -149,6 +151,7 @@ export function captureMessage(message: string, level: SeverityLevel = "info") {
         sentryCaptureMessage(message, level);
       });
     } catch {
+      // fail-open: best-effort
       sentryCaptureMessage(message, level);
     }
   }
