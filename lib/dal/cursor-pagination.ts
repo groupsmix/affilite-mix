@@ -50,11 +50,19 @@ function encodeCursor(col: string, val: string, id: string): string {
   return Buffer.from(JSON.stringify(payload)).toString("base64url");
 }
 
+/** Reject values that contain PostgREST filter metacharacters. */
+const POSTGREST_UNSAFE = /[,()\\]/;
+
+function isSafeCursorValue(v: string): boolean {
+  return v.length > 0 && v.length <= 256 && !POSTGREST_UNSAFE.test(v);
+}
+
 function decodeCursor(cursor: string): CursorPayload | null {
   try {
     const raw = Buffer.from(cursor, "base64url").toString("utf8");
     const parsed = JSON.parse(raw) as CursorPayload;
     if (parsed.v !== 1 || !parsed.col || !parsed.id) return null;
+    if (!isSafeCursorValue(parsed.val) || !isSafeCursorValue(parsed.id)) return null;
     return parsed;
   } catch {
     return null;

@@ -278,6 +278,54 @@ grep '"traceId":"<trace-id-value>"' logs.json
 
 ---
 
+## Rate-Limit KV Failure Alerting (R-001)
+
+KV-backed rate limiting degrades to per-isolate in-memory limits when KV is
+unavailable. The grace window (`lib/rate-limit.ts`, 60 s) masks short outages,
+but a sustained KV failure silently disables distributed rate limiting.
+
+### Recommended Sentry Alert Rules
+
+| Alert                     | Condition                           | Threshold                   | Action                  |
+| ------------------------- | ----------------------------------- | --------------------------- | ----------------------- |
+| KV fail-open spike        | `rate_limit_kv_failopen` events/min | > 10 in 5 min               | P2 — Slack `#incidents` |
+| Error rate spike          | Unhandled exception rate            | > 1% of requests over 5 min | P1 — Phone page         |
+| p99 latency spike         | Transaction duration p99            | > 2 s over 10 min           | P2 — Slack `#incidents` |
+| Unhandled rejection spike | `UnhandledRejection` events         | > 5 in 5 min                | P2 — Slack `#incidents` |
+| AI provider fallback      | `ai_provider_fallback` events       | > 20 in 15 min              | P3 — Slack `#alerts`    |
+| Cron liveness miss        | `cron_liveness_miss` events         | any occurrence              | P2 — Slack `#incidents` |
+
+### Terraform Example (Cloudflare Notification Policy)
+
+```hcl
+# terraform/cloudflare/alerts.tf
+resource "cloudflare_notification_policy" "kv_failure_alert" {
+  account_id  = var.cloudflare_account_id
+  name        = "Rate-Limit KV Failure Spike"
+  description = "Alert when KV-backed rate limiting degrades"
+  enabled     = true
+  alert_type  = "workers_alert"
+
+  filters {
+    status = ["500"]
+  }
+
+  email_integration {
+    id = var.alert_email_id
+  }
+}
+```
+
+### Sentry Alert Configuration (UI Steps)
+
+1. Go to **Sentry → Alerts → Create Alert Rule**
+2. Set filter: `message:rate_limit_kv_failopen`
+3. Condition: **Event frequency** > 10 events in 5 minutes
+4. Action: Notify via Slack `#incidents` + email on-call
+5. Repeat for each metric in the table above
+
+---
+
 ## Quick Reference: "I Just Got Paged"
 
 1. **Check Sentry** — look at the latest unresolved errors and their trace IDs
