@@ -11,6 +11,7 @@ import { runAfterResponse } from "@/lib/wait-until";
 import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
+import { getAppCacheKV } from "@/lib/runtime-env";
 import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
 import { verifyToken } from "@/lib/auth";
 
@@ -83,7 +84,7 @@ async function isDuplicateClick(
   contentSlug: string,
 ): Promise<"duplicate" | "unique" | "error"> {
   try {
-    const kv = (process.env as any).APP_CACHE_KV as any;
+    const kv = getAppCacheKV();
     if (!kv) return "unique";
     const dedupKey = `click-dedup:${safeKeyPart(siteId)}:${safeKeyPart(contentSlug)}:${fingerprint}`;
     const existing = await kv.get(dedupKey);
@@ -91,6 +92,7 @@ async function isDuplicateClick(
     await kv.put(dedupKey, "1", { expirationTtl: 86400 });
     return "unique";
   } catch {
+    // fail-open: best-effort
     return "error";
   }
 }
@@ -115,12 +117,15 @@ async function hasValidAdminSession(request: NextRequest, siteId?: string): Prom
     if (!payload) return false;
     // RC-001: Require token to carry a site_id claim that matches the resolved tenant.
     // Tokens without site_id (legacy/older) must NOT be treated as internal.
-    const tokenSiteId = (payload as any).site_id;
+    const tokenSiteId = (payload as unknown as Record<string, unknown>).site_id as
+      | string
+      | undefined;
     if (siteId && tokenSiteId !== siteId) {
       return false;
     }
     return true;
   } catch {
+    // fail-open: best-effort
     return false;
   }
 }
@@ -171,9 +176,13 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     let cacheHmacValid = false;
 
     try {
-      const kv = (process.env as any).APP_CACHE_KV as any;
+      const kv = getAppCacheKV();
       if (kv) {
-        cachedData = await kv.get(cacheKey, "json");
+        cachedData = (await kv.get(cacheKey, "json")) as {
+          name: string;
+          url: string;
+          _hmac?: string;
+        } | null;
         if (cachedData && !cachedData._hmac) {
           console.error(
             JSON.stringify({
@@ -201,6 +210,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         }
       }
     } catch {
+      // fail-open: best-effort
       // Ignore KV errors and fallback to DB
     }
 
@@ -240,7 +250,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
 
       if (hmacSigned) {
         try {
-          const kv = (process.env as any).APP_CACHE_KV as any;
+          const kv = getAppCacheKV();
           if (kv) {
             void runAfterResponse(
               kv.put(cacheKey, JSON.stringify(cachedData), { expirationTtl: 3600 }),
@@ -248,6 +258,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
             );
           }
         } catch {
+          // fail-open: best-effort
           // ignore cache write errors
         }
       }
@@ -262,6 +273,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         return apiError(400, "Invalid affiliate URL scheme");
       }
     } catch {
+      // fail-open: best-effort
       return apiError(400, "Malformed affiliate URL");
     }
 
@@ -308,6 +320,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         const refUrl = new URL(sanitizedReferrer);
         sanitizedReferrer = `${refUrl.origin}${refUrl.pathname}`.slice(0, 2048);
       } catch {
+        // fail-open: best-effort
         sanitizedReferrer = sanitizedReferrer.slice(0, 2048);
       }
     }
@@ -381,7 +394,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       // In edge runtime (Cloudflare Workers) the response is streamed without
       // waiting; everywhere else we await to ensure the write completes before
       // the process exits (important for tests and serverless cold-shutdown).
-      if (typeof (globalThis as any).__CLOUDFLARE_WORKERS__ !== "undefined") {
+      if ("__CLOUDFLARE_WORKERS__" in globalThis) {
         void runAfterResponse(clickPromise, { context: "[api/track/click] publishClick" });
       } else {
         await clickPromise.catch((err: unknown) =>

@@ -22,6 +22,7 @@ export async function signSiteIdFallback(siteId: string): Promise<string | null>
     const sig = await computeHmac(secret, "site-id-fallback", SITE_ID_SIGN_VERSION, siteId);
     return sig;
   } catch {
+    // fail-open: best-effort
     return null;
   }
 }
@@ -137,6 +138,7 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
       }
     }
   } catch {
+    // fail-open: best-effort
     // If not in a request context where cookies work, ignore
   }
 

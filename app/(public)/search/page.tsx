@@ -59,6 +59,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           searchProducts(site.id, query, 12),
         ]);
       } catch {
+        // fail-open: best-effort
         // Supabase unavailable — treat as empty results rather than
         // crashing the whole page into the error boundary.
       }

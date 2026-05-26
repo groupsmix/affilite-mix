@@ -228,7 +228,7 @@ describe("Audit-3 regression locks", () => {
 
     it("emits a structured audit log on every purge", () => {
       expect(route).toMatch(/event:\s*"cache\.revalidate"/);
-      expect(route).toMatch(/console\.log\(/);
+      expect(route).toMatch(/logger\.info\(/);
     });
   });
 

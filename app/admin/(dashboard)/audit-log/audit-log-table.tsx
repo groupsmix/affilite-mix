@@ -189,6 +189,7 @@ function DetailsDialog({ row }: { row: AuditLogTableRow }) {
     try {
       return JSON.stringify(row.details ?? {}, null, 2);
     } catch {
+      // fail-open: best-effort
       return String(row.details);
     }
   }, [row.details]);

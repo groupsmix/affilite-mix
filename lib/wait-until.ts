@@ -38,6 +38,7 @@ async function getExecutionContext(): Promise<CloudflareExecutionContextLike | u
     const awaited = await Promise.resolve(mod.getCloudflareContext({ async: true }));
     return awaited?.ctx;
   } catch {
+    // fail-open: best-effort
     return undefined;
   }
 }
@@ -75,6 +76,7 @@ export function runAfterResponse<T>(
       try {
         ctx.waitUntil(wrapped);
       } catch {
+        // fail-open: best-effort
         // waitUntil can throw if the context has already been closed.
         // The `.catch()` above still protects us from an unhandled
         // rejection; just swallow this.

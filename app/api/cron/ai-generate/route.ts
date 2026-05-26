@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
       try {
         dbSiteId = await resolveDbSiteId(site.id);
       } catch {
+        // fail-open: best-effort
         siteResult.errors.push("Could not resolve DB site ID");
         results.push(siteResult);
         continue;

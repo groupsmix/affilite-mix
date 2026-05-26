@@ -7,6 +7,7 @@ import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteById } from "@/config/sites";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
+import { getAppCacheKV } from "@/lib/runtime-env";
 
 type AdminResult =
   | { error: NextResponse; session: null; dbSiteId: null; siteSlug: null }
@@ -126,14 +127,15 @@ export async function requireAdmin(): Promise<AdminResult> {
   const kvCacheKey = `admin-guard:site-slug:${siteSlug}`;
 
   try {
-    const kv = (process.env as any).APP_CACHE_KV as any;
+    const kv = getAppCacheKV();
     if (kv) {
-      const cached = await kv.get(kvCacheKey, "json");
+      const cached = (await kv.get(kvCacheKey, "json")) as { id?: string } | null;
       if (cached && typeof cached.id === "string") {
         dbSiteId = cached.id;
       }
     }
   } catch {
+    // fail-open: best-effort
     // Ignore KV errors
   }
 
@@ -142,11 +144,12 @@ export async function requireAdmin(): Promise<AdminResult> {
     if (dbSite) {
       dbSiteId = dbSite.id;
       try {
-        const kv = (process.env as any).APP_CACHE_KV as any;
+        const kv = getAppCacheKV();
         if (kv) {
           await kv.put(kvCacheKey, JSON.stringify({ id: dbSiteId }), { expirationTtl: 300 });
         }
       } catch {
+        // fail-open: best-effort
         // Ignore KV write errors
       }
     }

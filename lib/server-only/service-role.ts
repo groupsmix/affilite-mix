@@ -19,6 +19,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { logger } from "@/lib/logger";
 
 // FIX-04 (F-001, F-011): Branded type for the privileged client.
 // Callers receive a PrivilegedSupabaseClient instead of a plain
@@ -40,13 +41,10 @@ const seenCallers = new Set<string>();
 function logPrivilegedUsage(caller: string): void {
   if (!seenCallers.has(caller)) {
     seenCallers.add(caller);
-    console.log(
-      JSON.stringify({
-        metric: "privileged_client_usage",
-        caller,
-        msg: `Privileged Supabase client used by ${caller}`,
-      }),
-    );
+    logger.info(`Privileged Supabase client used by ${caller}`, {
+      metric: "privileged_client_usage",
+      caller,
+    });
   }
 }
 

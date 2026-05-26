@@ -93,6 +93,7 @@ function readBinding(name: string): unknown {
   try {
     return (process.env as Record<string, unknown>)[name];
   } catch {
+    // fail-open: best-effort
     return undefined;
   }
 }
@@ -418,7 +419,7 @@ function handleKvUnavailable(
       captureException(err ?? new Error(msg), {
         context: "rate-limit.kv-unavailable-fail-open",
         extra: { reason, policy },
-        level: "warning" as any,
+        level: "warning",
       });
     }
     return { allowed: true, remaining: config.maxRequests, retryAfterMs: 0 };

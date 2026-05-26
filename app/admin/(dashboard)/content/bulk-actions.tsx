@@ -48,6 +48,7 @@ export function ContentBulkActions({ selectedIds, onClear }: BulkActionsProps) {
 
         if (!res.ok) failed++;
       } catch {
+        // fail-open: best-effort
         failed++;
       }
     }
@@ -86,6 +87,7 @@ export function ContentBulkActions({ selectedIds, onClear }: BulkActionsProps) {
 
         if (!res.ok) failed++;
       } catch {
+        // fail-open: best-effort
         failed++;
       }
     }

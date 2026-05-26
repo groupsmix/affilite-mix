@@ -38,6 +38,7 @@ export default async function NewsletterUnsubscribedPage({
       dbSiteId = dbSite.id;
     }
   } catch {
+    // fail-open: best-effort
     // Fallback to config logo
   }
   const siteLogo = logoUrl || site.brand.logo;

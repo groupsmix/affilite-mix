@@ -1,5 +1,6 @@
 import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
 import { captureException } from "@/lib/sentry";
+import { getRuntimeEnv } from "@/lib/runtime-env";
 
 export interface AuditEvent {
   site_id: string;
@@ -94,9 +95,10 @@ interface AuditR2Bucket {
 /** Resolve the AUDIT_QUEUE Cloudflare binding, if available. */
 function getAuditQueue(): AuditQueue | undefined {
   try {
-    const binding = (process.env as any).AUDIT_QUEUE;
-    if (binding && typeof binding.send === "function") return binding as AuditQueue;
+    const binding = getRuntimeEnv().AUDIT_QUEUE;
+    if (binding && typeof binding.send === "function") return binding;
   } catch {
+    // fail-open: best-effort
     // Binding not available (local dev, CI, etc.)
   }
   return undefined;
@@ -105,9 +107,10 @@ function getAuditQueue(): AuditQueue | undefined {
 /** Resolve the AUDIT_DLQ_BUCKET R2 binding for dead-letter persistence. */
 function getAuditDlqBucket(): AuditR2Bucket | undefined {
   try {
-    const binding = (process.env as any).AUDIT_DLQ_BUCKET;
-    if (binding && typeof binding.put === "function") return binding as AuditR2Bucket;
+    const binding = getRuntimeEnv().AUDIT_DLQ_BUCKET;
+    if (binding && typeof binding.put === "function") return binding;
   } catch {
+    // fail-open: best-effort
     // Binding not available
   }
   return undefined;
@@ -204,7 +207,7 @@ export async function recordAuditEvent(
 
       // ── Path 4: Analytics Engine breadcrumb ──────────────────────
       try {
-        const analytics = (process.env as any).ANALYTICS_ENGINE as any;
+        const analytics = getRuntimeEnv().ANALYTICS_ENGINE;
         if (analytics && analytics.writeDataPoint) {
           analytics.writeDataPoint({
             blobs: ["audit_log_failure", event.site_id, event.actor, event.action],
@@ -213,6 +216,7 @@ export async function recordAuditEvent(
           });
         }
       } catch {
+        // fail-open: best-effort
         // Silently ignore if Analytics Engine is not bound
       }
     }

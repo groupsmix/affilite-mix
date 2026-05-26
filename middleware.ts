@@ -16,6 +16,7 @@ import {
 } from "@/lib/security/unknown-host-guard";
 import { getAppCacheKV } from "@/lib/runtime-env";
 import { signSiteIdFallback } from "@/lib/supabase-server";
+import { checkBodySize, applySecurityHeaders } from "@/lib/middleware-helpers";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -139,61 +140,8 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   }
 
   // ── Request body size guard (AUDIT-FIX A1-002) ─────────
-  // Reject excessively large request bodies early to prevent Worker CPU
-  // and memory exhaustion. The Content-Length header is checked before
-  // any body parsing happens. Routes that need larger payloads (e.g.
-  // CSV import) enforce their own tighter limits downstream.
-  const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
-  const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-  if (UNSAFE_METHODS.has(request.method)) {
-    const contentLength = request.headers.get("content-length");
-    const transferEncoding = (request.headers.get("transfer-encoding") || "").toLowerCase();
-    // FP-07: reject requests that try to bypass the size guard by omitting
-    // Content-Length and using chunked transfer encoding, or by lying about
-    // the size. We rely on Cloudflare to normalize headers in production but
-    // defend in depth here so the 10 MB intent is actually enforced.
-    if (!contentLength && transferEncoding.includes("chunked")) {
-      return new NextResponse(
-        JSON.stringify({
-          error: "Length required",
-          code: "LENGTH_REQUIRED",
-        }),
-        {
-          status: 411,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-    }
-    // AUDIT-FIX A1-002: For unsafe methods, require Content-Length unless
-    // the route is an explicitly allowlisted streaming endpoint. Requests
-    // with no Content-Length and no Transfer-Encoding: chunked can bypass
-    // the size guard behind some HTTP/2/proxy paths.
-    const STREAMING_ALLOWLIST = new Set(["/api/admin/upload"]);
-    if (!contentLength && !STREAMING_ALLOWLIST.has(pathname)) {
-      return new NextResponse(
-        JSON.stringify({ error: "Length required", code: "LENGTH_REQUIRED" }),
-        { status: 411, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    if (contentLength) {
-      const parsed = parseInt(contentLength, 10);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        return new NextResponse(
-          JSON.stringify({ error: "Invalid Content-Length", code: "BAD_REQUEST" }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        );
-      }
-      if (parsed > MAX_BODY_BYTES) {
-        return new NextResponse(
-          JSON.stringify({ error: "Payload too large", code: "PAYLOAD_TOO_LARGE" }),
-          {
-            status: 413,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-      }
-    }
-  }
+  const bodySizeError = checkBodySize(request);
+  if (bodySizeError) return bodySizeError;
 
   // ── GPC (Global Privacy Control) signal (A63) ───────────
   // If the browser sends Sec-GPC: 1, attach a response header so
@@ -405,7 +353,7 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
               // write replaces it with a well-formed value.
             }
           } else {
-            cachedRow = await kv.get(cacheKey, "json");
+            cachedRow = (await kv.get(cacheKey, "json")) as typeof cachedRow;
           }
         }
       } catch (e) {}
@@ -574,57 +522,8 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
     request: { headers: requestHeaders },
   });
 
-  // Echo the trace ID on the response so clients/devtools can correlate.
-  response.headers.set(TRACE_ID_HEADER, traceId);
-
-  // ── Security headers (AUDIT-FIX A31-A60 rec #2) ──────────────────────
-  // HSTS: enforce HTTPS with preload (2-year max-age per OWASP recommendation).
-  // Referrer-Policy: prevent affiliate URL leakage in referrer headers.
-  // Permissions-Policy: restrict browser features not needed by the app.
-  // X-Content-Type-Options: prevent MIME-type sniffing.
-  // X-Frame-Options: prevent clickjacking (belt-and-suspenders with CSP frame-ancestors).
-  response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
-  );
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("X-Frame-Options", "DENY");
-
-  // A63: Forward GPC signal so the cookie-consent CMP can auto-reject
-  // non-essential categories for California users who enable GPC.
-  if (gpcEnabled) {
-    response.headers.set("x-gpc", "1");
-  }
-
-  // AUDIT-FIX: Admin API responses must never be cached by CDN or browser
-  // to prevent serving tenant-specific data to the wrong user or session.
-  if (pathname.startsWith("/api/admin/")) {
-    response.headers.set("Cache-Control", "private, no-store, max-age=0");
-    response.headers.set("Pragma", "no-cache");
-  }
-
-  // AUDIT-FIX: Edge caching for public HTML pages. Published content
-  // pages are safe to cache at the CDN for short periods because they
-  // change infrequently (publish/unpublish triggers revalidation).
-  // API routes and admin pages are excluded. The `stale-while-revalidate`
-  // directive lets the CDN serve stale content while fetching a fresh copy,
-  // dramatically reducing TTFB for returning visitors.
-  if (!isApiRoute && !pathname.startsWith("/admin")) {
-    // Only set s-maxage if no Cache-Control was already set by Next.js ISR
-    if (!response.headers.has("Cache-Control")) {
-      response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
-    }
-  }
-
-  // FIX-10 (F-019, F-012): Vary headers to prevent cache poisoning.
-  // Cookie: responses differ based on admin session / active site cookie.
-  // x-site-id, host: responses differ based on the resolved tenant.
-  // Without these, a CDN or reverse proxy could serve an admin response
-  // to an unauthenticated user, or serve site-A content under site-B's URL.
-  response.headers.append("Vary", "Cookie");
-  response.headers.append("Vary", "x-site-id, host");
+  // ── Security + cache headers (extracted to middleware-helpers) ──
+  applySecurityHeaders(response, { pathname, gpcEnabled, cspHeaderValue, traceId });
 
   // ── CORS response headers ──────────────────────────────
   // Reflect the requesting origin if it is in the tenant allow-list.
@@ -644,9 +543,6 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   }
 
   if (cspHeaderValue) {
-    // Actual browser enforcement is driven by the *response* header.
-    response.headers.set(CSP_HEADER, cspHeaderValue);
-    // F-024: Set the Report-To header for CSP Level 3 modern browser reporting.
     response.headers.set("Report-To", buildReportToHeader());
   }
 

@@ -53,6 +53,7 @@ export function safeRedirectUrl(
   try {
     parsed = new URL(trimmed, request.url);
   } catch {
+    // fail-open: best-effort
     return fallback;
   }
 

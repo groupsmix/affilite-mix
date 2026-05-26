@@ -53,6 +53,7 @@ export function cronLock(jobName: string, ttlSeconds = 600): CronLockHandle {
         await kv.put(key, Date.now().toString(), { expirationTtl: ttlSeconds });
         return true;
       } catch {
+        // fail-open: best-effort
         return true; // KV error = fail open (allow the run)
       }
     },
@@ -64,6 +65,7 @@ export function cronLock(jobName: string, ttlSeconds = 600): CronLockHandle {
           | undefined;
         if (kv) await kv.delete(key);
       } catch {
+        // fail-open: best-effort
         // Best-effort; TTL will clean up
       }
     },

@@ -37,6 +37,7 @@ export async function GET(
       })),
     });
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ error: "Failed to load price history" }, { status: 500 });
   }
 }

@@ -92,6 +92,7 @@ function RowActions({ row }: { row: ContentTableRow }) {
         toast.error(data.error ?? "Failed to clone");
       }
     } catch {
+      // fail-open: best-effort
       toast.error("Failed to clone content");
     } finally {
       setCloning(false);
