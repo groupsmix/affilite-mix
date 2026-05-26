@@ -196,7 +196,7 @@ export async function POST(request: Request) {
       site.name,
       confirmUrl,
       site.domain,
-      (site.theme as any)?.accentColor ?? "#10B981",
+      (site.theme as Record<string, string>)?.accentColor ?? "#10B981",
     );
 
     if (emailHtml === null) {

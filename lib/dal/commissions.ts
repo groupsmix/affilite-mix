@@ -33,6 +33,10 @@ export interface ProductEpcRow {
 
 const COMMISSION_TABLE = "commissions";
 const EPC_TABLE = "product_epc_stats";
+const COMMISSION_COLUMNS =
+  "id, site_id, product_id, network, order_id, click_id, commission_amount, currency, status, sale_amount, event_date, ingested_at, network_transaction_id, network_status, network_sale_amount, items_count, customer_country, raw_data, created_at" as const;
+const EPC_COLUMNS =
+  "id, product_id, network, clicks_30d, commissions_30d, epc_30d, clicks_7d, commissions_7d, epc_7d, updated_at" as const;
 
 /** Ingest a batch of commission reports (with dedup) */
 export async function ingestCommissions(
@@ -87,7 +91,7 @@ export async function getCommissionStats(
 
   const { data, error } = await sb
     .from(COMMISSION_TABLE)
-    .select("*")
+    .select(COMMISSION_COLUMNS)
     .eq("site_id", siteId)
     .gte("event_date", startDate)
     .lte("event_date", endDate)
@@ -135,7 +139,7 @@ export async function getProductEpcStats(
 
   const { data, error } = await sb
     .from(EPC_TABLE)
-    .select("*")
+    .select(EPC_COLUMNS)
     .eq("product_id", productId)
     .order("epc_30d", { ascending: false });
 

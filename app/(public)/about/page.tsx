@@ -22,16 +22,21 @@ export default async function AboutPage() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-12">
-      <h1 className="mb-8 text-3xl font-bold text-gray-900">{isArabic ? "من نحن" : "About Us"}</h1>
+      <h1 className="mb-8 text-3xl font-bold" style={{ color: "var(--ink)" }}>
+        {isArabic ? "من نحن" : "About Us"}
+      </h1>
 
-      <div className={`prose prose-lg max-w-none text-gray-700 ${isArabic ? "rtl" : ""}`}>
+      <div
+        className={`prose prose-lg max-w-none ${isArabic ? "rtl" : ""}`}
+        style={{ color: "var(--ink-70)" }}
+      >
         <p className="mb-6 text-lg leading-relaxed">
           {isArabic
             ? `${site.name} هي منصتك المفضلة لاكتشاف أفضل المنتجات والعروض. نحن ملتزمون بتقديم محتوى موثوق ومراجعات شاملة لمساعدتك في اتخاذ قرارات شراء مستنيرة.`
             : `${site.name} is your trusted destination for discovering the best products and deals. We are committed to providing reliable content and comprehensive reviews to help you make informed purchasing decisions.`}
         </p>
 
-        <h2 className="mb-4 mt-8 text-2xl font-semibold text-gray-900">
+        <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
           {isArabic ? "مهمتنا" : "Our Mission"}
         </h2>
         <p className="mb-6 leading-relaxed">
@@ -40,7 +45,7 @@ export default async function AboutPage() {
             : "Our mission is to simplify your online shopping experience by providing carefully curated product recommendations, detailed comparisons, and expert insights across various categories. We believe everyone deserves quality products that match their needs and budget."}
         </p>
 
-        <h2 className="mb-4 mt-8 text-2xl font-semibold text-gray-900">
+        <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
           {isArabic ? "ما نقدمه" : "What We Offer"}
         </h2>
         <ul className="mb-6 list-disc space-y-2 pl-6">
@@ -63,7 +68,7 @@ export default async function AboutPage() {
           )}
         </ul>
 
-        <h2 className="mb-4 mt-8 text-2xl font-semibold text-gray-900">
+        <h2 className="mb-4 mt-8 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
           {isArabic ? "تواصل معنا" : "Contact Us"}
         </h2>
         <p className="mb-6 leading-relaxed">
@@ -72,10 +77,17 @@ export default async function AboutPage() {
             : "We love hearing from you! If you have any questions, suggestions, or would like to collaborate with us, please don't hesitate to reach out."}
         </p>
 
-        <div className="mt-8 rounded-lg bg-gray-50 p-6">
-          <p className="text-sm text-gray-600">
+        <div
+          className="mt-8 rounded-lg p-6"
+          style={{ backgroundColor: "var(--bone)", border: "1px solid var(--rule)" }}
+        >
+          <p className="text-sm" style={{ color: "var(--ink-60)" }}>
             <strong>{isArabic ? "البريد الإلكتروني:" : "Email:"}</strong>{" "}
-            <a href={`mailto:contact@${site.domain}`} className="text-blue-600 hover:underline">
+            <a
+              href={`mailto:contact@${site.domain}`}
+              className="hover:underline"
+              style={{ color: "var(--oltigo-green)" }}
+            >
               contact@{site.domain}
             </a>
           </p>

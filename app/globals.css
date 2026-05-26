@@ -144,6 +144,96 @@
   --font-body: var(--font-inter), "Inter", sans-serif;
 }
 
+/* ---------------------------------------------------------------------- *
+ * CDO Design Audit: Brand & Design System Tokens (etap-5)
+ *
+ * Canonical color palette, type scale, spacing grid, and component tokens.
+ * These are opt-in for landing pages and clinic-facing surfaces. Admin
+ * dashboard continues using shadcn/ui defaults above.
+ * ---------------------------------------------------------------------- */
+:root {
+  /* ── Foundation colors ── */
+  --ink: #0b0f14;
+  --ink-70: rgba(11, 15, 20, 0.7);
+  --ink-60: rgba(11, 15, 20, 0.6);
+  --ink-20: rgba(11, 15, 20, 0.2);
+  --lab-linen: #faf8f3;
+  --bone: #f5f3ee;
+  --bone-2: #efeee9;
+  --rule: #e5e3de;
+
+  /* ── Accent hues (max 2 non-neutral per viewport) ── */
+  --oltigo-green: #16604a;
+  --carnet-ochre: #c4a265;
+  --carnet-ochre-light: rgba(196, 162, 101, 0.12);
+  --surgical-sage: #5b8a72;
+  --surgical-sage-light: rgba(91, 138, 114, 0.1);
+  --reassurance-teal: #2d6a6a;
+  --night-navy: #0d1117;
+
+  /* ── Signal colors (status indicators only) ── */
+  --signal-green: #1e8e3e;
+  --signal-amber: #b7791f;
+  --signal-red: #b42318;
+  --clinic-coral: #d4746a;
+
+  /* ── Type scale (8 steps, rem-based) ── */
+  --text-display: 4.5rem;
+  --text-h1: 3rem;
+  --text-h2: 2rem;
+  --text-h3: 1.25rem;
+  --text-body-lg: 1.125rem;
+  --text-body: 1rem;
+  --text-small: 0.875rem;
+  --text-mono: 0.8125rem;
+
+  /* ── Line heights ── */
+  --lh-display: 1.04;
+  --lh-h1: 1.08;
+  --lh-h2: 1.15;
+  --lh-h3: 1.3;
+  --lh-body-lg: 1.55;
+  --lh-body: 1.6;
+  --lh-small: 1.5;
+  --lh-mono: 1.4;
+
+  /* ── Tracking (letter-spacing) ── */
+  --ls-display: -0.025em;
+  --ls-h1: -0.02em;
+  --ls-h2: -0.015em;
+  --ls-h3: -0.01em;
+  --ls-body-lg: -0.005em;
+
+  /* ── Font stacks ── */
+  --font-sans-landing: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif-landing: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-mono-landing: "JetBrains Mono", "Geist Mono", ui-monospace, "Cascadia Code", monospace;
+  --font-arabic: "IBM Plex Sans Arabic", "Noto Sans Arabic", sans-serif;
+
+  /* ── Spacing scale (4pt grid) ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+  --space-11: 192px;
+
+  /* ── Grid ── */
+  --container-max: 1200px;
+  --gutter-mobile: 24px;
+  --gutter-tablet: 48px;
+  --gutter-desktop: 96px;
+
+  /* ── Component tokens ── */
+  --radius-landing: 8px;
+  --shadow-sticky: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
 body {
   font-family: var(--font-body);
   color: var(--color-primary);

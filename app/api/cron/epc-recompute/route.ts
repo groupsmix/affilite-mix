@@ -46,14 +46,14 @@ export async function POST(request: NextRequest) {
       const { count: clicks30d } = await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("affiliate_url", link.url)
         .gte("created_at", thirtyDaysAgo);
 
       const { count: clicks7d } = await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("affiliate_url", link.url)
         .gte("created_at", sevenDaysAgo);
 

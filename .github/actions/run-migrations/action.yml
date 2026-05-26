@@ -24,8 +24,9 @@ runs:
 
     - name: Validate migration files
       shell: bash
+      env:
+        MIGRATION_DIR: ${{ inputs.migrations-dir }}
       run: |
-        MIGRATION_DIR="${{ inputs.migrations-dir }}"
         if [ ! -d "$MIGRATION_DIR" ]; then
           echo "No migrations directory found at $MIGRATION_DIR"
           exit 0
@@ -42,8 +43,8 @@ runs:
       shell: bash
       env:
         DATABASE_URL: ${{ inputs.database-url }}
+        MIGRATION_DIR: ${{ inputs.migrations-dir }}
       run: |
-        MIGRATION_DIR="${{ inputs.migrations-dir }}"
         applied=0
         failed=0
         for file in $(ls "$MIGRATION_DIR"/*.sql 2>/dev/null | sort); do
@@ -63,8 +64,9 @@ runs:
     - name: Dry-run validation
       if: inputs.dry-run == 'true'
       shell: bash
+      env:
+        MIGRATION_DIR: ${{ inputs.migrations-dir }}
       run: |
-        MIGRATION_DIR="${{ inputs.migrations-dir }}"
         for file in $(ls "$MIGRATION_DIR"/*.sql 2>/dev/null | sort); do
           echo "Validating syntax: $(basename "$file")"
           # Basic SQL syntax check using psql's parse-only mode

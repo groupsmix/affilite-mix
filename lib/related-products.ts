@@ -1,6 +1,9 @@
 import type { ProductRow } from "@/types/database";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
 
+const PRODUCT_COLUMNS =
+  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at" as const;
+
 /**
  * Find related products for internal linking.
  * Uses category, price range, and merchant overlap to find relevant products.
@@ -14,8 +17,13 @@ export async function getRelatedProducts(
 ): Promise<ProductRow[]> {
   const sb = await getClient();
 
-  // Get the source product
-  const { data: source } = await sb.from("products").select("*").eq("id", productId).single();
+  // Get the source product (scoped by site_id for tenant isolation)
+  const { data: source } = await sb
+    .from("products")
+    .select(PRODUCT_COLUMNS)
+    .eq("site_id", siteId)
+    .eq("id", productId)
+    .single();
 
   if (!source) return [];
 
@@ -24,7 +32,7 @@ export async function getRelatedProducts(
   if (source.category_id) {
     const { data } = await sb
       .from("products")
-      .select("*")
+      .select(PRODUCT_COLUMNS)
       .eq("site_id", siteId)
       .eq("status", "active")
       .neq("id", productId)
@@ -42,7 +50,7 @@ export async function getRelatedProducts(
   const existing = new Set((related || []).map((p) => p.id));
   const { data: merchantRelated } = await sb
     .from("products")
-    .select("*")
+    .select(PRODUCT_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "active")
     .neq("id", productId)

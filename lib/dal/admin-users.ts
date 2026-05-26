@@ -31,6 +31,8 @@ export type AdminUserPublic = Omit<
 >;
 
 const TABLE = "admin_users";
+const ALL_COLUMNS =
+  "id, email, password_hash, name, role, is_active, totp_secret, totp_enabled, totp_verified_at, totp_failed_attempts, totp_locked_until, login_failed_attempts, login_locked_until, reset_token, reset_token_expires_at, created_at, updated_at" as const;
 
 /** Find an active admin user by email (for login) */
 export async function getAdminUserByEmail(
@@ -40,7 +42,7 @@ export async function getAdminUserByEmail(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(ALL_COLUMNS)
     .eq("email", email.toLowerCase())
     .eq("is_active", true)
     .single();
@@ -284,7 +286,7 @@ export async function countAdminUsers(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<number> {
   const sb = await getClient();
-  const { count, error } = await sb.from(TABLE).select("*", { count: "exact", head: true });
+  const { count, error } = await sb.from(TABLE).select("id", { count: "exact", head: true });
 
   if (error) {
     // Table might not exist yet — fall back to 0

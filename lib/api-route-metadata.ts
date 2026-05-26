@@ -359,6 +359,15 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   {
     ...ADMIN_DEFAULTS,
     auth: "super_admin",
+    path: "/api/admin/webhook-dlq",
+    methods: ["GET", "PATCH"],
+    requestSchema: "{ eventId: string }",
+    responseSchema: "{ data: WebhookDlqEntry[]; count: number }",
+    sensitiveFields: ["payload"],
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
     path: "/api/admin/users",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "AdminUserInput",
