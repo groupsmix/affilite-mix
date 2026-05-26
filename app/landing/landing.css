@@ -1,0 +1,124 @@
+/* ── Landing page styles ── */
+
+.landing-body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Film grain overlay */
+.landing-body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+}
+
+/* Hairline dividers */
+.hairline {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Glass panels */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Tungsten orange */
+.text-tungsten { color: #e87a2f; }
+.bg-tungsten { background-color: #e87a2f; }
+.border-tungsten { border-color: #e87a2f; }
+
+/* Isotope green */
+.text-isotope { color: #3bef8a; }
+.bg-isotope { background-color: #3bef8a; }
+
+/* Signal ultraviolet */
+.text-ultraviolet { color: #8b5cf6; }
+.bg-ultraviolet { background-color: #7c3aed; }
+.border-ultraviolet { border-color: #7c3aed; }
+
+/* Edge glow CTA */
+.cta-glow {
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+  animation: glow-breathe 4s ease-in-out infinite;
+}
+
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.2); }
+  50% { box-shadow: 0 0 30px rgba(124, 58, 237, 0.45); }
+}
+
+/* Digit roll animation */
+@keyframes digit-roll {
+  0% { transform: translateY(100%); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.digit-roll {
+  animation: digit-roll 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Phosphor trail for globe arcs */
+@keyframes arc-trail {
+  0% { stroke-dashoffset: 200; opacity: 0.8; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+/* Typewriter caret */
+@keyframes blink-caret {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.caret-blink {
+  animation: blink-caret 0.8s step-end infinite;
+}
+
+/* Custom crosshair cursor for interactive elements */
+.interactive-cursor:hover {
+  cursor: crosshair;
+}
+
+/* Section reveal mask */
+.reveal-mask {
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-mask.revealed {
+  clip-path: inset(0 0 0 0);
+}
+
+/* Scrollbar styling */
+.landing-body::-webkit-scrollbar {
+  width: 6px;
+}
+.landing-body::-webkit-scrollbar-track {
+  background: #0a0b0f;
+}
+.landing-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .cta-glow { animation: none; }
+  .digit-roll { animation: none; transform: none; opacity: 1; }
+  .caret-blink { animation: none; opacity: 1; }
+  .reveal-mask { clip-path: none; transition: none; }
+}
+
+/* Mono accent */
+.font-mono-accent {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
