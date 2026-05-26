@@ -126,7 +126,7 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
   _privilegedClient = new Proxy(rawClient, {
     get(t, p, r) {
       if (p === "from") {
-        return (table: string) => wrapTable(t.from(table));
+        return (table: string) => wrapTable((t.from as any)(table));
       }
       return Reflect.get(t, p, r);
     },
