@@ -157,26 +157,33 @@ export async function incrementLoginFailedAttempts(
   const sb = await getClient();
 
   // Try atomic RPC first (requires DB function: increment_login_failed_attempts)
-  try {
-    const { data, error } = await sb.rpc("increment_login_failed_attempts", {
-      user_id: id,
-      lockout_threshold: lockoutThreshold,
-      lockout_duration_ms: lockoutDurationMs,
-    });
-    if (!error && data) {
-      return { attempts: data.attempts, locked: data.locked };
-    }
-    // RPC not available — fall through to non-atomic path
-  } catch {
-    // RPC function doesn't exist yet — use fallback
+  const { data, error } = await sb.rpc("increment_login_failed_attempts", {
+    user_id: id,
+    lockout_threshold: lockoutThreshold,
+    lockout_duration_ms: lockoutDurationMs,
+  });
+
+  if (!error && data) {
+    return { attempts: data.attempts, locked: data.locked };
   }
 
-  // EL-004 / FP-003: Surface degraded lockout path for operators (deploy migration first).
-  logger.warn("increment_login_failed_attempts RPC unavailable; using non-atomic fallback", {
+  // RC-004: Only fall back for missing function (42883). All other RPC errors
+  // (permissions, timeouts, transient failures) must fail closed to prevent
+  // race-condition bypass of the lockout counter.
+  if (error && error.code !== "42883") {
+    logger.error("increment_login_failed_attempts RPC failed; refusing degraded lockout", {
+      userId: id,
+      code: error.code,
+      message: error.message,
+    });
+    throw error;
+  }
+
+  // Fallback: non-atomic read-then-write (only when RPC function is not yet deployed)
+  logger.warn("increment_login_failed_attempts RPC missing (42883); using non-atomic fallback", {
     userId: id,
   });
 
-  // Fallback: non-atomic read-then-write (acceptable until migration runs)
   const { data: user, error: readErr } = await sb
     .from(TABLE)
     .select("login_failed_attempts")
@@ -212,21 +219,29 @@ export async function incrementTotpFailedAttempts(
 ): Promise<{ attempts: number; locked: boolean }> {
   const sb = await getClient();
 
-  try {
-    const { data, error } = await sb.rpc("increment_totp_failed_attempts", {
-      user_id: id,
-      lockout_threshold: lockoutThreshold,
-      lockout_duration_ms: lockoutDurationMs,
-    });
-    if (!error && data) {
-      return { attempts: data.attempts, locked: data.locked };
-    }
-  } catch {
-    // RPC function doesn't exist yet — use fallback
+  const { data, error } = await sb.rpc("increment_totp_failed_attempts", {
+    user_id: id,
+    lockout_threshold: lockoutThreshold,
+    lockout_duration_ms: lockoutDurationMs,
+  });
+
+  if (!error && data) {
+    return { attempts: data.attempts, locked: data.locked };
   }
 
-  // Fallback: non-atomic read-then-write (acceptable until migration runs)
-  logger.warn("increment_totp_failed_attempts RPC unavailable; using non-atomic fallback", {
+  // RC-004: Only fall back for missing function (42883). All other RPC errors
+  // must fail closed to prevent race-condition bypass of TOTP lockout.
+  if (error && error.code !== "42883") {
+    logger.error("increment_totp_failed_attempts RPC failed; refusing degraded lockout", {
+      userId: id,
+      code: error.code,
+      message: error.message,
+    });
+    throw error;
+  }
+
+  // Fallback: non-atomic read-then-write (only when RPC function is not yet deployed)
+  logger.warn("increment_totp_failed_attempts RPC missing (42883); using non-atomic fallback", {
     userId: id,
   });
 

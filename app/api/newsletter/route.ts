@@ -238,7 +238,23 @@ export async function POST(request: Request) {
           .replace(/[\r\n\0]/g, " ")
           .slice(0, 120);
       const safeSiteName = headerSafe(site.name);
-      const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${site.domain}`;
+      // RC-006: Validate site.domain before using in From header to prevent
+      // CRLF injection or malformed email addresses from poisoned DB data.
+      const safeDomain = site.domain
+        .normalize("NFC")
+        .replace(/[\r\n\0]/g, "")
+        .toLowerCase();
+      if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/.test(safeDomain)) {
+        logger.error("[newsletter] site.domain failed hostname validation", {
+          siteId: site.id,
+          domain: site.domain,
+        });
+        return apiError(
+          503,
+          "Newsletter email is temporarily unavailable. Please try again later.",
+        );
+      }
+      const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${safeDomain}`;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
