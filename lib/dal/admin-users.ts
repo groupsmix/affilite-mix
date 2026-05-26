@@ -199,6 +199,59 @@ export async function incrementLoginFailedAttempts(
   return { attempts, locked: attempts >= lockoutThreshold };
 }
 
+/**
+ * AUDIT-FIX A3-002/A1-006: Atomically increment totp_failed_attempts to prevent
+ * race condition from concurrent TOTP attempts undercounting lockout.
+ * Uses Supabase RPC for atomicity; falls back to non-atomic update if RPC unavailable.
+ */
+export async function incrementTotpFailedAttempts(
+  id: string,
+  lockoutThreshold: number = 10,
+  lockoutDurationMs: number = 60 * 60 * 1000,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<{ attempts: number; locked: boolean }> {
+  const sb = await getClient();
+
+  try {
+    const { data, error } = await sb.rpc("increment_totp_failed_attempts", {
+      user_id: id,
+      lockout_threshold: lockoutThreshold,
+      lockout_duration_ms: lockoutDurationMs,
+    });
+    if (!error && data) {
+      return { attempts: data.attempts, locked: data.locked };
+    }
+  } catch {
+    // RPC function doesn't exist yet — use fallback
+  }
+
+  // Fallback: non-atomic read-then-write (acceptable until migration runs)
+  logger.warn("increment_totp_failed_attempts RPC unavailable; using non-atomic fallback", {
+    userId: id,
+  });
+
+  const { data: user, error: readErr } = await sb
+    .from(TABLE)
+    .select("totp_failed_attempts")
+    .eq("id", id)
+    .single();
+
+  if (readErr) throw readErr;
+
+  const attempts = ((user as any)?.totp_failed_attempts ?? 0) + 1;
+  const updates: { totp_failed_attempts: number; totp_locked_until?: string | null } = {
+    totp_failed_attempts: attempts,
+  };
+  if (attempts >= lockoutThreshold) {
+    updates.totp_locked_until = new Date(Date.now() + lockoutDurationMs).toISOString();
+  }
+
+  const { error: writeErr } = await sb.from(TABLE).update(updates).eq("id", id);
+  if (writeErr) throw writeErr;
+
+  return { attempts, locked: attempts >= lockoutThreshold };
+}
+
 /** Delete an admin user */
 export async function deleteAdminUser(
   id: string,
