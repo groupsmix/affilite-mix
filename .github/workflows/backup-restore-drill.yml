@@ -25,6 +25,8 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        with:
+          persist-credentials: false
 
       - name: Install PostgreSQL client
         run: |
@@ -80,8 +82,12 @@ jobs:
 
           # Check migration count matches
           MIGRATION_COUNT=$(ls supabase/migrations/*.sql 2>/dev/null | wc -l)
-          DB_MIGRATION_COUNT=$(psql "$STAGING_DATABASE_URL" -tAc "SELECT count(*) FROM _migrations_applied" 2>/dev/null || echo "0")
+          DB_MIGRATION_COUNT=$(psql "$STAGING_DATABASE_URL" -tAc "SELECT count(*) FROM _migrations_applied" 2>/dev/null | tr -d '[:space:]' || echo "0")
           echo "  Migrations on disk: $MIGRATION_COUNT, in DB: $DB_MIGRATION_COUNT"
+          if [ "$DB_MIGRATION_COUNT" != "$MIGRATION_COUNT" ]; then
+            echo "  ✗ Migration count mismatch"
+            FAILED=$((FAILED + 1))
+          fi
 
           if [ "$FAILED" -gt 0 ]; then
             echo "::error::Schema validation failed: $FAILED checks failed"

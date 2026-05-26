@@ -17,10 +17,11 @@ export async function getRelatedProducts(
 ): Promise<ProductRow[]> {
   const sb = await getClient();
 
-  // Get the source product
+  // Get the source product (scoped by site_id for tenant isolation)
   const { data: source } = await sb
     .from("products")
     .select(PRODUCT_COLUMNS)
+    .eq("site_id", siteId)
     .eq("id", productId)
     .single();
 

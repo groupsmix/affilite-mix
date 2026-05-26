@@ -30,14 +30,18 @@ runs:
         WORKER_NAME: ${{ inputs.worker-name }}
         ENVIRONMENT: ${{ inputs.environment }}
       run: |
-        ARGS=""
+        DEPLOY_ARGS=()
         if [ -n "$WORKER_NAME" ]; then
-          ARGS="--name $WORKER_NAME"
+          DEPLOY_ARGS+=("--name" "$WORKER_NAME")
         fi
+        case "$ENVIRONMENT" in
+          staging|production) ;;
+          *) echo "::error::Invalid environment: $ENVIRONMENT"; exit 1 ;;
+        esac
         if [ "$ENVIRONMENT" = "staging" ]; then
-          ARGS="$ARGS --env staging"
+          DEPLOY_ARGS+=("--env" "staging")
         fi
-        npx wrangler deploy $ARGS
+        npx wrangler deploy "${DEPLOY_ARGS[@]}"
 
     - name: Post-deploy health check
       shell: bash
