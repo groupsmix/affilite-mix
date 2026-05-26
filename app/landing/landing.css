@@ -31,18 +31,34 @@
 }
 
 /* Tungsten orange */
-.text-tungsten { color: #e87a2f; }
-.bg-tungsten { background-color: #e87a2f; }
-.border-tungsten { border-color: #e87a2f; }
+.text-tungsten {
+  color: #e87a2f;
+}
+.bg-tungsten {
+  background-color: #e87a2f;
+}
+.border-tungsten {
+  border-color: #e87a2f;
+}
 
 /* Isotope green */
-.text-isotope { color: #3bef8a; }
-.bg-isotope { background-color: #3bef8a; }
+.text-isotope {
+  color: #3bef8a;
+}
+.bg-isotope {
+  background-color: #3bef8a;
+}
 
 /* Signal ultraviolet */
-.text-ultraviolet { color: #8b5cf6; }
-.bg-ultraviolet { background-color: #7c3aed; }
-.border-ultraviolet { border-color: #7c3aed; }
+.text-ultraviolet {
+  color: #8b5cf6;
+}
+.bg-ultraviolet {
+  background-color: #7c3aed;
+}
+.border-ultraviolet {
+  border-color: #7c3aed;
+}
 
 /* Edge glow CTA */
 .cta-glow {
@@ -51,15 +67,28 @@
 }
 
 @keyframes glow-breathe {
-  0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.2); }
-  50% { box-shadow: 0 0 30px rgba(124, 58, 237, 0.45); }
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.45);
+  }
 }
 
 /* Digit roll animation */
 @keyframes digit-roll {
-  0% { transform: translateY(100%); opacity: 0; }
-  30% { opacity: 1; }
-  100% { transform: translateY(0); opacity: 1; }
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .digit-roll {
@@ -68,14 +97,25 @@
 
 /* Phosphor trail for globe arcs */
 @keyframes arc-trail {
-  0% { stroke-dashoffset: 200; opacity: 0.8; }
-  100% { stroke-dashoffset: 0; opacity: 0; }
+  0% {
+    stroke-dashoffset: 200;
+    opacity: 0.8;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
 }
 
 /* Typewriter caret */
 @keyframes blink-caret {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 .caret-blink {
@@ -111,10 +151,22 @@
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .cta-glow { animation: none; }
-  .digit-roll { animation: none; transform: none; opacity: 1; }
-  .caret-blink { animation: none; opacity: 1; }
-  .reveal-mask { clip-path: none; transition: none; }
+  .cta-glow {
+    animation: none;
+  }
+  .digit-roll {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+  .caret-blink {
+    animation: none;
+    opacity: 1;
+  }
+  .reveal-mask {
+    clip-path: none;
+    transition: none;
+  }
 }
 
 /* Mono accent */
