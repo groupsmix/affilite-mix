@@ -64,7 +64,7 @@ export function SearchInput({ placeholder, buttonLabel }: SearchInputProps) {
           type="submit"
           disabled={isPending}
           className="rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-60"
-          style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+          style={{ backgroundColor: "var(--color-accent-text, #047857)" }}
         >
           {isPending ? (
             <span className="flex items-center gap-2">
