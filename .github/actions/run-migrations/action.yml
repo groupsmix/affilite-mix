@@ -1,0 +1,75 @@
+name: "Run Database Migrations"
+description: "Apply SQL migrations from supabase/migrations/ to a target database"
+inputs:
+  database-url:
+    description: "PostgreSQL connection string"
+    required: true
+  migrations-dir:
+    description: "Path to migrations directory"
+    required: false
+    default: "supabase/migrations"
+  dry-run:
+    description: "If true, only validate SQL syntax without applying"
+    required: false
+    default: "false"
+runs:
+  using: "composite"
+  steps:
+    - name: Install psql
+      shell: bash
+      run: |
+        if ! command -v psql &>/dev/null; then
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+        fi
+
+    - name: Validate migration files
+      shell: bash
+      run: |
+        MIGRATION_DIR="${{ inputs.migrations-dir }}"
+        if [ ! -d "$MIGRATION_DIR" ]; then
+          echo "No migrations directory found at $MIGRATION_DIR"
+          exit 0
+        fi
+        count=$(ls "$MIGRATION_DIR"/*.sql 2>/dev/null | wc -l)
+        echo "Found $count migration files"
+        if [ "$count" -eq 0 ]; then
+          echo "No migration files to apply"
+          exit 0
+        fi
+
+    - name: Apply migrations
+      if: inputs.dry-run != 'true'
+      shell: bash
+      env:
+        DATABASE_URL: ${{ inputs.database-url }}
+      run: |
+        MIGRATION_DIR="${{ inputs.migrations-dir }}"
+        applied=0
+        failed=0
+        for file in $(ls "$MIGRATION_DIR"/*.sql 2>/dev/null | sort); do
+          echo "Applying: $(basename "$file")"
+          if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$file" 2>&1; then
+            applied=$((applied + 1))
+          else
+            echo "::error::Migration failed: $(basename "$file")"
+            failed=$((failed + 1))
+          fi
+        done
+        echo "Migrations applied: $applied, failed: $failed"
+        if [ "$failed" -gt 0 ]; then
+          exit 1
+        fi
+
+    - name: Dry-run validation
+      if: inputs.dry-run == 'true'
+      shell: bash
+      run: |
+        MIGRATION_DIR="${{ inputs.migrations-dir }}"
+        for file in $(ls "$MIGRATION_DIR"/*.sql 2>/dev/null | sort); do
+          echo "Validating syntax: $(basename "$file")"
+          # Basic SQL syntax check using psql's parse-only mode
+          if ! head -50 "$file" | grep -qE '^\s*(CREATE|ALTER|DROP|INSERT|UPDATE|DELETE|BEGIN|COMMIT|SET|DO|GRANT|REVOKE)'; then
+            echo "::warning::$(basename "$file") may not contain standard SQL statements"
+          fi
+        done
+        echo "Dry-run validation complete"

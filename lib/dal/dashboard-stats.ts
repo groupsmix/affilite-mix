@@ -1,4 +1,5 @@
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { logger } from "@/lib/logger";
 
 export interface DashboardStats {
   total_products: number;
@@ -34,10 +35,9 @@ export async function getDashboardStats(
 
   if (error) {
     // RPC not deployed yet — fall back to individual count queries
-    console.warn(
-      "[dashboard-stats] RPC unavailable, falling back to individual queries:",
-      error.message,
-    );
+    logger.warn("[dashboard-stats] RPC unavailable, falling back to individual queries", {
+      error: error.message,
+    });
     return fallbackDashboardStats(siteId, todayStart, sevenDaysAgo, getClient);
   }
 

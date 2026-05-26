@@ -26,6 +26,7 @@
  */
 
 import { captureException } from "@/lib/sentry";
+import { logger } from "@/lib/logger";
 
 // ── Durable Object binding types ────────────────────────────────────
 // Minimal structural types for the RATE_LIMITER_DO binding so this file
@@ -396,8 +397,7 @@ function handleKvUnavailable(
     if (!kvUnavailableAlerted) {
       kvUnavailableAlerted = true;
       const msg = `[rate-limit] KV unavailable (${reason}) — failing CLOSED per route policy.`;
-      console.error(msg);
-      console.error(JSON.stringify({ metric: "rate_limit_kv_failclosed", reason, policy }));
+      logger.error(msg, { metric: "rate_limit_kv_failclosed", reason, policy });
       captureException(err ?? new Error(msg), {
         context: "rate-limit.kv-unavailable-fail-closed",
         extra: { reason, policy },
@@ -414,8 +414,7 @@ function handleKvUnavailable(
     if (!kvUnavailableAlerted) {
       kvUnavailableAlerted = true;
       const msg = `[rate-limit] KV unavailable (${reason}) — failing OPEN per route policy.`;
-      console.warn(msg);
-      console.error(JSON.stringify({ metric: "rate_limit_kv_failopen", reason, policy }));
+      logger.warn(msg, { metric: "rate_limit_kv_failopen", reason, policy });
       captureException(err ?? new Error(msg), {
         context: "rate-limit.kv-unavailable-fail-open",
         extra: { reason, policy },
@@ -428,10 +427,11 @@ function handleKvUnavailable(
   // policy === "grace" (default)
   if (!isProduction && !kvFallbackWarned) {
     kvFallbackWarned = true;
-    console.warn(
-      "[rate-limit] KV namespace RATE_LIMIT_KV not available — using in-memory fallback. " +
-        "This is expected in local dev but NOT safe for production. " +
-        "See lib/rate-limit.ts for KV configuration instructions.",
+    logger.warn(
+      "[rate-limit] KV namespace RATE_LIMIT_KV not available — using in-memory fallback",
+      {
+        hint: "This is expected in local dev but NOT safe for production.",
+      },
     );
   }
 
@@ -447,15 +447,11 @@ function handleKvUnavailable(
       `Falling back to per-isolate memory for up to ${getKvGraceMs()}ms; ` +
       "after the grace window elapses requests will fail CLOSED. " +
       "Configure the KV binding in wrangler.jsonc to restore distributed rate limiting.";
-    console.error(msg);
-    // Structured line for log-based metric (rate_limit_kv_failopen).
-    console.error(
-      JSON.stringify({
-        metric: "rate_limit_kv_failopen",
-        reason,
-        grace_ms: getKvGraceMs(),
-      }),
-    );
+    logger.error(msg, {
+      metric: "rate_limit_kv_failopen",
+      reason,
+      grace_ms: getKvGraceMs(),
+    });
     captureException(err ?? new Error(msg), {
       context: "rate-limit.kv-unavailable-fail-open",
       extra: { reason, graceMs: getKvGraceMs() },
@@ -536,7 +532,7 @@ export async function checkRateLimit(
       "[rate-limit] RATE_LIMITER_DO and RATE_LIMIT_KV both missing in production for closed-policy route.";
     if (!kvUnavailableAlerted) {
       kvUnavailableAlerted = true;
-      console.error(msg);
+      logger.error(msg);
       captureException(new Error(msg), { context: "rate-limit.bindings-missing-closed-policy" });
     }
     return { allowed: false, remaining: 0, retryAfterMs: config.windowMs };

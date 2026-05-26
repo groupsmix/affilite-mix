@@ -1,10 +1,17 @@
+import { getCurrentSite } from "@/lib/site-context";
+import { staticPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Accessibility Statement",
-  description:
-    "Our commitment to web accessibility — WCAG 2.2 AA conformance, known limitations, and how to contact us.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getCurrentSite();
+  return staticPageMetadata({
+    site,
+    title: "Accessibility Statement",
+    description:
+      "Our commitment to web accessibility — WCAG 2.2 AA conformance, known limitations, and how to contact us.",
+    path: "/accessibility",
+  });
+}
 
 export default function AccessibilityPage() {
   return (
