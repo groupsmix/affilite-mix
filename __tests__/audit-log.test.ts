@@ -113,12 +113,10 @@ describe("recordAuditEvent", () => {
     // Should have been called twice (initial + retry)
     expect(mockInsert).toHaveBeenCalledTimes(2);
     expect(consoleSpy).toHaveBeenCalledWith(
-      "[audit-log] Insert failed, retrying once:",
-      "DB connection failed",
+      expect.stringContaining("[audit-log] Insert failed, retrying once"),
     );
     expect(consoleSpy).toHaveBeenCalledWith(
-      "[audit-log] Retry also failed:",
-      "DB connection failed",
+      expect.stringContaining("[audit-log] Retry also failed"),
     );
 
     consoleSpy.mockRestore();
@@ -142,13 +140,11 @@ describe("recordAuditEvent", () => {
 
     expect(mockInsert).toHaveBeenCalledTimes(2);
     expect(consoleSpy).toHaveBeenCalledWith(
-      "[audit-log] Insert failed, retrying once:",
-      "Transient error",
+      expect.stringContaining("[audit-log] Insert failed, retrying once"),
     );
     // Should NOT have the retry-failed message
     expect(consoleSpy).not.toHaveBeenCalledWith(
-      "[audit-log] Retry also failed:",
-      expect.any(String),
+      expect.stringContaining("[audit-log] Retry also failed"),
     );
 
     consoleSpy.mockRestore();

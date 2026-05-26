@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { logger } from "@/lib/logger";
 // F-001 (deep audit): cron routes invoked from the Cloudflare Worker have
 // no `x-site-id` request header (there are no cookies, no admin session,
 // and a single cron may iterate many sites). The tenant JWT minted by
@@ -55,15 +56,11 @@ export async function POST(request: NextRequest) {
   const workerNow = new Date().toISOString();
   const clockSkewMs = Math.abs(new Date(dbNow).getTime() - new Date(workerNow).getTime());
   if (clockSkewMs > 30_000) {
-    console.warn(
-      JSON.stringify({
-        metric: "cron.clock_skew",
-        skew_ms: clockSkewMs,
-        db_now: dbNow,
-        worker_now: workerNow,
-        msg: `Worker clock skew ${clockSkewMs}ms detected — using DB time for scheduling`,
-      }),
-    );
+    logger.warn("cron.clock_skew", {
+      skew_ms: clockSkewMs,
+      db_now: dbNow,
+      worker_now: workerNow,
+    });
   }
   const results: Record<string, unknown> = {};
 

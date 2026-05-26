@@ -118,7 +118,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={site.language ?? "en"}
       dir={site.direction ?? "ltr"}
       className={Array.from(needed).join(" ")}
+      suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("theme-preference");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body>
         <WebVitals />
         {children}

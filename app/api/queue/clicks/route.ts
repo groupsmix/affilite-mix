@@ -3,6 +3,7 @@ import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getInternalTokenFor } from "@/lib/internal-auth";
 import { verifyInternalHmac } from "@/lib/internal-hmac";
 import { captureException } from "@/lib/sentry";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/queue/clicks
@@ -160,12 +161,9 @@ export async function POST(request: NextRequest) {
   // permissive mode in production so the reduced posture is visible.
   if (isProd && rawMode === "permissive" && !permissivePosturedLogged) {
     permissivePosturedLogged = true;
-    console.warn(
-      JSON.stringify({
-        metric: "internal_hmac_permissive_in_prod",
-        msg: "INTERNAL_HMAC_MIGRATION_MODE=permissive in production — legacy bearer fallback is enabled.",
-      }),
-    );
+    logger.warn("internal_hmac_permissive_in_prod", {
+      hint: "INTERNAL_HMAC_MIGRATION_MODE=permissive in production — legacy bearer fallback is enabled.",
+    });
   }
   const bodyText = await request.text();
   const hmacResult = await verifyInternalHmac(expected, request, bodyText);
@@ -179,13 +177,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       // Track legacy bearer use so operators can confirm migration is complete.
-      console.warn(
-        JSON.stringify({
-          metric: "internal_hmac_legacy_bearer_used",
-          path: "/api/queue/clicks",
-          msg: "Legacy bearer auth accepted on internal queue endpoint",
-        }),
-      );
+      logger.warn("internal_hmac_legacy_bearer_used", {
+        path: "/api/queue/clicks",
+      });
     } else {
       return NextResponse.json({ error: "Forbidden", reason: hmacResult.reason }, { status: 403 });
     }

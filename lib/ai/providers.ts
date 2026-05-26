@@ -7,6 +7,7 @@
  */
 
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { logger } from "@/lib/logger";
 import { assembleSystemPrompt, sanitizePrompt } from "./prompt-sanitization";
 import {
   reserveQuota,
@@ -434,7 +435,7 @@ export async function generateWithFallback(
           try {
             await op.fn();
           } catch (accErr) {
-            console.error("[ai/providers] accounting write failed", {
+            logger.error("[ai/providers] accounting write failed", {
               siteId: options.siteId,
               resource: op.resource,
               amount: op.amount,

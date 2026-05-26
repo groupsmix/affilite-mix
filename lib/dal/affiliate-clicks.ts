@@ -1,6 +1,7 @@
 import type { AffiliateClickRow } from "@/types/database";
 import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { logger } from "@/lib/logger";
 
 const TABLE = "affiliate_clicks";
 
@@ -92,7 +93,7 @@ export async function recordClick(
 
   const { error } = await sb.from(TABLE).insert(row);
   if (error) {
-    console.error("Failed to record affiliate click:", error.message);
+    logger.error("Failed to record affiliate click", { error: error.message });
   }
 }
 

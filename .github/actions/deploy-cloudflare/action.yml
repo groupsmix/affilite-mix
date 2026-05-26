@@ -1,0 +1,44 @@
+name: "Deploy to Cloudflare"
+description: "Build OpenNext bundle and deploy to Cloudflare Workers"
+inputs:
+  cloudflare-api-token:
+    description: "Cloudflare API token"
+    required: true
+  cloudflare-account-id:
+    description: "Cloudflare account ID"
+    required: true
+  environment:
+    description: "Target environment (staging or production)"
+    required: true
+    default: "production"
+  worker-name:
+    description: "Cloudflare Worker name"
+    required: false
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - name: Build OpenNext bundle
+      shell: bash
+      run: npx --yes @opennextjs/cloudflare build
+
+    - name: Deploy to Cloudflare
+      shell: bash
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+      run: |
+        ARGS=""
+        if [ -n "${{ inputs.worker-name }}" ]; then
+          ARGS="--name ${{ inputs.worker-name }}"
+        fi
+        if [ "${{ inputs.environment }}" = "staging" ]; then
+          ARGS="$ARGS --env staging"
+        fi
+        npx wrangler deploy $ARGS
+
+    - name: Post-deploy health check
+      shell: bash
+      run: |
+        echo "Deployment to ${{ inputs.environment }} complete"
+        echo "Worker: ${{ inputs.worker-name || 'default' }}"

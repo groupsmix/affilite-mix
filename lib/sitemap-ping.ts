@@ -1,4 +1,5 @@
 import { safeFetch } from "./ssrf-guard";
+import { logger } from "@/lib/logger";
 
 /**
  * Ping search engines to notify them of sitemap updates.
@@ -16,10 +17,13 @@ export async function pingSitemapIndexers(sitemapUrl: string): Promise<void> {
       try {
         const res = await safeFetch(url, { method: "GET" });
         if (!res.ok) {
-          console.warn("Sitemap ping failed for %s: %s", url, res.status);
+          logger.warn("Sitemap ping failed", { url, status: res.status });
         }
       } catch (err) {
-        console.warn("Sitemap ping error for %s:", url, err);
+        logger.warn("Sitemap ping error", {
+          url,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }),
   );

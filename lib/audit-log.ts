@@ -1,6 +1,7 @@
 import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
 import { captureException } from "@/lib/sentry";
 import { getRuntimeEnv } from "@/lib/runtime-env";
+import { logger } from "@/lib/logger";
 
 export interface AuditEvent {
   site_id: string;
@@ -139,7 +140,9 @@ async function writeToDlq(event: AuditEvent): Promise<void> {
   } catch (err) {
     // Last-resort: if even R2 fails, just log. We never throw from audit
     // code -- the caller's request must not fail because of audit infra.
-    console.error("[audit-log] DLQ write failed:", err);
+    logger.error("[audit-log] DLQ write failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
@@ -170,7 +173,9 @@ export async function recordAuditEvent(
       await queue.send(event);
       return; // Success -- queue consumer handles DB insert + retries.
     } catch (err) {
-      console.error("[audit-log] Queue send failed, falling back to direct insert:", err);
+      logger.error("[audit-log] Queue send failed, falling back to direct insert", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       captureException(err, { context: "audit-log.queue-send" });
       // Fall through to direct insert
     }
@@ -194,13 +199,13 @@ export async function recordAuditEvent(
   const { error } = await sb.from("audit_log").insert(row);
 
   if (error) {
-    console.error("[audit-log] Insert failed, retrying once:", error.message);
+    logger.error("[audit-log] Insert failed, retrying once", { error: error.message });
     // A74-F2: Apply a short jittered delay before retry to avoid
     // hammering Supabase during congestion. Base 100ms + up to 100ms jitter.
     await new Promise((r) => setTimeout(r, 100 + Math.random() * 100));
     const { error: retryError } = await sb.from("audit_log").insert(row);
     if (retryError) {
-      console.error("[audit-log] Retry also failed:", retryError.message);
+      logger.error("[audit-log] Retry also failed", { error: retryError.message });
 
       // ── Path 3: R2 DLQ fallback ──────────────────────────────────
       await writeToDlq(event);

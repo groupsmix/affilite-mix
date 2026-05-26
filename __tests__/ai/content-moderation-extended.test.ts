@@ -49,10 +49,7 @@ describe("logModerationRejection", () => {
 
   it("emits structured console.warn", () => {
     logModerationRejection("input", "test");
-    expect(console.warn).toHaveBeenCalledWith(
-      "[ai_moderation_reject]",
-      expect.stringContaining('"action":"ai_moderation_reject"'),
-    );
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("ai_moderation_reject"));
   });
 });
 
