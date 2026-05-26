@@ -47,7 +47,7 @@ export async function writeToDlq(entry: DlqEntry): Promise<void> {
     {
       event_id: entry.event_id,
       event_type: entry.event_type,
-      payload: entry.payload,
+      payload: entry.payload as unknown as import("@/types/supabase").Json,
       error_message: entry.error_message,
       attempts: entry.attempts,
       status: "pending",

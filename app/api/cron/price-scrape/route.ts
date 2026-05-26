@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
           id: string;
           site_id: string;
           price_amount: number | null;
-          price_currency: string;
+          price_currency: string | null;
         }) => ({
           product_id: p.id,
           site_id: p.site_id,
