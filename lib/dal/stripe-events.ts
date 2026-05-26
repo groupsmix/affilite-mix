@@ -86,7 +86,7 @@ export async function applyStripeEventAtomic(
   const { data, error } = await sb.rpc("apply_stripe_membership_event", {
     p_stripe_event_id: stripeEventId,
     p_event_type: eventType,
-    p_event_data: payload as unknown as Record<string, unknown>,
+    p_event_data: payload as unknown as import("@/types/supabase").Json,
   });
 
   if (error) throw error;

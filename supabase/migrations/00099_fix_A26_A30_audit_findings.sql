@@ -149,6 +149,7 @@ SET price_label = generate_price_display(price_amount, price_currency)
 WHERE price_amount IS NOT NULL;
 
 -- Add check constraint to ensure price_amount has proper scale/precision
+ALTER TABLE products DROP CONSTRAINT IF EXISTS chk_price_amount_scale;
 ALTER TABLE products 
   ADD CONSTRAINT chk_price_amount_scale 
   CHECK (price_amount IS NULL OR (
@@ -278,6 +279,7 @@ ALTER TABLE ad_impressions
 -- Update RPC function signature was already changed above
 
 -- Add CHECK constraint to ensure cpm_revenue_cents is non-negative
+ALTER TABLE ad_impressions DROP CONSTRAINT IF EXISTS chk_cpm_revenue_non_negative;
 ALTER TABLE ad_impressions
   ADD CONSTRAINT chk_cpm_revenue_non_negative 
   CHECK (cpm_revenue_cents >= 0)
@@ -293,6 +295,7 @@ ALTER TABLE products
   USING price_amount::NUMERIC(12,2);
 
 -- Add CHECK constraint for price_currency (ISO 4217 validation at DB level)
+ALTER TABLE products DROP CONSTRAINT IF EXISTS chk_price_currency_iso;
 ALTER TABLE products
   ADD CONSTRAINT chk_price_currency_iso 
   CHECK (price_currency IS NULL OR price_currency ~ '^[A-Z]{3}$')

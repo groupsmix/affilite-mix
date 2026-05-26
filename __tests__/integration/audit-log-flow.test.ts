@@ -159,7 +159,7 @@ describe.skipIf(!shouldRunSupabaseIntegration)("Audit Log Flow Integration", () 
       .from("audit_log")
       .insert({
         site_id: testSiteId,
-        actor: null, // System action, no admin user
+        actor: "system", // System action, no admin user
         action: "cron.publish",
         entity_type: "content",
         entity_id: crypto.randomUUID(),

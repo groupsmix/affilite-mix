@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import type { SiteRow } from "@/types/database";
-import type { Database } from "@/types/supabase";
+import type { Database, Json } from "@/types/supabase";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
@@ -146,8 +146,8 @@ export async function createSite(
   if (input.monetization_type !== undefined) row.monetization_type = input.monetization_type;
   if (input.est_revenue_per_click !== undefined)
     row.est_revenue_per_click = input.est_revenue_per_click;
-  if (input.ad_config !== undefined) row.ad_config = input.ad_config;
-  if (input.theme !== undefined) row.theme = input.theme;
+  if (input.ad_config !== undefined) row.ad_config = input.ad_config as unknown as Json;
+  if (input.theme !== undefined) row.theme = input.theme as unknown as Json;
   if (input.logo_url !== undefined) row.logo_url = input.logo_url;
   if (input.favicon_url !== undefined) row.favicon_url = input.favicon_url;
   if (input.nav_items !== undefined) row.nav_items = input.nav_items;
@@ -172,7 +172,7 @@ export async function updateSite(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteRow> {
   const sb = await getClient();
-  const updates: SiteUpdate = { ...input };
+  const updates: SiteUpdate = { ...input } as SiteUpdate;
   const { data, error } = await sb.from(TABLE).update(updates).eq("id", id).select().single();
 
   if (error) throw error;
