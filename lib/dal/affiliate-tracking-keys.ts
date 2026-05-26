@@ -10,6 +10,7 @@ export interface AffiliateTrackingKeyRow {
 }
 
 const TABLE = "affiliate_tracking_keys";
+const LIST_COLUMNS = "site_id, network, tracking_key, created_at, updated_at" as const;
 
 /** Resolve a DB site_id from a network-specific tracking key. Returns null if unregistered. */
 export async function resolveSiteByTrackingKey(
@@ -37,7 +38,7 @@ export async function listTrackingKeysBySite(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("network", { ascending: true });
 

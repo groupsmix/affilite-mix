@@ -9,6 +9,11 @@ import type { IntegrationProviderRow, SiteIntegrationRow } from "@/types/databas
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
+const PROVIDER_COLUMNS =
+  "id, key, name, description, category, config_schema, is_builtin, created_at" as const;
+const SITE_INTEGRATION_COLUMNS =
+  "id, site_id, provider_key, is_enabled, config, created_at, updated_at" as const;
+
 /* ------------------------------------------------------------------ */
 /*  Integration Providers                                              */
 /* ------------------------------------------------------------------ */
@@ -20,7 +25,7 @@ export async function listIntegrationProviders(
   const sb = await getClient();
   const { data, error } = await sb
     .from("integration_providers")
-    .select("*")
+    .select(PROVIDER_COLUMNS)
     .order("category", { ascending: true });
 
   if (error) throw error;
@@ -35,7 +40,7 @@ export async function listProvidersByCategory(
   const sb = await getClient();
   const { data, error } = await sb
     .from("integration_providers")
-    .select("*")
+    .select(PROVIDER_COLUMNS)
     .eq("category", category)
     .order("name", { ascending: true });
 
@@ -51,7 +56,7 @@ export async function getProviderByKey(
   const sb = await getClient();
   const { data, error } = await sb
     .from("integration_providers")
-    .select("*")
+    .select(PROVIDER_COLUMNS)
     .eq("key", key)
     .single();
 
@@ -71,7 +76,7 @@ export async function listSiteIntegrations(
   const sb = await getClient();
   const { data, error } = await sb
     .from("site_integrations")
-    .select("*")
+    .select(SITE_INTEGRATION_COLUMNS)
     .eq("site_id", siteId)
     .order("provider_key", { ascending: true });
 
@@ -87,7 +92,7 @@ export async function listEnabledIntegrations(
   const sb = await getClient();
   const { data, error } = await sb
     .from("site_integrations")
-    .select("*")
+    .select(SITE_INTEGRATION_COLUMNS)
     .eq("site_id", siteId)
     .eq("is_enabled", true)
     .order("provider_key", { ascending: true });
@@ -105,7 +110,7 @@ export async function getSiteIntegration(
   const sb = await getClient();
   const { data, error } = await sb
     .from("site_integrations")
-    .select("*")
+    .select(SITE_INTEGRATION_COLUMNS)
     .eq("site_id", siteId)
     .eq("provider_key", providerKey)
     .single();

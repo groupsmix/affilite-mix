@@ -54,7 +54,7 @@ export async function getAdPlacementById(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("id", id)
     .single();
