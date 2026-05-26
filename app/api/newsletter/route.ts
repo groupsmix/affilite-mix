@@ -162,7 +162,9 @@ export async function POST(request: Request) {
           unsubscribe_token: unsubscribeTokenHash,
           confirmed_at: null,
         })
-        .eq("id", existing.id);
+        .eq("id", existing.id)
+        // AUDIT-FIX A5-002: Defense-in-depth site_id predicate on update
+        .eq("site_id", site.id);
 
       if (updateError) {
         captureException(updateError, {
@@ -228,6 +230,14 @@ export async function POST(request: Request) {
         siteId: site.id,
       });
     } else {
+      // AUDIT-FIX A1-007/A2-004: Sanitize site name/domain in email headers
+      // to prevent CRLF injection that could spoof sender identity or inject headers.
+      const headerSafe = (s: string) =>
+        s
+          .normalize("NFC")
+          .replace(/[\r\n\0]/g, " ")
+          .slice(0, 120);
+      const safeSiteName = headerSafe(site.name);
       const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${site.domain}`;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -238,7 +248,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           from: fromEmail,
           to: [email],
-          subject: t("newsletter.confirm_subject").replace("{siteName}", site.name),
+          subject: t("newsletter.confirm_subject").replace("{siteName}", safeSiteName),
           html: emailHtml,
           text: emailText,
         }),

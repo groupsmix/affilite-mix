@@ -26,6 +26,7 @@ import {
   getAdminUserByEmail,
   updateAdminUser,
   incrementLoginFailedAttempts,
+  incrementTotpFailedAttempts,
 } from "@/lib/dal/admin-users";
 import { verifyTotpToken } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
@@ -61,8 +62,8 @@ async function isBreachedPassword(password: string): Promise<boolean> {
 
     if (!res.ok) return false;
 
-    const text = await res.text();
-    // Each line is "SUFFIX:COUNT"
+    // AUDIT-FIX A7-001: Cap response size to prevent memory spike from malicious dependency
+    const text = (await res.text()).slice(0, 2 * 1024 * 1024);
     return text.split("\n").some((line) => line.toUpperCase().startsWith(suffix));
   } catch {
     // Fail-open: network error or timeout — don't block logins
@@ -173,7 +174,8 @@ export async function POST(request: NextRequest) {
       return apiError(400, "Valid email is required");
     }
 
-    if (!password) {
+    // AUDIT-FIX A4-006: Explicit type check to reject non-string payloads
+    if (typeof password !== "string" || !password) {
       return apiError(400, "password is required");
     }
 
@@ -263,16 +265,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // A154: Advisory HIBP k-anon breached-password check.
-    // We check AFTER successful authentication so the HIBP API only sees a
-    // prefix of the SHA-1 hash of the correct password — never a wrong guess.
-    // Fail-open (network errors don't block login); warn in response body only.
+    // AUDIT-FIX A3-001/A7-005: HIBP check moved AFTER TOTP completion to avoid
+    // external dependency calls before full authentication is complete.
     let passwordBreached = false;
-    try {
-      passwordBreached = await isBreachedPassword(password);
-    } catch {
-      // fail-open
-    }
 
     // Enforce TOTP 2FA if enabled on the account
     if (authResult.email) {
@@ -319,23 +314,22 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // AUDIT-FIX A4-004: Digit-only validation for TOTP tokens
         if (
           typeof totp_token !== "string" ||
-          totp_token.length !== 6 ||
+          !/^\d{6}$/.test(totp_token) ||
           !user.totp_secret ||
           // B-01: Decrypt TOTP secret before verification
           !verifyTotpToken(await decryptTotpSecret(user.totp_secret), totp_token)
         ) {
-          // Increment failed attempts and lock if >= 10
-          const attempts = (user.totp_failed_attempts || 0) + 1;
-          const updates: { totp_failed_attempts: number; totp_locked_until?: string } = {
-            totp_failed_attempts: attempts,
-          };
-          if (attempts >= 10) {
-            // Lock for 1 hour
-            updates.totp_locked_until = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+          // AUDIT-FIX A3-002/A1-006: Use atomic increment to prevent race condition
+          try {
+            await incrementTotpFailedAttempts(user.id, 10, 60 * 60 * 1000);
+          } catch (e: any) {
+            if (e.code !== "42703") {
+              logger.error("Failed to update TOTP lockout", { error: e });
+            }
           }
-          await updateAdminUser(user.id, updates);
           return apiError(401, "Invalid 2FA token");
         }
 
@@ -344,6 +338,14 @@ export async function POST(request: NextRequest) {
           await updateAdminUser(user.id, { totp_failed_attempts: 0, totp_locked_until: null });
         }
       }
+    }
+
+    // AUDIT-FIX A3-001/A7-005: HIBP check now runs AFTER TOTP, so external
+    // dependency only fires once full authentication (password + 2FA) is complete.
+    try {
+      passwordBreached = await isBreachedPassword(password);
+    } catch {
+      // fail-open
     }
 
     // F-035: bind the token to the originating user-agent + IP /24.

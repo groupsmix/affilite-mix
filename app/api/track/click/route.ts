@@ -58,26 +58,40 @@ async function computeClickFingerprint(
 }
 
 /**
- * A158: Check KV for a dedup key. Returns true if this click is a duplicate
- * within the 24-hour window. Writes the dedup key on a cache miss.
- * Fail-open: any KV error allows the click through.
+ * AUDIT-FIX A4-001/A2-002: Validate and sanitize slug inputs.
+ * Rejects null bytes, delimiter chars, and enforces length + charset.
+ */
+const SLUG_RE = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+function isValidSlug(s: string): boolean {
+  return SLUG_RE.test(s.normalize("NFC"));
+}
+
+/** AUDIT-FIX A2-002: Strip \x1F delimiters from user input to prevent KV key collision. */
+function safeKeyPart(s: string): string {
+  return s.replace(/[\x1F\x00]/g, "").slice(0, 160);
+}
+
+/**
+ * A158: Check KV for a dedup key. Returns "duplicate" if this click is a duplicate
+ * within the 24-hour window. Returns "unique" on a cache miss.
+ * AUDIT-FIX A5-005/A7-004/A11-006: Returns "error" on KV failure so callers
+ * can fail analytics closed while still redirecting.
  */
 async function isDuplicateClick(
   fingerprint: string,
   siteId: string,
   contentSlug: string,
-): Promise<boolean> {
+): Promise<"duplicate" | "unique" | "error"> {
   try {
     const kv = (process.env as any).APP_CACHE_KV as any;
-    if (!kv) return false;
-    const dedupKey = `click-dedup\x1F${siteId}\x1F${contentSlug}\x1F${fingerprint}`;
+    if (!kv) return "unique";
+    const dedupKey = `click-dedup:${safeKeyPart(siteId)}:${safeKeyPart(contentSlug)}:${fingerprint}`;
     const existing = await kv.get(dedupKey);
-    if (existing !== null) return true;
-    // 24-hour TTL — matches the dedup window from A158
+    if (existing !== null) return "duplicate";
     await kv.put(dedupKey, "1", { expirationTtl: 86400 });
-    return false;
+    return "unique";
   } catch {
-    return false; // fail-open: never drop a legitimate click due to KV error
+    return "error";
   }
 }
 
@@ -87,15 +101,22 @@ const CLICK_RATE_LIMIT = {
   failPolicy: "closed" as const,
 };
 
-async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
-  // A7-012: Check both __Host- prefixed (production) and plain (dev) cookie names
+/**
+ * AUDIT-FIX A3-006/A6-003: Validate admin session AND bind to the resolved siteId
+ * so an admin from tenant A cannot suppress analytics on tenant B's clicks.
+ */
+async function hasValidAdminSession(request: NextRequest, siteId?: string): Promise<boolean> {
   const adminToken =
     request.cookies.get("__Host-nh_admin_token")?.value ??
     request.cookies.get("nh_admin_token")?.value;
   if (!adminToken) return false;
   try {
     const payload = await verifyToken(adminToken, request);
-    return !!payload;
+    if (!payload) return false;
+    if (siteId && (payload as any).site_id && (payload as any).site_id !== siteId) {
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }
@@ -120,16 +141,29 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       });
     }
 
-    const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
+    // AUDIT-FIX A4-007: Validate x-site-id header length and charset
+    const rawSiteHeader = request.headers.get("x-site-id") ?? "";
+    if (
+      rawSiteHeader.length > 64 ||
+      (rawSiteHeader && !/^[a-z0-9][a-z0-9._-]*$/i.test(rawSiteHeader))
+    ) {
+      return apiError(400, "Invalid site identifier");
+    }
+    const siteSlug = getSiteIdFromHeader(rawSiteHeader);
     const siteId = await resolveDbSiteId(siteSlug);
     const { searchParams } = request.nextUrl;
-    const productSlug = searchParams.get("p");
+    const productSlug = (searchParams.get("p") ?? "").normalize("NFC");
 
     if (!productSlug) {
       return apiError(400, "Missing required parameter: p");
     }
 
-    const cacheKey = `product-url\x1F${siteId}\x1F${productSlug}`;
+    // AUDIT-FIX A1-001/A4-001: Validate slug format before cache/DB use
+    if (!isValidSlug(productSlug)) {
+      return apiError(400, "Invalid product slug");
+    }
+
+    const cacheKey = `product-url:${safeKeyPart(siteId)}:${safeKeyPart(productSlug)}`;
     let cachedData: { name: string; url: string; _hmac?: string } | null = null;
     let cacheHmacValid = false;
 
@@ -263,8 +297,10 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       );
     }
 
+    // AUDIT-FIX A4-003/A7-006: Slice referrer before parsing to bound memory, strip CR/LF
     let sanitizedReferrer = request.headers.get("referer") || undefined;
     if (sanitizedReferrer) {
+      sanitizedReferrer = sanitizedReferrer.replace(/[\r\n\0]/g, "").slice(0, 2048);
       try {
         const refUrl = new URL(sanitizedReferrer);
         sanitizedReferrer = `${refUrl.origin}${refUrl.pathname}`.slice(0, 2048);
@@ -273,8 +309,12 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       }
     }
 
-    const isInternal = await hasValidAdminSession(request);
-    const contentSlug = searchParams.get("t") ?? "";
+    const isInternal = await hasValidAdminSession(request, siteId);
+    // AUDIT-FIX A1-003/A4-002: Validate and cap content slug
+    const contentSlug = (searchParams.get("t") ?? "")
+      .normalize("NFC")
+      .replace(/[\x00\x1F]/g, "")
+      .slice(0, 128);
 
     // A162: Store only the /24 prefix — full IP is never written to DB.
     const ipPrefix = getIpPrefix(ip) ?? "";
@@ -294,21 +334,29 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
             ipPrefix,
             userAgent,
           );
-          const isDup = await isDuplicateClick(fingerprint, siteId, contentSlug);
-          if (isDup) {
-            // Duplicate click within 24h window: still redirect but don't count it.
+          const dedupResult = await isDuplicateClick(fingerprint, siteId, contentSlug);
+          if (dedupResult === "duplicate") {
             logger.info("[track/click] duplicate click suppressed", {
               site_id: siteId,
               content_slug: contentSlug,
             });
             return NextResponse.redirect(destinationUrl, 302);
           }
+          // AUDIT-FIX A5-005/A7-004/A11-006: Fail analytics closed on dedup error.
+          // Still redirect, but skip recording to prevent inflated metrics.
+          if (dedupResult === "error") {
+            logger.warn("[track/click] dedup KV error — skipping analytics, still redirecting", {
+              site_id: siteId,
+              content_slug: contentSlug,
+            });
+            return NextResponse.redirect(destinationUrl, 302);
+          }
         } catch (fingerprintErr) {
-          // Fail-open: fingerprint errors must not drop legitimate clicks
+          // AUDIT-FIX A11-006: Fail analytics closed on fingerprint error too
           captureException(fingerprintErr, {
             context: "[api/track/click] fingerprint computation failed",
           });
-          fingerprint = undefined;
+          return NextResponse.redirect(destinationUrl, 302);
         }
       }
 
