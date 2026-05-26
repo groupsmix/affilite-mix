@@ -9,6 +9,49 @@
 -- ============================================================================
 
 -- ═══════════════════════════════════════════════════════════════════════════
+-- PREREQUISITE: Ensure ad_impressions has the columns needed by later steps.
+-- Migration 00041 added these columns but its down-migration was applied,
+-- leaving the table in the original 00017 shape.  Re-add them idempotently.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+ALTER TABLE ad_impressions
+  ADD COLUMN IF NOT EXISTS content_id uuid REFERENCES content(id) ON DELETE SET NULL;
+
+ALTER TABLE ad_impressions
+  ADD COLUMN IF NOT EXISTS cpm_revenue_cents integer DEFAULT 0;
+
+ALTER TABLE ad_impressions
+  ADD COLUMN IF NOT EXISTS last_seen_at timestamptz DEFAULT now();
+
+-- Rename 'count' → 'impression_count' (idempotent: only when old name exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'ad_impressions'
+      AND column_name = 'count'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'ad_impressions'
+      AND column_name = 'impression_count'
+  ) THEN
+    ALTER TABLE ad_impressions RENAME COLUMN count TO impression_count;
+  END IF;
+END $$;
+
+-- Recreate the unique index needed by the upsert function
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ad_impressions_unique_daily
+  ON ad_impressions(
+    site_id,
+    ad_placement_id,
+    COALESCE(content_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    COALESCE(page_path, ''),
+    impression_date
+  );
+
+-- ═══════════════════════════════════════════════════════════════════════════
 -- A28-003: DB now() RPC for authoritative scheduling decisions
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -87,7 +130,7 @@ BEGIN
         NEW.price_amount IS DISTINCT FROM OLD.price_amount OR
         NEW.price_currency IS DISTINCT FROM OLD.price_currency
       )) THEN
-    NEW.price := generate_price_display(NEW.price_amount, NEW.price_currency);
+    NEW.price_label := generate_price_display(NEW.price_amount, NEW.price_currency);
   END IF;
   RETURN NEW;
 END;
@@ -102,7 +145,7 @@ CREATE TRIGGER products_sync_price
 
 -- Backfill existing products: regenerate price from structured fields
 UPDATE products
-SET price = generate_price_display(price_amount, price_currency)
+SET price_label = generate_price_display(price_amount, price_currency)
 WHERE price_amount IS NOT NULL;
 
 -- Add check constraint to ensure price_amount has proper scale/precision
