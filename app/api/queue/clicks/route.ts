@@ -139,8 +139,21 @@ export async function POST(request: NextRequest) {
   // can still flip back to permissive during a rollout window.
   const rawMode = process.env.INTERNAL_HMAC_MIGRATION_MODE ?? "";
   const isProd = process.env.NODE_ENV === "production";
-  const migrationMode =
-    rawMode === "permissive" ? "permissive" : isProd ? "strict" : rawMode || "permissive";
+  // A7-009: Time-boxed migration — after the deadline, permissive mode
+  // is forcibly overridden to strict regardless of the env var.
+  const migrationDeadlineStr = process.env.INTERNAL_HMAC_MIGRATION_DEADLINE ?? "";
+  const migrationDeadline = migrationDeadlineStr ? new Date(migrationDeadlineStr) : null;
+  const deadlinePassed =
+    migrationDeadline &&
+    !isNaN(migrationDeadline.getTime()) &&
+    Date.now() > migrationDeadline.getTime();
+  const migrationMode = deadlinePassed
+    ? "strict"
+    : rawMode === "permissive"
+      ? "permissive"
+      : isProd
+        ? "strict"
+        : rawMode || "permissive";
   // Surface a one-time warning if the operator explicitly opted into
   // permissive mode in production so the reduced posture is visible.
   if (isProd && rawMode === "permissive" && !permissivePosturedLogged) {

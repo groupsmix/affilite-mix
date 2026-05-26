@@ -25,13 +25,20 @@ export interface AIDraftRow {
 }
 
 const TABLE = "ai_drafts";
+// A23-01: Explicit column list — prevents silent exposure of new columns.
+const DRAFT_COLUMNS =
+  "id, site_id, title, slug, body, excerpt, content_type, topic, keywords, ai_provider, ai_model, status, generated_at, reviewed_at, reviewed_by, meta_title, meta_description, created_at, updated_at" as const;
 
 export interface ListAIDraftsOptions {
   siteId: string;
   status?: AIDraftRow["status"];
   contentType?: string;
   limit?: number;
+  /** @deprecated Use `cursor` for O(1) keyset pagination. */
   offset?: number;
+  /** A73-01: Keyset cursor — ISO-8601 `created_at` of the last item from
+   *  the previous page. Queries with a cursor skip the O(n) offset scan. */
+  cursor?: string;
 }
 
 /** List AI drafts for a site with optional filters */
@@ -42,13 +49,18 @@ export async function listAIDrafts(
   const sb = await getClient();
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(DRAFT_COLUMNS)
     .eq("site_id", opts.siteId)
     .order("created_at", { ascending: false });
 
   if (opts.status) query = query.eq("status", opts.status);
   if (opts.contentType) query = query.eq("content_type", opts.contentType);
-  if (opts.offset) {
+
+  // A73-01: Prefer keyset cursor over offset for O(1) pagination.
+  if (opts.cursor) {
+    query = query.lt("created_at", opts.cursor);
+    query = query.limit(opts.limit ?? 20);
+  } else if (opts.offset) {
     query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
   } else if (opts.limit) {
     query = query.limit(opts.limit);
@@ -68,7 +80,7 @@ export async function getAIDraftById(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(DRAFT_COLUMNS)
     .eq("site_id", siteId)
     .eq("id", id)
     .single();
@@ -144,7 +156,7 @@ export async function countAIDrafts(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<number> {
   const sb = await getClient();
-  let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", siteId);
+  let query = sb.from(TABLE).select("id", { count: "exact", head: true }).eq("site_id", siteId);
 
   if (status) query = query.eq("status", status);
 

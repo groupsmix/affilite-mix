@@ -83,7 +83,8 @@ export const POST = withAuthz("upload", "create", async (request, { session, sit
 
     const promoted = await promoteToPublicBucket(stagingKey, expectedType);
 
-    void recordAuditEvent({
+    // G-06: Await audit for upload finalization — ensures durable trail.
+    await recordAuditEvent({
       site_id: siteId,
       actor: session.email ?? session.userId ?? "admin",
       action: "upload",

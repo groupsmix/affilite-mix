@@ -110,7 +110,8 @@ export async function POST(request: NextRequest) {
       role_id: role.id,
     });
 
-    void recordAuditEvent({
+    // G-06: Await audit for privilege-escalation action.
+    await recordAuditEvent({
       site_id,
       actor: session.email ?? "admin",
       action: "assign_role",
@@ -150,7 +151,8 @@ export async function DELETE(request: NextRequest) {
   try {
     await removeUserSiteRole(userId, siteId);
 
-    void recordAuditEvent({
+    // G-06: Await audit for privilege-revocation action.
+    await recordAuditEvent({
       site_id: siteId,
       actor: session.email ?? "admin",
       action: "remove_role",
