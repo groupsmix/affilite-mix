@@ -62,8 +62,27 @@ async function isBreachedPassword(password: string): Promise<boolean> {
 
     if (!res.ok) return false;
 
-    // AUDIT-FIX A7-001: Cap response size to prevent memory spike from malicious dependency
-    const text = (await res.text()).slice(0, 2 * 1024 * 1024);
+    // RC-005: Stream response with hard size cap — abort before buffering if too large.
+    // Prevents a hostile proxy/dependency from causing memory pressure.
+    const maxBytes = 2 * 1024 * 1024;
+    const contentLen = Number(res.headers.get("content-length") ?? "0");
+    if (contentLen > maxBytes) return false;
+
+    const reader = res.body?.getReader();
+    if (!reader) return false;
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.length;
+      if (received > maxBytes) {
+        await reader.cancel();
+        return false;
+      }
+      chunks.push(value);
+    }
+    const text = new TextDecoder().decode(chunks.length === 1 ? chunks[0] : Buffer.concat(chunks));
     return text.split("\n").some((line) => line.toUpperCase().startsWith(suffix));
   } catch {
     // Fail-open: network error or timeout — don't block logins

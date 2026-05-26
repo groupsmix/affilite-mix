@@ -113,7 +113,10 @@ async function hasValidAdminSession(request: NextRequest, siteId?: string): Prom
   try {
     const payload = await verifyToken(adminToken, request);
     if (!payload) return false;
-    if (siteId && (payload as any).site_id && (payload as any).site_id !== siteId) {
+    // RC-001: Require token to carry a site_id claim that matches the resolved tenant.
+    // Tokens without site_id (legacy/older) must NOT be treated as internal.
+    const tokenSiteId = (payload as any).site_id;
+    if (siteId && tokenSiteId !== siteId) {
       return false;
     }
     return true;
@@ -311,10 +314,15 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
 
     const isInternal = await hasValidAdminSession(request, siteId);
     // AUDIT-FIX A1-003/A4-002: Validate and cap content slug
-    const contentSlug = (searchParams.get("t") ?? "")
+    const rawContentSlug = (searchParams.get("t") ?? "")
       .normalize("NFC")
       .replace(/[\x00\x1F]/g, "")
       .slice(0, 128);
+    // RC-003: Validate contentSlug charset (empty is allowed for backwards compat)
+    if (rawContentSlug && !SLUG_RE.test(rawContentSlug)) {
+      return apiError(400, "Invalid content slug");
+    }
+    const contentSlug = rawContentSlug;
 
     // A162: Store only the /24 prefix — full IP is never written to DB.
     const ipPrefix = getIpPrefix(ip) ?? "";
