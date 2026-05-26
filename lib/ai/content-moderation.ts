@@ -13,6 +13,7 @@
 import "server-only";
 
 import { SYSTEM_PROMPT_HARDENING_PREAMBLE } from "./prompt-sanitization";
+import { logger } from "@/lib/logger";
 
 /* ------------------------------------------------------------------ */
 /*  Prohibited content patterns (lifted from cron route)              */
@@ -152,8 +153,7 @@ export function logModerationRejection(
   rejectionLog.push(event);
   // Keep at most 1000 events in-memory to prevent unbounded growth
   if (rejectionLog.length > 1000) rejectionLog.shift();
-  // Also emit to structured console for log aggregation pipelines
-  console.warn("[ai_moderation_reject]", JSON.stringify(event));
+  logger.warn("ai_moderation_reject", event as unknown as Record<string, unknown>);
 }
 
 /** Expose recent moderation rejections for admin observability endpoints. */

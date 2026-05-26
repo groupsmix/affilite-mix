@@ -3,6 +3,7 @@ import { getSiteById, allSites } from "@/config/sites";
 import type { SiteDefinition } from "@/config/site-definition";
 import { resolveDbSiteId, resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import type { SiteRow } from "@/types/database";
+import { logger } from "@/lib/logger";
 
 const SITE_HEADER = "x-site-id";
 const SITE_COOKIE = "x-site-id";
@@ -136,10 +137,10 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     ) {
       const firstSite = allSites[0];
       if (firstSite) {
-        console.warn(
-          `[site-context] Build-time fallback: serving "${firstSite.id}" as default site. ` +
-            `Set NEXT_PUBLIC_DEFAULT_SITE in .env to configure explicitly.`,
-        );
+        logger.warn("[site-context] Build-time fallback", {
+          site: firstSite.id,
+          hint: "Set NEXT_PUBLIC_DEFAULT_SITE in .env to configure explicitly",
+        });
         return firstSite;
       }
     }
