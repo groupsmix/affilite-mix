@@ -29,6 +29,8 @@ DROP INDEX IF EXISTS idx_sites_active;
 DROP INDEX IF EXISTS idx_products_active_deals;
 
 -- Drop A28-04 UTC impression function (restore original with integer)
+DROP FUNCTION IF EXISTS record_ad_impression(uuid, uuid, uuid, text, bigint);
+
 CREATE OR REPLACE FUNCTION record_ad_impression(
   p_site_id uuid,
   p_ad_placement_id uuid,
