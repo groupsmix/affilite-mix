@@ -1,0 +1,55 @@
+name: Mutation tests
+
+on:
+  schedule:
+    # Run weekly on Sunday at 03:00 UTC
+    - cron: "0 3 * * 0"
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: read
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+  SUPABASE_SERVICE_ROLE_KEY: placeholder
+  JWT_SECRET: ci-test-secret
+  INTERNAL_API_TOKEN: ci-test-internal-token
+  CRON_SECRET: ci-test-cron-secret
+  SUPABASE_JWT_SECRET: ci-test-supabase-jwt-secret
+  APP_URL: http://localhost:3000
+  SENTRY_DSN: https://placeholder@placeholder.ingest.sentry.io/0
+  AFFILIATE_DOMAIN_ENFORCEMENT: strict
+  TOTP_ENCRYPTION_KEY: ci-test-totp-encryption-key-0123456789ab
+  INTERNAL_HMAC_MIGRATION_MODE: strict
+  CLICK_CACHE_HMAC_KEY: ci-test-click-cache-hmac-key
+  GDPR_HASH_SECRET: ci-test-gdpr-hash-secret
+  CRON_PUBLISH_SECRET: ci-test-cron-publish
+  CRON_STRIPE_SYNC_SECRET: ci-test-cron-stripe-sync
+  CRON_AI_SECRET: ci-test-cron-ai
+  CRON_SITEMAP_SECRET: ci-test-cron-sitemap
+  CRON_RETENTION_SECRET: ci-test-cron-retention
+  CRON_COMMISSION_SECRET: ci-test-cron-commission
+  CRON_EPC_SECRET: ci-test-cron-epc
+  CRON_PRICE_SECRET: ci-test-cron-price
+  CRON_DEALS_SECRET: ci-test-cron-deals
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
+  TURNSTILE_SECRET_KEY: ""
+  NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+  ALLOW_LOCALHOST_FALLBACK_IN_PROD: "1"
+
+jobs:
+  mutation:
+    name: Stryker mutation tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run Stryker mutation tests
+        run: npm run test:mutation
+        env:
+          STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}

@@ -689,24 +689,9 @@ jobs:
         env:
           CHAOS_TEST_ENABLED: "true"
 
-  # ── Mutation test gate (A86/A88) ───────────────────────────────────
-  # Stryker mutation testing ensures tests catch semantic changes.
-  # Runs on PRs targeting main to validate test quality.
-  mutation:
-    name: Mutation tests
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Run Stryker mutation tests
-        run: npm run test:mutation
-        env:
-          STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
+  # ── Mutation tests moved to .github/workflows/mutation.yml ─────────
+  # Stryker runs weekly (Sunday 03:00 UTC) + on-demand via workflow_dispatch.
+  # Removed from PR CI to cut ~30 min of wall time per push.
 
   # ── Cross-workflow required gates ──────────────────────────────────
   # Branch protection should require ALL of the following check names:
@@ -716,15 +701,14 @@ jobs:
   #   3. "E2E tests"          (e2e job above)
   #   4. "Load tests"         (load job above)
   #   5. "Chaos tests"        (chaos job above)
-  #   6. "Mutation tests"     (mutation job above, PRs to main only)
-  #   7. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
-  #   8. "npm audit (high / critical)"  (security.yml)
-  #   9. "License compliance"           (security.yml)
-  #  10. "Dependency review"            (security.yml, PRs only)
+  #   6. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
+  #   7. "npm audit (high / critical)"  (security.yml)
+  #   8. "License compliance"           (security.yml)
+  #   9. "Dependency review"            (security.yml, PRs only)
   #
   # GitHub Actions `needs` cannot cross workflow boundaries, so each
   # workflow exposes its own gate job with a stable name.  Configure
-  # all ten names as required status checks in repo Settings →
+  # all nine names as required status checks in repo Settings →
   # Branches → Branch protection rules → Require status checks.
 
   required-checks:
