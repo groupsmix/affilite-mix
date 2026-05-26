@@ -150,7 +150,7 @@ const RESOURCE_TABLES = {
   content: "content",
   category: "categories",
   deal: "deals",
-  module: "modules",
+  module: "site_modules",
   ai_draft: "ai_drafts",
   affiliate_network: "affiliate_networks",
   scheduled_job: "scheduled_jobs",
@@ -236,7 +236,10 @@ export async function authorizeResource(
   try {
     data = await cb.execute(async () => {
       const sb = getPrivilegedSupabaseClient();
-      const result = await sb.from(table).select("site_id").eq("id", opts.resourceId).maybeSingle();
+      const result = await (sb.from as any)(table)
+        .select("site_id")
+        .eq("id", opts.resourceId)
+        .maybeSingle();
       if (result.error) throw result.error;
       return result.data as { site_id: string } | null;
     });

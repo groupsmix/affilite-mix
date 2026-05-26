@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
       logger.warn("[api/newsletter/unsubscribe] Rejected expired unsubscribe token", {
         subscriber_id: subscriber.id,
         token_age_days: Math.floor(
-          (Date.now() - new Date(subscriber.created_at).getTime()) / (1000 * 60 * 60 * 24),
+          (Date.now() - new Date(subscriber.created_at ?? Date.now()).getTime()) /
+            (1000 * 60 * 60 * 24),
         ),
       });
       return NextResponse.redirect(

@@ -28,7 +28,7 @@ async function logClickFailure(payload: RecordClickInput, errorMessage: string):
     // jsonb `payload`). The privileged-client proxy enforces a site_id filter
     // by default, so we explicitly opt out for this cross-tenant DLQ table.
     const insertBuilder = sb.from("click_failures").insert({
-      payload: { ...payload, _error: errorMessage } as unknown as Record<string, unknown>,
+      payload: { ...payload, _error: errorMessage } as unknown as import("@/types/supabase").Json,
       error_message: errorMessage,
     });
     await (insertBuilder as unknown as SiteFilterOptOut<typeof insertBuilder>).unsafeNoSiteFilter();

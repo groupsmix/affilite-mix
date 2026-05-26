@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
     .from("products")
     .select(
-      "id, name, slug, price, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id",
+      "id, name, slug, price_label, price_amount, price_currency, score, affiliate_url, image_url, description, merchant, deal_text, category_id",
     )
     .eq("site_id", dbSiteId)
     .eq("status", "active")
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
   const results = scored.slice(0, 3).map((p) => ({
     name: p.name,
     slug: p.slug,
-    price: p.price,
+    price_label: p.price_label,
     price_amount: p.price_amount,
     price_currency: p.price_currency,
     score: p.score,
