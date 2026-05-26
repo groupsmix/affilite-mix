@@ -63,6 +63,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "domhandler": "^6.0.1",
+    "framer-motion": "^12.40.0",
     "htmlparser2": "^12.0.0",
     "jose": "~6.2.3",
     "lucide-react": "^1.12.0",
@@ -89,6 +90,9 @@
     "@opennextjs/cloudflare": "^1.19.11",
     "@playwright/test": "^1.59.1",
     "@size-limit/preset-app": "^12.1.0",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/typescript-checker": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
     "@tailwindcss/postcss": "^4.2.4",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^22.19.0",
@@ -107,12 +111,9 @@
     "server-only": "^0.0.1",
     "size-limit": "^12.1.0",
     "tsx": "^4.21.0",
-    "wait-on": "^8.0.3",
     "typescript": "~5.8.0",
-    "@stryker-mutator/core": "^9.6.1",
-    "@stryker-mutator/vitest-runner": "^9.6.1",
-    "@stryker-mutator/typescript-checker": "^9.6.1",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "wait-on": "^8.0.3"
   },
   "overrides": {
     "postcss": "^8.5.10",
