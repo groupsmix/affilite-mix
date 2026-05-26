@@ -57,10 +57,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid ad_placement_id format" }, { status: 400 });
     }
 
+    // AUDIT-FIX A14-002: Validate page_path length and format to prevent
+    // injection of arbitrary strings into the DB. Cap at 2048 chars and
+    // require a leading slash with safe URL-path characters only.
+    const MAX_PAGE_PATH_LENGTH = 2048;
+    const PAGE_PATH_REGEX = /^\/[a-zA-Z0-9\-._~:/?#[\]@!$&'()*+,;=%]*$/;
+    const sanitizedPagePath = typeof page_path === "string" ? page_path : "/";
+    if (
+      sanitizedPagePath.length > MAX_PAGE_PATH_LENGTH ||
+      !PAGE_PATH_REGEX.test(sanitizedPagePath)
+    ) {
+      return NextResponse.json({ error: "Invalid page_path" }, { status: 400 });
+    }
+
     // Fire-and-forget via ctx.waitUntil so the isolate is not killed before
     // the insert completes under load.  We still respond immediately with
     // { ok: true } — the client does not need to block on persistence.
-    void runAfterResponse(recordAdImpression(siteId, ad_placement_id, page_path ?? "/"), {
+    void runAfterResponse(recordAdImpression(siteId, ad_placement_id, sanitizedPagePath), {
       context: "[api/track/impression] recordAdImpression",
     });
 
