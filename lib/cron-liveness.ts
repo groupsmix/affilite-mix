@@ -75,6 +75,7 @@ export async function recordCronLiveness(jobName: string): Promise<void> {
       expirationTtl: 86400 * 7, // 7 days — enough for weekly jobs
     });
   } catch {
+    // fail-open: best-effort
     // Non-critical — liveness tracking must not break the cron job itself
   }
 }
@@ -135,6 +136,7 @@ export async function checkCronLiveness(): Promise<void> {
         );
       }
     } catch {
+      // fail-open: best-effort
       // Non-critical
     }
   }
@@ -156,6 +158,7 @@ function readKV(): KVNamespace | undefined {
       return kv as unknown as KVNamespace;
     }
   } catch {
+    // fail-open: best-effort
     // process.env not available
   }
   return undefined;

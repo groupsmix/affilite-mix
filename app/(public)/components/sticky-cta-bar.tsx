@@ -40,6 +40,7 @@ export function StickyCtaBar({ product }: StickyCtaBarProps) {
           fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
         }
       } catch {
+        // fail-open: best-effort
         // Tracking failure should never block navigation
       }
     }

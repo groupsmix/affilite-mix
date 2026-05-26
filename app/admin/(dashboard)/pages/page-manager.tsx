@@ -78,6 +78,7 @@ export function PageManager() {
         setPages(data);
       }
     } catch {
+      // fail-open: best-effort
       // silent
     } finally {
       setLoading(false);
@@ -168,6 +169,7 @@ export function PageManager() {
 
       await loadPages();
     } catch {
+      // fail-open: best-effort
       setError("Network error");
     } finally {
       setSaving(false);
@@ -186,6 +188,7 @@ export function PageManager() {
 
       await loadPages();
     } catch {
+      // fail-open: best-effort
       // silent
     }
   }
@@ -212,6 +215,7 @@ export function PageManager() {
         body: JSON.stringify({ pages: reordered }),
       });
     } catch {
+      // fail-open: best-effort
       // silent — reload to reset
 
       await loadPages();
@@ -240,6 +244,7 @@ export function PageManager() {
         body: JSON.stringify({ pages: reordered }),
       });
     } catch {
+      // fail-open: best-effort
       await loadPages();
     }
   }

@@ -186,6 +186,7 @@ export async function generateTaxonomyStaticParams() {
     const categories = await listCategories(site.id);
     return categories.map((c) => ({ slug: c.slug }));
   } catch {
+    // fail-open: best-effort
     return [];
   }
 }

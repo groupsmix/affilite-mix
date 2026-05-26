@@ -48,6 +48,7 @@ export function ChangePasswordCard() {
       setNewPassword("");
       setConfirmPassword("");
     } catch {
+      // fail-open: best-effort
       toast.error("Failed to update password");
     } finally {
       setSaving(false);

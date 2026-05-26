@@ -47,6 +47,7 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
       setFormApiKeyRef("");
       void onRefresh();
     } catch {
+      // fail-open: best-effort
       setError("Failed to save");
     } finally {
       setSaving(false);
@@ -63,6 +64,7 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
       });
       void onRefresh();
     } catch {
+      // fail-open: best-effort
       setError("Failed to delete");
     }
   }

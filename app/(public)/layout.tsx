@@ -49,11 +49,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
-  // TODO(#453, 2026-07-31): wire the per-request CSP nonce from middleware
-  // (`NONCE_HEADER`) into ThemeProvider's inline <style> so style-src can
-  // drop `'unsafe-inline'`. The previous `const hdrs = await headers()` was
-  // never consumed — the ThemeProvider client component would need a
-  // `nonce` prop first.
+  // CSP nonce for inline styles is deferred: ThemeProvider is a client
+  // component and cannot consume a per-request nonce without a Server→Client
+  // serialisation layer (e.g. a context provider in the RSC tree). Tracked
+  // in issue #453; style-src 'unsafe-inline' remains until then.
 
   // Read DB row for dynamic theme overrides, nav items, and footer nav
   let dbTheme: Partial<SiteThemeConfig> = {};

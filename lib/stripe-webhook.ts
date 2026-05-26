@@ -24,6 +24,8 @@
  * for idempotency), or throws a `StripeSignatureError` on failure.
  */
 
+import { logger } from "@/lib/logger";
+
 export class StripeSignatureError extends Error {
   constructor(message: string) {
     super(message);
@@ -154,13 +156,10 @@ export async function constructStripeEvent(
   // so we can update verification logic before v1 is deprecated.
   const hasV0 = signature.includes("v0=");
   if (hasV0) {
-    console.log(
-      JSON.stringify({
-        metric: "stripe_webhook_signature_version",
-        version: "v0",
-        msg: "Stripe-Signature contains v0 component — monitor for v1 deprecation",
-      }),
-    );
+    logger.info("Stripe-Signature contains v0 component — monitor for v1 deprecation", {
+      metric: "stripe_webhook_signature_version",
+      version: "v0",
+    });
   }
 
   const nowSeconds = Math.floor(Date.now() / 1000);
@@ -188,6 +187,7 @@ export async function constructStripeEvent(
   try {
     event = JSON.parse(rawBody) as StripeEvent;
   } catch {
+    // fail-open: best-effort
     throw new StripeSignatureError("Invalid JSON payload");
   }
   if (!event || typeof event !== "object" || typeof event.id !== "string") {

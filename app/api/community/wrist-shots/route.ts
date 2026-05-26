@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const shots = await listApprovedWristShots(productId);
     return NextResponse.json({ wrist_shots: shots });
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ error: "Failed to load wrist shots" }, { status: 500 });
   }
 }
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ error: "Failed to submit wrist shot" }, { status: 500 });
   }
 }

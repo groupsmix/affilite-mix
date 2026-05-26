@@ -21,6 +21,7 @@ export default async function NotFound() {
     isAr = site.language === "ar";
     siteName = site.name;
   } catch {
+    // fail-open: best-effort
     // Site context unavailable (build-time or middleware didn't run)
   }
 

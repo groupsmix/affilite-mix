@@ -113,6 +113,7 @@ export function QuizFunnel({ slug, title, description, steps, gateEmail }: QuizF
         setPhase("results");
       }
     } catch {
+      // fail-open: best-effort
       setError("Network error. Please try again.");
       setPhase("quiz");
     }

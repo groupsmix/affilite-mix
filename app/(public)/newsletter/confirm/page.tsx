@@ -96,6 +96,7 @@ export default async function NewsletterConfirmPage({
       logoUrl = dbSite.logo_url ?? null;
     }
   } catch {
+    // fail-open: best-effort
     // Fallback to config logo
   }
   const siteLogo = logoUrl || site.brand.logo;

@@ -46,6 +46,7 @@ export function PriceAlertForm({
         setMessage(data.error || "Something went wrong");
       }
     } catch {
+      // fail-open: best-effort
       setStatus("error");
       setMessage("Network error. Please try again.");
     }

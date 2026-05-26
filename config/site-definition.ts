@@ -68,6 +68,7 @@ export interface SiteDefinition {
       path: string;
       priority: number;
       changeFrequency: string;
+      lastModified?: string;
     }[];
   };
 

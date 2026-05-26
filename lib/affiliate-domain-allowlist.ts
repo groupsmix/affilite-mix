@@ -199,6 +199,7 @@ export function validateAffiliateDomain(url: string): DomainValidationResult {
   try {
     hostname = new URL(url).hostname.toLowerCase();
   } catch {
+    // fail-open: best-effort
     return { allowed: false, domain: "", reason: "Malformed URL" };
   }
 

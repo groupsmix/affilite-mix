@@ -470,6 +470,7 @@ export async function generateWithFallback(
         await releaseQuota(options.siteId, "ai_tokens", inputTokenEstimate);
       }
     } catch {
+      // fail-open: best-effort
       // Best-effort release — if KV is down the reservation stays but
       // will be reconciled by the next window rollover.
     }
@@ -477,9 +478,10 @@ export async function generateWithFallback(
 
   // R2-05 / F-26: Normalize provider errors to internal codes. Log diagnostics
   // server-side with only provider name and status code — no raw response bodies.
-  const internalError = new Error("AI generation unavailable: all providers failed");
-  // Only store provider name + normalized error code, not raw upstream text
-  (internalError as any).providerErrors = errors.map((e) =>
+  const internalError: Error & { providerErrors?: string[] } = new Error(
+    "AI generation unavailable: all providers failed",
+  );
+  internalError.providerErrors = errors.map((e) =>
     e.replace(/: status=\d+.*$/, (m) => m.split("\n")[0]),
   );
   throw internalError;

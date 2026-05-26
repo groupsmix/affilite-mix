@@ -96,6 +96,7 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
         toast.error(data.error ?? "Failed to save");
       }
     } catch {
+      // fail-open: best-effort
       toast.error("Failed to save ad placement");
     }
     setSaving(false);
@@ -114,6 +115,7 @@ export function AdPlacementList({ placements }: AdPlacementListProps) {
         toast.error("Failed to delete");
       }
     } catch {
+      // fail-open: best-effort
       toast.error("Failed to delete ad placement");
     }
     setDeletingId(null);

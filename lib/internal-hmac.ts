@@ -23,6 +23,7 @@
  */
 
 import { logger } from "@/lib/logger";
+import { getAppCacheKV } from "@/lib/runtime-env";
 
 /** Maximum clock skew tolerance in milliseconds (5 minutes).
  * A28-005: HMAC timestamp validation allows 5-min skew. For JWT refresh,
@@ -72,9 +73,10 @@ function getNonceKV(): {
   put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
 } | null {
   try {
-    const kv = (process.env as any).APP_CACHE_KV;
+    const kv = getAppCacheKV();
     if (kv && typeof kv.get === "function" && typeof kv.put === "function") return kv;
   } catch {
+    // fail-open: best-effort
     // Not available (local dev, CI)
   }
   return null;
@@ -88,6 +90,7 @@ async function isNonceSeenInKV(nonce: string): Promise<boolean> {
     const val = await kv.get(`hmac-nonce\x1F${nonce}`);
     return val !== null;
   } catch {
+    // fail-open: best-effort
     return false;
   }
 }
@@ -99,6 +102,7 @@ async function recordNonceInKV(nonce: string): Promise<void> {
   try {
     await kv.put(`hmac-nonce\x1F${nonce}`, "1", { expirationTtl: NONCE_TTL_S });
   } catch {
+    // fail-open: best-effort
     // Best-effort — in-memory map is still the primary guard
   }
 }

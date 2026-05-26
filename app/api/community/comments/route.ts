@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const comments = await listApprovedComments(targetType, targetId);
     return NextResponse.json({ comments });
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ error: "Failed to load comments" }, { status: 500 });
   }
 }
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -171,6 +173,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message: "Comment submitted for review", comment }, { status: 201 });
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ error: "Failed to submit comment" }, { status: 500 });
   }
 }

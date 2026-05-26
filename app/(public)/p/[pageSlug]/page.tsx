@@ -135,6 +135,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       },
     };
   } catch {
+    // fail-open: best-effort
     return {};
   }
 }

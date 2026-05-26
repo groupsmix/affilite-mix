@@ -45,6 +45,7 @@ export function CategoryDeleteCard({ id, name }: CategoryDeleteCardProps) {
         setUsage(data);
       }
     } catch {
+      // fail-open: best-effort
       // Non-critical — dialog still works without counts
     } finally {
       setLoading(false);

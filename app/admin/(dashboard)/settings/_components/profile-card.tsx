@@ -42,6 +42,7 @@ export function ProfileCard({ name: initialName, email }: ProfileCardProps) {
       toast.success("Profile updated");
       router.refresh();
     } catch {
+      // fail-open: best-effort
       toast.error("Failed to update profile");
     } finally {
       setSaving(false);

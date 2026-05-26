@@ -154,6 +154,7 @@ export async function validateExternalUrl(
   try {
     url = new URL(urlString);
   } catch {
+    // fail-open: best-effort
     return { valid: false, error: "Invalid URL format" };
   }
 
@@ -328,6 +329,7 @@ export async function safeFetchWithRedirectValidation(
       fetchUrl = parsed.toString();
       extraHeaders["Host"] = originalHostname;
     } catch {
+      // fail-open: best-effort
       // Malformed URL — validateExternalUrl already checked it, so this
       // should be unreachable; fall back to the original URL.
     }

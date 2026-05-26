@@ -85,6 +85,7 @@ function postConsentProof(
       keepalive: true,
     }).catch(() => {});
   } catch {
+    // fail-open: best-effort
     // Never throw from the CMP listener.
   }
 }

@@ -75,6 +75,7 @@ export function AIContentManager({
       setSuccessMsg("Content generated! Check the Pending tab.");
       void onRefresh();
     } catch {
+      // fail-open: best-effort
       setError("Failed to generate content");
     } finally {
       setGenerating(false);
@@ -106,6 +107,7 @@ export function AIContentManager({
       );
       void onRefresh();
     } catch {
+      // fail-open: best-effort
       setError(`Failed to ${action}`);
     } finally {
       setActionLoading(null);

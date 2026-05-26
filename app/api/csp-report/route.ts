@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       report = await request.json();
     }
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 

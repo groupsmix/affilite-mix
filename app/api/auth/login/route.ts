@@ -85,6 +85,7 @@ async function isBreachedPassword(password: string): Promise<boolean> {
     const text = new TextDecoder().decode(chunks.length === 1 ? chunks[0] : Buffer.concat(chunks));
     return text.split("\n").some((line) => line.toUpperCase().startsWith(suffix));
   } catch {
+    // fail-open: best-effort
     // Fail-open: network error or timeout — don't block logins
     return false;
   }
@@ -243,9 +244,10 @@ export async function POST(request: NextRequest) {
         // SECURITY-FIX: Use atomic increment to prevent race condition (R10-004 / CWE-362)
         try {
           await incrementLoginFailedAttempts(userRecord.id, 10, 60 * 60 * 1000);
-        } catch (e: any) {
-          // Ignore missing column errors if the 00096 migration hasn't run yet
-          if (e.code !== "42703") {
+        } catch (e: unknown) {
+          const code =
+            e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
+          if (code !== "42703") {
             logger.error("Failed to update admin user lockout", { error: e });
           }
         }
@@ -277,8 +279,9 @@ export async function POST(request: NextRequest) {
           login_failed_attempts: 0,
           login_locked_until: null,
         });
-      } catch (e: any) {
-        if (e.code !== "42703") {
+      } catch (e: unknown) {
+        const code = e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
+        if (code !== "42703") {
           logger.error("Failed to reset admin user lockout", { error: e });
         }
       }
@@ -344,8 +347,10 @@ export async function POST(request: NextRequest) {
           // AUDIT-FIX A3-002/A1-006: Use atomic increment to prevent race condition
           try {
             await incrementTotpFailedAttempts(user.id, 10, 60 * 60 * 1000);
-          } catch (e: any) {
-            if (e.code !== "42703") {
+          } catch (e: unknown) {
+            const code =
+              e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
+            if (code !== "42703") {
               logger.error("Failed to update TOTP lockout", { error: e });
             }
           }
@@ -364,6 +369,7 @@ export async function POST(request: NextRequest) {
     try {
       passwordBreached = await isBreachedPassword(password);
     } catch {
+      // fail-open: best-effort
       // fail-open
     }
 

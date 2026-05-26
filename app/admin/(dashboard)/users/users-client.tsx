@@ -63,6 +63,7 @@ export function UsersClient() {
 
       setUsers(data);
     } catch {
+      // fail-open: best-effort
       setError("Failed to load users");
     } finally {
       setLoading(false);
