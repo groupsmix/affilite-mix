@@ -88,7 +88,10 @@ const CLICK_RATE_LIMIT = {
 };
 
 async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
-  const adminToken = request.cookies.get("nh_admin_token")?.value;
+  // A7-012: Check both __Host- prefixed (production) and plain (dev) cookie names
+  const adminToken =
+    request.cookies.get("__Host-nh_admin_token")?.value ??
+    request.cookies.get("nh_admin_token")?.value;
   if (!adminToken) return false;
   try {
     const payload = await verifyToken(adminToken, request);
@@ -134,7 +137,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       const kv = (process.env as any).APP_CACHE_KV as any;
       if (kv) {
         cachedData = await kv.get(cacheKey, "json");
-        if (cachedData && !cachedData._hmac && process.env.NODE_ENV === "production") {
+        if (cachedData && !cachedData._hmac) {
           console.error(
             JSON.stringify({
               metric: "affiliate_cache_unsigned_rejected",
@@ -144,9 +147,9 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
           );
           cachedData = null;
         }
-        if (cachedData?._hmac) {
+        if (cachedData?._hmac && hmacKey) {
           const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
-          const expectedHmac = await computeHmac(hmacKey || "", "cache", "cache", bodyForHmac);
+          const expectedHmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
           cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
           if (!cacheHmacValid) {
             console.error(
@@ -173,9 +176,17 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
 
       const bodyForHmac = JSON.stringify({ name: cachedData.name, url: cachedData.url });
       let hmacSigned = false;
+      if (!hmacKey) {
+        // A8-002: Never cache unsigned destinations — empty HMAC key means
+        // the cached payload cannot be integrity-checked on read, allowing
+        // cache poisoning via a spoofed KV entry.
+        logger.warn("[track/click] skipping cache write: CLICK_CACHE_HMAC_KEY is empty");
+      }
       try {
-        cachedData._hmac = await computeHmac(hmacKey || "", "cache", "cache", bodyForHmac);
-        hmacSigned = true;
+        if (hmacKey) {
+          cachedData._hmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
+          hmacSigned = true;
+        }
       } catch (hmacErr) {
         console.error(
           JSON.stringify({

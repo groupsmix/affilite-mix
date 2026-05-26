@@ -288,17 +288,20 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
   // Skip the DB lookup for *.localhost in non-production — dev only, no DB calls.
   //
-  // ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 extends this bypass to production-mode
-  // local runs (e.g. Lighthouse CI, which executes `next start` with
-  // NODE_ENV=production against http://localhost:9222). Without this opt-in,
-  // the unknown-host rate-limit below would 429 every request because the
-  // rate-limit store (Supabase) is unreachable in CI and the fail policy is
-  // "closed". Must be exact "1" — keep it inert on any other value.
+  // A7-008: ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 extends this bypass to
+  // production-mode local runs (Lighthouse CI, docker smoke tests). When
+  // PREVIEW_HOST_ALLOWLIST is set (comma-separated hostnames), only those
+  // hosts are accepted, adding a second gate beyond the boolean flag.
   const hostWithoutPort = hostname.includes(":") ? hostname.split(":")[0] : hostname;
   const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
+  const previewAllowlistRaw = process.env.PREVIEW_HOST_ALLOWLIST ?? "";
+  const previewAllowlist = previewAllowlistRaw
+    ? new Set(previewAllowlistRaw.split(",").map((h) => h.trim().toLowerCase()))
+    : null;
   const isLocalhostDev =
     (process.env.NODE_ENV !== "production" || allowLocalhostInProd) &&
-    (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost"));
+    (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost")) &&
+    (!previewAllowlist || previewAllowlist.has(hostWithoutPort.toLowerCase()));
 
   // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
   // Reuse an existing x-trace-id (from an upstream proxy) or cf-ray; otherwise mint a new one.
