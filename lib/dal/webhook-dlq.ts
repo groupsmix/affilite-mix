@@ -67,6 +67,37 @@ export async function writeToDlq(entry: DlqEntry): Promise<void> {
   });
 }
 
+export interface DlqListRow {
+  id: string;
+  event_id: string;
+  event_type: string;
+  error_message: string | null;
+  attempts: number;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+/**
+ * List DLQ entries filtered by status (R-014).
+ * Platform-level query — no site_id scoping.
+ */
+export async function listDlqEntries(
+  status: "pending" | "replayed" | "resolved",
+  limit: number,
+): Promise<DlqListRow[]> {
+  const sb = getPrivilegedSupabaseClient();
+
+  const { data, error } = await sb
+    .from("webhook_dlq")
+    .select("id, event_id, event_type, error_message, attempts, status, created_at, resolved_at")
+    .eq("status", status)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as unknown as DlqListRow[];
+}
+
 /**
  * Mark a DLQ entry as replayed/resolved.
  */
