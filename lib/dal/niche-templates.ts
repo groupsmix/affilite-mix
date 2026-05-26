@@ -4,6 +4,8 @@ import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 const TABLE = "niche_templates";
 const LIST_COLUMNS =
   "id, name, slug, description, monetization_type, language, direction, is_builtin, created_at, updated_at" as const;
+const FULL_COLUMNS =
+  "id, name, slug, description, default_theme, default_nav, default_footer, default_features, monetization_type, language, direction, is_builtin, social_links, created_at, updated_at" as const;
 
 export interface NicheTemplateRow {
   id: string;
@@ -44,7 +46,7 @@ export async function getNicheTemplateBySlug(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<NicheTemplateRow | null> {
   const sb = await getClient();
-  const { data, error } = await sb.from(TABLE).select("*").eq("slug", slug).single();
+  const { data, error } = await sb.from(TABLE).select(FULL_COLUMNS).eq("slug", slug).single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<NicheTemplateRow>(data);

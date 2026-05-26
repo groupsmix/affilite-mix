@@ -11,6 +11,7 @@ import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "site_modules";
+const LIST_COLUMNS = "id, site_id, module_key, is_enabled, config, created_at, updated_at" as const;
 
 /* ------------------------------------------------------------------ */
 /*  Read operations                                                    */
@@ -24,7 +25,7 @@ export async function listSiteModules(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("module_key", { ascending: true });
 
@@ -40,7 +41,7 @@ export async function listEnabledModules(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("is_enabled", true)
     .order("module_key", { ascending: true });

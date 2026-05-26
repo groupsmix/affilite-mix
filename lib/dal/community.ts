@@ -18,6 +18,8 @@ export interface WristShotRow {
 }
 
 const WRIST_SHOTS_TABLE = "wrist_shots";
+const WRIST_SHOT_COLUMNS =
+  "id, site_id, product_id, user_email, user_name, image_url, caption, status, approved_at, created_at, updated_at" as const;
 
 /** Submit a wrist shot (goes to moderation queue) */
 export async function createWristShot(
@@ -48,7 +50,7 @@ export async function listApprovedWristShots(
 
   const { data, error } = await sb
     .from(WRIST_SHOTS_TABLE)
-    .select("*")
+    .select(WRIST_SHOT_COLUMNS)
     .eq("product_id", productId)
     .eq("status", "approved")
     .order("created_at", { ascending: false })
@@ -67,7 +69,7 @@ export async function listPendingWristShots(
 
   const { data, error } = await sb
     .from(WRIST_SHOTS_TABLE)
-    .select("*")
+    .select(WRIST_SHOT_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "pending")
     .order("created_at", { ascending: true });
@@ -117,6 +119,8 @@ export interface CommentRow {
 }
 
 const COMMENTS_TABLE = "comments";
+const COMMENT_COLUMNS =
+  "id, site_id, target_type, target_id, parent_id, user_email, user_name, body, status, approved_at, created_at, updated_at" as const;
 
 /** Post a comment (goes to moderation queue) */
 export async function createComment(
@@ -148,7 +152,7 @@ export async function listApprovedComments(
 
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
-    .select("*")
+    .select(COMMENT_COLUMNS)
     .eq("target_type", targetType)
     .eq("target_id", targetId)
     .eq("status", "approved")
@@ -167,7 +171,7 @@ export async function listPendingComments(
 
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
-    .select("*")
+    .select(COMMENT_COLUMNS)
     .eq("site_id", siteId)
     .eq("status", "pending")
     .order("created_at", { ascending: true });
@@ -206,7 +210,11 @@ export async function getCommentById(
 ): Promise<CommentRow | null> {
   const sb = await getClient();
 
-  const { data, error } = await sb.from(COMMENTS_TABLE).select("*").eq("id", id).maybeSingle();
+  const { data, error } = await sb
+    .from(COMMENTS_TABLE)
+    .select(COMMENT_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
 
   if (error) throw error;
   return rowOrNull<CommentRow>(data);

@@ -131,7 +131,6 @@ export async function setLinkedProducts(
 ): Promise<void> {
   const sb = await getClient();
 
-  // @ts-ignore - The RPC is defined in migration 00057 but not yet generated in the local types
   const { error } = await sb.rpc("set_linked_products", {
     p_site_id: siteId,
     p_content_id: contentId,

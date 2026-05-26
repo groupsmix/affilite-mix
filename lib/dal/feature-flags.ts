@@ -10,6 +10,8 @@ import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "site_feature_flags";
+const LIST_COLUMNS =
+  "id, site_id, flag_key, description, is_enabled, created_at, updated_at" as const;
 
 /* ------------------------------------------------------------------ */
 /*  Read operations                                                    */
@@ -23,7 +25,7 @@ export async function listSiteFeatureFlags(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("flag_key", { ascending: true });
 

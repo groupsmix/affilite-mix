@@ -109,7 +109,7 @@ export async function countAuditLogs(
   const sb = await getClient();
   let query = sb
     .from("audit_log")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("site_id", siteId);
 
   if (filters?.actions && filters.actions.length > 0) {

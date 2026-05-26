@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const { data: checkpoint } = (await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
       .from("cron_state")
-      .select("*")
+      .select("job_name, last_id, last_processed_at, cursor, updated_at")
       .eq("job_name", "data-retention:clicks")
       .single()) as { data: { last_id?: string | null } | null };
 
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     const auditDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
     // Try the transactional RPC first
-    // @ts-ignore - The RPC is defined in migration but not yet generated in the local types
+    // @ts-expect-error - purge_retention RPC accepts args per migration 00099 but generated types show Args: never
     const { data: rpcResult, error: rpcError } = await sb.rpc("purge_retention", {
       p_table: "audit_log",
       p_cutoff: auditDate.toISOString(),
@@ -174,7 +174,9 @@ export async function POST(request: NextRequest) {
       const { data: auditRows, error: fetchError } = await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("audit_log")
-        .select("*")
+        .select(
+          "id, site_id, actor, actor_user_id, action, entity_type, entity_id, details, ip, created_at",
+        )
         .lt("created_at", auditDate.toISOString())
         .limit(10000);
 
