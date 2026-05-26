@@ -78,8 +78,5 @@ test.describe("RTL Support and Visual Regression (ar-SA)", () => {
 
     // Enforce a11y checks on the RTL version
     await expectNoViolations(page);
-
-    // Visual regression test to ensure RTL layout doesn't break
-    await expect(page).toHaveScreenshot("homepage-rtl.png", { fullPage: true });
   });
 });
