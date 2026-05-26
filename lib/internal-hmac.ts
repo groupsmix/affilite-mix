@@ -157,8 +157,10 @@ export async function verifyInternalHmac(
   // A request with ts > now + MAX_FUTURE_SKEW_MS suggests a compromised
   // sender clock or replay with a forged future timestamp.
   if (ts > now + MAX_FUTURE_SKEW_MS) {
-    logger.warn("Internal HMAC future timestamp rejected", { 
-      ts, now, future_skew_ms: ts - now 
+    logger.warn("Internal HMAC future timestamp rejected", {
+      ts,
+      now,
+      future_skew_ms: ts - now,
     });
     return { valid: false, reason: `Future timestamp ${ts - now}ms ahead of server clock` };
   }

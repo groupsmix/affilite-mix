@@ -27,7 +27,7 @@ const defaultTheme: SiteThemeConfig = {
   primaryColor: "#1e293b",
   secondaryColor: "#3b82f6",
   accentColor: "#10b981",
-  accentTextColor: "#10b981",
+  accentTextColor: "#059669",
   fontFamily: "Inter, sans-serif",
   fontHeading: "Inter",
   fontBody: "Inter",

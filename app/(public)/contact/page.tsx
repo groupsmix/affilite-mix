@@ -72,7 +72,7 @@ export default async function ContactPage() {
               <a
                 href={`mailto:${contactPage.email}`}
                 className="font-medium transition-colors"
-                style={{ color: "var(--color-accent, #10B981)" }}
+                style={{ color: "var(--color-accent-text, #047857)" }}
               >
                 {contactPage.email}
               </a>
@@ -84,7 +84,7 @@ export default async function ContactPage() {
               <a
                 href={`mailto:${contactPage.email}`}
                 className="font-medium transition-colors"
-                style={{ color: "var(--color-accent, #10B981)" }}
+                style={{ color: "var(--color-accent-text, #047857)" }}
               >
                 {contactPage.email}
               </a>

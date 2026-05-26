@@ -105,9 +105,16 @@ export function buildCspHeader(nonce: string): string {
     // the nonced entry-point script load additional scripts (required for
     // Next.js runtime chunks).  No Level-2 fallback remains.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com`,
-    // A-011: nonce-based allow-list for inline styles.  Next.js and
-    // ThemeProvider inline `<style>` tags carry the per-request nonce.
-    `style-src 'self' 'nonce-${nonce}'`,
+    // Inline styles — nonce removed, using 'unsafe-inline' instead.
+    // Rationale: CSP nonces only protect <style> elements, not style
+    // *attributes* (ThemeProvider CSS-var injection, component inline
+    // backgrounds). In practice Chromium also blocks dynamic
+    // element.style assignments against style-src when a nonce is
+    // present, which breaks vanilla-cookieconsent and React hydration.
+    // Since the critical XSS vector (script injection) is nonce-locked
+    // via script-src, allowing unsafe-inline for styles is a reasonable
+    // security posture adopted by most production CSPs.
+    "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     `img-src ${imgSources.join(" ")}`,
     `connect-src ${connectSources.join(" ")}`,

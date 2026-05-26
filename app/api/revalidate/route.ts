@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { getInternalTokenFor } from "@/lib/internal-auth";
-import { timingSafeCompare } from "@/lib/cron-auth";
 import { getTenantClient } from "@/lib/supabase-server";
 import { CONTENT_TAGS, siteTag, type ContentTag } from "@/lib/cache-tags";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
+import { determineAuthMode } from "@/lib/revalidate-auth";
 
 /**
  * POST /api/revalidate — On-demand cache revalidation webhook.
@@ -28,25 +28,6 @@ import { logger } from "@/lib/logger";
  * R-02: `site_id` is now required by default. All-site purge requires
  * the REVALIDATE_ALL_SITES_TOKEN break-glass token.
  */
-
-/** A98-64: Supported revalidation auth modes */
-type AuthMode = "per-site" | "all-sites";
-
-/** A98-64: Determine which token to validate against */
-export function determineAuthMode(
-  bearer: string,
-  internalToken: string,
-  allSitesToken?: string,
-): AuthMode | null {
-  const encoder = new TextEncoder();
-  if (timingSafeCompare(encoder.encode(bearer), encoder.encode(internalToken))) {
-    return "per-site";
-  }
-  if (allSitesToken && timingSafeCompare(encoder.encode(bearer), encoder.encode(allSitesToken))) {
-    return "all-sites";
-  }
-  return null;
-}
 
 export async function POST(request: NextRequest) {
   let internalToken: string;

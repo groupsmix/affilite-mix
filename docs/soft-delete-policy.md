@@ -7,32 +7,32 @@
 
 ### Sites
 
-| Operation | Function | Required Role | Effect |
-|---|---|---|---|
-| **Soft delete (deactivate)** | `deactivateSite()` | Any admin | `is_active = false` — site hidden from public, admin can restore |
-| **Hard delete** | `deleteSite()` | `super_admin` only | Permanent removal — cascades to all related data |
+| Operation                    | Function           | Required Role      | Effect                                                           |
+| ---------------------------- | ------------------ | ------------------ | ---------------------------------------------------------------- |
+| **Soft delete (deactivate)** | `deactivateSite()` | Any admin          | `is_active = false` — site hidden from public, admin can restore |
+| **Hard delete**              | `deleteSite()`     | `super_admin` only | Permanent removal — cascades to all related data                 |
 
 **Rule:** Regular admins MUST use `deactivateSite()`. Hard delete is restricted to `super_admin` for maintenance only.
 
 ### Products
 
-| Status | Meaning | Visibility |
-|---|---|---|
-| `draft` | Work in progress | Admin only |
-| `active` | Live and visible | Public |
-| `archived` | Soft-deleted | Admin only, preserved for historical reporting |
+| Status     | Meaning          | Visibility                                     |
+| ---------- | ---------------- | ---------------------------------------------- |
+| `draft`    | Work in progress | Admin only                                     |
+| `active`   | Live and visible | Public                                         |
+| `archived` | Soft-deleted     | Admin only, preserved for historical reporting |
 
 **Rule:** Use `status = 'archived'` for deletion. Hard delete only via `super_admin`.
 
 ### Content
 
-| Status | Meaning | Visibility |
-|---|---|---|
-| `draft` | Work in progress | Admin only |
-| `review` | Pending editorial review | Admin only |
+| Status      | Meaning                           | Visibility |
+| ----------- | --------------------------------- | ---------- |
+| `draft`     | Work in progress                  | Admin only |
+| `review`    | Pending editorial review          | Admin only |
 | `scheduled` | Will auto-publish at `publish_at` | Admin only |
-| `published` | Live and visible | Public |
-| `archived` | Soft-deleted | Admin only |
+| `published` | Live and visible                  | Public     |
+| `archived`  | Soft-deleted                      | Admin only |
 
 ## A27-003: Query Consistency
 
@@ -50,11 +50,11 @@ Admin methods (suffixed with `Admin` or in `lib/dal/admin-*.ts`) can view all st
 
 ### Method Naming Convention
 
-| Suffix | Visibility | Filters |
-|---|---|---|
-| (no suffix) | Context-dependent | Depends on caller |
-| `Public` | Public/anonymous | Enforces active/published filters |
-| `Admin` | Admin only | No status filters, may include archived |
+| Suffix      | Visibility        | Filters                                 |
+| ----------- | ----------------- | --------------------------------------- |
+| (no suffix) | Context-dependent | Depends on caller                       |
+| `Public`    | Public/anonymous  | Enforces active/published filters       |
+| `Admin`     | Admin only        | No status filters, may include archived |
 
 ## A27-005: Historical Reporting Semantics
 
@@ -76,12 +76,12 @@ The `commissions.raw_data` JSONB column stores the original network report. This
 
 ### Data Retention
 
-| Data Type | Retention | Action After |
-|---|---|---|
-| Affiliate clicks | 2 years | Anonymize and archive |
-| Commission raw_data | 90 days | Delete raw JSON, keep normalized fields |
-| Ad impressions (daily) | 1 year | Aggregate to monthly, delete daily |
-| Audit log | 1 year | Archive to cold storage |
+| Data Type              | Retention | Action After                            |
+| ---------------------- | --------- | --------------------------------------- |
+| Affiliate clicks       | 2 years   | Anonymize and archive                   |
+| Commission raw_data    | 90 days   | Delete raw JSON, keep normalized fields |
+| Ad impressions (daily) | 1 year    | Aggregate to monthly, delete daily      |
+| Audit log              | 1 year    | Archive to cold storage                 |
 
 ## Query Patterns
 

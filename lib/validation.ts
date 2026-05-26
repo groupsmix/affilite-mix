@@ -432,7 +432,8 @@ export function validateCreateProduct(
   if (body.price_amount !== undefined && body.price_amount !== null) {
     const parsedAmount = parseDecimalMoney(body.price_amount);
     if (parsedAmount === null) {
-      errors.price_amount = "price_amount must be a valid decimal with at most 2 decimal places (e.g., 9.99) between 0 and 999999999.99";
+      errors.price_amount =
+        "price_amount must be a valid decimal with at most 2 decimal places (e.g., 9.99) between 0 and 999999999.99";
     }
   }
   if (body.merchant !== undefined && !isString(body.merchant)) {
@@ -614,7 +615,8 @@ export function validateUpdateProduct(
   if (body.price_amount !== undefined && body.price_amount !== null) {
     const parsedAmount = parseDecimalMoney(body.price_amount);
     if (parsedAmount === null) {
-      errors.price_amount = "price_amount must be a valid decimal with at most 2 decimal places (e.g., 9.99) between 0 and 999999999.99";
+      errors.price_amount =
+        "price_amount must be a valid decimal with at most 2 decimal places (e.g., 9.99) between 0 and 999999999.99";
     }
   }
 

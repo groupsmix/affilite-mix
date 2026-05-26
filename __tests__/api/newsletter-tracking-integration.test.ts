@@ -68,14 +68,21 @@ function makeNewsletterRequest(body: Record<string, unknown>): Request {
   });
 }
 
-function makeClickRequest(params: Record<string, string>): NextRequest {
+function makeClickRequest(
+  params: Record<string, string>,
+  extraHeaders: Record<string, string> = {},
+): NextRequest {
   const url = new URL("http://localhost:3000/api/track/click");
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
   return new NextRequest(url.toString(), {
     method: "GET",
-    headers: { "x-forwarded-for": "127.0.0.1", "x-site-id": "test-site" },
+    headers: {
+      "x-forwarded-for": "127.0.0.1",
+      "x-site-id": "test-site",
+      ...extraHeaders,
+    },
   });
 }
 
@@ -255,7 +262,13 @@ describe("GET /api/track/click (integration)", () => {
     });
 
     const { GET } = await import("@/app/api/track/click/route");
-    const req = makeClickRequest({ p: "test-product", t: "review-page" });
+    // Simulate a trusted top-level navigation (e.g. user clicking a link in
+    // their email client). sec-fetch-site: "none" is what browsers send for
+    // direct navigations and email-client clicks (A3-002 fix).
+    const req = makeClickRequest(
+      { p: "test-product", t: "review-page" },
+      { "sec-fetch-site": "none", "sec-fetch-dest": "document" },
+    );
     const res = await GET(req);
 
     // Should be a 302 redirect
@@ -317,7 +330,7 @@ describe("POST /api/track/click (integration)", () => {
       id: "prod-1",
       name: "Beacon Product",
       slug: "beacon-product",
-      affiliate_url: "https://example.com/affiliate",
+      affiliate_url: "https://amazon.com/affiliate",
     });
 
     const { POST } = await import("@/app/api/track/click/route");
@@ -337,7 +350,7 @@ describe("POST /api/track/click (integration)", () => {
     const res = await POST(req);
 
     expect(res.status).toBe(302);
-    expect(res.headers.get("Location")).toBe("https://example.com/affiliate");
+    expect(res.headers.get("Location")).toBe("https://amazon.com/affiliate");
   });
 });
 

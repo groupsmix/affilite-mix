@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
 
 // F-03: In CI, fail fast if E2E_BASE_URL is not configured. E2E depends on a
 // deployed preview target; running against a non-existent localhost wastes CI time.
@@ -8,12 +9,47 @@ if (process.env.CI && !process.env.E2E_BASE_URL) {
   );
 }
 
+// In CI, run only Chromium by default for fast PR feedback (~10 min).
+// Set E2E_FULL_SUITE=true for cross-browser + mobile testing (nightly).
+const fullSuite = !process.env.CI || process.env.E2E_FULL_SUITE === "true";
+
+const allProjects = [
+  // Desktop browsers
+  {
+    name: "chromium",
+    use: { ...devices["Desktop Chrome"] },
+  },
+  {
+    name: "firefox",
+    use: { ...devices["Desktop Firefox"] },
+  },
+  {
+    name: "webkit",
+    use: { ...devices["Desktop Safari"] },
+  },
+  // Mobile / tablet form-factors. Catches viewport-specific regressions
+  // (mobile menu, responsive grids, touch targets) that desktop browsers
+  // miss. Use the Playwright-curated device descriptors so the user-agent,
+  // viewport, device-scale-factor and touch settings stay accurate.
+  {
+    name: "Pixel 5",
+    use: { ...devices["Pixel 5"] },
+  },
+  {
+    name: "iPad Mini",
+    use: { ...devices["iPad Mini"] },
+  },
+];
+
+const ciProjects = [allProjects[0]]; // Chromium only for PR CI
+
 export default defineConfig({
+  globalSetup: "./e2e/global-setup.ts",
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? "github" : "html",
   // Create missing screenshot baselines on first run instead of failing.
   // Reviewers can approve the committed snapshots on the resulting PR.
@@ -21,34 +57,12 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
+    // Pre-accepted cookie consent so the banner doesn't steal focus
+    // or overlay content during tests. Tests that need the banner
+    // (e.g. cookie-consent) call context.clearCookies() first.
+    storageState: path.join(__dirname, "e2e", ".auth", "storage-state.json"),
   },
-  projects: [
-    // Desktop browsers
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-    },
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-    },
-    // Mobile / tablet form-factors. Catches viewport-specific regressions
-    // (mobile menu, responsive grids, touch targets) that desktop browsers
-    // miss. Use the Playwright-curated device descriptors so the user-agent,
-    // viewport, device-scale-factor and touch settings stay accurate.
-    {
-      name: "Pixel 5",
-      use: { ...devices["Pixel 5"] },
-    },
-    {
-      name: "iPad Mini",
-      use: { ...devices["iPad Mini"] },
-    },
-  ],
+  projects: fullSuite ? allProjects : ciProjects,
   webServer: process.env.CI
     ? undefined
     : {
