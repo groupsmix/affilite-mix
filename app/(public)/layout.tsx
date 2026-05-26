@@ -109,14 +109,14 @@ export default async function PublicLayout({ children }: { children: React.React
         >
           {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
         </a>
+        {site.features.cookieConsent && (
+          <CookieConsentCmp language={site.language} siteId={site.id} />
+        )}
         <SiteHeader site={site} dbNavItems={dbNavItems} />
         <main id="main-content" className="flex-1">
           {children}
         </main>
         <SiteFooter site={site} dbFooterNav={dbFooterNav} />
-        {site.features.cookieConsent && (
-          <CookieConsentCmp language={site.language} siteId={site.id} />
-        )}
         <Toaster position="bottom-right" richColors closeButton />
       </div>
     </ThemeProvider>

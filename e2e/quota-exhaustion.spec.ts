@@ -26,6 +26,12 @@ test.describe("Quota Exhaustion", () => {
   });
 
   test("membership checkout respects rate limits", async ({ request }) => {
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    if (supaUrl.includes("placeholder")) {
+      test.skip(true, "Requires real Supabase backend for Stripe checkout rate limiting");
+      return;
+    }
+
     let rateLimited = false;
     for (let i = 0; i < 7; i++) {
       const res = await request.post("/api/membership/checkout", {

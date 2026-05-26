@@ -100,6 +100,13 @@ export default function CookieConsentCmp({
     const gpc = isGpcEnabled();
 
     void CookieConsent.run({
+      // The library defaults to hideFromBots:true which also detects
+      // navigator.webdriver (set by Playwright/automation). Disabling
+      // ensures the banner renders in E2E tests. Bots will simply
+      // ignore the banner — Google confirms consent banners don't
+      // affect crawling or indexing.
+      hideFromBots: false,
+
       guiOptions: {
         consentModal: {
           layout: "box inline",

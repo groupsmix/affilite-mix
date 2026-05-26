@@ -19,11 +19,11 @@ The application currently runs on a **single-primary PostgreSQL** via Supabase. 
 
 When replicas are introduced, the following strategies apply:
 
-| Strategy | Use Case | Implementation |
-|---|---|---|
-| **Primary reads** | After write, then immediate read | `readAfterWrite()` in `lib/read-after-write.ts` |
-| **Versioned cache** | Cache invalidation after write | Tag-based revalidation in `app/api/revalidate/route.ts` |
-| **Bounded staleness** | Reporting queries | `boundedStalenessRead()` helper |
+| Strategy              | Use Case                         | Implementation                                          |
+| --------------------- | -------------------------------- | ------------------------------------------------------- |
+| **Primary reads**     | After write, then immediate read | `readAfterWrite()` in `lib/read-after-write.ts`         |
+| **Versioned cache**   | Cache invalidation after write   | Tag-based revalidation in `app/api/revalidate/route.ts` |
+| **Bounded staleness** | Reporting queries                | `boundedStalenessRead()` helper                         |
 
 ### Critical Paths Requiring Primary Reads
 
@@ -35,6 +35,7 @@ When replicas are introduced, the following strategies apply:
 ## A30-004: Hotspot Mitigation
 
 A single high-traffic tenant can create write hotspots on:
+
 - `ad_impressions` (daily aggregate rows)
 - `affiliate_clicks` (insert-heavy)
 - `product_epc_stats` (update-heavy during recomputation)
@@ -56,29 +57,29 @@ When sharding is introduced:
 
 ### Tables by Shardability
 
-| Table | Shard Key | Notes |
-|---|---|---|
-| `sites` | Global | Small table, replicated to all shards or global |
-| `products` | `site_id` | Site-scoped |
-| `content` | `site_id` | Site-scoped |
-| `categories` | `site_id` | Site-scoped |
-| `affiliate_clicks` | `site_id` | Site-scoped |
-| `ad_impressions` | `site_id` | Site-scoped (plus `site_hash` for sub-partitioning) |
-| `commissions` | `site_id` | Site-scoped |
-| `admin_users` | Global | Cross-site role, global table |
-| `admin_site_memberships` | `site_id` | Site-scoped (links global user to site) |
+| Table                    | Shard Key | Notes                                               |
+| ------------------------ | --------- | --------------------------------------------------- |
+| `sites`                  | Global    | Small table, replicated to all shards or global     |
+| `products`               | `site_id` | Site-scoped                                         |
+| `content`                | `site_id` | Site-scoped                                         |
+| `categories`             | `site_id` | Site-scoped                                         |
+| `affiliate_clicks`       | `site_id` | Site-scoped                                         |
+| `ad_impressions`         | `site_id` | Site-scoped (plus `site_hash` for sub-partitioning) |
+| `commissions`            | `site_id` | Site-scoped                                         |
+| `admin_users`            | Global    | Cross-site role, global table                       |
+| `admin_site_memberships` | `site_id` | Site-scoped (links global user to site)             |
 
 ## A30-006: Replica Lag Handling
 
 When read replicas are introduced:
 
-| Query Type | Required Consistency | Route |
-|---|---|---|
-| Authorization/membership | Strict | Primary |
-| Product/content read after write | Strict | Primary |
-| Public catalog listing | Eventual | Replica (with bounded staleness) |
-| Analytics/reporting | Bounded staleness | Replica |
-| Click tracking write | N/A | Primary |
+| Query Type                       | Required Consistency | Route                            |
+| -------------------------------- | -------------------- | -------------------------------- |
+| Authorization/membership         | Strict               | Primary                          |
+| Product/content read after write | Strict               | Primary                          |
+| Public catalog listing           | Eventual             | Replica (with bounded staleness) |
+| Analytics/reporting              | Bounded staleness    | Replica                          |
+| Click tracking write             | N/A                  | Primary                          |
 
 Implementation: `lib/read-after-write.ts` provides `authzPrimaryRead()`, `readAfterWrite()`, and `boundedStalenessRead()` helpers.
 
@@ -86,10 +87,10 @@ Implementation: `lib/read-after-write.ts` provides `authzPrimaryRead()`, `readAf
 
 ### RTO/RPO Targets
 
-| Metric | Target | Notes |
-|---|---|---|
-| RPO | < 5 minutes | Point-in-time recovery via WAL archiving |
-| RTO | < 30 minutes | Automated failover with Supabase HA |
+| Metric | Target       | Notes                                    |
+| ------ | ------------ | ---------------------------------------- |
+| RPO    | < 5 minutes  | Point-in-time recovery via WAL archiving |
+| RTO    | < 30 minutes | Automated failover with Supabase HA      |
 
 ### Failover Process
 
@@ -101,6 +102,7 @@ Implementation: `lib/read-after-write.ts` provides `authzPrimaryRead()`, `readAf
 ### Restore Testing
 
 Run `scripts/dr-restore-test.sh` regularly to verify:
+
 - Table count matches expected
 - Key tables are accessible
 - RLS policies are active

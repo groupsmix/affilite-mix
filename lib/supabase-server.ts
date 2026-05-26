@@ -120,11 +120,11 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
             siteId = dbSite.id;
           } else {
             // A30-006: Primary read for authz — membership check must not see stale replica data
-            const { data: membership } = await authzPrimaryRead(() =>
+            const { data: membership } = await authzPrimaryRead(async () =>
               priv
                 .from("admin_site_memberships")
                 .select("id")
-                .eq("admin_user_id", session.userId)
+                .eq("admin_user_id", userId!)
                 .eq("site_id", dbSite.id)
                 .single(),
             );

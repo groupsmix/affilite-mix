@@ -32,7 +32,7 @@ export function MinimalHomepage({
       {/* Hero — clean, centered */}
       <section
         className="relative overflow-hidden py-24 text-center md:py-32 lg:py-40"
-        style={{ backgroundColor: "var(--color-primary)" }}
+        style={{ backgroundColor: site.theme.primaryColor }}
       >
         <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <h1
@@ -48,7 +48,7 @@ export function MinimalHomepage({
             <Link
               href={`/${firstContentType}`}
               className="inline-flex min-h-[48px] items-center justify-center rounded-full px-8 py-3 text-base font-semibold text-white transition-all duration-300 hover:opacity-90"
-              style={{ backgroundColor: "var(--color-accent)" }}
+              style={{ backgroundColor: site.theme.accentTextColor }}
             >
               {site.language === "ar" ? "تصفح المحتوى" : "Browse Content"}
             </Link>

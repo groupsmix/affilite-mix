@@ -53,10 +53,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     if (!rl.allowed) {
       rateLimited = true;
     } else {
-      [contentResults, productResults] = await Promise.all([
-        searchContent(site.id, query, 12),
-        searchProducts(site.id, query, 12),
-      ]);
+      try {
+        [contentResults, productResults] = await Promise.all([
+          searchContent(site.id, query, 12),
+          searchProducts(site.id, query, 12),
+        ]);
+      } catch {
+        // Supabase unavailable — treat as empty results rather than
+        // crashing the whole page into the error boundary.
+      }
     }
   }
 

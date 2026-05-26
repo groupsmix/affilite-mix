@@ -78,3 +78,6 @@ gitleaks
 gitleaks_*.tar.gz
 gitleaks_*.zip
 coverage/
+
+# Playwright global-setup storage state (generated at runtime)
+e2e/.auth/

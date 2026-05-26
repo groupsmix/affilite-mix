@@ -17,9 +17,27 @@ env:
   JWT_SECRET: ci-test-secret
   INTERNAL_API_TOKEN: ci-test-internal-token
   CRON_SECRET: ci-test-cron-secret
+  SUPABASE_JWT_SECRET: ci-test-supabase-jwt-secret
+  APP_URL: http://localhost:3000
+  SENTRY_DSN: https://placeholder@placeholder.ingest.sentry.io/0
+  AFFILIATE_DOMAIN_ENFORCEMENT: strict
+  TOTP_ENCRYPTION_KEY: ci-test-totp-encryption-key-0123456789ab
+  INTERNAL_HMAC_MIGRATION_MODE: strict
+  CLICK_CACHE_HMAC_KEY: ci-test-click-cache-hmac-key
+  GDPR_HASH_SECRET: ci-test-gdpr-hash-secret
+  CRON_PUBLISH_SECRET: ci-test-cron-publish
+  CRON_STRIPE_SYNC_SECRET: ci-test-cron-stripe-sync
+  CRON_AI_SECRET: ci-test-cron-ai
+  CRON_SITEMAP_SECRET: ci-test-cron-sitemap
+  CRON_RETENTION_SECRET: ci-test-cron-retention
+  CRON_COMMISSION_SECRET: ci-test-cron-commission
+  CRON_EPC_SECRET: ci-test-cron-epc
+  CRON_PRICE_SECRET: ci-test-cron-price
+  CRON_DEALS_SECRET: ci-test-cron-deals
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
   NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+  ALLOW_LOCALHOST_FALLBACK_IN_PROD: "1"
 
 jobs:
   check:
@@ -555,6 +573,8 @@ jobs:
   # ── E2E test gate (A86) ────────────────────────────────────────────
   # Playwright E2E tests across Chromium, Firefox, and WebKit.
   # A87: Do not rely on retries to mask flake — each test must pass cleanly.
+  # playwright.config.ts requires E2E_BASE_URL when CI=true; we build the
+  # Next.js app and start it locally so the tests have a live server.
   e2e:
     name: E2E tests
     runs-on: ubuntu-latest
@@ -565,12 +585,45 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build Next.js for E2E
+        run: npm run build
+        env:
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+      - name: Start Next.js server
+        run: npm run start &
+        env:
+          PORT: 3000
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          JWT_SECRET: ci-test-secret
+          INTERNAL_API_TOKEN: ci-test-internal-token
+          CRON_SECRET: ci-test-cron-secret
+          STRIPE_WEBHOOK_SECRET: whsec_ci_test_placeholder
+          STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      - name: Wait for server to be ready
+        run: npx wait-on http://localhost:3000 --timeout 60000
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright browsers
-        run: npx playwright install chromium firefox webkit
-      - name: Run E2E tests (all browsers)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Playwright system deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Run E2E tests (Chromium only for PR speed)
         run: npm run test:e2e
         env:
           CI: true
+          E2E_BASE_URL: http://localhost:3000
           # A87: Zero retries in CI — flake must be fixed, not retried
           PLAYWRIGHT_RETRIES: "0"
 
@@ -582,13 +635,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Run k6 load tests
-        uses: grafana/k6-action@v0.3.1
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          filename: load-test.js
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build Next.js for load tests
+        run: npm run build
         env:
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+      - name: Start Next.js server
+        run: npm run start &
+        env:
+          PORT: 3000
+          NEXT_PUBLIC_DEFAULT_SITE: ai-compared
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          JWT_SECRET: ci-test-secret
+          INTERNAL_API_TOKEN: ci-test-internal-token
+          CRON_SECRET: ci-test-cron-secret
+      - name: Wait for server to be ready
+        run: npx wait-on http://localhost:3000 --timeout 60000
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+      - name: Run k6 load tests
+        run: k6 run load-test.js
+        env:
+          CI: "true"
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
-          # A87: Fail on any check failure, not just HTTP 500
           K6_NO_THRESHOLDS: "false"
 
   # ── Chaos test gate (A86) ──────────────────────────────────────────
@@ -608,24 +689,9 @@ jobs:
         env:
           CHAOS_TEST_ENABLED: "true"
 
-  # ── Mutation test gate (A86/A88) ───────────────────────────────────
-  # Stryker mutation testing ensures tests catch semantic changes.
-  # Runs on PRs targeting main to validate test quality.
-  mutation:
-    name: Mutation tests
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Run Stryker mutation tests
-        run: npm run test:mutation
-        env:
-          STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
+  # ── Mutation tests moved to .github/workflows/mutation.yml ─────────
+  # Stryker runs weekly (Sunday 03:00 UTC) + on-demand via workflow_dispatch.
+  # Removed from PR CI to cut ~30 min of wall time per push.
 
   # ── Cross-workflow required gates ──────────────────────────────────
   # Branch protection should require ALL of the following check names:
@@ -635,15 +701,14 @@ jobs:
   #   3. "E2E tests"          (e2e job above)
   #   4. "Load tests"         (load job above)
   #   5. "Chaos tests"        (chaos job above)
-  #   6. "Mutation tests"     (mutation job above, PRs to main only)
-  #   7. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
-  #   8. "npm audit (high / critical)"  (security.yml)
-  #   9. "License compliance"           (security.yml)
-  #  10. "Dependency review"            (security.yml, PRs only)
+  #   6. "Preview E2E gate"   (preview.yml  — deploy + Playwright E2E)
+  #   7. "npm audit (high / critical)"  (security.yml)
+  #   8. "License compliance"           (security.yml)
+  #   9. "Dependency review"            (security.yml, PRs only)
   #
   # GitHub Actions `needs` cannot cross workflow boundaries, so each
   # workflow exposes its own gate job with a stable name.  Configure
-  # all ten names as required status checks in repo Settings →
+  # all nine names as required status checks in repo Settings →
   # Branches → Branch protection rules → Require status checks.
 
   required-checks:

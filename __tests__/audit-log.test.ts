@@ -74,6 +74,27 @@ describe("recordAuditEvent", () => {
     });
   });
 
+  it("redacts change values for fields outside the entity safe-field allowlist", async () => {
+    mockInsert.mockReturnValue(Promise.resolve({ error: null }));
+
+    const event: AuditEvent = {
+      site_id: "site-123",
+      actor: "admin@example.com",
+      action: "update",
+      entity_type: "product",
+      entity_id: "product-789",
+      details: { field: "secret_note", oldValue: "private old", newValue: "private new" },
+    };
+
+    await recordAuditEvent(event);
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: { field: "secret_note" },
+      }),
+    );
+  });
+
   it("retries once on insert failure and logs errors", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockInsert.mockReturnValue(Promise.resolve({ error: { message: "DB connection failed" } }));

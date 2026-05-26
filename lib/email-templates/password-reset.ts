@@ -9,7 +9,7 @@
  * `SiteDefinition.language` value to it.
  */
 
-import { escapeHtml, escapeAttribute, safeHref } from "./escape";
+import { safeHref } from "./escape";
 
 export type EmailLocale = "en" | "ar";
 
@@ -45,9 +45,8 @@ const PASSWORD_RESET_COPY: Record<EmailLocale, PasswordResetCopy> = {
     buttonLabel: "Reset Password",
     copyHint: "Or copy and paste this link:",
     disclaimer: "If you did not request this reset, you can safely ignore this email.",
-    plainText: (resetUrl, siteName) => {
-      const safeName = siteName.replace(/[<&>"']/g, " ");
-      return `You requested a password reset for ${safeName}.\n\nClick the link below to reset your password:\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you did not request this, you can safely ignore this email.`;
+    plainText: (resetUrl, _siteName) => {
+      return `You requested a password reset.\n\nClick the link below to reset your password:\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you did not request this, you can safely ignore this email.`;
     },
   },
   ar: {
@@ -99,20 +98,26 @@ export interface PasswordResetEmail {
  * The HTML output sets `lang` and `dir` on the root `<html>` element so
  * mail clients render Arabic right-to-left correctly.
  */
-export function buildPasswordResetEmail(input: PasswordResetEmailInput): PasswordResetEmail | null {
+export function buildPasswordResetEmail(input: PasswordResetEmailInput): PasswordResetEmail {
   const locale = pickEmailLocale(input.language);
   const copy = PASSWORD_RESET_COPY[locale];
   const dir: "ltr" | "rtl" = input.direction === "rtl" ? "rtl" : "ltr";
   const lang = locale === "ar" ? "ar" : "en";
   const year = new Date().getFullYear();
 
-  // A5-002: Validate the reset URL before building the email
+  // A5-002: Validate the reset URL before building the email.
+  // safeHref normalises the URL (percent-encoding special chars) for use in
+  // href attributes. We keep the original URL for plain-text and visible-text
+  // rendering so users can copy-paste the exact link from their email client.
   const safeUrl = safeHref(input.resetUrl);
-  if (safeUrl === null) return null;
+  if (safeUrl === null) {
+    throw new Error("[email-template] safeHref rejected reset URL");
+  }
 
   const html = renderHtml({
     copy,
     resetUrl: safeUrl,
+    rawResetUrl: input.resetUrl,
     siteName: input.siteName,
     dir,
     lang,
@@ -122,7 +127,7 @@ export function buildPasswordResetEmail(input: PasswordResetEmailInput): Passwor
   return {
     subject: copy.subject,
     html,
-    text: copy.plainText(safeUrl, input.siteName),
+    text: copy.plainText(input.resetUrl, input.siteName),
     locale,
   };
 }
@@ -130,6 +135,8 @@ export function buildPasswordResetEmail(input: PasswordResetEmailInput): Passwor
 interface RenderInput {
   readonly copy: PasswordResetCopy;
   readonly resetUrl: string;
+  /** Original (un-normalised) URL for visible text display. */
+  readonly rawResetUrl: string;
   readonly siteName: string;
   readonly dir: "ltr" | "rtl";
   readonly lang: string;
@@ -137,10 +144,10 @@ interface RenderInput {
 }
 
 function renderHtml(input: RenderInput): string {
-  const { copy, resetUrl, siteName, dir, lang, year } = input;
+  const { copy, resetUrl, rawResetUrl, siteName, dir, lang, year } = input;
   const safeSiteName = escapeHtml(siteName);
   const safeResetUrl = escapeAttribute(resetUrl);
-  const safeResetUrlText = escapeHtml(resetUrl);
+  const safeResetUrlText = escapeHtml(rawResetUrl);
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
