@@ -3,6 +3,7 @@ import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { SignJWT } from "jose";
+import { logger } from "@/lib/logger";
 import { headers, cookies } from "next/headers";
 import { getAdminSession } from "@/lib/auth";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
@@ -83,13 +84,9 @@ export function getServiceClient(): SupabaseClient<Database> {
   // AUDIT-FIX: Emit a runtime warning in production so operators can
   // track legacy call sites that haven't migrated to the approved gateway.
   if (process.env.NODE_ENV === "production") {
-    console.warn(
-      JSON.stringify({
-        level: "warn",
-        msg: "getServiceClient() is deprecated — use getPrivilegedSupabaseClient() from lib/server-only/service-role.ts",
-        metric: "deprecated_service_client_usage",
-      }),
-    );
+    logger.warn("getServiceClient() is deprecated — use getPrivilegedSupabaseClient()", {
+      metric: "deprecated_service_client_usage",
+    });
   }
   return getPrivilegedSupabaseClient();
 }
@@ -186,7 +183,9 @@ export function getAnonClient(): SupabaseClient<Database> {
           });
           return res;
         } catch (error) {
-          console.error("[getAnonClient] DB fetch failed (timeout or network):", error);
+          logger.error("[getAnonClient] DB fetch failed (timeout or network)", {
+            error: error instanceof Error ? error.message : String(error),
+          });
           return new Response(JSON.stringify({ error: "Service Unavailable", data: null }), {
             status: 503,
             headers: {

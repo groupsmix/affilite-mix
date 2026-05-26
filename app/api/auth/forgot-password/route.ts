@@ -3,6 +3,7 @@ import { getTenantClient } from "@/lib/supabase-server";
 import { getAdminUserByEmail } from "@/lib/dal/admin-users";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { logger } from "@/lib/logger";
 import { getCurrentSite } from "@/lib/site-context";
 import { isValidEmail } from "@/lib/validate-email";
 import { captureException } from "@/lib/sentry";
@@ -163,7 +164,7 @@ export async function POST(request: Request) {
         });
         return NextResponse.json({ ok: true });
       }
-      console.warn("[dev] Password reset email provider missing");
+      logger.warn("[dev] Password reset email provider missing");
     }
 
     return successResponse;

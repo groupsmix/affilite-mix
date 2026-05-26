@@ -184,13 +184,9 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
           _hmac?: string;
         } | null;
         if (cachedData && !cachedData._hmac) {
-          console.error(
-            JSON.stringify({
-              metric: "affiliate_cache_unsigned_rejected",
-              cacheKey,
-              msg: "Unsigned cached affiliate payload rejected in production",
-            }),
-          );
+          logger.error("affiliate_cache_unsigned_rejected", {
+            cacheKey,
+          });
           cachedData = null;
         }
         if (cachedData?._hmac && hmacKey) {
@@ -198,13 +194,9 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
           const expectedHmac = await computeHmac(hmacKey, "cache", "cache", bodyForHmac);
           cacheHmacValid = timingSafeEqual(cachedData._hmac, expectedHmac);
           if (!cacheHmacValid) {
-            console.error(
-              JSON.stringify({
-                metric: "affiliate_cache_hmac_mismatch",
-                cacheKey,
-                msg: "KV-cached affiliate URL failed HMAC check — possible cache poisoning",
-              }),
-            );
+            logger.error("affiliate_cache_hmac_mismatch", {
+              cacheKey,
+            });
             cachedData = null;
           }
         }
@@ -235,13 +227,9 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
           hmacSigned = true;
         }
       } catch (hmacErr) {
-        console.error(
-          JSON.stringify({
-            metric: "affiliate_cache_hmac_sign_failed",
-            cacheKey,
-            msg: "Failed to sign affiliate cache payload — skipping cache write",
-          }),
-        );
+        logger.error("affiliate_cache_hmac_sign_failed", {
+          cacheKey,
+        });
         captureException(hmacErr, {
           context: "[api/track/click] HMAC signing failed",
           extra: { cacheKey },
@@ -285,15 +273,12 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         domain: domainCheck.domain,
         reason: domainCheck.reason,
       });
-      console.error(
-        JSON.stringify({
-          metric: "affiliate_destination_rejected",
-          site_id: siteId,
-          product_slug: productSlug,
-          domain: domainCheck.domain,
-          reason: domainCheck.reason,
-        }),
-      );
+      logger.error("affiliate_destination_rejected", {
+        site_id: siteId,
+        product_slug: productSlug,
+        domain: domainCheck.domain,
+        reason: domainCheck.reason,
+      });
       captureException(new Error(`Blocked unapproved affiliate redirect: ${urlObj.hostname}`), {
         context: "[api/track/click] unapproved redirect host",
         extra: { url: destinationUrl, reason: domainCheck.reason },
@@ -301,15 +286,12 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
       return apiError(400, "Affiliate destination is not allowed");
     }
     if (domainCheck.reason) {
-      console.warn(
-        JSON.stringify({
-          metric: "affiliate_destination_warn",
-          site_id: siteId,
-          product_slug: productSlug,
-          domain: domainCheck.domain,
-          reason: domainCheck.reason,
-        }),
-      );
+      logger.warn("affiliate_destination_warn", {
+        site_id: siteId,
+        product_slug: productSlug,
+        domain: domainCheck.domain,
+        reason: domainCheck.reason,
+      });
     }
 
     // AUDIT-FIX A4-003/A7-006: Slice referrer before parsing to bound memory, strip CR/LF

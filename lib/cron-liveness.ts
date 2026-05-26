@@ -123,17 +123,12 @@ export async function checkCronLiveness(): Promise<void> {
           lastRunAgoMs: now - lastRun,
           expectedIntervalSec,
         });
-        // Structured log for Logpush/Sentry alerting
-        console.error(
-          JSON.stringify({
-            metric: "cron_liveness_miss",
-            job: job.name,
-            schedule: job.schedule,
-            last_run_ago_sec: Math.round(elapsed),
-            expected_interval_sec: expectedIntervalSec,
-            msg,
-          }),
-        );
+        logger.error("cron_liveness_miss", {
+          job: job.name,
+          schedule: job.schedule,
+          last_run_ago_sec: Math.round(elapsed),
+          expected_interval_sec: expectedIntervalSec,
+        });
       }
     } catch {
       // fail-open: best-effort

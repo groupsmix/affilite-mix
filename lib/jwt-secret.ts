@@ -24,6 +24,8 @@
 // module so static analysis tools and grep sweeps cannot identify it as a
 // reachable secret.  All callers go through getJwtSecret() which gates on
 // NODE_ENV so it is never returned in production.
+import { logger } from "@/lib/logger";
+
 const DEV_ONLY_JWT_SECRET = "__dev_only_insecure_jwt_secret__";
 
 let devFallbackWarned = false;
@@ -54,11 +56,9 @@ export function resolveJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
 
   if (!devFallbackWarned) {
     devFallbackWarned = true;
-    console.warn(
-      "JWT_SECRET not set — using the documented dev-only fallback. " +
-        "Set JWT_SECRET in .env for local development and as a Cloudflare " +
-        "Worker secret in production.",
-    );
+    logger.warn("JWT_SECRET not set — using the documented dev-only fallback", {
+      hint: "Set JWT_SECRET in .env for local development and as a Cloudflare Worker secret in production.",
+    });
   }
   return DEV_ONLY_JWT_SECRET;
 }
