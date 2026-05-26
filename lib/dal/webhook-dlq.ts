@@ -100,18 +100,19 @@ export async function listDlqEntries(
 
 /**
  * Mark a DLQ entry as replayed/resolved.
+ * Throws on failure so callers can detect and handle resolution errors.
  */
 export async function resolveDlqEntry(eventId: string): Promise<void> {
-  try {
-    const sb = getPrivilegedSupabaseClient();
-    await sb
-      .from("webhook_dlq")
-      .update({ status: "resolved", resolved_at: new Date().toISOString() })
-      .eq("event_id", eventId);
-  } catch (err) {
+  const sb = getPrivilegedSupabaseClient();
+  const { error } = await sb
+    .from("webhook_dlq")
+    .update({ status: "resolved", resolved_at: new Date().toISOString() })
+    .eq("event_id", eventId);
+  if (error) {
     logger.error("Failed to resolve DLQ entry", {
       event_id: eventId,
-      error: err instanceof Error ? err.message : String(err),
+      dbError: error.message,
     });
+    throw new Error(`DLQ resolve failed for event ${eventId}: ${error.message}`);
   }
 }

@@ -74,7 +74,7 @@ const SOD_CONSTRAINTS: {
   {
     description: "Translators must not be able to publish content",
     left: { feature: "content", action: "edit" },
-    right: { feature: "publishing", action: "publish" },
+    right: { feature: "content", action: "publish" },
     exemptRoles: ["owner", "super_admin", "admin", "editor"],
   },
 ];

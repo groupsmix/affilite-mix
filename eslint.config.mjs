@@ -86,8 +86,7 @@ const eslintConfig = [
             "add an eslint-disable comment with audit justification.",
         },
         {
-          selector:
-            "CallExpression[callee.property.name='select'] > Literal[value='*']",
+          selector: "CallExpression[callee.property.name='select'] > Literal[value='*']",
           message:
             'select("*") exposes future sensitive columns. Use an explicit column list constant (e.g. LIST_COLUMNS).',
         },
@@ -165,8 +164,7 @@ const eslintConfig = [
       "no-restricted-syntax": [
         "error",
         {
-          selector:
-            "CallExpression[callee.property.name='select'] > Literal[value='*']",
+          selector: "CallExpression[callee.property.name='select'] > Literal[value='*']",
           message:
             'select("*") exposes future sensitive columns. Use an explicit column list constant (e.g. LIST_COLUMNS).',
         },

@@ -49,70 +49,84 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
 
   try {
     const [
-      { data: newsletters },
-      { data: memberships },
-      { data: comments },
-      { data: wristShots },
-      { data: quizzes },
-      { data: priceAlerts },
-      { data: dripEnrollments },
+      newslettersRes,
+      membershipsRes,
+      commentsRes,
+      wristShotsRes,
+      quizzesRes,
+      priceAlertsRes,
+      dripEnrollmentsRes,
     ] = await Promise.all([
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb
-        .from("newsletter_subscribers")
+        .from("newsletter_subscribers") // eslint-disable-line no-restricted-syntax -- Audited: admin GDPR export
         .select(
           "id, site_id, email, status, confirmation_token, confirmed_at, unsubscribe_token, created_at",
         )
         .eq("site_id", site_id)
         .eq("email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb
-        .from("memberships")
+        .from("memberships") // eslint-disable-line no-restricted-syntax -- Audited: admin GDPR export
         .select(
           "id, site_id, email, name, tier, status, stripe_customer_id, stripe_subscription_id, current_period_start, current_period_end, cancelled_at, created_at, updated_at",
         )
         .eq("site_id", site_id)
         .eq("email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb
-        .from("comments")
+        .from("comments") // eslint-disable-line no-restricted-syntax -- Audited: admin GDPR export
         .select(
           "id, site_id, target_type, target_id, parent_id, user_email, user_name, body, status, approved_at, created_at, updated_at",
         )
         .eq("site_id", site_id)
         .eq("user_email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb
-        .from("wrist_shots")
+        .from("wrist_shots") // eslint-disable-line no-restricted-syntax -- Audited: admin GDPR export
         .select(
           "id, site_id, product_id, user_email, user_name, image_url, caption, status, approved_at, created_at, updated_at",
         )
         .eq("site_id", site_id)
         .eq("user_email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb
-        .from("quiz_submissions")
+        .from("quiz_submissions") // eslint-disable-line no-restricted-syntax -- Audited: admin GDPR export
         .select(
           "id, site_id, quiz_id, session_id, email, answers, result_tags, status, completed_at, created_at, updated_at",
         )
         .eq("site_id", site_id)
         .eq("email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb
-        .from("price_alerts")
+        .from("price_alerts") // eslint-disable-line no-restricted-syntax -- Audited: admin GDPR export
         .select(
           "id, site_id, product_id, email, target_price, currency, is_active, triggered_at, created_at, updated_at",
         )
         .eq("site_id", site_id)
         .eq("email", lowerEmail),
-      // eslint-disable-next-line no-restricted-syntax -- Audited: admin route gated by requireAdmin/withAuthz; service-scoped query
       sb
-        .from("drip_enrollments")
+        .from("drip_enrollments") // eslint-disable-line no-restricted-syntax -- Audited: admin GDPR export
         .select(
           "id, campaign_id, email, status, current_step, next_send_at, metadata, created_at, updated_at",
         )
         .eq("email", lowerEmail),
     ]);
+
+    const queryErrors = [
+      newslettersRes.error,
+      membershipsRes.error,
+      commentsRes.error,
+      wristShotsRes.error,
+      quizzesRes.error,
+      priceAlertsRes.error,
+      dripEnrollmentsRes.error,
+    ].filter(Boolean);
+    if (queryErrors.length > 0) {
+      throw queryErrors[0];
+    }
+
+    const newsletters = newslettersRes.data;
+    const memberships = membershipsRes.data;
+    const comments = commentsRes.data;
+    const wristShots = wristShotsRes.data;
+    const quizzes = quizzesRes.data;
+    const priceAlerts = priceAlertsRes.data;
+    const dripEnrollments = dripEnrollmentsRes.data;
 
     const exportPayload = {
       user: {
