@@ -194,6 +194,13 @@ h6 {
   }
 }
 
+/* Accent-background utility: applies the theme accent-text color as bg.
+ * Used on buttons/links that need a WCAG-AA resolved background so axe-core
+ * can compute contrast (inline styles on buttons are sometimes missed). */
+[data-accent-bg] {
+  background-color: var(--color-accent-text, #059669);
+}
+
 /* A69-F1: Cookie consent reject button equal prominence (EDPB/CNIL).
  * Ensures the "Reject Non-Essential" button has equal visual weight
  * (same size, font, padding, and contrast) as the "Accept All" button

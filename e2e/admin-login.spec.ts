@@ -28,6 +28,12 @@ test.describe("Admin Login Page", () => {
     await page.goto("/admin/login");
     await page.waitForLoadState("networkidle");
 
+    // Mock the login API to return 401 so we can test client-side error UI
+    // without needing a real Supabase backend
+    await page.route("/api/auth/login", async (route) => {
+      await route.fulfill({ status: 401, json: { error: "Invalid credentials" } });
+    });
+
     await page.locator('input[type="email"]').fill("wrong@example.com");
     await page.locator('input[type="password"]').fill("wrongpassword");
     await page.locator('button[type="submit"]').click();
