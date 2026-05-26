@@ -44,14 +44,14 @@ export const HMAC_HEADERS = {
 
 /**
  * In-memory nonce cache for replay detection.
- * FRESH-08 (caveat): This is a per-isolate map. In a distributed
- * Cloudflare Workers deployment with multiple active isolates, a replayed
- * request could bypass this check if it lands on a different isolate
- * before the timestamp skew window expires. True global replay protection
- * requires a Durable Object or KV backing store.
+ * A7-011: When APP_CACHE_KV is available (Cloudflare Workers), nonces are
+ * also written to KV with a TTL matching the skew window. This provides
+ * cross-isolate replay detection. The in-memory map is kept as a fast-path
+ * to avoid a KV read on every request from the same isolate.
  */
 const seenNonces = new Map<string, number>();
 const NONCE_TTL_MS = MAX_TIMESTAMP_SKEW_MS + 60_000; // slightly longer than skew window
+const NONCE_TTL_S = Math.ceil(NONCE_TTL_MS / 1000);
 
 // Periodic cleanup of expired nonces
 let lastNonceCleanup = Date.now();
@@ -63,6 +63,43 @@ function cleanupNonces(): void {
   lastNonceCleanup = now;
   for (const [nonce, expiresAt] of seenNonces) {
     if (expiresAt <= now) seenNonces.delete(nonce);
+  }
+}
+
+/** Resolve the APP_CACHE_KV binding for cross-isolate nonce dedup. */
+function getNonceKV(): {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
+} | null {
+  try {
+    const kv = (process.env as any).APP_CACHE_KV;
+    if (kv && typeof kv.get === "function" && typeof kv.put === "function") return kv;
+  } catch {
+    // Not available (local dev, CI)
+  }
+  return null;
+}
+
+/** Check KV for a previously seen nonce (cross-isolate). Fail-open on error. */
+async function isNonceSeenInKV(nonce: string): Promise<boolean> {
+  const kv = getNonceKV();
+  if (!kv) return false;
+  try {
+    const val = await kv.get(`hmac-nonce\x1F${nonce}`);
+    return val !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** Record nonce in KV for cross-isolate visibility. Best-effort. */
+async function recordNonceInKV(nonce: string): Promise<void> {
+  const kv = getNonceKV();
+  if (!kv) return;
+  try {
+    await kv.put(`hmac-nonce\x1F${nonce}`, "1", { expirationTtl: NONCE_TTL_S });
+  } catch {
+    // Best-effort — in-memory map is still the primary guard
   }
 }
 
@@ -165,9 +202,14 @@ export async function verifyInternalHmac(
     return { valid: false, reason: `Future timestamp ${ts - now}ms ahead of server clock` };
   }
 
-  // 2. Nonce replay check
+  // 2. Nonce replay check (in-memory fast-path + KV cross-isolate)
   if (seenNonces.has(nonce)) {
     logger.warn("Internal HMAC nonce replay detected", { nonce });
+    return { valid: false, reason: "Nonce already used (replay)" };
+  }
+  // A7-011: Cross-isolate nonce check via KV (fail-open if KV unavailable)
+  if (await isNonceSeenInKV(nonce)) {
+    logger.warn("Internal HMAC nonce replay detected via KV", { nonce });
     return { valid: false, reason: "Nonce already used (replay)" };
   }
 
@@ -177,8 +219,9 @@ export async function verifyInternalHmac(
     return { valid: false, reason: "Signature mismatch" };
   }
 
-  // Mark nonce as seen
+  // Mark nonce as seen (in-memory + KV)
   seenNonces.set(nonce, now + NONCE_TTL_MS);
+  void recordNonceInKV(nonce);
 
   return { valid: true };
 }

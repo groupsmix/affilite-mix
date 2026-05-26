@@ -188,14 +188,22 @@ export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
   // Gated on NODE_ENV !== "production" defensively so a misconfigured prod
   // env can never accidentally expose this path.
   //
-  // Opt-in override for production-mode local runs (Lighthouse CI, docker
-  // smoke tests, etc.): set ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 to apply
-  // the same localhost resolution under NODE_ENV=production. The flag is
-  // checked against a literal "1" so a stray truthy value cannot enable it.
-  // Never set this in real production deployments — the Cloudflare Worker
-  // never receives hostname=localhost through the edge anyway.
+  // A7-008: ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 enables the fallback in
+  // production-mode local runs (Lighthouse CI, docker smoke tests).
+  // PREVIEW_HOST_ALLOWLIST further restricts which hostnames are accepted
+  // (comma-separated, e.g. "localhost,127.0.0.1"). When the allowlist is
+  // set, only hostnames in the list are served; when unset, all *.localhost
+  // patterns are accepted (backward-compatible for CI).
   const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
+  const previewAllowlistRaw = process.env.PREVIEW_HOST_ALLOWLIST ?? "";
+  const previewAllowlist = previewAllowlistRaw
+    ? new Set(previewAllowlistRaw.split(",").map((h) => h.trim().toLowerCase()))
+    : null;
   if (process.env.NODE_ENV !== "production" || allowLocalhostInProd) {
+    // A7-008: When a preview allowlist is configured, reject hosts not on it.
+    if (previewAllowlist && !previewAllowlist.has(host.toLowerCase())) {
+      return undefined;
+    }
     // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
     if (host.endsWith(".localhost")) {
       const prefix = host.slice(0, -".localhost".length);

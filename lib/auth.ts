@@ -11,13 +11,18 @@ import { timingSafeEqual } from "@/lib/internal-hmac";
 // A6-03: use purpose-derived HMAC sub-key instead of the raw JWT secret
 import { deriveHmacKey } from "@/lib/hmac-key";
 
-const COOKIE_NAME = "nh_admin_token";
+// A7-012: Use __Host- prefix in production (Secure context) to prevent
+// Domain attribute injection and scope cookies to the exact origin.
+// In development (HTTP), the standard names are used since __Host-
+// cookies require the Secure flag which is HTTPS-only.
+const COOKIE_PREFIX = IS_SECURE_COOKIE ? "__Host-" : "";
+const COOKIE_NAME = `${COOKIE_PREFIX}nh_admin_token`;
 /** Cookie tracking last admin activity for idle-timeout enforcement */
-const ACTIVITY_COOKIE = "nh_admin_activity";
+const ACTIVITY_COOKIE = `${COOKIE_PREFIX}nh_admin_activity`;
 /** A-012: Separate HttpOnly cookie storing the UA/IP binding fingerprint.
  *  Even if the JWT is exfiltrated (e.g. via XSS), an attacker without
  *  this cookie cannot replay the session from a different device. */
-const BINDING_COOKIE = "nh_admin_binding";
+const BINDING_COOKIE = `${COOKIE_PREFIX}nh_admin_binding`;
 /** Admin sessions expire after 30 minutes of inactivity */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const EXPIRY = "4h"; // F-SEC-03: Reduced from 8h to limit exposure
