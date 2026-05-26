@@ -101,7 +101,7 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.5.14",
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
+    "lint-staged": "^17.0.5",
     "postcss": "^8.5.10",
     "prettier": "^3.8.3",
     "server-only": "^0.0.1",
