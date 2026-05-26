@@ -22,6 +22,8 @@ export interface DealRow {
 }
 
 const TABLE = "deals";
+const LIST_COLUMNS =
+  "id, site_id, product_id, title, description, discount_pct, original_price, deal_price, currency, source, url, starts_at, expires_at, is_active, is_featured, created_at, updated_at" as const;
 
 /** List active deals for a site, sorted by discount % descending */
 export async function listActiveDeals(
@@ -34,7 +36,7 @@ export async function listActiveDeals(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("is_active", true)
     .lte("starts_at", now)
@@ -58,7 +60,7 @@ export async function listFeaturedDeals(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("is_active", true)
     .eq("is_featured", true)
@@ -78,7 +80,7 @@ export async function getDealById(
 ): Promise<DealRow | null> {
   const sb = await getClient();
 
-  const { data, error } = await sb.from(TABLE).select("*").eq("id", id).maybeSingle();
+  const { data, error } = await sb.from(TABLE).select(LIST_COLUMNS).eq("id", id).maybeSingle();
 
   if (error) throw error;
   return rowOrNull<DealRow>(data);

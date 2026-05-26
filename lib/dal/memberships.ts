@@ -18,6 +18,8 @@ export interface MembershipRow {
 }
 
 const TABLE = "memberships";
+const LIST_COLUMNS =
+  "id, site_id, email, name, tier, status, stripe_customer_id, stripe_subscription_id, current_period_start, current_period_end, cancelled_at, created_at, updated_at" as const;
 
 /** Create a membership */
 export async function createMembership(
@@ -50,7 +52,7 @@ export async function getActiveMembership(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("email", email)
     .eq("site_id", siteId)
     .eq("status", "active")
@@ -69,7 +71,7 @@ export async function getMembershipByStripeSubscription(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("stripe_subscription_id", subscriptionId)
     .maybeSingle();
 
@@ -117,7 +119,7 @@ export async function listMembers(
 
   let query = sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("created_at", { ascending: false });
 
@@ -139,7 +141,7 @@ export async function getMemberCount(
 
   const { count, error } = await sb
     .from(TABLE)
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("site_id", siteId)
     .eq("status", "active");
 

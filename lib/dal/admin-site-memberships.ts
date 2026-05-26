@@ -9,6 +9,7 @@ export interface AdminSiteMembershipRow {
 }
 
 const TABLE = "admin_site_memberships";
+const LIST_COLUMNS = "id, admin_user_id, site_id, created_at" as const;
 
 /**
  * Check whether an admin user has membership for the given site (by DB UUID).
@@ -22,7 +23,7 @@ export async function getAdminSiteMembership(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("admin_user_id", adminUserId)
     .eq("site_id", siteId)
     .single();
@@ -41,7 +42,7 @@ export async function listAdminSiteMemberships(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("admin_user_id", adminUserId)
     .order("created_at", { ascending: true });
 

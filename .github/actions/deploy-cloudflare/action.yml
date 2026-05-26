@@ -27,18 +27,27 @@ runs:
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        WORKER_NAME: ${{ inputs.worker-name }}
+        ENVIRONMENT: ${{ inputs.environment }}
       run: |
-        ARGS=""
-        if [ -n "${{ inputs.worker-name }}" ]; then
-          ARGS="--name ${{ inputs.worker-name }}"
+        DEPLOY_ARGS=()
+        if [ -n "$WORKER_NAME" ]; then
+          DEPLOY_ARGS+=("--name" "$WORKER_NAME")
         fi
-        if [ "${{ inputs.environment }}" = "staging" ]; then
-          ARGS="$ARGS --env staging"
+        case "$ENVIRONMENT" in
+          staging|production) ;;
+          *) echo "::error::Invalid environment: $ENVIRONMENT"; exit 1 ;;
+        esac
+        if [ "$ENVIRONMENT" = "staging" ]; then
+          DEPLOY_ARGS+=("--env" "staging")
         fi
-        npx wrangler deploy $ARGS
+        npx wrangler deploy "${DEPLOY_ARGS[@]}"
 
     - name: Post-deploy health check
       shell: bash
+      env:
+        ENVIRONMENT: ${{ inputs.environment }}
+        WORKER_NAME: ${{ inputs.worker-name }}
       run: |
-        echo "Deployment to ${{ inputs.environment }} complete"
-        echo "Worker: ${{ inputs.worker-name || 'default' }}"
+        echo "Deployment to $ENVIRONMENT complete"
+        echo "Worker: ${WORKER_NAME:-default}"

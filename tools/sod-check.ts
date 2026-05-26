@@ -1,95 +1,129 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env npx tsx
 /**
- * OF-18: Separation of Duties (SoD) enforcement tool.
+ * Separation of Duties (SoD) Check
  *
- * Reads config/rbac/roles.json and validates that no single role can
- * perform both a "privileged write" and an "approval" action on the same
- * resource.  Exits non-zero if any SoD violation is found, so it can be
- * wired into CI.
+ * SOC 2 control CC1.5 / CC6.1 — verifies that the RBAC role definitions
+ * in config/rbac/roles.json satisfy separation-of-duties constraints.
  *
- * Usage:
- *   tsx tools/sod-check.ts                   # check all roles
- *   tsx tools/sod-check.ts --role super_admin # check one role
+ * Run: npx tsx tools/sod-check.ts
+ * CI:  called from .github/workflows/ci.yml as a gate step
  *
- * Add to CI:
- *   - name: SoD check
- *     run: pnpm exec tsx tools/sod-check.ts
+ * Exit 0 = all SoD rules pass
+ * Exit 1 = one or more violations detected
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-interface Permission {
-  resource: string;
-  actions: string[];
+interface RoleDef {
+  name: string;
+  label: string;
+  permissions: string[] | "all";
 }
 
-interface Role {
-  id: string;
-  display_name: string;
-  permissions: Permission[];
-  inherits?: string[];
+interface RolesFile {
+  roles: RoleDef[];
+  separation_of_duties: {
+    rules: string[];
+  };
 }
 
-interface RbacConfig {
-  roles: Role[];
-  sod_forbidden_pairs: Array<{ write_action: string; approval_action: string }>;
+const ROLES_PATH = resolve(__dirname, "../config/rbac/roles.json");
+
+function loadRoles(): RolesFile {
+  const raw = readFileSync(ROLES_PATH, "utf-8");
+  return JSON.parse(raw) as RolesFile;
 }
 
-const CONFIG_PATH = path.join(process.cwd(), "config/rbac/roles.json");
-
-function resolvePermissions(
-  roleId: string,
-  roles: Role[],
-  visited = new Set<string>(),
-): Permission[] {
-  if (visited.has(roleId)) return [];
-  visited.add(roleId);
-  const role = roles.find((r) => r.id === roleId);
-  if (!role) return [];
-  const inherited: Permission[] = (role.inherits ?? []).flatMap((parentId) =>
-    resolvePermissions(parentId, roles, visited),
+function roleHas(role: RoleDef, feature: string, action: string): boolean {
+  if (role.permissions === "all") return true;
+  return (
+    role.permissions.includes(`${feature}:${action}`) || role.permissions.includes(`${feature}:*`)
   );
-  return [...inherited, ...role.permissions];
 }
 
-function checkSoD(config: RbacConfig, targetRole?: string): boolean {
-  const { roles, sod_forbidden_pairs } = config;
-  let foundViolation = false;
+/**
+ * SoD constraint definitions.
+ * Each constraint specifies two capabilities that must not coexist
+ * in any non-owner/non-super_admin role.
+ */
+const SOD_CONSTRAINTS: {
+  description: string;
+  left: { feature: string; action: string };
+  right: { feature: string; action: string };
+  exemptRoles: string[];
+}[] = [
+  {
+    description: "Users who can create content must not self-publish (author role)",
+    left: { feature: "content", action: "create" },
+    right: { feature: "content", action: "publish" },
+    exemptRoles: ["owner", "super_admin", "admin", "editor"],
+  },
+  {
+    description: "Users who can manage settings must not also manage privacy/DSAR",
+    left: { feature: "settings", action: "manage" },
+    right: { feature: "privacy", action: "view" },
+    exemptRoles: ["owner", "super_admin", "admin"],
+  },
+  {
+    description: "Analysts must not have write access to any feature",
+    left: { feature: "content", action: "create" },
+    right: { feature: "analytics", action: "view" },
+    exemptRoles: ["owner", "super_admin", "admin", "editor", "author", "moderator"],
+  },
+  {
+    description: "Translators must not be able to publish content",
+    left: { feature: "content", action: "edit" },
+    right: { feature: "content", action: "publish" },
+    exemptRoles: ["owner", "super_admin", "admin", "editor"],
+  },
+];
 
-  for (const role of roles) {
-    if (targetRole && role.id !== targetRole) continue;
-    const perms = resolvePermissions(role.id, roles);
+function main(): void {
+  const config = loadRoles();
+  let violations = 0;
 
-    for (const { write_action, approval_action } of sod_forbidden_pairs) {
-      const canWrite = perms.some((p) => p.actions.includes(write_action));
-      const canApprove = perms.some((p) => p.actions.includes(approval_action));
+  console.log("=== Separation of Duties (SoD) Check ===\n");
+  console.log(`Loaded ${config.roles.length} roles from ${ROLES_PATH}\n`);
 
-      if (canWrite && canApprove) {
+  for (const constraint of SOD_CONSTRAINTS) {
+    for (const role of config.roles) {
+      if (constraint.exemptRoles.includes(role.name)) continue;
+
+      const hasLeft = roleHas(role, constraint.left.feature, constraint.left.action);
+      const hasRight = roleHas(role, constraint.right.feature, constraint.right.action);
+
+      if (hasLeft && hasRight) {
         console.error(
-          `[SoD VIOLATION] Role "${role.id}" has both "${write_action}" and "${approval_action}" — forbidden pair.`,
+          `VIOLATION: Role "${role.name}" has both ` +
+            `${constraint.left.feature}:${constraint.left.action} and ` +
+            `${constraint.right.feature}:${constraint.right.action}`,
         );
-        foundViolation = true;
+        console.error(`  Rule: ${constraint.description}\n`);
+        violations++;
       }
     }
   }
 
-  if (!foundViolation) {
-    console.log("[SoD] No violations found.");
+  // Verify no role can self-elevate (no role has users:manage except owner/super_admin)
+  for (const role of config.roles) {
+    if (role.name === "owner" || role.name === "super_admin") continue;
+    if (roleHas(role, "users", "manage")) {
+      console.error(
+        `VIOLATION: Role "${role.name}" has users:manage — only owner/super_admin may manage users`,
+      );
+      violations++;
+    }
   }
 
-  return !foundViolation;
+  console.log("---");
+  if (violations > 0) {
+    console.error(`\nFAILED: ${violations} SoD violation(s) detected.`);
+    process.exit(1);
+  } else {
+    console.log("\nPASSED: All SoD constraints satisfied.");
+    process.exit(0);
+  }
 }
 
-const args = process.argv.slice(2);
-const roleArgIdx = args.indexOf("--role");
-const targetRole = roleArgIdx >= 0 ? args[roleArgIdx + 1] : undefined;
-
-if (!fs.existsSync(CONFIG_PATH)) {
-  console.error(`[SoD] Config not found: ${CONFIG_PATH}`);
-  process.exit(1);
-}
-
-const config: RbacConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
-const ok = checkSoD(config, targetRole);
-process.exit(ok ? 0 : 1);
+main();

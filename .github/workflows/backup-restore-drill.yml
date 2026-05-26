@@ -1,6 +1,9 @@
 name: Backup Restore Drill
 
 on:
+  schedule:
+    # Monthly: first Tuesday at 09:00 UTC
+    - cron: "0 9 1-7 * 2"
   workflow_dispatch:
     inputs:
       environment:
@@ -11,12 +14,94 @@ on:
         options:
           - staging
 
+concurrency:
+  group: backup-restore-drill
+  cancel-in-progress: false
+
 jobs:
   backup-restore:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        with:
+          persist-credentials: false
+
+      - name: Install PostgreSQL client
+        run: |
+          if ! command -v psql &>/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          fi
+
       - name: Run backup restore drill
         run: bash scripts/dr-drill.sh --restore
         env:
-          ENVIRONMENT: ${{ inputs.environment }}
+          ENVIRONMENT: ${{ inputs.environment || 'staging' }}
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+
+      - name: Validate restored schema
+        if: always()
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          echo "Validating restored schema..."
+
+          # Check critical tables exist
+          TABLES=(
+            "sites"
+            "admin_users"
+            "content"
+            "products"
+            "affiliate_clicks"
+            "audit_log"
+            "_migrations_applied"
+            "webhook_dlq"
+          )
+
+          FAILED=0
+          for table in "${TABLES[@]}"; do
+            if psql "$STAGING_DATABASE_URL" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '$table')" 2>/dev/null | grep -q "t"; then
+              echo "  ✓ Table $table exists"
+            else
+              echo "  ✗ Table $table MISSING"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          # Check RLS is enabled on tenant-scoped tables
+          RLS_TABLES=("sites" "content" "products" "affiliate_clicks")
+          for table in "${RLS_TABLES[@]}"; do
+            if psql "$STAGING_DATABASE_URL" -tAc "SELECT rowsecurity FROM pg_tables WHERE tablename = '$table'" 2>/dev/null | grep -q "t"; then
+              echo "  ✓ RLS enabled on $table"
+            else
+              echo "  ✗ RLS NOT enabled on $table"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          # Check migration count matches
+          MIGRATION_COUNT=$(ls supabase/migrations/*.sql 2>/dev/null | wc -l)
+          DB_MIGRATION_COUNT=$(psql "$STAGING_DATABASE_URL" -tAc "SELECT count(*) FROM _migrations_applied" 2>/dev/null | tr -d '[:space:]' || echo "0")
+          echo "  Migrations on disk: $MIGRATION_COUNT, in DB: $DB_MIGRATION_COUNT"
+          if [ "$DB_MIGRATION_COUNT" != "$MIGRATION_COUNT" ]; then
+            echo "  ✗ Migration count mismatch"
+            FAILED=$((FAILED + 1))
+          fi
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::Schema validation failed: $FAILED checks failed"
+            exit 1
+          fi
+
+          echo "Schema validation passed"
+
+      - name: Record drill result
+        if: always()
+        run: |
+          echo "## Backup Restore Drill Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Date**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Environment**: ${{ inputs.environment || 'staging' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Triggered by**: ${{ github.actor }}" >> "$GITHUB_STEP_SUMMARY"

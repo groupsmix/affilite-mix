@@ -85,6 +85,11 @@ const eslintConfig = [
             "If this is Array.from() or a privileged context (cron/queue/webhook), " +
             "add an eslint-disable comment with audit justification.",
         },
+        {
+          selector: "CallExpression[callee.property.name='select'] > Literal[value='*']",
+          message:
+            'select("*") exposes future sensitive columns. Use an explicit column list constant (e.g. LIST_COLUMNS).',
+        },
       ],
     },
   },
@@ -147,6 +152,21 @@ const eslintConfig = [
                 "Service-role client bypasses RLS. Use getTenantClient() or getAnonClient() instead. (P1-6)",
             },
           ],
+        },
+      ],
+    },
+  },
+  {
+    // Risk #1: Ban select("*") in DAL files to prevent future
+    // sensitive column exposure. Use explicit column projections instead.
+    files: ["lib/dal/**/*.ts", "lib/related-products.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='select'] > Literal[value='*']",
+          message:
+            'select("*") exposes future sensitive columns. Use an explicit column list constant (e.g. LIST_COLUMNS).',
         },
       ],
     },

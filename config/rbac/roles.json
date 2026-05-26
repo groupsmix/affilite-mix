@@ -1,96 +1,174 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "RBAC role definitions for affilite-mix. Source of truth for CC1.3/CC1.5/CC6.1 SOC 2 controls. Roles are stored in the `roles` table (Supabase) and enforced by lib/dal/permissions.ts + lib/authz.ts.",
   "roles": [
     {
-      "id": "viewer",
-      "display_name": "Viewer",
+      "name": "owner",
+      "label": "Owner",
+      "description": "Full platform control including billing, site creation, and user management. Cannot be assigned — only the platform bootstrap process creates owners.",
+      "is_system": true,
+      "permissions": "all"
+    },
+    {
+      "name": "super_admin",
+      "label": "Super Admin",
+      "description": "Full administrative access across all sites. Can manage users, settings, and all content. Device-bound sessions use /32 IP binding (stricter than /24 for other roles).",
+      "is_system": true,
+      "permissions": "all"
+    },
+    {
+      "name": "admin",
+      "label": "Admin",
+      "description": "Site-scoped administrative access. Can manage content, products, categories, settings, and integrations within assigned sites. Requires admin_site_memberships row.",
+      "is_system": true,
       "permissions": [
-        {
-          "resource": "sites",
-          "actions": ["read"]
-        },
-        {
-          "resource": "analytics",
-          "actions": ["read"]
-        }
+        "content:*",
+        "products:*",
+        "categories:*",
+        "seo:*",
+        "analytics:view",
+        "integrations:*",
+        "settings:view",
+        "settings:manage",
+        "themes:*",
+        "modules:*",
+        "scheduling:*",
+        "publishing:*",
+        "feature-flags:*",
+        "ads:*",
+        "pages:*",
+        "privacy:view",
+        "upload:*"
       ]
     },
     {
-      "id": "editor",
-      "display_name": "Editor",
-      "display_name_ar": "\u0645\u062d\u0631\u0631",
-      "inherits": ["viewer"],
+      "name": "editor",
+      "label": "Editor",
+      "description": "Can create, edit, and publish content and products. Cannot manage users, settings, or integrations.",
+      "is_system": true,
       "permissions": [
-        {
-          "resource": "sites",
-          "actions": ["read", "write"]
-        },
-        {
-          "resource": "quiz",
-          "actions": ["read", "write"]
-        },
-        {
-          "resource": "newsletter",
-          "actions": ["read", "write"]
-        }
+        "content:view",
+        "content:create",
+        "content:edit",
+        "content:publish",
+        "products:view",
+        "products:create",
+        "products:edit",
+        "categories:view",
+        "seo:view",
+        "seo:edit",
+        "analytics:view",
+        "pages:view",
+        "pages:create",
+        "pages:edit",
+        "upload:create"
       ]
     },
     {
-      "id": "billing_admin",
-      "display_name": "Billing Admin",
-      "inherits": ["viewer"],
+      "name": "author",
+      "label": "Author",
+      "description": "Can create and edit own content. Cannot publish or manage products.",
+      "is_system": true,
       "permissions": [
-        {
-          "resource": "memberships",
-          "actions": ["read", "write"]
-        },
-        {
-          "resource": "invoices",
-          "actions": ["read"]
-        }
+        "content:view",
+        "content:create",
+        "content:edit",
+        "analytics:view",
+        "upload:create"
       ]
     },
     {
-      "id": "privacy_officer",
-      "display_name": "Privacy Officer",
-      "inherits": ["viewer"],
+      "name": "moderator",
+      "label": "Moderator",
+      "description": "Can approve/reject user-generated content (comments, wrist shots). Cannot create or edit site content.",
+      "is_system": true,
       "permissions": [
-        {
-          "resource": "privacy",
-          "actions": ["read", "write", "delete"]
-        },
-        {
-          "resource": "audit_log",
-          "actions": ["read"]
-        }
+        "content:view",
+        "products:view",
+        "categories:view",
+        "content:approve",
+        "analytics:view"
       ]
     },
     {
-      "id": "super_admin",
-      "display_name": "Super Admin",
-      "inherits": ["editor", "billing_admin", "privacy_officer"],
+      "name": "seo_manager",
+      "label": "SEO Manager",
+      "description": "Can manage SEO metadata, canonical URLs, and sitemap settings. Cannot modify content body.",
+      "is_system": true,
       "permissions": [
-        {
-          "resource": "terraform",
-          "actions": ["read"]
-        },
-        {
-          "resource": "audit_log",
-          "actions": ["read"]
-        }
-      ],
-      "_sod_note": "super_admin intentionally has no 'approve_deploy' or 'approve_payout' to satisfy SoD requirements. Deployments must be approved by a second human via GitHub PR review."
+        "content:view",
+        "products:view",
+        "seo:view",
+        "seo:edit",
+        "seo:manage",
+        "analytics:view"
+      ]
+    },
+    {
+      "name": "translator",
+      "label": "Translator",
+      "description": "Can view and edit content for translation purposes. Cannot publish or manage structure.",
+      "is_system": true,
+      "permissions": ["content:view", "content:edit", "products:view", "categories:view"]
+    },
+    {
+      "name": "analyst",
+      "label": "Analyst",
+      "description": "Read-only access to analytics, content, and products. Cannot modify any data.",
+      "is_system": true,
+      "permissions": [
+        "content:view",
+        "products:view",
+        "categories:view",
+        "analytics:view",
+        "seo:view"
+      ]
     }
   ],
-  "sod_forbidden_pairs": [
-    {
-      "write_action": "approve_deploy",
-      "approval_action": "write",
-      "_note": "No role may both initiate and approve a deployment."
-    },
-    {
-      "write_action": "approve_payout",
-      "approval_action": "write",
-      "_note": "No role may both initiate and approve a payout."
-    }
-  ]
+  "features": [
+    "content",
+    "products",
+    "categories",
+    "seo",
+    "analytics",
+    "integrations",
+    "users",
+    "settings",
+    "themes",
+    "modules",
+    "scheduling",
+    "publishing",
+    "feature-flags",
+    "ads",
+    "pages",
+    "privacy",
+    "upload"
+  ],
+  "actions": [
+    "view",
+    "read",
+    "create",
+    "edit",
+    "publish",
+    "delete",
+    "manage",
+    "approve",
+    "configure"
+  ],
+  "enforcement": {
+    "middleware": "lib/authz.ts — withAuthz() wrapper checks hasPermission() before handler execution",
+    "dal": "lib/dal/permissions.ts — getPermissionsForRole() + hasPermission() with per-request caching",
+    "admin_guard": "lib/admin-guard.ts — requireAdmin() enforces membership + role assertion",
+    "session_binding": "lib/auth.ts — device-bound JWT with IP/24 (admin) or IP/32 (super_admin) binding"
+  },
+  "separation_of_duties": {
+    "description": "Critical operations require different roles to prevent single-actor abuse",
+    "rules": [
+      "User creation requires super_admin; user cannot self-elevate",
+      "Publishing requires editor or above; authors cannot self-publish",
+      "Settings changes require admin; editors cannot modify site config",
+      "Privacy/DSAR operations require admin with privacy:view permission",
+      "Feature flag toggles require admin with feature-flags:manage permission"
+    ]
+  }
 }

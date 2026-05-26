@@ -17,6 +17,8 @@ export interface AuthorRow {
 }
 
 const TABLE = "authors";
+const LIST_COLUMNS =
+  "id, site_id, name, slug, bio, photo_url, credentials, expertise, social_links, is_active, created_at, updated_at" as const;
 
 /** List authors for a site */
 export async function listAuthors(
@@ -27,7 +29,7 @@ export async function listAuthors(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("name", { ascending: true });
 
@@ -45,7 +47,7 @@ export async function getAuthorById(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("id", id)
     .single();
@@ -64,7 +66,7 @@ export async function getAuthorBySlug(
 
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("slug", slug)
     .single();

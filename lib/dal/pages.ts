@@ -7,6 +7,8 @@ import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 // Columns needed for list views (excludes heavy body text)
 const LIST_COLUMNS =
   "id, site_id, slug, title, is_published, sort_order, created_at, updated_at" as const;
+const FULL_COLUMNS =
+  "id, site_id, slug, title, body, is_published, sort_order, created_at, updated_at" as const;
 
 /* ------------------------------------------------------------------ */
 /*  Read operations                                                     */
@@ -48,7 +50,7 @@ export async function getPageBySlug(siteId: string, slug: string): Promise<PageR
   if (!isSupabaseConfigured()) return null;
   const { data, error } = await getAnonClient()
     .from("pages")
-    .select("*")
+    .select(FULL_COLUMNS)
     .eq("site_id", siteId)
     .eq("slug", slug)
     .single();
@@ -67,7 +69,7 @@ export async function getPageById(
   const sb = await getClient();
   const { data, error } = await sb
     .from("pages")
-    .select("*")
+    .select(FULL_COLUMNS)
     .eq("site_id", siteId)
     .eq("id", id)
     .single();

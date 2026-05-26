@@ -102,3 +102,62 @@ workflow failure for manual review.
 `lib/pagination.ts` clamps `?limit=` to `[1, 100]` and rejects
 `offset > 100 000` and non-integer / non-finite values. Applied to
 `/api/admin/products`, `/api/admin/content`, `/api/admin/ai-content`.
+
+---
+
+## STRIDE Analysis — Major Data Flows (R-021)
+
+### Flow 1: Click Tracking (`POST /api/track/click`)
+
+| Threat                  | Category                   | Control                                            | Residual Risk                  |
+| ----------------------- | -------------------------- | -------------------------------------------------- | ------------------------------ |
+| Spoofed click events    | **S**poofing               | IP fingerprinting + User-Agent hash (24h dedup)    | Low — dedup prevents replay    |
+| Tampered click payload  | **T**ampering              | Zod schema validation, slug regex, sanitization    | Low — strict input validation  |
+| Deny clicking occurred  | **R**epudiation            | Audit log with trace ID, queue-backed batch insert | Low — durable audit trail      |
+| Click data exfiltration | **I**nformation Disclosure | RLS + site_id scoping, no PII in click records     | Low — privacy-by-design        |
+| Click flood DoS         | **D**enial of Service      | KV + DO rate limiting, queue buffering             | Medium — KV grace window (60s) |
+| Bypass rate limit       | **E**levation of Privilege | Per-IP + per-site limits, fail-closed after grace  | Low                            |
+
+### Flow 2: Authentication (`POST /api/auth/login`)
+
+| Threat                   | Category                   | Control                                              | Residual Risk |
+| ------------------------ | -------------------------- | ---------------------------------------------------- | ------------- |
+| Credential stuffing      | **S**poofing               | bcrypt + progressive delays + account lockout (TOTP) | Low           |
+| Session hijack           | **T**ampering              | HMAC-signed binding cookie, JWT IP/UA binding        | Low           |
+| Deny login attempt       | **R**epudiation            | Audit log for all auth events                        | Low           |
+| Password leak via timing | **I**nformation Disclosure | Dummy hash for unknown users, timing-safe compare    | Low           |
+| Login brute-force        | **D**enial of Service      | Rate limit (5/min per IP, 10/min per email)          | Low           |
+| Privilege escalation     | **E**levation of Privilege | Role-based access, admin_site_memberships, RBAC      | Low           |
+
+### Flow 3: Newsletter (`POST /api/newsletter/subscribe`)
+
+| Threat                   | Category                   | Control                                                | Residual Risk |
+| ------------------------ | -------------------------- | ------------------------------------------------------ | ------------- |
+| Spoofed subscriptions    | **S**poofing               | Turnstile CAPTCHA, email confirmation                  | Low           |
+| Email injection          | **T**ampering              | CRLF stripping, domain regex validation on From header | Low           |
+| Deny subscription        | **R**epudiation            | Audit log, confirmation email as receipt               | Low           |
+| Email list exfiltration  | **I**nformation Disclosure | RLS + site_id, admin auth required for list export     | Low           |
+| Subscription flood       | **D**enial of Service      | Rate limit (3/min per IP), Turnstile                   | Low           |
+| Send as arbitrary domain | **E**levation of Privilege | site.domain validated against config registry          | Low           |
+
+### Flow 4: AI Content Generation (`POST /api/admin/ai-content`)
+
+| Threat                      | Category                   | Control                                           | Residual Risk              |
+| --------------------------- | -------------------------- | ------------------------------------------------- | -------------------------- |
+| Unauthorized generation     | **S**poofing               | Admin JWT + RBAC + site membership                | Low                        |
+| Prompt injection            | **T**ampering              | Content moderation filter, output sanitization    | Medium — LLM-inherent risk |
+| Deny content origin         | **R**epudiation            | Audit log with provider, model, token count       | Low                        |
+| Model key exfiltration      | **I**nformation Disclosure | Keys in Worker secrets, never in client bundle    | Low                        |
+| Token quota exhaustion      | **D**enial of Service      | Per-tenant quota enforcement (micro-USD tracking) | Low                        |
+| Cross-tenant content access | **E**levation of Privilege | site_id scoping in DAL, admin guard rate limit    | Low                        |
+
+### Flow 5: Admin CRUD Operations (`/api/admin/*`)
+
+| Threat              | Category                   | Control                                             | Residual Risk |
+| ------------------- | -------------------------- | --------------------------------------------------- | ------------- |
+| Impersonate admin   | **S**poofing               | JWT + HMAC binding cookie + optional TOTP           | Low           |
+| IDOR (cross-tenant) | **T**ampering              | site_id scoping in every DAL query, ownership check | Low           |
+| Deny admin action   | **R**epudiation            | Comprehensive audit log with PII redaction          | Low           |
+| Bulk data export    | **I**nformation Disclosure | Admin rate limit (100/min), RBAC per resource       | Low           |
+| Admin API abuse     | **D**enial of Service      | Per-admin rate limiting via `requireAdmin()`        | Low           |
+| Role escalation     | **E**levation of Privilege | Role check in `assertRole()`, super_admin gated     | Low           |

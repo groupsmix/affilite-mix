@@ -14,6 +14,8 @@ export interface AffiliateNetworkRow {
 }
 
 const TABLE = "affiliate_networks";
+const LIST_COLUMNS =
+  "id, site_id, network, publisher_id, api_key_ref, is_active, config, created_at, updated_at" as const;
 
 /** List affiliate networks for a site */
 export async function listAffiliateNetworks(
@@ -23,7 +25,7 @@ export async function listAffiliateNetworks(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .order("created_at", { ascending: false });
 
@@ -40,7 +42,7 @@ export async function getAffiliateNetworkById(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(LIST_COLUMNS)
     .eq("site_id", siteId)
     .eq("id", id)
     .single();

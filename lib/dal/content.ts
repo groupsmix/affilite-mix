@@ -223,7 +223,10 @@ export async function countContent(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<number> {
   const sb = await getClient();
-  let query = sb.from(TABLE).select("*", { count: "exact", head: true }).eq("site_id", opts.siteId);
+  let query = sb
+    .from(TABLE)
+    .select("id", { count: "exact", head: true })
+    .eq("site_id", opts.siteId);
 
   if (opts.types && opts.types.length > 0) {
     query = query.in("type", opts.types);

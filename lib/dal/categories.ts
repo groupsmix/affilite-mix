@@ -156,7 +156,7 @@ export async function getCategoryById(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(FULL_COLUMNS)
     .eq("site_id", siteId)
     .eq("id", id)
     .single();
@@ -174,7 +174,7 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
   const sb = getAnonClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(FULL_COLUMNS)
     .eq("site_id", siteId)
     .eq("slug", slug)
     .single();
