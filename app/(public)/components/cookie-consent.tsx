@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { getCookieValue } from "@/lib/cookie-utils";
+import { useTheme } from "./theme-provider";
 
 type ConsentState = "pending" | "accepted" | "rejected";
 
@@ -101,6 +102,8 @@ const translations = {
 
 export default function CookieConsent({ language = "en", domain = "" }: CookieConsentProps) {
   const t = language === "ar" ? translations.ar : translations.en;
+  const theme = useTheme();
+  const accentBg = theme.accentTextColor;
   const [consent, setConsent] = useState<ConsentState>("pending");
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -195,7 +198,7 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
               <button
                 onClick={handleAccept}
                 className="min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all duration-300 hover:opacity-90"
-                style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+                style={{ backgroundColor: accentBg }}
               >
                 {t.accept}
               </button>
@@ -212,7 +215,7 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
                   <Link
                     href="/privacy"
                     className="underline transition-colors hover:text-gray-900"
-                    style={{ color: "var(--color-accent, #10B981)" }}
+                    style={{ color: accentBg }}
                   >
                     {t.privacy}
                   </Link>
@@ -257,7 +260,7 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
                 <button
                   onClick={handleAccept}
                   className="min-h-[44px] rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:opacity-90"
-                  style={{ backgroundColor: "var(--color-accent, #10B981)" }}
+                  style={{ backgroundColor: accentBg }}
                 >
                   {t.accept}
                 </button>

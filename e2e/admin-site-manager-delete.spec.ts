@@ -151,6 +151,7 @@ async function mockAdminSitesApis(page: Page, sites: MockSite[]): Promise<void> 
  * manager should skip in that case.
  */
 async function isLoginPage(page: Page): Promise<boolean> {
+  await page.waitForLoadState("networkidle");
   if (/\/admin\/login/.test(page.url())) return true;
   return page
     .locator("text=Admin Login")
