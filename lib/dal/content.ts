@@ -33,17 +33,25 @@ export interface ListContentOptions {
   sortBy?: ContentSortColumn;
   sortDirection?: "asc" | "desc";
   limit?: number;
+  /** @deprecated Use `cursor` for O(1) keyset pagination. */
   offset?: number;
+  /** A73-01: Keyset cursor — value of the sort column from the last item
+   *  of the previous page. Avoids O(n) offset scan at high page numbers. */
+  cursor?: string;
 }
 
 export type CountContentOptions = Omit<
   ListContentOptions,
-  "limit" | "offset" | "sortBy" | "sortDirection"
+  "limit" | "offset" | "sortBy" | "sortDirection" | "cursor"
 >;
 
 // Columns needed for list views (excludes heavy body/body_previous)
 const LIST_COLUMNS =
   "id, site_id, title, slug, excerpt, featured_image, type, status, review_state, category_id, tags, author, publish_at, meta_title, meta_description, og_image, created_at, updated_at" as const;
+
+// A23-01: Full explicit column list for detail views (includes body).
+const DETAIL_COLUMNS =
+  "id, site_id, title, slug, body, excerpt, featured_image, type, status, review_state, category_id, tags, author, publish_at, meta_title, meta_description, og_image, body_previous, created_at, updated_at" as const;
 
 /** List content for a site with optional filters */
 export async function listContent(
@@ -74,7 +82,12 @@ export async function listContent(
   if (opts.q && opts.q.trim().length > 0) {
     query = query.ilike("title", `%${escapeLike(opts.q.trim())}%`);
   }
-  if (opts.offset) {
+  // A73-01: Prefer keyset cursor over offset for O(1) pagination.
+  if (opts.cursor) {
+    const op = ascending ? "gt" : "lt";
+    query = query[op](sortColumn, opts.cursor);
+    query = query.limit(opts.limit ?? 20);
+  } else if (opts.offset) {
     query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
   } else if (opts.limit) {
     query = query.limit(opts.limit);
@@ -94,7 +107,7 @@ export async function getContentById(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("*")
+    .select(DETAIL_COLUMNS)
     .eq("site_id", siteId)
     .eq("id", id)
     .single();
@@ -111,7 +124,7 @@ export async function getContentBySlug(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ContentRow | null> {
   const sb = includePreview ? await getClient() : getAnonClient();
-  let query = sb.from(TABLE).select("*").eq("site_id", siteId).eq("slug", slug);
+  let query = sb.from(TABLE).select(DETAIL_COLUMNS).eq("site_id", siteId).eq("slug", slug);
 
   if (!includePreview) {
     query = query.eq("status", "published");
@@ -133,7 +146,7 @@ export const getContentBySlugPublic = unstable_cache(
     const sb = getAnonClient();
     const { data, error } = await sb
       .from(TABLE)
-      .select("*")
+      .select(DETAIL_COLUMNS)
       .eq("site_id", siteId)
       .eq("slug", slug)
       .eq("status", "published")

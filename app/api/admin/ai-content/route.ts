@@ -145,7 +145,7 @@ export const POST = withAuthz(
         meta_description: result.metaDescription,
       });
 
-      void recordAuditEvent({
+      await recordAuditEvent({
         site_id: siteId,
         actor: session.email ?? session.userId ?? "admin",
         action: "create",
@@ -209,6 +209,18 @@ export const PATCH = withAuthz(
         }
 
         if (action === "publish") {
+          // A7-010: Guard against race conditions — check slug uniqueness
+          // before inserting to prevent duplicate content from concurrent
+          // publish requests on the same draft.
+          const { getContentBySlug } = await import("@/lib/dal/content");
+          const existing = await getContentBySlug(siteId, draft.slug, true);
+          if (existing) {
+            return NextResponse.json(
+              { error: "Content with this slug already exists" },
+              { status: 409 },
+            );
+          }
+
           await createContent({
             site_id: siteId,
             title: draft.title,
@@ -234,7 +246,8 @@ export const PATCH = withAuthz(
             return NextResponse.json({ error: "Draft not found after publish" }, { status: 404 });
           }
 
-          void recordAuditEvent({
+          // G-06: Await audit for critical publish action — must be durable before response.
+          await recordAuditEvent({
             site_id: siteId,
             actor: session.email ?? session.userId ?? "admin",
             action: "publish",
@@ -245,7 +258,7 @@ export const PATCH = withAuthz(
           return NextResponse.json(publishedDraft);
         }
 
-        void recordAuditEvent({
+        await recordAuditEvent({
           site_id: siteId,
           actor: session.email ?? session.userId ?? "admin",
           action: "approve",
@@ -268,7 +281,7 @@ export const PATCH = withAuthz(
           return NextResponse.json({ error: "Draft not found" }, { status: 404 });
         }
 
-        void recordAuditEvent({
+        await recordAuditEvent({
           site_id: siteId,
           actor: session.email ?? session.userId ?? "admin",
           action: "reject",
@@ -392,7 +405,7 @@ export const DELETE = withAuthz(
     try {
       await deleteAIDraft(siteId, id);
 
-      void recordAuditEvent({
+      await recordAuditEvent({
         site_id: siteId,
         actor: session.email ?? session.userId ?? "admin",
         action: "delete",

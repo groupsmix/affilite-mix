@@ -102,7 +102,7 @@ export const POST = withAuthz(
       });
 
       void revalidateTag(contentTag(siteId));
-      void recordAuditEvent({
+      await recordAuditEvent({
         site_id: siteId,
         actor: session.email ?? session.userId ?? "admin",
         action: "create",
@@ -159,7 +159,7 @@ export const PATCH = withAuthz(
         updates as Parameters<typeof updateContent>[2],
       );
       void revalidateTag(contentTag(siteId));
-      void recordAuditEvent({
+      await recordAuditEvent({
         site_id: siteId,
         actor: session.email ?? session.userId ?? "admin",
         action: "update",
@@ -208,7 +208,8 @@ export const DELETE = withAuthz(
     try {
       await deleteContent(siteId, id);
       void revalidateTag(contentTag(siteId));
-      void recordAuditEvent({
+      // G-06: Await audit for content deletion.
+      await recordAuditEvent({
         site_id: siteId,
         actor: session.email ?? session.userId ?? "admin",
         action: "delete",
