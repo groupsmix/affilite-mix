@@ -169,10 +169,10 @@ describe("re-audit lock — R-009 / G-27 static CSP fallback removed", () => {
     const csp = readRepoFile("lib", "csp.ts");
     const code = stripComments(csp);
     expect(code).toMatch(/buildCspHeader/);
-    // `'unsafe-inline'` must not appear as a CSP source literal in
-    // executable code. Prose comments may reference the term when
-    // explaining the policy history, so we strip comments first.
-    expect(code).not.toMatch(/'unsafe-inline'/);
+    // `'unsafe-inline'` must not appear in script-src. Style-src uses
+    // 'unsafe-inline' intentionally (see lib/csp.ts rationale: nonces
+    // can't protect style attributes or dynamic element.style writes).
+    expect(code).not.toMatch(/script-src[^;]*'unsafe-inline'/);
   });
 });
 

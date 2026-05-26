@@ -48,7 +48,7 @@ export function MinimalHomepage({
             <Link
               href={`/${firstContentType}`}
               className="inline-flex min-h-[48px] items-center justify-center rounded-full px-8 py-3 text-base font-semibold text-white transition-all duration-300 hover:opacity-90"
-              style={{ backgroundColor: site.theme.accentColor }}
+              style={{ backgroundColor: site.theme.accentTextColor }}
             >
               {site.language === "ar" ? "تصفح المحتوى" : "Browse Content"}
             </Link>

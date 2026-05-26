@@ -35,17 +35,18 @@ describe("buildCspHeader", () => {
     expect(header).toContain(`script-src 'self' 'nonce-${nonce}'`);
   });
 
-  it("embeds the nonce in style-src", () => {
-    expect(header).toContain(`style-src 'self' 'nonce-${nonce}'`);
+  it("allows unsafe-inline in style-src (nonce removed — see lib/csp.ts rationale)", () => {
+    expect(header).toContain("style-src 'self' 'unsafe-inline'");
+    // Nonce is NOT used for style-src; see csp.ts comment for why.
+    expect(header).not.toMatch(/style-src[^;]*nonce/);
   });
 
   it("keeps 'strict-dynamic' on script-src", () => {
     expect(header).toMatch(/script-src[^;]*'strict-dynamic'/);
   });
 
-  it("does not include 'unsafe-inline' (A-011: dropped in favour of a nonce-only policy)", () => {
+  it("does not include 'unsafe-inline' in script-src (A-011: nonce-only for scripts)", () => {
     expect(header).not.toMatch(/script-src[^;]*'unsafe-inline'/);
-    expect(header).not.toMatch(/style-src[^;]*'unsafe-inline'/);
   });
 
   it("preserves previously configured third-party sources", () => {

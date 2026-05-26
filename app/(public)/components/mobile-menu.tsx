@@ -107,8 +107,8 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
       {/* Drawer — slides from left for RTL, right for LTR */}
       <div
         ref={drawerRef}
-        role="dialog"
-        aria-modal="true"
+        role={open ? "dialog" : undefined}
+        aria-modal={open ? "true" : undefined}
         aria-label={isRtl ? "القائمة" : "Menu"}
         aria-hidden={!open}
         className={`fixed inset-y-0 ${isRtl ? "left-0" : "right-0"} z-50 w-64 bg-white shadow-xl transition-transform duration-200 ease-in-out md:hidden ${
