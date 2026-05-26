@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
 
 // F-03: In CI, fail fast if E2E_BASE_URL is not configured. E2E depends on a
 // deployed preview target; running against a non-existent localhost wastes CI time.
@@ -43,6 +44,7 @@ const allProjects = [
 const ciProjects = [allProjects[0]]; // Chromium only for PR CI
 
 export default defineConfig({
+  globalSetup: "./e2e/global-setup.ts",
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -55,6 +57,10 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
+    // Pre-accepted cookie consent so the banner doesn't steal focus
+    // or overlay content during tests. Tests that need the banner
+    // (e.g. cookie-consent) call context.clearCookies() first.
+    storageState: path.join(__dirname, "e2e", ".auth", "storage-state.json"),
   },
   projects: fullSuite ? allProjects : ciProjects,
   webServer: process.env.CI

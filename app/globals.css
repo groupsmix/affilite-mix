@@ -201,6 +201,22 @@ h6 {
   background-color: var(--color-accent-text, #059669);
 }
 
+/* Cookie consent modal — explicit background and text colors so the
+ * modal has WCAG AA contrast regardless of page background (e.g. the
+ * dark hero section on ai-compared). */
+#cc-main .cm {
+  background-color: #fff !important;
+  color: #1f2937 !important;
+}
+
+#cc-main .cm__title {
+  color: #111827 !important;
+}
+
+#cc-main .cm__desc {
+  color: #374151 !important;
+}
+
 /* A69-F1: Cookie consent reject button equal prominence (EDPB/CNIL).
  * Ensures the "Reject Non-Essential" button has equal visual weight
  * (same size, font, padding, and contrast) as the "Accept All" button
