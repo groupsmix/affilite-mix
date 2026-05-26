@@ -17,6 +17,7 @@ test.describe("Admin Content Page", () => {
 
   test("new content form should have required fields", async ({ page }) => {
     await page.goto("/admin/content/new");
+    await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
       .locator("text=Admin Login")
@@ -33,6 +34,7 @@ test.describe("Admin Content Page", () => {
 
   test("content form should auto-generate slug from title", async ({ page }) => {
     await page.goto("/admin/content/new");
+    await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
       .locator("text=Admin Login")
@@ -52,6 +54,7 @@ test.describe("Admin Content Page", () => {
 
   test("content form should have content type dropdown with correct options", async ({ page }) => {
     await page.goto("/admin/content/new");
+    await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
       .locator("text=Admin Login")
@@ -72,6 +75,7 @@ test.describe("Admin Content Page", () => {
 
   test("content form should have status dropdown with scheduled option", async ({ page }) => {
     await page.goto("/admin/content/new");
+    await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
       .locator("text=Admin Login")
@@ -95,6 +99,7 @@ test.describe("Admin Content Page", () => {
 
   test("content form should have SEO section", async ({ page }) => {
     await page.goto("/admin/content/new");
+    await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
       .locator("text=Admin Login")
@@ -119,6 +124,7 @@ test.describe("Admin Content Page", () => {
 
   test("content form should have scheduling section", async ({ page }) => {
     await page.goto("/admin/content/new");
+    await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
       .locator("text=Admin Login")
@@ -135,6 +141,7 @@ test.describe("Admin Content Page", () => {
 
   test("content form should show validation error on empty submit", async ({ page }) => {
     await page.goto("/admin/content/new");
+    await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
       .locator("text=Admin Login")

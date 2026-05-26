@@ -26,6 +26,7 @@ test.describe("Admin Login Page", () => {
 
   test("should show error for invalid credentials", async ({ page }) => {
     await page.goto("/admin/login");
+    await page.waitForLoadState("networkidle");
 
     await page.locator('input[type="email"]').fill("wrong@example.com");
     await page.locator('input[type="password"]').fill("wrongpassword");
