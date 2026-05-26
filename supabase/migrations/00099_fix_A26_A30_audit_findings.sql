@@ -214,6 +214,9 @@ CREATE INDEX IF NOT EXISTS idx_products_active_deals
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- Replace CURRENT_DATE with explicit UTC date bucket in impression function
+-- Drop the old integer-signature overload so the function name stays unique
+DROP FUNCTION IF EXISTS record_ad_impression(uuid, uuid, uuid, text, integer);
+
 CREATE OR REPLACE FUNCTION record_ad_impression(
   p_site_id uuid,
   p_ad_placement_id uuid,
@@ -264,7 +267,7 @@ GRANT EXECUTE ON FUNCTION record_ad_impression(uuid, uuid, uuid, text, bigint) T
 GRANT EXECUTE ON FUNCTION record_ad_impression(uuid, uuid, uuid, text, bigint) TO service_role;
 
 -- Add comment documenting UTC handling
-COMMENT ON FUNCTION record_ad_impression IS 
+COMMENT ON FUNCTION record_ad_impression(uuid, uuid, uuid, text, bigint) IS
   'Atomically records an ad impression. Uses explicit UTC date for impression_date to avoid timezone boundary issues.';
 
 -- ═══════════════════════════════════════════════════════════════════════════
