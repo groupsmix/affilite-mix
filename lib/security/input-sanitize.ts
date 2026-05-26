@@ -108,6 +108,7 @@ export function sanitizeUrl(input: unknown, maxLength = 2048): string | null {
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
     return url.toString();
   } catch {
+    // fail-open: best-effort
     return null;
   }
 }

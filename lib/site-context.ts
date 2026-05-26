@@ -104,6 +104,7 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     const headerList = await headers();
     siteSlug = headerList.get(SITE_HEADER);
   } catch {
+    // fail-open: best-effort
     // Headers not available (e.g., during build time static generation)
   }
 
@@ -113,6 +114,7 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
       const cookieStore = await cookies();
       siteSlug = cookieStore.get(SITE_COOKIE)?.value ?? null;
     } catch {
+      // fail-open: best-effort
       // Cookies not available either
     }
   }
@@ -155,6 +157,7 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
       const dbSiteId = await resolveDbSiteId(siteSlug);
       return { ...site, id: dbSiteId };
     } catch {
+      // fail-open: best-effort
       // DB not available or site not in DB yet - use static config
       return site;
     }
@@ -167,6 +170,7 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
       return siteDefinitionFromDbRow(dbSite);
     }
   } catch {
+    // fail-open: best-effort
     // DB lookup failed
   }
 

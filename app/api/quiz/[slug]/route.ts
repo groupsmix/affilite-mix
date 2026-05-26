@@ -29,6 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       max_results: quiz.result_config.max_results,
     });
   } catch {
+    // fail-open: best-effort
     return NextResponse.json({ error: "Failed to load quiz" }, { status: 500 });
   }
 }

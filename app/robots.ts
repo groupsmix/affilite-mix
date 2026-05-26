@@ -10,6 +10,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     const site = await getCurrentSite();
     domain = site.domain;
   } catch {
+    // fail-open: best-effort
     // Fallback to first configured domain when DB/site context is unavailable
   }
 

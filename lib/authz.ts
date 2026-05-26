@@ -244,6 +244,7 @@ export async function authorizeResource(
       return result.data as { site_id: string } | null;
     });
   } catch {
+    // fail-open: best-effort
     // Don't differentiate "row missing" from "lookup error" to the caller —
     // both must look the same so cross-tenant ids cannot be probed.
     return { ok: false, status: 404, reason: "Resource not found" };

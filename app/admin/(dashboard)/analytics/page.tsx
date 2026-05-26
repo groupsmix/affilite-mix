@@ -65,6 +65,7 @@ function getReferrerMeta(referrer: string): {
       faviconUrl: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(url.hostname)}&sz=64`,
     };
   } catch {
+    // fail-open: best-effort
     return { href: null, host: null, faviconUrl: null };
   }
 }

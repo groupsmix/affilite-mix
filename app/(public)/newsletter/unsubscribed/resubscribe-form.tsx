@@ -48,6 +48,7 @@ export function ResubscribeForm({ siteId, siteName, isAr }: ResubscribeFormProps
         );
       }
     } catch {
+      // fail-open: best-effort
       setStatus("error");
       setMessage(
         isAr ? "حدث خطأ. يرجى المحاولة لاحقاً." : "An error occurred. Please try again later.",

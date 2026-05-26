@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
 import { constructStripeEvent, prewarmStripeWebhookKey } from "@/lib/stripe-webhook";
+import { getRuntimeEnv, type CloudflareKVBinding } from "@/lib/runtime-env";
+import type Stripe from "stripe";
 import { getStripeClient } from "@/lib/stripe-client";
 import { writeToDlq } from "@/lib/dal/webhook-dlq";
 
@@ -26,18 +28,15 @@ function redactStripePayloadForLogs(rawBody: string): Record<string, unknown> {
       object_type: parsed.data?.object?.object,
     };
   } catch {
+    // fail-open: best-effort
     return { parse_error: true };
   }
 }
 
-function getRateLimitKv(): any {
-  const env = process.env as Record<string, unknown>;
-  if (env.RATE_LIMIT_KV && typeof env.RATE_LIMIT_KV === "object") {
-    return env.RATE_LIMIT_KV;
-  }
-  const globalEnv = globalThis as Record<string, any>;
-  if (globalEnv.RATE_LIMIT_KV && typeof globalEnv.RATE_LIMIT_KV === "object") {
-    return globalEnv.RATE_LIMIT_KV;
+function getRateLimitKv(): CloudflareKVBinding | null {
+  const kv = getRuntimeEnv().RATE_LIMIT_KV;
+  if (kv && typeof kv === "object" && "get" in kv && "put" in kv) {
+    return kv;
   }
   return null;
 }
@@ -63,9 +62,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
-  let event: any;
+  // constructStripeEvent returns our lightweight StripeEvent; processStripeEvent
+  // needs the Stripe SDK Event type — the cast is safe because the JSON shape
+  // is identical (id, type, data.object) and Stripe's SDK type is a superset.
+  let event: Stripe.Event;
   try {
-    event = await constructStripeEvent(rawBody, signature, webhookSecret);
+    event = (await constructStripeEvent(
+      rawBody,
+      signature,
+      webhookSecret,
+    )) as unknown as Stripe.Event;
   } catch (err) {
     logger.warn("Stripe webhook signature verification failed", {
       error: err instanceof Error ? err.message : String(err),

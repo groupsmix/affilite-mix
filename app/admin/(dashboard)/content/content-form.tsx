@@ -165,6 +165,7 @@ export function ContentForm({
 
       window.open(`/${contentType}/${slug}?preview=true&token=${data.token}`, "_blank");
     } catch {
+      // fail-open: best-effort
       toast.error("Failed to generate preview link");
     } finally {
       setGeneratingPreview(false);

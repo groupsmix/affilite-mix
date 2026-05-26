@@ -51,6 +51,7 @@ export async function validatePreviewToken(token: string): Promise<PreviewTokenP
 
     return { slug, contentType, siteId };
   } catch {
+    // fail-open: best-effort
     return null;
   }
 }

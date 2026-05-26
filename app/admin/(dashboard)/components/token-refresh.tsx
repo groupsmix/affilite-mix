@@ -10,6 +10,7 @@ async function doRefresh() {
   try {
     await fetchWithCsrf("/api/auth/refresh", { method: "POST" });
   } catch {
+    // fail-open: best-effort
     // Silently ignore refresh failures — user will be redirected on next
     // server action if the token truly expired.
   }

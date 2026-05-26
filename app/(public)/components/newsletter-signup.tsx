@@ -54,6 +54,7 @@ export function NewsletterSignup({ siteLanguage = "en" }: NewsletterSignupProps)
       setStatus("success");
       setEmail("");
     } catch {
+      // fail-open: best-effort
       setErrorMsg(isAr ? "حدث خطأ. حاول مرة أخرى." : "Something went wrong. Please try again.");
       setStatus("error");
     }

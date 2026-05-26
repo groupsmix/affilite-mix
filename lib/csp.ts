@@ -43,6 +43,7 @@ function hostnameFromEnv(name: string): string | null {
   try {
     return new URL(raw).hostname;
   } catch {
+    // fail-open: best-effort
     return null;
   }
 }

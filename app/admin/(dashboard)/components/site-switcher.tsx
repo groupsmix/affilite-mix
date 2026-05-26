@@ -39,6 +39,7 @@ export function SiteSwitcher() {
           }
         }
       } catch {
+        // fail-open: best-effort
         // Ignore — will show "Select a site" fallback
       }
     }

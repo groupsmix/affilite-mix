@@ -34,6 +34,7 @@ export function getCookieValue(name: string): string | null {
   try {
     return decodeURIComponent(match.split("=")[1]);
   } catch {
+    // fail-open: best-effort
     return match.split("=")[1];
   }
 }

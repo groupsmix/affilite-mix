@@ -134,7 +134,7 @@ export async function updateAdminUser(
 
   const { data, error } = await sb
     .from(TABLE)
-    .update(input as any)
+    .update(input as Record<string, unknown>)
     .eq("id", id)
     .select()
     .single();
@@ -192,7 +192,8 @@ export async function incrementLoginFailedAttempts(
 
   if (readErr) throw readErr;
 
-  const attempts = ((user as any)?.login_failed_attempts ?? 0) + 1;
+  const attempts =
+    ((user as { login_failed_attempts?: number } | null)?.login_failed_attempts ?? 0) + 1;
   const updates: { login_failed_attempts: number; login_locked_until?: string | null } = {
     login_failed_attempts: attempts,
   };
@@ -253,7 +254,8 @@ export async function incrementTotpFailedAttempts(
 
   if (readErr) throw readErr;
 
-  const attempts = ((user as any)?.totp_failed_attempts ?? 0) + 1;
+  const attempts =
+    ((user as { totp_failed_attempts?: number } | null)?.totp_failed_attempts ?? 0) + 1;
   const updates: { totp_failed_attempts: number; totp_locked_until?: string | null } = {
     totp_failed_attempts: attempts,
   };
@@ -303,6 +305,7 @@ export async function hasAdminUsers(): Promise<boolean> {
     const count = await countAdminUsers();
     return count > 0;
   } catch {
+    // fail-open: best-effort
     return false;
   }
 }

@@ -26,6 +26,7 @@ function getKv(): KVNamespace | null {
     const kv = (process.env as unknown as { APP_CACHE_KV?: KVNamespace }).APP_CACHE_KV;
     return kv ?? null;
   } catch {
+    // fail-open: best-effort
     return null;
   }
 }
@@ -146,7 +147,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // P2-2: Use a stable date for static pages instead of new Date() on every
   // request, which would falsely signal to search engines that every static
   // page changed on every crawl.
-  const staticEntries: MetadataRoute.Sitemap = site.seo.sitemapStaticPages.map((page: any) => ({
+  const staticEntries: MetadataRoute.Sitemap = site.seo.sitemapStaticPages.map((page) => ({
     url: `${baseUrl}${page.path}`,
     lastModified: page.lastModified ? new Date(page.lastModified) : STATIC_LAST_MODIFIED,
     changeFrequency: page.changeFrequency as MetadataRoute.Sitemap[number]["changeFrequency"],

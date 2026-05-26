@@ -25,6 +25,7 @@ export function CategoryDeleteButton({ id, name }: { id: string; name: string })
         setUsageCounts(data);
       }
     } catch {
+      // fail-open: best-effort
       // Non-critical — dialog still works without counts
     } finally {
       setLoading(false);

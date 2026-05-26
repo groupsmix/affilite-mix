@@ -51,6 +51,7 @@ function fireTrackingBeacon(slug: string, sourceType: string) {
       fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
     }
   } catch {
+    // fail-open: best-effort
     // Tracking failure should never block navigation
   }
 }

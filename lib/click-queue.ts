@@ -60,6 +60,7 @@ function getClickQueue(): CloudflareQueue<ClickQueueMessage> | undefined {
           try {
             return (process.env as Record<string, unknown>).CLICK_QUEUE;
           } catch {
+            // fail-open: best-effort
             return undefined;
           }
         })();
