@@ -607,9 +607,19 @@ jobs:
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
       - name: Wait for server to be ready
         run: npx wait-on http://localhost:3000 --timeout 60000
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox webkit
-      - name: Run E2E tests (all browsers)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Playwright system deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Run E2E tests (Chromium only for PR speed)
         run: npm run test:e2e
         env:
           CI: true
