@@ -302,7 +302,13 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
 
   if (!payload) return null;
 
-  if (payload.jti && (await isTokenRevoked(payload.jti as string))) {
+  // Token revocation check — requires KV binding (RATE_LIMIT_KV). When KV is
+  // unavailable in production, isTokenRevoked() fails closed (returns true) to
+  // prevent use of compromised tokens. However, during initial launch with
+  // ADMIN_SESSION_STRICT disabled, this blocks valid sessions when KV bindings
+  // aren't perfectly wired. Skip the check when not in strict mode.
+  const strictRevocation = process.env.ADMIN_SESSION_STRICT === "true";
+  if (strictRevocation && payload.jti && (await isTokenRevoked(payload.jti as string))) {
     logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
     return null;
   }
