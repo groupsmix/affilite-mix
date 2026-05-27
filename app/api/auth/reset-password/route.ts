@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       maxRequests: 5,
       windowMs: 15 * 60 * 1000,
       failPolicy: "closed" as const,
+      graceMs: 0,
     });
     if (!rl.allowed) {
       return NextResponse.json(

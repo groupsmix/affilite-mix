@@ -79,11 +79,11 @@ const HEADING_REMAP: Record<string, string> = { h1: "h2" };
  * locks URLs to the small set we actually want users to author.
  *
  * Accepted forms:
- *   - Absolute URLs with schemes `http:`, `https:`, `mailto:`, `tel:`
+ *   - Absolute URLs with schemes `http:`, `https:`
  *   - Relative / site-root URLs (`/foo`, `foo/bar`, `../x`)
  *   - In-page anchors (`#id`)
  */
-const ALLOWED_URL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
+const ALLOWED_URL_SCHEMES = new Set(["http:", "https:"]);
 
 /**
  * URLs are pre-cleaned to match what the browser will actually resolve:

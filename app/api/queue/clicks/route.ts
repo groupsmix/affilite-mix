@@ -214,6 +214,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // audited-service-role: HMAC-gated internal queue consumer; per-row site_id
+    // is enforced via WITH CHECK policy. Minting a tenant JWT per batch is
+    // cost-prohibitive on the hottest write path.
     const sb = getPrivilegedSupabaseClient();
 
     if (isDlq) {

@@ -165,6 +165,14 @@ describe("Audit-3 regression locks", () => {
       expect(codeowners).toMatch(/\/lib\/server-only\/\s+@groupsmix\/security/);
       expect(codeowners).toMatch(/service-role-allowlist\.ts\s+@groupsmix\/security/);
     });
+
+    it("SEC-03: service_role call-site count does not regress", async () => {
+      const mod = await import("../lib/security/service-role-allowlist");
+      const count = mod.SERVICE_ROLE_IMPORT_ALLOWLIST.length;
+      // Baseline: current allowlist size. If this increases, the PR must
+      // justify the new call site with an audited-service-role comment.
+      expect(count).toBeLessThanOrEqual(30);
+    });
   });
 
   // ── F-004 — CSRF-exempt registry with compensating controls ──────────
