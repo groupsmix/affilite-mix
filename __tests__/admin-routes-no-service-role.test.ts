@@ -23,6 +23,16 @@ function walkRouteFiles(dir: string): string[] {
   return results;
 }
 
+/**
+ * Routes that legitimately require service-role access because they operate
+ * across site boundaries (e.g., listing all sites before a site is selected,
+ * querying admin_site_memberships which requires elevated RLS bypass).
+ */
+const SERVICE_ROLE_ALLOWLIST = new Set([
+  "app/api/admin/sites/route.ts",
+  "app/api/admin/sites/select/route.ts",
+]);
+
 describe("F-SEC-01: admin routes must not use service-role client", () => {
   const adminDir = join(process.cwd(), "app", "api", "admin");
   const routes = walkRouteFiles(adminDir);
@@ -33,6 +43,7 @@ describe("F-SEC-01: admin routes must not use service-role client", () => {
 
   for (const route of routes) {
     const relativePath = route.replace(process.cwd() + "/", "");
+    if (SERVICE_ROLE_ALLOWLIST.has(relativePath)) continue;
     it(`${relativePath} does not import server-only/service-role`, () => {
       const content = readFileSync(route, "utf-8");
       const hasServiceRoleImport =

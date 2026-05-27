@@ -94,6 +94,14 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // tenant-scoped session. Gated by Stripe-signature verification in
   // the parent webhook route (app/api/membership/webhook/route.ts).
   "lib/dal/webhook-dlq.ts",
+
+  // Admin sites routes need service-role to query admin_site_memberships
+  // (RLS blocks anon/authenticated from this table). These routes are
+  // gated by requireAdmin / requireAdminSession before the privileged
+  // client is reached. They operate across site boundaries (listing all
+  // sites, selecting a site) before tenant context is established.
+  "app/api/admin/sites/route.ts",
+  "app/api/admin/sites/select/route.ts",
 ] as const;
 
 type ServiceRoleAllowlistedPath = (typeof SERVICE_ROLE_IMPORT_ALLOWLIST)[number];

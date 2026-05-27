@@ -75,11 +75,28 @@ function verifyAuthzCall(content: string): {
     return { imported: true, called: true, pattern: "requireSuperAdmin" };
   }
 
+  // Pattern 5: requireAdminSession (cross-site routes that work before site selection)
+  const requireSessionImported = /import\s+[^;]*\brequireAdminSession\b/.test(content);
+  const requireSessionCalled =
+    /await\s+requireAdminSession\s*\(/.test(content) && /if\s*\(\s*error\s*\)/.test(content);
+
+  if (requireSessionImported && requireSessionCalled) {
+    return { imported: true, called: true, pattern: "requireAdminSession" };
+  }
+
   // Determine what went wrong for diagnostics
   const anyImported =
-    requireAdminImported || withAuthzImported || withAuthzDynamicImported || requireSuperImported;
+    requireAdminImported ||
+    withAuthzImported ||
+    withAuthzDynamicImported ||
+    requireSuperImported ||
+    requireSessionImported;
   const anyCalled =
-    requireAdminCalled || withAuthzCalled || withAuthzDynamicCalled || requireSuperCalled;
+    requireAdminCalled ||
+    withAuthzCalled ||
+    withAuthzDynamicCalled ||
+    requireSuperCalled ||
+    requireSessionCalled;
 
   return {
     imported: anyImported,
@@ -188,7 +205,7 @@ describe("F-01 / F-003: admin route authz enforcement", () => {
         const handlerBody = getAsyncHandlerBody(content, handler);
         const isAsyncGuarded =
           handlerBody.length > 0 &&
-          /await\s+(requireAdmin|requireSuperAdmin)\s*\(/.test(handlerBody);
+          /await\s+(requireAdmin|requireSuperAdmin|requireAdminSession)\s*\(/.test(handlerBody);
 
         expect(
           isHofWrapped || isAsyncGuarded,
