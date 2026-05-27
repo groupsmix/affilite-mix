@@ -3,7 +3,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "affilite-mix",
-  "main": ".open-next/worker.js",
+  "main": "workers/custom-worker.ts",
   "compatibility_date": "2026-03-17",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   // A206/A209: Disable the *.workers.dev preview URL so all traffic must
@@ -235,9 +235,8 @@
   // defaults NODE_ENV to "production" but the Next.js shim may not propagate it.
   "vars": {
     "NODE_ENV": "production",
-    "ENABLE_TURNSTILE": "false",
-    "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "",
     "CRON_ALLOW_SHARED_FALLBACK_IN_PROD": "1",
+    "APP_URL": "https://wristnerd.xyz",
   },
   // Workers observability (logs, errors, metrics in CF dashboard)
   "observability": {

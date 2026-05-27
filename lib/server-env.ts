@@ -63,23 +63,6 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
     description: "Shared secret for authenticating scheduled cron job requests",
     ownerFile: "lib/cron-auth.ts",
   },
-  {
-    name: "APP_URL",
-    description: "Canonical app URL for constructing absolute URLs (e.g. password reset links)",
-    ownerFile: "app/api/auth/forgot-password/route.ts",
-  },
-  {
-    name: "SENTRY_DSN",
-    description:
-      "Sentry DSN for server-side error monitoring (required in production for incident response)",
-    ownerFile: "lib/sentry.ts",
-  },
-  // B-01: TOTP encryption key for encrypting 2FA shared secrets at rest
-  {
-    name: "TOTP_ENCRYPTION_KEY",
-    description: "Encryption key for TOTP shared secrets at rest (B-01)",
-    ownerFile: "lib/totp-encryption.ts",
-  },
 ] as const;
 
 /**
@@ -88,6 +71,21 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
  * the app.
  */
 export const RECOMMENDED_SERVER_ENV: readonly RequiredEnvVar[] = [
+  {
+    name: "APP_URL",
+    description: "Canonical app URL for constructing absolute URLs (e.g. password reset links)",
+    ownerFile: "app/api/auth/forgot-password/route.ts",
+  },
+  {
+    name: "SENTRY_DSN",
+    description: "Sentry DSN for server-side error monitoring",
+    ownerFile: "lib/sentry.ts",
+  },
+  {
+    name: "TOTP_ENCRYPTION_KEY",
+    description: "Encryption key for TOTP shared secrets at rest (B-01)",
+    ownerFile: "lib/totp-encryption.ts",
+  },
   // N-01 / E-01: RESEND_API_KEY moved to FEATURE_CONDITIONAL_ENV — required
   // when NEWSLETTER_ENABLED=1 (production). Kept here as recommended for
   // dev/test environments where newsletter may not be enabled.
