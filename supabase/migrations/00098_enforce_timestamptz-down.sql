@@ -1,0 +1,4 @@
+-- intentionally empty: forward-only
+-- Converting TIMESTAMPTZ back to TIMESTAMP WITHOUT TIME ZONE would lose
+-- timezone information and is not safely reversible. The enforce_timestamptz
+-- migration is considered permanent infrastructure.

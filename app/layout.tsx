@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Sans_Arabic, Playfair_Display } from "next/font/google";
+import { headers } from "next/headers";
 import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { NONCE_HEADER } from "@/lib/csp";
 import { WebVitals } from "./web-vitals";
 import { logger } from "@/lib/logger";
 import "./globals.css";
@@ -101,6 +103,7 @@ const fontVarMap: Record<string, string> = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
+  const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
 
   // Collect only the font CSS variables that this site actually uses
   const needed = new Set<string>();
@@ -122,6 +125,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("theme-preference");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`,
           }}
