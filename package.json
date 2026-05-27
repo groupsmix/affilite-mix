@@ -117,7 +117,7 @@
   },
   "overrides": {
     "postcss": "^8.5.10",
-    "tmp": "^0.2.5",
+    "tmp": "^0.2.6",
     "uuid": "^14.0.0",
     "fast-xml-parser": "^5.7.0",
     "undici": "^7.0.0",
