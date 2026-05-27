@@ -65,6 +65,16 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // (`app/api/queue/clicks/route.ts`) is gated by INTERNAL_API_TOKEN.
   "lib/click-queue.ts",
 
+  // Auth login route needs service_role to read admin_users (password_hash,
+  // lockout state) — RLS correctly blocks authenticated role from this table.
+  // The route is public but rate-limited (3 attempts / 15min per IP, 100/min
+  // global). Service-role access is confined to user lookup + lockout updates.
+  "app/api/auth/login/route.ts",
+
+  // authenticateUser() needs service_role to look up admin_users.password_hash
+  // for bcrypt verification. Called only from the login route above.
+  "lib/auth.ts",
+
   // Default DAL client getter — provides the privileged client only
   // when callers explicitly opt in by passing it (or rely on the
   // default in cron / internal contexts already on this allow-list).

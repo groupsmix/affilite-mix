@@ -158,9 +158,9 @@ jobs:
         run: |
           set -euo pipefail
           # Scan non-exempt API routes for privileged client imports.
-          # Allowed: cron, internal, membership/webhook, admin routes.
+          # Allowed: cron, internal, membership/webhook, admin, auth routes.
           VIOLATIONS=""
-          for file in $(find app/api -name 'route.ts' -o -name 'route.tsx' | grep -v 'app/api/cron/' | grep -v 'app/api/internal/' | grep -v 'app/api/membership/webhook/' | grep -v 'app/api/admin/' | grep -v 'app/api/queue/'); do
+          for file in $(find app/api -name 'route.ts' -o -name 'route.tsx' | grep -v 'app/api/cron/' | grep -v 'app/api/internal/' | grep -v 'app/api/membership/webhook/' | grep -v 'app/api/admin/' | grep -v 'app/api/auth/' | grep -v 'app/api/queue/'); do
             if grep -qE 'getPrivilegedSupabaseClient|getServiceClient|service-role' "$file"; then
               VIOLATIONS="$VIOLATIONS $file"
             fi
@@ -415,8 +415,10 @@ jobs:
             echo "No staging DB URL — skipping pre-audit migration apply."
             exit 0
           fi
+          # Strip ?pgbouncer=true — psql doesn't understand it.
+          DB_URL="${STAGING_SUPABASE_DB_URL%%\?*}"
           # Test connectivity first — skip silently if staging is unreachable.
-          if ! psql "$STAGING_SUPABASE_DB_URL" -c "SELECT 1" -t -A -X >/dev/null 2>&1; then
+          if ! psql "$DB_URL" -c "SELECT 1" -t -A -X >/dev/null 2>&1; then
             echo "::warning::Staging DB unreachable — skipping pre-audit migration apply."
             exit 0
           fi
@@ -424,7 +426,7 @@ jobs:
           for f in supabase/migrations/2026052601_revoke_anon_grants_fix_rls.sql; do
             if [ -f "$f" ]; then
               echo "  → $f"
-              psql "$STAGING_SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -X -f "$f"
+              psql "$DB_URL" -v ON_ERROR_STOP=1 -X -f "$f"
             fi
           done
           echo "Done."
