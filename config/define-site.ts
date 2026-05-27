@@ -17,7 +17,8 @@ const FONT_PRESETS: Record<FontPreset, { heading: string; body: string }> = {
 /*  Homepage presets                                                    */
 /* ------------------------------------------------------------------ */
 
-type HomepagePreset = "standard" | "cinematic" | "minimal";
+type HomepagePreset = "standard" | "cinematic" | "minimal" | "editorial" | "top10";
+type ProductCardStylePreset = "standard" | "compact" | "detailed";
 
 /* ------------------------------------------------------------------ */
 /*  Feature shorthands                                                 */
@@ -142,6 +143,8 @@ export interface SiteInput {
   fonts?: FontPreset | { heading: string; body: string };
   /** Homepage layout preset. Defaults to "standard" */
   homepage?: HomepagePreset;
+  /** Product card display style. Defaults to "standard" */
+  productCardStyle?: ProductCardStylePreset;
   /** Feature list (shorthand). Defaults to common features. */
   features?: FeatureShorthand[];
   /** Full override of features (bypass shorthand expansion) */
@@ -213,9 +216,12 @@ export function defineSite(input: SiteInput): SiteDefinition {
 
   // Apply homepage preset
   const homepage = input.homepage ?? "standard";
-  if (homepage === "cinematic" || homepage === "minimal") {
+  if (homepage !== "standard") {
     features.customHomepage = true;
   }
+
+  // Product card style
+  const productCardStyle = input.productCardStyle ?? "standard";
 
   // Content types
   const contentTypes = input.contentTypes ?? DEFAULT_CONTENT_TYPES;
@@ -257,6 +263,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
     direction,
     locale,
     homepageTemplate: homepage,
+    productCardStyle,
 
     brand: {
       description,

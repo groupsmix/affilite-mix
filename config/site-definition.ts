@@ -73,7 +73,10 @@ export interface SiteDefinition {
   };
 
   /** Homepage template preset. Defaults to "standard". */
-  homepageTemplate?: "standard" | "cinematic" | "minimal";
+  homepageTemplate?: "standard" | "cinematic" | "minimal" | "editorial" | "top10";
+
+  /** Product card display variant. Defaults to "standard". */
+  productCardStyle?: "standard" | "compact" | "detailed";
 
   /**
    * Per-tenant cost / usage ceilings (G-42).

@@ -110,7 +110,13 @@ describe("F-003: admin routes reject unauthenticated access", () => {
         const usesRequireSuperAdmin =
           handlerBody.length > 0 && /await\s+requireSuperAdmin\s*\(/.test(handlerBody);
 
-        const isProtected = isHofWrapped || usesRequireAdmin || usesRequireSuperAdmin;
+        const usesRequireAdminSession =
+          handlerBody.length > 0 &&
+          /await\s+requireAdminSession\s*\(/.test(handlerBody) &&
+          /if\s*\(\s*error\s*\)\s*return\s+error/.test(handlerBody);
+
+        const isProtected =
+          isHofWrapped || usesRequireAdmin || usesRequireSuperAdmin || usesRequireAdminSession;
 
         expect(
           isProtected,
@@ -129,22 +135,29 @@ describe("F-003: admin routes check error before proceeding", () => {
     const relative = path.relative(process.cwd(), filePath).replace(/\\/g, "/");
     const content = fs.readFileSync(filePath, "utf-8");
 
-    // Only check routes using requireAdmin pattern (not withAuthz HOF)
-    if (!/await\s+requireAdmin\s*\(/.test(content)) continue;
+    // Only check routes using requireAdmin/requireAdminSession pattern (not withAuthz HOF)
+    if (
+      !/await\s+requireAdmin\s*\(/.test(content) &&
+      !/await\s+requireAdminSession\s*\(/.test(content)
+    )
+      continue;
 
     it(`${relative} checks requireAdmin error before business logic`, () => {
-      // The error check must appear BEFORE any DAL imports are called
-      const requireAdminPos = content.indexOf("await requireAdmin(");
-      const errorCheckPos = content.indexOf("if (error) return error");
-
-      // Both must exist
-      expect(requireAdminPos).toBeGreaterThan(-1);
-      expect(errorCheckPos).toBeGreaterThan(-1);
-
-      // Error check must come shortly after requireAdmin call
-      // (within 200 chars — accounts for destructuring)
-      expect(errorCheckPos - requireAdminPos).toBeLessThan(200);
-      expect(errorCheckPos).toBeGreaterThan(requireAdminPos);
+      // Find ALL auth guard calls and verify each has a nearby error check
+      const guardPattern = /await\s+(?:requireAdmin|requireAdminSession)\s*\(/g;
+      let match: RegExpExecArray | null;
+      let found = false;
+      while ((match = guardPattern.exec(content)) !== null) {
+        found = true;
+        const guardPos = match.index;
+        // Look for "if (error) return error" within 200 chars after this call
+        const searchWindow = content.slice(guardPos, guardPos + 200);
+        expect(
+          /if\s*\(\s*error\s*\)\s*return\s+error/.test(searchWindow),
+          `Guard at position ${guardPos} in ${relative} has no error check within 200 chars`,
+        ).toBe(true);
+      }
+      expect(found, `No auth guard found in ${relative}`).toBe(true);
     });
   }
 });
