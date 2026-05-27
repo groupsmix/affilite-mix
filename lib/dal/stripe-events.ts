@@ -126,10 +126,13 @@ async function recordStripeEvent(
 ): Promise<boolean> {
   const sb = await getClient();
 
-  const { error } = await sb.from(TABLE).insert({
-    stripe_event_id: stripeEventId,
-    event_type: eventType,
-  });
+  const { error } = await sb
+    .from(TABLE)
+    .insert({
+      stripe_event_id: stripeEventId,
+      event_type: eventType,
+    })
+    .unsafeNoSiteFilter();
 
   if (!error) return true;
 
@@ -149,6 +152,7 @@ export async function getRecentStripeEventIds(
   const { data, error } = await sb
     .from(TABLE)
     .select("stripe_event_id")
+    .unsafeNoSiteFilter()
     .gte("received_at", since.toISOString());
 
   if (error) throw error;
