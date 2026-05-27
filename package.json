@@ -4,7 +4,7 @@
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "dev": "next dev",
@@ -34,7 +34,6 @@
     "test:mutation": "stryker run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:mutate": "stryker run",
     "prepare": "husky"
   },
   "lint-staged": {

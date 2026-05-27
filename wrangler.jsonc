@@ -169,6 +169,8 @@
     { "pattern": "wristnerd.xyz", "custom_domain": true },
     { "pattern": "arabictools.wristnerd.xyz", "custom_domain": true },
     { "pattern": "crypto.wristnerd.xyz", "custom_domain": true },
+    { "pattern": "aicompared.site", "custom_domain": true },
+    { "pattern": "cryptoranked.xyz", "custom_domain": true },
     // ── To add more domains (wildcards or standalone): ──────────────
     // Option A: Cloudflare Dashboard → Workers & Pages → affilite-mix
     //           → Settings → Triggers → Add Custom Domain
