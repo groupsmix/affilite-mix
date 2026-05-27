@@ -7,6 +7,7 @@ import { parseJsonBody } from "@/lib/api-error";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
 
 /** 100 admin API requests per minute per user session (3.30) */
@@ -48,7 +49,9 @@ export async function POST(request: NextRequest) {
   // cannot enumerate which sites the caller is or isn't a member of.
   if (session.role !== "super_admin" && session.userId) {
     const dbSiteId = await resolveDbSiteId(siteId);
-    const membership = await getAdminSiteMembership(session.userId, dbSiteId);
+    // admin_site_memberships table requires service_role (RLS restricted)
+    const privilegedGetter = () => getPrivilegedSupabaseClient("admin-sites-select");
+    const membership = await getAdminSiteMembership(session.userId, dbSiteId, privilegedGetter);
     if (!membership) {
       return unauthorizedResponse();
     }
