@@ -126,7 +126,7 @@ async function fallbackDashboardStats(
     .select("id")
     .eq("site_id", siteId)
     .eq("status", "published");
-  const pubIds = (publishedIds ?? []).map((r: { id: string }) => r.id);
+  const pubIds: string[] = (publishedIds ?? []).map((r: { id: string }) => r.id);
   let contentNoProducts = pubIds.length;
   if (pubIds.length > 0) {
     const { data: linkedRows } = await sb

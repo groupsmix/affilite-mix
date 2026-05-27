@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   if (contentItems && contentItems.length > 0) {
     // Use optimistic locking: only update rows still in "scheduled" status
     // to prevent double-publishing if another cron instance runs concurrently.
-    const ids = contentItems.map((item) => item.id);
+    const ids = contentItems.map((item: { id: string }) => item.id);
     const { data: updated, error: updateError } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("content")
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
   const productSitesToInvalidate = new Set<string>();
   if (expiredProducts && expiredProducts.length > 0) {
     // Optimistic locking: only archive rows still in "active" status
-    const ids = expiredProducts.map((p) => p.id);
+    const ids = expiredProducts.map((p: { id: string }) => p.id);
     const { data: archived, error: archiveError } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("products")

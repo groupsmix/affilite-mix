@@ -130,7 +130,9 @@ describe.skipIf(!shouldRunSupabaseIntegration)("Audit Log Flow Integration", () 
       .order("created_at", { ascending: false });
 
     expect(productEntries).toHaveLength(2);
-    expect(productEntries?.every((e) => e.entity_type === "product")).toBe(true);
+    expect(productEntries?.every((e: { entity_type: string }) => e.entity_type === "product")).toBe(
+      true,
+    );
 
     // Filter by action
     const { data: createEntries } = await sb
@@ -141,7 +143,7 @@ describe.skipIf(!shouldRunSupabaseIntegration)("Audit Log Flow Integration", () 
       .order("created_at", { ascending: false });
 
     expect(createEntries).toHaveLength(2);
-    expect(createEntries?.every((e) => e.action.endsWith("create"))).toBe(true);
+    expect(createEntries?.every((e: { action: string }) => e.action.endsWith("create"))).toBe(true);
 
     // Filter by actor
     const { data: actorEntries } = await sb
