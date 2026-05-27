@@ -55,7 +55,12 @@ export async function getSiteRowById(
   if (shouldSkipDbCall()) return null;
 
   const sb = await getClient();
-  const { data, error } = await sb.from(TABLE).select(ALL_COLUMNS).eq("id", id).single();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select(ALL_COLUMNS)
+    .unsafeNoSiteFilter()
+    .eq("id", id)
+    .single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<SiteRow>(data);
@@ -69,7 +74,12 @@ export async function getSiteRowBySlugWithClient(
   if (shouldSkipDbCall()) return null;
 
   const sb = await getClient();
-  const { data, error } = await sb.from(TABLE).select(ALL_COLUMNS).eq("slug", slug).single();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select(ALL_COLUMNS)
+    .unsafeNoSiteFilter()
+    .eq("slug", slug)
+    .single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<SiteRow>(data);
@@ -159,7 +169,7 @@ export async function createSite(
   if (input.og_image_url !== undefined) row.og_image_url = input.og_image_url;
   if (input.social_links !== undefined) row.social_links = input.social_links;
 
-  const { data, error } = await sb.from(TABLE).insert(row).select().single();
+  const { data, error } = await sb.from(TABLE).insert(row).select().unsafeNoSiteFilter().single();
 
   if (error) throw error;
   invalidateSiteCache();
@@ -174,7 +184,13 @@ export async function updateSite(
 ): Promise<SiteRow> {
   const sb = await getClient();
   const updates: SiteUpdate = { ...input } as SiteUpdate;
-  const { data, error } = await sb.from(TABLE).update(updates).eq("id", id).select().single();
+  const { data, error } = await sb
+    .from(TABLE)
+    .update(updates)
+    .unsafeNoSiteFilter()
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) throw error;
   invalidateSiteCache();
@@ -207,7 +223,7 @@ export async function deleteSite(
     );
   }
   const sb = await getClient();
-  const { error } = await sb.from(TABLE).delete().eq("id", id);
+  const { error } = await sb.from(TABLE).delete().unsafeNoSiteFilter().eq("id", id);
   if (error) throw error;
   invalidateSiteCache();
 }
