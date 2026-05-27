@@ -4,8 +4,6 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 
-import { useRouter } from "next/navigation";
-
 import { Loader2 } from "lucide-react";
 
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
@@ -44,8 +42,6 @@ export default function AdminLoginPage() {
   const [requires2fa, setRequires2fa] = useState(false);
 
   const [totpToken, setTotpToken] = useState("");
-
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -92,7 +88,7 @@ export default function AdminLoginPage() {
         );
       }
 
-      router.push("/admin");
+      window.location.href = "/admin";
     } else {
       const data = await res.json();
 
