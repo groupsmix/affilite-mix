@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-guard";
+import { requireAdminSession } from "@/lib/admin-guard";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { listSites } from "@/lib/dal/sites";
@@ -37,7 +37,9 @@ export interface SiteStatsResponse {
  *   ?days=7  — lookback window for click data (default 7, min 1, max 365)
  */
 export async function GET(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  // Use requireAdminSession() (no site context) — this endpoint must work
+  // before a site is selected (requireAdmin() demands a site cookie).
+  const { error, session } = await requireAdminSession();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
