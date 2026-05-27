@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, unauthorizedResponse } from "@/lib/admin-guard";
+import { requireAdminSession, unauthorizedResponse } from "@/lib/admin-guard";
 import { getSiteById } from "@/config/sites";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -14,7 +14,9 @@ const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
 /** POST /api/admin/sites/select — set the active site cookie */
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  // Use requireAdminSession() (no site context) — this endpoint must work
+  // before a site is selected (requireAdmin() demands a site cookie).
+  const { error, session } = await requireAdminSession();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
