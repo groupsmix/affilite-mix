@@ -28,6 +28,7 @@ import {
   incrementLoginFailedAttempts,
   incrementTotpFailedAttempts,
 } from "@/lib/dal/admin-users";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { verifyTotpToken } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
@@ -230,7 +231,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userRecord = await getAdminUserByEmail(email);
+    const userRecord = await getAdminUserByEmail(email, () =>
+      getPrivilegedSupabaseClient("login:lockout-check"),
+    );
     if (userRecord?.login_locked_until && new Date(userRecord.login_locked_until) > new Date()) {
       return apiError(
         423,
@@ -243,7 +246,9 @@ export async function POST(request: NextRequest) {
       if (userRecord) {
         // SECURITY-FIX: Use atomic increment to prevent race condition (R10-004 / CWE-362)
         try {
-          await incrementLoginFailedAttempts(userRecord.id, 10, 60 * 60 * 1000);
+          await incrementLoginFailedAttempts(userRecord.id, 10, 60 * 60 * 1000, () =>
+            getPrivilegedSupabaseClient("login:increment-failed"),
+          );
         } catch (e: unknown) {
           const code =
             e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
@@ -275,10 +280,11 @@ export async function POST(request: NextRequest) {
 
     if (userRecord && (userRecord.login_failed_attempts > 0 || userRecord.login_locked_until)) {
       try {
-        await updateAdminUser(userRecord.id, {
-          login_failed_attempts: 0,
-          login_locked_until: null,
-        });
+        await updateAdminUser(
+          userRecord.id,
+          { login_failed_attempts: 0, login_locked_until: null },
+          () => getPrivilegedSupabaseClient("login:reset-lockout"),
+        );
       } catch (e: unknown) {
         const code = e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
         if (code !== "42703") {
@@ -293,7 +299,9 @@ export async function POST(request: NextRequest) {
 
     // Enforce TOTP 2FA if enabled on the account
     if (authResult.email) {
-      const user = await getAdminUserByEmail(authResult.email);
+      const user = await getAdminUserByEmail(authResult.email, () =>
+        getPrivilegedSupabaseClient("login:totp-check"),
+      );
 
       // F-017: Enforce TOTP for super_admin roles
       if (user?.role === "super_admin" && !user?.totp_enabled) {
@@ -346,7 +354,9 @@ export async function POST(request: NextRequest) {
         ) {
           // AUDIT-FIX A3-002/A1-006: Use atomic increment to prevent race condition
           try {
-            await incrementTotpFailedAttempts(user.id, 10, 60 * 60 * 1000);
+            await incrementTotpFailedAttempts(user.id, 10, 60 * 60 * 1000, () =>
+              getPrivilegedSupabaseClient("login:totp-increment-failed"),
+            );
           } catch (e: unknown) {
             const code =
               e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
@@ -359,7 +369,9 @@ export async function POST(request: NextRequest) {
 
         // Reset failed attempts on success
         if (user.totp_failed_attempts > 0 || user.totp_locked_until) {
-          await updateAdminUser(user.id, { totp_failed_attempts: 0, totp_locked_until: null });
+          await updateAdminUser(user.id, { totp_failed_attempts: 0, totp_locked_until: null }, () =>
+            getPrivilegedSupabaseClient("login:totp-reset"),
+          );
         }
       }
     }

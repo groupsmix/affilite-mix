@@ -133,6 +133,7 @@ const eslintConfig = [
       "app/api/internal/**",
       "app/api/membership/webhook/**",
       "app/api/admin/**",
+      "app/api/auth/**",
       "app/api/queue/**",
     ],
     rules: {
