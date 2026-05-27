@@ -1,9 +1,13 @@
-import { NextResponse } from "next/server";
-import { verifyCronSecret } from "@/lib/cron-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyCronAuth, type VerifyCronAuthOptions } from "@/lib/cron-auth";
 import { getTenantClient } from "@/lib/supabase-server";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { untypedFrom } from "@/lib/dal/type-guards";
+
+const cronAuthOptions: VerifyCronAuthOptions = {
+  secretEnvVars: ["CRON_SECRET"],
+};
 
 /**
  * GET /api/cron/access-review
@@ -18,9 +22,10 @@ import { untypedFrom } from "@/lib/dal/type-guards";
  * The audit trail answers: "Who had access, and when was it last reviewed?"
  */
 
-export async function GET(request: Request) {
-  const authResult = verifyCronSecret(request);
-  if (authResult) return authResult;
+export async function GET(request: NextRequest) {
+  if (!verifyCronAuth(request, cronAuthOptions)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const sb = await getTenantClient();
   const now = new Date();

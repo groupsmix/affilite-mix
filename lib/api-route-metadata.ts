@@ -262,6 +262,16 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   {
     ...ADMIN_DEFAULTS,
     auth: "super_admin",
+    path: "/api/admin/privacy/object",
+    methods: ["POST", "DELETE"],
+    requestSchema: "PrivacyObjectInput",
+    responseSchema: "Ok",
+    sensitiveFields: ["email"],
+    notes: "GDPR Art. 21 — record / withdraw marketing objection. Always audit-logged.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
     path: "/api/admin/dlq",
     methods: ["GET"],
     requestSchema: "void",
@@ -550,6 +560,15 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: null,
     responseSchema: "{ ingested: number }",
     sensitiveFields: [],
+  },
+  {
+    ...CRON_DEFAULTS,
+    path: "/api/cron/access-review",
+    methods: ["GET"],
+    requestSchema: null,
+    responseSchema: "{ ok: boolean; totalUsers: number; findings: number }",
+    sensitiveFields: ["email"],
+    notes: "SOC 2 CC6.1 — automated access recertification.",
   },
   {
     ...CRON_DEFAULTS,
