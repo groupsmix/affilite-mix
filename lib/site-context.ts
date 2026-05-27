@@ -82,6 +82,9 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
         { path: "/about", priority: 0.5, changeFrequency: "monthly" },
       ],
     },
+
+    homepageTemplate: row.homepage_template ?? "standard",
+    productCardStyle: row.product_card_style ?? "standard",
   };
 }
 

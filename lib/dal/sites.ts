@@ -13,11 +13,11 @@ type SiteUpdate = Database["public"]["Tables"]["sites"]["Update"];
 const TABLE = "sites";
 // Columns needed for list views (excludes heavy JSON blobs like ad_config, custom_css)
 const LIST_COLUMNS =
-  "id, slug, name, domain, language, direction, is_active, monetization_type, logo_url, favicon_url, meta_title, meta_description, og_image_url, created_at, updated_at" as const;
+  "id, slug, name, domain, language, direction, is_active, monetization_type, logo_url, favicon_url, meta_title, meta_description, og_image_url, homepage_template, product_card_style, created_at, updated_at" as const;
 // A23-01: Explicit full-row column list — prevents future sensitive columns from
 // leaking automatically when callers receive a complete SiteRow.
 const ALL_COLUMNS =
-  "id, slug, name, domain, language, direction, is_active, monetization_type, est_revenue_per_click, ad_config, theme, logo_url, favicon_url, nav_items, footer_nav, features, meta_title, meta_description, og_image_url, social_links, created_at, updated_at" as const;
+  "id, slug, name, domain, language, direction, is_active, monetization_type, est_revenue_per_click, ad_config, theme, logo_url, favicon_url, nav_items, footer_nav, features, meta_title, meta_description, og_image_url, social_links, homepage_template, product_card_style, created_at, updated_at" as const;
 
 /* ------------------------------------------------------------------ */
 /*  Read operations (with unstable_cache)                              */
@@ -140,6 +140,8 @@ export async function createSite(
     meta_description?: string | null;
     og_image_url?: string | null;
     social_links?: Record<string, string>;
+    homepage_template?: "standard" | "cinematic" | "minimal" | "editorial" | "top10";
+    product_card_style?: "standard" | "compact" | "detailed";
   },
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteRow> {
@@ -168,6 +170,8 @@ export async function createSite(
   if (input.meta_description !== undefined) row.meta_description = input.meta_description;
   if (input.og_image_url !== undefined) row.og_image_url = input.og_image_url;
   if (input.social_links !== undefined) row.social_links = input.social_links;
+  if (input.homepage_template !== undefined) row.homepage_template = input.homepage_template;
+  if (input.product_card_style !== undefined) row.product_card_style = input.product_card_style;
 
   const { data, error } = await sb.from(TABLE).insert(row).select().unsafeNoSiteFilter().single();
 

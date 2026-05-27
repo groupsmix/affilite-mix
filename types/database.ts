@@ -85,11 +85,16 @@ export interface SiteRow {
   // Social links
   social_links: Record<string, string>;
 
-  // Custom CSS overrides
+  // Template / layout
+  homepage_template: HomepageTemplate;
+  product_card_style: ProductCardStyle;
 
   created_at: string;
   updated_at: string;
 }
+
+export type HomepageTemplate = "standard" | "cinematic" | "minimal" | "editorial" | "top10";
+export type ProductCardStyle = "standard" | "compact" | "detailed";
 
 export type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
 

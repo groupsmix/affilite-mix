@@ -39,6 +39,8 @@ export interface DerivedSiteRow {
   features: Record<string, boolean>;
   meta_title: string;
   meta_description: string;
+  homepage_template: string;
+  product_card_style: string;
 }
 
 /**
@@ -86,6 +88,8 @@ export function toSiteRow(site: SiteDefinition): DerivedSiteRow {
     features: flattenFeatureFlags(site.features),
     meta_title: `${site.name} — ${site.brand.niche}`,
     meta_description: site.brand.description,
+    homepage_template: site.homepageTemplate ?? "standard",
+    product_card_style: site.productCardStyle ?? "standard",
   };
 }
 

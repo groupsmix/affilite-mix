@@ -15,6 +15,12 @@ const CinematicHomepage = dynamic(() =>
 const MinimalHomepage = dynamic(() =>
   import("./components/homepage-minimal").then((m) => m.MinimalHomepage),
 );
+const EditorialHomepage = dynamic(() =>
+  import("./components/homepage-editorial").then((m) => m.EditorialHomepage),
+);
+const Top10Homepage = dynamic(() =>
+  import("./components/homepage-top10").then((m) => m.Top10Homepage),
+);
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -72,6 +78,14 @@ export default async function HomePage() {
 
   if (template === "minimal") {
     return <MinimalHomepage {...homepageProps} />;
+  }
+
+  if (template === "editorial") {
+    return <EditorialHomepage {...homepageProps} />;
+  }
+
+  if (template === "top10") {
+    return <Top10Homepage {...homepageProps} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";
