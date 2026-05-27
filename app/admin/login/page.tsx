@@ -180,7 +180,12 @@ export default function AdminLoginPage() {
                   />
                 </div>
 
-                <TurnstileWidget onVerify={handleTurnstileToken} onExpire={handleTurnstileExpire} />
+                {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                  <TurnstileWidget
+                    onVerify={handleTurnstileToken}
+                    onExpire={handleTurnstileExpire}
+                  />
+                )}
               </>
             ) : (
               <div className="space-y-2">
@@ -206,14 +211,7 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            <Button
-              type="submit"
-              disabled={
-                loading ||
-                (!requires2fa && !turnstileToken && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)
-              }
-              className="w-full"
-            >
+            <Button type="submit" disabled={loading} className="w-full">
               {loading ? (
                 <>
                   <Loader2 className="animate-spin" aria-hidden="true" />
