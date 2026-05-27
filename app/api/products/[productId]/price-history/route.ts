@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPriceHistory } from "@/lib/dal/price-snapshots";
 import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * GET /api/products/:productId/price-history?days=90
@@ -13,7 +14,7 @@ export async function GET(
 ) {
   const { productId } = await params;
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = getClientIp(request);
   const rl = await checkRateLimit(`price-history:${ip}`, {
     maxRequests: 60,
     windowMs: 60_000,
