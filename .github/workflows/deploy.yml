@@ -256,7 +256,6 @@ jobs:
             _SUPABASE_JWT_SECRET
             _CRON_SECRET
             _JWT_SECRET
-            _SENTRY_DSN
             _CRON_HOST
             _INTERNAL_API_TOKEN
             _CLOUDFLARE_API_TOKEN
@@ -281,7 +280,6 @@ jobs:
             [_SUPABASE_JWT_SECRET]=SUPABASE_JWT_SECRET
             [_CRON_SECRET]=CRON_SECRET
             [_JWT_SECRET]=JWT_SECRET
-            [_SENTRY_DSN]=SENTRY_DSN
             [_CRON_HOST]=CRON_HOST
             [_INTERNAL_API_TOKEN]=INTERNAL_API_TOKEN
             [_CLOUDFLARE_API_TOKEN]=CLOUDFLARE_API_TOKEN
@@ -1452,9 +1450,6 @@ jobs:
             CRON_SECRET
             INTERNAL_API_TOKEN
             APP_URL
-            STRIPE_SECRET_KEY
-            STRIPE_WEBHOOK_SECRET
-            SENTRY_DSN
           )
           LIVE_SECRETS=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/secrets" \
