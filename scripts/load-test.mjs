@@ -101,7 +101,14 @@ async function run() {
     const sorted = s.p99.sort((a, b) => a - b);
     const p99 = sorted.length > 0 ? sorted[Math.floor(sorted.length * 0.99)].toFixed(1) : "0";
     const rps = s.count > 0 ? (s.count / DURATION_SECONDS).toFixed(1) : "0";
-    console.log(name.padEnd(12), String(s.count).padStart(6), String(s.errors).padStart(8), avg.padStart(10), p99.padStart(10), rps.padStart(8));
+    console.log(
+      name.padEnd(12),
+      String(s.count).padStart(6),
+      String(s.errors).padStart(8),
+      avg.padStart(10),
+      p99.padStart(10),
+      rps.padStart(8),
+    );
   }
 
   console.log("-".repeat(60));
