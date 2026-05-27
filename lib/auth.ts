@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify, errors as joseErrors } from "jose";
 import { cookies, headers } from "next/headers";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { verifyPassword, hashPassword } from "@/lib/password";
 import { logger } from "@/lib/logger";
 import { getJwtSecret, getJwtSecretPrevious, getJwtKid } from "@/lib/jwt-secret";
@@ -171,7 +172,9 @@ export async function authenticateUser(
   // Timing-equalization: run password verification against a dummy hash when
   // the email is missing or the user is not found, so the total time spent
   // hashing does not leak whether an account exists for the given email.
-  const user = email ? await getAdminUserByEmail(email) : null;
+  const user = email
+    ? await getAdminUserByEmail(email, () => getPrivilegedSupabaseClient("authenticateUser"))
+    : null;
   const hashToCheck = user?.password_hash ?? getDummyPasswordHash();
 
   const { valid, needsRehash } = await verifyPassword(password, hashToCheck);
@@ -186,7 +189,9 @@ export async function authenticateUser(
   if (needsRehash) {
     try {
       const newHash = await hashPassword(password);
-      await updateAdminUser(user.id, { password_hash: newHash });
+      await updateAdminUser(user.id, { password_hash: newHash }, () =>
+        getPrivilegedSupabaseClient("authenticateUser:rehash"),
+      );
       logger.info("Rehashed password from PBKDF2 to bcrypt", { userId: user.id });
     } catch {
       // fail-open: best-effort
