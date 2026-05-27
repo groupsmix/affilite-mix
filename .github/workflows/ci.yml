@@ -415,8 +415,10 @@ jobs:
             echo "No staging DB URL — skipping pre-audit migration apply."
             exit 0
           fi
+          # Strip ?pgbouncer=true — psql doesn't understand it.
+          DB_URL="${STAGING_SUPABASE_DB_URL%%\?*}"
           # Test connectivity first — skip silently if staging is unreachable.
-          if ! psql "$STAGING_SUPABASE_DB_URL" -c "SELECT 1" -t -A -X >/dev/null 2>&1; then
+          if ! psql "$DB_URL" -c "SELECT 1" -t -A -X >/dev/null 2>&1; then
             echo "::warning::Staging DB unreachable — skipping pre-audit migration apply."
             exit 0
           fi
@@ -424,7 +426,7 @@ jobs:
           for f in supabase/migrations/2026052601_revoke_anon_grants_fix_rls.sql; do
             if [ -f "$f" ]; then
               echo "  → $f"
-              psql "$STAGING_SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -X -f "$f"
+              psql "$DB_URL" -v ON_ERROR_STOP=1 -X -f "$f"
             fi
           done
           echo "Done."
