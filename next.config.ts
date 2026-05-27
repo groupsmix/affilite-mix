@@ -13,6 +13,7 @@ function hostnameFromEnv(name: string): string | null {
   try {
     return new URL(raw).hostname;
   } catch {
+    // fail-open: malformed URL returns null; caller treats as no origin
     return null;
   }
 }

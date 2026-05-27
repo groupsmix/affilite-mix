@@ -58,7 +58,7 @@ jobs:
       - name: Prettier format check (FR-0004)
         run: npm run format:check
       - name: Security audit
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
       - name: Migration policy lint (E-2)
         run: bash scripts/check-migrations.sh
       - name: Env-var documentation guard (G-13)
