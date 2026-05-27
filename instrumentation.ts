@@ -52,6 +52,26 @@ export function register() {
     }
   }
 
+  // ETAP1-13: Refuse to start production with ALLOW_LOCALHOST_FALLBACK_IN_PROD
+  // enabled on a non-localhost host. Prevents CI defaults from leaking into
+  // real deployments via copy-paste of the CI env block.
+  if (
+    process.env.NODE_ENV === "production" &&
+    !isBuild &&
+    process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1"
+  ) {
+    const appUrl = process.env.APP_URL ?? "";
+    const isLocalhost =
+      appUrl.includes("localhost") || appUrl.includes("127.0.0.1") || appUrl === "";
+    if (!isLocalhost) {
+      throw new Error(
+        `ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 is set but APP_URL (${appUrl}) resolves to a ` +
+          "public host. This is a security misconfiguration — remove the env var or set " +
+          "APP_URL to a localhost address. Refusing to start.",
+      );
+    }
+  }
+
   // Verify KV rate-limit binding availability — log loudly in production
   // because the rate limiter falls back to per-isolate memory for the
   // KV_GRACE_MS window (default 60s, see lib/rate-limit.ts) and then fails
