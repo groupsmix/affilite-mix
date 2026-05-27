@@ -21,6 +21,7 @@ function readStoredCollapsed(): boolean {
   try {
     return window.localStorage.getItem(COLLAPSED_KEY) === "1";
   } catch {
+    // fail-open: localStorage may be unavailable in private browsing; default to expanded
     return false;
   }
 }

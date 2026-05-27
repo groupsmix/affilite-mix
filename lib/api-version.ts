@@ -41,6 +41,7 @@ function getSunsetDate(version: string): string {
     date.setMonth(date.getMonth() + 3);
     return date.toUTCString();
   } catch {
+    // fail-open: version header parse failure defaults to current version
     return new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString();
   }
 }

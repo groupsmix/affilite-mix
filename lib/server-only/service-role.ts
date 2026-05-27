@@ -124,6 +124,8 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
   _privilegedClient = new Proxy(rawClient, {
     get(t, p, r) {
       if (p === "from") {
+        // ACCEPTED: Proxy intercepts all table names (including untyped ones) — the `as any`
+        // is inherent to the dynamic Proxy pattern and cannot be removed without losing flexibility.
         return (table: string) => wrapTable((t.from as any)(table));
       }
       return Reflect.get(t, p, r);

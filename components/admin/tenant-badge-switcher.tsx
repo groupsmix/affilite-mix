@@ -58,6 +58,7 @@ export function TenantBadgeSwitcher({ initialSiteName, isSuperAdmin }: TenantBad
           setActiveSiteId(active.activeSiteId);
         }
       } catch {
+        // fail-open: site list fetch failure shows error badge to admin
         if (!cancelled) setLoadError("Failed to load sites");
       }
     })();

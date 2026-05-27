@@ -67,6 +67,7 @@ export class RateLimiterDO {
     try {
       body = (await request.json()) as CheckRequestBody;
     } catch {
+      // fail-closed: malformed request body is rejected
       return new Response("Invalid JSON body", { status: 400 });
     }
 

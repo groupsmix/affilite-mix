@@ -1,0 +1,75 @@
+name: Validate Cloudflare Worker Bindings
+description: |
+  F-007: Validates that required Cloudflare Worker bindings (KV, DO, Queue, R2)
+  are declared in wrangler.jsonc before deployment. Fails the job if any
+  required binding is missing or has an empty namespace ID.
+
+  Extracted from deploy.yml to reduce the monolithic workflow LOC and allow
+  reuse across deploy, deploy-gradual, and preview workflows.
+
+runs:
+  using: composite
+  steps:
+    - name: Check required bindings
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        echo "=== Validating required Cloudflare Worker bindings ==="
+
+        MISSING_BINDINGS=""
+
+        echo "Checking KV namespace bindings..."
+        if ! grep -q '"binding".*"RATE_LIMIT_KV"' wrangler.jsonc; then
+          MISSING_BINDINGS="$MISSING_BINDINGS RATE_LIMIT_KV"
+        fi
+        if ! grep -q '"binding".*"APP_CACHE_KV"' wrangler.jsonc; then
+          MISSING_BINDINGS="$MISSING_BINDINGS APP_CACHE_KV"
+        fi
+
+        echo "Checking Durable Object bindings..."
+        if ! grep -q '"name".*"RATE_LIMITER_DO"' wrangler.jsonc; then
+          MISSING_BINDINGS="$MISSING_BINDINGS RATE_LIMITER_DO"
+        fi
+
+        echo "Checking Queue bindings..."
+        if ! grep -q '"binding".*"CLICK_QUEUE"' wrangler.jsonc; then
+          MISSING_BINDINGS="$MISSING_BINDINGS CLICK_QUEUE"
+        fi
+
+        if grep -q '"binding".*"CLICK_QUEUE"' wrangler.jsonc; then
+          if ! grep -q 'click-tracking-dlq\|CLICK_QUEUE_DLQ' wrangler.jsonc; then
+            echo "::warning::CLICK_QUEUE is configured but no dead-letter queue (dlq) found"
+          fi
+        fi
+
+        echo "Checking R2 bucket bindings..."
+        if ! grep -q '"binding".*"NEXT_INC_CACHE_R2_BUCKET"' wrangler.jsonc; then
+          MISSING_BINDINGS="$MISSING_BINDINGS NEXT_INC_CACHE_R2_BUCKET"
+        fi
+
+        echo "Checking KV namespace IDs are configured..."
+        check_kv_id_empty() {
+          local name="$1"
+          awk -v name="$name" '
+            $0 ~ "\"binding\"[[:space:]]*:[[:space:]]*\""name"\"" { found=1; next }
+            found && /"id"[[:space:]]*:[[:space:]]*"[[:space:]]*"/ { print "EMPTY"; exit }
+            found && /"id"[[:space:]]*:/ { exit }
+          ' wrangler.jsonc
+        }
+        if [ "$(check_kv_id_empty RATE_LIMIT_KV)" = "EMPTY" ]; then
+          echo "::error::RATE_LIMIT_KV namespace ID is empty"
+          exit 1
+        fi
+        if [ "$(check_kv_id_empty APP_CACHE_KV)" = "EMPTY" ]; then
+          echo "::error::APP_CACHE_KV namespace ID is empty"
+          exit 1
+        fi
+
+        if [ -n "$MISSING_BINDINGS" ]; then
+          echo "::error::Missing required Cloudflare bindings:$MISSING_BINDINGS"
+          echo "::error::Add missing bindings to wrangler.jsonc before deploying"
+          exit 1
+        fi
+
+        echo "All required Cloudflare bindings are configured"
