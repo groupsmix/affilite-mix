@@ -666,7 +666,7 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update && sudo apt-get install -y k6
       - name: Run k6 load tests
-        run: k6 run load-test.js
+        run: k6 run scripts/load-test.mjs
         env:
           CI: "true"
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
