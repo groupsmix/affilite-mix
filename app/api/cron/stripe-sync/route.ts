@@ -7,6 +7,7 @@ import { getStripeClient } from "@/lib/stripe-client";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
 import { recordCronLiveness } from "@/lib/cron-liveness";
+import { untypedFrom } from "@/lib/dal/type-guards";
 
 export async function POST(request: NextRequest) {
   if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/stripe-sync"))) {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     let reconcileFixed = 0;
 
     for await (const stripeSub of stripe.subscriptions.list({ status: "active", limit: 100 })) {
-      const { data: dbMembership } = await (sb.from as any)("memberships")
+      const { data: dbMembership } = await untypedFrom(sb, "memberships")
         .select("id, status, tier")
         .eq("stripe_subscription_id", stripeSub.id)
         .maybeSingle();
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
           // fail-open: best-effort
           // ignore if sentry is not available
         }
-        await (sb.from as any)("memberships")
+        await untypedFrom(sb, "memberships")
           .update({ status: "active", updated_at: new Date().toISOString() })
           .eq("stripe_subscription_id", stripeSub.id);
         reconcileFixed++;
