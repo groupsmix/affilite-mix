@@ -332,3 +332,18 @@ h6 {
   color: #fff !important;
   border: 2px solid var(--color-accent, #2563eb) !important;
 }
+
+/* ─── WCAG 2.4.7: Focus ring consistency ──────────────────────────── *
+ * etap-6 A68-02: Custom focus-visible style for all interactive
+ * elements. Uses a 2px offset ring in the primary accent colour so
+ * keyboard focus is always clearly visible regardless of background. */
+:focus-visible {
+  outline: 2px solid var(--ring, oklch(0.551 0.027 264.364));
+  outline-offset: 2px;
+  border-radius: var(--radius, 0.25rem);
+}
+
+/* Remove default focus ring (replaced by focus-visible above). */
+:focus:not(:focus-visible) {
+  outline: none;
+}
