@@ -119,7 +119,7 @@ export async function applyStripeEventAtomic(
  * helper is retained for tooling that records reconciled event ids
  * without applying a side effect.
  */
-export async function recordStripeEvent(
+async function recordStripeEvent(
   stripeEventId: string,
   eventType: string,
   getClient: DalClientGetter = defaultDalClientGetter,

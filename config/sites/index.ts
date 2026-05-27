@@ -90,44 +90,6 @@ export function toSiteRow(site: SiteDefinition): DerivedSiteRow {
 }
 
 /**
- * Generate an upsert SQL statement for a SiteDefinition.
- * Useful for generating seed migrations from the TS config.
- */
-export function toSiteUpsertSQL(site: SiteDefinition): string {
-  const row = toSiteRow(site);
-  const esc = (s: string) => s.replace(/'/g, "''");
-  return `INSERT INTO sites (slug, name, domain, language, direction, is_active, monetization_type, est_revenue_per_click, theme, nav_items, footer_nav, features, meta_title, meta_description)
-VALUES (
-  '${esc(row.slug)}',
-  '${esc(row.name)}',
-  '${esc(row.domain)}',
-  '${esc(row.language)}',
-  '${esc(row.direction)}',
-  ${row.is_active},
-  '${row.monetization_type}',
-  ${row.est_revenue_per_click},
-  '${esc(JSON.stringify(row.theme))}'::jsonb,
-  '${esc(JSON.stringify(row.nav_items))}'::jsonb,
-  '${esc(JSON.stringify(row.footer_nav))}'::jsonb,
-  '${esc(JSON.stringify(row.features))}'::jsonb,
-  '${esc(row.meta_title)}',
-  '${esc(row.meta_description)}'
-)
-ON CONFLICT (slug) DO UPDATE SET
-  name = EXCLUDED.name,
-  domain = EXCLUDED.domain,
-  is_active = EXCLUDED.is_active,
-  monetization_type = EXCLUDED.monetization_type,
-  est_revenue_per_click = EXCLUDED.est_revenue_per_click,
-  theme = EXCLUDED.theme,
-  nav_items = EXCLUDED.nav_items,
-  footer_nav = EXCLUDED.footer_nav,
-  features = EXCLUDED.features,
-  meta_title = EXCLUDED.meta_title,
-  meta_description = EXCLUDED.meta_description;`;
-}
-
-/**
  * Known wildcard parent domains.
  * Any subdomain of these is eligible for automatic DB-based resolution.
  *

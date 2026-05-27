@@ -60,7 +60,7 @@ const PII_PATTERNS = [
   /api.?key/i,
 ];
 
-export function isPiiLogKey(key: string): boolean {
+function isPiiLogKey(key: string): boolean {
   if (DENIED_LOG_FIELDS.has(key.toLowerCase())) return true;
   return PII_PATTERNS.some((pattern) => pattern.test(key));
 }

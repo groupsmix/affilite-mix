@@ -4,7 +4,7 @@ import type { SiteDefinition, FeatureFlags, ContentTypeConfig, NavItem } from ".
 /*  Font presets                                                       */
 /* ------------------------------------------------------------------ */
 
-export type FontPreset = "modern" | "classic" | "arabic" | "minimal";
+type FontPreset = "modern" | "classic" | "arabic" | "minimal";
 
 const FONT_PRESETS: Record<FontPreset, { heading: string; body: string }> = {
   modern: { heading: "Inter", body: "Inter" },
@@ -17,13 +17,13 @@ const FONT_PRESETS: Record<FontPreset, { heading: string; body: string }> = {
 /*  Homepage presets                                                    */
 /* ------------------------------------------------------------------ */
 
-export type HomepagePreset = "standard" | "cinematic" | "minimal";
+type HomepagePreset = "standard" | "cinematic" | "minimal";
 
 /* ------------------------------------------------------------------ */
 /*  Feature shorthands                                                 */
 /* ------------------------------------------------------------------ */
 
-export type FeatureShorthand =
+type FeatureShorthand =
   | "blog"
   | "brandSpotlights"
   | "comparisons"

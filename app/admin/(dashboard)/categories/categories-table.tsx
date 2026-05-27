@@ -22,7 +22,7 @@ import { CategoryDeleteButton } from "./category-delete-button";
 
 export const CATEGORIES_TABLE_PAGE_SIZE = 50;
 
-export type CategoryTaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
+type CategoryTaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
 
 export interface CategoriesTableRow {
   id: string;

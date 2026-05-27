@@ -284,7 +284,7 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
  * when provided the call is gated by the per-tenant quota primitives
  * documented in `docs/per-tenant-quotas.md`.
  */
-export async function generateTopicSuggestions(
+async function generateTopicSuggestions(
   niche: string,
   contentType: AIContentType,
   count: number = 5,

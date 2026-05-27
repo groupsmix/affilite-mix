@@ -72,7 +72,7 @@ export async function listAIDrafts(
 }
 
 /** Get a single AI draft by id */
-export async function getAIDraftById(
+async function getAIDraftById(
   siteId: string,
   id: string,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -150,7 +150,7 @@ export async function deleteAIDraft(
 }
 
 /** Count AI drafts by status */
-export async function countAIDrafts(
+async function countAIDrafts(
   siteId: string,
   status?: AIDraftRow["status"],
   getClient: DalClientGetter = defaultDalClientGetter,

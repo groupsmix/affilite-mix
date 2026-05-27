@@ -34,7 +34,7 @@ export async function listAffiliateNetworks(
 }
 
 /** Get a single affiliate network config by id */
-export async function getAffiliateNetworkById(
+async function getAffiliateNetworkById(
   siteId: string,
   id: string,
   getClient: DalClientGetter = defaultDalClientGetter,

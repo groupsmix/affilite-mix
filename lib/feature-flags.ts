@@ -75,11 +75,7 @@ export const FLAG_REGISTRY: FeatureFlagDefinition[] = [
  * Check a feature flag's value and log the access decision.
  * Used for telemetry/audit on flag evaluations.
  */
-export function evaluateFlag(
-  key: string,
-  enabled: boolean,
-  context?: Record<string, unknown>,
-): boolean {
+function evaluateFlag(key: string, enabled: boolean, context?: Record<string, unknown>): boolean {
   logger.debug("Feature flag evaluated", {
     flag: key,
     enabled,

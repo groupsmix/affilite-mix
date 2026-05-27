@@ -17,7 +17,7 @@ export async function resolveDbSiteId(slug: string): Promise<string> {
  * Resolves a hostname to a full SiteRow from the database.
  * Returns null if no matching site is found.
  */
-export async function resolveDbSiteByDomain(domain: string): Promise<SiteRow | null> {
+async function resolveDbSiteByDomain(domain: string): Promise<SiteRow | null> {
   return getSiteRowByDomain(domain);
 }
 

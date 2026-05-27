@@ -157,7 +157,7 @@ const RESOURCE_TABLES = {
   scheduled_job: "scheduled_jobs",
 } as const;
 
-export type AuthorizedResourceType = keyof typeof RESOURCE_TABLES;
+type AuthorizedResourceType = keyof typeof RESOURCE_TABLES;
 
 /** Hoisted allowlist for authorizeResource (audit P7-001). */
 const VALID_RESOURCE_TYPES = Object.keys(RESOURCE_TABLES) as AuthorizedResourceType[];
@@ -175,7 +175,7 @@ export type AuthorizationFailure = {
   reason: string;
 };
 
-export type AuthorizationSuccess = {
+type AuthorizationSuccess = {
   ok: true;
   /** Real site_id read from the resource row (never caller-supplied). */
   siteId: string;

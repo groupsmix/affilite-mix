@@ -1,7 +1,7 @@
 import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
-export interface CommissionRow {
+interface CommissionRow {
   id: string;
   site_id: string;
   product_id: string | null;
@@ -81,7 +81,7 @@ export async function ingestCommissions(
 }
 
 /** Get commission stats for a date range */
-export async function getCommissionStats(
+async function getCommissionStats(
   siteId: string,
   startDate: string,
   endDate: string,
@@ -131,7 +131,7 @@ export async function upsertProductEpc(
 }
 
 /** Get EPC stats for a product (all networks) */
-export async function getProductEpcStats(
+async function getProductEpcStats(
   productId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductEpcRow[]> {
@@ -151,7 +151,7 @@ export async function getProductEpcStats(
  * Pick the best network for a product based on EPC.
  * Used by the /r/[shortcode] router to maximize revenue.
  */
-export async function getBestNetworkByEpc(
+async function getBestNetworkByEpc(
   productId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<{ network: string; epc: number } | null> {

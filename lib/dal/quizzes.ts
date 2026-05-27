@@ -13,7 +13,7 @@ export interface QuizStep {
 }
 
 /** Result configuration */
-export interface QuizResultConfig {
+interface QuizResultConfig {
   gate_email: boolean; // require email to see results
   max_results: number;
   match_mode: "tags" | "score"; // how to match products
@@ -76,7 +76,7 @@ export async function getQuizBySlug(
 }
 
 /** List active quizzes for a site */
-export async function listQuizzes(
+async function listQuizzes(
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<QuizRow[]> {
@@ -94,7 +94,7 @@ export async function listQuizzes(
 }
 
 /** Create a quiz */
-export async function createQuiz(
+async function createQuiz(
   input: {
     site_id: string;
     slug: string;
@@ -153,7 +153,7 @@ export async function updateQuizSubmission(
 }
 
 /** Get a submission by ID */
-export async function getQuizSubmission(
+async function getQuizSubmission(
   id: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<QuizSubmissionRow | null> {

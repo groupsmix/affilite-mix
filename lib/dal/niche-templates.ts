@@ -41,7 +41,7 @@ export async function listNicheTemplates(
 }
 
 /** Get a single template by slug */
-export async function getNicheTemplateBySlug(
+async function getNicheTemplateBySlug(
   slug: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<NicheTemplateRow | null> {
@@ -65,7 +65,7 @@ export async function createNicheTemplate(
 }
 
 /** Update an existing niche template */
-export async function updateNicheTemplate(
+async function updateNicheTemplate(
   id: string,
   input: Partial<Omit<NicheTemplateRow, "id" | "created_at" | "updated_at" | "is_builtin">>,
   getClient: DalClientGetter = defaultDalClientGetter,
