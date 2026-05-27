@@ -1387,11 +1387,13 @@ export type Database = {
           default_theme: Json | null;
           description: string | null;
           direction: string | null;
+          homepage_template: string;
           id: string;
           is_builtin: boolean | null;
           language: string | null;
           monetization_type: string | null;
           name: string;
+          product_card_style: string;
           slug: string;
           social_links: Json | null;
           updated_at: string | null;
@@ -1404,11 +1406,13 @@ export type Database = {
           default_theme?: Json | null;
           description?: string | null;
           direction?: string | null;
+          homepage_template?: string;
           id?: string;
           is_builtin?: boolean | null;
           language?: string | null;
           monetization_type?: string | null;
           name: string;
+          product_card_style?: string;
           slug: string;
           social_links?: Json | null;
           updated_at?: string | null;
@@ -1421,11 +1425,13 @@ export type Database = {
           default_theme?: Json | null;
           description?: string | null;
           direction?: string | null;
+          homepage_template?: string;
           id?: string;
           is_builtin?: boolean | null;
           language?: string | null;
           monetization_type?: string | null;
           name?: string;
+          product_card_style?: string;
           slug?: string;
           social_links?: Json | null;
           updated_at?: string | null;
@@ -2171,6 +2177,7 @@ export type Database = {
           favicon_url: string | null;
           features: Json | null;
           footer_nav: Json | null;
+          homepage_template: string;
           id: string;
           is_active: boolean | null;
           language: string;
@@ -2182,6 +2189,7 @@ export type Database = {
           name: string;
           nav_items: Json | null;
           og_image_url: string | null;
+          product_card_style: string;
           slug: string;
           social_links: Json | null;
           theme: Json | null;
@@ -2196,6 +2204,7 @@ export type Database = {
           favicon_url?: string | null;
           features?: Json | null;
           footer_nav?: Json | null;
+          homepage_template?: string;
           id?: string;
           is_active?: boolean | null;
           language?: string;
@@ -2207,6 +2216,7 @@ export type Database = {
           name: string;
           nav_items?: Json | null;
           og_image_url?: string | null;
+          product_card_style?: string;
           slug: string;
           social_links?: Json | null;
           theme?: Json | null;
@@ -2221,6 +2231,7 @@ export type Database = {
           favicon_url?: string | null;
           features?: Json | null;
           footer_nav?: Json | null;
+          homepage_template?: string;
           id?: string;
           is_active?: boolean | null;
           language?: string;
@@ -2232,6 +2243,7 @@ export type Database = {
           name?: string;
           nav_items?: Json | null;
           og_image_url?: string | null;
+          product_card_style?: string;
           slug?: string;
           social_links?: Json | null;
           theme?: Json | null;

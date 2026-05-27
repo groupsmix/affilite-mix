@@ -45,14 +45,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { SiteFormDialog } from "./site-form";
 
 import { Input } from "@/components/ui/input";
 
@@ -103,6 +96,10 @@ interface SiteInfo {
   meta_title?: string | null;
 
   meta_description?: string | null;
+
+  homepage_template?: string;
+
+  product_card_style?: string;
 
   source: "config" | "database";
 
@@ -396,6 +393,12 @@ function SiteCardView({
           <Badge variant="outline">{site.direction.toUpperCase()}</Badge>
 
           <MonetizationBadge type={site.monetization_type} />
+
+          {site.homepage_template && site.homepage_template !== "standard" && (
+            <Badge variant="outline" className="border-purple-200 bg-purple-50 text-purple-700">
+              {site.homepage_template}
+            </Badge>
+          )}
 
           <SourceBadge source={site.source} />
         </div>
@@ -796,44 +799,41 @@ export function SiteManager() {
         )}
       </div>
 
-      {/* Placeholder dialogs — real forms land in Task 15b */}
+      {/* Site create/edit form */}
+      <SiteFormDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSuccess={() => void Promise.all([loadSites(), loadStats()])}
+        mode="create"
+      />
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add site</DialogTitle>
-
-            <DialogDescription>
-              The full site-creation form ships in Task 15b. This placeholder reserves the CTA so
-              the grid layout and routing are already in place.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editStubSite != null} onOpenChange={(open) => !open && setEditStubSite(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit {editStubSite?.name ?? "site"}</DialogTitle>
-
-            <DialogDescription>
-              The edit form is out of scope for this restyle and will be wired in Task 15b.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditStubSite(null)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SiteFormDialog
+        open={editStubSite != null}
+        onOpenChange={(open) => {
+          if (!open) setEditStubSite(null);
+        }}
+        onSuccess={() => void Promise.all([loadSites(), loadStats()])}
+        mode="edit"
+        initialData={
+          editStubSite
+            ? {
+                id: editStubSite.id,
+                db_id: editStubSite.db_id,
+                slug: editStubSite.slug ?? editStubSite.id,
+                name: editStubSite.name,
+                domain: editStubSite.domain,
+                language: editStubSite.language,
+                direction: editStubSite.direction as "ltr" | "rtl",
+                monetization_type: (editStubSite.monetization_type ?? "affiliate") as
+                  | "affiliate"
+                  | "ads"
+                  | "both",
+                theme: editStubSite.theme as Record<string, string> | undefined,
+                features: editStubSite.features,
+              }
+            : undefined
+        }
+      />
 
       <AlertDialog
         open={deleteOpen}
