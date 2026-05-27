@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, assertRole } from "@/lib/admin-guard";
+import { requireAdmin, requireAdminSession, assertRole } from "@/lib/admin-guard";
 import { allSites } from "@/config/sites";
 import { listSites, createSite, updateSite, deleteSite } from "@/lib/dal/sites";
 import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
@@ -26,7 +26,10 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 
 /** GET /api/admin/sites — list all available sites (super_admin: all, admin: membership-filtered) */
 export async function GET() {
-  const { error, session } = await requireAdmin();
+  // Use requireAdminSession() (no site context) because this endpoint must
+  // work BEFORE a site is selected (chicken-and-egg: you need to list sites
+  // to select one, but requireAdmin() demands a site cookie).
+  const { error, session } = await requireAdminSession();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

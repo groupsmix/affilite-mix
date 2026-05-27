@@ -189,6 +189,41 @@ export async function requireAdmin(): Promise<AdminResult> {
 }
 
 /**
+ * Lightweight admin guard that verifies authentication and applies rate
+ * limiting but does NOT require an active site cookie.
+ *
+ * Use this for endpoints that must work before a site is selected (e.g.
+ * listing available sites, selecting a site, checking active site). All
+ * other admin routes should continue using requireAdmin() for full site-
+ * context validation.
+ */
+export async function requireAdminSession(): Promise<
+  { error: NextResponse; session: null } | { error: null; session: AdminPayload }
+> {
+  const session = await getAdminSession();
+  if (!session) {
+    return { error: unauthorizedResponse(), session: null };
+  }
+
+  const rateLimitKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
+  const rl = await checkRateLimit(rateLimitKey, ADMIN_RATE_LIMIT);
+  if (!rl.allowed) {
+    return {
+      error: NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+        },
+      ),
+      session: null,
+    };
+  }
+
+  return { error: null, session };
+}
+
+/**
  * Convenience wrapper: calls requireAdmin() then asserts super_admin role.
  * Returns the same AdminResult shape — with a 401 error (Bearer challenge)
  * if the role is insufficient. See `unauthorizedResponse` for rationale.
