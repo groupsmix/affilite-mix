@@ -5,6 +5,27 @@
  * so we use runtime checks instead of bare `as` casts where practical.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Access a Supabase table that is not yet in the generated `Database` type.
+ *
+ * This replaces the `(sb.from as any)("table_name")` pattern scattered across
+ * cron jobs, queues, and privacy routes. The indirection centralises the type
+ * escape so that when types are regenerated, only this call site needs updating.
+ */
+export function untypedFrom(sb: SupabaseClient<any>, table: string) {
+  return sb.from(table);
+}
+
+/**
+ * Call a Supabase RPC function that is not yet in the generated `Database` type.
+ * Same rationale as `untypedFrom` — centralises the escape hatch.
+ */
+export function untypedRpc(sb: SupabaseClient<any>, fn: string, args?: Record<string, unknown>) {
+  return sb.rpc(fn, args);
+}
+
 /** Asserts that `value` is a non-null object with at least an `id` property and returns it typed as T. */
 export function assertRow<T>(value: unknown, label: string): T {
   if (value === null || value === undefined) {

@@ -69,7 +69,7 @@ function decodeCursor(cursor: string): CursorPayload | null {
   }
 }
 
-export async function cursorPaginate<T extends Record<string, unknown>>(
+export async function cursorPaginate<T extends object>(
   table: string,
   opts: CursorPageOptions,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -117,8 +117,9 @@ export async function cursorPaginate<T extends Record<string, unknown>>(
   let nextCursor: string | null = null;
   if (hasMore && page.length > 0) {
     const last = page[page.length - 1];
-    const lastVal = String(last[col] ?? "");
-    const lastId = String(last["id"] ?? "");
+    const rec = last as Record<string, unknown>;
+    const lastVal = String(rec[col] ?? "");
+    const lastId = String(rec["id"] ?? "");
     nextCursor = encodeCursor(col, lastVal, lastId);
   }
 

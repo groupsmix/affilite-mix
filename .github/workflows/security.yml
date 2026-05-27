@@ -135,7 +135,7 @@ jobs:
       # A34: Pin the Socket.dev CLI version for reproducibility.
       # Update via Renovate/Dependabot after reviewing the changelog.
       - name: Socket Security scan
-        run: npx --yes @socketsecurity/cli@3.2.0 scan --strict
+        run: npx --yes @socketsecurity/cli@2.1.0 scan --strict
         env:
           SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
         # A34: Fail on protected branches (main) when API key is missing.

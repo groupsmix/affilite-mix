@@ -5,6 +5,7 @@ import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { cursorPaginate, type CursorPage } from "./cursor-pagination";
 
 const TABLE = "products";
 // A23-01: Full explicit column list. Update this constant (and ProductRow in
@@ -36,6 +37,8 @@ export interface ListProductsOptions {
   sortDirection?: "asc" | "desc";
   limit?: number;
   offset?: number;
+  /** Opaque cursor for keyset pagination (preferred over offset for deep pages). */
+  cursor?: string | null;
 }
 
 export type CountProductsOptions = Omit<
@@ -99,6 +102,28 @@ export async function listProducts(
   const { data, error } = await query;
   if (error) throw error;
   return assertRows<ProductRow>(data);
+}
+
+/**
+ * Cursor-based (keyset) pagination for products.
+ * Preferred over offset for deep pages — O(1) seek vs O(n) scan.
+ */
+export async function listProductsCursor(
+  opts: Omit<ListProductsOptions, "offset"> & { cursor?: string | null },
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<CursorPage<ProductRow>> {
+  return cursorPaginate<ProductRow>(
+    TABLE,
+    {
+      siteId: opts.siteId,
+      limit: opts.limit,
+      cursor: opts.cursor,
+      orderColumn: opts.sortBy ?? "created_at",
+      ascending: opts.sortDirection === "asc",
+      select: LIST_COLUMNS,
+    },
+    getClient,
+  );
 }
 
 export async function countProducts(

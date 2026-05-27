@@ -36,6 +36,7 @@ import { apiError } from "./api-error";
 import { requireAdmin } from "./admin-guard";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getCircuitBreaker } from "@/lib/ai/circuit-breaker";
+import { untypedFrom } from "@/lib/dal/type-guards";
 
 export type AuthenticatedRouteHandler = (
   request: NextRequest,
@@ -236,7 +237,7 @@ export async function authorizeResource(
   try {
     data = await cb.execute(async () => {
       const sb = getPrivilegedSupabaseClient();
-      const result = await (sb.from as any)(table)
+      const result = await untypedFrom(sb, table)
         .select("site_id")
         .eq("id", opts.resourceId)
         .maybeSingle();
