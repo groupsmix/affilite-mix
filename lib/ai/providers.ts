@@ -9,6 +9,7 @@
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { logger } from "@/lib/logger";
 import { assembleSystemPrompt, sanitizePrompt } from "./prompt-sanitization";
+import { getCircuitBreaker } from "@/lib/ai/circuit-breaker";
 import {
   reserveQuota,
   releaseQuota,
@@ -395,8 +396,14 @@ export async function generateWithFallback(
       continue;
     }
 
+    const cb = getCircuitBreaker(provider.name);
+    if (cb.getState() === "OPEN") {
+      errors.push(`${provider.name}: circuit breaker OPEN`);
+      continue;
+    }
+
     try {
-      const text = await provider.generate(safePrompt, safeSystemPrompt);
+      const text = await cb.execute(() => provider.generate(safePrompt, safeSystemPrompt));
       if (options.siteId) {
         // RC-RECHECK-02 / R2-04: Post-flight accounting. ai_requests (1) and
         // ai_tokens (inputTokenEstimate) were already reserved. Record the
