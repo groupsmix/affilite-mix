@@ -17,6 +17,7 @@ import {
 import { getAppCacheKV } from "@/lib/runtime-env";
 import { signSiteIdFallback } from "@/lib/supabase-server";
 import { checkBodySize, applySecurityHeaders } from "@/lib/middleware-helpers";
+import { parseOrCreateTraceContext, applyTraceHeaders } from "@/lib/tracing";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -543,7 +544,17 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   });
 
   // ── Security + cache headers (extracted to middleware-helpers) ──
-  applySecurityHeaders(response, { pathname, gpcEnabled, cspHeaderValue, traceId });
+  applySecurityHeaders(response, {
+    pathname,
+    gpcEnabled,
+    cspHeaderValue,
+    traceId,
+    requestedApiVersion: request.headers.get("Accept-Version"),
+  });
+
+  // ── W3C Trace Context (R-002) ──────────────────────────
+  const traceCtx = parseOrCreateTraceContext(request);
+  applyTraceHeaders(response.headers, traceCtx);
 
   // ── CORS response headers ──────────────────────────────
   // Reflect the requesting origin if it is in the tenant allow-list.

@@ -261,6 +261,16 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/dlq",
+    methods: ["GET"],
+    requestSchema: "void",
+    responseSchema: "DlqDashboard",
+    sensitiveFields: [],
+    notes: "R-014: DLQ monitoring dashboard — shows recent webhook_dlq + click_failures entries.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/products",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "ProductInput",
