@@ -236,6 +236,7 @@
   "vars": {
     "NODE_ENV": "production",
     "ENABLE_TURNSTILE": "false",
+    "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "",
     "CRON_ALLOW_SHARED_FALLBACK_IN_PROD": "1",
   },
   // Workers observability (logs, errors, metrics in CF dashboard)
