@@ -29,12 +29,54 @@ interface WranglerConfig {
 
 function parseWranglerJsonc(): WranglerConfig {
   const raw = fs.readFileSync(WRANGLER_PATH, "utf-8");
-  // Strip JSONC comments and trailing commas (simple regex approach — sufficient for our file)
-  const withoutComments = raw
-    .replace(/\/\/.*$/gm, "") // Remove single-line comments
-    .replace(/\/\*[\s\S]*?\*\//g, "") // Remove block comments
-    .replace(/,(\s*[}\]])/g, "$1"); // Remove trailing commas (valid in JSONC)
-  return JSON.parse(withoutComments);
+  // String-aware JSONC stripper: skip // and /* */ only outside quoted strings
+  let result = "";
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (escaped) {
+      result += ch;
+      escaped = false;
+      continue;
+    }
+    if (inString) {
+      if (ch === "\\") {
+        result += ch;
+        escaped = true;
+        continue;
+      }
+      if (ch === '"') {
+        result += ch;
+        inString = false;
+        continue;
+      }
+      result += ch;
+      continue;
+    }
+    if (ch === '"') {
+      result += ch;
+      inString = true;
+      continue;
+    }
+    if (ch === "/" && raw[i + 1] === "/") {
+      while (i < raw.length && raw[i] !== "\n") i++;
+      result += "\n";
+      continue;
+    }
+    if (ch === "/" && raw[i + 1] === "*") {
+      i += 2;
+      while (i < raw.length && !(raw[i] === "*" && raw[i + 1] === "/")) {
+        if (raw[i] === "\n") result += "\n";
+        i++;
+      }
+      i++;
+      continue;
+    }
+    result += ch;
+  }
+  const cleaned = result.replace(/,(\s*[}\]])/g, "$1");
+  return JSON.parse(cleaned);
 }
 
 /** Canonical list of expected bindings (source of truth). */
@@ -58,7 +100,7 @@ const EXPECTED_R2_BINDINGS = [
   "NEXT_INC_CACHE_R2_BUCKET",
 ];
 
-const EXPECTED_VARS = ["NODE_ENV"];
+const EXPECTED_VARS = ["NODE_ENV", "CRON_ALLOW_SHARED_FALLBACK_IN_PROD", "APP_URL"];
 
 describe("FIX-32: wrangler binding drift detection", () => {
   const config = parseWranglerJsonc();
