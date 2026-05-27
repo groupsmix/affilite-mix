@@ -12,8 +12,12 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
-export const GET = withAuthz("categories", "view", async (_request, { siteId }) => {
+export const GET = withAuthz("categories", "view", async (_request, { session, siteId }) => {
+  const rlResponse = await enforceAdminRateLimit("categories", session);
+  if (rlResponse) return rlResponse;
+
   try {
     const categories = await listCategories(siteId);
     return NextResponse.json(categories);
@@ -27,6 +31,9 @@ export const POST = withAuthz(
   "categories",
   "create",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("categories", session);
+    if (rlResponse) return rlResponse;
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
     const parsed = validateCreateCategory(rawOrError);
@@ -67,6 +74,9 @@ export const PATCH = withAuthz(
   "categories",
   "edit",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("categories", session);
+    if (rlResponse) return rlResponse;
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
     const parsed = validateUpdateCategory(rawOrError);
@@ -101,6 +111,9 @@ export const DELETE = withAuthz(
   "categories",
   "delete",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("categories", session);
+    if (rlResponse) return rlResponse;
+
     let id: string | null = null;
     try {
       const body = await request.json();

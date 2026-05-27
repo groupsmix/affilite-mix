@@ -86,5 +86,4 @@ export function applyTraceHeaders(responseHeaders: Headers, ctx: TraceContext): 
   }
 }
 
-export { TRACEPARENT_HEADER, TRACESTATE_HEADER };
 export type { TraceContext };

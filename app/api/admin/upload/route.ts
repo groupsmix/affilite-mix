@@ -4,6 +4,7 @@ import { getUploadUrl, isR2Configured, R2_MAX_UPLOAD_BYTES, sanitizeOriginalName
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * Allowed image content types.
@@ -36,7 +37,10 @@ const ALLOWED_IMAGE_TYPES = new Set([
  *   • The presign response carries `X-Content-Type-Options: nosniff`
  *     and `Cache-Control: no-store` so the JSON itself is not cached.
  */
-export const POST = withAuthz("upload", "create", async (request, { siteId }) => {
+export const POST = withAuthz("upload", "create", async (request, { session, siteId }) => {
+  const rlResponse = await enforceAdminRateLimit("upload", session);
+  if (rlResponse) return rlResponse;
+
   if (!isR2Configured()) {
     return NextResponse.json(
       {

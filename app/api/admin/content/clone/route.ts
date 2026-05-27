@@ -6,11 +6,15 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 export const POST = withAuthz(
   "content",
   "create",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("content-clone", session);
+    if (rlResponse) return rlResponse;
+
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
     const { id } = bodyOrError;

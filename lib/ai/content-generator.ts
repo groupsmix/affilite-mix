@@ -154,7 +154,7 @@ function parseResponse(
  * generated HTML body so downstream platforms can detect AI provenance
  * (EU AI Act Art. 50 transparency obligation).
  */
-export const AI_GENERATED_WATERMARK =
+const AI_GENERATED_WATERMARK =
   '<!-- ai-generated: true -->\n<meta name="ai-generated" content="true" />\n';
 
 /**
@@ -162,7 +162,7 @@ export const AI_GENERATED_WATERMARK =
  * Callers can check `instanceof ContentModerationError` to distinguish
  * moderation rejections from provider / quota errors.
  */
-export class ContentModerationError extends Error {
+class ContentModerationError extends Error {
   constructor(
     message: string,
     public readonly phase: "input" | "output",

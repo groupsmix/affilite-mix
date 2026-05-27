@@ -1,3 +1,4 @@
+// DESIGN: No site_id filtering — admin users are global accounts; membership scoping is handled by the authz layer.
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { logger } from "@/lib/logger";

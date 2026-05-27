@@ -174,7 +174,7 @@ function RowActionsPlaceholder() {
   );
 }
 
-export const adsTableColumns: ColumnDef<AdsTableRow>[] = [
+const adsTableColumns: ColumnDef<AdsTableRow>[] = [
   {
     accessorKey: "provider",
     header: "Provider",
@@ -278,7 +278,7 @@ export function AdsTable({
   );
 }
 
-export function AdsEmptyState() {
+function AdsEmptyState() {
   return (
     <Card>
       <CardContent className="py-10 text-center">

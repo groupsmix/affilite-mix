@@ -5,6 +5,7 @@ import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * GET /api/admin/pages/:id  — get a single page
@@ -12,7 +13,10 @@ import { parseJsonBody } from "@/lib/api-error";
 export const GET = withAuthzDynamic(
   "pages",
   "read",
-  async (_request, { siteId: dbSiteId, params }) => {
+  async (_request, { session, siteId: dbSiteId, params }) => {
+    const rlResponse = await enforceAdminRateLimit("pages-id", session);
+    if (rlResponse) return rlResponse;
+
     try {
       const { id } = params;
       const page = await getPageById(dbSiteId, id);
@@ -35,6 +39,9 @@ export const PATCH = withAuthzDynamic(
   "pages",
   "edit",
   async (request, { session, siteId: dbSiteId, params }) => {
+    const rlResponse = await enforceAdminRateLimit("pages-id", session);
+    if (rlResponse) return rlResponse;
+
     try {
       const { id } = params;
 
@@ -90,6 +97,9 @@ export const DELETE = withAuthzDynamic(
   "pages",
   "delete",
   async (_request, { session, siteId: dbSiteId, params }) => {
+    const rlResponse = await enforceAdminRateLimit("pages-id", session);
+    if (rlResponse) return rlResponse;
+
     try {
       const { id } = params;
 
