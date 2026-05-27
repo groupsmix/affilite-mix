@@ -37,7 +37,7 @@ const MAX_TIMESTAMP_SKEW_MS = 5 * 60 * 1000;
 const MAX_FUTURE_SKEW_MS = 60_000; // 1 minute
 
 /** Header names. */
-export const HMAC_HEADERS = {
+const HMAC_HEADERS = {
   timestamp: "x-internal-timestamp",
   nonce: "x-internal-nonce",
   signature: "x-internal-signature",

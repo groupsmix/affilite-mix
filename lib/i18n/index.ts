@@ -87,7 +87,7 @@ function getDirection(locale: SupportedLocale): "ltr" | "rtl" {
 /**
  * Format a number according to locale conventions.
  */
-export function formatNumber(value: number, locale: SupportedLocale = "en"): string {
+function formatNumber(value: number, locale: SupportedLocale = "en"): string {
   return new Intl.NumberFormat(locale).format(value);
 }
 
@@ -101,6 +101,6 @@ function formatCurrency(value: number, currency: string, locale: SupportedLocale
 /**
  * Format a date according to locale conventions.
  */
-export function formatDate(date: Date, locale: SupportedLocale = "en"): string {
+function formatDate(date: Date, locale: SupportedLocale = "en"): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(date);
 }

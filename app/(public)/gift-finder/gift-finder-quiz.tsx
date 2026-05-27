@@ -59,59 +59,200 @@ interface GiftFinderResult {
 interface GiftFinderQuizProps {
   productLabel: string;
   productLabelPlural: string;
+  language?: string;
 }
 
-const steps = [
-  {
-    id: "recipient",
-    title: "Who are you buying for?",
-    options: [
-      { value: "partner", label: "Partner / Spouse" },
-      { value: "parent", label: "Parent" },
-      { value: "significant_other", label: "Significant Other" },
-      { value: "child", label: "Son / Daughter" },
-      { value: "friend", label: "Friend" },
-      { value: "self", label: "Myself" },
+const i18n = {
+  en: {
+    quizSubtitle: "60-Second Quiz",
+    quizTitle: (label: string) => `${label} Gift Finder Quiz`,
+    quizDescription: (label: string) =>
+      `Answer 4 quick questions and get personalized ${label.toLowerCase()} recommendations in 60 seconds.`,
+    stepOf: (current: number, total: number) => `Step ${current} of ${total}`,
+    goBack: "Go Back",
+    yourResults: "Your Results",
+    perfectMatches: (label: string) => `Your Perfect ${label} Matches`,
+    matchesDescription: (plural: string) =>
+      `Based on your answers, here are the ${plural.toLowerCase()} we recommend \u2014 sorted by Gift-Worthiness Score.`,
+    giftScore: (score: number) => `Gift Score: ${score}/10`,
+    viewDeal: "View Deal",
+    readFullReview: "Read Full Review",
+    noMatchesTitle: "No Matches Found",
+    noMatches: (plural: string) =>
+      `We couldn't find ${plural.toLowerCase()} matching all your criteria. Try adjusting your budget or style preference.`,
+    retakeQuiz: "Retake the Quiz",
+    seeAllReviews: "See All Reviews",
+    browseComparisons: "Browse Comparisons",
+    retry: "Retry",
+    startOver: "Start Over",
+    unableToLoad: "Unable to Load Recommendations",
+    errorMessage: "Something went wrong while fetching recommendations. Please try again.",
+    findingMatches: "Finding your perfect matches...",
+    rankLabels: ["Our #1 Pick", "Runner-Up", "Also Consider"] as readonly string[],
+    steps: [
+      {
+        id: "recipient",
+        title: "Who are you buying for?",
+        options: [
+          { value: "partner", label: "Partner / Spouse" },
+          { value: "parent", label: "Parent" },
+          { value: "significant_other", label: "Significant Other" },
+          { value: "child", label: "Son / Daughter" },
+          { value: "friend", label: "Friend" },
+          { value: "self", label: "Myself" },
+        ],
+      },
+      {
+        id: "occasion",
+        title: "What\u2019s the occasion?",
+        options: [
+          { value: "holiday", label: "Holiday Gift" },
+          { value: "christmas", label: "Christmas" },
+          { value: "birthday", label: "Birthday" },
+          { value: "valentines", label: "Valentine\u2019s Day" },
+          { value: "anniversary", label: "Anniversary" },
+          { value: "graduation", label: "Graduation" },
+          { value: "other", label: "Just Because" },
+        ],
+      },
+      {
+        id: "budget",
+        title: "What\u2019s your budget?",
+        options: [
+          { value: "100", label: "Under $100" },
+          { value: "200", label: "Under $200" },
+          { value: "350", label: "Under $350" },
+          { value: "500", label: "Under $500" },
+          { value: "1000", label: "$500\u2013$1,000" },
+          { value: "9999", label: "$1,000+" },
+        ],
+      },
+      {
+        id: "style",
+        title: "What style do you prefer?",
+        options: [
+          { value: "classic", label: "Classic / Dressy" },
+          { value: "modern", label: "Modern / Minimalist" },
+          { value: "sport", label: "Sporty / Active" },
+          { value: "rugged", label: "Rugged / Outdoor" },
+          { value: "dress", label: "Dress / Formal" },
+          { value: "casual", label: "Casual / Everyday" },
+        ],
+      },
     ],
   },
-  {
-    id: "occasion",
-    title: "What\u2019s the occasion?",
-    options: [
-      { value: "holiday", label: "Holiday Gift" },
-      { value: "christmas", label: "Christmas" },
-      { value: "birthday", label: "Birthday" },
-      { value: "valentines", label: "Valentine\u2019s Day" },
-      { value: "anniversary", label: "Anniversary" },
-      { value: "graduation", label: "Graduation" },
-      { value: "other", label: "Just Because" },
+  ar: {
+    quizSubtitle: "\u0627\u062e\u062a\u0628\u0627\u0631 60 \u062b\u0627\u0646\u064a\u0629",
+    quizTitle: (label: string) =>
+      `\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u0628\u062d\u062b \u0639\u0646 ${label}`,
+    quizDescription: (label: string) =>
+      `\u0623\u062c\u0628 \u0639\u0644\u0649 4 \u0623\u0633\u0626\u0644\u0629 \u0633\u0631\u064a\u0639\u0629 \u0648\u0627\u062d\u0635\u0644 \u0639\u0644\u0649 \u062a\u0648\u0635\u064a\u0627\u062a ${label} \u0645\u062e\u0635\u0635\u0629 \u0641\u064a 60 \u062b\u0627\u0646\u064a\u0629.`,
+    stepOf: (current: number, total: number) =>
+      `\u0627\u0644\u062e\u0637\u0648\u0629 ${current} \u0645\u0646 ${total}`,
+    goBack: "\u0631\u062c\u0648\u0639",
+    yourResults: "\u0646\u062a\u0627\u0626\u062c\u0643",
+    perfectMatches: (label: string) => `\u0623\u0641\u0636\u0644 ${label} \u0644\u0643`,
+    matchesDescription: (plural: string) =>
+      `\u0628\u0646\u0627\u0621\u064b \u0639\u0644\u0649 \u0625\u062c\u0627\u0628\u0627\u062a\u0643\u060c \u0625\u0644\u064a\u0643 ${plural} \u0627\u0644\u062a\u064a \u0646\u0648\u0635\u064a \u0628\u0647\u0627 \u2014 \u0645\u0631\u062a\u0628\u0629 \u062d\u0633\u0628 \u0645\u0639\u064a\u0627\u0631 \u0627\u0644\u0647\u062f\u064a\u0629.`,
+    giftScore: (score: number) =>
+      `\u0645\u0639\u064a\u0627\u0631 \u0627\u0644\u0647\u062f\u064a\u0629: ${score}/10`,
+    viewDeal: "\u0639\u0631\u0636 \u0627\u0644\u0635\u0641\u0642\u0629",
+    readFullReview:
+      "\u0642\u0631\u0627\u0621\u0629 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629",
+    noMatchesTitle: "\u0644\u0627 \u062a\u0648\u062c\u062f \u0646\u062a\u0627\u0626\u062c",
+    noMatches: (plural: string) =>
+      `\u0644\u0645 \u0646\u062a\u0645\u0643\u0646 \u0645\u0646 \u0625\u064a\u062c\u0627\u062f ${plural} \u062a\u0637\u0627\u0628\u0642 \u0645\u0639\u0627\u064a\u064a\u0631\u0643. \u062d\u0627\u0648\u0644 \u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0645\u064a\u0632\u0627\u0646\u064a\u0629 \u0623\u0648 \u0627\u0644\u0623\u0633\u0644\u0648\u0628.`,
+    retakeQuiz: "\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631",
+    seeAllReviews:
+      "\u0639\u0631\u0636 \u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0627\u062a",
+    browseComparisons:
+      "\u062a\u0635\u0641\u062d \u0627\u0644\u0645\u0642\u0627\u0631\u0646\u0627\u062a",
+    retry: "\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629",
+    startOver: "\u0627\u0644\u0628\u062f\u0621 \u0645\u0646 \u062c\u062f\u064a\u062f",
+    unableToLoad:
+      "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u062a\u0648\u0635\u064a\u0627\u062a",
+    errorMessage:
+      "\u062d\u062f\u062b \u062e\u0637\u0623 \u0623\u062b\u0646\u0627\u0621 \u062c\u0644\u0628 \u0627\u0644\u062a\u0648\u0635\u064a\u0627\u062a. \u064a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.",
+    findingMatches:
+      "\u062c\u0627\u0631\u064d \u0625\u064a\u062c\u0627\u062f \u0627\u0644\u062e\u064a\u0627\u0631\u0627\u062a \u0627\u0644\u0645\u062b\u0627\u0644\u064a\u0629...",
+    rankLabels: [
+      "\u0627\u0644\u062e\u064a\u0627\u0631 \u0627\u0644\u0623\u0648\u0644",
+      "\u0627\u0644\u062e\u064a\u0627\u0631 \u0627\u0644\u062b\u0627\u0646\u064a",
+      "\u0623\u064a\u0636\u064b\u0627 \u0646\u0642\u062a\u0631\u062d",
+    ] as readonly string[],
+    steps: [
+      {
+        id: "recipient",
+        title: "\u0644\u0645\u0646 \u062a\u0634\u062a\u0631\u064a\u061f",
+        options: [
+          {
+            value: "partner",
+            label: "\u0627\u0644\u0634\u0631\u064a\u0643 / \u0627\u0644\u0632\u0648\u062c",
+          },
+          { value: "parent", label: "\u0627\u0644\u0648\u0627\u0644\u062f\u064a\u0646" },
+          { value: "significant_other", label: "\u0634\u062e\u0635 \u0645\u0645\u064a\u0632" },
+          { value: "child", label: "\u0627\u0628\u0646 / \u0627\u0628\u0646\u0629" },
+          { value: "friend", label: "\u0635\u062f\u064a\u0642" },
+          { value: "self", label: "\u0644\u0646\u0641\u0633\u064a" },
+        ],
+      },
+      {
+        id: "occasion",
+        title: "\u0645\u0627 \u0627\u0644\u0645\u0646\u0627\u0633\u0628\u0629\u061f",
+        options: [
+          { value: "holiday", label: "\u0647\u062f\u064a\u0629 \u0639\u064a\u062f" },
+          {
+            value: "christmas",
+            label: "\u0639\u064a\u062f \u0627\u0644\u0645\u064a\u0644\u0627\u062f",
+          },
+          { value: "birthday", label: "\u0639\u064a\u062f \u0645\u064a\u0644\u0627\u062f" },
+          { value: "valentines", label: "\u0639\u064a\u062f \u0627\u0644\u062d\u0628" },
+          {
+            value: "anniversary",
+            label: "\u0630\u0643\u0631\u0649 \u0633\u0646\u0648\u064a\u0629",
+          },
+          { value: "graduation", label: "\u062a\u062e\u0631\u062c" },
+          {
+            value: "other",
+            label: "\u0628\u062f\u0648\u0646 \u0645\u0646\u0627\u0633\u0628\u0629",
+          },
+        ],
+      },
+      {
+        id: "budget",
+        title: "\u0645\u0627 \u0645\u064a\u0632\u0627\u0646\u064a\u062a\u0643\u061f",
+        options: [
+          { value: "100", label: "\u0623\u0642\u0644 \u0645\u0646 $100" },
+          { value: "200", label: "\u0623\u0642\u0644 \u0645\u0646 $200" },
+          { value: "350", label: "\u0623\u0642\u0644 \u0645\u0646 $350" },
+          { value: "500", label: "\u0623\u0642\u0644 \u0645\u0646 $500" },
+          { value: "1000", label: "$500\u2013$1,000" },
+          { value: "9999", label: "$1,000+" },
+        ],
+      },
+      {
+        id: "style",
+        title:
+          "\u0645\u0627 \u0627\u0644\u0623\u0633\u0644\u0648\u0628 \u0627\u0644\u0645\u0641\u0636\u0644\u061f",
+        options: [
+          {
+            value: "classic",
+            label: "\u0643\u0644\u0627\u0633\u064a\u0643\u064a / \u0623\u0646\u064a\u0642",
+          },
+          { value: "modern", label: "\u0639\u0635\u0631\u064a / \u0628\u0633\u064a\u0637" },
+          { value: "sport", label: "\u0631\u064a\u0627\u0636\u064a" },
+          { value: "rugged", label: "\u0645\u062a\u064a\u0646 / \u062e\u0627\u0631\u062c\u064a" },
+          { value: "dress", label: "\u0631\u0633\u0645\u064a" },
+          { value: "casual", label: "\u0639\u0627\u062f\u064a / \u064a\u0648\u0645\u064a" },
+        ],
+      },
     ],
   },
-  {
-    id: "budget",
-    title: "What\u2019s your budget?",
-    options: [
-      { value: "100", label: "Under $100" },
-      { value: "200", label: "Under $200" },
-      { value: "350", label: "Under $350" },
-      { value: "500", label: "Under $500" },
-      { value: "1000", label: "$500\u2013$1,000" },
-      { value: "9999", label: "$1,000+" },
-    ],
-  },
-  {
-    id: "style",
-    title: "What style do you prefer?",
-    options: [
-      { value: "classic", label: "Classic / Dressy" },
-      { value: "modern", label: "Modern / Minimalist" },
-      { value: "sport", label: "Sporty / Active" },
-      { value: "rugged", label: "Rugged / Outdoor" },
-      { value: "dress", label: "Dress / Formal" },
-      { value: "casual", label: "Casual / Everyday" },
-    ],
-  },
-];
+} as const;
+
+function getStrings(language: string) {
+  return language === "ar" ? i18n.ar : i18n.en;
+}
 
 interface Answers {
   recipient: string;
@@ -119,8 +260,6 @@ interface Answers {
   budget: string;
   style: string;
 }
-
-const rankLabels = ["Our #1 Pick", "Runner-Up", "Also Consider"] as const;
 
 function fireTrackingBeacon(slug: string) {
   const trackUrl = `/api/track/click?p=${encodeURIComponent(slug)}&t=gift-finder`;
@@ -136,7 +275,14 @@ function fireTrackingBeacon(slug: string) {
   }
 }
 
-export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQuizProps) {
+export function GiftFinderQuiz({
+  productLabel,
+  productLabelPlural,
+  language = "en",
+}: GiftFinderQuizProps) {
+  const t = getStrings(language);
+  const steps = t.steps;
+  const rankLabels = t.rankLabels;
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Partial<Answers>>({});
   const [results, setResults] = useState<GiftFinderResult[]>([]);
@@ -163,7 +309,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
       setResults(data.results ?? []);
     } catch {
       // fail-open: best-effort
-      setError("Something went wrong while fetching recommendations. Please try again.");
+      setError(t.errorMessage);
       setResults([]);
     } finally {
       setLoading(false);
@@ -227,18 +373,15 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
             className="mb-2 text-xs font-bold uppercase tracking-widest"
             style={{ color: "var(--color-accent)" }}
           >
-            Your Results
+            {t.yourResults}
           </p>
           <h1
             className="mb-4 text-3xl font-bold md:text-4xl"
             style={{ fontFamily: "var(--font-heading)" }}
           >
-            Your Perfect {productLabel} Matches
+            {t.perfectMatches(productLabel)}
           </h1>
-          <p className="text-gray-500">
-            Based on your answers, here are the {productLabelPlural.toLowerCase()} we recommend
-            &mdash; sorted by Gift-Worthiness Score.
-          </p>
+          <p className="text-gray-500">{t.matchesDescription(productLabelPlural)}</p>
         </div>
 
         {error && (
@@ -262,9 +405,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
                 />
               </svg>
             </div>
-            <p className="mb-1 text-lg font-semibold text-red-800">
-              Unable to Load Recommendations
-            </p>
+            <p className="mb-1 text-lg font-semibold text-red-800">{t.unableToLoad}</p>
             <p className="mb-5 text-sm text-red-600">{error}</p>
             <div className="flex flex-wrap justify-center gap-3">
               <button
@@ -280,13 +421,13 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                   />
                 </svg>
-                Retry
+                {t.retry}
               </button>
               <button
                 onClick={resetQuiz}
                 className="rounded-full border border-red-300 px-6 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
               >
-                Start Over
+                {t.startOver}
               </button>
             </div>
           </div>
@@ -320,7 +461,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
               <div className="mb-3 flex flex-wrap items-center gap-3">
                 {product.score !== null && (
                   <span className="text-sm font-bold text-emerald-600">
-                    Gift Score: {product.score}/10
+                    {t.giftScore(product.score)}
                   </span>
                 )}
                 {product.price && <span className="text-sm text-gray-500">{product.price}</span>}
@@ -345,7 +486,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
                     className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white transition-shadow hover:shadow-lg"
                     style={{ backgroundColor: "var(--color-accent)" }}
                   >
-                    {product.deal_text || "View Deal"}
+                    {product.deal_text || t.viewDeal}
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path
                         strokeLinecap="round"
@@ -361,7 +502,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
                     href={product.slug.startsWith("/") ? product.slug : `/${product.slug}`}
                     className="inline-flex items-center rounded-full border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                   >
-                    Read Full Review
+                    {t.readFullReview}
                   </Link>
                 )}
               </div>
@@ -371,16 +512,13 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
 
         {!error && results.length === 0 && (
           <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
-            <p className="mb-2 text-lg font-semibold text-gray-800">No Matches Found</p>
-            <p className="mb-6 text-gray-500">
-              We couldn&apos;t find {productLabelPlural.toLowerCase()} matching all your criteria.
-              Try adjusting your budget or style preference.
-            </p>
+            <p className="mb-2 text-lg font-semibold text-gray-800">{t.noMatchesTitle}</p>
+            <p className="mb-6 text-gray-500">{t.noMatches(productLabelPlural)}</p>
             <button
               onClick={resetQuiz}
               className="rounded-full border border-gray-300 px-8 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50"
             >
-              Retake the Quiz
+              {t.retakeQuiz}
             </button>
           </div>
         )}
@@ -391,14 +529,14 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
             className="font-semibold transition-colors"
             style={{ color: "var(--color-accent)" }}
           >
-            &larr; Retake the Quiz
+            &larr; {t.retakeQuiz}
           </button>
           <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
             <Link href="/review" className="transition-colors hover:text-gray-700">
-              See All Reviews
+              {t.seeAllReviews}
             </Link>
             <Link href="/comparison" className="transition-colors hover:text-gray-700">
-              Browse Comparisons
+              {t.browseComparisons}
             </Link>
           </div>
         </div>
@@ -428,18 +566,15 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
           className="mb-2 text-xs font-bold uppercase tracking-widest"
           style={{ color: "var(--color-accent)" }}
         >
-          60-Second Quiz
+          {t.quizSubtitle}
         </p>
         <h1
           className="mb-4 text-3xl font-bold md:text-4xl"
           style={{ fontFamily: "var(--font-heading)" }}
         >
-          {productLabel} Gift Finder Quiz
+          {t.quizTitle(productLabel)}
         </h1>
-        <p className="text-gray-500">
-          Answer 4 quick questions and get personalized {productLabel.toLowerCase()} recommendations
-          in 60 seconds.
-        </p>
+        <p className="text-gray-500">{t.quizDescription(productLabel)}</p>
       </div>
 
       {/* Progress bar */}
@@ -458,7 +593,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
         className={`transition-all duration-200 ${animatingStep ? "translate-y-2 opacity-0" : "translate-y-0 opacity-100"}`}
       >
         <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-500">
-          Step {currentStep + 1} of {steps.length}
+          {t.stepOf(currentStep + 1, steps.length)}
         </p>
         <h2
           className="mb-8 text-2xl font-semibold md:text-3xl"
@@ -499,7 +634,7 @@ export function GiftFinderQuiz({ productLabel, productLabelPlural }: GiftFinderQ
               d="M15 19l-7-7 7-7"
             />
           </svg>
-          Go Back
+          {t.goBack}
         </button>
       )}
     </div>

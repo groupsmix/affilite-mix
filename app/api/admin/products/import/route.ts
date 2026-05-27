@@ -4,9 +4,13 @@ import { bulkCreateProducts } from "@/lib/dal/products";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { validateAdminUrl } from "@/lib/admin-url-guard";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /** POST /api/admin/products/import — bulk import products from CSV */
 export const POST = withAuthz("products", "create", async (request, { session, siteId }) => {
+  const rlResponse = await enforceAdminRateLimit("products-import", session);
+  if (rlResponse) return rlResponse;
+
   // Audit U-7: bound the request body and the row count so an admin
   // (or an XSS-against-admin) can't OOM the worker by uploading a 1 GB
   // CSV. The Worker request limit is 100 MB, but our use case is well

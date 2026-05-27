@@ -4,8 +4,7 @@
  * the request should be rejected with 400.
  */
 
-// Re-export shared email validation from the canonical utility module (task 18.6)
-export { isValidEmail, MAX_EMAIL_LENGTH, sanitizeEmailInput } from "./validate-email";
+// Email validation lives in lib/validate-email.ts (canonical module).
 import { isUsableUuid } from "./security/uuid";
 
 // AM-04: Use shared max content body length from sanitizer to prevent mismatch
@@ -207,7 +206,7 @@ function isProductStatus(v: unknown): v is ProductStatus {
 }
 
 type ContentType = "article" | "review" | "comparison" | "guide" | "blog";
-export const CONTENT_TYPES: ReadonlySet<string> = new Set([
+const CONTENT_TYPES: ReadonlySet<string> = new Set([
   "article",
   "review",
   "comparison",

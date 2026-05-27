@@ -1,3 +1,4 @@
+// DESIGN: No site_id filtering — this module manages the `sites` table itself (global scope).
 import { unstable_cache } from "next/cache";
 import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
@@ -103,7 +104,7 @@ export const getSiteRowByDomain = unstable_cache(
 /* ------------------------------------------------------------------ */
 import { revalidateTag } from "next/cache";
 
-export function invalidateSiteCache(): void {
+function invalidateSiteCache(): void {
   revalidateTag("sites");
 }
 
@@ -181,7 +182,7 @@ export async function updateSite(
 }
 
 /** Soft-delete a site (deactivate) */
-export async function deactivateSite(
+async function deactivateSite(
   id: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteRow> {

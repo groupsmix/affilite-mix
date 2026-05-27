@@ -44,6 +44,6 @@ export function generateTraceId(): string {
  *   2. `cf-ray` header (Cloudflare's per-request ray ID)
  *   3. Generate a new trace ID as last resort
  */
-export function getTraceId(request: Request): string {
+function getTraceId(request: Request): string {
   return request.headers.get(TRACE_ID_HEADER) ?? request.headers.get("cf-ray") ?? generateTraceId();
 }

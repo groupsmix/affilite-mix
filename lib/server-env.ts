@@ -139,7 +139,7 @@ export function collectMissingEnv(envs: readonly RequiredEnvVar[]): RequiredEnvV
  * degrading into a broken state (e.g. membership enabled but Stripe
  * secrets missing, anti-bot forms enabled but Turnstile missing).
  */
-export const FEATURE_CONDITIONAL_ENV: readonly {
+const FEATURE_CONDITIONAL_ENV: readonly {
   /** Env var that activates the feature. */
   readonly flag: string;
   /**

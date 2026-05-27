@@ -5,6 +5,7 @@ import { listDlqEntries, resolveDlqEntry } from "@/lib/dal/webhook-dlq";
 import { captureException } from "@/lib/sentry";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { logger } from "@/lib/logger";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * GET /api/admin/webhook-dlq — List DLQ entries (super_admin only).
@@ -17,6 +18,9 @@ export const GET = withAuthz(
   "settings",
   "view",
   async (_request: NextRequest, { siteId, session }) => {
+    const rlResponse = await enforceAdminRateLimit("webhook-dlq", session);
+    if (rlResponse) return rlResponse;
+
     const roleErr = assertRole(session, "super_admin");
     if (roleErr) return roleErr;
 
@@ -51,6 +55,9 @@ export const PATCH = withAuthz(
   "settings",
   "manage",
   async (request: NextRequest, { siteId, session }) => {
+    const rlResponse = await enforceAdminRateLimit("webhook-dlq", session);
+    if (rlResponse) return rlResponse;
+
     const roleErr = assertRole(session, "super_admin");
     if (roleErr) return roleErr;
 

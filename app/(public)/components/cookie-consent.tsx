@@ -100,7 +100,7 @@ const translations = {
   },
 } as const;
 
-export default function CookieConsent({ language = "en", domain = "" }: CookieConsentProps) {
+function CookieConsent({ language = "en", domain = "" }: CookieConsentProps) {
   const t = language === "ar" ? translations.ar : translations.en;
   const [consent, setConsent] = useState<ConsentState>("pending");
   const [visible, setVisible] = useState(false);
@@ -278,7 +278,7 @@ export default function CookieConsent({ language = "en", domain = "" }: CookieCo
  * Resets cookie consent so the banner re-appears.
  * Call this from a "Cookie Settings" link in the footer.
  */
-export function resetCookieConsent(domain?: string) {
+function resetCookieConsent(domain?: string) {
   const effectiveDomain = domain || window.location.hostname;
   const cookieName = getConsentCookieName(effectiveDomain);
   const storageKey = getConsentStorageKey(effectiveDomain);

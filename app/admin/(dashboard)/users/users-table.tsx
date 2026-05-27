@@ -193,7 +193,7 @@ interface RowActionsContext {
   lastActiveSuperAdminId: string | null;
 }
 
-export function buildUsersTableColumns(context: RowActionsContext): ColumnDef<UsersTableRow>[] {
+function buildUsersTableColumns(context: RowActionsContext): ColumnDef<UsersTableRow>[] {
   return [
     {
       id: "email",
@@ -346,7 +346,7 @@ export function UsersTable({
   );
 }
 
-export function UsersEmptyState() {
+function UsersEmptyState() {
   return (
     <Card>
       <CardContent className="py-10 text-center">

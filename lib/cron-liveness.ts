@@ -40,7 +40,7 @@ let lastLivenessCheckAt = 0;
  * Parse a 5-field cron expression into an approximate interval in seconds.
  * Handles only the patterns used in this project's cron registry.
  */
-export function parseCronIntervalSeconds(schedule: string): number {
+function parseCronIntervalSeconds(schedule: string): number {
   const parts = schedule.split(" ");
   if (parts.length !== 5) return 3600; // default 1h if unparseable
 

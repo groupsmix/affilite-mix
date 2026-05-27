@@ -23,9 +23,9 @@
 
 // ── Newsletter Subscribers ─────────────────────────────────────────────
 
-export type NewsletterStatus = "pending" | "active" | "unsubscribed";
+type NewsletterStatus = "pending" | "active" | "unsubscribed";
 
-export interface NewsletterSubscriberRow {
+interface NewsletterSubscriberRow {
   id: string;
   site_id: string;
   email: string;
@@ -188,7 +188,7 @@ export interface AdPlacementRow {
   created_at: string;
 }
 
-export interface AdImpressionRow {
+interface AdImpressionRow {
   id: string;
   site_id: string;
   ad_placement_id: string;
@@ -224,7 +224,7 @@ export interface SiteFeatureFlagRow {
 
 // ── Roles & Permissions ────────────────────────────────────────────────
 
-export type RoleName =
+type RoleName =
   | "owner"
   | "super_admin"
   | "admin"
@@ -281,7 +281,7 @@ export interface PermissionRow {
   description: string;
 }
 
-export interface RolePermissionRow {
+interface RolePermissionRow {
   role_id: string;
   permission_id: string;
 }
@@ -296,7 +296,7 @@ export interface UserSiteRoleRow {
 
 // ── Admin Site Memberships ──────────────────────────────────────────────
 
-export interface AdminSiteMembershipRow {
+interface AdminSiteMembershipRow {
   id: string;
   admin_user_id: string;
   site_id: string;
@@ -305,7 +305,7 @@ export interface AdminSiteMembershipRow {
 
 // ── Integrations ───────────────────────────────────────────────────────
 
-export type IntegrationCategory =
+type IntegrationCategory =
   | "affiliate_network"
   | "analytics"
   | "email"
@@ -338,7 +338,7 @@ export interface SiteIntegrationRow {
 
 // ── Web Vitals ─────────────────────────────────────────────────────────
 
-export interface WebVitalRow {
+interface WebVitalRow {
   id: string;
   name: string;
   value: number;
@@ -351,9 +351,9 @@ export interface WebVitalRow {
 
 // ── AI Drafts ──────────────────────────────────────────────────────────
 
-export type AiDraftStatus = "pending" | "approved" | "rejected" | "published";
+type AiDraftStatus = "pending" | "approved" | "rejected" | "published";
 
-export interface AiDraftRow {
+interface AiDraftRow {
   id: string;
   site_id: string;
   title: string;
@@ -376,9 +376,9 @@ export interface AiDraftRow {
 
 // ── Affiliate Networks ─────────────────────────────────────────────────
 
-export type AffiliateNetwork = "cj" | "partnerstack" | "admitad" | "direct";
+type AffiliateNetwork = "cj" | "partnerstack" | "admitad" | "direct";
 
-export interface AffiliateNetworkRow {
+interface AffiliateNetworkRow {
   id: string;
   site_id: string;
   network: AffiliateNetwork;

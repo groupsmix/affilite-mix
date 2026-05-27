@@ -5,6 +5,7 @@ import { parseJsonBody } from "@/lib/api-error";
 import type { AdPlacementType, AdProvider } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 import { withAuthz } from "@/lib/authz";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
   "sidebar",
@@ -15,7 +16,10 @@ const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
 ];
 const VALID_PROVIDERS: AdProvider[] = ["adsense", "carbon", "ethicalads", "custom"];
 
-export const GET = withAuthz("ads", "read", async (_request, { siteId }) => {
+export const GET = withAuthz("ads", "read", async (_request, { session, siteId }) => {
+  const rlResponse = await enforceAdminRateLimit("ads", session);
+  if (rlResponse) return rlResponse;
+
   try {
     const ads = await listAdPlacements(siteId);
     return NextResponse.json(ads);
@@ -29,6 +33,9 @@ export const POST = withAuthz(
   "ads",
   "create",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("ads", session);
+    if (rlResponse) return rlResponse;
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
 

@@ -28,7 +28,7 @@ const STEP_UP_WINDOW_MS = 15 * 60 * 1000;
  * Session field name for the step-up timestamp.
  * Set after a successful password or TOTP verification.
  */
-export const STEP_UP_CLAIM = "step_up_at" as const;
+const STEP_UP_CLAIM = "step_up_at" as const;
 
 /**
  * Check if the session has a valid step-up authentication within
