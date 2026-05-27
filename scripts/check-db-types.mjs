@@ -42,12 +42,14 @@ import { resolve } from "node:path";
 const TYPES_FILE = resolve(process.cwd(), "types/supabase.ts");
 
 function getDbUrl() {
-  return (
+  const raw =
     process.env.STAGING_SUPABASE_DB_URL ||
     process.env.SUPABASE_DB_POOLER_URL ||
     process.env.DATABASE_URL ||
-    ""
-  );
+    "";
+  // psql doesn't understand the ?pgbouncer=true query param that Supabase
+  // appends to pooler URLs. Strip all query parameters for direct psql usage.
+  return raw.replace(/\?.*$/, "");
 }
 
 function fetchLiveSchema(dbUrl) {

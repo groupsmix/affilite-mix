@@ -44,6 +44,9 @@ set -euo pipefail
 # Pick the first available DB URL, preferring staging/pooler over any
 # plain DATABASE_URL to reduce the risk of ever pointing this at prod.
 DB_URL="${STAGING_SUPABASE_DB_URL:-${SUPABASE_DB_POOLER_URL:-${DATABASE_URL:-}}}"
+# psql doesn't understand the ?pgbouncer=true query param that Supabase
+# appends to pooler URLs. Strip query parameters for direct psql usage.
+DB_URL="${DB_URL%%\?*}"
 
 if [ -z "$DB_URL" ]; then
   # N-005: skip-with-success is only acceptable for fork PRs that cannot
