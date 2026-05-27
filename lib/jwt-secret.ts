@@ -68,7 +68,7 @@ export function resolveJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
  * During rotation, tokens signed with the previous key are still accepted
  * until the grace window expires (24h recommended, token TTL is 8h).
  */
-export function resolveJwtSecretPrevious(env: NodeJS.ProcessEnv = process.env): string | null {
+function resolveJwtSecretPrevious(env: NodeJS.ProcessEnv = process.env): string | null {
   const prev = env.JWT_SECRET_PREVIOUS;
   if (prev && prev.trim().length > 0) return prev;
   return null;

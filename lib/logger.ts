@@ -15,7 +15,7 @@ import { truncateIp } from "./get-client-ip";
  * correlated end-to-end.
  */
 
-export type LogLevel = "debug" | "info" | "warn" | "error";
+type LogLevel = "debug" | "info" | "warn" | "error";
 
 const LEVEL_ORDER: Record<LogLevel, number> = {
   debug: 10,
@@ -186,7 +186,7 @@ export const logger: Logger = build({});
  */
 const sampleCounters = new Map<string, number>();
 
-export function shouldSample(eventKey: string, sampleRate: number): boolean {
+function shouldSample(eventKey: string, sampleRate: number): boolean {
   if (sampleRate >= 1) return true;
   if (sampleRate <= 0) return false;
   const count = (sampleCounters.get(eventKey) ?? 0) + 1;
@@ -199,7 +199,7 @@ export function shouldSample(eventKey: string, sampleRate: number): boolean {
  * High-value events should use these typed emitters instead of raw logger
  * calls with arbitrary extras, to prevent PII leaking through unnamed fields.
  */
-export function logSecurityEvent(event: {
+function logSecurityEvent(event: {
   action:
     | "login_success"
     | "login_failure"

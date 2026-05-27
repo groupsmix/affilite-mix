@@ -129,11 +129,11 @@ export function getCircuitBreaker(
 }
 
 /** Reset a specific breaker (useful in tests). */
-export function resetCircuitBreaker(providerName: string): void {
+function resetCircuitBreaker(providerName: string): void {
   registry.delete(providerName);
 }
 
 /** Dump all breaker metrics (for /api/health or admin observability). */
-export function allCircuitBreakerMetrics() {
+function allCircuitBreakerMetrics() {
   return Array.from(registry.values()).map((cb) => cb.metrics());
 }

@@ -34,7 +34,7 @@ export async function listSiteFeatureFlags(
 }
 
 /** Check if a specific feature flag is enabled for a site */
-export async function isFeatureFlagEnabled(
+async function isFeatureFlagEnabled(
   siteId: string,
   flagKey: string,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -53,7 +53,7 @@ export async function isFeatureFlagEnabled(
 }
 
 /** Get all enabled flag keys for a site (fast lookup) */
-export async function getEnabledFlagKeys(
+async function getEnabledFlagKeys(
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<string[]> {

@@ -45,7 +45,7 @@ interface DurableObjectNamespace {
   get(id: DurableObjectId): DurableObjectStub;
 }
 
-export type RateLimitFailPolicy = "grace" | "open" | "closed";
+type RateLimitFailPolicy = "grace" | "open" | "closed";
 
 export interface RateLimitConfig {
   /** Maximum number of requests allowed in the window */

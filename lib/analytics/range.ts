@@ -2,7 +2,7 @@ export const ANALYTICS_RANGE_PRESETS = ["24h", "7d", "30d"] as const;
 
 export type AnalyticsRangePreset = (typeof ANALYTICS_RANGE_PRESETS)[number];
 
-export const DEFAULT_ANALYTICS_RANGE: AnalyticsRangePreset = "30d";
+const DEFAULT_ANALYTICS_RANGE: AnalyticsRangePreset = "30d";
 
 export interface AnalyticsRangeSearchParams {
   range?: string;

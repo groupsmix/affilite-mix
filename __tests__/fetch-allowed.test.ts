@@ -1,7 +1,7 @@
 /**
  * FIX-22 (F-022): Tests for centralised outbound fetch with hostname allow-list.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   fetchAllowed,
   fetchAllowedWithTimeout,
@@ -70,14 +70,25 @@ describe("fetch-allowed", () => {
   });
 
   it("fetchAllowedWithTimeout aborts after timeout", async () => {
-    // Use a URL that would hang (blackhole) or mock fetch
-    // Since we can't easily mock, verify the function signature works
-    const promise = fetchAllowedWithTimeout(
-      "https://api.stripe.com/v1/charges",
-      {},
-      1, // 1ms timeout
-    );
-    // Should either abort or complete within a reasonable time
-    await expect(promise).rejects.toBeDefined();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        const timer = setTimeout(() => _resolve(new Response()), 60_000);
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("The operation was aborted.", "AbortError"));
+        });
+      });
+    });
+    try {
+      const promise = fetchAllowedWithTimeout(
+        "https://api.stripe.com/v1/charges",
+        {},
+        1, // 1ms timeout
+      );
+      await expect(promise).rejects.toBeDefined();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

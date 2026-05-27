@@ -53,7 +53,7 @@ export async function listAdminSiteMemberships(
 /**
  * Grant an admin user membership for a site (idempotent).
  */
-export async function grantAdminSiteMembership(
+async function grantAdminSiteMembership(
   adminUserId: string,
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -103,7 +103,7 @@ export async function listAllAdminSiteMembershipsWithSlugs(
 /**
  * Revoke an admin user's membership for a site.
  */
-export async function revokeAdminSiteMembership(
+async function revokeAdminSiteMembership(
   adminUserId: string,
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,

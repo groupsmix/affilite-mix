@@ -96,7 +96,7 @@ export async function cancelScheduledJob(
 }
 
 /** Get a scheduled job by id */
-export async function getScheduledJobById(
+async function getScheduledJobById(
   siteId: string,
   jobId: string,
   getClient: DalClientGetter = defaultDalClientGetter,

@@ -18,7 +18,7 @@
 import { logger } from "./logger";
 
 /** A30-002: Read consistency level for a query. */
-export type ReadConsistency = "strict" | "eventual" | "bounded";
+type ReadConsistency = "strict" | "eventual" | "bounded";
 
 interface ReadAfterWriteOptions {
   /** Consistency level required */
@@ -30,7 +30,7 @@ interface ReadAfterWriteOptions {
 }
 
 /** Default max staleness for bounded reads (5 seconds). */
-export const DEFAULT_MAX_STALENESS_MS = 5_000;
+const DEFAULT_MAX_STALENESS_MS = 5_000;
 
 /**
  * A30-002: Determine whether to use primary or replica for a read
@@ -38,7 +38,7 @@ export const DEFAULT_MAX_STALENESS_MS = 5_000;
  * returns "primary" for strict consistency, but the hook point exists
  * for future replica routing.
  */
-export function routeForReadAfterWrite(opts: ReadAfterWriteOptions = {}): "primary" | "replica" {
+function routeForReadAfterWrite(opts: ReadAfterWriteOptions = {}): "primary" | "replica" {
   const { consistency = "strict" } = opts;
   if (consistency === "strict") {
     return "primary";
@@ -56,7 +56,7 @@ export function routeForReadAfterWrite(opts: ReadAfterWriteOptions = {}): "prima
  * When async replication is introduced, this becomes an async waiter
  * that polls the replica until the write is visible or timeout.
  */
-export async function awaitWriteVisibility(_opts: ReadAfterWriteOptions = {}): Promise<void> {
+async function awaitWriteVisibility(_opts: ReadAfterWriteOptions = {}): Promise<void> {
   // Single-primary: writes are immediately visible.
   // Future: implement replication-lag polling here.
   return;
@@ -69,7 +69,7 @@ export async function awaitWriteVisibility(_opts: ReadAfterWriteOptions = {}): P
  * Currently returns the result of `readFn` directly; future implementation
  * will retry with primary routing if the initial read is stale.
  */
-export async function readAfterWrite<T>(
+async function readAfterWrite<T>(
   readFn: () => Promise<T>,
   opts: ReadAfterWriteOptions = {},
 ): Promise<T> {
@@ -99,7 +99,7 @@ export async function readAfterWrite<T>(
  * Returns a read strategy for queries that can tolerate some staleness.
  * When replicas are introduced, this routes to replica with a freshness check.
  */
-export function boundedStalenessRead(maxStalenessMs: number = DEFAULT_MAX_STALENESS_MS): {
+function boundedStalenessRead(maxStalenessMs: number = DEFAULT_MAX_STALENESS_MS): {
   route: "primary" | "replica";
   maxStalenessMs: number;
 } {

@@ -192,22 +192,22 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
 ] as const;
 
 /** Look up a module definition by key */
-export function getModuleDefinition(key: string): ModuleDefinition | undefined {
+function getModuleDefinition(key: string): ModuleDefinition | undefined {
   return MODULE_REGISTRY.find((m) => m.key === key);
 }
 
 /** Get all module keys */
-export function getAllModuleKeys(): string[] {
+function getAllModuleKeys(): string[] {
   return MODULE_REGISTRY.map((m) => m.key);
 }
 
 /** Get default-enabled module keys */
-export function getDefaultEnabledModules(): string[] {
+function getDefaultEnabledModules(): string[] {
   return MODULE_REGISTRY.filter((m) => m.defaultEnabled).map((m) => m.key);
 }
 
 /** Group modules by category */
-export function getModulesByCategory(): Record<string, ModuleDefinition[]> {
+function getModulesByCategory(): Record<string, ModuleDefinition[]> {
   const grouped: Record<string, ModuleDefinition[]> = {};
   for (const mod of MODULE_REGISTRY) {
     if (!grouped[mod.category]) {

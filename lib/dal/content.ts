@@ -140,7 +140,7 @@ export async function getContentBySlug(
  * A-007: Stale-while-revalidate cached variant for public content pages.
  * Falls back to the uncached `getContentBySlug` if skip-db is active.
  */
-export const getContentBySlugPublic = unstable_cache(
+const getContentBySlugPublic = unstable_cache(
   async (siteId: string, slug: string): Promise<ContentRow | null> => {
     if (shouldSkipDbCall()) return null;
     const sb = getAnonClient();

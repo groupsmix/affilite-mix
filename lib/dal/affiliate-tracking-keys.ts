@@ -1,7 +1,7 @@
 import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
-export interface AffiliateTrackingKeyRow {
+interface AffiliateTrackingKeyRow {
   site_id: string;
   network: string;
   tracking_key: string;
@@ -31,7 +31,7 @@ export async function resolveSiteByTrackingKey(
 }
 
 /** List all tracking keys for a site (admin UI) */
-export async function listTrackingKeysBySite(
+async function listTrackingKeysBySite(
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AffiliateTrackingKeyRow[]> {
@@ -47,7 +47,7 @@ export async function listTrackingKeysBySite(
 }
 
 /** Upsert a tracking key mapping (admin UI) */
-export async function upsertTrackingKey(
+async function upsertTrackingKey(
   siteId: string,
   network: string,
   trackingKey: string,
@@ -68,7 +68,7 @@ export async function upsertTrackingKey(
 }
 
 /** Delete a tracking key mapping (admin UI) */
-export async function deleteTrackingKey(
+async function deleteTrackingKey(
   network: string,
   trackingKey: string,
   getClient: DalClientGetter = defaultDalClientGetter,

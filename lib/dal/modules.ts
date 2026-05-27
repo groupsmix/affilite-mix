@@ -34,7 +34,7 @@ export async function listSiteModules(
 }
 
 /** List only enabled modules for a site */
-export async function listEnabledModules(
+async function listEnabledModules(
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteModuleRow[]> {
@@ -51,7 +51,7 @@ export async function listEnabledModules(
 }
 
 /** Check if a specific module is enabled for a site */
-export async function isModuleEnabled(
+async function isModuleEnabled(
   siteId: string,
   moduleKey: string,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -128,7 +128,7 @@ export async function bulkUpsertSiteModules(
 }
 
 /** Delete a module record for a site */
-export async function deleteSiteModule(
+async function deleteSiteModule(
   siteId: string,
   moduleKey: string,
   getClient: DalClientGetter = defaultDalClientGetter,

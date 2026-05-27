@@ -19,7 +19,7 @@ const ALL_COLUMNS =
   "id, product_id, network, geo, url, weight, is_active, created_at, updated_at" as const;
 
 /** List active affiliate links for a product, ordered by weight descending */
-export async function listProductAffiliateLinks(
+async function listProductAffiliateLinks(
   productId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductAffiliateLinkRow[]> {
@@ -37,7 +37,7 @@ export async function listProductAffiliateLinks(
 }
 
 /** List all affiliate links for a product (including inactive) */
-export async function listAllProductAffiliateLinks(
+async function listAllProductAffiliateLinks(
   productId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductAffiliateLinkRow[]> {
@@ -54,7 +54,7 @@ export async function listAllProductAffiliateLinks(
 }
 
 /** Create an affiliate link for a product */
-export async function createProductAffiliateLink(
+async function createProductAffiliateLink(
   input: {
     product_id: string;
     network: string;
@@ -73,7 +73,7 @@ export async function createProductAffiliateLink(
 }
 
 /** Update an affiliate link */
-export async function updateProductAffiliateLink(
+async function updateProductAffiliateLink(
   id: string,
   input: Partial<Pick<ProductAffiliateLinkRow, "network" | "geo" | "url" | "weight" | "is_active">>,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -87,7 +87,7 @@ export async function updateProductAffiliateLink(
 }
 
 /** Delete an affiliate link */
-export async function deleteProductAffiliateLink(
+async function deleteProductAffiliateLink(
   id: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<void> {
