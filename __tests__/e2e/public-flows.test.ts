@@ -48,6 +48,10 @@ vi.mock("@/lib/rate-limit", () => ({
   }),
 }));
 
+vi.mock("@/lib/get-client-ip", () => ({
+  getClientIp: vi.fn().mockReturnValue("1.2.3.4"),
+}));
+
 vi.mock("@/lib/dal/price-snapshots", () => ({
   getPriceHistory: vi.fn().mockResolvedValue([
     {
