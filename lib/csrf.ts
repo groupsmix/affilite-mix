@@ -13,7 +13,10 @@
  * Uses the Web Crypto API exclusively for Cloudflare Workers compatibility.
  */
 
-export const CSRF_COOKIE = "__csrf";
+// H-4: Use __Host- prefix in production to prevent subdomain cookie
+// injection. In dev/test environments keep the unprefixed name because
+// __Host- requires Secure + Path=/ which localhost doesn't satisfy.
+export const CSRF_COOKIE = process.env.NODE_ENV === "production" ? "__Host-csrf" : "__csrf";
 export const CSRF_HEADER = "x-csrf-token";
 const TOKEN_BYTES = 32;
 

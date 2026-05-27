@@ -74,6 +74,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://xyz.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
           SUPABASE_SERVICE_ROLE_KEY: placeholder
+          # C-4: Clear the localhost fallback during production-equivalent build
+          # so Next.js static analysis does not capture it into the bundle.
+          ALLOW_LOCALHOST_FALLBACK_IN_PROD: ""
       - name: Bundle size check
         run: npx size-limit
       - name: Verify no dev fallback secrets in production (F-018, F-021)

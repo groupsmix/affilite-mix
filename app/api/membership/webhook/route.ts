@@ -33,6 +33,22 @@ function redactStripePayloadForLogs(rawBody: string): Record<string, unknown> {
   }
 }
 
+/**
+ * H-9: Strip PCI/PII-ish tokens from Stripe SDK error messages before
+ * persisting to the DLQ table. Matches customer IDs, payment intents,
+ * payment methods, card last-4, and email-like strings.
+ */
+function redactStripeErrorMessage(msg: string): string {
+  return msg
+    .replace(
+      /\b(cus|pi|pm|sub|ch|in|re|txn|price|prod|si|seti)_[A-Za-z0-9]{8,}\b/g,
+      "$1_[REDACTED]",
+    )
+    .replace(/\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b/g, "[CARD_REDACTED]")
+    .replace(/\*{4}\s?\d{4}/g, "[LAST4_REDACTED]")
+    .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z]{2,}\b/gi, "[EMAIL_REDACTED]");
+}
+
 function getRateLimitKv(): CloudflareKVBinding | null {
   const kv = getRuntimeEnv().RATE_LIMIT_KV;
   if (kv && typeof kv === "object" && "get" in kv && "put" in kv) {
@@ -51,8 +67,9 @@ export async function POST(request: NextRequest) {
   }
 
   if (!_prewarmed) {
-    _prewarmed = true;
+    // C-5: Set flag AFTER success so a thrown prewarm retries on next request.
     await prewarmStripeWebhookKey(webhookSecret);
+    _prewarmed = true;
   }
 
   const rawBody = await request.text();
@@ -125,7 +142,7 @@ export async function POST(request: NextRequest) {
           event_id: event.id,
           event_type: event.type,
           payload: redactStripePayloadForLogs(rawBody),
-          error_message: err instanceof Error ? err.message : String(err),
+          error_message: redactStripeErrorMessage(err instanceof Error ? err.message : String(err)),
           attempts,
         });
       } catch (dlqErr) {
