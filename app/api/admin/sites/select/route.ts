@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession, unauthorizedResponse } from "@/lib/admin-guard";
 import { getSiteById } from "@/config/sites";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
-
-/** 100 admin API requests per minute per user session (3.30) */
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
 /** POST /api/admin/sites/select — set the active site cookie */
 export async function POST(request: NextRequest) {
@@ -21,14 +18,8 @@ export async function POST(request: NextRequest) {
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rlKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
-  const rl = await checkRateLimit(rlKey, ADMIN_RATE_LIMIT);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
-    );
-  }
+  const rlError = await enforceAdminRateLimit("sites-select", session);
+  if (rlError) return rlError;
 
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;

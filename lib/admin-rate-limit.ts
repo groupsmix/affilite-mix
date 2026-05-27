@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-/** 100 admin API requests per minute per user session. Fail-closed to prevent abuse during KV/DO outages. */
+/** 100 admin API requests per minute per user session. */
 const ADMIN_RATE_LIMIT = {
   maxRequests: 100,
   windowMs: 60_000,
-  failPolicy: "closed" as const,
-  graceMs: 5_000,
 };
 
 /**
