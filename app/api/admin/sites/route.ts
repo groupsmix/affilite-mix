@@ -3,6 +3,7 @@ import { requireAdmin, requireAdminSession, assertRole } from "@/lib/admin-guard
 import { allSites } from "@/config/sites";
 import { listSites, createSite, updateSite, deleteSite } from "@/lib/dal/sites";
 import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
@@ -39,7 +40,9 @@ export async function GET() {
   // Non-super_admin users only see sites they have membership for
   let allowedSiteIds: Set<string> | null = null;
   if (session.role !== "super_admin" && session.userId) {
-    const memberships = await listAdminSiteMemberships(session.userId);
+    // admin_site_memberships table requires service_role (RLS restricted)
+    const privilegedGetter = () => getPrivilegedSupabaseClient("admin-sites-list");
+    const memberships = await listAdminSiteMemberships(session.userId, privilegedGetter);
     allowedSiteIds = new Set(memberships.map((m) => m.site_id));
   }
 
