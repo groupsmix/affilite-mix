@@ -27,94 +27,105 @@ async function enforceRateLimit(email: string | undefined, userId: string | unde
 
 /** GET /api/admin/sites — list all available sites (super_admin: all, admin: membership-filtered) */
 export async function GET() {
-  // Use requireAdminSession() (no site context) because this endpoint must
-  // work BEFORE a site is selected (chicken-and-egg: you need to list sites
-  // to select one, but requireAdmin() demands a site cookie).
-  const { error, session } = await requireAdminSession();
-  if (error) return error;
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const rlError = await enforceRateLimit(session.email, session.userId);
-  if (rlError) return rlError;
-
-  // Non-super_admin users only see sites they have membership for
-  let allowedSiteIds: Set<string> | null = null;
-  if (session.role !== "super_admin" && session.userId) {
-    // admin_site_memberships table requires service_role (RLS restricted)
-    const privilegedGetter = () => getPrivilegedSupabaseClient("admin-sites-list");
-    const memberships = await listAdminSiteMemberships(session.userId, privilegedGetter);
-    allowedSiteIds = new Set(memberships.map((m) => m.site_id));
-  }
-
-  // Try DB first — returns full SiteRow data with all fields
-  let dbSites: {
-    id: string;
-    slug: string;
-    name: string;
-    domain: string;
-    language: string;
-    direction: string;
-    is_active: boolean;
-    monetization_type: string;
-    est_revenue_per_click: number;
-    theme: Record<string, unknown>;
-    features: Record<string, boolean>;
-    meta_title: string | null;
-    meta_description: string | null;
-    source: "database";
-    db_id: string;
-    created_at: string;
-  }[] = [];
   try {
-    const rows = await listSites();
-    dbSites = rows.map((r) => ({
-      id: r.slug,
-      slug: r.slug,
-      name: r.name,
-      domain: r.domain,
-      language: r.language,
-      direction: r.direction,
-      is_active: r.is_active,
-      monetization_type: r.monetization_type,
-      est_revenue_per_click: r.est_revenue_per_click,
-      theme: r.theme,
-      features: r.features,
-      meta_title: r.meta_title,
-      meta_description: r.meta_description,
-      source: "database" as const,
-      created_at: r.created_at,
-      db_id: r.id,
+    // Use requireAdminSession() (no site context) because this endpoint must
+    // work BEFORE a site is selected (chicken-and-egg: you need to list sites
+    // to select one, but requireAdmin() demands a site cookie).
+    const { error, session } = await requireAdminSession();
+    if (error) return error;
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const rlError = await enforceRateLimit(session.email, session.userId);
+    if (rlError) return rlError;
+
+    // Non-super_admin users only see sites they have membership for
+    let allowedSiteIds: Set<string> | null = null;
+    if (session.role !== "super_admin" && session.userId) {
+      // admin_site_memberships table requires service_role (RLS restricted)
+      const privilegedGetter = () => getPrivilegedSupabaseClient("admin-sites-list");
+      const memberships = await listAdminSiteMemberships(session.userId, privilegedGetter);
+      allowedSiteIds = new Set(memberships.map((m) => m.site_id));
+    }
+
+    // Try DB first — returns full SiteRow data with all fields
+    let dbSites: {
+      id: string;
+      slug: string;
+      name: string;
+      domain: string;
+      language: string;
+      direction: string;
+      is_active: boolean;
+      monetization_type: string;
+      est_revenue_per_click: number;
+      theme: Record<string, unknown>;
+      features: Record<string, boolean>;
+      meta_title: string | null;
+      meta_description: string | null;
+      source: "database";
+      db_id: string;
+      created_at: string;
+    }[] = [];
+    try {
+      const rows = await listSites();
+      dbSites = rows.map((r) => ({
+        id: r.slug,
+        slug: r.slug,
+        name: r.name,
+        domain: r.domain,
+        language: r.language,
+        direction: r.direction,
+        is_active: r.is_active,
+        monetization_type: r.monetization_type,
+        est_revenue_per_click: r.est_revenue_per_click,
+        theme: r.theme,
+        features: r.features,
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        source: "database" as const,
+        created_at: r.created_at,
+        db_id: r.id,
+      }));
+    } catch {
+      // fail-open: best-effort
+      // DB might not be reachable; fall back to config-only
+    }
+
+    // Config fallback for sites not in DB
+    const configSites = allSites.map((s) => ({
+      id: s.id,
+      slug: s.id,
+      name: s.name,
+      domain: s.domain,
+      language: s.language,
+      direction: s.direction,
+      monetization_type: s.monetizationType,
+      theme: {
+        primaryColor: s.theme.primaryColor,
+        accentColor: s.theme.accentColor,
+      } as Record<string, unknown>,
+      source: "config" as const,
     }));
-  } catch {
-    // fail-open: best-effort
-    // DB might not be reachable; fall back to config-only
+
+    const dbSlugs = new Set(dbSites.map((s) => s.id));
+    let mergedSites = [...dbSites, ...configSites.filter((s) => !dbSlugs.has(s.id))];
+
+    // Filter to membership-allowed sites for non-super_admin users
+    if (allowedSiteIds) {
+      mergedSites = mergedSites.filter((s) => allowedSiteIds.has("db_id" in s ? s.db_id : s.id));
+    }
+
+    return NextResponse.json({ sites: mergedSites });
+  } catch (err) {
+    captureException(err, { context: "admin-sites-get" });
+    return NextResponse.json(
+      {
+        error: "Internal error listing sites",
+        detail: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 },
+    );
   }
-
-  // Config fallback for sites not in DB
-  const configSites = allSites.map((s) => ({
-    id: s.id,
-    slug: s.id,
-    name: s.name,
-    domain: s.domain,
-    language: s.language,
-    direction: s.direction,
-    monetization_type: s.monetizationType,
-    theme: {
-      primaryColor: s.theme.primaryColor,
-      accentColor: s.theme.accentColor,
-    } as Record<string, unknown>,
-    source: "config" as const,
-  }));
-
-  const dbSlugs = new Set(dbSites.map((s) => s.id));
-  let mergedSites = [...dbSites, ...configSites.filter((s) => !dbSlugs.has(s.id))];
-
-  // Filter to membership-allowed sites for non-super_admin users
-  if (allowedSiteIds) {
-    mergedSites = mergedSites.filter((s) => allowedSiteIds.has("db_id" in s ? s.db_id : s.id));
-  }
-
-  return NextResponse.json({ sites: mergedSites });
 }
 
 /** POST /api/admin/sites — create a new site (super_admin only) */
