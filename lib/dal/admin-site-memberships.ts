@@ -21,9 +21,8 @@ export async function getAdminSiteMembership(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdminSiteMembershipRow | null> {
   const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(LIST_COLUMNS)
+  const { data, error } = await (sb.from(TABLE).select(LIST_COLUMNS) as any)
+    .unsafeNoSiteFilter()
     .eq("admin_user_id", adminUserId)
     .eq("site_id", siteId)
     .single();
@@ -40,9 +39,8 @@ export async function listAdminSiteMemberships(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdminSiteMembershipRow[]> {
   const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(LIST_COLUMNS)
+  const { data, error } = await (sb.from(TABLE).select(LIST_COLUMNS) as any)
+    .unsafeNoSiteFilter()
     .eq("admin_user_id", adminUserId)
     .order("created_at", { ascending: true });
 
