@@ -440,16 +440,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (err) {
     captureException(err, { context: "[api/auth/login] POST failed:" });
-    // TEMP-DEBUG: Surface error details to diagnose 500 in production.
-    // Remove after resolving the root cause.
-    const debugMsg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    logger.error("[api/auth/login] unhandled error", {
-      error: debugMsg,
-      stack: err instanceof Error ? err.stack : undefined,
-    });
-    return apiError(
-      500,
-      process.env.NODE_ENV === "production" ? `Login error: ${debugMsg}` : "Internal server error",
-    );
+    return apiError(500, "Internal server error");
   }
 }
