@@ -3,6 +3,7 @@ import { withAuthz } from "@/lib/authz";
 import { generatePreviewToken } from "@/lib/preview-token";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 // AUDIT-FIX A14-003: Validate slug/contentType format to prevent injection
 const SLUG_REGEX = /^[a-z0-9-]{1,120}$/;
@@ -13,7 +14,10 @@ const VALID_CONTENT_TYPES = new Set(["article", "review", "comparison", "guide"]
  * Generate a short-lived preview token for draft/scheduled content.
  * Body: { slug: string, contentType: string }
  */
-export const POST = withAuthz("content", "edit", async (request, { siteId: dbSiteId }) => {
+export const POST = withAuthz("content", "edit", async (request, { session, siteId: dbSiteId }) => {
+  const rlResponse = await enforceAdminRateLimit("preview-token", session);
+  if (rlResponse) return rlResponse;
+
   try {
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;

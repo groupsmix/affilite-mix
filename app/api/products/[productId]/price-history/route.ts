@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPriceHistory } from "@/lib/dal/price-snapshots";
 import { getCurrentSite } from "@/lib/site-context";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * GET /api/products/:productId/price-history?days=90
@@ -11,6 +13,20 @@ export async function GET(
   { params }: { params: Promise<{ productId: string }> },
 ) {
   const { productId } = await params;
+
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`price-history:${ip}`, {
+    maxRequests: 60,
+    windowMs: 60_000,
+    failPolicy: "open" as const,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000) || 60) } },
+    );
+  }
+
   const url = new URL(request.url);
   // Prevent NaN if days is invalid
   const daysParam = url.searchParams.get("days") || "90";

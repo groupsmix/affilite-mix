@@ -5,11 +5,15 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * GET /api/admin/pages  — list all pages for the current site
  */
-export const GET = withAuthz("pages", "read", async (_request, { siteId }) => {
+export const GET = withAuthz("pages", "read", async (_request, { session, siteId }) => {
+  const rlResponse = await enforceAdminRateLimit("pages", session);
+  if (rlResponse) return rlResponse;
+
   try {
     const pages = await listPages(siteId);
     return NextResponse.json(pages);
@@ -27,6 +31,9 @@ export const POST = withAuthz(
   "pages",
   "create",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("pages", session);
+    if (rlResponse) return rlResponse;
+
     try {
       const bodyOrError = await parseJsonBody(request);
       if (bodyOrError instanceof NextResponse) return bodyOrError;

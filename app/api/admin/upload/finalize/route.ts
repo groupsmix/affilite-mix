@@ -11,6 +11,7 @@ import {
 } from "@/lib/r2";
 import { recordUsage } from "@/lib/quotas";
 import { logger } from "@/lib/logger";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * POST /api/admin/upload/finalize
@@ -31,6 +32,9 @@ import { logger } from "@/lib/logger";
  *     the audit log fired before the upload completed (#U-9).
  */
 export const POST = withAuthz("upload", "create", async (request, { session, siteId }) => {
+  const rlResponse = await enforceAdminRateLimit("upload-finalize", session);
+  if (rlResponse) return rlResponse;
+
   const bodyOrError = await parseJsonBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;
 

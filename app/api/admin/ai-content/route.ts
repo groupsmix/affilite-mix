@@ -11,6 +11,7 @@ import { parsePagination } from "@/lib/pagination";
 import { withAuthz } from "@/lib/authz";
 import { hasPermission } from "@/lib/dal/permissions";
 import type { AIContentType } from "@/lib/ai/content-generator";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 const VALID_CONTENT_TYPES = new Set(["article", "review", "comparison", "guide"]);
 const VALID_STATUSES = new Set(["pending", "approved", "rejected", "published"]);
@@ -40,40 +41,50 @@ function normalizeText(value: string): string {
 }
 
 /** GET — List AI drafts */
-export const GET = withAuthz("content", "view", async (request: NextRequest, { siteId }) => {
-  const { searchParams } = request.nextUrl;
-  const pagination = parsePagination(searchParams);
-  if (pagination instanceof NextResponse) return pagination;
+export const GET = withAuthz(
+  "content",
+  "view",
+  async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("ai-content", session);
+    if (rlResponse) return rlResponse;
 
-  try {
-    // AUDIT-FIX A2-004: Validate content_type against allowlist before passing to DAL
-    let contentType = searchParams.get("content_type") ?? undefined;
-    if (contentType && !VALID_CONTENT_TYPES.has(contentType)) {
-      contentType = undefined;
+    const { searchParams } = request.nextUrl;
+    const pagination = parsePagination(searchParams);
+    if (pagination instanceof NextResponse) return pagination;
+
+    try {
+      // AUDIT-FIX A2-004: Validate content_type against allowlist before passing to DAL
+      let contentType = searchParams.get("content_type") ?? undefined;
+      if (contentType && !VALID_CONTENT_TYPES.has(contentType)) {
+        contentType = undefined;
+      }
+
+      const drafts = await listAIDrafts({
+        siteId,
+        status: VALID_STATUSES.has(searchParams.get("status") ?? "")
+          ? (searchParams.get("status") as "pending" | "approved" | "rejected" | "published")
+          : undefined,
+        contentType,
+        limit: pagination.limit,
+        offset: pagination.offset,
+      });
+
+      return NextResponse.json(drafts);
+    } catch (err) {
+      captureException(err, { context: "[api/admin/ai-content] GET failed:" });
+      return NextResponse.json({ error: "Failed to list AI drafts" }, { status: 500 });
     }
-
-    const drafts = await listAIDrafts({
-      siteId,
-      status: VALID_STATUSES.has(searchParams.get("status") ?? "")
-        ? (searchParams.get("status") as "pending" | "approved" | "rejected" | "published")
-        : undefined,
-      contentType,
-      limit: pagination.limit,
-      offset: pagination.offset,
-    });
-
-    return NextResponse.json(drafts);
-  } catch (err) {
-    captureException(err, { context: "[api/admin/ai-content] GET failed:" });
-    return NextResponse.json({ error: "Failed to list AI drafts" }, { status: 500 });
-  }
-});
+  },
+);
 
 /** POST — Generate new AI content */
 export const POST = withAuthz(
   "content",
   "create",
   async (request: NextRequest, { session, siteId, siteSlug }) => {
+    const rlResponse = await enforceAdminRateLimit("ai-content", session);
+    if (rlResponse) return rlResponse;
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
     const body = rawOrError;
@@ -168,6 +179,9 @@ export const PATCH = withAuthz(
   "content",
   "edit",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("ai-content", session);
+    if (rlResponse) return rlResponse;
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
     const body = rawOrError;
@@ -384,6 +398,9 @@ export const DELETE = withAuthz(
   "content",
   "delete",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("ai-content", session);
+    if (rlResponse) return rlResponse;
+
     let id: string | null = null;
     try {
       const body = await request.json();

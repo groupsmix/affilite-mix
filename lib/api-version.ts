@@ -11,12 +11,12 @@
  *   3. Sunset header advertises the deprecation date
  */
 
-export const CURRENT_API_VERSION = "2026-05-25";
+const CURRENT_API_VERSION = "2026-05-25";
 
 /** Header names for API versioning. */
-export const API_VERSION_HEADER = "API-Version";
+const API_VERSION_HEADER = "API-Version";
 const ACCEPT_VERSION_HEADER = "Accept-Version";
-export const SUNSET_HEADER = "Sunset";
+const SUNSET_HEADER = "Sunset";
 
 /**
  * Set API version headers on a response.

@@ -6,6 +6,7 @@ import { captureException } from "@/lib/sentry";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { unauthorizedResponse } from "@/lib/admin-guard";
 import { untypedFrom } from "@/lib/dal/type-guards";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * POST /api/admin/privacy/object
@@ -18,6 +19,9 @@ import { untypedFrom } from "@/lib/dal/type-guards";
  */
 
 export const POST = withAuthz("privacy", "manage", async (request, { session }) => {
+  const rlResponse = await enforceAdminRateLimit("privacy-object", session);
+  if (rlResponse) return rlResponse;
+
   if (session.role !== "super_admin") {
     return unauthorizedResponse();
   }
@@ -82,6 +86,9 @@ export const POST = withAuthz("privacy", "manage", async (request, { session }) 
 });
 
 export const DELETE = withAuthz("privacy", "delete", async (request, { session }) => {
+  const rlResponse = await enforceAdminRateLimit("privacy-object", session);
+  if (rlResponse) return rlResponse;
+
   if (session.role !== "super_admin") {
     return unauthorizedResponse();
   }

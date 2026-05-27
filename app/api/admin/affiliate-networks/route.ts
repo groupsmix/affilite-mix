@@ -9,11 +9,15 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 const VALID_NETWORKS = new Set(["cj", "partnerstack", "admitad", "direct"]);
 
 /** GET — List affiliate network configs for the active site */
-export const GET = withAuthz("integrations", "view", async (_request, { siteId }) => {
+export const GET = withAuthz("integrations", "view", async (_request, { session, siteId }) => {
+  const rlResponse = await enforceAdminRateLimit("affiliate-networks", session);
+  if (rlResponse) return rlResponse;
+
   try {
     const networks = await listAffiliateNetworks(siteId);
     const enriched = networks.map((row) => ({
@@ -36,6 +40,9 @@ export const POST = withAuthz(
   "integrations",
   "configure",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("affiliate-networks", session);
+    if (rlResponse) return rlResponse;
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
     const body = rawOrError;
@@ -88,6 +95,9 @@ export const DELETE = withAuthz(
   "integrations",
   "delete",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("affiliate-networks", session);
+    if (rlResponse) return rlResponse;
+
     let id: string | null = null;
     try {
       const body = await request.json();

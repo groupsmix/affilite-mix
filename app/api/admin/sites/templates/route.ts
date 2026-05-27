@@ -8,9 +8,13 @@ import {
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /** List all available niche templates */
-export const GET = withAuthz("settings", "view", async () => {
+export const GET = withAuthz("settings", "view", async (_request, { session }) => {
+  const rlResponse = await enforceAdminRateLimit("sites-templates", session);
+  if (rlResponse) return rlResponse;
+
   try {
     const templates = await listNicheTemplates();
     return NextResponse.json(templates);
@@ -25,6 +29,9 @@ export const POST = withAuthz(
   "settings",
   "create",
   async (request, { session, siteId: dbSiteId }) => {
+    const rlResponse = await enforceAdminRateLimit("sites-templates", session);
+    if (rlResponse) return rlResponse;
+
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
 
@@ -71,6 +78,9 @@ export const DELETE = withAuthz(
   "settings",
   "delete",
   async (request, { session, siteId: dbSiteId }) => {
+    const rlResponse = await enforceAdminRateLimit("sites-templates", session);
+    if (rlResponse) return rlResponse;
+
     const delBodyOrError = await parseJsonBody(request);
     if (delBodyOrError instanceof NextResponse) return delBodyOrError;
     const { id } = delBodyOrError;

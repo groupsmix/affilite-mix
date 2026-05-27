@@ -3,6 +3,7 @@ import { withAuthz } from "@/lib/authz";
 import { getTenantClient } from "@/lib/supabase-server";
 import { untypedFrom } from "@/lib/dal/type-guards";
 import { unauthorizedResponse } from "@/lib/admin-guard";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * GET /api/admin/dlq — R-014 / E3#16: DLQ monitoring dashboard endpoint.
@@ -15,6 +16,9 @@ import { unauthorizedResponse } from "@/lib/admin-guard";
  * tenant-isolated via site_id, so RLS handles the scoping.
  */
 export const GET = withAuthz("publishing", "read", async (_request, { session }) => {
+  const rlResponse = await enforceAdminRateLimit("dlq", session);
+  if (rlResponse) return rlResponse;
+
   if (session.role !== "super_admin") {
     return unauthorizedResponse();
   }

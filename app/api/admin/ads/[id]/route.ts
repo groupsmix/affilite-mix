@@ -5,6 +5,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { parseJsonBody } from "@/lib/api-error";
 import type { AdPlacementType, AdProvider } from "@/types/database";
 import { captureException } from "@/lib/sentry";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
   "sidebar",
@@ -19,6 +20,9 @@ export const PUT = withAuthzDynamic(
   "ads",
   "edit",
   async (request, { session, siteId: dbSiteId, params }) => {
+    const rlResponse = await enforceAdminRateLimit("ads-id", session);
+    if (rlResponse) return rlResponse;
+
     const { id } = params;
 
     // Defense-in-depth: derive the placement's real site_id and require it
@@ -91,6 +95,9 @@ export const DELETE = withAuthzDynamic(
   "ads",
   "delete",
   async (_request, { session, siteId: dbSiteId, params }) => {
+    const rlResponse = await enforceAdminRateLimit("ads-id", session);
+    if (rlResponse) return rlResponse;
+
     const { id } = params;
 
     const authz = await authorizeResource({

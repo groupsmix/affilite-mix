@@ -84,7 +84,7 @@ export function getAllowedOrigins(verifiedSite?: VerifiedSiteRef | null): string
  *    a registered domain for that site.
  *  - Otherwise the request is unverified and we return `null`.
  */
-export function buildVerifiedSiteRef(
+function buildVerifiedSiteRef(
   hostname: string | null | undefined,
   siteId?: string | null,
 ): VerifiedSiteRef | null {

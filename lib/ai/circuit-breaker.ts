@@ -108,7 +108,7 @@ export class CircuitBreaker {
   }
 }
 
-export class CircuitOpenError extends Error {
+class CircuitOpenError extends Error {
   constructor(providerName: string) {
     super(`Circuit breaker OPEN for AI provider: ${providerName}`);
     this.name = "CircuitOpenError";

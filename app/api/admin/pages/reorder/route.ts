@@ -4,6 +4,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * PUT /api/admin/pages/reorder
@@ -13,6 +14,9 @@ export const PUT = withAuthz(
   "settings",
   "edit",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("pages-reorder", session);
+    if (rlResponse) return rlResponse;
+
     try {
       const bodyOrError = await parseJsonBody(request);
       if (bodyOrError instanceof NextResponse) return bodyOrError;

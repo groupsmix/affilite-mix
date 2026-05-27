@@ -1,3 +1,4 @@
+// DESIGN: No site_id filtering — niche templates are global resources shared across all tenants.
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 

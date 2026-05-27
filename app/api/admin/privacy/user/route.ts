@@ -26,6 +26,9 @@ import { untypedRpc } from "@/lib/dal/type-guards";
  */
 
 export const GET = withAuthz("privacy", "read", async (request, { session }) => {
+  const rlResponse = await enforceAdminRateLimit("privacy-user", session);
+  if (rlResponse) return rlResponse;
+
   // G-45: standardised 401 + Bearer challenge instead of a descriptive 403,
   // so route existence / role gating cannot be probed.
   if (session.role !== "super_admin") {
@@ -215,6 +218,9 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
 });
 
 export const DELETE = withAuthz("privacy", "delete", async (request, { session }) => {
+  const rlResponse = await enforceAdminRateLimit("privacy-user", session);
+  if (rlResponse) return rlResponse;
+
   if (session.role !== "super_admin") {
     return unauthorizedResponse();
   }
@@ -274,6 +280,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
 });
 
 import crypto from "crypto";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * HMAC-SHA256 hash for GDPR audit logging.
