@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
     .in("taxonomy_type", ["occasion", "recipient", "general"]);
 
   // Build lookup: category_id -> { slug, taxonomy_type }
-  const categoryMap = new Map(
+  const categoryMap = new Map<string, { slug: string; taxonomy_type: string }>(
     (categories ?? []).map((c: { id: string; slug: string; taxonomy_type: string }) => [
       c.id,
       { slug: c.slug, taxonomy_type: c.taxonomy_type },
@@ -130,8 +130,23 @@ export async function GET(request: NextRequest) {
   );
 
   // Score and rank products
-  type ScoredProduct = (typeof products)[number] & { relevance: number };
-  const scored: ScoredProduct[] = products.map((p) => {
+  interface ProductResult {
+    id: string;
+    name: string;
+    slug: string;
+    price_label: string | null;
+    price_amount: number | null;
+    price_currency: string | null;
+    score: number | null;
+    affiliate_url: string | null;
+    image_url: string | null;
+    description: string | null;
+    merchant: string | null;
+    deal_text: string | null;
+    category_id: string | null;
+  }
+  type ScoredProduct = ProductResult & { relevance: number };
+  const scored: ScoredProduct[] = (products as ProductResult[]).map((p) => {
     let relevance = (p.score ?? 5) * 10;
 
     // Category match scoring

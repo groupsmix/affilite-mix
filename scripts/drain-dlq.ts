@@ -307,7 +307,7 @@ async function purge(
   if (countError) {
     throw new Error(`click_failures count failed: ${countError.message}`);
   }
-  const ids = (matched ?? []).map((r) => (r as { id: string }).id);
+  const ids = (matched ?? []).map((r: { id: string }) => r.id);
   if (args.dryRun || ids.length === 0) {
     return { matched: ids.length, deleted: 0 };
   }
