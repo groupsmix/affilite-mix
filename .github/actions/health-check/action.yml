@@ -1,0 +1,71 @@
+name: Post-Deploy Health Check
+description: |
+  Verifies the deployed Worker is healthy by hitting /api/health and
+  checking for degraded status. Handles Cloudflare Bot Fight Mode (403)
+  with retries.
+
+  Extracted from deploy.yml to reduce the monolithic workflow LOC.
+
+inputs:
+  cron-host:
+    description: "The base URL of the deployed Worker (e.g. https://wristnerd.xyz)"
+    required: true
+  cron-secret:
+    description: "Bearer token for the health endpoint"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Post-deploy health gate
+      shell: bash
+      run: |
+        set -euo pipefail
+        CRON_HOST="${{ inputs.cron-host }}"
+        CRON_SECRET="${{ inputs.cron-secret }}"
+
+        if [ -z "$CRON_HOST" ] || [ -z "$CRON_SECRET" ]; then
+          echo "::error::cron-host and cron-secret inputs are required"
+          exit 1
+        fi
+
+        echo "Waiting 20s for deploy to propagate..."
+        sleep 20
+
+        for attempt in 1 2 3; do
+          HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" \
+            --max-time 30 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "User-Agent: GitHub-Actions-HealthCheck/1.0" \
+            "$CRON_HOST/api/health")
+
+          echo "Attempt $attempt: Health response (HTTP $HTTP_STATUS)"
+
+          if [ "$HTTP_STATUS" = "403" ] && grep -q "challenges.cloudflare.com" /tmp/health.json 2>/dev/null; then
+            echo "Cloudflare challenge detected — retrying after backoff..."
+            sleep $((attempt * 10))
+            continue
+          fi
+          break
+        done
+
+        echo "Final health response (HTTP $HTTP_STATUS):"
+        cat /tmp/health.json || true
+
+        if [ "$HTTP_STATUS" = "403" ] && grep -q "challenges.cloudflare.com" /tmp/health.json 2>/dev/null; then
+          echo "::warning::Health check blocked by Cloudflare Bot Fight Mode. Deploy succeeded but health endpoint is behind a JS challenge."
+          exit 0
+        fi
+
+        if [ "$HTTP_STATUS" != "200" ]; then
+          echo "::error::Health check returned HTTP $HTTP_STATUS — deployment may be broken"
+          exit 1
+        fi
+
+        DEGRADED=$(cat /tmp/health.json | grep -o '"status":"degraded"' | head -1 || true)
+        if [ -n "$DEGRADED" ]; then
+          echo "::error::Worker reports degraded health — check KV, env vars, and DB connectivity"
+          exit 1
+        fi
+
+        echo "Deployment healthy"
