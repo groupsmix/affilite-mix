@@ -8,6 +8,36 @@ export type Database = {
   };
   public: {
     Tables: {
+      access_review_log: {
+        Row: {
+          id: string;
+          reviewed_at: string;
+          total_users: number;
+          findings_count: number;
+          findings: Record<string, unknown>[];
+          reviewer: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reviewed_at?: string;
+          total_users: number;
+          findings_count?: number;
+          findings?: Record<string, unknown>[];
+          reviewer?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          reviewed_at?: string;
+          total_users?: number;
+          findings_count?: number;
+          findings?: Record<string, unknown>[];
+          reviewer?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       _migrations_applied: {
         Row: {
           applied_at: string;
@@ -2265,6 +2295,50 @@ export type Database = {
           stripe_event_id?: string;
         };
         Relationships: [];
+      };
+      subject_objections: {
+        Row: {
+          id: string;
+          site_id: string;
+          email: string;
+          scope: string;
+          reason: string | null;
+          objected_at: string;
+          withdrawn_at: string | null;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          email: string;
+          scope?: string;
+          reason?: string | null;
+          objected_at?: string;
+          withdrawn_at?: string | null;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          site_id?: string;
+          email?: string;
+          scope?: string;
+          reason?: string | null;
+          objected_at?: string;
+          withdrawn_at?: string | null;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "subject_objections_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       subject_restrictions: {
         Row: {
