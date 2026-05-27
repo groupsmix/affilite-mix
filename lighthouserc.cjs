@@ -46,10 +46,7 @@ module.exports = {
         ],
         "cumulative-layout-shift": ["error", { maxNumericValue: 0.1, aggregationMethod: "median" }],
         "total-blocking-time": ["error", { maxNumericValue: 200, aggregationMethod: "median" }],
-        "first-contentful-paint": [
-          "error",
-          { maxNumericValue: 1800, aggregationMethod: "median" },
-        ],
+        "first-contentful-paint": ["error", { maxNumericValue: 1800, aggregationMethod: "median" }],
 
         // ── Category scores (0-1 scale) ─────────────────────
         "categories:performance": ["error", { minScore: 0.9, aggregationMethod: "median" }],
