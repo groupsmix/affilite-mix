@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { setApiVersionHeaders } from "@/lib/api-version";
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -60,6 +61,7 @@ export function applySecurityHeaders(
     gpcEnabled: boolean;
     cspHeaderValue: string | null;
     traceId: string;
+    requestedApiVersion?: string | null;
   },
 ): void {
   const { pathname, gpcEnabled, cspHeaderValue, traceId } = opts;
@@ -84,6 +86,11 @@ export function applySecurityHeaders(
   }
 
   const isApiRoute = pathname.startsWith("/api/");
+
+  if (isApiRoute) {
+    setApiVersionHeaders(response.headers, opts.requestedApiVersion);
+  }
+
   if (!isApiRoute && !pathname.startsWith("/admin")) {
     if (!response.headers.has("Cache-Control")) {
       response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");

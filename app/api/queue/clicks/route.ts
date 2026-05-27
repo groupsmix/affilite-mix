@@ -4,6 +4,7 @@ import { getInternalTokenFor } from "@/lib/internal-auth";
 import { verifyInternalHmac } from "@/lib/internal-hmac";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
+import { untypedFrom } from "@/lib/dal/type-guards";
 
 /**
  * POST /api/queue/clicks
@@ -222,7 +223,7 @@ export async function POST(request: NextRequest) {
         error_message: "DLQ message",
       }));
 
-      const { error } = await sb.from("click_failures" as any).insert(dlqRows);
+      const { error } = await untypedFrom(sb, "click_failures").insert(dlqRows);
       if (error) {
         captureException(new Error(`Failed to persist DLQ messages: ${error.message}`), {
           context: "[api/queue/clicks] DLQ",
@@ -256,8 +257,7 @@ export async function POST(request: NextRequest) {
         error_message: "queue consumer validation reject",
       }));
       // Fire-and-forget — don't fail the batch on insert error.
-      void sb
-        .from("click_failures" as any)
+      void untypedFrom(sb, "click_failures")
         .insert(rejectedRows)
         .then((res: { error?: { message: string } | null }) => {
           if (res.error) {

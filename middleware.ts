@@ -17,6 +17,7 @@ import {
 import { getAppCacheKV } from "@/lib/runtime-env";
 import { signSiteIdFallback } from "@/lib/supabase-server";
 import { checkBodySize, applySecurityHeaders } from "@/lib/middleware-helpers";
+import { parseOrCreateTraceContext, applyTraceHeaders } from "@/lib/tracing";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -356,7 +357,12 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
             cachedRow = (await kv.get(cacheKey, "json")) as typeof cachedRow;
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        logger.warn("[middleware] KV cache read failed", {
+          hostname,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
 
       if (isNegativeCached) {
         // G-34: each repeat hit on the negative cache bumps the miss
@@ -372,7 +378,12 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
             await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
               expirationTtl: ttlSeconds,
             });
-        } catch (e) {}
+        } catch (e) {
+          logger.warn("[middleware] KV negative-cache write failed", {
+            hostname,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
         return nicheNotFoundResponse(request);
       }
 
@@ -383,7 +394,12 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
         try {
           const kv = getAppCacheKV();
           if (kv) await kv.put(cacheKey, JSON.stringify(row), { expirationTtl: 60 });
-        } catch (e) {}
+        } catch (e) {
+          logger.warn("[middleware] KV cache write failed", {
+            hostname,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
       if (row && row.is_active && row.slug) {
         siteId = row.slug;
@@ -406,7 +422,12 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
             await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
               expirationTtl: ttlSeconds,
             });
-        } catch (e) {}
+        } catch (e) {
+          logger.warn("[middleware] KV negative-cache write failed", {
+            hostname,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
     } catch (err) {
       // F-025: Log structured error with trace id and emit Sentry instead of silent failure
@@ -523,7 +544,17 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   });
 
   // ── Security + cache headers (extracted to middleware-helpers) ──
-  applySecurityHeaders(response, { pathname, gpcEnabled, cspHeaderValue, traceId });
+  applySecurityHeaders(response, {
+    pathname,
+    gpcEnabled,
+    cspHeaderValue,
+    traceId,
+    requestedApiVersion: request.headers.get("Accept-Version"),
+  });
+
+  // ── W3C Trace Context (R-002) ──────────────────────────
+  const traceCtx = parseOrCreateTraceContext(request);
+  applyTraceHeaders(response.headers, traceCtx);
 
   // ── CORS response headers ──────────────────────────────
   // Reflect the requesting origin if it is in the tenant allow-list.

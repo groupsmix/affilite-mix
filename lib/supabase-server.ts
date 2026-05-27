@@ -1,7 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
-import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { fetchWithTimeout, type FetchWithTimeoutOptions } from "@/lib/fetch-timeout";
 import { SignJWT } from "jose";
 import { logger } from "@/lib/logger";
 import { headers, cookies } from "next/headers";
@@ -178,7 +178,7 @@ export function getAnonClient(): SupabaseClient<Database> {
             timeoutMs: 8000,
             next: {
               revalidate: 60,
-              ...(init as any)?.next,
+              ...(init as FetchWithTimeoutOptions | undefined)?.next,
             },
           });
           return res;

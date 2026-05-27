@@ -6,6 +6,7 @@ import { apiError, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { unauthorizedResponse } from "@/lib/admin-guard";
+import { untypedRpc } from "@/lib/dal/type-guards";
 
 /**
  * DELETE /api/admin/privacy/user — GDPR Right to be Forgotten (RTBF)
@@ -238,7 +239,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
     // the audit_log insert happen inside a single transaction. No partial
     // erasure is possible even if the function raises mid-way.
     // OF-02: The RPC itself inserts into audit_log before returning.
-    const { error } = await sb.rpc("erase_subject_data" as any, {
+    const { error } = await untypedRpc(sb, "erase_subject_data", {
       p_email: email.toLowerCase(),
       p_site_id: site_id,
       p_actor: session.email ?? session.userId ?? "system",

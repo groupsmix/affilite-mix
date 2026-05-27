@@ -49,10 +49,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
-  // CSP nonce for inline styles is deferred: ThemeProvider is a client
-  // component and cannot consume a per-request nonce without a Server→Client
-  // serialisation layer (e.g. a context provider in the RSC tree). Tracked
-  // in issue #453; style-src 'unsafe-inline' remains until then.
+  // ACCEPTED-RISK (A68/A106): style-src 'unsafe-inline' is kept because CSP
+  // nonces only protect <style> elements, not style *attributes* used by
+  // ThemeProvider CSS-var injection, cookie consent, and React hydration.
+  // Script injection IS nonce-locked via script-src. See lib/csp.ts:109-117.
 
   // Read DB row for dynamic theme overrides, nav items, and footer nav
   let dbTheme: Partial<SiteThemeConfig> = {};

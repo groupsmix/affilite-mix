@@ -5,6 +5,7 @@ import { apiError, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { unauthorizedResponse } from "@/lib/admin-guard";
+import { untypedFrom } from "@/lib/dal/type-guards";
 
 /**
  * POST /api/admin/privacy/restrict
@@ -41,7 +42,7 @@ export const POST = withAuthz("privacy", "manage", async (request, { session }) 
   const sb = await getTenantClient();
 
   try {
-    const { error } = await (sb.from as any)("subject_restrictions").upsert(
+    const { error } = await untypedFrom(sb, "subject_restrictions").upsert(
       {
         email: email.toLowerCase(),
         site_id,
@@ -91,7 +92,7 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
   const sb = await getTenantClient();
 
   try {
-    const { error } = await (sb.from as any)("subject_restrictions")
+    const { error } = await untypedFrom(sb, "subject_restrictions")
       .update({ lifted_at: new Date().toISOString() })
       .eq("site_id", site_id)
       .eq("email", email.toLowerCase())
