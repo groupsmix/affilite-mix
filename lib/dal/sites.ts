@@ -182,7 +182,7 @@ export async function updateSite(
 }
 
 /** Soft-delete a site (deactivate) */
-async function deactivateSite(
+export async function deactivateSite(
   id: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteRow> {

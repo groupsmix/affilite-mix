@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description:
     "Edge-native, multi-tenant affiliate content platform. Run an entire portfolio of niche affiliate sites from one codebase. AI-generated content, privacy-preserving click tracking, RLS-isolated tenants, deployed to Cloudflare Workers.",
   alternates: {
-    canonical: "https://affilite-mix.com",
+    canonical: process.env.SITE_URL ?? process.env.APP_URL ?? "https://affilite-mix.com",
   },
   openGraph: {
     title: "Affilite-Mix — One Codebase. Every Niche.",

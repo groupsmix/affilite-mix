@@ -1,6 +1,12 @@
 export default function GiftFinderLoading() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12 animate-pulse">
+    <div
+      className="mx-auto max-w-2xl px-4 py-12 animate-pulse"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <span className="sr-only">Loading...</span>
       <div className="mb-8 text-center">
         <div className="mx-auto mb-3 h-8 w-64 rounded bg-gray-200" />
         <div className="mx-auto h-4 w-48 rounded bg-gray-200" />
