@@ -356,7 +356,12 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
             cachedRow = (await kv.get(cacheKey, "json")) as typeof cachedRow;
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        logger.warn("[middleware] KV cache read failed", {
+          hostname,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
 
       if (isNegativeCached) {
         // G-34: each repeat hit on the negative cache bumps the miss
@@ -372,7 +377,12 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
             await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
               expirationTtl: ttlSeconds,
             });
-        } catch (e) {}
+        } catch (e) {
+          logger.warn("[middleware] KV negative-cache write failed", {
+            hostname,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
         return nicheNotFoundResponse(request);
       }
 
@@ -383,7 +393,12 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
         try {
           const kv = getAppCacheKV();
           if (kv) await kv.put(cacheKey, JSON.stringify(row), { expirationTtl: 60 });
-        } catch (e) {}
+        } catch (e) {
+          logger.warn("[middleware] KV cache write failed", {
+            hostname,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
       if (row && row.is_active && row.slug) {
         siteId = row.slug;
@@ -406,7 +421,12 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
             await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
               expirationTtl: ttlSeconds,
             });
-        } catch (e) {}
+        } catch (e) {
+          logger.warn("[middleware] KV negative-cache write failed", {
+            hostname,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
     } catch (err) {
       // F-025: Log structured error with trace id and emit Sentry instead of silent failure

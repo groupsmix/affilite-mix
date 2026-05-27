@@ -8,6 +8,7 @@ import { upsertProductEpc } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { untypedFrom } from "@/lib/dal/type-guards";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 
 /**
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Get all product+network combos that have affiliate links
 
-    const { data: links, error: linkErr } = await (sb.from as any)("product_affiliate_links")
+    const { data: links, error: linkErr } = await untypedFrom(sb, "product_affiliate_links")
       .select("product_id, network, url")
       .eq("is_active", true);
 
@@ -59,14 +60,14 @@ export async function POST(request: NextRequest) {
 
       // Sum commissions (30d and 7d)
 
-      const { data: comm30d } = await (sb.from as any)("commissions")
+      const { data: comm30d } = await untypedFrom(sb, "commissions")
         .select("commission_amount")
         .eq("product_id", link.product_id)
         .eq("network", link.network)
         .in("status", ["approved", "paid"])
         .gte("event_date", thirtyDaysAgo);
 
-      const { data: comm7d } = await (sb.from as any)("commissions")
+      const { data: comm7d } = await untypedFrom(sb, "commissions")
         .select("commission_amount")
         .eq("product_id", link.product_id)
         .eq("network", link.network)
