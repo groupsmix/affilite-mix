@@ -235,7 +235,7 @@
   // defaults NODE_ENV to "production" but the Next.js shim may not propagate it.
   "vars": {
     "NODE_ENV": "production",
-    "CRON_ALLOW_SHARED_FALLBACK_IN_PROD": "1",
+    "CRON_ALLOW_SHARED_FALLBACK_IN_PROD": "0",
     "APP_URL": "https://wristnerd.xyz",
   },
   // Workers observability (logs, errors, metrics in CF dashboard)

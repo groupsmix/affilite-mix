@@ -1,84 +1,46 @@
-# Migration Dry-Run & Safety — F-015
+# Migration Safety Guide
 
-## Overview
+Guidance for writing and rolling back Supabase migrations.
 
-Guidelines for safe database migrations with rollback support.
+## CONCURRENTLY Operations
 
-## Migration Workflow
+Several migrations use `CREATE INDEX CONCURRENTLY` or `DROP INDEX CONCURRENTLY`.
+These statements **cannot run inside a transaction** — PostgreSQL raises an error
+if you try.
 
-### 1. Before Creating Migration
+### Affected migrations
 
-```bash
-# Create a backup of staging DB
-./scripts/backup-staging.sh
+| Migration                                 | Operation                   | Notes                              |
+| ----------------------------------------- | --------------------------- | ---------------------------------- |
+| `00094_fts_index_alignment.sql`           | `CREATE INDEX CONCURRENTLY` | Full-text search indexes           |
+| `2026052302_security_audit_hardening.sql` | `CREATE INDEX CONCURRENTLY` | Security hardening indexes         |
+| `2026052303_split_concurrent_indexes.sql` | `CREATE INDEX CONCURRENTLY` | Products/admin-users/sites indexes |
 
-# Verify current schema
-pg_dump -h staging-db -U postgres -d affilite_mix --schema-only > schema-before.sql
-```
+### Rules
 
-### 2. Write Migration with DOWN
+1. **Mark files with `-- supabase:no-transaction`** at the top so the Supabase
+   CLI runs them outside an implicit transaction.
+2. **Rollback files** (`*-down.sql`) for concurrent ops must also use
+   `DROP INDEX CONCURRENTLY` with the same `-- supabase:no-transaction` marker.
+3. **Never mix** `CONCURRENTLY` operations with other DDL in the same file.
+   Split them into separate migrations.
+4. **Manual rollback** during an incident: if the migration runner wraps
+   everything in a transaction, the rollback will fail. Apply the `DROP INDEX`
+   statements manually via `psql`.
 
-Every migration MUST have one of:
+## Forward-Only Migrations
 
-- A companion DOWN migration
-- A `-- NO DOWN` marker if forward-only is justified
+Some migrations are intentionally irreversible:
 
-```sql
--- 00052_feature_add.sql
--- Description: Adds new feature column
--- NO DOWN: Data migration, rollback requires manual SQL
+| Migration                       | Reason                                                           |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `00098_enforce_timestamptz.sql` | Converting `TIMESTAMPTZ` back to `TIMESTAMP` loses timezone data |
 
-ALTER TABLE products ADD COLUMN IF NOT EXISTS featured_at timestamptz;
-```
+Their `-down.sql` files exist (for CI enforcement) but contain only a comment
+explaining why rollback is unsafe.
 
-### 3. Test on Staging
+## Down-Migration Requirements
 
-```bash
-# Apply migration to staging
-psql -h staging-db -U postgres -d affilite_mix -f supabase/migrations/00052_feature_add.sql
-
-# Verify with smoke tests
-npm run test:integration
-
-# Check schema diff
-pg_dump -h staging-db -U postgres -d affilite_mix --schema-only > schema-after.sql
-diff schema-before.sql schema-after.sql
-```
-
-### 4. Review in PR
-
-- Migration file reviewed by backend engineer
-- DOWN migration or NO DOWN justification included
-- Smoke test results attached
-
-## Schema Diff CI (F-015)
-
-Add to CI pipeline:
-
-```yaml
-- name: Check schema diff
-  run: |
-    # Apply migration to shadow DB
-    # Compare before/after schema
-    # Fail if unexpected changes
-```
-
-## Rollback Procedure
-
-```bash
-# If migration fails in production:
-psql -h prod-db -U postgres -d affilite_mix -f supabase/migrations/00052_feature_add_DOWN.sql
-
-# Verify rollback
-npm run test:integration
-```
-
-## Checklist
-
-- [ ] Backup staging before migration
-- [ ] Write DOWN migration or justify NO DOWN
-- [ ] Test on staging with smoke tests
-- [ ] Document schema diff in PR
-- [ ] Get backend engineer approval
-
-Updated: 2026-04-23
+Every up-migration **must** have a corresponding `-down.sql` file. The CI script
+`scripts/check-migrations.sh` enforces this. Down-migrations are exempt from the
+RLS and security-definer checks since they intentionally restore prior state.
