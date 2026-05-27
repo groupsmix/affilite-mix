@@ -8,8 +8,6 @@ import { useRouter } from "next/navigation";
 
 import { Loader2 } from "lucide-react";
 
-import TurnstileWidget from "@/app/(public)/components/turnstile-widget";
-
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -40,8 +38,6 @@ export default function AdminLoginPage() {
 
   const [loading, setLoading] = useState(false);
 
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-
   const [showForgot, setShowForgot] = useState(false);
 
   // A154: Two-factor authentication state
@@ -50,14 +46,6 @@ export default function AdminLoginPage() {
   const [totpToken, setTotpToken] = useState("");
 
   const router = useRouter();
-
-  const handleTurnstileToken = useCallback((token: string) => {
-    setTurnstileToken(token);
-  }, []);
-
-  const handleTurnstileExpire = useCallback(() => {
-    setTurnstileToken(null);
-  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,7 +56,7 @@ export default function AdminLoginPage() {
 
     setWarning("");
 
-    const body: Record<string, unknown> = { email: email || undefined, password, turnstileToken };
+    const body: Record<string, unknown> = { email: email || undefined, password };
 
     // A154: Include TOTP token on second step
     if (requires2fa) {
@@ -179,13 +167,6 @@ export default function AdminLoginPage() {
                     required
                   />
                 </div>
-
-                {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-                  <TurnstileWidget
-                    onVerify={handleTurnstileToken}
-                    onExpire={handleTurnstileExpire}
-                  />
-                )}
               </>
             ) : (
               <div className="space-y-2">
