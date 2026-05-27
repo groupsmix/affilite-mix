@@ -3,7 +3,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "affilite-mix",
-  "main": "workers/custom-worker.ts",
+  "main": ".open-next/worker.js",
   "compatibility_date": "2026-03-17",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   // A206/A209: Disable the *.workers.dev preview URL so all traffic must
