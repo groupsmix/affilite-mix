@@ -17,8 +17,8 @@ type AdminResult =
 const ADMIN_RATE_LIMIT = {
   maxRequests: 100,
   windowMs: 60 * 1000,
-  failPolicy: "closed" as const,
-  graceMs: 5000,
+  failPolicy: "grace" as const,
+  graceMs: 60_000,
 };
 
 /**
