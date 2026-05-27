@@ -63,6 +63,11 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
     description: "Shared secret for authenticating scheduled cron job requests",
     ownerFile: "lib/cron-auth.ts",
   },
+  {
+    name: "SENTRY_DSN",
+    description: "Sentry DSN for server-side error monitoring (SEC-09: blind prod without it)",
+    ownerFile: "lib/sentry.ts",
+  },
 ] as const;
 
 /**
@@ -75,11 +80,6 @@ export const RECOMMENDED_SERVER_ENV: readonly RequiredEnvVar[] = [
     name: "APP_URL",
     description: "Canonical app URL for constructing absolute URLs (e.g. password reset links)",
     ownerFile: "app/api/auth/forgot-password/route.ts",
-  },
-  {
-    name: "SENTRY_DSN",
-    description: "Sentry DSN for server-side error monitoring",
-    ownerFile: "lib/sentry.ts",
   },
   {
     name: "TOTP_ENCRYPTION_KEY",
