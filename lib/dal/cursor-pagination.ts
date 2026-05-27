@@ -65,6 +65,7 @@ function decodeCursor(cursor: string): CursorPayload | null {
     if (!isSafeCursorValue(parsed.val) || !isSafeCursorValue(parsed.id)) return null;
     return parsed;
   } catch {
+    // fail-open: parse failure returns safe default value
     return null;
   }
 }
