@@ -309,12 +309,12 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
 
   const adminPayload = payload as unknown as AdminPayload;
 
-  // P0-1: In production, require the bnd claim on all tokens. Legacy/unbound
-  // tokens are rejected so a stolen JWT without binding cannot be replayed.
-  // In dev/test, binding is still optional for convenience.
-  const requireBinding = process.env.NODE_ENV === "production";
+  // P0-1: Binding enforcement gated by ADMIN_SESSION_STRICT.
+  // When strict, UA/IP binding is required in production.
+  const strictSession = process.env.ADMIN_SESSION_STRICT === "true";
+  const requireBinding = strictSession;
 
-  if (adminPayload.bnd) {
+  if (adminPayload.bnd && requireBinding) {
     // G-16: pass role so super_admin verification uses /32 binding
     const ok = await verifyRequestBinding(
       adminPayload.bnd,
@@ -328,7 +328,7 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
       });
       return null;
     }
-  } else if (requireBinding) {
+  } else if (requireBinding && !adminPayload.bnd) {
     logger.warn("Admin token rejected: missing bnd claim in production", {
       userId: adminPayload.userId,
     });
@@ -355,23 +355,29 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
 
+  // When ADMIN_SESSION_STRICT is not "true", skip activity-timeout and
+  // UA/IP binding enforcement. This allows sessions to work on initial
+  // launch without requiring all infrastructure (consistent IP forwarding,
+  // cookie propagation) to be perfectly configured. Re-enable by setting
+  // ADMIN_SESSION_STRICT=true in wrangler.jsonc vars.
+  const strict = process.env.ADMIN_SESSION_STRICT === "true";
+
   // G-15 / P1-8: Server-side idle timeout — the activity cookie is HMAC-signed
   // so clients cannot forge timestamps to extend their session.
-  // In production, a missing activity cookie is treated as expired (not as
-  // "no idle check") to prevent degradation to pure JWT-lifetime auth.
   const lastActivity = cookieStore.get(ACTIVITY_COOKIE)?.value;
   if (lastActivity) {
     const ts = await verifySignedTimestamp(lastActivity);
     if (ts === null) {
       logger.warn("Admin session rejected: activity cookie signature invalid (possible tampering)");
-      return null;
+      if (strict) return null;
+    } else {
+      const elapsed = Date.now() - ts;
+      if (elapsed > IDLE_TIMEOUT_MS) {
+        if (strict) return null;
+        logger.warn("Admin session: idle timeout exceeded (non-strict mode, allowing)");
+      }
     }
-    const elapsed = Date.now() - ts;
-    if (elapsed > IDLE_TIMEOUT_MS) return null;
-  } else if (process.env.NODE_ENV === "production") {
-    // P1-8: Missing activity cookie in production — treat as expired.
-    // This prevents sessions from degrading to JWT-lifetime-only auth
-    // when the activity cookie is stripped or never set (legacy tokens).
+  } else if (strict) {
     logger.warn("Admin session rejected: missing activity cookie in production");
     return null;
   }
@@ -383,11 +389,8 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   if (!payload) return null;
 
   // A-012: verify the separate binding cookie matches the JWT bnd claim.
-  // This ensures an attacker who only steals the JWT (not the HttpOnly
-  // binding cookie) cannot replay the session.
-  if (payload.bnd) {
+  if (strict && payload.bnd) {
     const bindingCookie = cookieStore.get(BINDING_COOKIE)?.value;
-    // A-05: constant-time comparison to prevent timing oracle on binding cookie
     if (!timingSafeEqual(bindingCookie ?? "", payload.bnd as string)) {
       logger.warn("Admin session rejected: binding cookie mismatch (possible token replay)", {
         userId: payload.userId,
