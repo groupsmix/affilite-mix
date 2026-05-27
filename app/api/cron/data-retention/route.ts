@@ -171,14 +171,30 @@ export async function POST(request: NextRequest) {
       });
 
       // Fetch rows to archive before deleting
-      const { data: auditRows, error: fetchError } = await sb
+      const { data: auditRows, error: fetchError } = (await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("audit_log")
         .select(
           "id, site_id, actor, actor_user_id, action, entity_type, entity_id, details, ip, created_at",
         )
         .lt("created_at", auditDate.toISOString())
-        .limit(10000);
+        .limit(10000)) as unknown as {
+        data:
+          | {
+              id: string;
+              site_id: string;
+              actor: string;
+              actor_user_id: string | null;
+              action: string;
+              entity_type: string;
+              entity_id: string;
+              details: Record<string, unknown> | null;
+              ip: string | null;
+              created_at: string;
+            }[]
+          | null;
+        error: { message: string; code?: string } | null;
+      };
 
       if (fetchError) throw fetchError;
 
