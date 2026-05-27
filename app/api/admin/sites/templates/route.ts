@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
 import {
   listNicheTemplates,

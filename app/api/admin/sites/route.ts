@@ -1,29 +1,14 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, requireAdminSession, assertRole } from "@/lib/admin-guard";
 import { allSites } from "@/config/sites";
 import { listSites, createSite, updateSite, deleteSite } from "@/lib/dal/sites";
 import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
-
-/** 100 admin API requests per minute per user session (3.30) */
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
-
-async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
-  const key = `admin:${email ?? userId ?? "unknown"}`;
-  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
-    );
-  }
-  return null;
-}
 
 /** GET /api/admin/sites — list all available sites (super_admin: all, admin: membership-filtered) */
 export async function GET() {
@@ -35,7 +20,7 @@ export async function GET() {
     if (error) return error;
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const rlError = await enforceRateLimit(session.email, session.userId);
+    const rlError = await enforceAdminRateLimit("sites", session);
     if (rlError) return rlError;
 
     // Non-super_admin users only see sites they have membership for
@@ -138,7 +123,7 @@ export async function POST(request: NextRequest) {
   const roleError = assertRole(session, "super_admin");
   if (roleError) return roleError;
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("sites", session);
   if (rlError) return rlError;
 
   const bodyOrError = await parseJsonBody(request);
@@ -237,7 +222,7 @@ export async function PATCH(request: NextRequest) {
   const roleError = assertRole(session, "super_admin");
   if (roleError) return roleError;
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("sites", session);
   if (rlError) return rlError;
 
   const patchBodyOrError = await parseJsonBody(request);
@@ -322,7 +307,7 @@ export async function DELETE(request: NextRequest) {
   const roleError = assertRole(session, "super_admin");
   if (roleError) return roleError;
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("sites", session);
   if (rlError) return rlError;
 
   const { searchParams } = request.nextUrl;

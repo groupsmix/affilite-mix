@@ -9,28 +9,10 @@ import {
 } from "@/lib/dal/admin-users";
 import { hashPassword } from "@/lib/password";
 import { validatePasswordPolicy, checkBreachedPassword } from "@/lib/password-policy";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
-import { hashEmailForRateLimit } from "@/lib/validate-email";
-
-/** 100 admin API requests per minute per user session (3.30) */
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
-
-async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
-  // AM-11: Use hashed email to avoid PII in rate-limit key material
-  const identifier = email ? await hashEmailForRateLimit(email) : (userId ?? "unknown");
-  const key = `admin:${identifier}`;
-  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
-    );
-  }
-  return null;
-}
 
 /** GET /api/admin/users — list all admin users (super_admin only) */
 export async function GET() {
@@ -42,7 +24,7 @@ export async function GET() {
   const roleError = assertRole(session, "super_admin");
   if (roleError) return roleError;
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("users", session);
   if (rlError) return rlError;
 
   try {
@@ -65,7 +47,7 @@ export async function POST(request: NextRequest) {
   const roleError = assertRole(session, "super_admin");
   if (roleError) return roleError;
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("users", session);
   if (rlError) return rlError;
 
   const bodyOrError = await parseJsonBody(request);
@@ -138,7 +120,7 @@ export async function PATCH(request: NextRequest) {
   const stepUpError = requireStepUpAuth(session);
   if (stepUpError) return stepUpError;
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("users", session);
   if (rlError) return rlError;
 
   const bodyOrError = await parseJsonBody(request);
@@ -221,7 +203,7 @@ export async function DELETE(request: NextRequest) {
   const stepUpError = requireStepUpAuth(session);
   if (stepUpError) return stepUpError;
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("users", session);
   if (rlError) return rlError;
 
   const { searchParams } = new URL(request.url);

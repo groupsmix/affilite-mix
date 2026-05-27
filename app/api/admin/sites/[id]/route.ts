@@ -3,26 +3,12 @@ import { revalidateTag } from "next/cache";
 import { requireAdmin, assertRole } from "@/lib/admin-guard";
 import { getSiteRowById, updateSite, deleteSite } from "@/lib/dal/sites";
 import { recordAuditEvent } from "@/lib/audit-log";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
 import { parseJsonBody } from "@/lib/api-error";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { getAppCacheKV } from "@/lib/runtime-env";
-
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
-
-async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
-  const key = `admin:${email ?? userId ?? "unknown"}`;
-  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
-    );
-  }
-  return null;
-}
 
 /** GET /api/admin/sites/[id] — get a single site by DB id */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -30,7 +16,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("sites", session);
   if (rlError) return rlError;
 
   const { id } = await params;
@@ -52,7 +38,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const roleError = assertRole(session, "super_admin");
   if (roleError) return roleError;
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("sites", session);
   if (rlError) return rlError;
 
   const { id } = await params;
@@ -158,7 +144,7 @@ export async function DELETE(
   const stepUpError = requireStepUpAuth(session);
   if (stepUpError) return stepUpError;
 
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("sites", session);
   if (rlError) return rlError;
 
   const { id } = await params;

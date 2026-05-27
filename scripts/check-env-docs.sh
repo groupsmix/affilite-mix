@@ -33,6 +33,7 @@ fi
 # operational consequences in production. Sort alphabetically so
 # diffs are minimal.
 REQUIRED_VARS=(
+  ADMIN_SESSION_STRICT
   AFFILIATE_ALLOWED_DOMAINS
   AFFILIATE_DOMAIN_ENFORCEMENT
   AI_MAX_PROMPT_CHARS
