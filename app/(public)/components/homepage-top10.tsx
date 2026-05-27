@@ -4,7 +4,6 @@ import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
 
 type CategoryWithCount = CategoryRow & { product_count: number };
-import { ProductCard } from "./product-card";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 
 interface Top10HomepageProps {
