@@ -197,5 +197,10 @@ describe("FIX-32: wrangler binding drift detection", () => {
         expect(actualVars.has(expected)).toBe(true);
       });
     }
+
+    it("SEC-02: CRON_ALLOW_SHARED_FALLBACK_IN_PROD must be '0' in production", () => {
+      const vars = config.vars as Record<string, string> | undefined;
+      expect(vars?.CRON_ALLOW_SHARED_FALLBACK_IN_PROD).toBe("0");
+    });
   });
 });

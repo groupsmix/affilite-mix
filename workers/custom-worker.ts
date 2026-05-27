@@ -67,12 +67,14 @@ const worker = {
           : null;
 
     if (!cronHost) {
-      console.error(
+      const msg =
         "[scheduled] CRON_HOST is not configured -- skipping cron dispatch. " +
-          "Set it with: wrangler secret put CRON_HOST (e.g., https://example.com). " +
-          "Without this, scheduled jobs will be silently skipped.",
-      );
-      return;
+        "Set it with: wrangler secret put CRON_HOST (e.g., https://example.com). " +
+        "Without this, scheduled jobs will be silently skipped.";
+      console.error(msg);
+      // SEC-06: Throw so Sentry/observability captures the misconfiguration
+      // instead of silently swallowing missed cron runs.
+      throw new Error(msg);
     }
 
     // Schedule -> job lookup is derived from the central cron registry
