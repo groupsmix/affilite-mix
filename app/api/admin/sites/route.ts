@@ -192,6 +192,18 @@ export async function POST(request: NextRequest) {
       meta_description: body.meta_description as string | null | undefined,
       og_image_url: body.og_image_url as string | null | undefined,
       social_links: body.social_links as Record<string, string> | undefined,
+      homepage_template: body.homepage_template as
+        | "standard"
+        | "cinematic"
+        | "minimal"
+        | "editorial"
+        | "top10"
+        | undefined,
+      product_card_style: body.product_card_style as
+        | "standard"
+        | "compact"
+        | "detailed"
+        | undefined,
     });
     void recordAuditEvent({
       site_id: site.id,
@@ -257,6 +269,8 @@ export async function PATCH(request: NextRequest) {
     "meta_description",
     "og_image_url",
     "social_links",
+    "homepage_template",
+    "product_card_style",
   ] as const;
 
   const updates: Record<string, unknown> = {};

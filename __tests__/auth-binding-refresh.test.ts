@@ -62,19 +62,23 @@ describe("P0-1: Auth binding lifecycle", () => {
     const payload = { email: "admin@test.com", userId: "u-1", role: "admin" as const };
     const token = await createToken(payload); // no request = no bnd
 
-    // Switch to production and re-import for verification with the SAME secret
+    // Switch to production with strict session binding and re-import
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("JWT_SECRET", sharedSecret);
+    vi.stubEnv("ADMIN_SESSION_STRICT", "true");
     vi.resetModules();
 
     const { verifyToken: verifyProd } = await import("@/lib/auth");
     const decoded = await verifyProd(token);
 
-    // Should be null because production requires bnd claim
+    // Should be null because strict mode requires bnd claim
     expect(decoded).toBeNull();
   });
 
   it("verifyToken rejects tokens with mismatched binding", async () => {
+    vi.stubEnv("ADMIN_SESSION_STRICT", "true");
+    vi.resetModules();
+
     const { createToken, verifyToken } = await import("@/lib/auth");
 
     const payload = { email: "admin@test.com", userId: "u-1", role: "admin" as const };

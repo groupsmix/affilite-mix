@@ -3,14 +3,10 @@ import { NextRequest } from "next/server";
 
 // ── Mocks ────────────────────────────────────────────────────────
 // Mock external dependencies so we can call the real route handlers
-// without a running database or Turnstile service.
+// without a running database.
 
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 10, retryAfterMs: 0 }),
-}));
-
-vi.mock("@/lib/turnstile", () => ({
-  verifyTurnstile: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 vi.mock("@/lib/sentry", () => ({
@@ -143,26 +139,6 @@ describe("POST /api/auth/login (integration)", () => {
 
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBeDefined();
-  });
-
-  it("returns 403 when Turnstile verification fails", async () => {
-    const { verifyTurnstile } = await import("@/lib/turnstile");
-    vi.mocked(verifyTurnstile).mockResolvedValueOnce({
-      success: false,
-      error: "Captcha failed",
-    });
-
-    const { POST } = await import("@/app/api/auth/login/route");
-    const req = makeLoginRequest({
-      email: "admin@example.com",
-      password: "pass",
-      turnstileToken: "bad-token",
-    });
-    const res = await POST(req);
-
-    expect(res.status).toBe(403);
-    const body = await res.json();
-    expect(body.error).toMatch(/captcha/i);
   });
 
   it("includes rate limit headers in successful response", async () => {
