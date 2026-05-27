@@ -44,6 +44,7 @@ export async function getAdminUserByEmail(
   const { data, error } = await sb
     .from(TABLE)
     .select(ALL_COLUMNS)
+    .unsafeNoSiteFilter()
     .eq("email", email.toLowerCase())
     .eq("is_active", true)
     .single();
@@ -63,6 +64,7 @@ export async function getAdminUserById(
     .select(
       "id, email, name, role, is_active, totp_enabled, totp_verified_at, created_at, updated_at",
     )
+    .unsafeNoSiteFilter()
     .eq("id", id)
     .single();
 
@@ -80,6 +82,7 @@ export async function listAdminUsers(
     .select(
       "id, email, name, role, is_active, totp_enabled, totp_verified_at, created_at, updated_at",
     )
+    .unsafeNoSiteFilter()
     .order("created_at", { ascending: true });
 
   if (error) throw error;
@@ -106,6 +109,7 @@ export async function createAdminUser(
       role: input.role ?? "admin",
     })
     .select()
+    .unsafeNoSiteFilter()
     .single();
 
   if (error) throw error;
@@ -138,6 +142,7 @@ export async function updateAdminUser(
   const { data, error } = await sb
     .from(TABLE)
     .update(input as Record<string, unknown>)
+    .unsafeNoSiteFilter()
     .eq("id", id)
     .select()
     .single();
@@ -190,6 +195,7 @@ export async function incrementLoginFailedAttempts(
   const { data: user, error: readErr } = await sb
     .from(TABLE)
     .select("login_failed_attempts")
+    .unsafeNoSiteFilter()
     .eq("id", id)
     .single();
 
@@ -204,7 +210,11 @@ export async function incrementLoginFailedAttempts(
     updates.login_locked_until = new Date(Date.now() + lockoutDurationMs).toISOString();
   }
 
-  const { error: writeErr } = await sb.from(TABLE).update(updates).eq("id", id);
+  const { error: writeErr } = await sb
+    .from(TABLE)
+    .update(updates)
+    .unsafeNoSiteFilter()
+    .eq("id", id);
   if (writeErr) throw writeErr;
 
   return { attempts, locked: attempts >= lockoutThreshold };
@@ -252,6 +262,7 @@ export async function incrementTotpFailedAttempts(
   const { data: user, error: readErr } = await sb
     .from(TABLE)
     .select("totp_failed_attempts")
+    .unsafeNoSiteFilter()
     .eq("id", id)
     .single();
 
@@ -266,7 +277,11 @@ export async function incrementTotpFailedAttempts(
     updates.totp_locked_until = new Date(Date.now() + lockoutDurationMs).toISOString();
   }
 
-  const { error: writeErr } = await sb.from(TABLE).update(updates).eq("id", id);
+  const { error: writeErr } = await sb
+    .from(TABLE)
+    .update(updates)
+    .unsafeNoSiteFilter()
+    .eq("id", id);
   if (writeErr) throw writeErr;
 
   return { attempts, locked: attempts >= lockoutThreshold };
@@ -278,7 +293,7 @@ export async function deleteAdminUser(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<void> {
   const sb = await getClient();
-  const { error } = await sb.from(TABLE).delete().eq("id", id);
+  const { error } = await sb.from(TABLE).delete().unsafeNoSiteFilter().eq("id", id);
   if (error) throw error;
 }
 
@@ -287,7 +302,10 @@ async function countAdminUsers(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<number> {
   const sb = await getClient();
-  const { count, error } = await sb.from(TABLE).select("id", { count: "exact", head: true });
+  const { count, error } = await sb
+    .from(TABLE)
+    .select("id", { count: "exact", head: true })
+    .unsafeNoSiteFilter();
 
   if (error) {
     // Table might not exist yet — fall back to 0
@@ -326,6 +344,7 @@ export async function hasAnotherActiveSuperAdmin(
   const { count, error } = await sb
     .from(TABLE)
     .select("id", { count: "exact", head: true })
+    .unsafeNoSiteFilter()
     .eq("role", "super_admin")
     .eq("is_active", true)
     .neq("id", excludingId);

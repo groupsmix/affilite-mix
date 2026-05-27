@@ -216,7 +216,12 @@ export async function removeUserSiteRole(
 const getGlobalRole = cache(
   async (userId: string, getClient: DalClientGetter = defaultDalClientGetter) => {
     const sb = await getClient();
-    const { data, error } = await sb.from("admin_users").select("role").eq("id", userId).single();
+    const { data, error } = await sb
+      .from("admin_users")
+      .select("role")
+      .unsafeNoSiteFilter()
+      .eq("id", userId)
+      .single();
     if (error) throw error;
     return (data as AdminRoleLookup | null)?.role;
   },
