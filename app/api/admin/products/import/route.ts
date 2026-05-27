@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
 import { bulkCreateProducts } from "@/lib/dal/products";
 import { recordAuditEvent } from "@/lib/audit-log";

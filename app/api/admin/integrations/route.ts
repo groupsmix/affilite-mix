@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
 import {
   listIntegrationProviders,
@@ -7,28 +7,14 @@ import {
   deleteSiteIntegration,
 } from "@/lib/dal/integrations";
 import { recordAuditEvent } from "@/lib/audit-log";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
-
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
-
-async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
-  const key = `admin:${email ?? userId ?? "unknown"}`;
-  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
-    );
-  }
-  return null;
-}
 
 /** GET /api/admin/integrations?site_id=<uuid> — list integrations for a site */
 // FIX-32 (F-009): Migrate from requireAdmin + role check to withAuthz
 export const GET = withAuthz("integrations", "read", async (request, { session }) => {
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("integrations", session);
   if (rlError) return rlError;
 
   const siteId = request.nextUrl.searchParams.get("site_id");
@@ -65,7 +51,7 @@ export const GET = withAuthz("integrations", "read", async (request, { session }
 /** POST /api/admin/integrations — upsert a site integration */
 // FIX-32 (F-009): Migrate from requireAdmin + role check to withAuthz
 export const POST = withAuthz("integrations", "configure", async (request, { session }) => {
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("integrations", session);
   if (rlError) return rlError;
 
   const bodyOrError = await parseJsonBody(request);
@@ -113,7 +99,7 @@ export const POST = withAuthz("integrations", "configure", async (request, { ses
 /** DELETE /api/admin/integrations?site_id=<uuid>&provider_key=<key> — remove integration */
 // FIX-32 (F-009): Migrate from requireAdmin + role check to withAuthz
 export const DELETE = withAuthz("integrations", "delete", async (request, { session }) => {
-  const rlError = await enforceRateLimit(session.email, session.userId);
+  const rlError = await enforceAdminRateLimit("integrations", session);
   if (rlError) return rlError;
 
   const siteId = request.nextUrl.searchParams.get("site_id");

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
 import {
   listSiteFeatureFlags,
@@ -7,23 +7,9 @@ import {
   deleteFeatureFlag,
 } from "@/lib/dal/feature-flags";
 import { recordAuditEvent } from "@/lib/audit-log";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
-
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
-
-async function enforceRateLimit(email: string | undefined, userId: string | undefined) {
-  const key = `admin:${email ?? userId ?? "unknown"}`;
-  const rl = await checkRateLimit(key, ADMIN_RATE_LIMIT);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
-    );
-  }
-  return null;
-}
 
 /** GET /api/admin/feature-flags — list feature flags for the active site */
 // FIX-28 (F-009): Migrate from requireAdmin + role check to withAuthz
@@ -31,7 +17,7 @@ export const GET = withAuthz(
   "feature-flags",
   "read",
   async (_request, { session, siteId: dbSiteId }) => {
-    const rlError = await enforceRateLimit(session.email, session.userId);
+    const rlError = await enforceAdminRateLimit("feature-flags", session);
     if (rlError) return rlError;
 
     try {
@@ -51,7 +37,7 @@ export const POST = withAuthz(
   "feature-flags",
   "configure",
   async (request, { session, siteId: dbSiteId }) => {
-    const rlError = await enforceRateLimit(session.email, session.userId);
+    const rlError = await enforceAdminRateLimit("feature-flags", session);
     if (rlError) return rlError;
 
     const bodyOrError = await parseJsonBody(request);
@@ -104,7 +90,7 @@ export const PATCH = withAuthz(
   "feature-flags",
   "configure",
   async (request, { session, siteId: dbSiteId }) => {
-    const rlError = await enforceRateLimit(session.email, session.userId);
+    const rlError = await enforceAdminRateLimit("feature-flags", session);
     if (rlError) return rlError;
 
     const bodyOrError = await parseJsonBody(request);
@@ -151,7 +137,7 @@ export const DELETE = withAuthz(
   "feature-flags",
   "delete",
   async (request, { session, siteId: dbSiteId }) => {
-    const rlError = await enforceRateLimit(session.email, session.userId);
+    const rlError = await enforceAdminRateLimit("feature-flags", session);
     if (rlError) return rlError;
 
     // A-015: Reject cross-tenant site_id query param; use server-derived active site.

@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-guard";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { listSites } from "@/lib/dal/sites";
 import { countContent } from "@/lib/dal/content";
 import { countProducts } from "@/lib/dal/products";
 import { getClickCount } from "@/lib/dal/affiliate-clicks";
-
-/** 100 admin API requests per minute per user session */
-const ADMIN_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 };
 
 export interface SiteStats {
   activeProducts: number;
@@ -43,14 +40,8 @@ export async function GET(request: NextRequest) {
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rlKey = `admin:${session.email ?? session.userId ?? "unknown"}`;
-  const rl = await checkRateLimit(rlKey, ADMIN_RATE_LIMIT);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
-    );
-  }
+  const rlError = await enforceAdminRateLimit("sites-stats", session);
+  if (rlError) return rlError;
 
   const days = Math.min(Math.max(Number(request.nextUrl.searchParams.get("days") ?? "7"), 1), 365);
   const since = new Date();
