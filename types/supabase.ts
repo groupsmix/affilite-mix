@@ -35,6 +35,7 @@ export type Database = {
           last_seen_at: string | null;
           page_path: string | null;
           site_id: string;
+          site_hash: number | null;
         };
         Insert: {
           ad_placement_id: string;
