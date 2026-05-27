@@ -108,7 +108,7 @@ export async function listProducts(
  * Cursor-based (keyset) pagination for products.
  * Preferred over offset for deep pages — O(1) seek vs O(n) scan.
  */
-export async function listProductsCursor(
+async function listProductsCursor(
   opts: Omit<ListProductsOptions, "offset"> & { cursor?: string | null },
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CursorPage<ProductRow>> {
@@ -212,7 +212,7 @@ export async function getProductById(
 /** A27-003: Admin-only getter that can see all products regardless of status.
  * Public-facing code must use getProductById() or getProductBySlugPublic()
  * which enforce active-product filtering via RLS + explicit status checks. */
-export async function getProductByIdAdmin(
+async function getProductByIdAdmin(
   siteId: string,
   id: string,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -242,7 +242,7 @@ export async function getProductBySlug(siteId: string, slug: string): Promise<Pr
   return rowOrNull<ProductRow>(data);
 }
 
-export const getProductBySlugPublic = unstable_cache(
+const getProductBySlugPublic = unstable_cache(
   async (siteId: string, slug: string): Promise<ProductRow | null> => {
     if (shouldSkipDbCall()) return null;
     const sb = getAnonClient();

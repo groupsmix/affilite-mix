@@ -35,10 +35,10 @@ export interface SiteRevenueRow {
  * Cache tag for `revalidateTag()` callers that mutate click/site data and
  * want the dashboard card to refresh before its 60 s window elapses.
  */
-export const REVENUE_PER_SITE_TAG = "dashboard:revenue-7d";
+const REVENUE_PER_SITE_TAG = "dashboard:revenue-7d";
 
 /** How long the cross-site aggregate is cached (seconds). */
-export const REVENUE_PER_SITE_REVALIDATE_SECONDS = 60;
+const REVENUE_PER_SITE_REVALIDATE_SECONDS = 60;
 
 /**
  * Compute the last-7-day click count and estimated revenue for every

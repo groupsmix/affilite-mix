@@ -6,7 +6,7 @@ export type UsersSortColumn = (typeof USERS_SORT_COLUMNS)[number];
 
 /** Values accepted by the `status` facet (maps to is_active). */
 export const USERS_STATUS_VALUES = ["active", "inactive"] as const;
-export type UsersStatusValue = (typeof USERS_STATUS_VALUES)[number];
+type UsersStatusValue = (typeof USERS_STATUS_VALUES)[number];
 
 /** Role enum — kept in sync with AdminUserRole in users-table.tsx. */
 export const USERS_ROLE_VALUES = [

@@ -124,7 +124,7 @@ export function _resetUnknownHostGuardForTests(): void {
   recentUnknownHosts.clear();
 }
 
-export const _internals = {
+const _internals = {
   WINDOW_MS,
   MAX_UNIQUE_HOSTS,
   NEGATIVE_CACHE_TTL_FLOOR_SECONDS,

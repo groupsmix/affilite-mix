@@ -19,7 +19,7 @@ import {
   QuotaExceededError,
 } from "@/lib/quotas";
 
-export interface AIProvider {
+interface AIProvider {
   name: string;
   /** Model identifier used by this provider (recorded alongside generations) */
   model: string;

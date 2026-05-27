@@ -5,14 +5,14 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-export interface KpiDelta {
+interface KpiDelta {
   /** Percentage change vs. the previous comparable window (e.g. -12, 4.5). */
   valuePct: number;
   /** Human label that describes the comparison window (e.g. "vs prev 7d"). */
   label: string;
 }
 
-export interface KpiSubLink {
+interface KpiSubLink {
   href: string;
   label: string;
   /** Warning-styled links are used for alertable metrics (e.g. missing URLs). */

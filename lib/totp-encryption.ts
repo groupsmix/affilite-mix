@@ -174,7 +174,7 @@ export function isTotpSecretEncrypted(stored: string): boolean {
  * A100-05: Check whether a stored secret needs re-encryption with the latest key.
  * Returns true if the secret is either plaintext or encrypted with an older key version.
  */
-export function needsReEncryption(stored: string): boolean {
+function needsReEncryption(stored: string): boolean {
   const keyInfo = getLatestKeyInfo();
   if (!keyInfo) return false; // No key configured, can't re-encrypt
 

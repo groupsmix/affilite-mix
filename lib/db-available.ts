@@ -32,7 +32,7 @@ export function isSupabaseConfigured(): boolean {
  * log noise at build time — the warnings are harmless but confusing in CI
  * output, so we suppress them when it is clear that no runtime DB is expected.
  */
-export function isBuildPhase(): boolean {
+function isBuildPhase(): boolean {
   return !!process.env.NEXT_PHASE;
 }
 

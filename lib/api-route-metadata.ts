@@ -11,7 +11,7 @@
  * registry changes (the test enforces the registry; the doc is for humans).
  */
 
-export type AuthRequirement =
+type AuthRequirement =
   /** No authentication — public endpoint. */
   | "public"
   /** Cookie-based admin JWT required (`requireAdmin`). */
@@ -27,7 +27,7 @@ export type AuthRequirement =
   /** Endpoint validates a signed single-use token instead of a session. */
   | "token";
 
-export type TenantScope =
+type TenantScope =
   /** Scoped to the admin's active site (cookie + membership check). */
   | "site"
   /** Applies to the whole tenant / org. */

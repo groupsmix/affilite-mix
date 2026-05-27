@@ -12,7 +12,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 /** Revalidate taxonomy pages every 60 seconds (ISR) */
-export const TAXONOMY_REVALIDATE = 60;
+const TAXONOMY_REVALIDATE = 60;
 
 const PAGE_SIZE = 12;
 

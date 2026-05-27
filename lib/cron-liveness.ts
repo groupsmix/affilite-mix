@@ -165,6 +165,6 @@ function readKVBinding(): KVNamespace | undefined {
 }
 
 /** Test helper: reset liveness check throttle. */
-export function __resetLivenessCheckForTests(): void {
+function __resetLivenessCheckForTests(): void {
   lastLivenessCheckAt = 0;
 }

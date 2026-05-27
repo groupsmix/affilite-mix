@@ -86,8 +86,8 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   "lib/dal/webhook-dlq.ts",
 ] as const;
 
-export type ServiceRoleAllowlistedPath = (typeof SERVICE_ROLE_IMPORT_ALLOWLIST)[number];
+type ServiceRoleAllowlistedPath = (typeof SERVICE_ROLE_IMPORT_ALLOWLIST)[number];
 
-export function isServiceRoleAllowlisted(repoRelativePath: string): boolean {
+function isServiceRoleAllowlisted(repoRelativePath: string): boolean {
   return (SERVICE_ROLE_IMPORT_ALLOWLIST as readonly string[]).includes(repoRelativePath);
 }

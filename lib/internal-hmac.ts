@@ -249,7 +249,7 @@ export function timingSafeEqual(a: string, b: string): boolean {
 }
 
 /** Test helper: reset the nonce cache between test cases. */
-export function __resetHmacNonceCacheForTests(): void {
+function __resetHmacNonceCacheForTests(): void {
   seenNonces.clear();
   lastNonceCleanup = Date.now();
 }

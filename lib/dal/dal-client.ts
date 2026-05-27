@@ -42,10 +42,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Brand is nominal — `string & { __brand: "SiteId" }` is not assignable
  * from a bare `string` without an explicit cast.
  */
-export type SiteId = string & { readonly __brand: unique symbol };
+type SiteId = string & { readonly __brand: unique symbol };
 
 /** Type returned by both getTenantClient() and getPrivilegedSupabaseClient(). */
-export type DalClient = SupabaseClient;
+type DalClient = SupabaseClient;
 /** A zero-arg async function that returns a Supabase client. */
 export type DalClientGetter = () => Promise<DalClient> | DalClient;
 

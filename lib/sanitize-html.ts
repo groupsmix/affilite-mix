@@ -217,7 +217,7 @@ export const MAX_INPUT_LENGTH = 100_000; // Shared constant — also used by lib
  * in the parser. Elements beyond this depth are flattened (their content
  * is preserved but the wrapping tag is dropped).
  */
-export const MAX_NESTING_DEPTH = 100;
+const MAX_NESTING_DEPTH = 100;
 
 export function sanitizeHtml(html: string): string {
   if (!html) return html;

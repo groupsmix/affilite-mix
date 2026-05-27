@@ -51,7 +51,7 @@ export async function listActiveDeals(
 }
 
 /** List featured deals */
-export async function listFeaturedDeals(
+async function listFeaturedDeals(
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<DealRow[]> {
@@ -74,7 +74,7 @@ export async function listFeaturedDeals(
 }
 
 /** Get deal by ID */
-export async function getDealById(
+async function getDealById(
   id: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<DealRow | null> {
@@ -87,7 +87,7 @@ export async function getDealById(
 }
 
 /** Create a deal */
-export async function createDeal(
+async function createDeal(
   input: {
     site_id: string;
     product_id?: string;
@@ -113,7 +113,7 @@ export async function createDeal(
 }
 
 /** Update a deal */
-export async function updateDeal(
+async function updateDeal(
   id: string,
   input: Partial<
     Pick<

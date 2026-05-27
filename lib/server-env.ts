@@ -287,7 +287,7 @@ export const FEATURE_CONDITIONAL_ENV: readonly {
  * In production (NODE_ENV=production), if OTEL_ENDPOINT is set,
  * OTEL_AUTH_TOKEN must also be configured.
  */
-export function validateObservabilityEnv(): { missing: string[] } {
+function validateObservabilityEnv(): { missing: string[] } {
   const missing: string[] = [];
 
   // In production, if observability endpoint is configured, require auth token
@@ -314,10 +314,7 @@ export function validateObservabilityEnv(): { missing: string[] } {
  * Get a formatted message for feature-specific missing env vars.
  * Includes the feature name and how to fix the issue.
  */
-export function formatFeatureEnvMessage(
-  feature: string,
-  missing: readonly RequiredEnvVar[],
-): string {
+function formatFeatureEnvMessage(feature: string, missing: readonly RequiredEnvVar[]): string {
   return [
     "",
     "=".repeat(60),

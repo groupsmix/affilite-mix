@@ -58,7 +58,7 @@ export const NETWORK_CONFIGS: Record<AffiliateNetwork, AffiliateNetworkConfig> =
   },
 };
 
-export interface AffiliateLinkParams {
+interface AffiliateLinkParams {
   network: AffiliateNetwork;
   merchantUrl: string;
   publisherId?: string;
@@ -70,7 +70,7 @@ export interface AffiliateLinkParams {
 /**
  * Build a tracked affiliate link with proper attribution parameters.
  */
-export function buildAffiliateLink(params: AffiliateLinkParams): string {
+function buildAffiliateLink(params: AffiliateLinkParams): string {
   const { network, merchantUrl, publisherId, campaignId, subId, siteId } = params;
 
   switch (network) {
@@ -115,7 +115,7 @@ export function buildAffiliateLink(params: AffiliateLinkParams): string {
 /**
  * Get all configured networks (those with API keys set).
  */
-export function getConfiguredNetworks(): AffiliateNetworkConfig[] {
+function getConfiguredNetworks(): AffiliateNetworkConfig[] {
   return Object.values(NETWORK_CONFIGS).filter((cfg) => {
     if (!cfg.requiresApiKey) return true;
     return Boolean(process.env[cfg.envKeyName]);
@@ -128,7 +128,7 @@ export function getConfiguredNetworks(): AffiliateNetworkConfig[] {
  * Checks the site's language and niche keywords to recommend a network.
  * Falls back to "direct" when no strong signal is found.
  */
-export function getSuggestedNetwork(
+function getSuggestedNetwork(
   siteId: string,
   opts?: { language?: string; niche?: string },
 ): AffiliateNetwork {
