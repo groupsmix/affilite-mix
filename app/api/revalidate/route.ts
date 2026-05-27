@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       captureException(error, { context: "[api/revalidate] Failed to list active sites:" });
       return NextResponse.json({ error: "Failed to list active sites" }, { status: 500 });
     }
-    siteIds = (sites ?? []).map((s) => s.id);
+    siteIds = (sites ?? []).map((s: { id: string }) => s.id);
     logger.info("[api/revalidate] All-sites revalidation executed", {
       site_count: siteIds.length,
       tag_count: kinds.length,
