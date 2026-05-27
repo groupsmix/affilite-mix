@@ -43,17 +43,20 @@ export interface DlqEntry {
  */
 export async function writeToDlq(entry: DlqEntry): Promise<void> {
   const sb = getPrivilegedSupabaseClient();
-  const { error } = await sb.from("webhook_dlq").upsert(
-    {
-      event_id: entry.event_id,
-      event_type: entry.event_type,
-      payload: entry.payload as unknown as import("@/types/supabase").Json,
-      error_message: entry.error_message,
-      attempts: entry.attempts,
-      status: "pending",
-    },
-    { onConflict: "event_id" },
-  );
+  const { error } = await sb
+    .from("webhook_dlq")
+    .upsert(
+      {
+        event_id: entry.event_id,
+        event_type: entry.event_type,
+        payload: entry.payload as unknown as import("@/types/supabase").Json,
+        error_message: entry.error_message,
+        attempts: entry.attempts,
+        status: "pending",
+      },
+      { onConflict: "event_id" },
+    )
+    .unsafeNoSiteFilter();
   if (error) {
     logger.error("Failed to write webhook event to DLQ table", {
       event_id: entry.event_id,
@@ -91,6 +94,7 @@ export async function listDlqEntries(
   const { data, error } = await sb
     .from("webhook_dlq")
     .select("id, event_id, event_type, error_message, attempts, status, created_at, resolved_at")
+    .unsafeNoSiteFilter()
     .eq("status", status)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -107,6 +111,7 @@ export async function resolveDlqEntry(eventId: string): Promise<void> {
   const { error } = await sb
     .from("webhook_dlq")
     .update({ status: "resolved", resolved_at: new Date().toISOString() })
+    .unsafeNoSiteFilter()
     .eq("event_id", eventId);
   if (error) {
     logger.error("Failed to resolve DLQ entry", {
