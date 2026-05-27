@@ -61,6 +61,7 @@ function fnv1aHash(str: string): number {
  * Checks for existing assignment first, creates one if needed.
  */
 import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
+import { untypedFrom } from "./dal/type-guards";
 
 export async function getVariantAssignment(
   experimentId: string,
@@ -73,7 +74,7 @@ export async function getVariantAssignment(
 
   // Check existing assignment
 
-  const { data: existing } = await (sb.from as any)("experiment_assignments")
+  const { data: existing } = await untypedFrom(sb, "experiment_assignments")
     .select("variant_id")
     .eq("experiment_id", experimentId)
     .eq("visitor_id", visitorId)
@@ -87,7 +88,7 @@ export async function getVariantAssignment(
 
   // Persist assignment
 
-  await (sb.from as any)("experiment_assignments")
+  await untypedFrom(sb, "experiment_assignments")
     .insert({
       experiment_id: experimentId,
       visitor_id: visitorId,
@@ -116,5 +117,5 @@ export async function logExperimentEvent(
 ): Promise<void> {
   const sb = await getClient();
 
-  await (sb.from as any)("experiment_events").insert(input).select().single();
+  await untypedFrom(sb, "experiment_events").insert(input).select().single();
 }

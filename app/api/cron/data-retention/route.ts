@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     const auditDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
     // Try the transactional RPC first
-    // @ts-expect-error - purge_retention RPC accepts args per migration 00099 but generated types show Args: never
+    // @ts-expect-error ACCEPTED: purge_retention RPC exists (migration 00099) but generated types show Args: never — regenerate types after deploying migration to fix
     const { data: rpcResult, error: rpcError } = await sb.rpc("purge_retention", {
       p_table: "audit_log",
       p_cutoff: auditDate.toISOString(),

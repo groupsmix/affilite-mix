@@ -39,6 +39,7 @@ export default function AdSlot({
             // Use keepalive so the request finishes even if the user navigates away
             keepalive: true,
           }).catch((err) => {
+            // ACCEPTED: client-side error visible in browser devtools; no server logger available
             console.error("Failed to track ad impression", err);
           });
         }
