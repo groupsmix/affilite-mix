@@ -9,6 +9,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { withAuthz } from "@/lib/authz";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 const JOB_TYPES = new Set([
   "publish_content",
@@ -21,26 +22,33 @@ const JOB_TYPES = new Set([
 /**
  * GET /api/admin/schedule — List scheduled jobs for the active site.
  */
-export const GET = withAuthz("scheduling", "view", async (request: NextRequest, { siteId }) => {
-  const status = request.nextUrl.searchParams.get("status") as
-    | "pending"
-    | "executed"
-    | "failed"
-    | "cancelled"
-    | null;
-  const limit = Math.min(
-    Math.max(Number(request.nextUrl.searchParams.get("limit") ?? "50"), 1),
-    200,
-  );
+export const GET = withAuthz(
+  "scheduling",
+  "view",
+  async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("schedule", session);
+    if (rlResponse) return rlResponse;
 
-  try {
-    const jobs = await listScheduledJobs(siteId, status ?? undefined, limit);
-    return NextResponse.json({ jobs });
-  } catch (err) {
-    captureException(err, { context: "[api/admin/schedule] GET failed:" });
-    return NextResponse.json({ error: "Failed to list scheduled jobs" }, { status: 500 });
-  }
-});
+    const status = request.nextUrl.searchParams.get("status") as
+      | "pending"
+      | "executed"
+      | "failed"
+      | "cancelled"
+      | null;
+    const limit = Math.min(
+      Math.max(Number(request.nextUrl.searchParams.get("limit") ?? "50"), 1),
+      200,
+    );
+
+    try {
+      const jobs = await listScheduledJobs(siteId, status ?? undefined, limit);
+      return NextResponse.json({ jobs });
+    } catch (err) {
+      captureException(err, { context: "[api/admin/schedule] GET failed:" });
+      return NextResponse.json({ error: "Failed to list scheduled jobs" }, { status: 500 });
+    }
+  },
+);
 
 /**
  * POST /api/admin/schedule — Create a new scheduled job.
@@ -49,6 +57,9 @@ export const POST = withAuthz(
   "scheduling",
   "create",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("schedule", session);
+    if (rlResponse) return rlResponse;
+
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
     const body = bodyOrError;
@@ -107,6 +118,9 @@ export const DELETE = withAuthz(
   "scheduling",
   "delete",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("schedule", session);
+    if (rlResponse) return rlResponse;
+
     const delBodyOrError = await parseJsonBody(request);
     if (delBodyOrError instanceof NextResponse) return delBodyOrError;
     if (typeof delBodyOrError.id !== "string" || (delBodyOrError.id as string).length === 0) {

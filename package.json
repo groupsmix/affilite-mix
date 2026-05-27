@@ -92,7 +92,6 @@
     "@stryker-mutator/typescript-checker": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@tailwindcss/postcss": "^4.2.4",
-    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^22.19.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.14",

@@ -232,7 +232,7 @@ async function mintSupabaseJwt(secret: string, payload: Record<string, unknown>)
 // `getAuthenticatedClient` was introduced in this branch to mint a custom
 // JWT signed with SUPABASE_JWT_SECRET so RLS could evaluate a scoped user
 // context instead of always bypassing via service_role.
-export async function getAuthenticatedClient(
+async function getAuthenticatedClient(
   siteId?: string | null,
   userId?: string | null,
   role = "authenticated",

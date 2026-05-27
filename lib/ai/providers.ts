@@ -356,7 +356,7 @@ function recordGlobalCost(microUsd: number): void {
   tracker.microUsd += microUsd;
 }
 
-export class GlobalCostCeilingError extends Error {
+class GlobalCostCeilingError extends Error {
   constructor() {
     super("AI generation disabled: global daily cost ceiling reached");
     this.name = "GlobalCostCeilingError";

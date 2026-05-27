@@ -1,3 +1,4 @@
+// DESIGN: No site_id filtering — operates on product_affiliate_links within already-scoped product contexts.
 import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 

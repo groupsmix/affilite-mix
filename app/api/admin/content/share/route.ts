@@ -4,28 +4,39 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /** List sites a piece of content is shared to */
-export const GET = withAuthz("content", "view", async (request: NextRequest, { siteId }) => {
-  const contentId = request.nextUrl.searchParams.get("content_id");
-  if (!contentId) {
-    return NextResponse.json({ error: "content_id is required" }, { status: 400 });
-  }
+export const GET = withAuthz(
+  "content",
+  "view",
+  async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("content-share", session);
+    if (rlResponse) return rlResponse;
 
-  try {
-    const targets = await listSharedTargets(siteId, contentId);
-    return NextResponse.json(targets);
-  } catch (err) {
-    captureException(err, { context: "[api/admin/content/share] GET failed:" });
-    return NextResponse.json({ error: "Failed to list shares" }, { status: 500 });
-  }
-});
+    const contentId = request.nextUrl.searchParams.get("content_id");
+    if (!contentId) {
+      return NextResponse.json({ error: "content_id is required" }, { status: 400 });
+    }
+
+    try {
+      const targets = await listSharedTargets(siteId, contentId);
+      return NextResponse.json(targets);
+    } catch (err) {
+      captureException(err, { context: "[api/admin/content/share] GET failed:" });
+      return NextResponse.json({ error: "Failed to list shares" }, { status: 500 });
+    }
+  },
+);
 
 /** Share content to another site */
 export const POST = withAuthz(
   "content",
   "publish",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("content-share", session);
+    if (rlResponse) return rlResponse;
+
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;
     const { content_id, target_site_id } = bodyOrError;
@@ -70,6 +81,9 @@ export const DELETE = withAuthz(
   "content",
   "publish",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("content-share", session);
+    if (rlResponse) return rlResponse;
+
     const delBodyOrError = await parseJsonBody(request);
     if (delBodyOrError instanceof NextResponse) return delBodyOrError;
     const { content_id, target_site_id } = delBodyOrError;

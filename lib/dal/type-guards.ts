@@ -4,6 +4,7 @@
  * Supabase's generated types don't always match our domain types,
  * so we use runtime checks instead of bare `as` casts where practical.
  */
+// DESIGN: No site_id filtering — pure utility module for Supabase query result type guards.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 

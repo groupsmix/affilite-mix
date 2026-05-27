@@ -13,34 +13,42 @@ import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
 import { withAuthz } from "@/lib/authz";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
-export const GET = withAuthz("content", "view", async (request: NextRequest, { siteId }) => {
-  const { searchParams } = request.nextUrl;
-  const pagination = parsePagination(searchParams);
-  if (pagination instanceof NextResponse) return pagination;
+export const GET = withAuthz(
+  "content",
+  "view",
+  async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("content", session);
+    if (rlResponse) return rlResponse;
 
-  try {
-    const content = await listContent({
-      siteId,
-      contentType: searchParams.get("content_type") ?? undefined,
-      status:
-        (searchParams.get("status") as
-          | "draft"
-          | "review"
-          | "published"
-          | "scheduled"
-          | "archived") ?? undefined,
-      categoryId: searchParams.get("category_id") ?? undefined,
-      limit: pagination.limit,
-      offset: pagination.offset,
-    });
+    const { searchParams } = request.nextUrl;
+    const pagination = parsePagination(searchParams);
+    if (pagination instanceof NextResponse) return pagination;
 
-    return NextResponse.json(content);
-  } catch (err) {
-    captureException(err, { context: "[api/admin/content] GET failed:" });
-    return NextResponse.json({ error: "Failed to list content" }, { status: 500 });
-  }
-});
+    try {
+      const content = await listContent({
+        siteId,
+        contentType: searchParams.get("content_type") ?? undefined,
+        status:
+          (searchParams.get("status") as
+            | "draft"
+            | "review"
+            | "published"
+            | "scheduled"
+            | "archived") ?? undefined,
+        categoryId: searchParams.get("category_id") ?? undefined,
+        limit: pagination.limit,
+        offset: pagination.offset,
+      });
+
+      return NextResponse.json(content);
+    } catch (err) {
+      captureException(err, { context: "[api/admin/content] GET failed:" });
+      return NextResponse.json({ error: "Failed to list content" }, { status: 500 });
+    }
+  },
+);
 
 /**
  * Resolve the site domain for sitemap pinging.
@@ -62,6 +70,9 @@ export const POST = withAuthz(
   "content",
   "create",
   async (request: NextRequest, { session, siteId, siteSlug }) => {
+    const rlResponse = await enforceAdminRateLimit("content", session);
+    if (rlResponse) return rlResponse;
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
     const parsed = validateCreateContent(rawOrError);
@@ -131,6 +142,9 @@ export const PATCH = withAuthz(
   "content",
   "edit",
   async (request: NextRequest, { session, siteId, siteSlug }) => {
+    const rlResponse = await enforceAdminRateLimit("content", session);
+    if (rlResponse) return rlResponse;
+
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) return rawOrError;
     const parsed = validateUpdateContent(rawOrError);
@@ -188,6 +202,9 @@ export const DELETE = withAuthz(
   "content",
   "delete",
   async (request: NextRequest, { session, siteId }) => {
+    const rlResponse = await enforceAdminRateLimit("content", session);
+    if (rlResponse) return rlResponse;
+
     let id: string | null = null;
     const rawOrError = await parseJsonBody(request);
     if (rawOrError instanceof NextResponse) {

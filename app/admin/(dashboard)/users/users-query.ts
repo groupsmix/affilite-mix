@@ -1,18 +1,15 @@
 import type { AdminUserRole, UsersTableRow } from "./users-table";
 
 /** Columns the UI is allowed to sort by. Must match the DataTable column ids. */
-export const USERS_SORT_COLUMNS = ["email", "role", "last_login_at", "created_at"] as const;
+const USERS_SORT_COLUMNS = ["email", "role", "last_login_at", "created_at"] as const;
 export type UsersSortColumn = (typeof USERS_SORT_COLUMNS)[number];
 
 /** Values accepted by the `status` facet (maps to is_active). */
-export const USERS_STATUS_VALUES = ["active", "inactive"] as const;
+const USERS_STATUS_VALUES = ["active", "inactive"] as const;
 type UsersStatusValue = (typeof USERS_STATUS_VALUES)[number];
 
 /** Role enum — kept in sync with AdminUserRole in users-table.tsx. */
-export const USERS_ROLE_VALUES = [
-  "admin",
-  "super_admin",
-] as const satisfies readonly AdminUserRole[];
+const USERS_ROLE_VALUES = ["admin", "super_admin"] as const satisfies readonly AdminUserRole[];
 
 export interface UsersQueryParams {
   q: string;
