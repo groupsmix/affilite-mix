@@ -15,7 +15,7 @@ export const CURRENT_API_VERSION = "2026-05-25";
 
 /** Header names for API versioning. */
 export const API_VERSION_HEADER = "API-Version";
-export const ACCEPT_VERSION_HEADER = "Accept-Version";
+const ACCEPT_VERSION_HEADER = "Accept-Version";
 export const SUNSET_HEADER = "Sunset";
 
 /**

@@ -22,7 +22,7 @@ const LIST_COLUMNS =
   "id, site_id, email, name, tier, status, stripe_customer_id, stripe_subscription_id, current_period_start, current_period_end, cancelled_at, created_at, updated_at" as const;
 
 /** Create a membership */
-export async function createMembership(
+async function createMembership(
   input: {
     site_id: string;
     email: string;
@@ -63,7 +63,7 @@ export async function getActiveMembership(
 }
 
 /** Get membership by Stripe subscription ID */
-export async function getMembershipByStripeSubscription(
+async function getMembershipByStripeSubscription(
   subscriptionId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<MembershipRow | null> {
@@ -80,7 +80,7 @@ export async function getMembershipByStripeSubscription(
 }
 
 /** Update membership (e.g. after Stripe webhook) */
-export async function updateMembership(
+async function updateMembership(
   id: string,
   input: Partial<
     Pick<
@@ -110,7 +110,7 @@ export async function updateMembership(
 }
 
 /** List all members for a site */
-export async function listMembers(
+async function listMembers(
   siteId: string,
   status?: string,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -133,7 +133,7 @@ export async function listMembers(
 }
 
 /** Get member count for a site */
-export async function getMemberCount(
+async function getMemberCount(
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<number> {

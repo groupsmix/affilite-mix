@@ -157,7 +157,7 @@ describe("Risk-22: E2E and load test capability", () => {
   });
 
   it("load-test script exists", () => {
-    expect(fileExists("load-test.js")).toBe(true);
+    expect(fileExists("scripts/load-test.mjs")).toBe(true);
   });
 
   it("Lighthouse CI config exists", () => {

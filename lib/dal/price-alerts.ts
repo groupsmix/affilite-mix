@@ -59,7 +59,7 @@ export async function getPriceAlert(
 }
 
 /** List all active alerts for an email */
-export async function listAlertsByEmail(
+async function listAlertsByEmail(
   email: string,
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -124,7 +124,7 @@ export async function deactivatePriceAlert(
 }
 
 /** Unsubscribe all alerts for an email */
-export async function deactivateAllAlerts(
+async function deactivateAllAlerts(
   email: string,
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,

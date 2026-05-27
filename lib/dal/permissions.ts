@@ -75,7 +75,7 @@ export async function listPermissions(
 }
 
 /** Get permissions for a role */
-export async function getPermissionsForRole(
+async function getPermissionsForRole(
   roleId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<PermissionRow[]> {
@@ -103,7 +103,7 @@ export async function getPermissionsForRole(
 /* ------------------------------------------------------------------ */
 
 /** List all role assignments for a user */
-export async function listUserSiteRoles(
+async function listUserSiteRoles(
   userId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<UserSiteRoleRow[]> {
@@ -135,7 +135,7 @@ export async function listSiteUserRoles(
 }
 
 /** Get a user's role for a specific site */
-export const getUserSiteRole = cache(async function getUserSiteRole(
+const getUserSiteRole = cache(async function getUserSiteRole(
   userId: string,
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,

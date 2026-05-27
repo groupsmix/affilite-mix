@@ -18,7 +18,7 @@ export const DEFAULT_CPM: Record<AdProvider, number> = {
  * Fallback CPM used when a placement has no provider-specific default and
  * no `est_cpm` override in its config. Matches the previous inline fallback.
  */
-export const FALLBACK_CPM = 1.5;
+const FALLBACK_CPM = 1.5;
 
 /**
  * Resolve the effective CPM for an ad placement. Precedence is:

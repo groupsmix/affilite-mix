@@ -19,17 +19,17 @@ export interface CloudflareKVBinding {
 }
 
 /** Minimal Queue binding interface for audit-log and click queues. */
-export interface CloudflareQueueBinding {
+interface CloudflareQueueBinding {
   send(message: unknown): Promise<void>;
 }
 
 /** Minimal R2 bucket interface for DLQ/storage bindings. */
-export interface CloudflareR2Binding {
+interface CloudflareR2Binding {
   put(key: string, value: string | ReadableStream | ArrayBuffer): Promise<unknown>;
 }
 
 /** Minimal Analytics Engine binding interface. */
-export interface CloudflareAnalyticsEngineBinding {
+interface CloudflareAnalyticsEngineBinding {
   writeDataPoint(event: { blobs?: string[]; doubles?: number[]; indexes?: string[] }): void;
 }
 

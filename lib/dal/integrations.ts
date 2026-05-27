@@ -33,7 +33,7 @@ export async function listIntegrationProviders(
 }
 
 /** List integration providers by category */
-export async function listProvidersByCategory(
+async function listProvidersByCategory(
   category: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<IntegrationProviderRow[]> {
@@ -49,7 +49,7 @@ export async function listProvidersByCategory(
 }
 
 /** Get a provider by key */
-export async function getProviderByKey(
+async function getProviderByKey(
   key: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<IntegrationProviderRow | null> {
@@ -85,7 +85,7 @@ export async function listSiteIntegrations(
 }
 
 /** List only enabled integrations for a site */
-export async function listEnabledIntegrations(
+async function listEnabledIntegrations(
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteIntegrationRow[]> {
@@ -102,7 +102,7 @@ export async function listEnabledIntegrations(
 }
 
 /** Get a specific site integration */
-export async function getSiteIntegration(
+async function getSiteIntegration(
   siteId: string,
   providerKey: string,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -149,7 +149,7 @@ export async function upsertSiteIntegration(
 }
 
 /** Bulk-upsert integrations for a site (used during site creation) */
-export async function bulkUpsertSiteIntegrations(
+async function bulkUpsertSiteIntegrations(
   siteId: string,
   integrations: { provider_key: string; is_enabled: boolean; config?: Record<string, unknown> }[],
   getClient: DalClientGetter = defaultDalClientGetter,

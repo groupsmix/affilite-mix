@@ -282,7 +282,7 @@ export async function deleteAdminUser(
 }
 
 /** Count admin users (to check if any exist) */
-export async function countAdminUsers(
+async function countAdminUsers(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<number> {
   const sb = await getClient();
@@ -302,7 +302,7 @@ export async function countAdminUsers(
  * Check if the admin_users table exists and has any rows.
  * Returns false if the table doesn't exist or has no users.
  */
-export async function hasAdminUsers(): Promise<boolean> {
+async function hasAdminUsers(): Promise<boolean> {
   try {
     const count = await countAdminUsers();
     return count > 0;

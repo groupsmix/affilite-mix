@@ -41,7 +41,7 @@ export const listSites = unstable_cache(
 );
 
 /** List all active sites (cached, filtered) */
-export async function getAllActiveSites(): Promise<SiteRow[]> {
+async function getAllActiveSites(): Promise<SiteRow[]> {
   const all = await listSites();
   return all.filter((s) => s.is_active);
 }

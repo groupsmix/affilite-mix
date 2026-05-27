@@ -189,17 +189,6 @@ export async function requireAdmin(): Promise<AdminResult> {
 }
 
 /**
- * AUDIT-FIX: Apply Cache-Control headers to admin API responses to prevent
- * CDN or browser caching of tenant-specific admin data. Call this on every
- * NextResponse returned from /api/admin/* route handlers.
- */
-export function withAdminCacheHeaders(response: NextResponse): NextResponse {
-  response.headers.set("Cache-Control", "private, no-store, max-age=0");
-  response.headers.set("Pragma", "no-cache");
-  return response;
-}
-
-/**
  * Convenience wrapper: calls requireAdmin() then asserts super_admin role.
  * Returns the same AdminResult shape — with a 401 error (Bearer challenge)
  * if the role is insufficient. See `unauthorizedResponse` for rationale.

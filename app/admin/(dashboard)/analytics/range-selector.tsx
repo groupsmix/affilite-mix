@@ -209,5 +209,3 @@ export function RangeSelector() {
     </div>
   );
 }
-
-export default RangeSelector;

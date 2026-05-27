@@ -5,7 +5,7 @@ import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 const TABLE = "content_products";
 
 /** Link a product to a content item */
-export async function linkProduct(
+async function linkProduct(
   input: ContentProductRow,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ContentProductRow> {
@@ -16,7 +16,7 @@ export async function linkProduct(
 }
 
 /** Unlink a product from a content item (verifies content belongs to site) */
-export async function unlinkProduct(
+async function unlinkProduct(
   siteId: string,
   contentId: string,
   productId: string,
@@ -63,7 +63,7 @@ export async function getLinkedProducts(
 }
 
 /** Update link metadata (role) — verifies content belongs to site */
-export async function updateProductLink(
+async function updateProductLink(
   siteId: string,
   contentId: string,
   productId: string,
@@ -95,7 +95,7 @@ export async function updateProductLink(
 }
 
 /** Get content items that link to a given product (scoped to site) */
-export async function getRelatedContentForProduct(
+async function getRelatedContentForProduct(
   siteId: string,
   productId: string,
   getClient: DalClientGetter = defaultDalClientGetter,

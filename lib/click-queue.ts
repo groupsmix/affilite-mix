@@ -44,7 +44,7 @@ interface CloudflareQueue<T> {
   sendBatch(messages: Array<{ body: T }>): Promise<void>;
 }
 
-export interface ClickQueueMessage extends RecordClickInput {
+interface ClickQueueMessage extends RecordClickInput {
   /** Epoch millis when the click was received at the edge. */
   ts: number;
 }

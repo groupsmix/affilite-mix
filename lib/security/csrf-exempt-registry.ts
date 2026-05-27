@@ -160,6 +160,6 @@ export function csrfExemptPaths(): ReadonlySet<string> {
 }
 
 /** True when `pathname` is registered in the exemption list. */
-export function isCsrfExempt(pathname: string): boolean {
+function isCsrfExempt(pathname: string): boolean {
   return csrfExemptSet.has(pathname);
 }

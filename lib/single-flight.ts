@@ -32,6 +32,6 @@ export async function singleFlight<T>(key: string, fn: () => Promise<T>): Promis
 }
 
 /** Test-only: clear all inflight entries. */
-export function __resetSingleFlightForTests(): void {
+function __resetSingleFlightForTests(): void {
   inflight.clear();
 }

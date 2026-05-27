@@ -139,7 +139,7 @@ export interface NavItem {
 }
 
 /** Fine-grained monetization modules — each drives different UX and accounting. */
-export type MonetizationModule =
+type MonetizationModule =
   | "affiliate_links"
   | "display_ads"
   | "newsletter_sponsor"
@@ -147,18 +147,3 @@ export type MonetizationModule =
   | "paid_membership"
   | "price_alerts"
   | "sponsored_reviews";
-
-/**
- * Derive the legacy monetizationType enum from a monetizationModules array.
- * Used for backward compatibility with existing UI code.
- */
-export function deriveMonetizationType(
-  modules: MonetizationModule[] | undefined,
-): "affiliate" | "ads" | "both" {
-  if (!modules || modules.length === 0) return "both";
-  const hasAffiliate = modules.includes("affiliate_links");
-  const hasAds = modules.includes("display_ads");
-  if (hasAffiliate && hasAds) return "both";
-  if (hasAds) return "ads";
-  return "affiliate";
-}

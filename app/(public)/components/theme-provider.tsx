@@ -36,7 +36,7 @@ const defaultTheme: SiteThemeConfig = {
 
 const ThemeContext = createContext<SiteThemeConfig>(defaultTheme);
 
-export function useTheme(): SiteThemeConfig {
+function useTheme(): SiteThemeConfig {
   return useContext(ThemeContext);
 }
 

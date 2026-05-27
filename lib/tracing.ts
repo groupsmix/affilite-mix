@@ -71,7 +71,7 @@ export function parseOrCreateTraceContext(request: Request): TraceContext {
 /**
  * Format a trace context as a `traceparent` header value.
  */
-export function formatTraceparent(ctx: TraceContext): string {
+function formatTraceparent(ctx: TraceContext): string {
   return `00-${ctx.traceId}-${ctx.spanId}-${ctx.traceFlags.toString(16).padStart(2, "0")}`;
 }
 

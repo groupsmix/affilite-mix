@@ -143,7 +143,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 /** Currency rounding modes. Most currencies use half-up;
  * JPY/KRW/CLP/ISK are zero-decimal and always round to integer. */
-export type RoundingMode = "half-up" | "zero-decimal";
+type RoundingMode = "half-up" | "zero-decimal";
 
 interface CurrencyRoundingPolicy {
   mode: RoundingMode;
@@ -169,12 +169,12 @@ const CURRENCY_POLICIES: Readonly<Record<string, CurrencyRoundingPolicy>> = {
 };
 
 /** Get the rounding policy for a currency. Defaults to half-up with 2 decimals. */
-export function getCurrencyRoundingPolicy(currency: string): CurrencyRoundingPolicy {
+function getCurrencyRoundingPolicy(currency: string): CurrencyRoundingPolicy {
   return CURRENCY_POLICIES[currency.toUpperCase()] ?? { mode: "half-up", decimals: 2 };
 }
 
 /** Round a monetary amount according to the currency's policy. */
-export function roundMoney(amount: number, currency: string): number {
+function roundMoney(amount: number, currency: string): number {
   const policy = getCurrencyRoundingPolicy(currency);
   const factor = 10 ** policy.decimals;
   if (policy.mode === "zero-decimal") {
@@ -206,7 +206,7 @@ function isProductStatus(v: unknown): v is ProductStatus {
   return isString(v) && PRODUCT_STATUSES.has(v);
 }
 
-export type ContentType = "article" | "review" | "comparison" | "guide" | "blog";
+type ContentType = "article" | "review" | "comparison" | "guide" | "blog";
 export const CONTENT_TYPES: ReadonlySet<string> = new Set([
   "article",
   "review",
@@ -881,7 +881,7 @@ export function validateUpdateContent(
 
 // ── Content-Products ──────────────────────────────────────
 
-export interface ContentProductLink {
+interface ContentProductLink {
   product_id: string;
   role: LinkRole;
 }

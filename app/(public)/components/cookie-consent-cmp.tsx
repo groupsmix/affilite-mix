@@ -9,7 +9,7 @@ import * as CookieConsent from "vanilla-cookieconsent";
  * categories, or legal basis changes so consent records can prove which
  * version the user saw.
  */
-export const CONSENT_BANNER_VERSION = "2026-04";
+const CONSENT_BANNER_VERSION = "2026-04";
 
 interface CookieConsentCmpProps {
   language?: string;

@@ -61,7 +61,7 @@ export async function listApprovedWristShots(
 }
 
 /** List pending wrist shots for moderation */
-export async function listPendingWristShots(
+async function listPendingWristShots(
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<WristShotRow[]> {
@@ -79,7 +79,7 @@ export async function listPendingWristShots(
 }
 
 /** Moderate a wrist shot */
-export async function moderateWristShot(
+async function moderateWristShot(
   id: string,
   status: "approved" | "rejected",
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -163,7 +163,7 @@ export async function listApprovedComments(
 }
 
 /** List pending comments for moderation */
-export async function listPendingComments(
+async function listPendingComments(
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CommentRow[]> {
@@ -181,7 +181,7 @@ export async function listPendingComments(
 }
 
 /** Moderate a comment */
-export async function moderateComment(
+async function moderateComment(
   id: string,
   status: "approved" | "rejected" | "spam",
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -204,7 +204,7 @@ export async function moderateComment(
 }
 
 /** Get comment by ID */
-export async function getCommentById(
+async function getCommentById(
   id: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CommentRow | null> {

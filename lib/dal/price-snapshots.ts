@@ -18,7 +18,7 @@ const ALL_COLUMNS =
   "id, product_id, site_id, price_amount, currency, source, scraped_at, created_at" as const;
 
 /** Record a price snapshot */
-export async function createPriceSnapshot(
+async function createPriceSnapshot(
   input: {
     product_id: string;
     site_id: string;
@@ -78,7 +78,7 @@ export async function getPriceHistory(
 }
 
 /** Get the latest price snapshot for a product */
-export async function getLatestPrice(
+async function getLatestPrice(
   productId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<PriceSnapshotRow | null> {
@@ -97,7 +97,7 @@ export async function getLatestPrice(
 }
 
 /** Get latest prices for multiple products (for batch display) */
-export async function getLatestPricesForProducts(
+async function getLatestPricesForProducts(
   productIds: string[],
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<Map<string, PriceSnapshotRow>> {

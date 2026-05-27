@@ -11,7 +11,7 @@
 
 export type SupportedLocale = "en" | "ar";
 
-export interface LocaleCatalog {
+interface LocaleCatalog {
   locale: SupportedLocale;
   direction: "ltr" | "rtl";
   messages: Record<string, string>;
@@ -80,7 +80,7 @@ export function t(key: string, locale: SupportedLocale = "en"): string {
 /**
  * Get the text direction for a locale.
  */
-export function getDirection(locale: SupportedLocale): "ltr" | "rtl" {
+function getDirection(locale: SupportedLocale): "ltr" | "rtl" {
   return CATALOGS[locale]?.direction ?? "ltr";
 }
 
@@ -94,11 +94,7 @@ export function formatNumber(value: number, locale: SupportedLocale = "en"): str
 /**
  * Format a currency value according to locale conventions.
  */
-export function formatCurrency(
-  value: number,
-  currency: string,
-  locale: SupportedLocale = "en",
-): string {
+function formatCurrency(value: number, currency: string, locale: SupportedLocale = "en"): string {
   return new Intl.NumberFormat(locale, { style: "currency", currency }).format(value);
 }
 

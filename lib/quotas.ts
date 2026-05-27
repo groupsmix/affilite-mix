@@ -100,7 +100,7 @@ const RESOURCE_META: Record<QuotaResource, ResourceMeta> = {
  * Resolved per-tenant ceilings. `undefined` means "no ceiling" — the
  * resource is unlimited for this tenant.
  */
-export type TenantQuotaConfig = {
+type TenantQuotaConfig = {
   [R in QuotaResource]?: number;
 };
 
@@ -208,7 +208,7 @@ function findSiteOverrides(siteId: string): TenantQuotaOverrides | undefined {
  * take precedence over global env defaults; either resolving to
  * `undefined` means the resource is unlimited for that tenant.
  */
-export function resolveTenantQuotas(siteId: string): TenantQuotaConfig {
+function resolveTenantQuotas(siteId: string): TenantQuotaConfig {
   const overrides = findSiteOverrides(siteId);
   const out: TenantQuotaConfig = {};
   for (const resource of Object.keys(RESOURCE_META) as QuotaResource[]) {
