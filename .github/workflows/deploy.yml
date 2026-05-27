@@ -354,6 +354,9 @@ jobs:
             exit 1
           fi
 
+          # Strip ?pgbouncer=true — psql does not understand this query param.
+          _STAGING_DB_URL="${_STAGING_DB_URL%%\?*}"
+
           echo "Running fresh staging DB migration apply..."
 
           # Drop and recreate the public schema (equivalent to supabase db reset).
@@ -626,6 +629,8 @@ jobs:
         run: |
           set -euo pipefail
           DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
+          # Strip ?pgbouncer=true — psql does not understand this query param.
+          DB_URL="${DB_URL%%\?*}"
 
           if [ -z "$DB_URL" ]; then
             echo "::warning::No DB URL set, skipping snapshot"
@@ -667,6 +672,8 @@ jobs:
           echo "Applying database migrations to production..."
           # Prefer the pooler URL if provided; fall back to the direct URL.
           DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
+          # Strip ?pgbouncer=true — psql does not understand this query param.
+          DB_URL="${DB_URL%%\?*}"
 
           # Audit F-005: production migrations cannot silently skip when the
           # DB URL secret is missing. A green deploy without a corresponding
@@ -732,6 +739,8 @@ jobs:
         run: |
           set -euo pipefail
           DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
+          # Strip ?pgbouncer=true — psql does not understand this query param.
+          DB_URL="${DB_URL%%\?*}"
 
           # Audit F-005: schema verification is only meaningful when it ran
           # against the same DB the migration step targeted. Missing URL
