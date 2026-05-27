@@ -14,6 +14,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 const WRANGLER_PATH = path.resolve(__dirname, "..", "wrangler.jsonc");
+const HEAVY_CRONS_PATH = path.resolve(__dirname, "..", "wrangler.heavy-crons.jsonc");
 
 interface WranglerConfig {
   kv_namespaces?: Array<{ binding: string; id: string; preview_id?: string }>;
@@ -27,8 +28,8 @@ interface WranglerConfig {
   vars?: Record<string, unknown>;
 }
 
-function parseWranglerJsonc(): WranglerConfig {
-  const raw = fs.readFileSync(WRANGLER_PATH, "utf-8");
+function parseWranglerJsonc(filePath: string = WRANGLER_PATH): WranglerConfig {
+  const raw = fs.readFileSync(filePath, "utf-8");
   // String-aware JSONC stripper: skip // and /* */ only outside quoted strings
   let result = "";
   let inString = false;
@@ -100,7 +101,12 @@ const EXPECTED_R2_BINDINGS = [
   "NEXT_INC_CACHE_R2_BUCKET",
 ];
 
-const EXPECTED_VARS = ["NODE_ENV", "CRON_ALLOW_SHARED_FALLBACK_IN_PROD", "APP_URL"];
+const EXPECTED_VARS = [
+  "NODE_ENV",
+  "APP_URL",
+  "ADMIN_SESSION_STRICT",
+  "INTERNAL_HMAC_MIGRATION_MODE",
+];
 
 describe("FIX-32: wrangler binding drift detection", () => {
   const config = parseWranglerJsonc();
@@ -197,5 +203,37 @@ describe("FIX-32: wrangler binding drift detection", () => {
         expect(actualVars.has(expected)).toBe(true);
       });
     }
+
+    it("C-1: ADMIN_SESSION_STRICT must be 'true' in production", () => {
+      const vars = config.vars as Record<string, string> | undefined;
+      expect(vars?.ADMIN_SESSION_STRICT).toBe("true");
+    });
+
+    it("H-11: INTERNAL_HMAC_MIGRATION_MODE must be 'strict' in production", () => {
+      const vars = config.vars as Record<string, string> | undefined;
+      expect(vars?.INTERNAL_HMAC_MIGRATION_MODE).toBe("strict");
+    });
+
+    it("C-2: CRON_ALLOW_SHARED_FALLBACK_IN_PROD must not be set in production", () => {
+      const vars = config.vars as Record<string, string> | undefined;
+      expect(vars?.CRON_ALLOW_SHARED_FALLBACK_IN_PROD).toBeUndefined();
+    });
+  });
+});
+
+describe("H-5: heavy-crons compatibility alignment", () => {
+  const main = parseWranglerJsonc();
+  const heavy = parseWranglerJsonc(HEAVY_CRONS_PATH);
+
+  it("heavy-crons compatibility_date matches main worker", () => {
+    expect((heavy as Record<string, unknown>).compatibility_date).toBe(
+      (main as Record<string, unknown>).compatibility_date,
+    );
+  });
+
+  it("heavy-crons compatibility_flags match main worker", () => {
+    expect((heavy as Record<string, unknown>).compatibility_flags).toEqual(
+      (main as Record<string, unknown>).compatibility_flags,
+    );
   });
 });

@@ -27,15 +27,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // For unauthenticated requests, return only a minimal status.
-  // Detailed checks (DB latency, env vars, email service) are restricted
-  // to authenticated callers (CRON_SECRET or admin JWT) to avoid leaking
-  // infrastructure information (Finding 21).
-  // Only CRON_SECRET bearer auth unlocks the detailed health view.
-  // Cookie-presence is NOT a valid auth check — the admin session cookie is
-  // "nh_admin_token", not "admin_token", so a fake cookie would have passed
-  // the old check. Bearer auth avoids that class of bug entirely.
-  const isAuthorized = verifyCronAuth(request);
+  // M-8: Prefer a dedicated HEALTH_DETAIL_BEARER secret so health probes
+  // don't share credentials with cron triggers. Fall back to cron auth
+  // for backward compatibility when the dedicated secret is not set.
+  const healthBearer = process.env.HEALTH_DETAIL_BEARER;
+  const authHeader = request.headers.get("authorization") ?? "";
+  const isAuthorized =
+    (healthBearer && authHeader === `Bearer ${healthBearer}`) || verifyCronAuth(request);
 
   if (!isAuthorized) {
     return NextResponse.json({ status: "healthy" });
