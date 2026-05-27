@@ -8,7 +8,6 @@ import {
 } from "@/lib/auth";
 import { computeRequestBinding } from "@/lib/jwt-binding";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
 import {
   isValidEmail,
@@ -170,21 +169,13 @@ export async function POST(request: NextRequest) {
     const {
       email: rawEmail,
       password,
-      turnstileToken,
       totp_token,
     } = bodyOrError as {
       email?: string;
       password?: string;
-      turnstileToken?: string;
       totp_token?: string;
     };
     const email = typeof rawEmail === "string" ? sanitizeEmailInput(rawEmail) : rawEmail;
-
-    // Verify Turnstile token (skipped in dev if not configured)
-    const turnstileResult = await verifyTurnstile(turnstileToken, ip);
-    if (!turnstileResult.success) {
-      return apiError(403, turnstileResult.error ?? "Captcha verification failed");
-    }
 
     // SECURITY-FIX: RFC 5321 length cap + null-byte strip (IV-001 / CWE-1284)
     if (email && email.length > MAX_EMAIL_LENGTH) {
