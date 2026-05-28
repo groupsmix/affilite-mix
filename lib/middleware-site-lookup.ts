@@ -1,5 +1,16 @@
 import { requireEnvInProduction } from "@/lib/env";
 import { singleFlight } from "@/lib/single-flight";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
+
+/**
+ * Hard cap for the Supabase REST site-lookup. Middleware already
+ * wraps the lookup in an outer `Promise.race` of 5 seconds before
+ * falling back to a degraded response, but a single slow Supabase
+ * round-trip would hold the isolate for the full window. Tightening
+ * to 1.5 s lets a true slow path surface as a clean 503 quickly and
+ * frees the isolate for the next request.
+ */
+const SITE_LOOKUP_TIMEOUT_MS = 1500;
 
 export interface MiddlewareSiteRow {
   id?: string;
@@ -40,13 +51,14 @@ async function _fetchSiteRowByDomain(domain: string): Promise<MiddlewareSiteRow 
   endpoint.searchParams.set("domain", `eq.${domain}`);
   endpoint.searchParams.set("limit", "1");
 
-  const response = await fetch(endpoint.toString(), {
+  const response = await fetchWithTimeout(endpoint.toString(), {
     headers: {
       apikey: anonKey,
       Authorization: `Bearer ${anonKey}`,
       Accept: "application/json",
     },
     cache: "no-store",
+    timeoutMs: SITE_LOOKUP_TIMEOUT_MS,
   });
 
   if (!response.ok) {
