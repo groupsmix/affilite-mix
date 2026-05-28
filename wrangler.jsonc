@@ -231,6 +231,8 @@
       // A-018/A43: Heavy crons → affilite-mix-heavy-crons worker
       // "0 7 * * *", // Price scrape (daily 7 AM UTC)
       "0 * * * *", // A43: Expire deals (hourly)
+      "*/15 * * * *", // Click reconcile (every 15 min)
+      "0 8 * * 1", // Access review (Mon 08:00 UTC, SOC 2 CC6.1)
     ],
   },
   // FIX-02 (F-018): NODE_ENV must be "production" so the app rejects dev fallback

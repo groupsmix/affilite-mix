@@ -174,6 +174,26 @@ export const cronJobs: readonly CronJob[] = [
     alertOnFailure: false,
     description: "Mark expired deals/coupons hourly.",
   },
+  {
+    name: "click-reconcile",
+    schedule: "*/15 * * * *",
+    path: "/api/cron/click-reconcile",
+    method: "POST",
+    secretEnvVar: "CRON_CLICK_RECONCILE_SECRET",
+    csrfExempt: true,
+    alertOnFailure: true,
+    description: "Reconcile click vs click_failures volume and alert on threshold breach.",
+  },
+  {
+    name: "access-review",
+    schedule: "0 8 * * 1",
+    path: "/api/cron/access-review",
+    method: "POST",
+    secretEnvVar: "CRON_ACCESS_REVIEW_SECRET",
+    csrfExempt: true,
+    alertOnFailure: false,
+    description: "SOC 2 CC6.1 — weekly admin-user access recertification.",
+  },
 ] as const;
 
 const cronJobByPath = new Map<string, CronJob>(cronJobs.map((j) => [j.path, j]));

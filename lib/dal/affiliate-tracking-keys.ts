@@ -12,7 +12,13 @@ interface AffiliateTrackingKeyRow {
 const TABLE = "affiliate_tracking_keys";
 const LIST_COLUMNS = "site_id, network, tracking_key, created_at, updated_at" as const;
 
-/** Resolve a DB site_id from a network-specific tracking key. Returns null if unregistered. */
+/** Resolve a DB site_id from a network-specific tracking key. Returns null if unregistered.
+ *
+ * F-API-01: This lookup is how we *discover* the site_id from an opaque
+ * affiliate-network key — there is no site_id to filter on yet. The cron
+ * caller uses the privileged client, so the Proxy requires an explicit
+ * `.unsafeNoSiteFilter()` opt-out here.
+ */
 export async function resolveSiteByTrackingKey(
   network: string,
   trackingKey: string,
@@ -22,6 +28,7 @@ export async function resolveSiteByTrackingKey(
   const { data, error } = await sb
     .from(TABLE)
     .select("site_id")
+    .unsafeNoSiteFilter()
     .eq("network", network)
     .eq("tracking_key", trackingKey)
     .single();

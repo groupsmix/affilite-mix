@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
 
     const { data: links, error: linkErr } = await untypedFrom(sb, "product_affiliate_links")
       .select("product_id, network, url")
+      // F-API-01: nightly EPC recompute reads every site's links so the
+      // rollup is global by definition.
+      .unsafeNoSiteFilter()
       .eq("is_active", true);
 
     if (linkErr) throw linkErr;
@@ -48,6 +51,8 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
         .select("id", { count: "exact", head: true })
+        // F-API-01: rollup is per (product, network); intentionally cross-tenant.
+        .unsafeNoSiteFilter()
         .eq("affiliate_url", link.url)
         .gte("created_at", thirtyDaysAgo);
 
@@ -55,6 +60,8 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
         .select("id", { count: "exact", head: true })
+        // F-API-01: rollup is per (product, network); intentionally cross-tenant.
+        .unsafeNoSiteFilter()
         .eq("affiliate_url", link.url)
         .gte("created_at", sevenDaysAgo);
 
@@ -62,6 +69,8 @@ export async function POST(request: NextRequest) {
 
       const { data: comm30d } = await untypedFrom(sb, "commissions")
         .select("commission_amount")
+        // F-API-01: rollup is per (product, network); intentionally cross-tenant.
+        .unsafeNoSiteFilter()
         .eq("product_id", link.product_id)
         .eq("network", link.network)
         .in("status", ["approved", "paid"])
@@ -69,6 +78,8 @@ export async function POST(request: NextRequest) {
 
       const { data: comm7d } = await untypedFrom(sb, "commissions")
         .select("commission_amount")
+        // F-API-01: rollup is per (product, network); intentionally cross-tenant.
+        .unsafeNoSiteFilter()
         .eq("product_id", link.product_id)
         .eq("network", link.network)
         .in("status", ["approved", "paid"])
