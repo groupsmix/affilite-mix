@@ -40,8 +40,20 @@ export async function createWristShot(
   return assertRow<WristShotRow>(data, "WristShot");
 }
 
-/** List approved wrist shots for a product */
+/**
+ * List approved wrist shots for a product.
+ *
+ * audit5-#5: `siteId` is required and passed explicitly to the query as a
+ * defense-in-depth filter on top of the `tenant_isolation_auth_<table>`
+ * RLS policy (supabase/migrations/00067). RLS already scopes the read to
+ * the JWT's `site_id` claim, so cross-tenant data does not leak today;
+ * however, if a future refactor swaps the default client for a
+ * privileged (service-role) client the RLS filter disappears and only
+ * this explicit `.eq("site_id", siteId)` keeps tenants isolated. Belt
+ * AND braces.
+ */
 export async function listApprovedWristShots(
+  siteId: string,
   productId: string,
   limit: number = 20,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -51,6 +63,7 @@ export async function listApprovedWristShots(
   const { data, error } = await sb
     .from(WRIST_SHOTS_TABLE)
     .select(WRIST_SHOT_COLUMNS)
+    .eq("site_id", siteId)
     .eq("product_id", productId)
     .eq("status", "approved")
     .order("created_at", { ascending: false })
@@ -142,8 +155,16 @@ export async function createComment(
   return assertRow<CommentRow>(data, "Comment");
 }
 
-/** List approved comments for a target (product or content), threaded */
+/**
+ * List approved comments for a target (product or content), threaded.
+ *
+ * audit5-#5: `siteId` is required and passed explicitly. See the
+ * matching comment on `listApprovedWristShots` above — the explicit
+ * `.eq("site_id", siteId)` is a defense-in-depth filter that survives
+ * a future swap to a privileged client which would bypass RLS.
+ */
 export async function listApprovedComments(
+  siteId: string,
   targetType: "product" | "content",
   targetId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
@@ -153,6 +174,7 @@ export async function listApprovedComments(
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
     .select(COMMENT_COLUMNS)
+    .eq("site_id", siteId)
     .eq("target_type", targetType)
     .eq("target_id", targetId)
     .eq("status", "approved")
