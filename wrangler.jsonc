@@ -44,10 +44,14 @@
   // them via wrangler CLI overrides.
   "kv_namespaces": [
     {
+      // Env var: RATE_LIMIT_KV_NAMESPACE_ID
+      // Guard: scripts/check-wrangler-placeholders.mjs
       "binding": "RATE_LIMIT_KV",
       "id": "${RATE_LIMIT_KV_NAMESPACE_ID}",
     },
     {
+      // Env var: APP_CACHE_KV_NAMESPACE_ID
+      // Guard: scripts/check-wrangler-placeholders.mjs
       "binding": "APP_CACHE_KV",
       "id": "${APP_CACHE_KV_NAMESPACE_ID}",
     },
