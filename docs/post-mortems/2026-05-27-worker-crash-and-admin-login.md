@@ -99,7 +99,7 @@ authenticated dashboard, creating an infinite redirect loop.
 
 ## Action Items
 
-- [ ] Add post-deploy smoke test to CI/CD pipeline
-- [ ] Implement `wrangler secret list` validation in deploy workflow
-- [ ] Evaluate canary deployment strategy for Worker updates
+- [x] Add post-deploy smoke test to CI/CD pipeline — `health-check` job in `deploy.yml` (deploy.yml:1302)
+- [x] Implement `wrangler secret list` validation in deploy workflow — `Runtime drift — Worker secrets` step (deploy.yml:1456)
+- [x] Evaluate canary deployment strategy for Worker updates — gradual rollout via `GRADUAL_ROLLOUT_ENABLED` (deploy.yml:1170)
 - [ ] Re-evaluate Turnstile re-enablement when rendering is stable

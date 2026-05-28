@@ -1564,3 +1564,36 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "For gradual rollouts, use the **Deploy (gradual rollout)** workflow instead." >> "$GITHUB_STEP_SUMMARY"
           echo "See: \`.github/workflows/deploy-gradual.yml\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # STAGE 5: Notify on deploy failure (AUD-03 / AUD-11)
+  # ═══════════════════════════════════════════════════════════════════
+  notify-failure:
+    if: failure()
+    needs: [deploy, health-check]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Notify deploy failure
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_DEPLOY_WEBHOOK_URL }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "::notice::SLACK_DEPLOY_WEBHOOK_URL not configured — skipping failure notification. Add it in repo secrets to enable deploy alerts."
+            exit 0
+          fi
+          curl -fsS -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"text\": \":rotating_light: *Deploy failed* for \`${{ github.repository }}\`\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \":rotating_light: *Deploy to Cloudflare failed*\n*Repo:* \`${{ github.repository }}\`\n*Branch:* \`${{ github.ref_name }}\`\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\n*Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>\"
+                  }
+                }
+              ]
+            }" || echo "::warning::Failed to send Slack notification"
