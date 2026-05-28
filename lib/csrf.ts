@@ -6,7 +6,7 @@
  * as the X-CSRF-Token header on every state-changing request.
  *
  * Flow:
- * 1. GET /api/auth/csrf → sets __csrf cookie + returns { token }.
+ * 1. GET /api/auth/csrf → sets `__Host-csrf` cookie (prod) / `__csrf` (dev) + returns { token }.
  * 2. Client stores the token and sends it as X-CSRF-Token on POST/PATCH/DELETE.
  * 3. Middleware compares cookie value with header value (timing-safe).
  *
