@@ -139,10 +139,9 @@ describe("Rate-limit abuse protection: login endpoint", () => {
     expect(content).toContain('failPolicy: "closed"');
   });
 
-  it.skip("login verifies Turnstile captcha (Turnstile temporarily removed)", () => {
-    const content = readFile("app/api/auth/login/route.ts");
-    expect(content).toContain("verifyTurnstile");
-  });
+  // C-2: Removed misleading skipped test that claimed Turnstile was
+  // "temporarily removed." Turnstile is active on checkout, newsletter,
+  // and comments routes. Login uses rate-limiting + TOTP as its defence.
 });
 
 describe("Rate-limit abuse protection: community endpoints", () => {

@@ -1,4 +1,5 @@
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { logger } from "@/lib/logger";
 /**
  * Server-side Cloudflare Turnstile verification.
  *
@@ -29,6 +30,11 @@ export async function verifyTurnstile(
     process.env.ENABLE_TURNSTILE === "true" || process.env.ENABLE_TURNSTILE === "1";
 
   if (!enableTurnstile) {
+    if (process.env.NODE_ENV === "production") {
+      logger.warn("turnstile.disabled_in_production", {
+        metric: "turnstile_disabled",
+      });
+    }
     return { success: true };
   }
 
