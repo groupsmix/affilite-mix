@@ -22,8 +22,8 @@ function assertSafe(output: string, label: string): void {
   const lc = output.toLowerCase();
 
   // No executable script tags
-  expect(lc).not.toMatch(/<script[\s>]/);
-  expect(lc).not.toMatch(/<\/script>/);
+  expect(lc).not.toMatch(/<script[\s>]/i);
+  expect(lc).not.toMatch(/<\/script>/i);
 
   // No event handlers
   expect(lc).not.toMatch(/\bon\w+\s*=/);
