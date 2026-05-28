@@ -87,9 +87,7 @@ for (const rel of paths) {
   const prefix = isAdvisory ? "::warning::" : "::error::";
 
   for (const name of found) {
-    console.error(
-      `${prefix}[check-wrangler-placeholders] unresolved \${${name}} in ${rel}`,
-    );
+    console.error(`${prefix}[check-wrangler-placeholders] unresolved \${${name}} in ${rel}`);
   }
   console.error(
     `${prefix}[check-wrangler-placeholders] ${found.size} unresolved placeholder(s) ` +
