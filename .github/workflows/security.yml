@@ -45,10 +45,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      # Fail only on high or critical — moderate issues still surface in logs
-      # but do not block PRs, keeping signal-to-noise high.
+      # AUD-10: Fail on moderate and above (previously high-only).
+      # 0 moderate vulns as of 2026-05-28; lowered to catch Prototype
+      # Pollution / ReDoS / SSRF in transitive deps early.
       - name: Run npm audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=moderate
 
   licenses:
     name: License compliance
