@@ -50,8 +50,31 @@ export async function POST(request: NextRequest) {
   const sb = getPrivilegedSupabaseClient();
   // A28-003: Use DB now() for scheduling decisions instead of worker clock.
   // Edge clock skew can cause early/late publishing. DB is the authoritative time source.
-  const { data: dbNowResult } = await sb.rpc("db_now");
-  const dbNow = (dbNowResult as string | null) ?? new Date().toISOString();
+  //
+  // audit5-#23: the previous revision fell back to `new Date().toISOString()`
+  // when `db_now()` returned null/undefined, which silently undermined the
+  // "DB is the authoritative clock" guarantee. A null return from `db_now`
+  // is not a normal condition — it means either the RPC is missing
+  // (deployment skipped a migration) or the Postgres session lost its
+  // clock connection. Both are bugs the operator must see, not race
+  // around. We now refuse to publish on this signal and surface the
+  // misconfiguration via Sentry + a 503 response so the cron retries
+  // with backoff instead of double-publishing on the next tick.
+  const { data: dbNowResult, error: dbNowError } = await sb.rpc("db_now");
+  if (dbNowError || dbNowResult == null) {
+    captureException(dbNowError ?? new Error("db_now() returned null/undefined"), {
+      context: "[api/cron/publish] cron clock unavailable — refusing to publish on worker clock",
+      route: "/api/cron/publish",
+    });
+    return NextResponse.json(
+      {
+        error:
+          "Database clock unavailable. Refusing to publish on worker time — cron will retry on next tick.",
+      },
+      { status: 503 },
+    );
+  }
+  const dbNow = dbNowResult as string;
   // Also capture worker time for drift detection logging
   const workerNow = new Date().toISOString();
   const clockSkewMs = Math.abs(new Date(dbNow).getTime() - new Date(workerNow).getTime());

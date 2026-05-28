@@ -72,5 +72,36 @@ if (previewName) {
   cfg.name = previewName;
 }
 
-fs.writeFileSync(dst, JSON.stringify(cfg, null, 2));
+// audit5-#27: Wrangler does NOT perform shell-style `${VAR}` substitution
+// on JSON config fields. We do it here so the emitted preview config
+// never ships a literal `${RATE_LIMIT_KV_NAMESPACE_ID}` to `wrangler
+// deploy`, which would fail opaquely at request time with a "namespace
+// not found" error. Any placeholder whose env var is unset falls back
+// to a 32-zero sentinel — a valid Cloudflare KV ID shape that will not
+// match any real namespace, so the failure surfaces immediately on the
+// first KV operation in the preview rather than days later when the
+// "deploy" appeared green.
+const PLACEHOLDER_SENTINEL = "00000000000000000000000000000000";
+function substitutePlaceholders(value) {
+  if (typeof value === "string") {
+    return value.replace(/\$\{([A-Z][A-Z0-9_]*)\}/g, (match, name) => {
+      const v = process.env[name];
+      if (typeof v === "string" && v.trim().length > 0) return v;
+      console.warn(
+        `[generate-preview-wrangler] env var ${name} unset; substituting sentinel for preview deploy`,
+      );
+      return PLACEHOLDER_SENTINEL;
+    });
+  }
+  if (Array.isArray(value)) return value.map(substitutePlaceholders);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = substitutePlaceholders(v);
+    return out;
+  }
+  return value;
+}
+const substituted = substitutePlaceholders(cfg);
+
+fs.writeFileSync(dst, JSON.stringify(substituted, null, 2));
 console.log(`Wrote ${dst}${previewName ? ` (name=${previewName})` : ""}`);
