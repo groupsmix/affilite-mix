@@ -36,6 +36,12 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
       primaryColor: theme?.primary_color ?? theme?.primaryColor ?? "#1f2937",
       accentColor: theme?.accent_color ?? theme?.accentColor ?? "#3b82f6",
       accentTextColor: theme?.accent_text_color ?? theme?.accentTextColor ?? "#2563eb",
+      accentLightColor:
+        theme?.accent_light_color ??
+        theme?.accentLightColor ??
+        theme?.accent_color ??
+        theme?.accentColor ??
+        "#3b82f6",
       fontHeading: theme?.font_heading ?? theme?.fontHeading ?? theme?.font ?? "Inter",
       fontBody: theme?.font_body ?? theme?.fontBody ?? theme?.font ?? "Inter",
     },
