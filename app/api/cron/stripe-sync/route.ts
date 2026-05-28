@@ -56,6 +56,9 @@ export async function POST(request: NextRequest) {
     for await (const stripeSub of stripe.subscriptions.list({ status: "active", limit: 100 })) {
       const { data: dbMembership } = await untypedFrom(sb, "memberships")
         .select("id, status, tier")
+        // F-API-01: lookup by stripe_subscription_id resolves which tenant
+        // owns the membership — there is no site_id to filter on yet.
+        .unsafeNoSiteFilter()
         .eq("stripe_subscription_id", stripeSub.id)
         .maybeSingle();
 
@@ -111,6 +114,8 @@ export async function POST(request: NextRequest) {
         }
         await untypedFrom(sb, "memberships")
           .update({ status: "active", updated_at: new Date().toISOString() })
+          // F-API-01: stripe_subscription_id is globally unique across tenants.
+          .unsafeNoSiteFilter()
           .eq("stripe_subscription_id", stripeSub.id);
         reconcileFixed++;
       }

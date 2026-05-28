@@ -143,7 +143,15 @@ async function updateDeal(
   return assertRow<DealRow>(data, "Deal");
 }
 
-/** Auto-expire deals past their expiry date */
+/** Auto-expire deals past their expiry date.
+ *
+ * F-API-01: This is a cross-tenant cron sweep (hourly worker iterates every
+ * site's deals at once). The privileged-client Proxy requires every awaited
+ * query to either filter by `site_id` or explicitly opt out via
+ * `.unsafeNoSiteFilter()`. The opt-out is the correct semantic here — the
+ * caller is the cron worker, gated by `CRON_SECRET`, and a per-site fan-out
+ * would multiply DB roundtrips by the number of sites for zero benefit.
+ */
 export async function expireDeals(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<number> {
@@ -153,6 +161,7 @@ export async function expireDeals(
   const { data, error } = await sb
     .from(TABLE)
     .update({ is_active: false, updated_at: now })
+    .unsafeNoSiteFilter()
     .eq("is_active", true)
     .lt("expires_at", now)
     .select("id");
