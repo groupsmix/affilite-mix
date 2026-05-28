@@ -316,6 +316,66 @@ jobs:
           fi
           echo "All TODO/FIXME/HACK/XXX markers are properly linked."
 
+      - name: "S1-A8.5: fail-open criticality tags in security paths"
+        run: |
+          # S1-A8.5: Every `fail-open` comment in security-critical paths must
+          # include a [criticality:xxx] tag (non-critical, defence-in-depth,
+          # monitoring, telemetry). Untagged fail-open sites hide silent
+          # security degradation.
+          set -euo pipefail
+          SECURITY_PATHS="lib/auth.ts lib/csrf.ts lib/sanitize-html.ts lib/password.ts lib/jwt-secret.ts lib/safe-redirect.ts lib/internal-hmac.ts lib/jwt-binding.ts lib/jwt-revocation.ts lib/hmac-key.ts lib/get-client-ip.ts lib/audit-log.ts lib/security/"
+          VIOLATIONS=""
+          for f in $SECURITY_PATHS; do
+            if [ -e "$f" ]; then
+              FOUND=$(grep -rn 'fail-open' "$f" | grep -v '\[criticality:' 2>/dev/null || true)
+              if [ -n "$FOUND" ]; then
+                VIOLATIONS="${VIOLATIONS}${FOUND}\n"
+              fi
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Untagged fail-open comments in security paths. Add [criticality:non-critical|defence-in-depth|monitoring|telemetry]:"
+            echo -e "$VIOLATIONS"
+            exit 1
+          fi
+          echo "All fail-open sites in security paths are tagged with criticality."
+
+      - name: "S4-A89.1: Security-path TODO/FIXME gate"
+        run: |
+          # S4-A89.1: Fail if any TODO/FIXME/HACK/XXX exists in security-critical
+          # paths (including test files). These paths must never contain deferred work.
+          set -euo pipefail
+          SECURITY_PATHS="lib/auth.ts lib/csrf.ts lib/sanitize-html.ts lib/password.ts lib/jwt-secret.ts lib/safe-redirect.ts lib/internal-hmac.ts lib/jwt-binding.ts lib/jwt-revocation.ts lib/hmac-key.ts lib/get-client-ip.ts lib/audit-log.ts lib/security/"
+          VIOLATIONS=""
+          for f in $SECURITY_PATHS; do
+            if [ -e "$f" ]; then
+              FOUND=$(grep -rn -E '\b(TODO|FIXME|HACK|XXX)\b' "$f" 2>/dev/null || true)
+              if [ -n "$FOUND" ]; then
+                VIOLATIONS="${VIOLATIONS}${FOUND}\n"
+              fi
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::TODO/FIXME/HACK/XXX found in security-critical paths:"
+            echo -e "$VIOLATIONS"
+            exit 1
+          fi
+          echo "No deferred work markers in security-critical paths."
+
+      - name: "S4-A87.2: Ban .only in test files"
+        run: |
+          # S4-A87.2: Prevent it.only / describe.only / test.only from reaching main.
+          # These isolate tests to a subset, masking regressions.
+          # Note: .skip is allowed for conditional DB-dependent tests (ternary pattern).
+          set -euo pipefail
+          VIOLATIONS=$(grep -rn --include='*.test.ts' --include='*.test.tsx' -E '\b(describe|it|test)\.only\b' __tests__/ app/ lib/ 2>/dev/null || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::.only found in test files — remove before merging:"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "No .only found in test files."
+
       - name: "F-17: Generate SBOM (mandatory)"
         run: |
           # F-17: SBOM generation is a release blocker. Fail the build on generation failure.
