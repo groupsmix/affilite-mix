@@ -130,6 +130,19 @@ describe("F-API-01 cron proxy guard (registry-derived)", () => {
     const src = readFileSync(absPath, "utf8");
     // Specifically the DLQ branch must call .unsafeNoSiteFilter() because
     // the outer DLQ row wraps the failed message and has no site_id.
-    expect(src).toMatch(/click_failures.*\.insert\s*\([\s\S]*?\.unsafeNoSiteFilter\s*\(\s*\)/);
+    // Reuse the route-scoped extractor — both `click_failures` chains
+    // (the awaited DLQ insert and the fire-and-forget rejected-rows
+    // path) must opt out.
+    const chains = extractChains(src).filter((c) => /click_failures/.test(c));
+    expect(
+      chains.length,
+      "no `click_failures` chains found in app/api/queue/clicks/route.ts",
+    ).toBeGreaterThan(0);
+    const missing = chains.filter((c) => !chainHasSiteFilter(c));
+    expect(
+      missing,
+      `[F-API-01] click_failures chain(s) without .unsafeNoSiteFilter() or site_id filter:\n` +
+        missing.map((c, i) => `  ${i + 1}. ${c.slice(0, 240).replace(/\s+/g, " ")}`).join("\n"),
+    ).toEqual([]);
   });
 });
