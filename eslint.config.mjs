@@ -11,6 +11,27 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
+/**
+ * P2-B (PR-E): `no-restricted-syntax` selector that bans the
+ * `(process.env as Record<string, unknown>)` cast pattern used to access
+ * Cloudflare Worker bindings (KV / Queue / R2 / DO namespaces). The
+ * runtime env now exposes typed accessors in `lib/runtime-env.ts`
+ * (`getAppCacheKV`, `getRateLimitKV`, `getRateLimiterDO`, `getClickQueue`,
+ * `getAuditArchiveR2`). The raw cast erases the binding shape and lets
+ * misshaped objects silently slip past TypeScript.
+ *
+ * ESLint flat-config replaces (does NOT merge) `no-restricted-syntax`
+ * settings across overlapping file blocks, so this object is duplicated
+ * into each block below — extracting it here keeps the message and
+ * selector in lock-step.
+ */
+const runtimeEnvCastBan = {
+  selector:
+    "TSAsExpression[expression.object.name='process'][expression.property.name='env'][typeAnnotation.typeName.name='Record']",
+  message:
+    "Don't cast process.env to Record<string, unknown> to access Cloudflare bindings. Use a typed accessor from lib/runtime-env.ts (getAppCacheKV, getRateLimitKV, getRateLimiterDO, getClickQueue, getAuditArchiveR2). (PR-E P2-B)",
+};
+
 const eslintConfig = [
   { ignores: [".open-next/**", ".next/**", "coverage/**"] },
   ...compat.extends("next/core-web-vitals"),
@@ -102,6 +123,7 @@ const eslintConfig = [
           message:
             "dangerouslySetInnerHTML must wrap its `__html` value in sanitizeHtml(...) or safeJsonLdString(...) at the JSX call site. Hand-controlled literals (e.g. nonced bootstrap scripts) require an `// eslint-disable-next-line` comment naming the source. (audit-etap1 #6)",
         },
+        runtimeEnvCastBan,
       ],
     },
   },
@@ -172,6 +194,13 @@ const eslintConfig = [
   {
     // Risk #1: Ban select("*") in DAL files to prevent future
     // sensitive column exposure. Use explicit column projections instead.
+    //
+    // Also (P2-B, PR-E): bans `(process.env as Record<string, unknown>)`
+    // casts so DAL code can't slip a binding lookup past the typed
+    // accessors in `lib/runtime-env.ts`. ESLint flat-config replaces
+    // (does NOT merge) `no-restricted-syntax` selectors across overlapping
+    // file blocks, so this rule must list every selector that should fire
+    // on these files.
     files: ["lib/dal/**/*.ts", "lib/related-products.ts"],
     rules: {
       "no-restricted-syntax": [
@@ -181,7 +210,32 @@ const eslintConfig = [
           message:
             'select("*") exposes future sensitive columns. Use an explicit column list constant (e.g. LIST_COLUMNS).',
         },
+        runtimeEnvCastBan,
       ],
+    },
+  },
+  {
+    // P2-B (PR-E): Ban `(process.env as Record<string, unknown>)` casts on
+    // every other lib/, workers/ source file. The `app/**` files block at
+    // the top of this config already includes the same selector — we have
+    // to repeat it because flat-config replaces overlapping `no-restricted-
+    // syntax` settings.
+    //
+    // The single legitimate remaining caller (`lib/rate-limit.ts`'s
+    // `readBinding(name)` generic helper) is allow-listed via an inline
+    // `eslint-disable-next-line` because it's a runtime name-indexed
+    // accessor used by the generic rate-limit shim, not a typed-binding
+    // bypass.
+    files: ["lib/**/*.ts", "workers/**/*.ts"],
+    ignores: [
+      "lib/dal/**/*.ts",
+      "lib/related-products.ts",
+      "**/__tests__/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error", runtimeEnvCastBan],
     },
   },
 ];

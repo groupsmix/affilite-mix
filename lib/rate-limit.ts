@@ -92,6 +92,12 @@ function readBinding(name: string): unknown {
   const fromGlobal = (globalThis as Record<string, unknown>)[name];
   if (fromGlobal !== undefined) return fromGlobal;
   try {
+    // PR-E P2-B: this is the single legitimate `process.env as Record`
+    // cast in the codebase — it's a generic name-indexed accessor used
+    // by both the KV and DO branches below. The named binding accessors
+    // in `lib/runtime-env.ts` are preferred for direct lookups; this
+    // generic helper exists for the rate-limit shim only.
+    // eslint-disable-next-line no-restricted-syntax
     return (process.env as Record<string, unknown>)[name];
   } catch {
     // fail-open: best-effort
