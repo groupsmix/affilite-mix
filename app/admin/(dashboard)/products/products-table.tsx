@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-import { BulkActions } from "./bulk-actions";
+import { ProductBulkActions } from "./bulk-actions";
 import { ProductDeleteButton } from "./product-delete-button";
 
 export interface ProductsTableRow {
@@ -408,7 +408,10 @@ export function ProductsTable({
             <MissingUrlPill active={missingUrlActive} />
             {selectedIds.length > 0 && (
               <div className="basis-full pt-2">
-                <BulkActions selectedIds={selectedIds} onClear={() => table.resetRowSelection()} />
+                <ProductBulkActions
+                  selectedIds={selectedIds}
+                  onClear={() => table.resetRowSelection()}
+                />
               </div>
             )}
           </>
