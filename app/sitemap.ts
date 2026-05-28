@@ -5,7 +5,16 @@ import { listCategories } from "@/lib/dal/categories";
 import { listPublishedPages } from "@/lib/dal/pages";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { logger } from "@/lib/logger";
-import { captureException } from "@/lib/sentry";
+import { captureException, captureMessage } from "@/lib/sentry";
+
+/**
+ * audit5-#21: when the last-good cache is older than this, the fallback
+ * read path emits a Sentry `captureMessage` so the SEO team can be
+ * notified before the 24h TTL expires and the site falls off the
+ * sitemap entirely. This is paired with the existing logger.warn so
+ * both log streams (Cloudflare Logs + Sentry) see the same signal.
+ */
+const STALE_CACHE_ALERT_THRESHOLD_SECONDS = 60 * 60; // 1h
 
 const MAX_CONTENT_URLS = 45_000;
 
@@ -31,15 +40,45 @@ function getKv(): KVNamespace | null {
   }
 }
 
-async function readLastGoodSitemap(siteDomain: string): Promise<MetadataRoute.Sitemap | null> {
+/**
+ * audit5-#21: cache value type. The previous schema serialised the
+ * sitemap as a bare array; we now wrap it with a `cachedAt` timestamp
+ * so the read path can compute the cache age and emit a stale-cache
+ * alert. Bare-array values are still accepted on read (no `cachedAt`
+ * means "unknown age" — we treat that as stale and alert once).
+ */
+interface CachedSitemap {
+  cachedAt: number;
+  entries: MetadataRoute.Sitemap;
+}
+
+function isCachedSitemapShape(v: unknown): v is CachedSitemap {
+  if (typeof v !== "object" || v === null) return false;
+  const obj = v as Record<string, unknown>;
+  return typeof obj.cachedAt === "number" && Array.isArray(obj.entries);
+}
+
+async function readLastGoodSitemap(
+  siteDomain: string,
+): Promise<{ entries: MetadataRoute.Sitemap; ageSeconds: number | null } | null> {
   const kv = getKv();
   if (!kv) return null;
   try {
     const raw = await kv.get(lastGoodKey(siteDomain), "text");
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return null;
-    return parsed as MetadataRoute.Sitemap;
+    const parsed: unknown = JSON.parse(raw);
+    if (isCachedSitemapShape(parsed)) {
+      const ageMs = Date.now() - parsed.cachedAt;
+      const ageSeconds = ageMs >= 0 ? Math.floor(ageMs / 1000) : 0;
+      return { entries: parsed.entries, ageSeconds };
+    }
+    // Legacy bare-array shape — unknown age. Return as stale so the
+    // caller emits an alert; the next successful refresh will upgrade
+    // the cache to the new shape.
+    if (Array.isArray(parsed)) {
+      return { entries: parsed as MetadataRoute.Sitemap, ageSeconds: null };
+    }
+    return null;
   } catch (err) {
     logger.warn("Sitemap: failed to read last-good cache", {
       domain: siteDomain,
@@ -59,7 +98,10 @@ async function writeLastGoodSitemap(
   // defeat the fail-open guarantee on the next request.
   if (sitemap.length === 0) return;
   try {
-    await kv.put(lastGoodKey(siteDomain), JSON.stringify(sitemap), {
+    // audit5-#21: wrap with cachedAt timestamp so the read path can
+    // compute age and alert on stale cache.
+    const payload: CachedSitemap = { cachedAt: Date.now(), entries: sitemap };
+    await kv.put(lastGoodKey(siteDomain), JSON.stringify(payload), {
       expirationTtl: LAST_GOOD_TTL_SECONDS,
     });
   } catch (err) {
@@ -214,12 +256,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Dynamic fetch failed (or was skipped). Try the last-good cache.
   const cached = await readLastGoodSitemap(site.domain);
-  if (cached && cached.length > 0) {
+  if (cached && cached.entries.length > 0) {
+    // audit5-#21: log + alert when the cache is stale. The threshold is
+    // intentionally below the 24h TTL so we get a signal *before* the
+    // cache expires and the site falls off the sitemap entirely.
+    const isStale =
+      cached.ageSeconds === null || cached.ageSeconds > STALE_CACHE_ALERT_THRESHOLD_SECONDS;
     logger.warn("Sitemap: serving last-good cached entries", {
       domain: site.domain,
-      cachedCount: cached.length,
+      cachedCount: cached.entries.length,
+      ageSeconds: cached.ageSeconds,
+      isStale,
     });
-    return cached;
+    if (isStale) {
+      // captureMessage routes to Sentry; the SEO team can wire a
+      // notification on the `sitemap.fallback_to_cache_stale` event.
+      // Pre-#1 (P0) Sentry was a no-op; now it actually delivers.
+      captureMessage("sitemap.fallback_to_cache_stale", "warning");
+    }
+    return cached.entries;
   }
 
   // No cache available — return at least the static entries. This is

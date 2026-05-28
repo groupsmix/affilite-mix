@@ -1,7 +1,29 @@
 npx lint-staged
-# A38: secret scan on every commit — fail fast before secrets reach remote
-if command -v gitleaks &>/dev/null; then
-  gitleaks protect --staged --config .gitleaks.toml --verbose
-else
-  echo "[pre-commit] gitleaks not installed — skipping local secret scan (CI will still block)" >&2
+# A38 / audit5-#35: secret scan on every commit — fail fast before
+# secrets reach remote. We REQUIRE gitleaks locally because the CI
+# secret-scan is a backstop, not the primary defence: a developer who
+# never pushes (e.g. a `git diff > patch.diff` shared via email) bypasses
+# CI entirely. The previous behaviour silently warned and proceeded;
+# we now hard-fail with a clear install hint.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "" >&2
+  echo "[pre-commit] gitleaks is required for local secret scanning." >&2
+  echo "" >&2
+  echo "Install one of:" >&2
+  echo "  macOS:  brew install gitleaks" >&2
+  echo "  Debian: sudo apt install gitleaks" >&2
+  echo "  Other:  https://github.com/gitleaks/gitleaks#installing" >&2
+  echo "" >&2
+  echo "To bypass for a single commit when you are CERTAIN no secrets" >&2
+  echo "are staged (e.g. you are committing test fixtures), use:" >&2
+  echo "  GITLEAKS_DISABLE=1 git commit ..." >&2
+  echo "(This will be logged.)" >&2
+  echo "" >&2
+  if [ "${GITLEAKS_DISABLE:-}" = "1" ]; then
+    echo "[pre-commit] GITLEAKS_DISABLE=1 — skipping scan as requested." >&2
+    exit 0
+  fi
+  exit 1
 fi
+
+gitleaks protect --staged --config .gitleaks.toml --verbose

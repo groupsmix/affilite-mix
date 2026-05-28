@@ -261,6 +261,32 @@ For the full secrets inventory (build-time vs runtime, required vs optional), se
 | [`docs/incident-response.md`](docs/incident-response.md)               | Production incident detection, triage, and resolution                                                 |
 | [`docs/backup-strategy.md`](docs/backup-strategy.md)                   | Database and media backup strategy                                                                    |
 
+## Security & Audit
+
+<!-- audit5-#40: surface the audit framework + open-findings doc so new
+     contributors discover them on day one rather than via spelunking
+     in docs/audits/. -->
+
+This repo runs an internal **10-layer audit framework** (security, RBAC,
+RLS, CSP, rate-limit, SSRF, redirect, observability, deploy, data-flow).
+Each cycle of findings is tracked in `docs/audits/`:
+
+- **Current open findings** — see [`docs/audits/audit-unfixed-items.md`](docs/audits/audit-unfixed-items.md)
+  for the consolidated status of MEDIUM/LOW items across past audit cycles.
+- **Most-recent audit results** — `docs/audits/affilite-mix-audit-*.md` (one
+  file per cycle).
+- **Tech-debt follow-ups from the 2026-05-28 audit** — see
+  [`docs/audits/audit5-tech-debt-followups.md`](docs/audits/audit5-tech-debt-followups.md).
+- **Security disclosure policy** — `app/.well-known/security.txt` (dynamic
+  route) + [`docs/security/disclosure.md`](docs/security/disclosure.md) if present.
+- **On-call runbooks** — [`docs/runbooks/`](docs/runbooks/) (DLQ overflow,
+  incident response, DB-backup retention, etc.).
+
+For non-Cloudflare deployments, also read the
+**[`TRUST_PROXY_HEADERS` section in docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md)**
+before exposing the app behind a different reverse proxy — getting this
+wrong silently collapses every rate-limit bucket.
+
 ## Contributing
 
 Contributions are welcome for internal collaborators.

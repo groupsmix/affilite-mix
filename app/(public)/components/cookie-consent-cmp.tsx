@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import "vanilla-cookieconsent/dist/cookieconsent.css";
 import * as CookieConsent from "vanilla-cookieconsent";
 
@@ -95,6 +95,17 @@ export default function CookieConsentCmp({
   privacyPolicyUrl = "/privacy",
   siteId,
 }: CookieConsentCmpProps) {
+  /**
+   * audit5-#31: memoise the resolved language code so the effect
+   * dependency stays stable for transient `language` prop changes
+   * that resolve to the same locale code. The CMP supports two
+   * locales (en, ar); anything else falls back to en. Without this,
+   * a momentary language="" (e.g. during locale auto-detect) caused
+   * the consent banner to flash as vanilla-cookieconsent
+   * re-initialised. Memoising at this layer keeps the change local
+   * and avoids restructuring the large translations literal below.
+   */
+  const resolvedLanguage = useMemo(() => (language === "ar" ? "ar" : "en"), [language]);
   useEffect(() => {
     // A63: If GPC is enabled, treat as opt-out -- skip the banner entirely
     // and reject all non-essential categories.
@@ -141,7 +152,7 @@ export default function CookieConsentCmp({
       },
 
       language: {
-        default: language === "ar" ? "ar" : "en",
+        default: resolvedLanguage,
         translations: {
           en: {
             consentModal: {
@@ -292,7 +303,7 @@ export default function CookieConsentCmp({
         postConsentProof(siteId, detail);
       },
     });
-  }, [language, privacyPolicyUrl, siteId]);
+  }, [resolvedLanguage, privacyPolicyUrl, siteId]);
 
   return null;
 }
