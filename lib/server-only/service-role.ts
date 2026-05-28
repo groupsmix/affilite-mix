@@ -178,14 +178,30 @@ interface SiteFilterState {
  * `delete`/`upsert`, because those methods are *starters* in the supabase-js
  * fluent API (e.g. `.from(t).select('*').eq('site_id', id)`), not terminals.
  *
- * Acceptable patterns:
+ * Acceptable patterns (all require a non-empty string value for site_id):
  *   client.from(t).select('*').eq('site_id', id)
+ *   client.from(t).select('*').in('site_id', [id1, id2])
+ *   client.from(t).select('*').match({ site_id: id })
  *   client.from(t).insert({ site_id: id, ... })
  *   client.from(t).update({...}).eq('site_id', id)
  *   client.from(t).delete().eq('site_id', id)
  *   client.from(t).upsert({ site_id: id, ... })
  *   client.from(t).select('*').unsafeNoSiteFilter() // explicit opt-out
+ *
+ * Passing a falsy / empty value (e.g. `.eq('site_id', undefined)` or an
+ * insert payload whose `site_id` is `null`) does NOT satisfy the guard:
+ * the awaited query will reject with the F-API-01 error. This blocks an
+ * entire class of accidental cross-tenant queries that bind a missing
+ * variable but still type-check.
  */
+
+/** A value is acceptable as a `site_id` filter / column value when it is
+ * a non-empty string. UUIDs, slugs, and synthetic ids all satisfy this;
+ * `null`, `undefined`, empty strings, numbers and objects do not. */
+function isUsableSiteIdValue(val: unknown): val is string {
+  return typeof val === "string" && val.length > 0;
+}
+
 function wrapTable(builder: QueryBuilder): QueryBuilder {
   const state: SiteFilterState = { siteFilterApplied: false, lastTerminal: "<query>" };
   return wrapBuilder(builder, state);
@@ -196,11 +212,47 @@ const PASSTHROUGH_TERMINALS = ["select", "insert", "update", "delete", "upsert"]
 function wrapBuilder(builder: QueryBuilder, state: SiteFilterState): QueryBuilder {
   const handler: ProxyHandler<QueryBuilder> = {
     get(t, p) {
-      // Tenant filter: `.eq('site_id', …)` satisfies the guard.
+      // Tenant filter: `.eq('site_id', …)` satisfies the guard only when
+      // the value is a non-empty string. `.eq('site_id', undefined)` is
+      // a common bug pattern that previously silently satisfied the guard.
       if (p === "eq") {
         return (col: string, val: unknown) => {
-          if (col === "site_id") state.siteFilterApplied = true;
+          if (col === "site_id" && isUsableSiteIdValue(val)) {
+            state.siteFilterApplied = true;
+          }
           return wrapBuilder((t.eq as (c: string, v: unknown) => QueryBuilder)(col, val), state);
+        };
+      }
+      // Tenant filter: `.in('site_id', […])` satisfies the guard when the
+      // array is non-empty and every element is a non-empty string. An
+      // empty array would degenerate to no filter at all (PostgREST keeps
+      // every row), so we must NOT mark the filter as applied for it.
+      if (p === "in") {
+        return (col: string, vals: unknown) => {
+          if (
+            col === "site_id" &&
+            Array.isArray(vals) &&
+            vals.length > 0 &&
+            vals.every(isUsableSiteIdValue)
+          ) {
+            state.siteFilterApplied = true;
+          }
+          return wrapBuilder((t.in as (c: string, v: unknown) => QueryBuilder)(col, vals), state);
+        };
+      }
+      // Tenant filter: `.match({ site_id: … })` satisfies the guard when
+      // the object literal includes a non-empty `site_id` string value.
+      if (p === "match") {
+        return (query: unknown) => {
+          if (
+            query !== null &&
+            typeof query === "object" &&
+            "site_id" in query &&
+            isUsableSiteIdValue((query as Record<string, unknown>).site_id)
+          ) {
+            state.siteFilterApplied = true;
+          }
+          return wrapBuilder((t.match as (q: unknown) => QueryBuilder)(query), state);
         };
       }
       // Explicit opt-out for cross-tenant operations.
@@ -245,10 +297,19 @@ function wrapBuilder(builder: QueryBuilder, state: SiteFilterState): QueryBuilde
             return (...args: unknown[]) => {
               const payload = args[0];
               const items = Array.isArray(payload) ? payload : [payload];
+              // The previous check only confirmed that every row carried a
+              // `site_id` key. A row with `{ site_id: null }` or
+              // `{ site_id: undefined }` would pass — the database would
+              // then either reject the write or, worse, silently coerce.
+              // Require every value to be a non-empty string.
               if (
                 items.length > 0 &&
                 items.every(
-                  (it: unknown) => it !== null && typeof it === "object" && "site_id" in it,
+                  (it: unknown) =>
+                    it !== null &&
+                    typeof it === "object" &&
+                    "site_id" in it &&
+                    isUsableSiteIdValue((it as Record<string, unknown>).site_id),
                 )
               ) {
                 state.siteFilterApplied = true;
