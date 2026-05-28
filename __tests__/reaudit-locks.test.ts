@@ -172,7 +172,14 @@ describe("re-audit lock — R-009 / G-27 static CSP fallback removed", () => {
     // `'unsafe-inline'` must not appear in script-src. Style-src uses
     // 'unsafe-inline' intentionally (see lib/csp.ts rationale: nonces
     // can't protect style attributes or dynamic element.style writes).
-    expect(code).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+    //
+    // The directive is a single template literal in the source, so we
+    // bound the negative match to the directive line itself (excluding
+    // newlines and commas) rather than searching to the next `;` —
+    // there is no `;` between sibling array entries, which would let a
+    // match leak into the next directive (e.g. style-src) and produce
+    // a false positive.
+    expect(code).not.toMatch(/script-src[^,\n`]*'unsafe-inline'/);
   });
 });
 
