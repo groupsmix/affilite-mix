@@ -27,6 +27,14 @@ export function generateCsrfToken(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * Fixed iteration count for the mismatched-length branch (F-17: aligned
+ * with lib/cron-auth.ts). Using a compile-time constant removes the
+ * length side-channel that the previous `Math.max(a,b)` upper bound
+ * exposed. 256 comfortably exceeds any realistic CSRF token length.
+ */
+const MAX_COMPARE_LEN = 256;
+
 /** Timing-safe comparison of two strings (Web Crypto API compatible) */
 function timingSafeCompare(a: string, b: string): boolean {
   const encoder = new TextEncoder();
@@ -35,25 +43,15 @@ function timingSafeCompare(a: string, b: string): boolean {
   if (bufA.byteLength !== bufB.byteLength) {
     // G-43: Do NOT "simplify" this branch.
     //
-    // Returning early on a length mismatch would already leak length, but
-    // we additionally walk bufA against bufB (with modular indexing on the
-    // shorter buffer) so the work performed in the mismatched-length
-    // branch is data-dependent and structurally similar to the equal-
-    // length branch below. Earlier revisions did `bufA[i] ^ bufA[i]`,
-    // which is algebraically 0 and which an optimising JIT could prove
-    // dead (collapsing the loop and reintroducing a timing side-channel
-    // even with `void result` observing the sink). Using `bufB[i % len]`
-    // produces values the compiler cannot fold away.
-    //
-    // The walk length is capped at `max(bufA, bufB)` so the loop body
-    // count is independent of which side was longer. Removing the loop,
-    // dropping the `void`, or replacing the body with a constant would
-    // let the optimiser collapse the branch.
-    const longer = bufA.byteLength > bufB.byteLength ? bufA.byteLength : bufB.byteLength;
-    const lenB = bufB.byteLength || 1;
+    // F-17: the loop now runs a fixed MAX_COMPARE_LEN iterations rather
+    // than max(a, b), so the loop count no longer depends on either
+    // token's length. The length mismatch itself is folded into `result`
+    // (lenA ^ lenB) so any difference still poisons the accumulator.
     const lenA = bufA.byteLength || 1;
+    const lenB = bufB.byteLength || 1;
     let result = 0;
-    for (let i = 0; i < longer; i++) {
+    result |= lenA ^ lenB;
+    for (let i = 0; i < MAX_COMPARE_LEN; i++) {
       result |= bufA[i % lenA] ^ bufB[i % lenB];
     }
     void result;
