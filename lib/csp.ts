@@ -53,17 +53,12 @@ function hostnameFromEnv(name: string): string | null {
  * the G-03 / G-04 pattern for Supabase and R2: an exact `https://<host>`
  * origin replaces the previous `https://*.ingest.sentry.io` wildcard so
  * that a compromised sibling Sentry org/project cannot serve as a CSP
- * exfiltration channel. Falls back to the wildcard only when no DSN is
- * configured (local dev/test) — the production build sets
- * `NEXT_PUBLIC_SENTRY_DSN` via `wrangler secret`.
+ * exfiltration channel. Returns an empty string when no DSN is configured
+ * (local dev/test) so the caller omits Sentry from connect-src entirely,
+ * matching the G-03/G-04 pattern for Supabase and R2. Production builds
+ * always have the DSN set via `wrangler secret`.
  */
 function getSentryConnectHost(): string {
-  // Note: the wildcard fallback below is assembled by concatenation so
-  // the source code does not contain the literal substring `/` + `*`,
-  // which would otherwise be mistaken for a block-comment opener by
-  // crude regex-based source scanners (see __tests__/reaudit-locks.test.ts
-  // stripComments).
-  const WILDCARD_FALLBACK = "https://" + "*.ingest.sentry.io";
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
   if (dsn) {
     try {
@@ -72,10 +67,14 @@ function getSentryConnectHost(): string {
         return `https://${host}`;
       }
     } catch {
-      // fall through to the wildcard fallback below
+      // malformed DSN — omit Sentry from CSP rather than widening it
     }
   }
-  return WILDCARD_FALLBACK;
+  // F-10: omit Sentry from connect-src when no DSN is configured rather
+  // than falling back to a wildcard that would allow any Sentry org as
+  // a CSP exfiltration channel. Production builds always have the DSN
+  // set via wrangler secret; this path only fires in local dev/test.
+  return "";
 }
 
 /**
@@ -136,7 +135,9 @@ export function buildCspHeader(nonce: string): string {
 
   const connectSources = ["'self'"];
   if (supabase) connectSources.push(supabase);
-  connectSources.push("https://challenges.cloudflare.com", getSentryConnectHost());
+  connectSources.push("https://challenges.cloudflare.com");
+  const sentryHost = getSentryConnectHost();
+  if (sentryHost) connectSources.push(sentryHost);
 
   const directives: string[] = [
     "default-src 'self'",
