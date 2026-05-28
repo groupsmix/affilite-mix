@@ -277,6 +277,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
       primaryColor: input.colors.primary,
       accentColor: input.colors.accent,
       accentTextColor: input.colors.accentText ?? input.colors.accent,
+      accentLightColor: input.colors.accentLight ?? input.colors.accent,
       fontHeading: fontConfig.heading,
       fontBody: fontConfig.body,
     },

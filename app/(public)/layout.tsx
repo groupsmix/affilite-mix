@@ -93,6 +93,7 @@ export default async function PublicLayout({ children }: { children: React.React
     secondaryColor: site.theme.accentColor,
     accentColor: site.theme.accentColor,
     accentTextColor: site.theme.accentTextColor,
+    accentLightColor: site.theme.accentLightColor,
     fontHeading: site.theme.fontHeading,
     fontBody: site.theme.fontBody,
     layoutVariant: "standard",

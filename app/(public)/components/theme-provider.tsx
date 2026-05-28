@@ -17,6 +17,7 @@ export interface SiteThemeConfig {
   secondaryColor: string;
   accentColor: string;
   accentTextColor: string;
+  accentLightColor: string;
   fontFamily: string;
   fontHeading: string;
   fontBody: string;
@@ -28,6 +29,7 @@ const defaultTheme: SiteThemeConfig = {
   secondaryColor: "#3b82f6",
   accentColor: "#10b981",
   accentTextColor: "#059669",
+  accentLightColor: "#10b981",
   fontFamily: "Inter, sans-serif",
   fontHeading: "Inter",
   fontBody: "Inter",
@@ -68,6 +70,7 @@ export function ThemeProvider({ theme, children }: ThemeProviderProps) {
     "--color-secondary": merged.secondaryColor,
     "--color-accent": merged.accentColor,
     "--color-accent-text": merged.accentTextColor,
+    "--color-accent-light": merged.accentLightColor,
     "--font-family": fontMap[merged.fontBody] ?? `${merged.fontBody}, sans-serif`,
     "--font-heading": fontMap[merged.fontHeading] ?? `${merged.fontHeading}, serif`,
     "--font-body": fontMap[merged.fontBody] ?? `${merged.fontBody}, sans-serif`,

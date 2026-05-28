@@ -140,6 +140,7 @@
   --color-secondary: #3b82f6;
   --color-accent: #047857;
   --color-accent-text: #047857;
+  --color-accent-light: #047857;
   --font-heading: var(--font-inter), "Inter", sans-serif;
   --font-body: var(--font-inter), "Inter", sans-serif;
 }
