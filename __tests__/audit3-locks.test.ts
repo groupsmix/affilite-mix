@@ -450,17 +450,27 @@ describe("Audit-3 regression locks", () => {
     });
   });
 
-  // ── F-013 / G-27 — static CSP fallback dropped ────────────────────
-  describe("F-013 / G-27 — no static CSP fallback", () => {
+  // ── F-013 / G-27 / audit-etap1 #20 — static CSP fallback scoped to excluded paths ─
+  describe("F-013 / G-27 / audit-etap1 #20 — CSP fallback only on middleware-excluded paths", () => {
     const cfg = read("next.config.ts");
-    it("next.config.ts no longer emits a Content-Security-Policy header", () => {
-      // G-27 (Apr 2026 audit): the static CSP fallback was dropped in
-      // favour of the per-request nonced policy from middleware.ts.
-      // The previous test was F-013 which asserted the static fallback
-      // did not allow `https:` wildcard; that fallback no longer
-      // exists, so we instead assert it cannot silently come back.
-      expect(cfg).not.toMatch(/"Content-Security-Policy"/);
+    it("the catch-all /(.*)  rule still does NOT emit a Content-Security-Policy header (G-27)", () => {
+      // G-27 (Apr 2026 audit) + audit-etap1 #20 (May 2026 audit): the
+      // catch-all CSP fallback was dropped in favour of the per-request
+      // nonced policy from middleware.ts. CSP is now ONLY allowed on the
+      // narrow source patterns that match middleware-excluded paths
+      // (`_next/static`, `_next/image`, `favicon.ico`, `fonts/`,
+      // `api/internal/`). The catch-all `/(.*)`  rule must never carry a
+      // CSP header — duplicate CSP on the same response silently
+      // disables our per-request nonced policy.
+      const catchAllRule = cfg.match(/source:\s*"\/\(\.\*\)"[\s\S]*?\}\s*,\s*\]/);
+      expect(catchAllRule, "could not find /(.*) headers rule").not.toBeNull();
+      expect(catchAllRule![0]).not.toMatch(/"Content-Security-Policy"/);
       expect(cfg).toMatch(/G-27/);
+    });
+    it("audit-etap1 #20: middleware-excluded paths carry a `default-src 'none'` CSP", () => {
+      expect(cfg).toMatch(/audit-etap1 #20/);
+      expect(cfg).toMatch(/_next\/static/);
+      expect(cfg).toMatch(/default-src 'none'/);
     });
   });
 
