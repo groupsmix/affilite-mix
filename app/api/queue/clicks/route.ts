@@ -44,8 +44,34 @@ interface ClickMessage {
   ts?: number;
 }
 
+/**
+ * audit5-#13: the queue worker sends either the legacy flat shape
+ * `{ messages: ClickMessage[] }` (pre-#13 worker build) or the new
+ * envelope shape `{ messages: [{ msgId, body }, ...] }` so the API
+ * can answer with per-message acked/failed lists. We support both
+ * here for the duration of a rolling worker deploy.
+ */
+interface ClickEnvelope {
+  msgId?: string;
+  body?: ClickMessage;
+}
+
+type QueueMessage = ClickMessage | ClickEnvelope;
+
 interface QueueBody {
-  messages?: ClickMessage[];
+  messages?: QueueMessage[];
+}
+
+function unwrapMessage(m: QueueMessage): { msgId: string | undefined; click: ClickMessage } {
+  if (m && typeof m === "object" && "body" in m && m.body && typeof m.body === "object") {
+    const env = m as ClickEnvelope;
+    return {
+      msgId: typeof env.msgId === "string" ? env.msgId : undefined,
+      click: env.body as ClickMessage,
+    };
+  }
+  // Legacy shape — a raw ClickMessage with no msgId wrapper.
+  return { msgId: undefined, click: m as ClickMessage };
 }
 
 /**
@@ -221,10 +247,13 @@ export async function POST(request: NextRequest) {
 
     if (isDlq) {
       // F-024: DLQ messages are persisted to click_failures for durable recovery
-      const dlqRows = messages.map((m) => ({
-        payload: m,
-        error_message: "DLQ message",
-      }));
+      const dlqRows = messages.map((m) => {
+        const { click } = unwrapMessage(m);
+        return {
+          payload: click as unknown as Record<string, unknown>,
+          error_message: "DLQ message",
+        };
+      });
 
       // F-API-01: `click_failures` is a global DLQ table with no site_id column.
       // DLQ rows wrap the failed message payload (which itself carries site_id).
@@ -246,9 +275,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, inserted: dlqRows.length });
     }
 
-    const validMessages = messages.filter(isValidMessage);
-    const rejectedMessages = messages.filter((m) => !isValidMessage(m));
+    // audit5-#13: keep msgId associated with each click so the response
+    // envelope can list per-message outcomes for the worker. The
+    // type predicate on `isValidMessage` narrows the `.click` shape
+    // when invoked directly on the click, so we partition into two
+    // typed arrays.
+    type UnwrappedValid = {
+      msgId: string | undefined;
+      click: Required<Pick<ClickMessage, "site_id" | "product_name" | "affiliate_url">> &
+        ClickMessage;
+    };
+    type UnwrappedInvalid = { msgId: string | undefined; click: ClickMessage };
+    const unwrapped = messages.map(unwrapMessage);
+    const validUnwrapped: UnwrappedValid[] = [];
+    const rejectedUnwrapped: UnwrappedInvalid[] = [];
+    for (const u of unwrapped) {
+      if (isValidMessage(u.click)) {
+        validUnwrapped.push({ msgId: u.msgId, click: u.click });
+      } else {
+        rejectedUnwrapped.push(u);
+      }
+    }
+    const validMessages = validUnwrapped.map((u) => u.click);
+    const rejectedMessages = rejectedUnwrapped.map((u) => u.click);
     const rejectedCount = rejectedMessages.length;
+    // Build acked/failed accumulators — only populated when at least one
+    // message in the batch carried a msgId (new envelope shape). Legacy
+    // flat-shape callers continue to see the existing response without
+    // the per-message lists.
+    const ackedIds: string[] = [];
+    const failedIds: string[] = [];
+    const anyMsgId = unwrapped.some((u) => typeof u.msgId === "string");
+    if (anyMsgId) {
+      for (const u of rejectedUnwrapped) {
+        if (u.msgId) failedIds.push(u.msgId);
+      }
+    }
     if (rejectedCount > 0) {
       // F-014: structured rejection metric. We never throw on rejected
       // messages because Cloudflare Queues retries the *whole* batch on
@@ -302,7 +364,19 @@ export async function POST(request: NextRequest) {
     });
 
     if (rows.length === 0) {
-      return NextResponse.json({ ok: true, inserted: 0, rejected: rejectedCount });
+      const emptyResponse: Record<string, unknown> = {
+        ok: true,
+        inserted: 0,
+        rejected: rejectedCount,
+      };
+      if (anyMsgId) {
+        // audit5-#13: rejections were already ack'd-as-failed above; the
+        // worker will retry those (it's the right call — a transient
+        // validator change might accept them on retry).
+        emptyResponse.acked = ackedIds;
+        emptyResponse.failed = failedIds;
+      }
+      return NextResponse.json(emptyResponse);
     }
 
     // Use upsert with ignoreDuplicates so retried queue messages with the
@@ -313,7 +387,36 @@ export async function POST(request: NextRequest) {
       .upsert(rows, { onConflict: "click_id", ignoreDuplicates: true });
     if (error) {
       captureException(new Error(error.message), { context: "[api/queue/clicks] upsert" });
+      if (anyMsgId) {
+        // audit5-#13: insert failed for the whole batch — fail every
+        // msgId that contributed a row. The worker retries them.
+        // (Cloudflare Queues' built-in retry-with-backoff still applies
+        // to the message itself; this just makes the failure explicit.)
+        const allFailed = unwrapped
+          .map((u) => u.msgId)
+          .filter((id): id is string => typeof id === "string");
+        return NextResponse.json(
+          { error: "DB insert failed", acked: [], failed: allFailed },
+          { status: 500 },
+        );
+      }
       return NextResponse.json({ error: "DB insert failed" }, { status: 500 });
+    }
+    if (anyMsgId) {
+      // audit5-#13: every validated message was upserted; the conflict-
+      // ignore semantics mean a duplicate insert is still "acked" from
+      // the worker's perspective (Cloudflare Queues should drop the
+      // queue message regardless).
+      for (const u of validUnwrapped) {
+        if (u.msgId) ackedIds.push(u.msgId);
+      }
+      return NextResponse.json({
+        ok: true,
+        inserted: rows.length,
+        rejected: rejectedCount,
+        acked: ackedIds,
+        failed: failedIds,
+      });
     }
     return NextResponse.json({ ok: true, inserted: rows.length, rejected: rejectedCount });
   } catch (err) {
