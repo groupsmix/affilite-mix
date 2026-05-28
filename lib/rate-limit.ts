@@ -82,21 +82,23 @@ export interface RateLimitResult {
 }
 
 // ── Binding lookup helpers ──────────────────────────────────────────
-// Cloudflare Worker bindings are exposed via the @opennextjs/cloudflare
-// `process.env` shim at runtime. Node's real `process.env` coerces values
-// to strings, so in test environments we also look up on `globalThis` —
-// this lets Vitest set a mock binding via `vi.stubGlobal(...)` without
-// relying on the production shim.
+// In @opennextjs/cloudflare, non-string bindings (KV, R2, DO, Queue) are
+// available via `getCloudflareContext().env`, NOT on `process.env`.
+// Test environments use `globalThis` stubs via `vi.stubGlobal(...)`.
 
 function readBinding(name: string): unknown {
   const fromGlobal = (globalThis as Record<string, unknown>)[name];
   if (fromGlobal !== undefined) return fromGlobal;
   try {
-    // PR-E P2-B: this is the single legitimate `process.env as Record`
-    // cast in the codebase — it's a generic name-indexed accessor used
-    // by both the KV and DO branches below. The named binding accessors
-    // in `lib/runtime-env.ts` are preferred for direct lookups; this
-    // generic helper exists for the rate-limit shim only.
+    const { getCloudflareContext } = require("@opennextjs/cloudflare") as {
+      getCloudflareContext: () => { env: Record<string, unknown> } | undefined;
+    };
+    const ctx = getCloudflareContext();
+    if (ctx?.env?.[name] !== undefined) return ctx.env[name];
+  } catch {
+    // Outside Cloudflare runtime — fall through
+  }
+  try {
     // eslint-disable-next-line no-restricted-syntax
     return (process.env as Record<string, unknown>)[name];
   } catch {
