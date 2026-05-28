@@ -59,7 +59,8 @@ export function register() {
   if (
     process.env.NODE_ENV === "production" &&
     !isBuild &&
-    process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1"
+    process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1" &&
+    process.env.CI_LIGHTHOUSE_BUILD !== "1"
   ) {
     const appUrl = process.env.APP_URL ?? "";
     const isLocalhost =

@@ -271,7 +271,7 @@ This repo runs an internal **10-layer audit framework** (security, RBAC,
 RLS, CSP, rate-limit, SSRF, redirect, observability, deploy, data-flow).
 Each cycle of findings is tracked in `docs/audits/`:
 
-- **Current open findings** — see [`docs/audits/audit-unfixed-items.md`](docs/audits/audit-unfixed-items.md)
+- **Audit resolution status (last cycle: 2026-05-28 — all clear)** — see [`docs/audits/audit-unfixed-items.md`](docs/audits/audit-unfixed-items.md)
   for the consolidated status of MEDIUM/LOW items across past audit cycles.
 - **Most-recent audit results** — `docs/audits/affilite-mix-audit-*.md` (one
   file per cycle).
