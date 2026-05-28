@@ -253,6 +253,9 @@ export const PATCH = withAuthz(
             og_image: null,
             body_previous: null,
             review_state: "published",
+            // SEC-13: mark as AI-generated and record human review timestamp
+            ai_generated: true,
+            human_reviewed_at: new Date().toISOString(),
           });
 
           const publishedDraft = await updateAIDraft(siteId, id, { status: "published" });
