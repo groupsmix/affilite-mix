@@ -55,7 +55,7 @@ This project implements the following security measures:
 - **Authorization**: Role-based access with `requireAdmin`, `withAuthz`, and `withAuthzDynamic` wrappers
 - **Rate limiting**: Distributed rate limiting via Cloudflare KV/Durable Objects with configurable per-route fail policy. Security-critical routes (login, admin, checkout) use `failPolicy: "closed"` — they reject immediately when KV/DO is unavailable. Public routes use `failPolicy: "grace"` (default) — they fall back to per-isolate in-memory for 60s, then fail closed. See `lib/rate-limit.ts` for full policy documentation.
 - **Input validation**: Server-side validation on all API routes
-- **CSRF protection**: Double-submit cookie pattern with HMAC verification
+- **CSRF protection**: Double-submit cookie pattern (Origin-pinned, `__Host-` prefixed, `SameSite=Strict`)
 - **CSP**: Content Security Policy headers enforced via middleware
 - **Secret scanning**: Gitleaks in CI prevents accidental secret commits
 - **Dependency scanning**: npm audit and dependency-review-action in CI

@@ -584,9 +584,6 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
     response.headers.set("Reporting-Endpoints", buildReportingEndpointsHeader());
   }
 
-  // Removed CSRF token rotation on state-changing requests
-  // to support concurrent POST requests and prevent token exposure in response headers.
-
   return response;
 }
 
@@ -667,7 +664,6 @@ export async function middleware(request: NextRequest) {
     // For non-API routes, we can't easily resolve siteId if DB/KV failed.
     // Passing through without headers allows the app to render its generic fallback.
     const response = NextResponse.next();
-    response.headers.set("x-middleware-error", "1");
     return response;
   }
 }
@@ -680,7 +676,11 @@ export const config = {
      * - _next/image (image optimization)
      * - favicon.ico
      * - public assets
-     * - /api/internal/* (internal APIs called by middleware itself)
+     * - /api/internal/* — excluded intentionally: internal endpoints
+     *   use their own internal-token auth + per-route rate limiting
+     *   (lib/internal-auth.ts). Widening the matcher would break
+     *   internal auth; removing internal-token checks would create
+     *   an unprotected surface.
      */
     "/((?!_next/static|_next/image|favicon.ico|fonts/|api/internal/).*)",
   ],
