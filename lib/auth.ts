@@ -194,7 +194,7 @@ export async function authenticateUser(
       );
       logger.info("Rehashed password from PBKDF2 to bcrypt", { userId: user.id });
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // Rehash failure is non-critical — the user is already authenticated
       logger.warn("Failed to rehash password on login", { userId: user.id });
     }
@@ -350,7 +350,7 @@ async function requestFromHeaders(): Promise<Request | undefined> {
     const headerList = await headers();
     return new Request("https://internal/admin-session", { headers: headerList });
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:defence-in-depth]
     return undefined;
   }
 }

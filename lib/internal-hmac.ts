@@ -76,7 +76,7 @@ function getNonceKV(): {
     const kv = getAppCacheKV();
     if (kv && typeof kv.get === "function" && typeof kv.put === "function") return kv;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:defence-in-depth]
     // Not available (local dev, CI)
   }
   return null;
@@ -90,7 +90,7 @@ async function isNonceSeenInKV(nonce: string): Promise<boolean> {
     const val = await kv.get(`hmac-nonce\x1F${nonce}`);
     return val !== null;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:defence-in-depth]
     return false;
   }
 }
@@ -102,7 +102,7 @@ async function recordNonceInKV(nonce: string): Promise<void> {
   try {
     await kv.put(`hmac-nonce\x1F${nonce}`, "1", { expirationTtl: NONCE_TTL_S });
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:defence-in-depth]
     // Best-effort — in-memory map is still the primary guard
   }
 }
@@ -211,7 +211,7 @@ export async function verifyInternalHmac(
     logger.warn("Internal HMAC nonce replay detected", { nonce });
     return { valid: false, reason: "Nonce already used (replay)" };
   }
-  // A7-011: Cross-isolate nonce check via KV (fail-open if KV unavailable)
+  // A7-011: Cross-isolate nonce check via KV (fail-open if KV unavailable) [criticality:defence-in-depth]
   if (await isNonceSeenInKV(nonce)) {
     logger.warn("Internal HMAC nonce replay detected via KV", { nonce });
     return { valid: false, reason: "Nonce already used (replay)" };

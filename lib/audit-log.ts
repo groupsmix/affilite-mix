@@ -99,7 +99,7 @@ function getAuditQueue(): AuditQueue | undefined {
     const binding = getRuntimeEnv().AUDIT_QUEUE;
     if (binding && typeof binding.send === "function") return binding;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:defence-in-depth]
     // Binding not available (local dev, CI, etc.)
   }
   return undefined;
@@ -111,7 +111,7 @@ function getAuditDlqBucket(): AuditR2Bucket | undefined {
     const binding = getRuntimeEnv().AUDIT_DLQ_BUCKET;
     if (binding && typeof binding.put === "function") return binding;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:defence-in-depth]
     // Binding not available
   }
   return undefined;
@@ -162,9 +162,23 @@ async function writeToDlq(event: AuditEvent): Promise<void> {
  * Critical callers (e.g. password change, role escalation) should `await`
  * this function. Non-critical callers may fire-and-forget.
  */
+/**
+ * S1-A3.R1: Critical actions (role changes, deletions, password resets) must
+ * fail the parent operation if the audit write cannot be persisted anywhere.
+ * Callers pass `{ critical: true }` to opt in; non-critical callers (the
+ * default) get the existing best-effort behaviour.
+ */
+export class AuditWriteError extends Error {
+  constructor(action: string) {
+    super(`Audit write failed for critical action: ${action}`);
+    this.name = "AuditWriteError";
+  }
+}
+
 export async function recordAuditEvent(
   event: AuditEvent,
   getClient: DalClientGetter = defaultDalClientGetter,
+  options: { critical?: boolean } = {},
 ): Promise<void> {
   // ── Path 1: Queue-backed write (preferred) ──────────────────────
   const queue = getAuditQueue();
@@ -221,8 +235,14 @@ export async function recordAuditEvent(
           });
         }
       } catch {
-        // fail-open: best-effort
+        // fail-open: best-effort [criticality:telemetry]
         // Silently ignore if Analytics Engine is not bound
+      }
+
+      // S1-A3.R1: For critical actions, throw so the caller can abort the
+      // parent operation. All four persistence paths have been exhausted.
+      if (options.critical) {
+        throw new AuditWriteError(event.action);
       }
     }
   }
