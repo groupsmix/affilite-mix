@@ -16,10 +16,31 @@ export function sanitizeEmailInput(email: string): string {
 }
 
 /**
- * Normalize an email address: trim whitespace and lowercase.
+ * Normalize an email address: trim whitespace, lowercase, and apply
+ * IDNA/Punycode normalization to the domain part to prevent homoglyph
+ * impersonation (S1-A14.5, CWE-1007).
  */
 export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
+  const trimmed = email.trim().toLowerCase();
+  const atIdx = trimmed.lastIndexOf("@");
+  if (atIdx === -1) return trimmed;
+
+  const local = trimmed.slice(0, atIdx);
+  const domain = trimmed.slice(atIdx + 1);
+
+  // S1-A14.5: Convert internationalized domain to ASCII (Punycode).
+  // URL constructor applies IDNA ToASCII per WHATWG URL spec §3.3.
+  // This normalizes "exаmple.com" (Cyrillic а) → "xn--exmple-4pf.com",
+  // making homoglyph attacks visible in logs and detectable by policy.
+  let normalizedDomain = domain;
+  try {
+    const url = new URL(`https://${domain}`);
+    normalizedDomain = url.hostname;
+  } catch {
+    // Invalid domain — leave as-is; isValidEmail will reject it.
+  }
+
+  return `${local}@${normalizedDomain}`;
 }
 
 /**

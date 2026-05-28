@@ -48,3 +48,26 @@ export async function deriveHmacKey(purpose: string, usages: KeyUsage[]): Promis
     usages,
   );
 }
+
+// Q10-2: Pre-warm frequently used HMAC keys at module load to reduce
+// cold-start latency. importKey + deriveKey are ~30ms on first call;
+// caching the promise avoids repeating that cost on the first request.
+const keyCache = new Map<string, Promise<CryptoKey>>();
+
+export function getOrDeriveHmacKey(purpose: string, usages: KeyUsage[]): Promise<CryptoKey> {
+  const cacheKey = `${purpose}:${usages.join(",")}`;
+  let p = keyCache.get(cacheKey);
+  if (!p) {
+    p = deriveHmacKey(purpose, usages);
+    keyCache.set(cacheKey, p);
+  }
+  return p;
+}
+
+// Eagerly derive the most-used keys so the first request doesn't pay the cost.
+// Only attempt when JWT_SECRET is available to avoid unhandled rejections in
+// test suites that simulate production-without-secrets scenarios.
+if (process.env.JWT_SECRET || process.env.JWT_SECRET_CURRENT) {
+  void getOrDeriveHmacKey("activity-cookie", ["sign", "verify"]).catch(() => {});
+  void getOrDeriveHmacKey("signed-cookie", ["sign", "verify"]).catch(() => {});
+}

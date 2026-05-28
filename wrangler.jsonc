@@ -107,6 +107,7 @@
   //   * Poison-message triage: after max_retries (3), the message
   //     is moved to the DLQ. Monitor DLQ depth with the
   //     click_tracking_dlq_depth alert (terraform/cloudflare/alerts.tf).
+  //     Runbook: docs/runbooks/dlq-overflow.md
   //
   // A44: ENCRYPTION POSTURE:
   //   * Queue data is encrypted at rest by Cloudflare using AES-256
