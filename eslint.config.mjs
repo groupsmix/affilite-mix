@@ -118,10 +118,16 @@ const eslintConfig = [
           // and unsanitised inputs must carry an explicit
           // `// eslint-disable-next-line` comment that names the
           // hand-controlled string (e.g. the theme-init bootstrap script).
+          // audit5-#24/#32 added `sanitizeHtmlMemoized` as an LRU-backed
+          // wrapper around the bare sanitizer for server components. The
+          // memoized variant is treated as semantically equivalent here
+          // because it delegates to the same `sanitizeHtml` implementation;
+          // any output that satisfies the bare sanitizer also satisfies
+          // the memoized one.
           selector:
-            "JSXAttribute[name.name='dangerouslySetInnerHTML']:not(:has(CallExpression[callee.name=/^(sanitizeHtml|safeJsonLdString)$/]))",
+            "JSXAttribute[name.name='dangerouslySetInnerHTML']:not(:has(CallExpression[callee.name=/^(sanitizeHtml|sanitizeHtmlMemoized|safeJsonLdString)$/]))",
           message:
-            "dangerouslySetInnerHTML must wrap its `__html` value in sanitizeHtml(...) or safeJsonLdString(...) at the JSX call site. Hand-controlled literals (e.g. nonced bootstrap scripts) require an `// eslint-disable-next-line` comment naming the source. (audit-etap1 #6)",
+            "dangerouslySetInnerHTML must wrap its `__html` value in sanitizeHtml(...), sanitizeHtmlMemoized(...) or safeJsonLdString(...) at the JSX call site. Hand-controlled literals (e.g. nonced bootstrap scripts) require an `// eslint-disable-next-line` comment naming the source. (audit-etap1 #6)",
         },
         runtimeEnvCastBan,
       ],

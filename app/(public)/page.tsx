@@ -131,12 +131,19 @@ export default async function HomePage() {
             <h2 className="text-2xl font-bold">{site.productLabelPlural}</h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredProducts.map((product) => (
+            {featuredProducts.map((product, i) => (
+              // audit5-#9: the standard-template homepage has no hero
+              // image and the first card in the Featured Products grid
+              // is typically the LCP candidate on real-device runs.
+              // Mark only the first card priority so Next.js fetches the
+              // image with high priority and inserts the `fetchpriority`
+              // attribute on the <img>; the rest stay lazy.
               <ProductCard
                 key={product.id}
                 product={product}
                 sourceType="homepage"
                 ctaLabel={ctaLabel}
+                priority={i === 0}
               />
             ))}
           </div>
@@ -158,8 +165,18 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {recentContent.map((content) => (
-              <ContentCard key={content.id} content={content} locale={locale} />
+            {recentContent.map((content, i) => (
+              // audit5-#9: when featuredProducts is empty, the first
+              // content thumbnail becomes the LCP. Only flip priority on
+              // the first card AND only when no featured-products grid
+              // is rendered above it — otherwise the featured-products
+              // priority={i===0} card is still the higher LCP candidate.
+              <ContentCard
+                key={content.id}
+                content={content}
+                locale={locale}
+                priority={i === 0 && featuredProducts.length === 0}
+              />
             ))}
           </div>
         </section>
