@@ -1,7 +1,58 @@
 import type { MetadataRoute } from "next";
+import { headers } from "next/headers";
 import { allSites } from "@/config/sites";
 
 const DEFAULT_DOMAIN = allSites[0]?.domain ?? "example.com";
+
+/**
+ * audit5-#22: hosts that are configured in `config/sites/*` and may
+ * legitimately appear as a request `Host` header. Anything else
+ * (unknown host, attacker-supplied Host) falls back to the configured
+ * default rather than echoing the attacker-supplied value into the
+ * `Sitemap:` line of robots.txt.
+ */
+const KNOWN_HOSTS = new Set<string>(allSites.map((s) => s.domain));
+
+/**
+ * Resolve the host to advertise in the `Sitemap:` line.
+ *
+ *   1. If the request Host header matches a configured site, use it
+ *      verbatim — this is the multi-tenant case where the same Next.js
+ *      build serves multiple domains.
+ *   2. Otherwise fall back to `getCurrentSite()` (which itself defaults
+ *      to NEXT_PUBLIC_DEFAULT_SITE on unknown hosts). Pre-audit-#22
+ *      this was the only path — it meant an unknown-host request got
+ *      the *default* site's sitemap URL even though it might have been
+ *      legitimately routed to a different site (e.g. behind a custom
+ *      preview alias).
+ *
+ * Never use the raw Host header outright — an attacker can set
+ * `Host: evil.example` and get an `Sitemap: https://evil.example/…`
+ * back, which Google would then attempt to fetch.
+ */
+async function resolveDomain(): Promise<string> {
+  // Try the request host first.
+  try {
+    const h = await headers();
+    const hostHeader = h.get("host");
+    if (hostHeader) {
+      // Strip the port portion (`example.com:443` → `example.com`).
+      const bareHost = hostHeader.split(":")[0]?.toLowerCase();
+      if (bareHost && KNOWN_HOSTS.has(bareHost)) return bareHost;
+    }
+  } catch {
+    // fail-open: best-effort; happens in tests where headers() is unavailable.
+  }
+  // Fall back to the resolved site context.
+  try {
+    const { getCurrentSite } = await import("@/lib/site-context");
+    const site = await getCurrentSite();
+    return site.domain;
+  } catch {
+    // fail-open: best-effort
+  }
+  return DEFAULT_DOMAIN;
+}
 
 /** AI-training crawlers that should be blocked site-wide (A113-F2). */
 const AI_TRAINING_BOTS = [
@@ -15,14 +66,7 @@ const AI_TRAINING_BOTS = [
 ];
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
-  let domain = DEFAULT_DOMAIN;
-  try {
-    const { getCurrentSite } = await import("@/lib/site-context");
-    const site = await getCurrentSite();
-    domain = site.domain;
-  } catch {
-    // fail-open: best-effort
-  }
+  const domain = await resolveDomain();
 
   return {
     rules: [

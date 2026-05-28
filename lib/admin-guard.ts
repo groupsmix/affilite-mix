@@ -196,6 +196,24 @@ export async function requireAdmin(): Promise<AdminResult> {
  * listing available sites, selecting a site, checking active site). All
  * other admin routes should continue using requireAdmin() for full site-
  * context validation.
+ *
+ * audit5-#12: the name `requireAdminSession` is intentionally similar to
+ * `requireAdmin` because both verify the admin JWT, but only THIS
+ * function is safe to use *before* a site is selected. A future rename
+ * to `requireAdminSessionBeforeSiteSelect` is tracked in
+ * `docs/audits/audit5-tech-debt-followups.md`; do NOT collapse this
+ * helper into `requireAdmin` even if it looks redundant. The eslint
+ * `no-restricted-imports` rule below pins the legal call sites so an
+ * over-zealous refactor cannot silently expand its surface area.
+ *
+ * **Call sites whitelist** (keep in sync with the ESLint rule):
+ *   - app/api/admin/sites/active/route.ts
+ *   - app/api/admin/sites/route.ts (list-all branch)
+ *   - app/api/admin/sites/select/route.ts
+ *   - app/api/admin/sites/stats/route.ts
+ *
+ * Anywhere else is a misuse — use `requireAdmin()` (which also enforces
+ * the active-site cookie) or `withAuthz`.
  */
 export async function requireAdminSession(): Promise<
   { error: NextResponse; session: null } | { error: null; session: AdminPayload }
