@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
     .from("content")
     .select("id, title, slug, ai_generated, human_reviewed_at")
+    // F-API-01: cron sweeps every site's scheduled content in one query;
+    // explicit cross-tenant opt-out is required by the privileged-client Proxy.
+    .unsafeNoSiteFilter()
     .eq("status", "scheduled")
     .not("publish_at", "is", null)
     .lte("publish_at", dbNow)
@@ -113,6 +116,10 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("content")
         .update({ status: "published" })
+        // F-API-01: ids were already resolved across tenants in the
+        // previous query; this update is the optimistic-locking step
+        // and is gated by `publishable` (a finite, pre-authorised id list).
+        .unsafeNoSiteFilter()
         .in("id", publishable)
         .eq("status", "scheduled")
         .select("id, site_id")
@@ -145,6 +152,8 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
     .from("products")
     .select("id, name, slug")
+    // F-API-01: cross-tenant cron sweep — see content query above.
+    .unsafeNoSiteFilter()
     .eq("status", "active")
     .not("deal_expires_at", "is", null)
     .lte("deal_expires_at", dbNow)
@@ -165,6 +174,9 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("products")
       .update({ status: "archived" })
+      // F-API-01: ids resolved cross-tenant above; this is the
+      // optimistic-locking write step.
+      .unsafeNoSiteFilter()
       .in("id", ids)
       .eq("status", "active")
       .select("id, site_id")
@@ -197,6 +209,9 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("sites")
       .select("domain")
+      // F-API-01: `sites` is a global table with no `site_id` column; the
+      // Proxy requires the explicit opt-out here.
+      .unsafeNoSiteFilter()
       .eq("is_active", true)
       .overrideTypes<{ domain: string }[]>();
     if (sites) {
