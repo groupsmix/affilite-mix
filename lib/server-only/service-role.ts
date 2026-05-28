@@ -72,6 +72,9 @@ let _cachedKey: string | null = null;
  * C-7: Force-invalidate the cached privileged client. Call after an
  * emergency key rotation to ensure the next request picks up the new
  * service-role key immediately, without waiting for the TTL.
+ *
+ * @deprecated No callers — quarantined by cleanup audit C3. Remove
+ * in the next cleanup cycle if still unused.
  */
 export function flushPrivilegedClient(): void {
   _privilegedClient = null;
