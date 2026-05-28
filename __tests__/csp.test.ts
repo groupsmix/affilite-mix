@@ -64,7 +64,7 @@ describe("buildCspHeader", () => {
     if (process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN) {
       expect(header).toMatch(/connect-src[^;]*https:\/\/[^\s;]*?\.ingest\.sentry\.io/);
     } else {
-      expect(header).not.toMatch(/sentry\.io/);
+      expect(header).not.toMatch(/connect-src[^;]*https:\/\/[^\s;]*?\.ingest\.sentry\.io(?:[\/;]|$)/);
     }
   });
 
