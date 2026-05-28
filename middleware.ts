@@ -3,7 +3,13 @@ import { getSiteByDomain } from "@/config/sites";
 import { validateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { getMiddlewareSiteRowByDomain } from "@/lib/middleware-site-lookup";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
-import { buildCspHeader, generateCspNonce, NONCE_HEADER, buildReportToHeader } from "@/lib/csp";
+import {
+  buildCspHeader,
+  generateCspNonce,
+  NONCE_HEADER,
+  buildReportToHeader,
+  buildReportingEndpointsHeader,
+} from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
@@ -575,6 +581,7 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
 
   if (cspHeaderValue) {
     response.headers.set("Report-To", buildReportToHeader());
+    response.headers.set("Reporting-Endpoints", buildReportingEndpointsHeader());
   }
 
   // Removed CSRF token rotation on state-changing requests

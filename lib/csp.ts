@@ -114,6 +114,8 @@ export function buildCspHeader(nonce: string): string {
     // Since the critical XSS vector (script injection) is nonce-locked
     // via script-src, allowing 'unsafe-inline' for styles is the standard
     // security posture adopted by most production CSPs.
+    // REVISIT: 2026-09-01 — check if vanilla-cookieconsent v3 supports
+    // nonced styles; if so, replace 'unsafe-inline' with nonce-based style-src.
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     `img-src ${imgSources.join(" ")}`,
@@ -144,6 +146,15 @@ export function buildReportToHeader(): string {
     max_age: 31536000,
     endpoints: [{ url: "/api/csp-report" }],
   });
+}
+
+/**
+ * Build the Reporting-Endpoints header (CSP Level 3 / Reporting API v1).
+ * Chrome 96+ and Edge 96+ use this instead of the legacy Report-To header.
+ * ETAP1-24: emitted alongside Report-To for cross-browser coverage.
+ */
+export function buildReportingEndpointsHeader(): string {
+  return 'default="/api/csp-report"';
 }
 
 /** Header name shared between middleware and server components. */

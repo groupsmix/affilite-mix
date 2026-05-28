@@ -78,8 +78,6 @@ describe("sanitizeHtml", () => {
     const allowed: Array<[string, string]> = [
       ["http", '<a href="http://example.com">x</a>'],
       ["https", '<a href="https://example.com">x</a>'],
-      ["mailto", '<a href="mailto:a@b.com">x</a>'],
-      ["tel", '<a href="tel:+1-555-0100">x</a>'],
       ["anchor", '<a href="#section">x</a>'],
       ["site-root", '<a href="/about">x</a>'],
       ["relative", '<a href="page.html">x</a>'],
@@ -98,6 +96,8 @@ describe("sanitizeHtml", () => {
       ["blob", '<a href="blob:https://evil/abc">x</a>'],
       ["filesystem", '<a href="filesystem:https://evil/tmp/x">x</a>'],
       ["intent (android)", '<a href="intent://evil#Intent;end">x</a>'],
+      ["mailto (SEC-12)", '<a href="mailto:a@b.com">x</a>'],
+      ["tel (SEC-12)", '<a href="tel:+1-555-0100">x</a>'],
     ];
     for (const [label, input] of blocked) {
       it(`strips ${label} href`, () => {

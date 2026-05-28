@@ -108,6 +108,7 @@ const LOGIN_RATE_LIMIT_GLOBAL = {
   maxRequests: parsePositiveIntEnv("LOGIN_RATE_LIMIT_GLOBAL_MAX", 100),
   windowMs: 60 * 1000,
   failPolicy: "closed" as const,
+  graceMs: 0,
 };
 
 /**
@@ -119,6 +120,7 @@ const LOGIN_RATE_LIMIT_IP = {
   maxRequests: 3,
   windowMs: 15 * 60 * 1000,
   failPolicy: "closed" as const,
+  graceMs: 0,
 };
 
 /** 10 login attempts per 15 minutes per email (prevents brute-force from rotating IPs) */
@@ -126,6 +128,7 @@ const LOGIN_RATE_LIMIT_EMAIL = {
   maxRequests: 10,
   windowMs: 15 * 60 * 1000,
   failPolicy: "closed" as const,
+  graceMs: 0,
 };
 
 export async function POST(request: NextRequest) {

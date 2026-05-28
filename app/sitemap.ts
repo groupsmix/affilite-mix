@@ -7,7 +7,7 @@ import { shouldSkipDbCall } from "@/lib/db-available";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 
-const MAX_CONTENT_URLS = 5_000;
+const MAX_CONTENT_URLS = 45_000;
 
 /**
  * KV key used to persist the last-good sitemap per site domain so the
