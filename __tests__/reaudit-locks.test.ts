@@ -153,16 +153,25 @@ describe("re-audit lock — R-007 withAuthz reads site from server context only"
   });
 });
 
-describe("re-audit lock — R-009 / G-27 static CSP fallback removed", () => {
+describe("re-audit lock — R-009 / G-27 / audit-etap1 #20: CSP fallback scoped to middleware-excluded paths", () => {
   const cfg = readRepoFile("next.config.ts");
 
-  it("next.config.ts does not declare a Content-Security-Policy header", () => {
-    // G-27 (Apr 2026 audit): the static CSP fallback has been dropped
-    // in favour of the per-request nonced policy from middleware.ts.
-    // The previous R-009 test asserted the static fallback did not
-    // include `'unsafe-inline'`; that fallback no longer exists, so
-    // we instead assert the key cannot reappear.
-    expect(cfg).not.toMatch(/"Content-Security-Policy"/);
+  it("the catch-all /(.*)  rule does NOT declare a Content-Security-Policy header", () => {
+    // G-27 (Apr 2026) + audit-etap1 #20 (May 2026): the catch-all CSP
+    // fallback has been dropped in favour of the per-request nonced
+    // policy from middleware.ts. CSP is now ONLY allowed on the narrow
+    // source patterns that match middleware-excluded paths (audit-etap1
+    // #20 belt-and-suspenders for opaque binary / internal-only paths).
+    // The catch-all `/(.*)`  rule must never carry a CSP header.
+    const catchAllRule = cfg.match(/source:\s*"\/\(\.\*\)"[\s\S]*?\}\s*,\s*\]/);
+    expect(catchAllRule, "could not find /(.*) headers rule").not.toBeNull();
+    expect(catchAllRule![0]).not.toMatch(/"Content-Security-Policy"/);
+  });
+
+  it("audit-etap1 #20: middleware-excluded paths carry a `default-src 'none'` fallback CSP", () => {
+    expect(cfg).toMatch(/audit-etap1 #20/);
+    expect(cfg).toMatch(/_next\/static/);
+    expect(cfg).toMatch(/default-src 'none'/);
   });
 
   it("buildCspHeader in lib/csp.ts is the sole source of CSP", () => {
