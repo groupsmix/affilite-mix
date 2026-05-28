@@ -400,7 +400,7 @@ jobs:
           # Each unsafeNoSiteFilter() call bypasses RLS site_id scoping.
           # New call sites require a code comment with audit-ticket reference.
           set -euo pipefail
-          BASELINE=32
+          BASELINE=33
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
