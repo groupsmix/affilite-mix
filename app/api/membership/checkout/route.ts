@@ -30,12 +30,48 @@ import { parseJsonBody } from "@/lib/api-error";
  * This replaces the dynamic `process.env[...]` lookup pattern which,
  * while safe for `process.env` (prototype-less proxy), is harder to
  * audit than a closed set. Add new tiers here when they are launched.
+ *
+ * audit5-#39: when `STRIPE_PRICE_MAP` is set (JSON object mapping tier
+ * name → Stripe price ID), it takes precedence over the legacy
+ * `STRIPE_PRICE_ID_<TIER>` env vars. Adding a new tier (e.g. `family`,
+ * `lifetime`) then requires only an env-var update + adding the tier
+ * to `ALLOWED_TIERS` below — no code change to the lookup function.
  */
 const ALLOWED_TIERS = new Set(["insider", "pro", "enterprise"]);
 
-/** Map a requested tier to the server-side env var holding its price id. */
+/**
+ * Parse the optional `STRIPE_PRICE_MAP` env var into a `tier → priceId`
+ * record. Returns null if the var is unset, blank, or unparseable. We
+ * deliberately do NOT throw on parse error — the legacy
+ * `STRIPE_PRICE_ID_<TIER>` lookups remain as a safety net so a typo in
+ * the JSON cannot break checkout outright.
+ */
+function parsePriceMap(): Record<string, string> | null {
+  const raw = process.env.STRIPE_PRICE_MAP;
+  if (!raw || !raw.trim()) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      // Reject non-string values to keep the lookup type-safe.
+      if (typeof v !== "string" || v.length === 0) continue;
+      out[k.toLowerCase()] = v;
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Map a requested tier to the configured Stripe price id, if any. */
 function priceIdForTier(tier: string): string | undefined {
-  if (!ALLOWED_TIERS.has(tier.toLowerCase())) return undefined;
+  const normalised = tier.toLowerCase();
+  if (!ALLOWED_TIERS.has(normalised)) return undefined;
+  // audit5-#39: prefer STRIPE_PRICE_MAP (JSON) over legacy per-tier vars.
+  const map = parsePriceMap();
+  if (map && map[normalised]) return map[normalised];
+  // Legacy fallback — `STRIPE_PRICE_ID_INSIDER`, `STRIPE_PRICE_ID_PRO`, …
   const envKey = `STRIPE_PRICE_ID_${tier.toUpperCase()}`;
   return process.env[envKey];
 }

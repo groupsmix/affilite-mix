@@ -73,11 +73,22 @@ module.exports = {
         // workflow (see .github/workflows/lighthouse.yml). The page
         // renders correctly, but the resulting console errors and
         // DevTools "Issues" are an artifact of the CI environment, not a
-        // regression in the app. Track these as warnings until the
-        // Lighthouse run gets a real preview deployment with live
-        // upstreams.
-        "errors-in-console": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
-        "inspector-issues": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
+        // regression in the app.
+        //
+        // audit5-#25: when LIGHTHOUSE_STRICT_CONSOLE=1 (set by the
+        // preview-deploy Lighthouse run that targets real upstreams),
+        // these audits are promoted back to `error` so a regression
+        // introducing a real console.error fails the run. The default
+        // stays `warn` so the placeholder-env CI workflow does not
+        // false-positive.
+        "errors-in-console": [
+          process.env.LIGHTHOUSE_STRICT_CONSOLE === "1" ? "error" : "warn",
+          { minScore: 0.9, aggregationMethod: "median" },
+        ],
+        "inspector-issues": [
+          process.env.LIGHTHOUSE_STRICT_CONSOLE === "1" ? "error" : "warn",
+          { minScore: 0.9, aggregationMethod: "median" },
+        ],
 
         // Admin auth surfaces (`/admin` → `/admin/login`) are
         // intentionally `noindex` and live behind a redirect; the

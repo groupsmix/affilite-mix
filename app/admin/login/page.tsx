@@ -108,7 +108,28 @@ export default function AdminLoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="space-y-1 text-center">
           <CardTitle>
-            <h1 className="text-2xl font-bold">Admin Login</h1>
+            <h1 className="text-2xl font-bold">
+              Admin Login
+              {/*
+                audit5-#29: surface a "DEV" badge on non-production builds
+                so an admin on a multi-environment deployment cannot
+                accidentally type credentials into the wrong environment.
+                `process.env.NODE_ENV` is statically replaced at build
+                time by Next.js, so this string-literal compare reduces
+                to `false` (no node emitted) on production bundles.
+                `NEXT_PUBLIC_APP_ENV_NAME` (if set) overrides with a
+                friendlier label like "staging" or "preview".
+              */}
+              {(process.env.NEXT_PUBLIC_APP_ENV_NAME ||
+                (process.env.NODE_ENV !== "production" ? "DEV" : "")) && (
+                <span
+                  className="ml-2 inline-block rounded bg-amber-500/20 px-2 py-0.5 align-middle text-xs font-semibold uppercase tracking-wider text-amber-700"
+                  data-testid="admin-login-env-badge"
+                >
+                  {process.env.NEXT_PUBLIC_APP_ENV_NAME ?? "DEV"}
+                </span>
+              )}
+            </h1>
           </CardTitle>
 
           <CardDescription>

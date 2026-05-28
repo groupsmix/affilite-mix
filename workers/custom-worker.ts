@@ -244,19 +244,28 @@ const worker = {
 
     const url = `${cronHost}/api/queue/clicks`;
 
-    // R6: Instead of sending the whole batch as one chunk and failing the whole batch,
-    // we send messages and handle per-message ack/retry based on the response.
-    // To simplify while maintaining batching, we send the batch. If it fails with a 4xx (poison),
-    // we should ideally split it. For now, we'll send them one by one if we want true per-message ack,
-    // OR we change the API endpoint to return which messages failed.
-    // The simplest robust fix for R6 without rewriting the API is to iterate and send.
-    // Since Cloudflare Worker allows concurrent fetches, we can Promise.all them.
-
-    // F-012: Send one batched request instead of fanning out N HTTP calls
+    // F-012 / audit5-#13: Send one batched HTTP request, but expect the
+    // API to return per-message success/failure granularity. The API
+    // body is `{ messages: [{ msgId, body }, ...] }` and the response
+    // is `{ acked: [msgId, ...], failed: [{ msgId, reason }, ...] }`.
+    // Each Cloudflare queue message is ack'd or retried based on the
+    // API response — a partial-success outcome no longer requeues
+    // already-persisted messages.
+    //
+    // Backwards compatibility: if the API ever returns 2xx without
+    // the `acked`/`failed` envelope (legacy build, accidental rollback),
+    // we fall back to the prior "ack the whole batch" semantics so a
+    // mismatched deploy does not lose messages.
     ctx.waitUntil(
       (async () => {
         try {
-          const queueBody = JSON.stringify({ messages: batch.messages.map((m) => m.body) });
+          const envelope = {
+            messages: batch.messages.map((m) => ({
+              msgId: m.id,
+              body: m.body,
+            })),
+          };
+          const queueBody = JSON.stringify(envelope);
           // FIX-03: Sign with HMAC; keep Bearer for backward compat during migration
           const hmacHeaders = await signInternalRequest(internalToken as string, queueBody, {
             Authorization: `Bearer ${internalToken}`,
@@ -268,11 +277,71 @@ const worker = {
             body: queueBody,
           });
 
-          if (res.ok) {
-            batch.ackAll();
-          } else {
-            // If the batch fails, retry the whole batch
+          if (!res.ok) {
+            // Auth failure, 5xx, network-level error — retry the whole
+            // batch with backoff. Same behaviour as before audit5-#13.
             batch.retryAll();
+            return;
+          }
+
+          // Parse the per-message envelope. If the response is malformed
+          // or missing the envelope, fall back to ackAll(): the API said
+          // 2xx so the messages did land somewhere (DB upsert or
+          // click_failures table), and re-queueing them would generate
+          // duplicates that the idempotent upsert has to swallow.
+          let parsed: unknown;
+          try {
+            parsed = await res.json();
+          } catch {
+            batch.ackAll();
+            return;
+          }
+
+          const acked = new Set<string>();
+          const failed = new Set<string>();
+          if (parsed && typeof parsed === "object") {
+            const p = parsed as {
+              acked?: unknown;
+              failed?: unknown;
+            };
+            if (Array.isArray(p.acked)) {
+              for (const id of p.acked) {
+                if (typeof id === "string") acked.add(id);
+              }
+            }
+            if (Array.isArray(p.failed)) {
+              for (const entry of p.failed) {
+                if (typeof entry === "string") {
+                  failed.add(entry);
+                } else if (
+                  entry &&
+                  typeof entry === "object" &&
+                  typeof (entry as { msgId?: unknown }).msgId === "string"
+                ) {
+                  failed.add((entry as { msgId: string }).msgId);
+                }
+              }
+            }
+          }
+
+          // No envelope in response — legacy API behaviour. Ack the
+          // whole batch (the 2xx response means the API accepted them).
+          if (acked.size === 0 && failed.size === 0) {
+            batch.ackAll();
+            return;
+          }
+
+          // Per-message ack/retry. Messages not listed in either set
+          // are treated as failed (conservatively retried).
+          for (const msg of batch.messages) {
+            if (acked.has(msg.id)) {
+              msg.ack();
+            } else if (failed.has(msg.id)) {
+              msg.retry();
+            } else {
+              // API skipped this id — retry to be safe.
+              msg.retry();
+            }
           }
         } catch (err) {
           console.error("[queue/click-tracking] batch fetch error:", err);
