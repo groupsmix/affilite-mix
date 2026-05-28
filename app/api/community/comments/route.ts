@@ -134,7 +134,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
   }
 
-  // Validate user_name length
+  // V4-01: Normalize user_name to NFC and strip bidi-control / invisible chars
+  // to prevent homoglyph spoofing and RTL-override display tricks.
+  body.user_name = body.user_name
+    .normalize("NFC")
+    .replace(/[\u00AD\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060\uFEFF]/g, "");
+
+  // Validate user_name length (after normalization)
   if (body.user_name.length > 80) {
     return NextResponse.json({ error: "user_name must be 80 characters or less" }, { status: 400 });
   }
@@ -195,7 +201,8 @@ export async function POST(request: NextRequest) {
     try {
       sanitizedBody = sanitizeHtml(body.body);
     } catch (err) {
-      if (err instanceof Error && err.message.includes("100KB")) {
+      // C8-02: Match on the actual sanitizeHtml error message
+      if (err instanceof Error && err.message.includes("maximum allowed length")) {
         return NextResponse.json({ error: "Comment is too large" }, { status: 400 });
       }
       throw err;
