@@ -10,24 +10,11 @@ import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 import { authzPrimaryRead } from "@/lib/read-after-write";
-import { deriveHmacKey } from "@/lib/hmac-key";
-
-// C-6: HMAC signing for x-site-id fallback header uses a purpose-derived
-// sub-key via HKDF instead of raw SUPABASE_JWT_SECRET. This decouples
-// site-id signing from Supabase JWT rotation.
-
-/** Sign the site-id fallback header value for middleware to set. */
-export async function signSiteIdFallback(siteId: string): Promise<string | null> {
-  try {
-    const key = await deriveHmacKey("site-id-fallback", ["sign"]);
-    const encoder = new TextEncoder();
-    const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(siteId));
-    return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
-  } catch {
-    // fail-open: best-effort
-    return null;
-  }
-}
+// F-1: signSiteIdFallback moved to lib/site-id-signer.ts (Edge-safe leaf)
+// to avoid pulling bcryptjs + jose/deflate into the middleware bundle.
+// Re-export for non-Edge callers that already import from this file.
+import { signSiteIdFallback } from "@/lib/site-id-signer";
+export { signSiteIdFallback };
 
 /** A7-005: Verify the HMAC signature on the x-site-id fallback header. */
 async function verifySiteIdSignature(siteId: string, signature: string | null): Promise<boolean> {
