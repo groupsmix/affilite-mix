@@ -54,8 +54,12 @@ async function resolveDomain(): Promise<string> {
   return DEFAULT_DOMAIN;
 }
 
-/** AI-training crawlers that should be blocked site-wide (A113-F2, F-14). */
-const AI_TRAINING_BOTS = [
+/**
+ * AI-training crawlers and default scraper UAs blocked site-wide
+ * (A113-F2, F-14, A9-01). robots.txt is advisory — hostile bots may
+ * ignore it. The enforcing layer is the Cloudflare WAF edge rules.
+ */
+const AI_AND_SCRAPER_BOTS = [
   "GPTBot",
   "Google-Extended",
   "CCBot",
@@ -78,6 +82,16 @@ const AI_TRAINING_BOTS = [
   "VelenPublicWebCrawler",
   "ISSCyberRiskCrawler",
   "Kangaroo Bot",
+  // A9-01: additional AI-training crawlers as of 2026-Q2
+  "Applebot-Extended",
+  "Meta-ExternalAgent",
+  "Meta-ExternalFetcher",
+  "OAI-SearchBot",
+  "MistralAI-User",
+  "pangubot",
+  "iaskspider/2.0",
+  "Webzio-Extended",
+  "cohere-training-data-crawler",
 ];
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
@@ -85,7 +99,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
 
   return {
     rules: [
-      ...AI_TRAINING_BOTS.map((bot) => ({
+      ...AI_AND_SCRAPER_BOTS.map((bot) => ({
         userAgent: bot,
         disallow: ["/"],
       })),
