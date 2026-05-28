@@ -4,19 +4,42 @@ import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createWristShot, listApprovedWristShots } from "@/lib/dal/community";
 import { getClientIp } from "@/lib/get-client-ip";
+import { isUsableUuid } from "@/lib/security/uuid";
 
 /**
  * GET /api/community/wrist-shots?product_id=xxx
  * List approved wrist shots for a product.
+ *
+ * audit5-#3: twin of `/api/community/comments` GET. Adds per-IP rate
+ * limit (120 req/min, `failPolicy: "open"`) and UUID validation of
+ * `product_id` before the DB is touched. Same rationale as #2: a public
+ * read-only endpoint with no validation is a free Supabase
+ * pool-exhaustion vector and a 500-spam source for any non-UUID slug
+ * Postgres rejects.
  */
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`wrist-shots-get:${ip}`, {
+    maxRequests: 120,
+    windowMs: 60_000,
+    failPolicy: "open" as const,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   const productId = new URL(request.url).searchParams.get("product_id");
-  if (!productId) {
+  if (!productId || !isUsableUuid(productId)) {
     return NextResponse.json({ error: "product_id is required" }, { status: 400 });
   }
 
   try {
-    const shots = await listApprovedWristShots(productId);
+    const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
+    const siteId = await resolveDbSiteId(siteSlug);
+    const shots = await listApprovedWristShots(siteId, productId);
     return NextResponse.json({ wrist_shots: shots });
   } catch {
     // fail-open: best-effort

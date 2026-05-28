@@ -16,6 +16,7 @@
 
 // @ts-ignore -- `.open-next/worker.js` is generated at build time
 import { default as handler } from "../.open-next/worker.js";
+import { withSentry } from "@sentry/cloudflare";
 import { RateLimiterDO } from "./rate-limiter-do";
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
 import { signInternalRequest } from "../lib/internal-hmac";
@@ -283,7 +284,41 @@ const worker = {
   },
 };
 
-export default worker;
+// audit5-#1: wrap the worker handlers with @sentry/cloudflare's `withSentry`
+// so that server-side `captureException` calls in lib/sentry.ts actually emit
+// events. Without this wrap, `isInitialized()` in lib/sentry.ts returns
+// `false` and every server-side error path silently drops the event. The
+// options callback receives the Cloudflare `env` binding object (NOT
+// `process.env`); SENTRY_DSN is plumbed through wrangler.jsonc vars /
+// secrets the same way every other Worker-scoped secret is.
+export default withSentry((env: Record<string, unknown>) => {
+  const dsn = typeof env.SENTRY_DSN === "string" ? env.SENTRY_DSN.trim() : "";
+  const environment =
+    typeof env.NODE_ENV === "string" && env.NODE_ENV ? env.NODE_ENV : "production";
+  const release =
+    typeof env.SENTRY_RELEASE === "string" && env.SENTRY_RELEASE ? env.SENTRY_RELEASE : undefined;
+  return {
+    dsn,
+    environment,
+    release,
+    // F-OBS-01: keep trace sampling explicit. Per-route Sentry transactions
+    // overlap with our existing request logs, so 10% is the trade-off we
+    // accept between cost and visibility into slow paths. Override via
+    // SENTRY_TRACES_SAMPLE_RATE for incident windows.
+    tracesSampleRate: parseSampleRate(env.SENTRY_TRACES_SAMPLE_RATE, 0.1),
+    // Sentry's default PII scrubbing + our own event-processor in
+    // lib/sentry.ts (which strips cookies, auth headers, query strings,
+    // and user email/ip) work together — `sendDefaultPii: false` is the
+    // safe baseline that the per-event processor refines.
+    sendDefaultPii: false,
+  };
+}, worker);
+
+function parseSampleRate(raw: unknown, fallback: number): number {
+  if (typeof raw !== "string" || !raw) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : fallback;
+}
 
 // Re-export Durable Object classes required by OpenNext's caching layer
 // @ts-ignore -- `.open-next/worker.js` is generated at build time
