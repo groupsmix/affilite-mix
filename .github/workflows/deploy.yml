@@ -1423,6 +1423,9 @@ jobs:
             echo "::warning::SUPABASE_DB_POOLER_URL and SUPABASE_DB_URL not set — skipping RLS policy baseline check"
             exit 0
           fi
+          # Strip ?pgbouncer=true — psql does not understand this query param.
+          # Same pattern as the four other psql call-sites in this workflow.
+          DB_URL="${DB_URL%%\?*}"
 
           MISSING=$(psql "$DB_URL" -t -A -c "
             SELECT policyname
