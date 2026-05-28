@@ -89,6 +89,28 @@ describe("validateServerEnv", () => {
   });
 });
 
+describe("ETAP1-13: ALLOW_LOCALHOST_FALLBACK_IN_PROD production guard", () => {
+  it("instrumentation.ts contains the ALLOW_LOCALHOST_FALLBACK_IN_PROD guard", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const src = fs.readFileSync(path.resolve(__dirname, "..", "instrumentation.ts"), "utf-8");
+    expect(src).toContain("ALLOW_LOCALHOST_FALLBACK_IN_PROD");
+    expect(src).toContain("Refusing to start");
+  });
+
+  it("guard rejects public APP_URL with ALLOW_LOCALHOST_FALLBACK_IN_PROD=1", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const src = fs.readFileSync(path.resolve(__dirname, "..", "instrumentation.ts"), "utf-8");
+    // The guard must check NODE_ENV === "production" AND the env var is "1"
+    // AND APP_URL is not localhost — then throw.
+    expect(src).toContain('process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1"');
+    expect(src).toContain('process.env.NODE_ENV === "production"');
+    expect(src).toMatch(/isLocalhost[\s\S]*localhost/);
+    expect(src).toContain("throw new Error");
+  });
+});
+
 describe("formatMissingEnvMessage", () => {
   it("mentions every missing variable by name", () => {
     const msg = formatMissingEnvMessage(

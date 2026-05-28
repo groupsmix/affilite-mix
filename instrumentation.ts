@@ -17,7 +17,7 @@ export function register() {
 
   // Warn about recommended-but-missing vars (don't crash the worker)
   if (missingRecommended.length > 0 && process.env.NODE_ENV === "production") {
-    console.warn(
+    logger.warn(
       formatMissingEnvMessage(missingRecommended, "MISSING RECOMMENDED ENVIRONMENT VARIABLES"),
     );
   }
@@ -35,7 +35,7 @@ export function register() {
     if (process.env.NODE_ENV === "production" && !isBuild) {
       throw new Error(message);
     } else {
-      console.warn(message);
+      logger.warn(message);
     }
   }
 
@@ -44,7 +44,7 @@ export function register() {
   if (process.env.NODE_ENV !== "production" && !isBuild) {
     const hasPublicDomainVars = !!process.env.CRON_HOST || !!process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (hasPublicDomainVars) {
-      console.error(
+      logger.error(
         "NODE_ENV is not 'production' but CRON_HOST or public-domain env vars are set. " +
           "This likely indicates a misconfigured production deploy. " +
           "Set NODE_ENV=production in wrangler.jsonc vars for the production environment.",
