@@ -118,12 +118,21 @@ export function buildCspHeader(nonce: string): string {
   const imgSources = ["'self'", "data:", "blob:"];
   if (r2) imgSources.push(r2);
   if (supabase) imgSources.push(supabase);
-  imgSources.push(
-    "https://images.unsplash.com",
-    "https://m.media-amazon.com",
-    "https://images-na.ssl-images-amazon.com",
-    "https://www.google.com",
-  );
+  // audit5-#30: img-src is the single source of truth for the
+  // browser; `next.config.ts:images.remotePatterns` is the single
+  // source of truth for the `<Image>` loader. They MUST stay in sync
+  // or content editors get confusing rejections (pastes load via
+  // <img> but not via Next.js <Image>). Two prior allowlists drifted:
+  //   * `images.unsplash.com` — only ever referenced in csp.ts; no
+  //     code path embeds an unsplash URL anywhere. Removed.
+  //   * `www.google.com` — used by `lib/sitemap-ping.ts` for the
+  //     /ping?sitemap=… endpoint, a server-side fetch (subject to
+  //     connect-src in the worker, not img-src in the browser).
+  //     Removed from img-src; sitemap pinging is unaffected.
+  // Amazon media CDNs stay in both lists; they're referenced by
+  // existing product image_url rows and will migrate to R2 ingest
+  // per G-48 follow-up.
+  imgSources.push("https://m.media-amazon.com", "https://images-na.ssl-images-amazon.com");
 
   const connectSources = ["'self'"];
   if (supabase) connectSources.push(supabase);
@@ -160,9 +169,23 @@ export function buildCspHeader(nonce: string): string {
     "form-action 'self'",
     "frame-ancestors 'none'",
     "upgrade-insecure-requests",
+    // audit5-#8: BOTH `report-uri` and `report-to` are intentionally
+    // emitted together — they are NOT redundant in practice:
+    //
+    //   * Firefox (Gecko) only honours `report-uri`, not `report-to`.
+    //   * Chromium ignores `report-uri` if `report-to` is also present.
+    //   * Safari (16+) honours `report-to`.
+    //
+    // Removing either directive drops one browser family's reports
+    // entirely. Both endpoints currently point at the same handler;
+    // if duplicate reports start exhausting the per-IP rate limit on
+    // `/api/csp-report` during a real attack, split into
+    // `/api/csp-report-rfc` (report-to) and `/api/csp-report-legacy`
+    // (report-uri) so each browser family has its own bucket. The
+    // previous comment claimed `report-uri` was deprecated and could
+    // be removed; that is incorrect for Firefox support and has now
+    // been corrected.
     "report-uri /api/csp-report",
-    // F-024: report-uri is deprecated in CSP Level 3; modern browsers
-    // use the Report-To HTTP header and the report-to CSP directive.
     "report-to default",
   ];
   return directives.join("; ");
