@@ -12,7 +12,7 @@ import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
 import { getAppCacheKV } from "@/lib/runtime-env";
-import { deriveHmacKey } from "@/lib/hmac-key";
+import { getOrDeriveHmacKey } from "@/lib/hmac-key";
 import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
 import { verifyToken } from "@/lib/auth";
 
@@ -114,13 +114,23 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
   try {
     // H-12: Prefer derived HMAC key via HKDF. Fall back to the env var
     // for backward compatibility during migration.
+    //
+    // audit5-#34: switched from `deriveHmacKey` to the cached
+    // `getOrDeriveHmacKey`. The derivation is a one-time HKDF that
+    // produces a stable purpose-specific subkey from JWT_SECRET; the
+    // result is safe to memoise process-wide because (a) the master
+    // secret is fixed for the lifetime of the isolate, and (b)
+    // CryptoKey objects are extractable=false, so the cache hands out
+    // an opaque handle, not raw key material. On hot paths (e.g.
+    // 100 clicks/s) this drops the per-request HMAC import+derive
+    // from O(ms) to O(ns).
     const hmacKey = process.env.CLICK_CACHE_HMAC_KEY;
     let clickHmacKey: CryptoKey | null = null;
     try {
-      clickHmacKey = await deriveHmacKey("click-cache", ["sign", "verify"]);
+      clickHmacKey = await getOrDeriveHmacKey("click-cache", ["sign", "verify"]);
     } catch {
       if (process.env.NODE_ENV === "production" && !hmacKey) {
-        captureException(new Error("CLICK_CACHE_HMAC_KEY missing and deriveHmacKey failed"), {
+        captureException(new Error("CLICK_CACHE_HMAC_KEY missing and getOrDeriveHmacKey failed"), {
           context: "[api/track/click] missing signing secret",
         });
         return apiError(503, "Service temporarily unavailable");

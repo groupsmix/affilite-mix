@@ -93,7 +93,14 @@ function ProductThumbnail({ row }: { row: ProductsTableRow }) {
   const alt = row.image_alt?.trim() || row.name;
   if (row.image_url) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
+      // audit5-#17: the admin products table renders many static 32×32
+      // thumbnails per page. Next.js <Image> applies extra DOM overhead
+      // (responsive sizes, blurDataURL, optimization round-trip) that
+      // is wasted for fixed-size, off-screen, admin-only thumbnails;
+      // `loading="lazy"` already defers the network fetch and the
+      // remote host is constrained by next.config.ts:remotePatterns.
+      // The plain <img> tag is intentional here, not a missed lint.
+      // eslint-disable-next-line @next/next/no-img-element -- admin-only fixed-size lazy thumbnail; next/image overhead not worth it
       <img
         src={row.image_url}
         alt={alt}
