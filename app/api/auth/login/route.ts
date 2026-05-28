@@ -32,15 +32,43 @@ import { verifyTotpToken } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { getAppCacheKV } from "@/lib/runtime-env";
 
 /**
- * A154: Check if a password has appeared in a known data breach using the
+ * P1-4 / P1-6: KV cache TTL for HIBP range responses (in seconds).
+ * 24h matches HIBP's own rotation cadence and keeps stable suffixes warm
+ * without becoming a long-term staleness liability for newly-leaked
+ * passwords. Tunable via env for incident-time invalidation.
+ */
+function hibpCacheTtlSeconds(): number {
+  const raw = process.env.HIBP_CACHE_TTL_SECONDS;
+  if (raw) {
+    const n = Number.parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 0 && n <= 7 * 24 * 60 * 60) return n;
+  }
+  return 24 * 60 * 60;
+}
+
+/**
+ * A154 / P1-4 / P1-6: Check if a password has appeared in a known data breach using the
  * HIBP k-anonymity API (https://haveibeenpwned.com/API/v3#SearchingPwnedPasswordsByRange).
  * Sends only the first 5 characters of the SHA-1 hash — the full password
  * and even its complete hash never leave this process.
  *
+ * Cache strategy (P1-4 / P1-6):
+ * - The prefix→suffix list is stored in APP_CACHE_KV under `hibp:<prefix>`
+ *   with a 24h TTL. Repeat lookups (same prefix from any concurrent login)
+ *   skip the external API entirely, bounding the upstream traffic to one
+ *   request per prefix per TTL window regardless of login volume.
+ * - HIBP padded responses are ~16-40KB so KV-storage cost is well within
+ *   limits; the size cap stays at 2 MiB as a defence-in-depth bound.
+ *
+ * Failure mode (P1-4 + SEC-HIGH-03):
+ * - Returns `false` (fail-open) on network error so a transient HIBP
+ *   outage doesn't lock legitimate logins out. Each fail-open path emits
+ *   a Sentry capture so operators see signal during sustained outages.
+ *
  * Returns true if the password appears in the breach database.
- * On network error, returns false (fail-open) to avoid blocking legitimate logins.
  */
 async function isBreachedPassword(password: string): Promise<boolean> {
   try {
@@ -55,18 +83,46 @@ async function isBreachedPassword(password: string): Promise<boolean> {
     const prefix = hashHex.slice(0, 5);
     const suffix = hashHex.slice(5);
 
+    // P1-4 / P1-6: KV-cached prefix→suffix list. Per HIBP terms, this is
+    // public data so caching does not weaken k-anonymity.
+    const kv = getAppCacheKV();
+    const cacheKey = `hibp:${prefix}`;
+    if (kv) {
+      try {
+        const cached = await kv.get(cacheKey);
+        if (typeof cached === "string" && cached.length > 0) {
+          return cached.split("\n").some((line) => line.toUpperCase().startsWith(suffix));
+        }
+      } catch (e: unknown) {
+        // KV read failure should not block the live HIBP fetch
+        captureException(e, { tag: "hibp:cache-read" });
+      }
+    }
+
     const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
       headers: { "Add-Padding": "true" }, // k-anon padding
       signal: AbortSignal.timeout(3000),
     });
 
-    if (!res.ok) return false;
+    if (!res.ok) {
+      captureException(new Error(`HIBP non-OK response: ${res.status}`), {
+        tag: "hibp:non-ok",
+        status: res.status,
+      });
+      return false;
+    }
 
     // RC-005: Stream response with hard size cap — abort before buffering if too large.
     // Prevents a hostile proxy/dependency from causing memory pressure.
     const maxBytes = 2 * 1024 * 1024;
     const contentLen = Number(res.headers.get("content-length") ?? "0");
-    if (contentLen > maxBytes) return false;
+    if (contentLen > maxBytes) {
+      captureException(new Error("HIBP response exceeded size cap"), {
+        tag: "hibp:size-cap",
+        contentLen,
+      });
+      return false;
+    }
 
     const reader = res.body?.getReader();
     if (!reader) return false;
@@ -78,15 +134,30 @@ async function isBreachedPassword(password: string): Promise<boolean> {
       received += value.length;
       if (received > maxBytes) {
         await reader.cancel();
+        captureException(new Error("HIBP response exceeded size cap (streaming)"), {
+          tag: "hibp:size-cap-stream",
+          received,
+        });
         return false;
       }
       chunks.push(value);
     }
     const text = new TextDecoder().decode(chunks.length === 1 ? chunks[0] : Buffer.concat(chunks));
+
+    // Write-through to KV (best-effort, never block on failure)
+    if (kv) {
+      try {
+        await kv.put(cacheKey, text, { expirationTtl: hibpCacheTtlSeconds() });
+      } catch (e: unknown) {
+        captureException(e, { tag: "hibp:cache-write" });
+      }
+    }
+
     return text.split("\n").some((line) => line.toUpperCase().startsWith(suffix));
-  } catch {
-    // fail-open: best-effort
-    // Fail-open: network error or timeout — don't block logins
+  } catch (e: unknown) {
+    // P1-4: fail-open on network/timeout, but emit Sentry signal so
+    // sustained HIBP outages are operationally visible.
+    captureException(e, { tag: "hibp:fail-open" });
     return false;
   }
 }
