@@ -13,6 +13,7 @@ import { timingSafeEqual } from "@/lib/internal-hmac";
 import { deriveHmacKey } from "@/lib/hmac-key";
 // SEC-02 (etap-3): canonical boolean env-var parser — accepts "1"/"true"/"yes"/"on"
 import { parseBoolEnv, parseTriBoolEnv } from "@/lib/env-bool";
+import { ADMIN_JWT_EXPIRY_SECONDS, ADMIN_JWT_EXPIRY_STRING } from "@/lib/auth-constants";
 
 // A7-012: Use __Host- prefix in production (Secure context) to prevent
 // Domain attribute injection and scope cookies to the exact origin.
@@ -28,7 +29,10 @@ const ACTIVITY_COOKIE = `${COOKIE_PREFIX}nh_admin_activity`;
 const BINDING_COOKIE = `${COOKIE_PREFIX}nh_admin_binding`;
 /** Admin sessions expire after 30 minutes of inactivity */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-const EXPIRY = "4h"; // F-SEC-03: Reduced from 8h to limit exposure
+// F-SEC-03: Reduced from 8h to limit exposure. Sourced from
+// `lib/auth-constants.ts` so the JWT lifetime, the KV revocation TTL,
+// and the admin cookie maxAge all derive from one value.
+const EXPIRY = ADMIN_JWT_EXPIRY_STRING;
 
 /** A28-005: Maximum acceptable JWT issue-time future skew (30 seconds).
  * Tokens issued more than this far in the future are rejected,
@@ -504,7 +508,7 @@ export function getAdminBindingCookie(binding: string): {
       secure: IS_SECURE_COOKIE,
       sameSite: "strict" as const,
       path: "/",
-      maxAge: 60 * 60 * 4, // 4 hours (matches JWT EXPIRY — F-SEC-03)
+      maxAge: ADMIN_JWT_EXPIRY_SECONDS, // matches JWT EXPIRY — F-SEC-03
     },
   };
 }
