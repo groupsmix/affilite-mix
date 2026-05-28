@@ -46,12 +46,29 @@ export function safeRedirectUrl(
   const trimmed = stripped.trim();
   if (!trimmed) return fallback;
 
+  // SEC-01 (etap-3): Normalise backslashes to forward slashes before any
+  // further processing. The WHATWG URL parser treats `\` as `/` in HTTP(S)
+  // URLs, so an input like `/\evil.com` parses as `https://evil.com/`.
+  // Earlier revisions of this helper short-circuited on
+  // `trimmed.startsWith("/") && !trimmed.startsWith("//")` and returned the
+  // RAW input string — which then resolved to an off-site host once the
+  // browser followed the Location header. Normalising the input first
+  // collapses that bypass into the canonical same-origin / allow-list checks
+  // below.
+  const normalised = trimmed.replace(/\\/g, "/");
+
+  // Reject protocol-relative authorities post-normalisation. The URL parser
+  // handles `//host` correctly but we never want to return one to the caller.
+  if (normalised.startsWith("//")) {
+    return fallback;
+  }
+
   // Q1-2: Parse via URL first, then validate the parsed protocol. This is
   // the canonical check — the regex pre-check is belt-and-suspenders.
   // Protocol-relative URLs (//evil.com) are caught by the URL parser.
   let parsed: URL;
   try {
-    parsed = new URL(trimmed, request.url);
+    parsed = new URL(normalised, request.url);
   } catch {
     return fallback;
   }
@@ -61,12 +78,13 @@ export function safeRedirectUrl(
     return fallback;
   }
 
-  // Relative paths are always safe
-  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
-    return trimmed;
-  }
-
-  // Same-origin is always allowed
+  // SEC-01 (etap-3): Always derive the returned URL from `parsed` rather
+  // than echoing the (possibly attacker-controlled) raw input string. The
+  // previous "relative path is always safe" branch returned the raw input,
+  // which masked the WHATWG backslash-as-slash behaviour. Collapsing the
+  // relative-path case into the same-origin check makes the trust boundary
+  // unambiguous: the return value is always derived from a parsed URL whose
+  // origin we have just verified.
   const requestOrigin = new URL(request.url).origin;
   if (parsed.origin === requestOrigin) {
     return parsed.pathname + parsed.search + parsed.hash;

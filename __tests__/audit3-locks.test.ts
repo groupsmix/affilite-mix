@@ -253,8 +253,13 @@ describe("Audit-3 regression locks", () => {
     });
 
     it("escape-hatch is opt-in via env var, not on by default", () => {
-      // Default should be strict; the flag must be set to "1" to bypass.
-      expect(auth).toMatch(/CRON_ALLOW_SHARED_FALLBACK_IN_PROD\s*===\s*"1"/);
+      // Default should be strict; the flag must be parsed through the
+      // canonical env-bool helper (SEC-02, etap-3) so any boolean spelling
+      // works consistently. Either the legacy literal check OR the helper
+      // call satisfies this regression lock.
+      const legacy = /CRON_ALLOW_SHARED_FALLBACK_IN_PROD\s*===\s*"1"/;
+      const helper = /parseBoolEnv\(\s*["']CRON_ALLOW_SHARED_FALLBACK_IN_PROD["']/;
+      expect(legacy.test(auth) || helper.test(auth)).toBe(true);
     });
   });
 
