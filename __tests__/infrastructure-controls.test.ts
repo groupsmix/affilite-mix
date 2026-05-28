@@ -156,9 +156,7 @@ describe("Risk-22: E2E and load test capability", () => {
     expect(fileExists("e2e")).toBe(true);
   });
 
-  it("load-test script exists", () => {
-    expect(fileExists("load-test.js")).toBe(true);
-  });
+  // L-6: load-test.js removed (dead code — never ran in CI, no npm script).
 
   it("Lighthouse CI config exists", () => {
     expect(fileExists("lighthouserc.cjs")).toBe(true);

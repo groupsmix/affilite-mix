@@ -4,6 +4,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
  * These tests verify that the server-side Supabase factories no longer
  * silently fall back to a placeholder client when env is missing in
  * production — misconfiguration must surface as an immediate throw.
+ *
+ * H-3: getServiceClient was removed from supabase-server.ts. Tests now
+ * import getPrivilegedSupabaseClient from the approved gateway.
  */
 describe("supabase-server factories", () => {
   beforeEach(() => {
@@ -17,13 +20,15 @@ describe("supabase-server factories", () => {
     vi.unstubAllEnvs();
   });
 
-  it("getServiceClient throws in production when required env is missing", async () => {
+  it("getPrivilegedSupabaseClient throws in production when required env is missing", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PHASE", "");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
-    const { getServiceClient } = await import("@/lib/supabase-server");
-    expect(() => getServiceClient()).toThrow(/NEXT_PUBLIC_SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY/);
+    const { getPrivilegedSupabaseClient } = await import("@/lib/server-only/service-role");
+    expect(() => getPrivilegedSupabaseClient()).toThrow(
+      /NEXT_PUBLIC_SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY/,
+    );
   });
 
   it("getAnonClient throws in production when required env is missing", async () => {
@@ -36,17 +41,14 @@ describe("supabase-server factories", () => {
   });
 
   it("does not fall back to placeholder.supabase.co in any environment", async () => {
-    // In development with safe local values, the client should be real
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "dev-anon-key");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "dev-service-key");
-    const { getServiceClient, getAnonClient } = await import("@/lib/supabase-server");
-    const service = getServiceClient() as unknown as { supabaseUrl?: string };
+    const { getPrivilegedSupabaseClient } = await import("@/lib/server-only/service-role");
+    const { getAnonClient } = await import("@/lib/supabase-server");
+    const service = getPrivilegedSupabaseClient() as unknown as { supabaseUrl?: string };
     const anon = getAnonClient() as unknown as { supabaseUrl?: string };
-    // supabase-js exposes the configured URL on the client instance; we
-    // only assert that neither client was constructed with the old
-    // placeholder URL (which is what `grep` historically found in this file).
     if (service.supabaseUrl !== undefined) {
       expect(service.supabaseUrl).not.toContain("placeholder.supabase.co");
     }
@@ -55,13 +57,14 @@ describe("supabase-server factories", () => {
     }
   });
 
-  it("works in development when env is provided (safe local behavior still runs)", async () => {
+  it("works in development when env is provided", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "dev-anon");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "dev-service");
-    const { getServiceClient, getAnonClient } = await import("@/lib/supabase-server");
-    expect(getServiceClient()).toBeDefined();
+    const { getPrivilegedSupabaseClient } = await import("@/lib/server-only/service-role");
+    const { getAnonClient } = await import("@/lib/supabase-server");
+    expect(getPrivilegedSupabaseClient()).toBeDefined();
     expect(getAnonClient()).toBeDefined();
   });
 });

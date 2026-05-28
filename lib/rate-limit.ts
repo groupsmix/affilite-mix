@@ -343,7 +343,10 @@ function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitRe
  * unavailable.
  */
 let kvFallbackWarned = false;
-let kvUnavailableAlerted = false;
+// H-6: Replaced one-shot boolean with a timestamp so we can re-alert
+// every 60s during a sustained outage instead of going silent.
+let kvLastAlertedAt = 0;
+const KV_ALERT_INTERVAL_MS = 60_000;
 /** Epoch ms at which KV first became unavailable in this isolate; null when KV is healthy. */
 let kvUnavailableSince: number | null = null;
 
@@ -364,12 +367,12 @@ function getKvGraceMs(): number {
 /** Reset internal KV-availability state. Exported for tests. */
 export function __resetRateLimitKvStateForTests(): void {
   kvFallbackWarned = false;
-  kvUnavailableAlerted = false;
+  kvLastAlertedAt = 0;
   kvUnavailableSince = null;
 }
 
 function markKvAvailable(): void {
-  kvUnavailableAlerted = false;
+  kvLastAlertedAt = 0;
   kvUnavailableSince = null;
 }
 
@@ -393,9 +396,12 @@ function handleKvUnavailable(
     process.env.NODE_ENV === "production" ||
     (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers");
 
+  const now = Date.now();
+  const shouldAlert = now - kvLastAlertedAt >= KV_ALERT_INTERVAL_MS;
+
   if (policy === "closed") {
-    if (!kvUnavailableAlerted) {
-      kvUnavailableAlerted = true;
+    if (shouldAlert) {
+      kvLastAlertedAt = now;
       const msg = `[rate-limit] KV unavailable (${reason}) — failing CLOSED per route policy.`;
       logger.error(msg, { metric: "rate_limit_kv_failclosed", reason, policy });
       captureException(err ?? new Error(msg), {
@@ -411,8 +417,8 @@ function handleKvUnavailable(
   }
 
   if (policy === "open") {
-    if (!kvUnavailableAlerted) {
-      kvUnavailableAlerted = true;
+    if (shouldAlert) {
+      kvLastAlertedAt = now;
       const msg = `[rate-limit] KV unavailable (${reason}) — failing OPEN per route policy.`;
       logger.warn(msg, { metric: "rate_limit_kv_failopen", reason, policy });
       captureException(err ?? new Error(msg), {
@@ -435,13 +441,12 @@ function handleKvUnavailable(
     );
   }
 
-  const now = Date.now();
   if (kvUnavailableSince === null) {
     kvUnavailableSince = now;
   }
 
-  if (isProduction && !kvUnavailableAlerted) {
-    kvUnavailableAlerted = true;
+  if (isProduction && shouldAlert) {
+    kvLastAlertedAt = now;
     const msg =
       `[rate-limit] WARNING: KV unavailable (${reason}). ` +
       `Falling back to per-isolate memory for up to ${getKvGraceMs()}ms; ` +
@@ -528,10 +533,11 @@ export async function checkRateLimit(
   // requires "closed" policy, reject immediately rather than falling
   // back to per-isolate memory which is trivially bypassable.
   if (isProduction && config.failPolicy === "closed" && !doNs && !kv) {
-    const msg =
-      "[rate-limit] RATE_LIMITER_DO and RATE_LIMIT_KV both missing in production for closed-policy route.";
-    if (!kvUnavailableAlerted) {
-      kvUnavailableAlerted = true;
+    const now = Date.now();
+    if (now - kvLastAlertedAt >= KV_ALERT_INTERVAL_MS) {
+      kvLastAlertedAt = now;
+      const msg =
+        "[rate-limit] RATE_LIMITER_DO and RATE_LIMIT_KV both missing in production for closed-policy route.";
       logger.error(msg);
       captureException(new Error(msg), { context: "rate-limit.bindings-missing-closed-policy" });
     }

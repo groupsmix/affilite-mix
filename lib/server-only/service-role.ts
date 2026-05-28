@@ -59,12 +59,26 @@ function logPrivilegedUsage(caller: string): void {
  * intervention. Operators can still trigger an immediate rollout via
  * `wrangler deploy` — see docs/secrets-rotation-runbook.md.
  */
-const PRIVILEGED_CLIENT_TTL_MS = 5 * 60 * 1000;
+// C-7: Tightened from 5 min to 60s so a rotated service-role key
+// propagates within one minute instead of five.
+const PRIVILEGED_CLIENT_TTL_MS = 60 * 1000;
 
 let _privilegedClient: SupabaseClient<Database> | null = null;
 let _privilegedClientCreatedAt = 0;
 let _cachedUrl: string | null = null;
 let _cachedKey: string | null = null;
+
+/**
+ * C-7: Force-invalidate the cached privileged client. Call after an
+ * emergency key rotation to ensure the next request picks up the new
+ * service-role key immediately, without waiting for the TTL.
+ */
+export function flushPrivilegedClient(): void {
+  _privilegedClient = null;
+  _privilegedClientCreatedAt = 0;
+  _cachedUrl = null;
+  _cachedKey = null;
+}
 
 /**
  * Returns a Supabase client authenticated with `SUPABASE_SERVICE_ROLE_KEY`.

@@ -12,6 +12,7 @@ import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
 import { getAppCacheKV } from "@/lib/runtime-env";
+import { deriveHmacKey } from "@/lib/hmac-key";
 import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
 import { verifyToken } from "@/lib/auth";
 
@@ -132,12 +133,19 @@ async function hasValidAdminSession(request: NextRequest, siteId?: string): Prom
 
 async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean } = {}) {
   try {
+    // H-12: Prefer derived HMAC key via HKDF. Fall back to the env var
+    // for backward compatibility during migration.
     const hmacKey = process.env.CLICK_CACHE_HMAC_KEY;
-    if (process.env.NODE_ENV === "production" && !hmacKey) {
-      captureException(new Error("CLICK_CACHE_HMAC_KEY missing in production click route"), {
-        context: "[api/track/click] missing signing secret",
-      });
-      return apiError(503, "Service temporarily unavailable");
+    let clickHmacKey: CryptoKey | null = null;
+    try {
+      clickHmacKey = await deriveHmacKey("click-cache", ["sign", "verify"]);
+    } catch {
+      if (process.env.NODE_ENV === "production" && !hmacKey) {
+        captureException(new Error("CLICK_CACHE_HMAC_KEY missing and deriveHmacKey failed"), {
+          context: "[api/track/click] missing signing secret",
+        });
+        return apiError(503, "Service temporarily unavailable");
+      }
     }
 
     const ip = getClientIp(request);

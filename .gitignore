@@ -79,5 +79,8 @@ gitleaks_*.tar.gz
 gitleaks_*.zip
 coverage/
 
+# AI tool output
+.minimax/
+
 # Playwright global-setup storage state (generated at runtime)
 e2e/.auth/

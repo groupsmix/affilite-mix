@@ -8,20 +8,21 @@ import { headers, cookies } from "next/headers";
 import { getAdminSession } from "@/lib/auth";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
-import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
+import { timingSafeEqual } from "@/lib/internal-hmac";
 import { authzPrimaryRead } from "@/lib/read-after-write";
+import { deriveHmacKey } from "@/lib/hmac-key";
 
-// A7-005: HMAC signing/verification for the x-site-id fallback header.
-// Derives a signing key from SUPABASE_JWT_SECRET so no new secret is required.
-const SITE_ID_SIGN_VERSION = "v1";
+// C-6: HMAC signing for x-site-id fallback header uses a purpose-derived
+// sub-key via HKDF instead of raw SUPABASE_JWT_SECRET. This decouples
+// site-id signing from Supabase JWT rotation.
 
-/** A7-005: Sign the site-id fallback header value for middleware to set. */
+/** Sign the site-id fallback header value for middleware to set. */
 export async function signSiteIdFallback(siteId: string): Promise<string | null> {
-  const secret = process.env.SUPABASE_JWT_SECRET;
-  if (!secret) return null;
   try {
-    const sig = await computeHmac(secret, "site-id-fallback", SITE_ID_SIGN_VERSION, siteId);
-    return sig;
+    const key = await deriveHmacKey("site-id-fallback", ["sign"]);
+    const encoder = new TextEncoder();
+    const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(siteId));
+    return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
   } catch {
     // fail-open: best-effort
     return null;
@@ -71,25 +72,10 @@ function getSupabaseUrl(): string {
 // These clients do not hold mutable state (persistSession: false).
 let _anonClient: SupabaseClient<Database> | null = null;
 
-/**
- * @deprecated Service-role access has moved to the approved server-only
- * gateway at `lib/server-only/service-role.ts`. Import
- * `getPrivilegedSupabaseClient` from there directly. This thin wrapper is
- * kept only so existing tests and a small number of legacy call sites keep
- * working; an ESLint `no-restricted-imports` rule prevents new code from
- * importing it. New code that genuinely needs to bypass RLS must use the
- * gateway.
- */
-export function getServiceClient(): SupabaseClient<Database> {
-  // AUDIT-FIX: Emit a runtime warning in production so operators can
-  // track legacy call sites that haven't migrated to the approved gateway.
-  if (process.env.NODE_ENV === "production") {
-    logger.warn("getServiceClient() is deprecated — use getPrivilegedSupabaseClient()", {
-      metric: "deprecated_service_client_usage",
-    });
-  }
-  return getPrivilegedSupabaseClient();
-}
+// H-3: Legacy getServiceClient export removed. All callers must use
+// getPrivilegedSupabaseClient from lib/server-only/service-role.ts.
+// ESLint no-restricted-imports rule still blocks the name to catch stale
+// imports in rebased branches.
 
 const ACTIVE_SITE_COOKIE = "nh_active_site";
 
