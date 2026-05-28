@@ -155,6 +155,10 @@ export interface ContentRow {
   og_image: string | null;
   body_previous: string | null;
   review_state: "draft" | "awaiting_edit" | "edited" | "published";
+  /** SEC-13: true when this row was created or edited by an AI pipeline. DB default: false. */
+  ai_generated?: boolean;
+  /** SEC-13: timestamp of most recent human editorial review. */
+  human_reviewed_at?: string | null;
   created_at: string;
   updated_at: string;
 }

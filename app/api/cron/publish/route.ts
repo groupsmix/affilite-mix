@@ -65,14 +65,20 @@ export async function POST(request: NextRequest) {
   const results: Record<string, unknown> = {};
 
   // 1. Publish scheduled content (only explicitly scheduled items with publish_at <= now)
+  // SEC-13: Also fetch ai_generated + human_reviewed_at so we can gate AI content.
   const { data: contentItems, error: contentError } = await sb
     // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
     .from("content")
-    .select("id, title, slug")
+    .select("id, title, slug, ai_generated, human_reviewed_at")
     .eq("status", "scheduled")
     .not("publish_at", "is", null)
     .lte("publish_at", dbNow)
-    .overrideTypes<Pick<ContentRow, "id" | "title" | "slug">[]>();
+    .overrideTypes<
+      Pick<ContentRow, "id" | "title" | "slug"> & {
+        ai_generated: boolean;
+        human_reviewed_at: string | null;
+      }
+    >();
 
   if (contentError) {
     captureException(contentError, {
@@ -82,29 +88,53 @@ export async function POST(request: NextRequest) {
   }
 
   const contentSitesToInvalidate = new Set<string>();
+  let skippedAiContent = 0;
   if (contentItems && contentItems.length > 0) {
-    // Use optimistic locking: only update rows still in "scheduled" status
-    // to prevent double-publishing if another cron instance runs concurrently.
-    const ids = contentItems.map((item: { id: string }) => item.id);
-    const { data: updated, error: updateError } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
-      .from("content")
-      .update({ status: "published" })
-      .in("id", ids)
-      .eq("status", "scheduled")
-      .select("id, site_id")
-      .overrideTypes<{ id: string; site_id: string }[]>();
+    // SEC-13: AI-generated content requires human_reviewed_at to be non-null
+    // before it can be auto-published. Skip items that fail this gate.
+    const publishable: string[] = [];
+    for (const item of contentItems) {
+      if (item.ai_generated && !item.human_reviewed_at) {
+        skippedAiContent++;
+        logger.warn("cron.publish.ai_review_gate", {
+          content_id: item.id,
+          title: item.title,
+          reason: "AI-generated content requires human review before auto-publish",
+        });
+        continue;
+      }
+      publishable.push(item.id);
+    }
 
-    if (updateError) {
-      captureException(updateError, { context: "[api/cron/publish] Failed to publish content:" });
-      return NextResponse.json({ error: "Failed to publish content" }, { status: 500 });
+    if (publishable.length > 0) {
+      // Use optimistic locking: only update rows still in "scheduled" status
+      // to prevent double-publishing if another cron instance runs concurrently.
+      const { data: updated, error: updateError } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
+        .from("content")
+        .update({ status: "published" })
+        .in("id", publishable)
+        .eq("status", "scheduled")
+        .select("id, site_id")
+        .overrideTypes<{ id: string; site_id: string }[]>();
+
+      if (updateError) {
+        captureException(updateError, {
+          context: "[api/cron/publish] Failed to publish content:",
+        });
+        return NextResponse.json({ error: "Failed to publish content" }, { status: 500 });
+      }
+      for (const row of updated ?? []) {
+        if (row.site_id) contentSitesToInvalidate.add(row.site_id);
+      }
+      results.published_content = updated?.length ?? 0;
+    } else {
+      results.published_content = 0;
     }
-    for (const row of updated ?? []) {
-      if (row.site_id) contentSitesToInvalidate.add(row.site_id);
-    }
-    results.published_content = updated?.length ?? 0;
+    results.skipped_ai_unreviewed = skippedAiContent;
   } else {
     results.published_content = 0;
+    results.skipped_ai_unreviewed = 0;
   }
 
   // 2. Archive expired content (published with deal_expires_at in the past â€” future field)

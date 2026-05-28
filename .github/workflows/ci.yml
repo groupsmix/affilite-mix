@@ -409,6 +409,19 @@ jobs:
           fi
           echo "unsafeNoSiteFilter() call-site count: $COUNT (baseline: $BASELINE)"
 
+      - name: "INF-02: Terraform alerts configuration check"
+        run: |
+          # INF-02: Verify that committed terraform alerts config has alerting enabled.
+          # If alerts_enabled is false in committed tfvars, SLO burn-rate alerting
+          # is affirmatively disabled in production — this is a P0 finding.
+          set -euo pipefail
+          TFVARS="terraform/cloudflare/alerts.auto.tfvars"
+          if [ -f "$TFVARS" ]; then
+            if grep -q 'alerts_enabled\s*=\s*false' "$TFVARS"; then
+              echo "::warning::INF-02: alerts_enabled = false in $TFVARS. Production alerting is disabled. Set to true and add PagerDuty/email destinations."
+            fi
+          fi
+
       - name: "F-17: Generate SBOM (mandatory)"
         run: |
           # F-17: SBOM generation is a release blocker. Fail the build on generation failure.
