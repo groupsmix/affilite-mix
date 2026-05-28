@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import {
@@ -233,12 +233,11 @@ describe("audit5-#27 — wrangler placeholder guard", () => {
 
   it("exits 1 when a `${...}` placeholder remains in a generated JSON", () => {
     const f = resolve(fixtureDir, "wrangler.preview.json");
-    execFileSync("sh", [
-      "-c",
-      `cat > "${f}" <<'JSON'
-{ "kv_namespaces": [ { "binding": "RATE_LIMIT_KV", "id": "\${RATE_LIMIT_KV_NAMESPACE_ID}" } ] }
-JSON`,
-    ]);
+    writeFileSync(
+      f,
+      '{ "kv_namespaces": [ { "binding": "RATE_LIMIT_KV", "id": "${RATE_LIMIT_KV_NAMESPACE_ID}" } ] }\n',
+      "utf8",
+    );
     const { exit, stderr } = runCheck(["wrangler.preview.json"], fixtureDir);
     expect(exit).toBe(1);
     expect(stderr).toContain("RATE_LIMIT_KV_NAMESPACE_ID");
@@ -246,12 +245,11 @@ JSON`,
 
   it("exits 0 when the generated JSON is fully substituted", () => {
     const f = resolve(fixtureDir, "wrangler.preview.json");
-    execFileSync("sh", [
-      "-c",
-      `cat > "${f}" <<'JSON'
-{ "kv_namespaces": [ { "binding": "RATE_LIMIT_KV", "id": "abc123def456" } ] }
-JSON`,
-    ]);
+    writeFileSync(
+      f,
+      '{ "kv_namespaces": [ { "binding": "RATE_LIMIT_KV", "id": "abc123def456" } ] }\n',
+      "utf8",
+    );
     const { exit } = runCheck(["wrangler.preview.json"], fixtureDir);
     expect(exit).toBe(0);
   });
