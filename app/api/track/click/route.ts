@@ -125,9 +125,8 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     // 100 clicks/s) this drops the per-request HMAC import+derive
     // from O(ms) to O(ns).
     const hmacKey = process.env.CLICK_CACHE_HMAC_KEY;
-    let clickHmacKey: CryptoKey | null = null;
     try {
-      clickHmacKey = await getOrDeriveHmacKey("click-cache", ["sign", "verify"]);
+      await getOrDeriveHmacKey("click-cache", ["sign", "verify"]);
     } catch {
       if (process.env.NODE_ENV === "production" && !hmacKey) {
         captureException(new Error("CLICK_CACHE_HMAC_KEY missing and getOrDeriveHmacKey failed"), {
