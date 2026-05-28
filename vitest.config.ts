@@ -29,10 +29,10 @@ export default defineConfig({
       // no-regression baselines. Per-directory gates for critical paths ratchet
       // up as coverage improves. Do not lower without documenting why.
       thresholds: {
-        statements: 21,
-        branches: 18,
-        functions: 17,
-        lines: 21,
+        statements: 23,
+        branches: 19,
+        functions: 19,
+        lines: 23,
         // Per-directory gates for critical code paths — set to current levels
         "lib/auth*": { statements: 50, branches: 46, functions: 71, lines: 52 },
         "lib/authz*": { statements: 58, branches: 62, functions: 57, lines: 60 },

@@ -21,7 +21,7 @@ import {
   recordUnknownHostKvAccess,
 } from "@/lib/security/unknown-host-guard";
 import { getAppCacheKV } from "@/lib/runtime-env";
-import { signSiteIdFallback } from "@/lib/supabase-server";
+import { signSiteIdFallback } from "@/lib/site-id-signer";
 import { checkBodySize, applySecurityHeaders } from "@/lib/middleware-helpers";
 import { parseOrCreateTraceContext, applyTraceHeaders } from "@/lib/tracing";
 
