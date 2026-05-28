@@ -58,10 +58,14 @@ describe("buildCspHeader", () => {
     // just assert the Supabase project host appears somewhere in the
     // connect-src directive.
     expect(header).toMatch(/connect-src[^;]*supabase/);
-    // G-X (May 2026 audit): Sentry connect-src is now an exact `*.sentry.io`
-    // host derived from NEXT_PUBLIC_SENTRY_DSN, with the wildcard only as
-    // a dev/test fallback when no DSN is configured. Either form is valid.
-    expect(header).toMatch(/connect-src[^;]*https:\/\/(\*|[^\s;]*?)\.ingest\.sentry\.io/);
+    // F-10: Sentry connect-src is now an exact host derived from
+    // NEXT_PUBLIC_SENTRY_DSN. When no DSN is set (as in tests), Sentry
+    // is omitted entirely — no wildcard fallback.
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN) {
+      expect(header).toMatch(/connect-src[^;]*https:\/\/[^\s;]*?\.ingest\.sentry\.io/);
+    } else {
+      expect(header).not.toMatch(/sentry\.io/);
+    }
   });
 
   it("keeps hardened baseline directives", () => {

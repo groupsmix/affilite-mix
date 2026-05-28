@@ -54,7 +54,7 @@ async function resolveDomain(): Promise<string> {
   return DEFAULT_DOMAIN;
 }
 
-/** AI-training crawlers that should be blocked site-wide (A113-F2). */
+/** AI-training crawlers that should be blocked site-wide (A113-F2, F-14). */
 const AI_TRAINING_BOTS = [
   "GPTBot",
   "Google-Extended",
@@ -63,6 +63,21 @@ const AI_TRAINING_BOTS = [
   "Claude-Web",
   "Bytespider",
   "cohere-ai",
+  "PerplexityBot",
+  "FacebookBot",
+  "ImagesiftBot",
+  "Omgilibot",
+  "Diffbot",
+  "PetalBot",
+  "Amazonbot",
+  "YouBot",
+  "AI2Bot",
+  "Ai2Bot-Dolma",
+  "Scrapy",
+  "Timpibot",
+  "VelenPublicWebCrawler",
+  "ISSCyberRiskCrawler",
+  "Kangaroo Bot",
 ];
 
 export default async function robots(): Promise<MetadataRoute.Robots> {

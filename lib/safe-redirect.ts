@@ -34,13 +34,13 @@ export function safeRedirectUrl(
 
   if (!target || typeof target !== "string") return fallback;
 
-  // Q1-2: Strip ASCII C0 control chars (0x00-0x1F), DEL (0x7F), and Unicode
-  // whitespace (U+00A0, U+1680, U+180E, U+2000-U+200A, U+2028, U+2029,
-  // U+202F, U+205F, U+3000, U+FEFF) before any validation. This closes the
-  // divergence where trim() removes some chars but the URL parser or regex
-  // sees a different scheme due to residual control/space bytes.
+  // Q1-2 + F-16: Strip ASCII C0 control chars (0x00-0x1F), DEL (0x7F),
+  // Unicode whitespace, and bidirectional override / isolate characters
+  // (U+200E-U+200F LRM/RLM, U+061C ALM, U+202A-U+202E embedding/override,
+  // U+2066-U+2069 isolates) before validation. Bidi overrides can spoof
+  // the displayed URL in audit logs and admin UIs.
   const stripped = target.replace(
-    /[\x00-\x1f\x7f\u00A0\u1680\u180E\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]/g,
+    /[\x00-\x1f\x7f\u00A0\u1680\u180E\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF\u200E\u200F\u061C\u202A-\u202E\u2066-\u2069]/g,
     "",
   );
   const trimmed = stripped.trim();

@@ -14,7 +14,7 @@
  * @see https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/
  */
 
-// @ts-ignore -- `.open-next/worker.js` is generated at build time
+// @ts-expect-error -- `.open-next/worker.js` is generated at build time
 import { default as handler } from "../.open-next/worker.js";
 import { withSentry } from "@sentry/cloudflare";
 import { RateLimiterDO } from "./rate-limiter-do";
@@ -321,7 +321,7 @@ function parseSampleRate(raw: unknown, fallback: number): number {
 }
 
 // Re-export Durable Object classes required by OpenNext's caching layer
-// @ts-ignore -- `.open-next/worker.js` is generated at build time
+// @ts-expect-error -- `.open-next/worker.js` is generated at build time
 export { DOQueueHandler, DOShardedTagCache } from "../.open-next/worker.js";
 
 // F-005: Durable Object rate limiter (atomic fixed-window counter).
