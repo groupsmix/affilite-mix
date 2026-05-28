@@ -7,6 +7,7 @@ import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { determineAuthMode } from "@/lib/revalidate-auth";
+import { isUsableUuid } from "@/lib/security/uuid";
 
 /**
  * POST /api/revalidate — On-demand cache revalidation webhook.
@@ -91,7 +92,8 @@ export async function POST(request: NextRequest) {
         kinds = requested;
       }
     }
-    if (typeof body.site_id === "string" && body.site_id.length > 0) {
+    // T1-02: Validate site_id is a well-formed UUID before using it
+    if (typeof body.site_id === "string" && isUsableUuid(body.site_id)) {
       siteId = body.site_id;
     }
   } catch {
