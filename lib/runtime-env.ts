@@ -1,12 +1,12 @@
 /**
  * P1-4: Typed runtime environment interface for Cloudflare Worker bindings.
  *
- * Cloudflare Workers expose bindings (KV, R2, DO, Queues) via the process.env
- * shim provided by @opennextjs/cloudflare. These are not strings like normal
- * env vars -- they are objects with methods (get/put for KV, etc.).
+ * In @opennextjs/cloudflare, non-string bindings (KV, R2, DO, Queues) are NOT
+ * available on `process.env` — they live on `getCloudflareContext().env`.
+ * String env vars (NODE_ENV, APP_URL, etc.) are still on `process.env`.
  *
- * This interface replaces `(process.env as any).BINDING_NAME as any` escape
- * hatches across the codebase with a typed accessor.
+ * This module merges both sources: `getCloudflareContext().env` for object
+ * bindings, falling back to `process.env` for string values and dev/test.
  */
 
 /** Minimal KV namespace interface for cache/rate-limit bindings. */
@@ -59,15 +59,27 @@ export interface RuntimeEnv {
 
 /**
  * Returns the Cloudflare runtime env with proper typing.
- * In Node.js (dev/test), KV bindings are undefined and callers
- * should null-check before use.
+ *
+ * Prefers `getCloudflareContext().env` (which exposes KV/R2/DO/Queue
+ * bindings correctly) and falls back to `process.env` for dev/test
+ * where the Cloudflare context is unavailable.
  *
  * Exposed as a module-level variable rather than a `function` declaration
  * so vitest can `vi.spyOn(runtimeEnv, "getRuntimeEnv").mockImplementation`
- * to inject a fake binding map (Node's `process.env` is a Proxy that
- * string-coerces, so non-string values cannot be assigned directly).
+ * to inject a fake binding map.
  */
-export const getRuntimeEnv: () => RuntimeEnv = () => process.env as unknown as RuntimeEnv;
+export const getRuntimeEnv: () => RuntimeEnv = () => {
+  try {
+    const { getCloudflareContext } = require("@opennextjs/cloudflare") as {
+      getCloudflareContext: () => { env: RuntimeEnv } | undefined;
+    };
+    const ctx = getCloudflareContext();
+    if (ctx?.env) return ctx.env;
+  } catch {
+    // Outside Cloudflare runtime (dev/test) — fall through
+  }
+  return process.env as unknown as RuntimeEnv;
+};
 
 /**
  * Get the APP_CACHE_KV binding if available.
