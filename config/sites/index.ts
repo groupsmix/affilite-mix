@@ -4,7 +4,7 @@ import { arabicToolsSite } from "./arabic-tools";
 import { cryptoToolsSite } from "./crypto-tools";
 import { watchToolsSite } from "./watch-tools";
 
-/** @deprecated Individual site re-exports are unused — consume via {@link allSites} instead. */
+/** Individual site exports — used by tests for direct assertions. */
 export { aiComparedSite, arabicToolsSite, cryptoToolsSite, watchToolsSite };
 
 /** All registered sites. Add new sites here. */

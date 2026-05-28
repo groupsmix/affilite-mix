@@ -86,14 +86,25 @@ export interface RateLimitResult {
 // available via `getCloudflareContext().env`, NOT on `process.env`.
 // Test environments use `globalThis` stubs via `vi.stubGlobal(...)`.
 
+// C-4: Eagerly resolve getCloudflareContext at module load (once) rather
+// than using a dynamic require() per call. This is ESM-safe and keeps the
+// function synchronous.
+type GetCloudflareContextFn = () => { env: Record<string, unknown> } | undefined;
+let _getCloudflareContext: GetCloudflareContextFn | null = null;
+try {
+  const mod = require("@opennextjs/cloudflare") as {
+    getCloudflareContext: GetCloudflareContextFn;
+  };
+  _getCloudflareContext = mod.getCloudflareContext;
+} catch {
+  // Outside Cloudflare runtime (dev/test) — leave null.
+}
+
 function readBinding(name: string): unknown {
   const fromGlobal = (globalThis as Record<string, unknown>)[name];
   if (fromGlobal !== undefined) return fromGlobal;
   try {
-    const { getCloudflareContext } = require("@opennextjs/cloudflare") as {
-      getCloudflareContext: () => { env: Record<string, unknown> } | undefined;
-    };
-    const ctx = getCloudflareContext();
+    const ctx = _getCloudflareContext?.();
     if (ctx?.env?.[name] !== undefined) return ctx.env[name];
   } catch {
     // Outside Cloudflare runtime — fall through

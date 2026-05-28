@@ -10,11 +10,9 @@ import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 import { authzPrimaryRead } from "@/lib/read-after-write";
-// F-1: signSiteIdFallback moved to lib/site-id-signer.ts (Edge-safe leaf)
-// to avoid pulling bcryptjs + jose/deflate into the middleware bundle.
-// Re-export for non-Edge callers that already import from this file.
+// F-1: signSiteIdFallback moved to lib/site-id-signer.ts (Edge-safe leaf).
+// C-6: Re-export removed — all callers import directly from site-id-signer.
 import { signSiteIdFallback } from "@/lib/site-id-signer";
-export { signSiteIdFallback };
 
 /** A7-005: Verify the HMAC signature on the x-site-id fallback header. */
 async function verifySiteIdSignature(siteId: string, signature: string | null): Promise<boolean> {
