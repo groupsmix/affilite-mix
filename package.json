@@ -30,6 +30,7 @@
     "redesign-site": "tsx scripts/redesign-site.ts",
     "drain-dlq": "tsx scripts/drain-dlq.ts",
     "seed": "tsx scripts/seed.ts",
+    "seed:ai-compared": "tsx scripts/seed-ai-compared.ts",
     "setup-supabase-auth": "tsx scripts/setup-supabase-auth.ts",
     "test:chaos": "vitest run __tests__/chaos",
     "test:mutation": "stryker run",
