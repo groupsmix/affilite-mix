@@ -57,7 +57,7 @@ test.describe("Admin Products Page", () => {
       .catch(() => false);
     if (isLoginPage) {
       // Skip test if we can't access the product form without auth
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
@@ -79,7 +79,7 @@ test.describe("Admin Products Page", () => {
       .isVisible()
       .catch(() => false);
     if (isLoginPage) {
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
@@ -100,7 +100,7 @@ test.describe("Admin Products Page", () => {
       .isVisible()
       .catch(() => false);
     if (isLoginPage) {
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
@@ -124,7 +124,7 @@ test.describe("Admin Products Page", () => {
       .isVisible()
       .catch(() => false);
     if (isLoginPage) {
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
