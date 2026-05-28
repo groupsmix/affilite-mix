@@ -231,21 +231,55 @@ export async function verifyInternalHmac(
 }
 
 /**
+ * F-TIM-02: Fixed iteration count for the timing-safe compare loop.
+ *
+ * Chosen to comfortably exceed any realistic token / signature length
+ * (HMAC-SHA256 hex digests are 64 chars, JWT binding cookies and the
+ * other strings routed through this function are well under 256 bytes)
+ * so the loop body runs the same number of times regardless of the
+ * actual byte lengths of `a` and `b`.
+ *
+ * The previous implementation used `Math.max(a.length, b.length)` as
+ * the loop upper bound, which leaked the longer string's length via
+ * wall-clock latency -- the same side-channel that audit F-17 fixed
+ * in `lib/csrf.ts` and `lib/cron-auth.ts`. This module had been
+ * missed by that remediation; aligning with the constant-bound pattern
+ * keeps every constant-time path in the codebase using the same
+ * length-independent implementation.
+ */
+const MAX_COMPARE_LEN = 256;
+
+/**
  * Constant-time string comparison to prevent timing attacks.
- * Pads the shorter input to match the longer one so that length
- * mismatches do not leak via an early return.
+ *
+ * The loop always runs a fixed `MAX_COMPARE_LEN` iterations so the
+ * function's wall-clock cost does not depend on either input's length.
+ * Length mismatches are folded into the accumulator (`a.length ^
+ * b.length`) so any difference still poisons the result and the
+ * function returns `false` -- just without leaking *which* string
+ * was longer.
  */
 export function timingSafeEqual(a: string, b: string): boolean {
-  const maxLen = Math.max(a.length, b.length);
-  const aPadded = a.padEnd(maxLen, "\0");
-  const bPadded = b.padEnd(maxLen, "\0");
-  const aBuf = new TextEncoder().encode(aPadded);
-  const bBuf = new TextEncoder().encode(bPadded);
-  let result = a.length ^ b.length;
-  for (let i = 0; i < aBuf.length; i++) {
-    result |= aBuf[i] ^ bBuf[i];
+  const aBuf = new TextEncoder().encode(a);
+  const bBuf = new TextEncoder().encode(b);
+  const lenA = aBuf.byteLength;
+  const lenB = bBuf.byteLength;
+  // Use 1 as the divisor when an input is empty so the modulo below
+  // does not throw / produce NaN. The length-mismatch contribution
+  // below still causes the function to return `false` in that case.
+  const safeLenA = lenA || 1;
+  const safeLenB = lenB || 1;
+  let result = lenA ^ lenB;
+  for (let i = 0; i < MAX_COMPARE_LEN; i++) {
+    // XOR against `b[i % lenB]` rather than `a[i] ^ a[i]` so the JIT
+    // cannot prove the result is constant and optimise the dummy work
+    // away -- same approach used by `lib/csrf.ts` and
+    // `lib/cron-auth.ts`.
+    result |= aBuf[i % safeLenA] ^ bBuf[i % safeLenB];
   }
-  return result === 0;
+  // If the lengths differed, `result` is already non-zero from the
+  // `lenA ^ lenB` term above, so the comparison still returns false.
+  return result === 0 && lenA === lenB;
 }
 
 /** Test helper: reset the nonce cache between test cases. */
