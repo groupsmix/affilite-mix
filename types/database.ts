@@ -93,8 +93,8 @@ export interface SiteRow {
   updated_at: string;
 }
 
-export type HomepageTemplate = "standard" | "cinematic" | "minimal" | "editorial" | "top10";
-export type ProductCardStyle = "standard" | "compact" | "detailed";
+type HomepageTemplate = "standard" | "cinematic" | "minimal" | "editorial" | "top10";
+type ProductCardStyle = "standard" | "compact" | "detailed";
 
 export type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
 

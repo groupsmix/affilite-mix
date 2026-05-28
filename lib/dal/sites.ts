@@ -201,18 +201,10 @@ export async function updateSite(
   return assertRow<SiteRow>(data, "Site");
 }
 
-/** Soft-delete a site (deactivate) */
-export async function deactivateSite(
-  id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<SiteRow> {
-  return updateSite(id, { is_active: false }, getClient);
-}
-
 /** Hard-delete a site — requires super_admin role.
  *
  * A27-001: Hard delete is restricted to super_admin for maintenance only.
- * Regular deletion should use deactivateSite() (soft-delete via is_active=false).
+ * Regular deletion should use updateSite(id, { is_active: false }) (soft-delete).
  * This prevents accidental data loss and preserves referential integrity.
  */
 export async function deleteSite(
