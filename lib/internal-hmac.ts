@@ -25,11 +25,11 @@
 import { logger } from "@/lib/logger";
 import { getAppCacheKV } from "@/lib/runtime-env";
 
-/** Maximum clock skew tolerance in milliseconds (5 minutes).
- * A28-005: HMAC timestamp validation allows 5-min skew. For JWT refresh,
- * the auth module has its own handling — keep this conservative for
- * internal endpoint security. */
-const MAX_TIMESTAMP_SKEW_MS = 5 * 60 * 1000;
+/** Maximum clock skew tolerance in milliseconds (60 seconds).
+ * SEC-08: Tightened from 5 min to 60s. Internal calls are low-latency
+ * (Worker → Worker on the same edge), so a 60s window is ample while
+ * significantly reducing the replay attack window. */
+const MAX_TIMESTAMP_SKEW_MS = 60 * 1000;
 
 /** A28-005: Maximum acceptable future skew — requests "from the future"
  * are rejected more aggressively than past skew (which could be benign
