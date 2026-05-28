@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getClientIp } from "@/lib/get-client-ip";
+import { getRateLimitKV, getRateLimiterDO, getAppCacheKV, getClickQueue } from "@/lib/runtime-env";
 
 /** 10 health check requests per minute per IP */
 const HEALTH_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000, failPolicy: "open" as const };
@@ -89,8 +90,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Check RATE_LIMIT_KV Cloudflare binding.
-  const kv = (process.env as Record<string, unknown>).RATE_LIMIT_KV;
-  const kvPresent = !!kv && typeof kv === "object" && "get" in kv && "put" in kv;
+  const kvPresent = getRateLimitKV() !== null;
   if (process.env.NODE_ENV === "production" && !kvPresent) {
     checks.kv_binding = {
       status: "error",
@@ -103,8 +103,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Check RATE_LIMITER_DO Durable Object binding.
-  const doLimiter = (process.env as Record<string, unknown>).RATE_LIMITER_DO;
-  const doPresent = !!doLimiter && typeof doLimiter === "object" && "idFromName" in doLimiter;
+  const doPresent = getRateLimiterDO() !== null;
   if (process.env.NODE_ENV === "production" && !doPresent) {
     checks.do_binding = {
       status: "error",
@@ -119,9 +118,7 @@ export async function GET(request: NextRequest) {
   // domain resolution. A missing binding silently degrades multi-tenant
   // routing without surfacing in dashboards, so it has the same
   // health-check posture as RATE_LIMIT_KV.
-  const appCacheKv = (process.env as Record<string, unknown>).APP_CACHE_KV;
-  const appCacheKvPresent =
-    !!appCacheKv && typeof appCacheKv === "object" && "get" in appCacheKv && "put" in appCacheKv;
+  const appCacheKvPresent = getAppCacheKV() !== null;
   if (process.env.NODE_ENV === "production" && !appCacheKvPresent) {
     checks.app_cache_kv_binding = {
       status: "error",
@@ -137,8 +134,7 @@ export async function GET(request: NextRequest) {
   // consumer is unaffected by a missing binding here, but every
   // /api/track/click request still depends on this binding to publish
   // attribution events. Surfacing it makes silent click-loss visible.
-  const clickQueue = (process.env as Record<string, unknown>).CLICK_QUEUE;
-  const clickQueuePresent = !!clickQueue && typeof clickQueue === "object" && "send" in clickQueue;
+  const clickQueuePresent = getClickQueue() !== null;
   if (process.env.NODE_ENV === "production" && !clickQueuePresent) {
     checks.click_queue_binding = {
       status: "error",
