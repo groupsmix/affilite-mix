@@ -1,39 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronAuth, type VerifyCronAuthOptions } from "@/lib/cron-auth";
-import { getTenantClient } from "@/lib/supabase-server";
+import { verifyCronAuth } from "@/lib/cron-auth";
+import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
+import { recordCronLiveness } from "@/lib/cron-liveness";
 import { untypedFrom } from "@/lib/dal/type-guards";
 
-const cronAuthOptions: VerifyCronAuthOptions = {
-  secretEnvVars: ["CRON_SECRET"],
-};
-
 /**
- * GET /api/cron/access-review
+ * POST /api/cron/access-review
  * SOC 2 CC6.1 — Automated access recertification.
  *
- * Runs weekly (or on-demand) to:
+ * Runs weekly to:
  * 1. Enumerate all admin_users across all sites.
  * 2. Flag accounts that haven't logged in for 90+ days.
  * 3. Flag accounts with elevated roles (super_admin) for manual review.
  * 4. Write results to the access_review_log table for audit trail.
  *
  * The audit trail answers: "Who had access, and when was it last reviewed?"
+ *
+ * F-001: cron has no tenant context (no x-site-id, no cookies); the
+ * privileged client is the correct gateway here — the route is gated by
+ * CRON_SECRET and every query opts out of the F-API-01 site filter.
  */
 
-export async function GET(request: NextRequest) {
-  if (!verifyCronAuth(request, cronAuthOptions)) {
+export async function POST(request: NextRequest) {
+  if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/access-review"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sb = await getTenantClient();
+  const sb = getPrivilegedSupabaseClient();
   const now = new Date();
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
   try {
     const { data: adminUsers, error: fetchError } = await untypedFrom(sb, "admin_users")
       .select("id, email, role, site_id, last_sign_in_at, created_at")
+      // F-API-01: SOC 2 access recertification is cross-tenant by design.
+      .unsafeNoSiteFilter()
       .order("site_id");
 
     if (fetchError) {
@@ -82,7 +86,10 @@ export async function GET(request: NextRequest) {
       reviewer: "automated-cron",
     };
 
-    const { error: insertError } = await untypedFrom(sb, "access_review_log").insert(reviewEntry);
+    const { error: insertError } = await untypedFrom(sb, "access_review_log")
+      .insert(reviewEntry)
+      // F-API-01: `access_review_log` is a global compliance log (no site_id).
+      .unsafeNoSiteFilter();
 
     if (insertError) {
       logger.warn("[cron/access-review] Failed to write review log", {
@@ -95,6 +102,7 @@ export async function GET(request: NextRequest) {
       findings: findings.length,
     });
 
+    void recordCronLiveness("access-review");
     return NextResponse.json({
       ok: true,
       totalUsers: (adminUsers ?? []).length,

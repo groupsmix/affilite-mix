@@ -123,6 +123,9 @@ export async function upsertProductEpc(
       { ...input, updated_at: new Date().toISOString() },
       { onConflict: "product_id,network" },
     )
+    // F-API-01: `product_epc_stats` is keyed by (product_id, network) and
+    // is a global rollup table — no `site_id` column.
+    .unsafeNoSiteFilter()
     .select()
     .single();
 

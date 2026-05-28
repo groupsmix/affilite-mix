@@ -7,7 +7,7 @@ import { logger } from "@/lib/logger";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 
 /**
- * GET /api/cron/click-reconcile
+ * POST /api/cron/click-reconcile
  *
  * A-006: Reconciles click tracking volume by comparing recent
  * affiliate_clicks inserts with click_failures rows. If the failure
@@ -30,6 +30,10 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("affiliate_clicks")
       .select("id", { count: "exact", head: true })
+      // F-API-01: cross-tenant reconciliation — we deliberately count
+      // across every site so a single tenant's outage shows up in the
+      // aggregate loss-rate alert.
+      .unsafeNoSiteFilter()
       .gte("created_at", since);
 
     if (successErr) throw successErr;
@@ -39,6 +43,9 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("click_failures")
       .select("id", { count: "exact", head: true })
+      // F-API-01: `click_failures` is a global DLQ table with no
+      // `site_id` column — see queue/clicks DLQ insert.
+      .unsafeNoSiteFilter()
       .gte("created_at", since);
 
     if (failureErr) throw failureErr;

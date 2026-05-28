@@ -66,6 +66,8 @@ env:
   CRON_EPC_SECRET: ci-test-cron-epc
   CRON_PRICE_SECRET: ci-test-cron-price
   CRON_DEALS_SECRET: ci-test-cron-deals
+  CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
+  CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
 
 jobs:
   lighthouse:

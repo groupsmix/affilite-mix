@@ -34,6 +34,8 @@ env:
   CRON_EPC_SECRET: ci-test-cron-epc
   CRON_PRICE_SECRET: ci-test-cron-price
   CRON_DEALS_SECRET: ci-test-cron-deals
+  CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
+  CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
   NEXT_PUBLIC_DEFAULT_SITE: ai-compared
@@ -425,7 +427,13 @@ jobs:
           # Each unsafeNoSiteFilter() call bypasses RLS site_id scoping.
           # New call sites require a code comment with audit-ticket reference.
           set -euo pipefail
-          BASELINE=33
+          # Baseline raised from 33 → 67 in PR-A: F-API-01 cron proxy
+          # unbreak. Every new opt-out is annotated with an `F-API-01`
+          # audit-ticket comment in lib/ or app/ documenting why the
+          # site_id filter does not apply (global/cross-tenant tables,
+          # lookup queries that *resolve* site_id, or cross-tenant
+          # rollups). The cron-proxy-guard test asserts each chain.
+          BASELINE=67
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."

@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
       .from("cron_state")
       .select("job_name, last_id, last_processed_at, cursor, updated_at")
+      // F-API-01: `cron_state` is a global job-progress table with no `site_id` column.
+      .unsafeNoSiteFilter()
       .eq("job_name", "data-retention:clicks")
       .single()) as { data: { last_id?: string | null } | null };
 
@@ -58,6 +60,9 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
         .select("id")
+        // F-API-01: cross-tenant retention sweep — cron is CRON_SECRET-gated
+        // and intentionally purges expired rows across every site.
+        .unsafeNoSiteFilter()
         .lt("created_at", clicksDate.toISOString())
         .order("id", { ascending: true })
         .limit(BATCH_SIZE);
@@ -79,6 +84,8 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
         .delete()
+        // F-API-01: ids were resolved cross-tenant in the previous fetch step.
+        .unsafeNoSiteFilter()
         .in("id", ids);
 
       if (delErr) throw delErr;
@@ -90,6 +97,7 @@ export async function POST(request: NextRequest) {
       await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
         .from("cron_state")
+        // F-API-01: `cron_state` is a global job-progress table.
         .upsert(
           {
             job_name: "data-retention:clicks",
@@ -97,7 +105,8 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           },
           { onConflict: "job_name" },
-        );
+        )
+        .unsafeNoSiteFilter();
 
       if (batch.length < BATCH_SIZE) hasMore = false;
     }
@@ -107,6 +116,7 @@ export async function POST(request: NextRequest) {
       await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
         .from("cron_state")
+        // F-API-01: global job-progress table.
         .upsert(
           {
             job_name: "data-retention:clicks",
@@ -114,7 +124,8 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           },
           { onConflict: "job_name" },
-        );
+        )
+        .unsafeNoSiteFilter();
     }
 
     results.affiliate_clicks = { success: true, deleted: totalDeleted };
@@ -133,6 +144,8 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
       .from("affiliate_clicks")
       .update({ ip_prefix: null, fingerprint: null })
+      // F-API-01: GDPR IP minimisation runs across every tenant.
+      .unsafeNoSiteFilter()
       .lt("created_at", ipMinimizeDate.toISOString())
       .not("ip_prefix", "is", null);
 
@@ -177,6 +190,8 @@ export async function POST(request: NextRequest) {
         .select(
           "id, site_id, actor, actor_user_id, action, entity_type, entity_id, details, ip, created_at",
         )
+        // F-API-01: cross-tenant audit-log retention sweep.
+        .unsafeNoSiteFilter()
         .lt("created_at", auditDate.toISOString())
         .limit(10000)) as unknown as {
         data:
@@ -236,8 +251,13 @@ export async function POST(request: NextRequest) {
       let deletedCount = 0;
       if (archiveSucceeded && auditRows && auditRows.length > 0) {
         const ids = auditRows.map((row) => row.id);
-        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
-        const { error: auditError } = await sb.from("audit_log").delete().in("id", ids);
+        const { error: auditError } = await sb
+          // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
+          .from("audit_log")
+          .delete()
+          // F-API-01: ids resolved cross-tenant above.
+          .unsafeNoSiteFilter()
+          .in("id", ids);
 
         if (auditError) throw auditError;
         deletedCount = ids.length;
@@ -264,6 +284,8 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("stripe_events")
       .delete()
+      // F-API-01: `stripe_events` is a global webhook log (no site_id column).
+      .unsafeNoSiteFilter()
       .lt("received_at", stripeDate.toISOString());
 
     if (stripeError) throw stripeError;
