@@ -52,6 +52,7 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   "app/api/cron/commission-ingest/route.ts",
   "app/api/cron/expire-deals/route.ts",
   "app/api/cron/stripe-sync/route.ts",
+  "app/api/cron/access-review/route.ts",
 
   // Admin guard runs before any tenant context is established and
   // needs to look up admin sessions / memberships across sites. The

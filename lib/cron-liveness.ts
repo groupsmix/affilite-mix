@@ -26,6 +26,7 @@
 
 import { cronJobs, type CronJob } from "@/lib/cron-registry";
 import { logger } from "@/lib/logger";
+import { getAppCacheKV } from "@/lib/runtime-env";
 
 /** KV key prefix for liveness timestamps. */
 const KV_PREFIX = "cron-liveness:";
@@ -148,8 +149,8 @@ function readKV(): KVNamespace | undefined {
     return fromGlobal as unknown as KVNamespace;
   }
   try {
-    const kv = (process.env as Record<string, unknown>).APP_CACHE_KV;
-    if (kv && typeof kv === "object" && "get" in (kv as object)) {
+    const kv = getAppCacheKV();
+    if (kv) {
       return kv as unknown as KVNamespace;
     }
   } catch {

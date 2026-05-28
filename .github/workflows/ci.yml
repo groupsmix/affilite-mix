@@ -34,6 +34,8 @@ env:
   CRON_EPC_SECRET: ci-test-cron-epc
   CRON_PRICE_SECRET: ci-test-cron-price
   CRON_DEALS_SECRET: ci-test-cron-deals
+  CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
+  CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
   NEXT_PUBLIC_DEFAULT_SITE: ai-compared
@@ -91,6 +93,31 @@ jobs:
             exit 1
           fi
           echo "No dev fallback tokens found in wrangler.jsonc."
+
+      - name: ALLOW_LOCALHOST_FALLBACK_IN_PROD deploy guard (audit-etap1 #9)
+        run: |
+          # audit-etap1 #9: this flag is intended for local + CI loop-back use
+          # only (Lighthouse / Playwright against http://localhost:3000). Any
+          # non-empty assignment in a workflow that has a deploy responsibility
+          # (deploy.yml, deploy-gradual.yml, rollback.yml, security.yml, etc.)
+          # is a foot-gun. We allow-list workflows that legitimately need it
+          # against a real loopback target. Anything else fails CI.
+          set -euo pipefail
+          ALLOWED_REGEX='^\.github/workflows/(ci|preview|lighthouse|load-test|dr-drill|mutation)\.yml$'
+          VIOLATIONS=""
+          for f in .github/workflows/*.yml; do
+            if [[ "$f" =~ $ALLOWED_REGEX ]]; then continue; fi
+            if grep -nE '^\s*ALLOW_LOCALHOST_FALLBACK_IN_PROD\s*:\s*("?)[^"\s]+("?)' "$f" \
+               | grep -vE 'ALLOW_LOCALHOST_FALLBACK_IN_PROD\s*:\s*""' > /dev/null; then
+              VIOLATIONS="$VIOLATIONS $f"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::ALLOW_LOCALHOST_FALLBACK_IN_PROD set to a non-empty value in a workflow that is NOT on the local-loopback allow-list:$VIOLATIONS"
+            echo "::error::Allow-list: ci.yml, preview.yml, lighthouse.yml, load-test.yml, dr-drill.yml, mutation.yml"
+            exit 1
+          fi
+          echo "ALLOW_LOCALHOST_FALLBACK_IN_PROD usage stays inside the local-loopback allow-list."
 
       - name: Admin route authz enforcement (F-01)
         run: |
@@ -400,7 +427,13 @@ jobs:
           # Each unsafeNoSiteFilter() call bypasses RLS site_id scoping.
           # New call sites require a code comment with audit-ticket reference.
           set -euo pipefail
-          BASELINE=33
+          # Baseline raised from 33 → 67 in PR-A: F-API-01 cron proxy
+          # unbreak. Every new opt-out is annotated with an `F-API-01`
+          # audit-ticket comment in lib/ or app/ documenting why the
+          # site_id filter does not apply (global/cross-tenant tables,
+          # lookup queries that *resolve* site_id, or cross-tenant
+          # rollups). The cron-proxy-guard test asserts each chain.
+          BASELINE=67
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."

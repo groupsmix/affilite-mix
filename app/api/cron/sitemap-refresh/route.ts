@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
     .from("sites")
     .select("id")
+    // F-API-01: `sites` is a global table with no `site_id` column.
+    .unsafeNoSiteFilter()
     .eq("is_active", true)
     .overrideTypes<{ id: string }[]>();
 

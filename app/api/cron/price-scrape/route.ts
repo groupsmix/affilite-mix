@@ -60,6 +60,8 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
       .from("products")
       .select("id, site_id, price_amount, price_currency, name, slug")
+      // F-API-01: daily price scrape iterates every tenant's catalog.
+      .unsafeNoSiteFilter()
       .eq("status", "active")
       .not("price_amount", "is", null);
 

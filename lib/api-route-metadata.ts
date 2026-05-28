@@ -564,7 +564,7 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   {
     ...CRON_DEFAULTS,
     path: "/api/cron/access-review",
-    methods: ["GET"],
+    methods: ["POST"],
     requestSchema: null,
     responseSchema: "{ ok: boolean; totalUsers: number; findings: number }",
     sensitiveFields: ["email"],

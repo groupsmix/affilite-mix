@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+// SEC-02 (etap-3): canonical boolean env-var parser
+import { parseBoolEnv } from "@/lib/env-bool";
 
 /**
  * Fixed iteration count for the mismatched-length branch of
@@ -99,6 +101,12 @@ export function verifyCronAuth(request: NextRequest, options: VerifyCronAuthOpti
   const encoder = new TextEncoder();
   const provided = encoder.encode(token);
 
+  // SEC-06 (etap-3): minimum cron-secret length in production. A misconfigured
+  // single-character secret would otherwise be matched the same way as a
+  // 32-byte random one. 32 bytes is the documented minimum (`.env.example`).
+  const MIN_SECRET_LENGTH = 32;
+  const isProdEnv = process.env.NODE_ENV === "production";
+
   let anySecretConfigured = false;
   let perTriggerConfigured = false;
   let matched = false;
@@ -106,6 +114,14 @@ export function verifyCronAuth(request: NextRequest, options: VerifyCronAuthOpti
     const name = envVars[i];
     const value = process.env[name];
     if (!value) continue;
+    // SEC-06 (etap-3): skip too-short secrets in production. Logging once is
+    // enough to surface misconfiguration via Sentry/structured logs.
+    if (isProdEnv && value.length < MIN_SECRET_LENGTH) {
+      console.error(
+        `[cron-auth] ${name} is shorter than the production minimum of ${MIN_SECRET_LENGTH} bytes — refusing to use it`,
+      );
+      continue;
+    }
     anySecretConfigured = true;
     if (i === 0) {
       // First entry is the per-trigger dedicated secret; subsequent
@@ -127,8 +143,10 @@ export function verifyCronAuth(request: NextRequest, options: VerifyCronAuthOpti
   // F-006: in production, the per-trigger secret must be configured.
   // The shared CRON_SECRET on its own is rejected unless the operator
   // explicitly opts back into the legacy fallback posture.
+  // SEC-02 (etap-3): use the canonical env-bool parser so `=true`, `=1`,
+  // `=yes`, `=on` all enable the fallback consistently.
   const isProd = process.env.NODE_ENV === "production";
-  const allowFallback = process.env.CRON_ALLOW_SHARED_FALLBACK_IN_PROD === "1";
+  const allowFallback = parseBoolEnv("CRON_ALLOW_SHARED_FALLBACK_IN_PROD", false);
   // Only enforce the per-trigger gate when the caller actually passed
   // a dedicated secret env var (length > 1). Routes that genuinely have
   // no per-trigger secret (legacy callers passing the default

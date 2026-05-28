@@ -11,6 +11,9 @@ import { isTokenRevoked } from "@/lib/jwt-revocation";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 // A6-03: use purpose-derived HMAC sub-key instead of the raw JWT secret
 import { deriveHmacKey } from "@/lib/hmac-key";
+// SEC-02 (etap-3): canonical boolean env-var parser — accepts "1"/"true"/"yes"/"on"
+import { parseBoolEnv, parseTriBoolEnv } from "@/lib/env-bool";
+import { ADMIN_JWT_EXPIRY_SECONDS, ADMIN_JWT_EXPIRY_STRING } from "@/lib/auth-constants";
 
 // A7-012: Use __Host- prefix in production (Secure context) to prevent
 // Domain attribute injection and scope cookies to the exact origin.
@@ -26,7 +29,10 @@ const ACTIVITY_COOKIE = `${COOKIE_PREFIX}nh_admin_activity`;
 const BINDING_COOKIE = `${COOKIE_PREFIX}nh_admin_binding`;
 /** Admin sessions expire after 30 minutes of inactivity */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-const EXPIRY = "4h"; // F-SEC-03: Reduced from 8h to limit exposure
+// F-SEC-03: Reduced from 8h to limit exposure. Sourced from
+// `lib/auth-constants.ts` so the JWT lifetime, the KV revocation TTL,
+// and the admin cookie maxAge all derive from one value.
+const EXPIRY = ADMIN_JWT_EXPIRY_STRING;
 
 /** A28-005: Maximum acceptable JWT issue-time future skew (30 seconds).
  * Tokens issued more than this far in the future are rejected,
@@ -52,8 +58,22 @@ const JWT_MAX_FUTURE_SKEW_S = 30;
 function buildDummyHashPrefix(): string {
   // Import bcrypt at runtime to read the configured cost factor
   const rounds = process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 10;
+  // SEC-HIGH-02: In production, refuse any cost below 10. A leaked staging
+  // .env that lowered BCRYPT_ROUNDS=4 (~16x faster than cost-10) would
+  // collapse the timing-equalization cost AND, if `lib/password.ts` ever
+  // adopted the env override, the live hashing cost — making brute-force
+  // practical. Cost-31 is also unreasonable (~17 minutes per hash) and is
+  // an availability hazard.
+  const PROD_MIN_ROUNDS = 10;
+  const isProd = process.env.NODE_ENV === "production";
   if (!Number.isFinite(rounds) || rounds < 4 || rounds > 31) {
-    // Defensive: invalid cost → fall back to the known-safe default
+    return "$2b$10$";
+  }
+  if (isProd && rounds < PROD_MIN_ROUNDS) {
+    logger.error("BCRYPT_ROUNDS below production minimum (10) — refusing to use the env value", {
+      configured: rounds,
+      enforced: PROD_MIN_ROUNDS,
+    });
     return "$2b$10$";
   }
   // bcrypt encodes cost as a zero-padded 2-digit decimal between $2b$ and $
@@ -67,6 +87,39 @@ const DUMMY_HASH_SUFFIX = "FIQMYsgSk2SAqMvHOeYvCeFGj1FfTGeQC3aghyI97o73Xda0uV4x2
 /** A6-006: Lazily assembled dummy hash so the cost factor always matches BCRYPT_ROUNDS. */
 function getDummyPasswordHash(): string {
   return `${buildDummyHashPrefix()}${DUMMY_HASH_SUFFIX}`;
+}
+
+// ---------------------------------------------------------------------------
+// SEC-CRIT-04: Per-control strict-mode flags
+// ---------------------------------------------------------------------------
+
+/**
+ * SEC-CRIT-04 (deep-audit): Read an individual admin-session hardening flag.
+ *
+ * Each control (token revocation, UA/IP binding, idle timeout) has its own
+ * env var so a single typo on the umbrella `ADMIN_SESSION_STRICT` cannot
+ * silently disable three independent defences. The umbrella flag still works
+ * — when `ADMIN_SESSION_STRICT=true`, every individual flag is treated as on
+ * unless explicitly set to `false`. This preserves backward compatibility
+ * with existing deploys / wrangler configs while letting operators disable a
+ * single control during a genuine incident (e.g. KV outage → temporarily
+ * unset `ADMIN_SESSION_TOKEN_REVOCATION_STRICT` without weakening binding
+ * enforcement).
+ *
+ * The recognised individual flags are:
+ *   - ADMIN_SESSION_TOKEN_REVOCATION_STRICT
+ *   - ADMIN_SESSION_BINDING_STRICT
+ *   - ADMIN_SESSION_IDLE_STRICT
+ */
+function isAdminControlEnabled(name: string): boolean {
+  // SEC-02 (etap-3): use the canonical env-bool parser so an operator who
+  // sets `ADMIN_SESSION_STRICT=1` (mirroring APP_MAINTENANCE_MODE=1) does
+  // not silently disable three independent defences. Tri-bool returns
+  // null when the individual flag is unset/empty, in which case the
+  // umbrella default applies.
+  const own = parseTriBoolEnv(name);
+  if (own !== null) return own;
+  return parseBoolEnv("ADMIN_SESSION_STRICT", false);
 }
 
 // ---------------------------------------------------------------------------
@@ -269,21 +322,6 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   try {
     const result = await jwtVerify(token, getSecretKey(), jwtOpts);
     payload = result.payload as Record<string, unknown>;
-
-    // A28-005: Reject tokens issued too far in the future (wrong edge clock)
-    const iat = payload.iat;
-    if (typeof iat === "number") {
-      const nowSec = Math.floor(Date.now() / 1000);
-      const futureSkew = iat - nowSec;
-      if (futureSkew > JWT_MAX_FUTURE_SKEW_S) {
-        logger.warn("JWT rejected: issued-at too far in the future (clock skew?)", {
-          futureSkewSec: futureSkew,
-          iat,
-          nowSec,
-        });
-        return null;
-      }
-    }
   } catch (err) {
     if (!(err instanceof joseErrors.JOSEError)) throw err;
     const prevKey = getPreviousSecretKey();
@@ -302,12 +340,30 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
 
   if (!payload) return null;
 
-  // Token revocation check — requires KV binding (RATE_LIMIT_KV). When KV is
-  // unavailable in production, isTokenRevoked() fails closed (returns true) to
-  // prevent use of compromised tokens. However, during initial launch with
-  // ADMIN_SESSION_STRICT disabled, this blocks valid sessions when KV bindings
-  // aren't perfectly wired. Skip the check when not in strict mode.
-  const strictRevocation = process.env.ADMIN_SESSION_STRICT === "true";
+  // SEC-04 (etap-3): Reject tokens issued too far in the future (wrong edge
+  // clock). Previously this check ran only on the current-key verification
+  // branch — a previous-key fallback could let a wrong-clock token slip
+  // through the rotation grace window. Run the check after both branches.
+  const iat = payload.iat;
+  if (typeof iat === "number") {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const futureSkew = iat - nowSec;
+    if (futureSkew > JWT_MAX_FUTURE_SKEW_S) {
+      logger.warn("JWT rejected: issued-at too far in the future (clock skew?)", {
+        futureSkewSec: futureSkew,
+        iat,
+        nowSec,
+      });
+      return null;
+    }
+  }
+
+  // SEC-CRIT-04 (deep-audit): each hardening control reads its own flag with
+  // ADMIN_SESSION_STRICT as the umbrella default. A single typo on
+  // ADMIN_SESSION_STRICT no longer disables three independent defences;
+  // operators can still individually toggle a control if one infra dependency
+  // (e.g. KV availability for revocation) is genuinely unhealthy.
+  const strictRevocation = isAdminControlEnabled("ADMIN_SESSION_TOKEN_REVOCATION_STRICT");
   if (strictRevocation && payload.jti && (await isTokenRevoked(payload.jti as string))) {
     logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
     return null;
@@ -315,26 +371,27 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
 
   const adminPayload = payload as unknown as AdminPayload;
 
-  // P0-1: Binding enforcement gated by ADMIN_SESSION_STRICT.
-  // When strict, UA/IP binding is required in production.
-  const strictSession = process.env.ADMIN_SESSION_STRICT === "true";
-  const requireBinding = strictSession;
+  // P0-1 / SEC-CRIT-04 / SEC-05 (etap-3): Binding enforcement gated independently.
+  //
+  // SEC-05: If a token was MINTED with a `bnd` claim, always verify it,
+  // regardless of the operator-toggle. The flag only controls whether a
+  // token MISSING `bnd` is acceptable (e.g. legacy or background-job tokens).
+  // Earlier revisions skipped binding verification entirely when the flag
+  // was off, which silently disabled hijack detection for the very tokens
+  // that opted into it.
+  const requireBinding = isAdminControlEnabled("ADMIN_SESSION_BINDING_STRICT");
 
-  if (adminPayload.bnd && requireBinding) {
-    // G-16: pass role so super_admin verification uses /32 binding
-    const ok = await verifyRequestBinding(
-      adminPayload.bnd,
-      request,
-      requireBinding,
-      adminPayload.role,
-    );
+  if (adminPayload.bnd) {
+    // G-16: pass role so super_admin verification uses /32 binding.
+    // Pass `true` for strict here — a present `bnd` is always enforced.
+    const ok = await verifyRequestBinding(adminPayload.bnd, request, true, adminPayload.role);
     if (!ok) {
       logger.warn("Admin token rejected: UA/IP binding mismatch", {
         userId: adminPayload.userId,
       });
       return null;
     }
-  } else if (requireBinding && !adminPayload.bnd) {
+  } else if (requireBinding) {
     logger.warn("Admin token rejected: missing bnd claim in production", {
       userId: adminPayload.userId,
     });
@@ -361,29 +418,30 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
 
-  // When ADMIN_SESSION_STRICT is not "true", skip activity-timeout and
-  // UA/IP binding enforcement. This allows sessions to work on initial
-  // launch without requiring all infrastructure (consistent IP forwarding,
-  // cookie propagation) to be perfectly configured. Re-enable by setting
-  // ADMIN_SESSION_STRICT=true in wrangler.jsonc vars.
-  const strict = process.env.ADMIN_SESSION_STRICT === "true";
+  // SEC-CRIT-04: Each defence reads its own flag. ADMIN_SESSION_STRICT (legacy
+  // umbrella) still implies all three; individual flags allow precise toggling.
+  const idleStrict = isAdminControlEnabled("ADMIN_SESSION_IDLE_STRICT");
+  const bindingStrict = isAdminControlEnabled("ADMIN_SESSION_BINDING_STRICT");
 
-  // G-15 / P1-8: Server-side idle timeout — the activity cookie is HMAC-signed
-  // so clients cannot forge timestamps to extend their session.
+  // G-15 / P1-8 / SEC-CRIT-04: Server-side idle timeout — the activity cookie
+  // is HMAC-signed so clients cannot forge timestamps. Even outside strict
+  // mode, a signature failure means tampering (or key rotation); we never
+  // accept a tampered activity cookie regardless of strict-mode flags.
   const lastActivity = cookieStore.get(ACTIVITY_COOKIE)?.value;
   if (lastActivity) {
     const ts = await verifySignedTimestamp(lastActivity);
     if (ts === null) {
-      logger.warn("Admin session rejected: activity cookie signature invalid (possible tampering)");
-      if (strict) return null;
-    } else {
-      const elapsed = Date.now() - ts;
-      if (elapsed > IDLE_TIMEOUT_MS) {
-        if (strict) return null;
-        logger.warn("Admin session: idle timeout exceeded (non-strict mode, allowing)");
-      }
+      logger.warn(
+        "Admin session rejected: activity cookie signature invalid (tampering or stale key)",
+      );
+      return null;
     }
-  } else if (strict) {
+    const elapsed = Date.now() - ts;
+    if (elapsed > IDLE_TIMEOUT_MS) {
+      if (idleStrict) return null;
+      logger.warn("Admin session: idle timeout exceeded (non-strict mode, allowing)");
+    }
+  } else if (idleStrict) {
     logger.warn("Admin session rejected: missing activity cookie in production");
     return null;
   }
@@ -395,7 +453,7 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
   if (!payload) return null;
 
   // A-012: verify the separate binding cookie matches the JWT bnd claim.
-  if (strict && payload.bnd) {
+  if (bindingStrict && payload.bnd) {
     const bindingCookie = cookieStore.get(BINDING_COOKIE)?.value;
     if (!timingSafeEqual(bindingCookie ?? "", payload.bnd as string)) {
       logger.warn("Admin session rejected: binding cookie mismatch (possible token replay)", {
@@ -450,7 +508,7 @@ export function getAdminBindingCookie(binding: string): {
       secure: IS_SECURE_COOKIE,
       sameSite: "strict" as const,
       path: "/",
-      maxAge: 60 * 60 * 4, // 4 hours (matches JWT EXPIRY — F-SEC-03)
+      maxAge: ADMIN_JWT_EXPIRY_SECONDS, // matches JWT EXPIRY — F-SEC-03
     },
   };
 }

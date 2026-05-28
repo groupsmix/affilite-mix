@@ -22,6 +22,8 @@
  *   }
  */
 
+import { getAppCacheKV } from "@/lib/runtime-env";
+
 export interface CronLockHandle {
   /** Returns true if the lock was acquired, false if already held. */
   acquire(): Promise<boolean>;
@@ -41,12 +43,7 @@ export function cronLock(jobName: string, ttlSeconds = 600): CronLockHandle {
   return {
     async acquire(): Promise<boolean> {
       try {
-        const kv = (process.env as Record<string, unknown>).APP_CACHE_KV as
-          | {
-              get(k: string): Promise<string | null>;
-              put(k: string, v: string, opts?: { expirationTtl: number }): Promise<void>;
-            }
-          | undefined;
+        const kv = getAppCacheKV();
         if (!kv) return true; // No KV = dev environment, skip locking
         const existing = await kv.get(key);
         if (existing) return false; // Already running
@@ -60,9 +57,7 @@ export function cronLock(jobName: string, ttlSeconds = 600): CronLockHandle {
 
     async release(): Promise<void> {
       try {
-        const kv = (process.env as Record<string, unknown>).APP_CACHE_KV as
-          | { delete(k: string): Promise<void> }
-          | undefined;
+        const kv = getAppCacheKV();
         if (kv) await kv.delete(key);
       } catch {
         // fail-open: best-effort

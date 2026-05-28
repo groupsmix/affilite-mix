@@ -167,16 +167,40 @@ async function isBreachedPassword(password: string): Promise<boolean> {
  * Prevents distributed bcrypt CPU exhaustion: 1000 IPs x 3/15min = 3000 bcrypt ops.
  * Cap at 100 login attempts per minute globally to bound total CPU spend.
  */
-function parsePositiveIntEnv(name: string, fallback: number): number {
+function parsePositiveIntEnv(name: string, fallback: number, ceiling?: number): number {
   const raw = process.env[name];
   if (raw == null || raw === "") return fallback;
   const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  // audit-etap1 #11: cap operator-configurable rate-limit ceilings so a leaked
+  // staging .env or a hostile deploy override cannot raise the cap to a
+  // pathological value (e.g. 2_147_483_647) and silently disable the global
+  // brute-force protection. We log a warning once on cold start so the
+  // misconfiguration is visible in deployment logs.
+  if (ceiling !== undefined && n > ceiling) {
+    logger.warn(`${name} value exceeds ceiling; clamping to defend bcrypt CPU budget`, {
+      configured: n,
+      ceiling,
+      name,
+    });
+    return ceiling;
+  }
+  return n;
 }
 
-/** Configurable via LOGIN_RATE_LIMIT_GLOBAL_MAX (audit P7-002 / F10-002). */
+/**
+ * Configurable via LOGIN_RATE_LIMIT_GLOBAL_MAX (audit P7-002 / F10-002).
+ * Capped at 1000/min by audit-etap1 #11: any higher cap effectively disables
+ * the global brute-force protection while staying below INT_MAX, which means
+ * a typo cannot be detected by Number.isFinite alone.
+ */
+const LOGIN_RATE_LIMIT_GLOBAL_MAX_CEILING = 1000;
 const LOGIN_RATE_LIMIT_GLOBAL = {
-  maxRequests: parsePositiveIntEnv("LOGIN_RATE_LIMIT_GLOBAL_MAX", 100),
+  maxRequests: parsePositiveIntEnv(
+    "LOGIN_RATE_LIMIT_GLOBAL_MAX",
+    100,
+    LOGIN_RATE_LIMIT_GLOBAL_MAX_CEILING,
+  ),
   windowMs: 60 * 1000,
   failPolicy: "closed" as const,
   graceMs: 0,
