@@ -266,6 +266,10 @@ export async function POST(request: NextRequest) {
       // Fire-and-forget — don't fail the batch on insert error.
       void untypedFrom(sb, "click_failures")
         .insert(rejectedRows)
+        // F-API-01: same opt-out as the DLQ branch above — the
+        // `click_failures` table is a global queue-failure log with
+        // no `site_id` column.
+        .unsafeNoSiteFilter()
         .then((res: { error?: { message: string } | null }) => {
           if (res.error) {
             captureException(
