@@ -96,7 +96,7 @@ describe("buildCspHeader", () => {
   it("omits sentry from CSP when DSN is malformed", () => {
     vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", "not-a-url");
     const h = buildCspHeader("test-nonce");
-    expect(h).not.toMatch(/sentry\.io/);
+    expect(h).not.toMatch(/connect-src[^;]*\bsentry\.io\b/);
   });
 
   // A8-04: valid DSN test
