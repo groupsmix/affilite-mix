@@ -71,6 +71,19 @@ function getSupabaseUrl(): string {
 // F-022: Cache clients per-isolate to reduce CPU overhead.
 // These clients do not hold mutable state (persistSession: false).
 let _anonClient: SupabaseClient<Database> | null = null;
+let _anonClientCreatedAt = 0;
+let _anonCachedUrl: string | null = null;
+let _anonCachedKey: string | null = null;
+/**
+ * Anon-client cache TTL — mirrors the 5-minute window on the
+ * privileged client (`lib/server-only/service-role.ts`) so anon-key
+ * rotations propagate to long-lived isolates within one TTL without
+ * a forced isolate restart. The cache is also invalidated immediately
+ * if the URL or anon key in `process.env` differs from the values
+ * used to mint the cached client, so a rotation combined with a
+ * `wrangler deploy` rollout takes effect on the next request.
+ */
+const ANON_CLIENT_TTL_MS = 5 * 60 * 1000;
 
 // H-3: Legacy getServiceClient export removed. All callers must use
 // getPrivilegedSupabaseClient from lib/server-only/service-role.ts.
@@ -146,10 +159,17 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
  * to provide defense-in-depth security.
  */
 export function getAnonClient(): SupabaseClient<Database> {
-  if (_anonClient) return _anonClient;
-
   const url = getSupabaseUrl();
   const key = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+
+  const now = Date.now();
+  const isExpired = now - _anonClientCreatedAt >= ANON_CLIENT_TTL_MS;
+  const envChanged = url !== _anonCachedUrl || key !== _anonCachedKey;
+
+  if (_anonClient && !isExpired && !envChanged) {
+    return _anonClient;
+  }
+
   _anonClient = createClient<Database>(url, key, {
     auth: {
       persistSession: false,
@@ -183,6 +203,9 @@ export function getAnonClient(): SupabaseClient<Database> {
       },
     },
   });
+  _anonClientCreatedAt = now;
+  _anonCachedUrl = url;
+  _anonCachedKey = key;
   return _anonClient;
 }
 
@@ -207,11 +230,21 @@ export function getAnonClient(): SupabaseClient<Database> {
 /*  rather than waiting for the TTL to expire.                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * A tenant Supabase JWT only needs to live for one request — the
+ * client is minted, used to fire a single PostgREST round-trip, then
+ * discarded (the `getAuthenticatedClient` cache was removed in G-32).
+ * Workers cap CPU at 30 s per request, so 90 s is generous margin
+ * for the slowest PostgREST roundtrip while keeping the replay window
+ * tight if a token is ever captured in a log or proxy buffer.
+ */
+const TENANT_JWT_EXPIRY_SECONDS = 90;
+
 async function mintSupabaseJwt(secret: string, payload: Record<string, unknown>): Promise<string> {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("1h")
+    .setExpirationTime(`${TENANT_JWT_EXPIRY_SECONDS}s`)
     .sign(new TextEncoder().encode(secret));
 }
 
