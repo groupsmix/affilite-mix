@@ -152,6 +152,25 @@ while IFS= read -r -d '' file; do
   fi
 done < <(find "$MIGRATIONS_DIR" -type f -name '*.sql' -print0 | sort -z)
 
+# ── ETAP1-07: Enforce -down.sql existence for every up-migration ──
+missing_down=0
+while IFS= read -r -d '' file; do
+  base="$(basename "$file")"
+  case "$base" in
+    *-down.sql) continue ;;
+  esac
+  down_file="${file%.sql}-down.sql"
+  if [ ! -f "$down_file" ]; then
+    echo "::error file=$file::Up-migration has no matching -down.sql rollback file." >&2
+    missing_down=$((missing_down + 1))
+  fi
+done < <(find "$MIGRATIONS_DIR" -type f -name '*.sql' -print0 | sort -z)
+
+if [ "$missing_down" -gt 0 ]; then
+  echo "check-migrations: $missing_down migration(s) missing -down.sql rollback." >&2
+  violations=$((violations + missing_down))
+fi
+
 if [ "$violations" -gt 0 ]; then
   echo "" >&2
   echo "check-migrations: $violations violation(s)." >&2
@@ -168,4 +187,4 @@ if [ "$violations" -gt 0 ]; then
   exit 1
 fi
 
-echo "check-migrations: OK — no FOR ALL USING (true), bare auth.<x>(), or unpinned SECURITY DEFINER functions."
+echo "check-migrations: OK — no FOR ALL USING (true), bare auth.<x>(), unpinned SECURITY DEFINER functions, or missing -down.sql."

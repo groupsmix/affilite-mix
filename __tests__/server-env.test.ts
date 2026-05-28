@@ -17,6 +17,7 @@ describe("server-env canonical list", () => {
       "JWT_SECRET",
       "INTERNAL_API_TOKEN",
       "CRON_SECRET",
+      "SENTRY_DSN",
     ]) {
       expect(names).toContain(expected);
     }
