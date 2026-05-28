@@ -186,6 +186,18 @@ function buildAttrs(tag: string, raw: Record<string, string>): string {
         continue;
       }
 
+      // SEC-07 (etap-3): restrict <a target> to known-safe values.
+      // `_top` and `_parent` allow sanitised content to navigate the
+      // embedding frame; if the rendered HTML is ever shown inside an
+      // iframe (preview/partner embeds), authored content could break
+      // out of the frame. Forcing target to {_blank, _self} preserves
+      // the only intended editorial use cases ("open in same tab" and
+      // "open in new tab", paired with the rel="noopener noreferrer
+      // nofollow" we set below).
+      if (tag === "a" && lc === "target") {
+        if (value !== "_blank" && value !== "_self") continue;
+      }
+
       // Skip user-supplied rel on <a> — we force our own below
       if (tag === "a" && lc === "rel") continue;
 

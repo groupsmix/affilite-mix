@@ -11,6 +11,8 @@ import { isTokenRevoked } from "@/lib/jwt-revocation";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 // A6-03: use purpose-derived HMAC sub-key instead of the raw JWT secret
 import { deriveHmacKey } from "@/lib/hmac-key";
+// SEC-02 (etap-3): canonical boolean env-var parser — accepts "1"/"true"/"yes"/"on"
+import { parseBoolEnv, parseTriBoolEnv } from "@/lib/env-bool";
 import { ADMIN_JWT_EXPIRY_SECONDS, ADMIN_JWT_EXPIRY_STRING } from "@/lib/auth-constants";
 
 // A7-012: Use __Host- prefix in production (Secure context) to prevent
@@ -110,10 +112,14 @@ function getDummyPasswordHash(): string {
  *   - ADMIN_SESSION_IDLE_STRICT
  */
 function isAdminControlEnabled(name: string): boolean {
-  const own = process.env[name];
-  if (own === "true") return true;
-  if (own === "false") return false;
-  return process.env.ADMIN_SESSION_STRICT === "true";
+  // SEC-02 (etap-3): use the canonical env-bool parser so an operator who
+  // sets `ADMIN_SESSION_STRICT=1` (mirroring APP_MAINTENANCE_MODE=1) does
+  // not silently disable three independent defences. Tri-bool returns
+  // null when the individual flag is unset/empty, in which case the
+  // umbrella default applies.
+  const own = parseTriBoolEnv(name);
+  if (own !== null) return own;
+  return parseBoolEnv("ADMIN_SESSION_STRICT", false);
 }
 
 // ---------------------------------------------------------------------------
@@ -316,21 +322,6 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   try {
     const result = await jwtVerify(token, getSecretKey(), jwtOpts);
     payload = result.payload as Record<string, unknown>;
-
-    // A28-005: Reject tokens issued too far in the future (wrong edge clock)
-    const iat = payload.iat;
-    if (typeof iat === "number") {
-      const nowSec = Math.floor(Date.now() / 1000);
-      const futureSkew = iat - nowSec;
-      if (futureSkew > JWT_MAX_FUTURE_SKEW_S) {
-        logger.warn("JWT rejected: issued-at too far in the future (clock skew?)", {
-          futureSkewSec: futureSkew,
-          iat,
-          nowSec,
-        });
-        return null;
-      }
-    }
   } catch (err) {
     if (!(err instanceof joseErrors.JOSEError)) throw err;
     const prevKey = getPreviousSecretKey();
@@ -349,6 +340,24 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
 
   if (!payload) return null;
 
+  // SEC-04 (etap-3): Reject tokens issued too far in the future (wrong edge
+  // clock). Previously this check ran only on the current-key verification
+  // branch — a previous-key fallback could let a wrong-clock token slip
+  // through the rotation grace window. Run the check after both branches.
+  const iat = payload.iat;
+  if (typeof iat === "number") {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const futureSkew = iat - nowSec;
+    if (futureSkew > JWT_MAX_FUTURE_SKEW_S) {
+      logger.warn("JWT rejected: issued-at too far in the future (clock skew?)", {
+        futureSkewSec: futureSkew,
+        iat,
+        nowSec,
+      });
+      return null;
+    }
+  }
+
   // SEC-CRIT-04 (deep-audit): each hardening control reads its own flag with
   // ADMIN_SESSION_STRICT as the umbrella default. A single typo on
   // ADMIN_SESSION_STRICT no longer disables three independent defences;
@@ -362,24 +371,27 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
 
   const adminPayload = payload as unknown as AdminPayload;
 
-  // P0-1 / SEC-CRIT-04: Binding enforcement gated independently.
+  // P0-1 / SEC-CRIT-04 / SEC-05 (etap-3): Binding enforcement gated independently.
+  //
+  // SEC-05: If a token was MINTED with a `bnd` claim, always verify it,
+  // regardless of the operator-toggle. The flag only controls whether a
+  // token MISSING `bnd` is acceptable (e.g. legacy or background-job tokens).
+  // Earlier revisions skipped binding verification entirely when the flag
+  // was off, which silently disabled hijack detection for the very tokens
+  // that opted into it.
   const requireBinding = isAdminControlEnabled("ADMIN_SESSION_BINDING_STRICT");
 
-  if (adminPayload.bnd && requireBinding) {
-    // G-16: pass role so super_admin verification uses /32 binding
-    const ok = await verifyRequestBinding(
-      adminPayload.bnd,
-      request,
-      requireBinding,
-      adminPayload.role,
-    );
+  if (adminPayload.bnd) {
+    // G-16: pass role so super_admin verification uses /32 binding.
+    // Pass `true` for strict here — a present `bnd` is always enforced.
+    const ok = await verifyRequestBinding(adminPayload.bnd, request, true, adminPayload.role);
     if (!ok) {
       logger.warn("Admin token rejected: UA/IP binding mismatch", {
         userId: adminPayload.userId,
       });
       return null;
     }
-  } else if (requireBinding && !adminPayload.bnd) {
+  } else if (requireBinding) {
     logger.warn("Admin token rejected: missing bnd claim in production", {
       userId: adminPayload.userId,
     });
