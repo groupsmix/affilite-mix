@@ -34,13 +34,30 @@ export function safeRedirectUrl(
 
   if (!target || typeof target !== "string") return fallback;
 
-  // Q1-2 + F-16: Strip ASCII C0 control chars (0x00-0x1F), DEL (0x7F),
-  // Unicode whitespace, and bidirectional override / isolate characters
-  // (U+200E-U+200F LRM/RLM, U+061C ALM, U+202A-U+202E embedding/override,
-  // U+2066-U+2069 isolates) before validation. Bidi overrides can spoof
-  // the displayed URL in audit logs and admin UIs.
-  const stripped = target.replace(
-    /[\x00-\x1f\x7f\u00A0\u1680\u180E\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF\u200E\u200F\u061C\u202A-\u202E\u2066-\u2069]/g,
+  // A4-01 / A7-03: Reject oversized redirect targets. No legitimate
+  // redirect exceeds 2 KB; unbounded input causes O(n) CPU work per
+  // request on the Worker.
+  const MAX_REDIRECT_LEN = 2048;
+  if (target.length > MAX_REDIRECT_LEN) return fallback;
+
+  // A1-01: Decode percent-encoded codepoints before stripping so
+  // encoded bidi overrides (e.g. %E2%80%AE for U+202E) are caught.
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(target);
+  } catch {
+    decoded = target;
+  }
+
+  // A4-02: NFC-normalise before stripping so homoglyph variants are
+  // collapsed to a single canonical form.
+  const normalised_nfc = decoded.normalize("NFC");
+
+  // Q1-2 + F-16 + A1-02: Strip ASCII C0 control chars, DEL, Unicode
+  // whitespace, bidi overrides/isolates, variation selectors, Hangul
+  // fillers, Combining Grapheme Joiner, and Mongolian VS.
+  const stripped = normalised_nfc.replace(
+    /[\x00-\x1f\x7f\u00A0\u1680\u180E\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF\u200E\u200F\u061C\u202A-\u202E\u2066-\u2069\uFE00-\uFE0F\u180B-\u180D\u115F\u1160\u034F]/g,
     "",
   );
   const trimmed = stripped.trim();

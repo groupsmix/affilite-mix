@@ -1,7 +1,7 @@
 /**
  * Tests for lib/csp.ts — nonce generation and CSP header assembly (H-10).
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { buildCspHeader, generateCspNonce, NONCE_HEADER } from "@/lib/csp";
 
 describe("generateCspNonce", () => {
@@ -29,7 +29,16 @@ describe("generateCspNonce", () => {
 
 describe("buildCspHeader", () => {
   const nonce = "test-nonce-abc123";
-  const header = buildCspHeader(nonce);
+  // A8-05: Build header inside beforeEach to avoid module-load env leakage.
+  let header: string;
+
+  beforeEach(() => {
+    header = buildCspHeader(nonce);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it("embeds the nonce in script-src", () => {
     expect(header).toContain(`script-src 'self' 'nonce-${nonce}'`);
@@ -81,6 +90,20 @@ describe("buildCspHeader", () => {
     const other = buildCspHeader("different-nonce");
     expect(other).toContain("'nonce-different-nonce'");
     expect(other).not.toContain("'nonce-test-nonce-abc123'");
+  });
+
+  // A8-04: malformed DSN test
+  it("omits sentry from CSP when DSN is malformed", () => {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", "not-a-url");
+    const h = buildCspHeader("test-nonce");
+    expect(h).not.toMatch(/sentry\.io/);
+  });
+
+  // A8-04: valid DSN test
+  it("includes exact sentry host when DSN is valid", () => {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", "https://key@o1.ingest.sentry.io/1");
+    const h = buildCspHeader("test-nonce");
+    expect(h).toMatch(/connect-src[^;]*https:\/\/o1\.ingest\.sentry\.io/);
   });
 });
 

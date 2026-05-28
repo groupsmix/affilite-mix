@@ -123,4 +123,55 @@ describe("safeRedirectUrl (G-46)", () => {
       expect(result).toBe("/foo/bar");
     });
   });
+
+  // A4-01 / A7-03: oversized redirect target rejection
+  describe("A4-01: length cap", () => {
+    it("rejects targets longer than 2048 characters", () => {
+      const req = makeRequest();
+      const longTarget = "/" + "A".repeat(2048);
+      expect(safeRedirectUrl(longTarget, req)).toBe("/");
+    });
+
+    it("accepts targets at exactly 2048 characters", () => {
+      const req = makeRequest();
+      const target = "/" + "a".repeat(2047);
+      expect(safeRedirectUrl(target, req)).toBe("/" + "a".repeat(2047));
+    });
+  });
+
+  // A8-01 / A1-01: bidi strip behavioural tests
+  describe("A8-01: bidi override stripping", () => {
+    it.each([
+      ["U+202E RLO", "/admin/\u202Enews", "/admin/news"],
+      ["U+200E LRM", "/foo\u200Ebar", "/foobar"],
+      ["U+2066 LRI", "/x\u2066y", "/xy"],
+      ["U+202A LRE", "/a\u202Ab", "/ab"],
+      ["U+061C ALM", "/c\u061Cd", "/cd"],
+    ])("strips raw bidi codepoint %s", (_, input, expected) => {
+      expect(safeRedirectUrl(input, makeRequest())).toBe(expected);
+    });
+
+    // A1-01: percent-encoded bidi must also be caught
+    it("strips percent-encoded U+202E (RLO)", () => {
+      const req = makeRequest();
+      const result = safeRedirectUrl("/admin/%E2%80%AEnews", req);
+      expect(result).toBe("/admin/news");
+    });
+
+    it("strips percent-encoded U+200E (LRM)", () => {
+      const req = makeRequest();
+      const result = safeRedirectUrl("/foo%E2%80%8Ebar", req);
+      expect(result).toBe("/foobar");
+    });
+  });
+
+  // A1-02: extended invisible codepoint stripping
+  describe("A1-02: extended invisible codepoints", () => {
+    it.each([
+      ["U+FE00 VS1", "/x\uFE00y", "/xy"],
+      ["U+034F CGJ", "/a\u034Fb", "/ab"],
+    ])("strips %s", (_, input, expected) => {
+      expect(safeRedirectUrl(input, makeRequest())).toBe(expected);
+    });
+  });
 });

@@ -32,8 +32,10 @@ export function generateCsrfToken(): string {
  * with lib/cron-auth.ts). Using a compile-time constant removes the
  * length side-channel that the previous `Math.max(a,b)` upper bound
  * exposed. 256 comfortably exceeds any realistic CSRF token length.
+ *
+ * Exported so invariant tests can assert a sane minimum (A11-05 / A8-02).
  */
-const MAX_COMPARE_LEN = 256;
+export const MAX_COMPARE_LEN = 256;
 
 /** Timing-safe comparison of two strings (Web Crypto API compatible) */
 function timingSafeCompare(a: string, b: string): boolean {
@@ -47,8 +49,11 @@ function timingSafeCompare(a: string, b: string): boolean {
     // than max(a, b), so the loop count no longer depends on either
     // token's length. The length mismatch itself is folded into `result`
     // (lenA ^ lenB) so any difference still poisons the accumulator.
-    const lenA = bufA.byteLength || 1;
-    const lenB = bufB.byteLength || 1;
+    //
+    // A11-01: explicit guard replaces the unreachable `|| 1` fallback.
+    if (bufA.byteLength === 0 || bufB.byteLength === 0) return false;
+    const lenA = bufA.byteLength;
+    const lenB = bufB.byteLength;
     let result = 0;
     result |= lenA ^ lenB;
     for (let i = 0; i < MAX_COMPARE_LEN; i++) {
@@ -57,8 +62,11 @@ function timingSafeCompare(a: string, b: string): boolean {
     void result;
     return false;
   }
+  // A3-02 / A7-04: Cap the equal-length loop to MAX_COMPARE_LEN so a
+  // future increase in TOKEN_BYTES cannot make the loop unbounded.
+  const eqLen = Math.min(bufA.byteLength, MAX_COMPARE_LEN);
   let result = 0;
-  for (let i = 0; i < bufA.byteLength; i++) {
+  for (let i = 0; i < eqLen; i++) {
     result |= bufA[i] ^ bufB[i];
   }
   return result === 0;
@@ -72,6 +80,13 @@ export function validateCsrfToken(
   cookieValue: string | undefined,
   headerValue: string | undefined,
 ): boolean {
-  if (!cookieValue || !headerValue) return false;
+  // A3-02: Reject oversize tokens before reaching the timing path.
+  if (cookieValue && cookieValue.length > MAX_COMPARE_LEN) return false;
+  if (headerValue && headerValue.length > MAX_COMPARE_LEN) return false;
+  // A3-01: Run the constant-time path even when inputs are missing so
+  // the empty-vs-wrong timing distinguisher is eliminated.
+  if (!cookieValue || !headerValue) {
+    return timingSafeCompare(cookieValue || "x", headerValue || "y");
+  }
   return timingSafeCompare(cookieValue, headerValue);
 }

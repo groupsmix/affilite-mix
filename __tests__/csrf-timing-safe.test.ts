@@ -7,7 +7,7 @@
  * would not go undetected (correctness regression, not timing).
  */
 import { describe, it, expect } from "vitest";
-import { validateCsrfToken, generateCsrfToken } from "@/lib/csrf";
+import { validateCsrfToken, generateCsrfToken, MAX_COMPARE_LEN } from "@/lib/csrf";
 
 describe("TC-03: CSRF timingSafeCompare correctness", () => {
   describe("equal-length strings", () => {
@@ -92,6 +92,23 @@ describe("TC-03: CSRF timingSafeCompare correctness", () => {
       const b = generateCsrfToken();
       expect(validateCsrfToken(a, b)).toBe(validateCsrfToken(b, a));
       expect(validateCsrfToken(a, a)).toBe(validateCsrfToken(a, a));
+    });
+
+    // A3-02: oversize tokens are rejected
+    it("rejects tokens longer than MAX_COMPARE_LEN", () => {
+      const oversize = "a".repeat(MAX_COMPARE_LEN + 1);
+      expect(validateCsrfToken(oversize, oversize)).toBe(false);
+    });
+  });
+
+  // A8-02 / A11-05: invariant test for MAX_COMPARE_LEN
+  describe("MAX_COMPARE_LEN invariant", () => {
+    it("is exported and >= 64", () => {
+      expect(MAX_COMPARE_LEN).toBeGreaterThanOrEqual(64);
+    });
+
+    it("is exactly 256 (current baseline)", () => {
+      expect(MAX_COMPARE_LEN).toBe(256);
     });
   });
 });
