@@ -7,25 +7,68 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
+import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
+import { isUsableUuid } from "@/lib/security/uuid";
 
 /**
  * GET /api/community/comments?target_type=product&target_id=xxx
  * List approved comments for a target.
+ *
+ * audit5-#2: prior revisions had no rate limit and no UUID validation on
+ * the GET, so an attacker could (a) exhaust the Supabase connection pool
+ * with unbounded reads and (b) trigger 500 spam by passing malformed
+ * `target_id` values which Postgres rejects with a syntax error. We now
+ * rate-limit at 120 req/min per IP (`failPolicy: "open"` because this
+ * is a read-only public endpoint and we prefer availability over a
+ * blanket lockout during a KV outage), and reject non-UUID `target_id`s
+ * with a 400 before they reach the DB.
  */
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`comments-get:${ip}`, {
+    maxRequests: 120,
+    windowMs: 60_000,
+    failPolicy: "open" as const,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   const url = new URL(request.url);
   const targetType = url.searchParams.get("target_type") as "product" | "content" | null;
   const targetId = url.searchParams.get("target_id");
 
-  if (!targetType || !targetId || !["product", "content"].includes(targetType)) {
+  if (
+    !targetType ||
+    !targetId ||
+    !["product", "content"].includes(targetType) ||
+    !isUsableUuid(targetId)
+  ) {
     return NextResponse.json({ error: "target_type and target_id are required" }, { status: 400 });
   }
 
   try {
-    const comments = await listApprovedComments(targetType, targetId);
+    const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
+    const siteId = await resolveDbSiteId(siteSlug);
+    const comments = await listApprovedComments(siteId, targetType, targetId);
     return NextResponse.json({ comments });
-  } catch {
-    // fail-open: best-effort
+  } catch (err) {
+    // audit5-#10: this was previously `// fail-open: best-effort` with
+    // no log or Sentry breadcrumb. A 500 to the user with zero
+    // observability hides real incidents (DB pool exhaustion, slow
+    // query, schema drift). Now: emit the structured log line and
+    // forward to Sentry; surface the error class to the user only as
+    // a generic message so we don't leak internals.
+    logger.error("community.comments.list_failed", {
+      target_type: targetType,
+      target_id: targetId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    captureException(err, { context: "api/community/comments.GET" });
     return NextResponse.json({ error: "Failed to load comments" }, { status: 500 });
   }
 }
@@ -64,7 +107,11 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    // fail-open: best-effort
+    // audit5-#10: malformed JSON is a 400 (client error); we do not
+    // log/Sentry it because it is high-volume noise from misbehaving
+    // clients and crawlers. The comment is intentionally specific so
+    // a future reviewer doesn't "add a captureException" and flood
+    // Sentry with hostile-client noise.
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -172,8 +219,13 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ message: "Comment submitted for review", comment }, { status: 201 });
-  } catch {
-    // fail-open: best-effort
+  } catch (err) {
+    // audit5-#10: previously silenced as `// fail-open: best-effort`.
+    // Restore observability for the create-comment failure path.
+    logger.error("community.comments.create_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    captureException(err, { context: "api/community/comments.POST" });
     return NextResponse.json({ error: "Failed to submit comment" }, { status: 500 });
   }
 }

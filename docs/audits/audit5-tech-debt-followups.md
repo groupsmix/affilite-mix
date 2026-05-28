@@ -146,4 +146,72 @@ above. Cross-link the issue here once it exists.
 
 ---
 
+## Gift-finder A/B experiment framework — audit5-#11
+
+- **Owner:** Growth
+- **Status:** Tracked / explicitly out-of-scope for launch
+- **Target:** Q2 2026 (post-launch iteration window).
+- **Rationale for deferring:** The audit flagged this as LOW and
+  marked it _explicitly out-of-scope for launch_. Introducing an A/B
+  framework requires picking a vendor (PostHog feature flags, GrowthBook,
+  homegrown KV-bucketed), wiring consent (the bucket cookie is itself
+  consent-relevant), and persisting the experiment cohort for
+  attribution. None of this is launch-blocking, and shipping a
+  half-baked framework is worse than no framework.
+- **Acceptance criterion for closure:**
+  1. A documented choice of A/B vendor in `docs/growth/ab-testing.md`.
+  2. A consent-aware bucketing helper that respects the existing
+     `cookieConsent` `analytics` category.
+  3. At least one production experiment running end-to-end with
+     reportable lift in `nh_active_gift_finder_variant`.
+- **References:** `app/(public)/gift-finder/*`,
+  `app/api/track/click/route.ts` (attribution surface).
+
+---
+
+## `requireAdminSession()` → `requireAdminSessionBeforeSiteSelect()` rename — audit5-#12
+
+- **Owner:** Backend
+- **Status:** Tracked / cosmetic
+- **Target:** Q1 2027 (low-risk batched rename window).
+- **Rationale for deferring:** The audit itself marked this **cosmetic;
+  defer**. The rename touches ~30 files across `app/api/admin/sites/*`
+  and the admin dashboard pages, plus regex-style assertions in
+  `__tests__/admin-route-authz-enforcement.test.ts` that pin the
+  function name. Doing it inside the launch-blocker batch increases
+  diff churn without any reliability benefit. In the meantime the P3
+  PR landed a strong JSDoc on the function and a call-sites whitelist
+  in the docstring; an over-zealous reviewer cannot quietly add a new
+  consumer without tripping the test.
+- **Acceptance criterion for closure:**
+  1. `lib/admin-guard.ts` exports `requireAdminSessionBeforeSiteSelect`.
+  2. All four call sites updated; old export removed.
+  3. `__tests__/admin-route-authz-enforcement.test.ts` regex updated to
+     match the new name.
+- **References:** `lib/admin-guard.ts` (current docstring with
+  whitelist), `__tests__/admin-route-authz-enforcement.test.ts:78-84`.
+
+---
+
+## Newsletter confirm token TTL display — audit5-#20
+
+- **Owner:** Frontend (admin UI)
+- **Status:** Tracked / UX-only
+- **Target:** Q2 2026 (next admin UI batch).
+- **Rationale for deferring:** The backend already enforces a token
+  TTL (`NEWSLETTER_CONFIRM_TOKEN_TTL_HOURS`, default 48h) and the cron
+  cleans up expired rows. The audit's recommendation is purely a UX
+  improvement: show admins how much longer an unconfirmed subscriber's
+  token has before it expires. This is a column in the admin UI table
+  and a backend RPC change that returns `confirm_token_expires_at`.
+  Neither blocks launch; both belong in the next admin-UI iteration.
+- **Acceptance criterion for closure:**
+  1. Admin newsletter list shows "Expires in Xh" for unconfirmed rows.
+  2. The "Resend confirm email" admin action also re-issues the token
+     (extends TTL) instead of leaving the old one to expire.
+- **References:** `lib/dal/newsletter.ts`,
+  `app/admin/(dashboard)/newsletter/*`.
+
+---
+
 _Last updated: 2026-05-28._

@@ -38,3 +38,24 @@ export function getCookieValue(name: string): string | null {
     return match.split("=")[1];
   }
 }
+
+/**
+ * audit5-#26: canonical inventory of every cookie this app issues that
+ * uses the `__Host-` prefix in production. The prefix requires:
+ *   - `Secure` flag set
+ *   - `Path=/`
+ *   - No `Domain` attribute
+ * It cannot be satisfied on localhost-over-HTTP, so each entry has a
+ * non-prefixed dev/test fallback. A future refactor that "unifies" the
+ * cookie name on either side is a regression: in dev the production
+ * name fails to parse; in production the dev name loses subdomain
+ * isolation.
+ *
+ * If you add a new `__Host-`-prefixed cookie, add it here. The
+ * `__tests__/csrf-timing-safe.test.ts` file pins the names per env so
+ * a typo on either side fails the build.
+ */
+export const HOST_PREFIXED_COOKIES = {
+  csrf: { prod: "__Host-csrf", dev: "__csrf" },
+  // Future entries go here. Keep this object exhaustive.
+} as const;
