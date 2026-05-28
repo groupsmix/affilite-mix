@@ -32,6 +32,8 @@ export interface KpiCardProps {
   subLink?: KpiSubLink | null;
   /** Optional right-aligned icon / slot rendered in the header. */
   icon?: ReactNode;
+  /** Optional visual slot (e.g. a sparkline) rendered under the value. */
+  chart?: ReactNode;
   className?: string;
 }
 
@@ -48,6 +50,7 @@ export function KpiCard({
   delta,
   subLink,
   icon,
+  chart,
   className,
 }: KpiCardProps) {
   const deltaTone =
@@ -60,7 +63,19 @@ export function KpiCard({
           : "text-muted-foreground";
 
   return (
-    <Card className={cn("gap-3 py-5", className)} data-slot="kpi-card">
+    <Card
+      className={cn(
+        "group relative gap-3 overflow-hidden py-5 transition-all duration-300",
+        "hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)]",
+        className,
+      )}
+      data-slot="kpi-card"
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
+        style={{ backgroundColor: "var(--color-accent)" }}
+      />
       <CardHeader className="px-5 [&>div]:!gap-0">
         <CardDescription className="text-xs font-medium uppercase tracking-wider">
           {title}
@@ -75,8 +90,9 @@ export function KpiCard({
         </CardTitle>
         {icon ? <div className="text-muted-foreground">{icon}</div> : null}
       </CardHeader>
-      {(description || subLink) && (
+      {(description || subLink || chart) && (
         <CardContent className="px-5 text-xs text-muted-foreground">
+          {chart ? <div className="mb-2 -mx-0.5 h-8 w-full">{chart}</div> : null}
           {description ? <p className="leading-snug">{description}</p> : null}
           {subLink ? (
             <Link
