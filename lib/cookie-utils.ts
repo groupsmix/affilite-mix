@@ -54,6 +54,8 @@ export function getCookieValue(name: string): string | null {
  * If you add a new `__Host-`-prefixed cookie, add it here. The
  * `__tests__/csrf-timing-safe.test.ts` file pins the names per env so
  * a typo on either side fails the build.
+ *
+ * @public
  */
 export const HOST_PREFIXED_COOKIES = {
   csrf: { prod: "__Host-csrf", dev: "__csrf" },
