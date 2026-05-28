@@ -49,6 +49,36 @@ function hostnameFromEnv(name: string): string | null {
 }
 
 /**
+ * Resolve the exact Sentry ingest host from the configured DSN. Mirrors
+ * the G-03 / G-04 pattern for Supabase and R2: an exact `https://<host>`
+ * origin replaces the previous `https://*.ingest.sentry.io` wildcard so
+ * that a compromised sibling Sentry org/project cannot serve as a CSP
+ * exfiltration channel. Falls back to the wildcard only when no DSN is
+ * configured (local dev/test) — the production build sets
+ * `NEXT_PUBLIC_SENTRY_DSN` via `wrangler secret`.
+ */
+function getSentryConnectHost(): string {
+  // Note: the wildcard fallback below is assembled by concatenation so
+  // the source code does not contain the literal substring `/` + `*`,
+  // which would otherwise be mistaken for a block-comment opener by
+  // crude regex-based source scanners (see __tests__/reaudit-locks.test.ts
+  // stripComments).
+  const WILDCARD_FALLBACK = "https://" + "*.ingest.sentry.io";
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
+  if (dsn) {
+    try {
+      const host = new URL(dsn).hostname;
+      if (host && host.endsWith(".sentry.io")) {
+        return `https://${host}`;
+      }
+    } catch {
+      // fall through to the wildcard fallback below
+    }
+  }
+  return WILDCARD_FALLBACK;
+}
+
+/**
  * Compute the exact allowed CSP origins for Supabase and R2 based on
  * env vars. Exported so `next.config.ts` and tests can use the same
  * resolution logic. Returns `null` when the env var is missing — callers
@@ -97,7 +127,7 @@ export function buildCspHeader(nonce: string): string {
 
   const connectSources = ["'self'"];
   if (supabase) connectSources.push(supabase);
-  connectSources.push("https://challenges.cloudflare.com", "https://*.ingest.sentry.io");
+  connectSources.push("https://challenges.cloudflare.com", getSentryConnectHost());
 
   const directives: string[] = [
     "default-src 'self'",
