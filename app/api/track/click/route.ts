@@ -295,6 +295,8 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     }
 
     // AUDIT-FIX A4-003/A7-006: Slice referrer before parsing to bound memory, strip CR/LF
+    // Q2-4: Drop unparsable referrers entirely instead of storing raw strings
+    // that could contain URL-encoded HTML. Only well-formed URLs survive.
     let sanitizedReferrer = request.headers.get("referer") || undefined;
     if (sanitizedReferrer) {
       sanitizedReferrer = sanitizedReferrer.replace(/[\r\n\0]/g, "").slice(0, 2048);
@@ -302,8 +304,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         const refUrl = new URL(sanitizedReferrer);
         sanitizedReferrer = `${refUrl.origin}${refUrl.pathname}`.slice(0, 2048);
       } catch {
-        // fail-open: best-effort
-        sanitizedReferrer = sanitizedReferrer.slice(0, 2048);
+        sanitizedReferrer = undefined;
       }
     }
 

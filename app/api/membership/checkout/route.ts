@@ -25,10 +25,17 @@ import { parseJsonBody } from "@/lib/api-error";
  * Requires STRIPE_SECRET_KEY and at least one STRIPE_PRICE_ID_* env var.
  */
 
+/**
+ * Q4-3: Explicit tier allowlist. Only tiers in this set are accepted.
+ * This replaces the dynamic `process.env[...]` lookup pattern which,
+ * while safe for `process.env` (prototype-less proxy), is harder to
+ * audit than a closed set. Add new tiers here when they are launched.
+ */
+const ALLOWED_TIERS = new Set(["insider", "pro", "enterprise"]);
+
 /** Map a requested tier to the server-side env var holding its price id. */
 function priceIdForTier(tier: string): string | undefined {
-  // F-031: Configure-as-data. Look up the env var dynamically based on the requested tier.
-  // e.g. "insider" -> STRIPE_PRICE_ID_INSIDER
+  if (!ALLOWED_TIERS.has(tier.toLowerCase())) return undefined;
   const envKey = `STRIPE_PRICE_ID_${tier.toUpperCase()}`;
   return process.env[envKey];
 }
