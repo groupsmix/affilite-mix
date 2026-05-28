@@ -69,6 +69,9 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/lib/get-client-ip", () => ({
   getClientIp: vi.fn().mockReturnValue("1.2.3.4"),
+  // Mock must mirror the real module's exports so the route under test
+  // can import the shared /24 prefix helper alongside getClientIp.
+  getIpPrefix: vi.fn().mockReturnValue("1.2.3"),
 }));
 
 // ── Import after mocks ────────────────────────────────────────────────────────

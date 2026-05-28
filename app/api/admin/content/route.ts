@@ -11,9 +11,10 @@ import { getSiteRowBySlug } from "@/lib/dal/sites";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
-import { withAuthz } from "@/lib/authz";
+import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { isUsableUuid } from "@/lib/security/uuid";
 
 export const GET = withAuthz(
   "content",
@@ -156,6 +157,26 @@ export const PATCH = withAuthz(
     }
 
     const { id, ...updates } = parsed.data;
+
+    // ISO18-003 / IDOR defense-in-depth (parity with products PATCH):
+    // verify the content row belongs to the active tenant before any
+    // mutation, so a stale id from another site cannot drive a write
+    // even if RLS or the DAL site_id filter regresses (CWE-639).
+    if (!id || !isUsableUuid(id)) {
+      return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
+    }
+    const authzResult = await authorizeResource({
+      session,
+      feature: "content",
+      action: "edit",
+      resourceType: "content",
+      resourceId: id,
+      expectedSiteId: siteId,
+    });
+    if (!authzResult.ok) {
+      return authorizationErrorResponse(authzResult);
+    }
+
     if (typeof updates.body === "string") {
       updates.body = sanitizeHtml(updates.body);
     }

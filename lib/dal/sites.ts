@@ -187,7 +187,18 @@ export async function updateSite(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteRow> {
   const sb = await getClient();
-  const updates: SiteUpdate = { ...input } as SiteUpdate;
+  // MA-001 (defence-in-depth): server-controlled columns must never be
+  // mutated by a client-supplied payload. The TypeScript signature
+  // already excludes them, but `input` is `Record<string, unknown>` at
+  // runtime when the call comes through a JSON parse + spread. Strip
+  // them here so a future route that forgets the explicit allow-list
+  // can still not regress the immutability guarantee.
+  const sanitized = { ...(input as Record<string, unknown>) };
+  delete sanitized.id;
+  delete sanitized.slug;
+  delete sanitized.created_at;
+  delete sanitized.updated_at;
+  const updates: SiteUpdate = sanitized as SiteUpdate;
   const { data, error } = await sb
     .from(TABLE)
     .update(updates)
@@ -204,7 +215,7 @@ export async function updateSite(
 /** Hard-delete a site — requires super_admin role.
  *
  * A27-001: Hard delete is restricted to super_admin for maintenance only.
- * Regular deletion should use updateSite(id, { is_active: false }) (soft-delete).
+ * Regular deletion should use `updateSite(id, { is_active: false })` (soft-delete).
  * This prevents accidental data loss and preserves referential integrity.
  */
 export async function deleteSite(
@@ -215,7 +226,7 @@ export async function deleteSite(
   // A27-001: Only super_admin may hard-delete; regular admins must use soft-delete
   if (callerRole !== "super_admin") {
     throw new Error(
-      "Hard delete requires super_admin role. Use deactivateSite() for soft deletion.",
+      "Hard delete requires super_admin role. Use updateSite(id, { is_active: false }) for soft deletion.",
     );
   }
   const sb = await getClient();

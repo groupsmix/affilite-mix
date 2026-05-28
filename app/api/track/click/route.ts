@@ -6,7 +6,7 @@ import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { apiError, rateLimitHeaders } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
-import { getClientIp } from "@/lib/get-client-ip";
+import { getClientIp, getIpPrefix } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";
 import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
@@ -15,27 +15,6 @@ import { getAppCacheKV } from "@/lib/runtime-env";
 import { deriveHmacKey } from "@/lib/hmac-key";
 import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
 import { verifyToken } from "@/lib/auth";
-
-/**
- * A162: Extract the /24 prefix from an IP address for privacy-preserving analytics.
- * IPv4: "203.0.113.42" → "203.0.113"
- * IPv6: "2001:db8::1"  → "2001:db8::" (first 48 bits / 3 groups)
- * Returns null for unrecognized formats.
- */
-function getIpPrefix(ip: string): string | null {
-  if (!ip) return null;
-  // IPv4
-  if (ip.includes(".")) {
-    const parts = ip.split(".");
-    if (parts.length === 4) return parts.slice(0, 3).join(".");
-  }
-  // IPv6 — keep first 3 colon-separated groups
-  if (ip.includes(":")) {
-    const groups = ip.split(":");
-    return groups.slice(0, 3).join(":") + "::";
-  }
-  return null;
-}
 
 /**
  * A158: Compute a privacy-preserving click fingerprint for 24-hour dedup.
