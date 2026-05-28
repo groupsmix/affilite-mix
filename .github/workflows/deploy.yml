@@ -935,11 +935,44 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Runs `wrangler kv namespace list`, strips the wrangler 4.x
+          # stdout banner (non-JSON lines) so jq only sees the JSON array,
+          # and surfaces auth / permission errors instead of an opaque
+          # "jq: parse error" (AUD-02).
+          wrangler_kv_list_json() {
+            local raw_file
+            raw_file=$(mktemp)
+            local err_file
+            err_file=$(mktemp)
+
+            if ! npx --yes wrangler@${WRANGLER_VERSION} kv namespace list \
+                 >"$raw_file" 2>"$err_file"; then
+              echo "::error::wrangler kv namespace list failed. stderr:" >&2
+              cat "$err_file" >&2
+              echo "stdout was:" >&2
+              cat "$raw_file" >&2
+              rm -f "$raw_file" "$err_file"
+              return 1
+            fi
+            rm -f "$err_file"
+            # Strip non-JSON banner lines (e.g. "⛅️ wrangler …",
+            # "Resource location: remote") that wrangler 4.x emits
+            # before the JSON array.
+            sed -n '/^\[/,$ p' "$raw_file"
+            rm -f "$raw_file"
+          }
+
           resolve_or_create_kv() {
             local name="$1"
             local id
 
-            id=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
+            local list_json
+            if ! list_json=$(wrangler_kv_list_json); then
+              echo "::error::Unable to list KV namespaces. Check CLOUDFLARE_API_TOKEN has 'Workers KV Storage:Edit' permission." >&2
+              exit 1
+            fi
+
+            id=$(echo "$list_json" \
               | jq -r --arg n "$name" --arg pn "affilite-mix-$name" \
                   '.[] | select(.title == $n or .title == $pn) | .id' \
               | head -n1 || true)
@@ -951,7 +984,11 @@ jobs:
               echo "$create_out" >&2
               id=$(echo "$create_out" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/' || true)
               if [ -z "$id" ]; then
-                id=$(npx --yes wrangler@${WRANGLER_VERSION} kv namespace list 2>/dev/null \
+                if ! list_json=$(wrangler_kv_list_json); then
+                  echo "::error::Unable to list KV namespaces after create attempt." >&2
+                  exit 1
+                fi
+                id=$(echo "$list_json" \
                   | jq -r --arg n "$name" --arg pn "affilite-mix-$name" \
                       '.[] | select(.title == $n or .title == $pn) | .id' \
                   | head -n1 || true)
@@ -959,11 +996,6 @@ jobs:
             fi
 
             if [ -z "$id" ]; then
-              # `resolve_or_create_kv` is invoked via command substitution
-              # (`id=$(resolve_or_create_kv "$binding")`), which captures
-              # stdout into the variable. Diagnostics must go to stderr
-              # (`>&2`) so the GitHub Actions runner log surfaces them
-              # instead of swallowing them inside `$id`.
               echo "::error::Unable to resolve $name namespace id. Check CLOUDFLARE_API_TOKEN has 'Workers KV Storage:Edit' permission." >&2
               exit 1
             fi
