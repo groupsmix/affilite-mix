@@ -71,16 +71,16 @@ export function CategoryDeleteButton({ id, name }: { id: string; name: string })
               <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
                 <p className="font-medium">This category has associated records:</p>
                 <ul className="mt-1 list-inside list-disc text-xs">
-                  {usageCounts!.contentCount > 0 && (
+                  {(usageCounts?.contentCount ?? 0) > 0 && (
                     <li>
-                      {usageCounts!.contentCount} content item
-                      {usageCounts!.contentCount !== 1 ? "s" : ""}
+                      {usageCounts?.contentCount} content item
+                      {usageCounts?.contentCount !== 1 ? "s" : ""}
                     </li>
                   )}
-                  {usageCounts!.productCount > 0 && (
+                  {(usageCounts?.productCount ?? 0) > 0 && (
                     <li>
-                      {usageCounts!.productCount} product
-                      {usageCounts!.productCount !== 1 ? "s" : ""}
+                      {usageCounts?.productCount} product
+                      {usageCounts?.productCount !== 1 ? "s" : ""}
                     </li>
                   )}
                 </ul>

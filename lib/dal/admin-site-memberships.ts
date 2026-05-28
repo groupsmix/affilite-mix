@@ -1,6 +1,14 @@
 import { assertRows, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
+interface CrossTenantBuilder {
+  unsafeNoSiteFilter(): CrossTenantBuilder;
+  eq(col: string, val: string): CrossTenantBuilder;
+  order(col: string, opts: { ascending: boolean }): CrossTenantBuilder;
+  single(): Promise<{ data: unknown; error: { code: string; message: string } | null }>;
+  then: Promise<{ data: unknown; error: { code: string; message: string } | null }>["then"];
+}
+
 export interface AdminSiteMembershipRow {
   id: string;
   admin_user_id: string;
@@ -21,7 +29,9 @@ export async function getAdminSiteMembership(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdminSiteMembershipRow | null> {
   const sb = await getClient();
-  const { data, error } = await (sb.from(TABLE).select(LIST_COLUMNS) as any)
+  const { data, error } = await (
+    sb.from(TABLE).select(LIST_COLUMNS) as unknown as CrossTenantBuilder
+  )
     .unsafeNoSiteFilter()
     .eq("admin_user_id", adminUserId)
     .eq("site_id", siteId)
@@ -39,7 +49,9 @@ export async function listAdminSiteMemberships(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdminSiteMembershipRow[]> {
   const sb = await getClient();
-  const { data, error } = await (sb.from(TABLE).select(LIST_COLUMNS) as any)
+  const { data, error } = await (
+    sb.from(TABLE).select(LIST_COLUMNS) as unknown as CrossTenantBuilder
+  )
     .unsafeNoSiteFilter()
     .eq("admin_user_id", adminUserId)
     .order("created_at", { ascending: true });
