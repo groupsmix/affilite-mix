@@ -287,7 +287,7 @@ describe("GET /api/track/click (integration)", () => {
     );
   });
 
-  it("returns 429 when rate limited", async () => {
+  it("redirects even when rate limited (API-03: analytics skipped, redirect preserved)", async () => {
     const { checkRateLimit } = await import("@/lib/rate-limit");
     vi.mocked(checkRateLimit).mockResolvedValueOnce({
       allowed: false,
@@ -299,7 +299,9 @@ describe("GET /api/track/click (integration)", () => {
     const req = makeClickRequest({ p: "test-product" });
     const res = await GET(req);
 
-    expect(res.status).toBe(429);
+    // API-03: Rate-limited clicks still redirect to preserve affiliate revenue.
+    // Analytics recording is skipped but the user reaches the destination.
+    expect(res.status).toBe(302);
   });
 
   it("returns 404 when product has no affiliate URL", async () => {

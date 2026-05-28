@@ -149,13 +149,12 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     }
 
     const ip = getClientIp(request);
+    // API-03: Rate limit gates analytics recording, not the redirect itself.
+    // Users should always reach the affiliate URL — only the tracking write
+    // is suppressed when the limit is exceeded, preventing revenue loss
+    // during KV outages or traffic spikes.
     const rl = await checkRateLimit(`click:${ip}`, CLICK_RATE_LIMIT);
-    if (!rl.allowed) {
-      return apiError(429, "Rate limit exceeded", undefined, {
-        "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)),
-        ...rateLimitHeaders(CLICK_RATE_LIMIT, rl),
-      });
-    }
+    const rateLimited = !rl.allowed;
 
     // AUDIT-FIX A4-007: Validate x-site-id header length and charset
     const rawSiteHeader = request.headers.get("x-site-id") ?? "";
@@ -333,7 +332,8 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
 
     // AUDIT-FIX A3-002: Skip analytics mutations for cross-site GET requests.
     // POST (sendBeacon) still records clicks because it passes Origin validation.
-    if (!opts.skipAnalytics) {
+    // API-03: Also skip analytics when rate-limited — redirect still fires.
+    if (!opts.skipAnalytics && !rateLimited) {
       // A158: Compute fingerprint and check 24h dedup window for non-internal clicks.
       let fingerprint: string | undefined;
       if (!isInternal && hmacKey) {
