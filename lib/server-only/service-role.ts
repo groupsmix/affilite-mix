@@ -138,9 +138,8 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
   _privilegedClient = new Proxy(rawClient, {
     get(t, p, r) {
       if (p === "from") {
-        // ACCEPTED: Proxy intercepts all table names (including untyped ones) — the `as any`
-        // is inherent to the dynamic Proxy pattern and cannot be removed without losing flexibility.
-        return (table: string) => wrapTable((t.from as any)(table));
+        return (table: string) =>
+          wrapTable((t.from as unknown as (name: string) => QueryBuilder)(table));
       }
       return Reflect.get(t, p, r);
     },
@@ -150,6 +149,23 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
   _cachedKey = key;
 
   return _privilegedClient as PrivilegedSupabaseClient;
+}
+
+/**
+ * Finding-16: Type aliases for the Proxy-based query builder wrapper.
+ *
+ * The PostgREST builder is a complex generic type whose shape cannot be
+ * statically expressed through a Proxy without re-implementing the entire
+ * supabase-js type system.  We use explicit type aliases instead of bare
+ * `any` so that (a) grep for `: any` surfaces only the truly unavoidable
+ * sites, and (b) future maintainers can progressively narrow these as
+ * supabase-js exposes narrower builder types.
+ */
+type QueryBuilder = Record<string, unknown>;
+type BuilderMethod = (...args: unknown[]) => unknown;
+interface SiteFilterState {
+  siteFilterApplied: boolean;
+  lastTerminal: string;
 }
 
 /**
@@ -170,24 +186,21 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
  *   client.from(t).upsert({ site_id: id, ... })
  *   client.from(t).select('*').unsafeNoSiteFilter() // explicit opt-out
  */
-function wrapTable(builder: any): any {
-  const state = { siteFilterApplied: false, lastTerminal: "<query>" };
+function wrapTable(builder: QueryBuilder): QueryBuilder {
+  const state: SiteFilterState = { siteFilterApplied: false, lastTerminal: "<query>" };
   return wrapBuilder(builder, state);
 }
 
 const PASSTHROUGH_TERMINALS = ["select", "insert", "update", "delete", "upsert"] as const;
 
-function wrapBuilder(
-  builder: any,
-  state: { siteFilterApplied: boolean; lastTerminal: string },
-): any {
-  const handler: ProxyHandler<any> = {
+function wrapBuilder(builder: QueryBuilder, state: SiteFilterState): QueryBuilder {
+  const handler: ProxyHandler<QueryBuilder> = {
     get(t, p) {
-      // Tenant filter: any `.eq('site_id', …)` satisfies the guard.
+      // Tenant filter: `.eq('site_id', …)` satisfies the guard.
       if (p === "eq") {
-        return (col: string, val: any) => {
+        return (col: string, val: unknown) => {
           if (col === "site_id") state.siteFilterApplied = true;
-          return wrapBuilder(t.eq(col, val), state);
+          return wrapBuilder((t.eq as (c: string, v: unknown) => QueryBuilder)(col, val), state);
         };
       }
       // Explicit opt-out for cross-tenant operations.
@@ -202,7 +215,10 @@ function wrapBuilder(
       if (p === "then") {
         const orig = t.then;
         if (typeof orig !== "function") return orig;
-        return (resolve: any, reject: any) => {
+        return (
+          resolve: ((value: unknown) => unknown) | null,
+          reject: ((reason: unknown) => unknown) | null,
+        ) => {
           if (!state.siteFilterApplied) {
             const err = new Error(
               `[F-API-01] Privileged ${state.lastTerminal} executed without .eq('site_id', …) or .unsafeNoSiteFilter() opt-out.`,
@@ -210,35 +226,44 @@ function wrapBuilder(
             if (typeof reject === "function") return reject(err);
             return Promise.reject(err);
           }
-          return orig.call(t, resolve, reject);
+          return (
+            orig as (
+              resolve: ((value: unknown) => unknown) | null,
+              reject: ((reason: unknown) => unknown) | null,
+            ) => unknown
+          ).call(t, resolve, reject);
         };
       }
 
-      const v = t[p];
+      const v = t[p as string];
       if (typeof v === "function") {
         // Mutation starters: track the method name and, for insert/upsert,
         // accept `site_id` embedded in the payload as filter satisfaction.
         if ((PASSTHROUGH_TERMINALS as readonly string[]).includes(String(p))) {
           state.lastTerminal = String(p);
           if (String(p) === "insert" || String(p) === "upsert") {
-            return (...args: any[]) => {
+            return (...args: unknown[]) => {
               const payload = args[0];
               const items = Array.isArray(payload) ? payload : [payload];
               if (
                 items.length > 0 &&
-                items.every((it: any) => it && typeof it === "object" && "site_id" in it)
+                items.every(
+                  (it: unknown) => it !== null && typeof it === "object" && "site_id" in it,
+                )
               ) {
                 state.siteFilterApplied = true;
               }
-              return wrapBuilder(v.apply(t, args), state);
+              return wrapBuilder((v as BuilderMethod).apply(t, args) as QueryBuilder, state);
             };
           }
-          return (...args: any[]) => wrapBuilder(v.apply(t, args), state);
+          return (...args: unknown[]) =>
+            wrapBuilder((v as BuilderMethod).apply(t, args) as QueryBuilder, state);
         }
 
         // Any other builder method (filter, order, limit, single, …) — keep
         // the chain wrapped so we can still observe the eventual `then`.
-        return (...args: any[]) => wrapBuilder(v.apply(t, args), state);
+        return (...args: unknown[]) =>
+          wrapBuilder((v as BuilderMethod).apply(t, args) as QueryBuilder, state);
       }
       return v;
     },
