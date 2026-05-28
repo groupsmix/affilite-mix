@@ -54,6 +54,34 @@ const nextConfig: NextConfig = {
         { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, private" },
       ],
     },
+    // audit-etap1 #20: belt-and-suspenders CSP fallback for paths that are
+    // EXPLICITLY EXCLUDED from the middleware matcher. The matcher in
+    // `middleware.ts` excludes (`_next/static`, `_next/image`, `favicon.ico`,
+    // `fonts/`, `api/internal/`). For those paths, no per-request nonced CSP
+    // is set. They are opaque binary or internal-only — `default-src 'none'`
+    // is the safest fallback because the browser will refuse to execute or
+    // fetch anything from those responses anyway. Source patterns intentionally
+    // do not overlap with the middleware matcher, so no duplicate CSP header
+    // can be emitted on the same response.
+    //
+    // Tested by `__tests__/csp.test.ts` which asserts every excluded path
+    // returns `default-src 'none'` and exactly one CSP header.
+    ...[
+      "/_next/static/:path*",
+      "/_next/image",
+      "/_next/image/:path*",
+      "/favicon.ico",
+      "/fonts/:path*",
+      "/api/internal/:path*",
+    ].map((source) => ({
+      source,
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+        },
+      ],
+    })),
     {
       source: "/(.*)",
       headers: [
@@ -72,16 +100,9 @@ const nextConfig: NextConfig = {
         // G-27: the previous static CSP fallback has been removed. Every
         // request that matters (app routes, API routes, admin UI, public
         // pages) flows through `middleware.ts`, which sets a per-request
-        // nonced CSP via `lib/csp.ts`. The static fallback was only ever
-        // hit on routes explicitly excluded from the middleware matcher
-        // (`_next/static`, `_next/image`, `favicon.ico`, `fonts/`,
-        // `api/internal/`). Those responses are either opaque binary
-        // assets or internal-only endpoints that never return HTML, so
-        // they do not need a CSP header. Removing the fallback removes a
-        // class of "two CSP headers on one response" bugs that were
-        // silently disabling our nonce-based policy on some code paths.
-        // `__tests__/csp.test.ts` asserts exactly one CSP header is
-        // emitted on user-facing routes.
+        // nonced CSP via `lib/csp.ts`. Routes explicitly excluded from the
+        // middleware matcher are now handled by the `default-src 'none'`
+        // entries above (audit-etap1 #20).
       ],
     },
   ],

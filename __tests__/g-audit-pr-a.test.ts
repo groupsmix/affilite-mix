@@ -270,14 +270,23 @@ describe("G-17 — click-tracking failPolicy", () => {
   });
 });
 
-describe("G-27 — no static CSP fallback in next.config.ts", () => {
+describe("G-27 / audit-etap1 #20 — CSP fallback only on middleware-excluded paths", () => {
   const src = read("next.config.ts");
-  it("does not declare a Content-Security-Policy header", () => {
-    // The static fallback was emitted from the `headers()` block.
-    // We now rely entirely on the per-request CSP set in middleware.ts
-    // via lib/csp.ts. The comment referencing G-27 must be present so
-    // a future refactor reading the file understands the reasoning.
+  it("the catch-all /(.*)  rule does NOT declare a Content-Security-Policy header", () => {
+    // G-27 (Apr 2026) + audit-etap1 #20 (May 2026): the catch-all CSP
+    // fallback was dropped in favour of the per-request nonced policy
+    // from middleware.ts. CSP is now ONLY allowed on the narrow source
+    // patterns that match middleware-excluded paths (`_next/static`,
+    // `_next/image`, `favicon.ico`, `fonts/`, `api/internal/`). The
+    // catch-all `/(.*)`  rule must never carry a CSP header.
     expect(src).toMatch(/G-27/);
-    expect(src).not.toMatch(/"Content-Security-Policy"/);
+    const catchAllRule = src.match(/source:\s*"\/\(\.\*\)"[\s\S]*?\}\s*,\s*\]/);
+    expect(catchAllRule, "could not find /(.*) headers rule").not.toBeNull();
+    expect(catchAllRule![0]).not.toMatch(/"Content-Security-Policy"/);
+  });
+  it("audit-etap1 #20: middleware-excluded paths carry a `default-src 'none'` fallback CSP", () => {
+    expect(src).toMatch(/audit-etap1 #20/);
+    expect(src).toMatch(/_next\/static/);
+    expect(src).toMatch(/default-src 'none'/);
   });
 });

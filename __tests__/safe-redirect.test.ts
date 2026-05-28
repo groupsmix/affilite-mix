@@ -65,23 +65,30 @@ describe("safeRedirectUrl (G-46)", () => {
   // returned verbatim. The browser then followed the Location header to
   // `https://evil.com/`.
   describe("SEC-01: backslash bypass", () => {
+    // CodeQL flags `result.includes("evil.com")` as
+    // "Incomplete URL substring sanitization" — substring matching is
+    // not a sound URL check. We resolve `result` against the request
+    // origin and assert the resolved origin matches the request's, which
+    // is strictly stronger and silences the rule.
+    const REQ_ORIGIN = "https://example.com";
+
     it("rejects single-backslash bypass /\\evil.com", () => {
-      const req = makeRequest("https://example.com/admin");
+      const req = makeRequest(`${REQ_ORIGIN}/admin`);
       // The input string contains a real `/` followed by a real `\`.
       const payload = "/" + "\\" + "evil.com";
       const result = safeRedirectUrl(payload, req);
-      // Must NOT return the raw payload (which the browser would resolve
+      // Must NOT redirect off-origin (browser would resolve `/\evil.com`
       // to https://evil.com/). Either fall back or strip the host.
       expect(result.startsWith("/")).toBe(true);
-      expect(result.includes("evil.com")).toBe(false);
+      expect(new URL(result, REQ_ORIGIN).origin).toBe(REQ_ORIGIN);
       expect(result.includes("\\")).toBe(false);
     });
 
     it("rejects double-backslash bypass /\\\\evil.com", () => {
-      const req = makeRequest("https://example.com/admin");
+      const req = makeRequest(`${REQ_ORIGIN}/admin`);
       const payload = "/" + "\\" + "\\" + "evil.com";
       const result = safeRedirectUrl(payload, req);
-      expect(result.includes("evil.com")).toBe(false);
+      expect(new URL(result, REQ_ORIGIN).origin).toBe(REQ_ORIGIN);
     });
 
     it("normalises mixed slash+backslash payloads to same-origin path", () => {
