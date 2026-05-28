@@ -1,7 +1,11 @@
 import { getKVNamespace } from "@/lib/rate-limit"; // Reuse the KV fetcher
 import { logger } from "@/lib/logger";
+import { REVOKED_JWT_TTL_SECONDS } from "@/lib/auth-constants";
 
-const REVOKED_TTL_SECONDS = 28800; // 8 hours (matches token expiry)
+// Derived from the single JWT-expiry constant so the KV blocklist
+// always outlives any token signed with the matching expiry. See
+// `lib/auth-constants.ts` for the rationale.
+const REVOKED_TTL_SECONDS = REVOKED_JWT_TTL_SECONDS;
 
 /**
  * Check if a JWT ID (jti) is present in the blocklist.
