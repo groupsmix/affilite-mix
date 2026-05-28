@@ -138,11 +138,6 @@ describe("Rate-limit abuse protection: login endpoint", () => {
     expect(content).toContain("login-totp:");
     expect(content).toContain('failPolicy: "closed"');
   });
-
-  it.skip("login verifies Turnstile captcha (Turnstile temporarily removed)", () => {
-    const content = readFile("app/api/auth/login/route.ts");
-    expect(content).toContain("verifyTurnstile");
-  });
 });
 
 describe("Rate-limit abuse protection: community endpoints", () => {

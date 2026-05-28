@@ -102,7 +102,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <ThemeProvider theme={themeConfig}>
-      <div lang={site.language} dir={site.direction} className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"
