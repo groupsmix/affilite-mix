@@ -112,7 +112,7 @@ export function CategoryForm({ category }: { category?: CategoryRow }) {
         ? await fetchWithCsrf("/api/admin/categories", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: category!.id, ...payload }),
+            body: JSON.stringify({ id: category?.id, ...payload }),
           })
         : await fetchWithCsrf("/api/admin/categories", {
             method: "POST",

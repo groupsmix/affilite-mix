@@ -83,24 +83,3 @@ export function t(key: string, locale: SupportedLocale = "en"): string {
 function getDirection(locale: SupportedLocale): "ltr" | "rtl" {
   return CATALOGS[locale]?.direction ?? "ltr";
 }
-
-/**
- * Format a number according to locale conventions.
- */
-export function formatNumber(value: number, locale: SupportedLocale = "en"): string {
-  return new Intl.NumberFormat(locale).format(value);
-}
-
-/**
- * Format a currency value according to locale conventions.
- */
-function formatCurrency(value: number, currency: string, locale: SupportedLocale = "en"): string {
-  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(value);
-}
-
-/**
- * Format a date according to locale conventions.
- */
-export function formatDate(date: Date, locale: SupportedLocale = "en"): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(date);
-}

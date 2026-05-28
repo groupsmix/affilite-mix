@@ -10,8 +10,8 @@
  *   - `cf-ray`       — Cloudflare's own ray ID (read-only, used as fallback)
  *
  * Usage in API routes:
- *   import { getTraceId } from "@/lib/trace-id";
- *   const traceId = getTraceId(request);
+ *   import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
+ *   const traceId = request.headers.get(TRACE_ID_HEADER) ?? generateTraceId();
  *   logger.info("Processing order", { traceId });
  */
 
@@ -34,16 +34,4 @@ export function generateTraceId(): string {
   const ts = Date.now().toString(16);
   const rand = Math.random().toString(16).slice(2, 10);
   return `t-${ts}-${rand}`;
-}
-
-/**
- * Extract the trace ID from an incoming request.
- *
- * Priority:
- *   1. `x-trace-id` header (set by our middleware or an upstream proxy)
- *   2. `cf-ray` header (Cloudflare's per-request ray ID)
- *   3. Generate a new trace ID as last resort
- */
-export function getTraceId(request: Request): string {
-  return request.headers.get(TRACE_ID_HEADER) ?? request.headers.get("cf-ray") ?? generateTraceId();
 }

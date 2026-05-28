@@ -700,7 +700,7 @@ export function ContentForm({
                       <button
                         type="button"
                         onClick={() => {
-                          setBody(content!.body_previous!);
+                          setBody(content?.body_previous ?? "");
 
                           markDirty();
 
