@@ -5,6 +5,7 @@ import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { clampPagination } from "./pagination-guard";
 
 const TABLE = "content";
 
@@ -83,14 +84,16 @@ export async function listContent(
     query = query.ilike("title", `%${escapeLike(opts.q.trim())}%`);
   }
   // A73-01: Prefer keyset cursor over offset for O(1) pagination.
+  // S4-A98.2: Clamp pagination to prevent integer overflow at extreme offsets.
+  const { limit: safeLimit, offset: safeOffset } = clampPagination(opts);
   if (opts.cursor) {
     const op = ascending ? "gt" : "lt";
     query = query[op](sortColumn, opts.cursor);
-    query = query.limit(opts.limit ?? 20);
-  } else if (opts.offset) {
-    query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
-  } else if (opts.limit) {
-    query = query.limit(opts.limit);
+    query = query.limit(safeLimit);
+  } else if (safeOffset > 0) {
+    query = query.range(safeOffset, safeOffset + safeLimit - 1);
+  } else {
+    query = query.limit(safeLimit);
   }
 
   const { data, error } = await query;
@@ -260,6 +263,8 @@ export async function listPublishedContent(
   if (shouldSkipDbCall()) {
     return [];
   }
+  // S4-A98.2: Clamp pagination parameters.
+  const { limit: safeLimit, offset: safeOffset } = clampPagination({ limit, offset });
   const sb = getAnonClient();
   let query = sb
     .from(TABLE)
@@ -269,8 +274,8 @@ export async function listPublishedContent(
     .order("updated_at", { ascending: false });
 
   if (contentType) query = query.eq("type", contentType);
-  if (offset > 0) query = query.range(offset, offset + limit - 1);
-  else query = query.limit(limit);
+  if (safeOffset > 0) query = query.range(safeOffset, safeOffset + safeLimit - 1);
+  else query = query.limit(safeLimit);
 
   const { data, error } = await query;
   if (error) throw error;
