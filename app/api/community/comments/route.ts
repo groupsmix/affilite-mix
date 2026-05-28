@@ -9,22 +9,52 @@ import { sanitizeHtml } from "@/lib/sanitize-html";
 import { normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
+import { isUsableUuid } from "@/lib/security/uuid";
 
 /**
  * GET /api/community/comments?target_type=product&target_id=xxx
  * List approved comments for a target.
+ *
+ * audit5-#2: prior revisions had no rate limit and no UUID validation on
+ * the GET, so an attacker could (a) exhaust the Supabase connection pool
+ * with unbounded reads and (b) trigger 500 spam by passing malformed
+ * `target_id` values which Postgres rejects with a syntax error. We now
+ * rate-limit at 120 req/min per IP (`failPolicy: "open"` because this
+ * is a read-only public endpoint and we prefer availability over a
+ * blanket lockout during a KV outage), and reject non-UUID `target_id`s
+ * with a 400 before they reach the DB.
  */
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`comments-get:${ip}`, {
+    maxRequests: 120,
+    windowMs: 60_000,
+    failPolicy: "open" as const,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   const url = new URL(request.url);
   const targetType = url.searchParams.get("target_type") as "product" | "content" | null;
   const targetId = url.searchParams.get("target_id");
 
-  if (!targetType || !targetId || !["product", "content"].includes(targetType)) {
+  if (
+    !targetType ||
+    !targetId ||
+    !["product", "content"].includes(targetType) ||
+    !isUsableUuid(targetId)
+  ) {
     return NextResponse.json({ error: "target_type and target_id are required" }, { status: 400 });
   }
 
   try {
-    const comments = await listApprovedComments(targetType, targetId);
+    const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
+    const siteId = await resolveDbSiteId(siteSlug);
+    const comments = await listApprovedComments(siteId, targetType, targetId);
     return NextResponse.json({ comments });
   } catch (err) {
     // audit5-#10: this was previously `// fail-open: best-effort` with
