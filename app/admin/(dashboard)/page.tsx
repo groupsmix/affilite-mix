@@ -11,6 +11,11 @@ import { requireAdminSession } from "./components/admin-guard";
 import { AutoRefresh } from "./components/auto-refresh";
 import { AlertsCard, type DashboardAlert } from "./components/dashboard/alerts-card";
 import { KpiCard } from "./components/dashboard/kpi-card";
+import {
+  CountUpValue,
+  PowerReserveMeter,
+  Sparkline,
+} from "./components/dashboard/dashboard-motion";
 import { NicheHealthCard } from "./components/dashboard/niche-health-card";
 import { RevenuePerSiteCard } from "./components/dashboard/revenue-per-site-card";
 import { ScheduledContentCard } from "./components/dashboard/scheduled-content-card";
@@ -70,6 +75,21 @@ export default async function AdminDashboard() {
   const avgDailyClicks = clicks7d / 7;
   const todayDelta = pctDelta(clicksToday, avgDailyClicks);
 
+  // Daily series for the KPI sparkline (oldest → newest).
+  const clickSeries = dailyClicks.map((d) => d.count);
+
+  // Operational "power reserve": a single 0–100 health score derived from
+  // real signals so the gold complication in the header reflects work that
+  // actually needs doing. Each unresolved issue draws the reserve down.
+  let health = 100;
+  health -= Math.min(productsNoUrl * 4, 30);
+  health -= Math.min(contentWithNoProducts * 3, 20);
+  health -= Math.min(draftProducts * 2, 12);
+  health -= Math.min(draftContent, 8);
+  if (activeProducts === 0) health -= 25;
+  if (publishedContent === 0) health -= 15;
+  const platformHealth = Math.max(0, Math.min(100, health));
+
   // Alerts / warnings — copy preserved verbatim from the previous dashboard
   // so existing QA checklists still match.
   const alerts: DashboardAlert[] = [];
@@ -123,13 +143,14 @@ export default async function AdminDashboard() {
             </span>
           </>
         }
+        actions={<PowerReserveMeter value={platformHealth} />}
       />
 
       {/* Section 1 — KPI grid. 1 col on sm, 2 on md, 4 on xl. */}
       <div aria-live="polite" className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Clicks (today)"
-          value={clicksToday.toLocaleString()}
+          value={<CountUpValue value={clicksToday} />}
           description={`Baseline: ${avgDailyClicks.toFixed(1)}/day average over last 7 days.`}
           delta={
             avgDailyClicks > 0 || clicksToday > 0
@@ -139,12 +160,17 @@ export default async function AdminDashboard() {
         />
         <KpiCard
           title="Clicks (7d)"
-          value={clicks7d.toLocaleString()}
+          value={<CountUpValue value={clicks7d} />}
           description="Total affiliate-link clicks across the last 7 days."
+          chart={
+            clickSeries.length > 1 ? (
+              <Sparkline data={clickSeries} width={240} height={32} className="h-8 w-full" />
+            ) : null
+          }
         />
         <KpiCard
           title="Active products"
-          value={activeProducts.toLocaleString()}
+          value={<CountUpValue value={activeProducts} />}
           description={
             draftProducts > 0
               ? `${draftProducts} draft product${draftProducts === 1 ? "" : "s"} not yet active.`
@@ -162,7 +188,7 @@ export default async function AdminDashboard() {
         />
         <KpiCard
           title="Published content"
-          value={publishedContent.toLocaleString()}
+          value={<CountUpValue value={publishedContent} />}
           description={`${totalContent.toLocaleString()} total article${totalContent === 1 ? "" : "s"}.`}
           subLink={
             scheduledContent > 0
