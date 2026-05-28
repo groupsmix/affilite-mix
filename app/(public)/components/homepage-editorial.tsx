@@ -67,6 +67,13 @@ export function EditorialHomepage({
                         fill
                         sizes="(max-width: 1024px) 100vw, 66vw"
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        // audit5-#9: this is the editorial template's hero
+                        // image, sitting in the largest grid cell at the top
+                        // of the page (16:9 spanning 2/3 of viewport width).
+                        // It is virtually always the LCP candidate. Flag it
+                        // priority so Next.js fetches it eagerly + emits
+                        // fetchpriority="high" on the underlying <img>.
+                        priority
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       <div className="absolute inset-x-0 bottom-0 p-6">
