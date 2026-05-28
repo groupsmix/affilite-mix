@@ -226,7 +226,11 @@ export async function POST(request: NextRequest) {
         error_message: "DLQ message",
       }));
 
-      const { error } = await untypedFrom(sb, "click_failures").insert(dlqRows);
+      // F-API-01: `click_failures` is a global DLQ table with no site_id column.
+      // DLQ rows wrap the failed message payload (which itself carries site_id).
+      const { error } = await untypedFrom(sb, "click_failures")
+        .insert(dlqRows)
+        .unsafeNoSiteFilter();
       if (error) {
         captureException(new Error(`Failed to persist DLQ messages: ${error.message}`), {
           context: "[api/queue/clicks] DLQ",
