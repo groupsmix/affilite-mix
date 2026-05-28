@@ -9,6 +9,7 @@ import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { recordCronLiveness } from "@/lib/cron-liveness";
+import { getAuditArchiveR2 } from "@/lib/runtime-env";
 
 // A82-F1: Batch size for cursor-based processing to survive interruptions
 const BATCH_SIZE = 5000;
@@ -217,11 +218,9 @@ export async function POST(request: NextRequest) {
       let archiveSucceeded = false;
       if (auditRows && auditRows.length > 0) {
         try {
-          const r2 = (process.env as Record<string, unknown>).AUDIT_ARCHIVE_R2 as
-            | { put: (key: string, body: string) => Promise<void> }
-            | undefined;
+          const r2 = getAuditArchiveR2();
 
-          if (r2 && typeof r2.put === "function") {
+          if (r2) {
             const yearMonth = `${auditDate.getFullYear()}-${String(auditDate.getMonth() + 1).padStart(2, "0")}`;
             const jsonl = auditRows.map((row) => JSON.stringify(row)).join("\n");
             const archiveKey = `audit-log-archive/${yearMonth}/${now.toISOString()}.jsonl`;

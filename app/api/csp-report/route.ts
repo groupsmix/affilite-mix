@@ -9,6 +9,17 @@ import { getClientIp } from "@/lib/get-client-ip";
  */
 const CSP_REPORT_RATE_LIMIT = { maxRequests: 60, windowMs: 60_000 };
 
+/**
+ * PR-F P2-C: Hard cap on the CSP-report payload size. The spec
+ * (https://www.w3.org/TR/CSP3/#reporting) says the report is a small
+ * JSON object with a fixed shape (~10 fields, all short strings). Real
+ * reports observed in production are < 1 KB. Anything above 8 KB is
+ * almost certainly a misbehaving extension or hostile client; refusing
+ * to parse it keeps the Sentry event volume bounded and prevents an
+ * attacker from forcing an arbitrary-size JSON parse.
+ */
+const CSP_REPORT_MAX_BYTES = 8 * 1024;
+
 export async function POST(request: NextRequest) {
   // F-06: Per-IP rate limit — documented in csrf-exempt-registry as
   // "cspReportBucket" but was not enforced at runtime. Without this,
@@ -19,18 +30,35 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, { status: 429 });
   }
 
-  // CSP reports can be sent as JSON or multipart
+  // PR-F P2-C: enforce payload cap. The Content-Length header is a
+  // strong hint but not authoritative (chunked transfer can omit it),
+  // so we also count the bytes we read. We use request.text() and check
+  // length before JSON.parse to avoid materialising a giant object.
+  const contentLengthHeader = request.headers.get("content-length");
+  if (contentLengthHeader) {
+    const declared = Number.parseInt(contentLengthHeader, 10);
+    if (Number.isFinite(declared) && declared > CSP_REPORT_MAX_BYTES) {
+      return new NextResponse(null, { status: 413 });
+    }
+  }
+
+  let raw: string;
+  try {
+    raw = await request.text();
+  } catch {
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
+  if (raw.length > CSP_REPORT_MAX_BYTES) {
+    return new NextResponse(null, { status: 413 });
+  }
+
+  // CSP reports can be sent as JSON or multipart (we treat the body
+  // as JSON across all three content-type variants — the spec only
+  // defines a JSON shape, and `application/csp-report` is a JSON
+  // sub-type from the legacy CSP 2 spec).
   let report: Record<string, unknown> = {};
   try {
-    const contentType = request.headers.get("content-type") ?? "";
-    if (contentType.includes("application/csp-report")) {
-      report = await request.json();
-    } else if (contentType.includes("application/json")) {
-      report = await request.json();
-    } else {
-      // Try JSON anyway
-      report = await request.json();
-    }
+    report = JSON.parse(raw) as Record<string, unknown>;
   } catch {
     // fail-open: best-effort
     return NextResponse.json({ ok: false }, { status: 400 });

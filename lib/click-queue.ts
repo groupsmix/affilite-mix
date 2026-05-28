@@ -13,6 +13,7 @@ import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "node:crypto";
+import { getClickQueue as getRuntimeClickQueue } from "@/lib/runtime-env";
 
 // The privileged Supabase client wraps every PostgREST builder in a Proxy
 // (see `lib/server-only/service-role.ts`) that exposes a runtime-only
@@ -51,22 +52,20 @@ interface ClickQueueMessage extends RecordClickInput {
 
 function getClickQueue(): CloudflareQueue<ClickQueueMessage> | undefined {
   // Check globalThis first so tests can inject a mock via vi.stubGlobal;
-  // fall back to the @opennextjs/cloudflare process.env shim in production.
+  // fall back to the runtime-env typed accessor in production. The accessor
+  // wraps the @opennextjs/cloudflare `process.env` shim and validates the
+  // shape, so we don't need the historical inline `typeof object && 'send' in`
+  // dance here.
   const fromGlobal = (globalThis as Record<string, unknown>).CLICK_QUEUE;
-  const candidate =
-    fromGlobal !== undefined
-      ? fromGlobal
-      : (() => {
-          try {
-            return (process.env as Record<string, unknown>).CLICK_QUEUE;
-          } catch {
-            // fail-open: best-effort
-            return undefined;
-          }
-        })();
-
-  if (candidate && typeof candidate === "object" && "send" in candidate) {
-    return candidate as unknown as CloudflareQueue<ClickQueueMessage>;
+  if (fromGlobal && typeof fromGlobal === "object" && "send" in fromGlobal) {
+    return fromGlobal as unknown as CloudflareQueue<ClickQueueMessage>;
+  }
+  try {
+    const q = getRuntimeClickQueue();
+    if (q) return q as unknown as CloudflareQueue<ClickQueueMessage>;
+  } catch {
+    // fail-open: best-effort
+    return undefined;
   }
   return undefined;
 }
