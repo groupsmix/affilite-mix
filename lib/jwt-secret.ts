@@ -135,6 +135,50 @@ export async function getJwtKid(): Promise<string> {
     .join("");
 }
 
+const ROTATION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * AUD-09: Enforces that JWT_SECRET_PREVIOUS is not kept past the rotation
+ * window. If JWT_SECRET_PREVIOUS is set and JWT_ROTATION_STARTED_AT is
+ * either unset or older than 24h, the rotation window has expired.
+ *
+ * Returns null if everything is fine, or a human-readable error string
+ * describing the violation.
+ */
+export function checkRotationWindowExpiry(env: NodeJS.ProcessEnv = process.env): string | null {
+  const prev = env.JWT_SECRET_PREVIOUS;
+  if (!prev || prev.trim().length === 0) return null;
+
+  const startedAt = env.JWT_ROTATION_STARTED_AT;
+  if (!startedAt || startedAt.trim().length === 0) {
+    return (
+      "JWT_SECRET_PREVIOUS is set but JWT_ROTATION_STARTED_AT is missing. " +
+      "Set JWT_ROTATION_STARTED_AT to the ISO-8601 timestamp when the rotation " +
+      "began so the system can enforce the 24h removal window."
+    );
+  }
+
+  const parsed = Date.parse(startedAt.trim());
+  if (Number.isNaN(parsed)) {
+    return (
+      `JWT_ROTATION_STARTED_AT ("${startedAt}") is not a valid ISO-8601 timestamp. ` +
+      "Set it to the time when the rotation began (e.g. 2026-05-28T12:00:00Z)."
+    );
+  }
+
+  const elapsed = Date.now() - parsed;
+  if (elapsed > ROTATION_MAX_AGE_MS) {
+    const hoursAgo = Math.round(elapsed / (60 * 60 * 1000));
+    return (
+      `JWT_SECRET_PREVIOUS has been set for ~${hoursAgo}h (since ${startedAt}), ` +
+      "exceeding the 24h rotation window. Remove JWT_SECRET_PREVIOUS and " +
+      "JWT_ROTATION_STARTED_AT to complete the rotation."
+    );
+  }
+
+  return null;
+}
+
 /** Test-only helper to reset the memoized secret between test cases. */
 export function __resetJwtSecretCacheForTests(): void {
   cached = null;
