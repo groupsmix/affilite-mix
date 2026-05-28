@@ -1,20 +1,8 @@
 import { NextRequest } from "next/server";
 // SEC-02 (etap-3): canonical boolean env-var parser
 import { parseBoolEnv } from "@/lib/env-bool";
-
-/**
- * Fixed iteration count for the mismatched-length branch of
- * {@link timingSafeCompare}. Chosen to comfortably exceed any realistic
- * cron-secret length (cron secrets in this codebase are random hex/base64
- * strings well under 256 bytes) so the loop body runs the same number of
- * times regardless of the actual byte lengths of the provided/expected
- * tokens. Using a compile-time constant here — rather than the previous
- * `Math.max(a.byteLength, b.byteLength)` upper bound — removes the length
- * side-channel that earlier revisions of this branch exposed: an attacker
- * who could observe wall-clock latency could otherwise infer
- * `max(lenProvided, lenExpected)` from how long the loop ran.
- */
-const MAX_COMPARE_LEN = 256;
+// A11-05: single source of truth for timing-safe iteration cap
+import { MAX_COMPARE_LEN } from "@/lib/csrf";
 
 /**
  * Timing-safe comparison of two byte arrays.
@@ -36,8 +24,9 @@ export function timingSafeCompare(a: Uint8Array, b: Uint8Array): boolean {
     // difference in lengths still poisons the accumulator — the function
     // still returns `false` regardless, but the work performed by the
     // mismatched-length branch is independent of the actual byte lengths.
-    const lenA = a.byteLength || 1;
-    const lenB = b.byteLength || 1;
+    if (a.byteLength === 0 || b.byteLength === 0) return false;
+    const lenA = a.byteLength;
+    const lenB = b.byteLength;
     let result = 0;
     result |= lenA ^ lenB;
     for (let i = 0; i < MAX_COMPARE_LEN; i++) {
@@ -46,8 +35,9 @@ export function timingSafeCompare(a: Uint8Array, b: Uint8Array): boolean {
     void result;
     return false;
   }
+  const eqLen = Math.min(a.byteLength, MAX_COMPARE_LEN);
   let result = 0;
-  for (let i = 0; i < a.byteLength; i++) {
+  for (let i = 0; i < eqLen; i++) {
     result |= a[i] ^ b[i];
   }
   return result === 0;

@@ -176,6 +176,31 @@ describe("audit5-#22 — robots.txt host header resolution", () => {
     const content = read("app/robots.ts");
     expect(content).toContain('split(":")[0]');
   });
+
+  // A8-03: enumeration test for AI bot blocklist
+  it("blocks each known AI training crawler", () => {
+    const content = read("app/robots.ts");
+    const requiredBots = [
+      "GPTBot",
+      "Google-Extended",
+      "CCBot",
+      "anthropic-ai",
+      "Claude-Web",
+      "Bytespider",
+      "cohere-ai",
+      "PerplexityBot",
+      "FacebookBot",
+      "Amazonbot",
+      "Applebot-Extended",
+      "Meta-ExternalAgent",
+      "Meta-ExternalFetcher",
+      "OAI-SearchBot",
+      "MistralAI-User",
+    ];
+    for (const bot of requiredBots) {
+      expect(content, `missing AI bot: ${bot}`).toContain(`"${bot}"`);
+    }
+  });
 });
 
 describe("audit5-#26 — host-prefixed cookie inventory", () => {

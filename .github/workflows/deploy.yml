@@ -1023,6 +1023,16 @@ jobs:
             echo "Inlined $binding namespace id into wrangler.jsonc"
           done
 
+      # ── A10-01: Require Sentry DSN for production builds ────────────
+      - name: Require NEXT_PUBLIC_SENTRY_DSN for production
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if [ -z "$NEXT_PUBLIC_SENTRY_DSN" ]; then
+            echo "::error::NEXT_PUBLIC_SENTRY_DSN is required for production deploys."
+            echo "::error::Without it, CSP will silently block all client-side Sentry reports."
+            exit 1
+          fi
+
       # ── Build OpenNext bundle ─────────────────────────────────────────
       # opennextjs-cloudflare deploy
       - name: Build OpenNext bundle
