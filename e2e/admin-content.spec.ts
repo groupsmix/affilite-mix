@@ -41,7 +41,7 @@ test.describe("Admin Content Page", () => {
       .isVisible()
       .catch(() => false);
     if (isLoginPage) {
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
@@ -61,7 +61,7 @@ test.describe("Admin Content Page", () => {
       .isVisible()
       .catch(() => false);
     if (isLoginPage) {
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
@@ -82,7 +82,7 @@ test.describe("Admin Content Page", () => {
       .isVisible()
       .catch(() => false);
     if (isLoginPage) {
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
@@ -106,7 +106,7 @@ test.describe("Admin Content Page", () => {
       .isVisible()
       .catch(() => false);
     if (isLoginPage) {
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
@@ -131,7 +131,7 @@ test.describe("Admin Content Page", () => {
       .isVisible()
       .catch(() => false);
     if (isLoginPage) {
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
@@ -148,7 +148,7 @@ test.describe("Admin Content Page", () => {
       .isVisible()
       .catch(() => false);
     if (isLoginPage) {
-      test.skip();
+      test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 

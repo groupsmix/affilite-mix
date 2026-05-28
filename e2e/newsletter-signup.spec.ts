@@ -24,7 +24,7 @@ test.describe("Newsletter Signup", () => {
 
     const count = await emailInput.count();
     if (count === 0) {
-      test.skip();
+      test.skip(true, "newsletter signup form not found on this site");
       return;
     }
 
@@ -51,7 +51,7 @@ test.describe("Newsletter Signup", () => {
 
     const count = await emailInput.count();
     if (count === 0) {
-      test.skip();
+      test.skip(true, "newsletter signup form not found on this site");
       return;
     }
 
