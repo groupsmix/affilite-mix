@@ -66,14 +66,7 @@ const AI_TRAINING_BOTS = [
 ];
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
-  let domain = DEFAULT_DOMAIN;
-  try {
-    const { getCurrentSite } = await import("@/lib/site-context");
-    const site = await getCurrentSite();
-    domain = site.domain;
-  } catch {
-    // fail-open: best-effort
-  }
+  const domain = await resolveDomain();
 
   return {
     rules: [
