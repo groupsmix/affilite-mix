@@ -21,16 +21,16 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { SignJWT } from "jose";
 
-/** Must match `DEV_ONLY_JWT_SECRET` in lib/jwt-secret.ts */
-const DEV_ONLY_JWT_SECRET = "__dev_only_insecure_jwt_secret__";
 const ADMIN_COOKIE = "nh_admin_token";
 
 /**
- * Mint a valid admin JWT using whatever secret the running dev server is
- * likely to use. Falls back to the documented dev secret when not set.
+ * Mint a valid admin JWT. Requires JWT_SECRET to be set in the
+ * environment (H-10 removed the static dev fallback).
  */
 async function signAdminToken(): Promise<string> {
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? DEV_ONLY_JWT_SECRET);
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) throw new Error("JWT_SECRET must be set for e2e tests");
+  const secret = new TextEncoder().encode(jwtSecret);
   return new SignJWT({ email: "e2e-admin@example.com", userId: "e2e-admin", role: "super_admin" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()

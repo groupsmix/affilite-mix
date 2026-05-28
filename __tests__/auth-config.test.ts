@@ -143,15 +143,18 @@ describe("jwt-secret config guard", () => {
     ).toBe("prod-secret-xyz");
   });
 
-  it("returns the documented dev fallback in development when unset", async () => {
-    // A2-02: DEV_ONLY_JWT_SECRET is no longer exported; compare against the
-    // documented literal so this test keeps working without re-exporting the
-    // secret constant.
+  it("returns a per-process random dev fallback in development when unset", async () => {
+    // H-10: The dev fallback is now a per-process random, not a static
+    // string. Verify it's a non-empty hex string and stable within
+    // the same process.
     const { resolveJwtSecret, __resetJwtSecretCacheForTests } = await import("@/lib/jwt-secret");
     __resetJwtSecretCacheForTests();
-    expect(resolveJwtSecret({ NODE_ENV: "development" } as NodeJS.ProcessEnv)).toBe(
-      "__dev_only_insecure_jwt_secret__",
-    );
+    const secret = resolveJwtSecret({ NODE_ENV: "development" } as NodeJS.ProcessEnv);
+    expect(secret).toBeTruthy();
+    expect(secret.length).toBeGreaterThanOrEqual(32);
+    // Same process should return the same value
+    const again = resolveJwtSecret({ NODE_ENV: "development" } as NodeJS.ProcessEnv);
+    expect(again).toBe(secret);
   });
 
   it("does not throw during Next.js build phase even without JWT_SECRET", async () => {

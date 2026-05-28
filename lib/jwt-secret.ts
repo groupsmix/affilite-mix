@@ -20,13 +20,18 @@
  * Dev-only JWT secret. Only used when NODE_ENV !== "production" or during
  * a Next.js build phase. Must never be used to sign tokens in production.
  */
-// A2-02: Not exported — this string must never be accessible outside this
-// module so static analysis tools and grep sweeps cannot identify it as a
-// reachable secret.  All callers go through getJwtSecret() which gates on
-// NODE_ENV so it is never returned in production.
+// H-10: Replaced the static dev-only fallback with a per-process random.
+// A static string in the source is a findable credential; a random value
+// is safe by construction and still persists for the isolate lifetime.
 import { logger } from "@/lib/logger";
 
-const DEV_ONLY_JWT_SECRET = "__dev_only_insecure_jwt_secret__";
+function generateProcessRandom(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+const DEV_ONLY_JWT_SECRET = generateProcessRandom();
 
 let devFallbackWarned = false;
 
