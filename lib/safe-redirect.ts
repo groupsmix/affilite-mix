@@ -34,32 +34,36 @@ export function safeRedirectUrl(
 
   if (!target || typeof target !== "string") return fallback;
 
-  // Trim whitespace and reject empty strings
-  const trimmed = target.trim();
+  // Q1-2: Strip ASCII C0 control chars (0x00-0x1F), DEL (0x7F), and Unicode
+  // whitespace (U+00A0, U+1680, U+180E, U+2000-U+200A, U+2028, U+2029,
+  // U+202F, U+205F, U+3000, U+FEFF) before any validation. This closes the
+  // divergence where trim() removes some chars but the URL parser or regex
+  // sees a different scheme due to residual control/space bytes.
+  const stripped = target.replace(
+    /[\x00-\x1f\x7f\u00A0\u1680\u180E\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]/g,
+    "",
+  );
+  const trimmed = stripped.trim();
   if (!trimmed) return fallback;
 
-  // Block protocol-relative URLs (//evil.com) and dangerous schemes
-  if (/^[a-z]+:/i.test(trimmed) && !/^https?:/i.test(trimmed)) {
+  // Q1-2: Parse via URL first, then validate the parsed protocol. This is
+  // the canonical check — the regex pre-check is belt-and-suspenders.
+  // Protocol-relative URLs (//evil.com) are caught by the URL parser.
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed, request.url);
+  } catch {
+    return fallback;
+  }
+
+  // Reject non-HTTP(S) schemes (catches javascript:, data:, etc.)
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
     return fallback;
   }
 
   // Relative paths are always safe
   if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
     return trimmed;
-  }
-
-  // Parse absolute URLs
-  let parsed: URL;
-  try {
-    parsed = new URL(trimmed, request.url);
-  } catch {
-    // fail-open: best-effort
-    return fallback;
-  }
-
-  // Reject non-HTTP(S) schemes (belt-and-suspenders)
-  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-    return fallback;
   }
 
   // Same-origin is always allowed
