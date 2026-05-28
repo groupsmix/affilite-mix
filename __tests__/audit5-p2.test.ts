@@ -139,8 +139,12 @@ describe("audit5-#30 — remotePatterns vs CSP img-src reconciled", () => {
     src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
   it("CSP img-src drops images.unsplash.com (not in remotePatterns)", () => {
-    expect(stripComments(csp)).not.toMatch(/images\.unsplash\.com/);
-    expect(stripComments(cfg)).not.toMatch(/images\.unsplash\.com/);
+    // CodeQL js/regex/missing-regexp-anchor would flag a bare
+    // /images\.unsplash\.com/ as a potential URL bypass; we use
+    // string .includes() here because the assertion is a literal
+    // hostname substring check, not a URL match.
+    expect(stripComments(csp).includes("images.unsplash.com")).toBe(false);
+    expect(stripComments(cfg).includes("images.unsplash.com")).toBe(false);
   });
 
   it("CSP img-src drops www.google.com (sitemap ping is server-side)", () => {
@@ -151,14 +155,16 @@ describe("audit5-#30 — remotePatterns vs CSP img-src reconciled", () => {
       stripped.indexOf("const imgSources"),
       stripped.indexOf("connectSources"),
     );
-    expect(imgSrcBlock).not.toMatch(/www\.google\.com/);
+    // Literal substring check (see comment above on CodeQL anchor rule).
+    expect(imgSrcBlock.includes("www.google.com")).toBe(false);
   });
 
   it("amazon CDNs remain in BOTH allowlists", () => {
-    expect(csp).toMatch(/m\.media-amazon\.com/);
-    expect(cfg).toMatch(/m\.media-amazon\.com/);
-    expect(csp).toMatch(/images-na\.ssl-images-amazon\.com/);
-    expect(cfg).toMatch(/images-na\.ssl-images-amazon\.com/);
+    // Literal substring checks; see comment above on CodeQL anchor rule.
+    expect(csp).toContain("m.media-amazon.com");
+    expect(cfg).toContain("m.media-amazon.com");
+    expect(csp).toContain("images-na.ssl-images-amazon.com");
+    expect(cfg).toContain("images-na.ssl-images-amazon.com");
   });
 });
 
