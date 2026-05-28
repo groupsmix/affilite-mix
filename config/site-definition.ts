@@ -26,6 +26,12 @@ export interface SiteDefinition {
      * Falls back to accentColor if not set.
      */
     accentTextColor: string;
+    /**
+     * Brighter/decorative variant of accentColor for large-text or
+     * decorative contexts (e.g. luminous gold on a dark hero) where only
+     * the 3:1 WCAG large-text ratio applies. Falls back to accentColor.
+     */
+    accentLightColor: string;
     fontHeading: string;
     fontBody: string;
   };

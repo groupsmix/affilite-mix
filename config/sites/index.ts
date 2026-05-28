@@ -76,6 +76,7 @@ export function toSiteRow(site: SiteDefinition): DerivedSiteRow {
       primaryColor: site.theme.primaryColor,
       accentColor: site.theme.accentColor,
       accentTextColor: site.theme.accentTextColor,
+      accentLightColor: site.theme.accentLightColor,
       fontHeading: site.theme.fontHeading,
       fontBody: site.theme.fontBody,
     },
