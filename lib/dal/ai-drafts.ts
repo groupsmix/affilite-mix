@@ -1,5 +1,6 @@
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { clampPagination } from "./pagination-guard";
 
 export interface AIDraftRow {
   id: string;
@@ -57,13 +58,15 @@ export async function listAIDrafts(
   if (opts.contentType) query = query.eq("content_type", opts.contentType);
 
   // A73-01: Prefer keyset cursor over offset for O(1) pagination.
+  // S4-A98.2: Clamp pagination to prevent integer overflow at extreme offsets.
+  const { limit: safeLimit, offset: safeOffset } = clampPagination(opts);
   if (opts.cursor) {
     query = query.lt("created_at", opts.cursor);
-    query = query.limit(opts.limit ?? 20);
-  } else if (opts.offset) {
-    query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
-  } else if (opts.limit) {
-    query = query.limit(opts.limit);
+    query = query.limit(safeLimit);
+  } else if (safeOffset > 0) {
+    query = query.range(safeOffset, safeOffset + safeLimit - 1);
+  } else {
+    query = query.limit(safeLimit);
   }
 
   const { data, error } = await query;

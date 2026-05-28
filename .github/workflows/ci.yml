@@ -379,6 +379,21 @@ jobs:
           fi
           echo "No .only found in test files."
 
+      - name: "Q2-3: Style interpolation gate"
+        run: |
+          # Q2-3: Deny style={...variable} patterns where the variable could
+          # contain caller-supplied data. CSS exfiltration via background:url()
+          # is possible when untrusted data flows into inline style attrs.
+          # Safe patterns: style={{ constants }}, style={staticObj}
+          set -euo pipefail
+          VIOLATIONS=$(grep -rn --include='*.tsx' --include='*.ts' -E 'style=\{[^}]*\b(props|params|query|body|input|data|user)\b' app/ lib/ 2>/dev/null || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Potential caller-supplied data in inline style attributes (Q2-3, CWE-79):"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "No unsafe style interpolation patterns found."
+
       - name: "F-17: Generate SBOM (mandatory)"
         run: |
           # F-17: SBOM generation is a release blocker. Fail the build on generation failure.

@@ -1,6 +1,7 @@
 import { escapeLike } from "./search-utils";
 import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { clampPagination } from "./pagination-guard";
 
 /**
  * Audit-log reads are intentionally scoped to a single `site_id`.
@@ -93,7 +94,9 @@ export async function listAuditLogs(
   if (filters?.from) query = query.gte("created_at", filters.from);
   if (filters?.to) query = query.lte("created_at", filters.to);
 
-  query = query.range(offset, offset + limit - 1);
+  // S4-A98.2: Clamp pagination to prevent integer overflow at extreme offsets.
+  const { limit: safeLimit, offset: safeOffset } = clampPagination({ limit, offset });
+  query = query.range(safeOffset, safeOffset + safeLimit - 1);
 
   const { data, error } = await query;
   if (error) throw error;

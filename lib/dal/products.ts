@@ -6,6 +6,7 @@ import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { cursorPaginate, type CursorPage } from "./cursor-pagination";
+import { clampPagination } from "./pagination-guard";
 
 const TABLE = "products";
 // A23-01: Full explicit column list. Update this constant (and ProductRow in
@@ -93,10 +94,12 @@ export async function listProducts(
   if (opts.missingUrl) {
     query = query.or("affiliate_url.is.null,affiliate_url.eq.");
   }
-  if (opts.offset) {
-    query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1);
-  } else if (opts.limit) {
-    query = query.limit(opts.limit);
+  // S4-A98.2: Clamp pagination to prevent integer overflow at extreme offsets.
+  const { limit: safeLimit, offset: safeOffset } = clampPagination(opts);
+  if (safeOffset > 0) {
+    query = query.range(safeOffset, safeOffset + safeLimit - 1);
+  } else {
+    query = query.limit(safeLimit);
   }
 
   const { data, error } = await query;
