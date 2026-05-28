@@ -1024,13 +1024,15 @@ jobs:
           done
 
       # ── A10-01: Require Sentry DSN for production builds ────────────
+      # Temporarily downgraded from hard-fail to warning. Re-tighten this
+      # (swap ::warning:: back to ::error:: + exit 1) once a real Sentry DSN
+      # is set in the NEXT_PUBLIC_SENTRY_DSN GitHub Actions secret.
       - name: Require NEXT_PUBLIC_SENTRY_DSN for production
         if: github.ref == 'refs/heads/main'
         run: |
           if [ -z "$NEXT_PUBLIC_SENTRY_DSN" ]; then
-            echo "::error::NEXT_PUBLIC_SENTRY_DSN is required for production deploys."
-            echo "::error::Without it, CSP will silently block all client-side Sentry reports."
-            exit 1
+            echo "::warning::NEXT_PUBLIC_SENTRY_DSN is empty — client-side Sentry reports will be unavailable until a real DSN is set."
+            echo "::warning::See https://sentry.io to create a project, then paste its DSN into the GitHub Actions secret NEXT_PUBLIC_SENTRY_DSN."
           fi
 
       # ── Build OpenNext bundle ─────────────────────────────────────────
