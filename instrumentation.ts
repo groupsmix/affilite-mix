@@ -8,6 +8,7 @@
 import { checkSentryConfig } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { validateServerEnv, formatMissingEnvMessage } from "@/lib/server-env";
+import { checkRotationWindowExpiry } from "@/lib/jwt-secret";
 
 export function register() {
   // Check Sentry configuration (actual init happens via withSentry wrapper)
@@ -93,19 +94,17 @@ export function register() {
     }
   }
 
-  // S1-A3.E1: Warn loudly if JWT_SECRET_PREVIOUS is still configured.
-  // After a key rotation, the previous secret should be removed within
-  // 24 hours (token TTL is 4h, so 24h gives ample grace). Leaving it
-  // indefinitely means an attacker with the old key can still mint tokens
-  // that pass the verify-with-previous fallback path in lib/auth.ts.
-  if (process.env.NODE_ENV === "production" && !isBuild) {
-    const prevSecret = process.env.JWT_SECRET_PREVIOUS;
-    if (prevSecret && prevSecret.trim().length > 0) {
-      logger.warn(
-        "JWT_SECRET_PREVIOUS is still set. Remove it within 24 hours of rotation to " +
-          "prevent tokens signed with the old key from being accepted indefinitely. " +
-          "See lib/auth.ts F-AUTH-03 for the rotation grace window.",
-      );
+  // AUD-09 / S1-A3.E1: Enforce the 24h rotation window for JWT_SECRET_PREVIOUS.
+  // In production, throw to abort startup if the rotation window has expired.
+  // In dev/test, warn so contributors are not blocked.
+  if (!isBuild) {
+    const rotationError = checkRotationWindowExpiry();
+    if (rotationError) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(rotationError);
+      } else {
+        logger.warn(rotationError);
+      }
     }
   }
 
