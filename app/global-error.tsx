@@ -19,7 +19,30 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    reportError(error, { boundary: "global", digest: error.digest });
+    // audit5-#18: `reportError` may itself throw (e.g. the Sentry browser
+    // SDK transport is blocked by an extension, the network is offline,
+    // or `window.fetch` is patched in a way that rejects). The previous
+    // revision called `reportError(error, ...)` bare, which swallowed
+    // any such failure because `useEffect` discards return values and
+    // unhandled rejections from a synchronous call site stay un-routed.
+    // We now wrap the call so a reporter failure cannot also kill the
+    // error-boundary render — at minimum the user still sees the
+    // fallback UI, and the meta-failure lands in `console.error`.
+    try {
+      const result: unknown = reportError(error, { boundary: "global", digest: error.digest });
+      if (
+        result &&
+        typeof result === "object" &&
+        "catch" in result &&
+        typeof (result as { catch: unknown }).catch === "function"
+      ) {
+        (result as Promise<unknown>).catch((reportingErr: unknown) => {
+          console.error("[global-error] reportError rejected:", reportingErr);
+        });
+      }
+    } catch (reportingErr: unknown) {
+      console.error("[global-error] reportError threw:", reportingErr);
+    }
   }, [error]);
 
   return (

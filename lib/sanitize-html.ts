@@ -320,3 +320,66 @@ export function sanitizeHtml(html: string): string {
 
   return chunks.join("");
 }
+
+/**
+ * audit5-#24, audit5-#32: bounded process-level memoizer for `sanitizeHtml`.
+ *
+ * `app/(public)/components/html-renderer.tsx` and
+ * `app/(public)/p/[pageSlug]/page.tsx` are React **server** components.
+ * `useMemo` does not memoize across requests in RSC mode (each request
+ * gets a fresh component tree), so the audit's recommended `useMemo`
+ * wrapping has no effect for these server-only callers. The proper
+ * server-side optimisation is a bounded module-scoped LRU cache —
+ * sanitize is pure on input (no tenant-specific state, no I/O), so
+ * caching by exact input string is safe across tenants: identical
+ * input always produces identical output, and the cache stores no
+ * information beyond what callers already supplied.
+ *
+ * `MAX_INPUT_LENGTH` is enforced before cache lookup so the cache
+ * cannot be poisoned with oversize entries. The LRU is capped at
+ * `MEMO_CAPACITY` entries (small intentionally — content pages reuse
+ * the same HTML body across requests, so a high hit rate is achieved
+ * with a tiny working set).
+ */
+const MEMO_CAPACITY = 64;
+const memoCache = new Map<string, string>();
+
+export function sanitizeHtmlMemoized(html: string): string {
+  if (!html) return html;
+
+  // Pre-validate length so we never cache oversize inputs.
+  if (html.length > MAX_INPUT_LENGTH) {
+    throw new Error(`Input exceeds maximum allowed length of ${MAX_INPUT_LENGTH} characters`);
+  }
+
+  const cached = memoCache.get(html);
+  if (cached !== undefined) {
+    // LRU touch: re-insert to mark "most recently used". `Map`
+    // iteration order is insertion order, so deleting + re-setting
+    // moves the entry to the end without copying any state.
+    memoCache.delete(html);
+    memoCache.set(html, cached);
+    return cached;
+  }
+
+  const sanitized = sanitizeHtml(html);
+
+  // Evict oldest entry if at capacity. The first key returned by
+  // `keys()` is the least-recently-used entry under the touch policy
+  // above.
+  if (memoCache.size >= MEMO_CAPACITY) {
+    const oldestKey = memoCache.keys().next().value;
+    if (oldestKey !== undefined) memoCache.delete(oldestKey);
+  }
+  memoCache.set(html, sanitized);
+  return sanitized;
+}
+
+/**
+ * Exported for the audit5-#24/#32 unit test only — gives the test
+ * a deterministic way to clear inter-suite state without exporting
+ * the cache itself.
+ */
+export function _resetSanitizeHtmlMemoCacheForTests(): void {
+  memoCache.clear();
+}

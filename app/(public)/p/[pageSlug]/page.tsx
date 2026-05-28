@@ -5,7 +5,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getPageBySlug } from "@/lib/dal/pages";
 import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
-import { sanitizeHtml } from "@/lib/sanitize-html";
+import { sanitizeHtmlMemoized } from "@/lib/sanitize-html";
 import { JsonLd, breadcrumbJsonLd, productJsonLd } from "../../components/json-ld";
 import { PriceHistoryChart } from "../../components/price-history-chart";
 import { PriceAlertForm } from "../../components/price-alert-form";
@@ -375,7 +375,10 @@ export default async function CustomPage({ params }: PageProps) {
       </h1>
       <div
         className="prose prose-gray max-w-none"
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.body) }}
+        // audit5-#32: see lib/sanitize-html.ts — memoized LRU avoids
+        // re-running the htmlparser2 pass on every ISR render of the
+        // same Page row.
+        dangerouslySetInnerHTML={{ __html: sanitizeHtmlMemoized(page.body) }}
       />
     </article>
   );

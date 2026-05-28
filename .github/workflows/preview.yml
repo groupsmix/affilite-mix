@@ -126,6 +126,15 @@ jobs:
           echo '--- wrangler.preview.json ---'
           cat wrangler.preview.json
 
+      # audit5-#27: Fail fast if a `${...}` placeholder survived the
+      # preview-wrangler generation step. Without this guard a missing
+      # env-var would cause `wrangler deploy` to ship the literal string
+      # `${RATE_LIMIT_KV_NAMESPACE_ID}` as the namespace ID, which then
+      # fails opaquely at request time with a "namespace not found"
+      # error instead of being caught here in CI.
+      - name: Verify no unresolved wrangler placeholders
+        run: node scripts/check-wrangler-placeholders.mjs wrangler.preview.json
+
       - name: Build OpenNext bundle
         run: npx @opennextjs/cloudflare build --config wrangler.preview.json
 
