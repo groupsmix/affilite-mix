@@ -90,6 +90,18 @@ const eslintConfig = [
           message:
             'select("*") exposes future sensitive columns. Use an explicit column list constant (e.g. LIST_COLUMNS).',
         },
+        {
+          // Audit-etap1 #6: every `dangerouslySetInnerHTML` must wrap its
+          // `__html` value in `sanitizeHtml(...)` or `safeJsonLdString(...)`
+          // at the JSX call site. Variable references, template literals,
+          // and unsanitised inputs must carry an explicit
+          // `// eslint-disable-next-line` comment that names the
+          // hand-controlled string (e.g. the theme-init bootstrap script).
+          selector:
+            "JSXAttribute[name.name='dangerouslySetInnerHTML']:not(:has(CallExpression[callee.name=/^(sanitizeHtml|safeJsonLdString)$/]))",
+          message:
+            "dangerouslySetInnerHTML must wrap its `__html` value in sanitizeHtml(...) or safeJsonLdString(...) at the JSX call site. Hand-controlled literals (e.g. nonced bootstrap scripts) require an `// eslint-disable-next-line` comment naming the source. (audit-etap1 #6)",
+        },
       ],
     },
   },

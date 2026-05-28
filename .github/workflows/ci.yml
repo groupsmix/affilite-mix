@@ -92,6 +92,31 @@ jobs:
           fi
           echo "No dev fallback tokens found in wrangler.jsonc."
 
+      - name: ALLOW_LOCALHOST_FALLBACK_IN_PROD deploy guard (audit-etap1 #9)
+        run: |
+          # audit-etap1 #9: this flag is intended for local + CI loop-back use
+          # only (Lighthouse / Playwright against http://localhost:3000). Any
+          # non-empty assignment in a workflow that has a deploy responsibility
+          # (deploy.yml, deploy-gradual.yml, rollback.yml, security.yml, etc.)
+          # is a foot-gun. We allow-list workflows that legitimately need it
+          # against a real loopback target. Anything else fails CI.
+          set -euo pipefail
+          ALLOWED_REGEX='^\.github/workflows/(ci|preview|lighthouse|load-test|dr-drill|mutation)\.yml$'
+          VIOLATIONS=""
+          for f in .github/workflows/*.yml; do
+            if [[ "$f" =~ $ALLOWED_REGEX ]]; then continue; fi
+            if grep -nE '^\s*ALLOW_LOCALHOST_FALLBACK_IN_PROD\s*:\s*("?)[^"\s]+("?)' "$f" \
+               | grep -vE 'ALLOW_LOCALHOST_FALLBACK_IN_PROD\s*:\s*""' > /dev/null; then
+              VIOLATIONS="$VIOLATIONS $f"
+            fi
+          done
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::ALLOW_LOCALHOST_FALLBACK_IN_PROD set to a non-empty value in a workflow that is NOT on the local-loopback allow-list:$VIOLATIONS"
+            echo "::error::Allow-list: ci.yml, preview.yml, lighthouse.yml, load-test.yml, dr-drill.yml, mutation.yml"
+            exit 1
+          fi
+          echo "ALLOW_LOCALHOST_FALLBACK_IN_PROD usage stays inside the local-loopback allow-list."
+
       - name: Admin route authz enforcement (F-01)
         run: |
           # F-01: Every app/api/admin/**/route.ts MUST import requireAdmin,

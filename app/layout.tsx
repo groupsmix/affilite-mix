@@ -124,8 +124,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <head>
+        {/* audit-etap1 #6: hand-controlled, hard-coded theme-init bootstrap.
+            Nonced. No user input. Any contributor editing this literal MUST
+            keep it free of template interpolation; if dynamic data is ever
+            required, route it through `safeJsonLdString` or `sanitizeHtml`
+            and remove the eslint-disable comment below. */}
         <script
           nonce={nonce}
+          // eslint-disable-next-line no-restricted-syntax -- audit-etap1 #6: hand-controlled theme-init bootstrap, no user input
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("theme-preference");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`,
           }}
