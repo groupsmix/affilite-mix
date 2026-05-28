@@ -295,3 +295,40 @@ For Wrangler-based local dev (closer to production):
 npx @opennextjs/cloudflare build
 npx wrangler dev
 ```
+
+---
+
+## Non-Cloudflare deployments — `TRUST_PROXY_HEADERS`
+
+> **audit5-#16**: `lib/get-client-ip.ts` defaults `TRUST_PROXY_HEADERS=false`
+> because the production deployment runs **only** behind Cloudflare, which
+> sets the trustworthy `cf-connecting-ip` header and strips client-supplied
+> `X-Forwarded-For` values. Trusting `X-Forwarded-For` directly on
+> Cloudflare would let any client spoof their IP.
+
+If you are running this app **NOT** behind Cloudflare (a custom Vercel /
+Netlify / Render preview, a bare AWS deployment, a docker-compose run,
+etc.), `cf-connecting-ip` will be absent and every rate-limit bucket will
+collapse to `"unknown"` — one shared bucket per worker isolate. Symptom:
+every request hits the same rate-limit counter and either everyone is
+throttled at once, or the limiter is effectively disabled.
+
+To enable the X-Forwarded-For fallback path in `lib/get-client-ip.ts`:
+
+```bash
+TRUST_PROXY_HEADERS=true
+```
+
+**Pre-flight check:** your reverse proxy MUST overwrite (not append to)
+the inbound `X-Forwarded-For` header. If it appends, a malicious client
+sends `X-Forwarded-For: 1.2.3.4` and the rate-limiter buckets by that
+spoofed value. Verify with:
+
+```bash
+curl -H 'X-Forwarded-For: 1.2.3.4' https://YOUR_HOST/some-route
+# then check the rate-limit log — the bucket must be the proxy's IP,
+# NOT 1.2.3.4.
+```
+
+Cloudflare deployments should leave `TRUST_PROXY_HEADERS` unset (or
+`false`).

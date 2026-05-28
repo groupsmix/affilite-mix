@@ -4,6 +4,8 @@ import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createWristShot, listApprovedWristShots } from "@/lib/dal/community";
 import { getClientIp } from "@/lib/get-client-ip";
+import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 
 /**
  * GET /api/community/wrist-shots?product_id=xxx
@@ -18,8 +20,14 @@ export async function GET(request: NextRequest) {
   try {
     const shots = await listApprovedWristShots(productId);
     return NextResponse.json({ wrist_shots: shots });
-  } catch {
-    // fail-open: best-effort
+  } catch (err) {
+    // audit5-#10: previously silenced as `// fail-open: best-effort`.
+    // Restore observability for the DAL failure path.
+    logger.error("community.wrist_shots.list_failed", {
+      product_id: productId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    captureException(err, { context: "api/community/wrist-shots.GET" });
     return NextResponse.json({ error: "Failed to load wrist shots" }, { status: 500 });
   }
 }
@@ -49,7 +57,8 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    // fail-open: best-effort
+    // audit5-#10: malformed JSON is a 400 (client error); do not log.
+    // See app/api/community/comments/route.ts for the rationale.
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -77,8 +86,13 @@ export async function POST(request: NextRequest) {
       { message: "Wrist shot submitted for review", wrist_shot: shot },
       { status: 201 },
     );
-  } catch {
-    // fail-open: best-effort
+  } catch (err) {
+    // audit5-#10: previously silenced as `// fail-open: best-effort`.
+    // Restore observability for the create-failure path.
+    logger.error("community.wrist_shots.create_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    captureException(err, { context: "api/community/wrist-shots.POST" });
     return NextResponse.json({ error: "Failed to submit wrist shot" }, { status: 500 });
   }
 }
