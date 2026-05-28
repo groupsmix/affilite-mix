@@ -144,6 +144,33 @@ function escapeAttrValue(value: string): string {
 }
 
 /**
+ * F-XSS-01: Escape special characters in text content before emitting
+ * back into the output buffer.
+ *
+ * htmlparser2 defaults to `decodeEntities: true`, so every `&lt;` /
+ * `&gt;` / `&amp;` / `&#x3c;` / `&#60;` / named entity in user input
+ * is decoded to its raw character BEFORE the `ontext` callback fires.
+ * If we push the decoded text back out verbatim, the browser parses
+ * those raw characters as new HTML markup when it reads the result
+ * via `dangerouslySetInnerHTML`, completely bypassing the tag /
+ * attribute allow-list.
+ *
+ * Concrete bypass (pre-fix):
+ *   IN  : <p>&amp;lt;img src=x onerror=alert(1)&amp;gt;</p>
+ *   ① (sanitize on write): <p>&lt;img src=x onerror=alert(1)&gt;</p>
+ *   ② (sanitize on read) : <p><img src=x onerror=alert(1)></p>
+ *                          ^^^ executed by the browser via innerHTML
+ *
+ * Re-escaping `<`, `>`, `&` in text content closes the loop so that
+ * `ontext("<img src=…>")` is emitted as `&lt;img src=…&gt;` and
+ * faithfully renders as visible text instead of being re-parsed as
+ * markup.
+ */
+function escapeText(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
  * Build a safe attribute string for an allowed tag.
  * - Only attributes in ALLOWED_ATTRS for that tag are kept.
  * - Event handlers (on*) and style attributes are always stripped.
@@ -282,7 +309,12 @@ export function sanitizeHtml(html: string): string {
 
       ontext(text) {
         if (suppressDepth > 0) return;
-        chunks.push(text);
+        // F-XSS-01: htmlparser2 decodes entities (decodeEntities: true by
+        // default), so `text` here is the raw decoded string. Re-escape
+        // `<`, `>`, `&` so an attacker cannot smuggle markup through the
+        // text-node stream — see comment on `escapeText` above for the
+        // bypass chain this closes.
+        chunks.push(escapeText(text));
       },
 
       onclosetag(name) {
