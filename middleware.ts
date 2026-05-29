@@ -3,10 +3,9 @@ import { getSiteByDomain } from "@/config/sites";
 import { validateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { getMiddlewareSiteRowByDomain } from "@/lib/middleware-site-lookup";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
-// H-4: Composable middleware modules (used for maintenance + CORS preflight)
+// H-4: Composable middleware module for maintenance mode
 import { withMaintenance } from "@/lib/middleware/maintenance";
-import { withCorsPreflight } from "@/lib/middleware/cors";
-import { withCsrf } from "@/lib/middleware/csrf";
+
 import {
   buildCspHeader,
   generateCspNonce,
@@ -39,6 +38,15 @@ function throwIfAborted(signal?: AbortSignal): void {
     throw err;
   }
 }
+
+/** Methods allowed via CORS for public API endpoints (beacon, vitals, etc.) */
+const CORS_ALLOWED_METHODS = "GET, POST, OPTIONS";
+/** Headers the browser is allowed to send on cross-origin requests */
+const CORS_ALLOWED_HEADERS = [CSRF_HEADER, "Content-Type", "Authorization", TRACE_ID_HEADER].join(
+  ", ",
+);
+/** Preflight cache duration: 1 hour */
+const CORS_MAX_AGE = "3600";
 
 /**
  * Returns a redirect to the tenant-aware 404 page.
@@ -136,9 +144,54 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // See the slash-normalization block below (after `if (!siteId)`).
 
   // ── CORS preflight (OPTIONS) ───────────────────────────
-  // H-4: Delegated to composable module for independent testability.
-  const corsResponse = await withCorsPreflight(request, maintenanceCtx);
-  if (corsResponse) return corsResponse;
+  if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
+    const requestOrigin = request.headers.get("origin") ?? "";
+    const preflightStaticSite = getSiteByDomain(hostname);
+    let preflightVerifiedSite: VerifiedSiteRef | null = preflightStaticSite
+      ? {
+          slug: preflightStaticSite.id,
+          domain: preflightStaticSite.domain,
+          aliases: preflightStaticSite.aliases,
+        }
+      : null;
+
+    if (!preflightVerifiedSite) {
+      try {
+        const kv = getAppCacheKV();
+        if (kv) {
+          const cachedRow = (await kv.get(`site-domain:${hostname}`, "json")) as {
+            slug?: string;
+            is_active?: boolean;
+          } | null;
+          if (cachedRow?.slug && cachedRow?.is_active) {
+            preflightVerifiedSite = { slug: cachedRow.slug, domain: hostname };
+          }
+        }
+      } catch {
+        // KV errors during preflight are non-fatal
+      }
+    }
+
+    const allowedOrigins = getAllowedOrigins(preflightVerifiedSite);
+    const matchedOrigin =
+      requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";
+
+    if (!matchedOrigin) {
+      return new NextResponse(null, { status: 403 });
+    }
+
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": matchedOrigin,
+        "Access-Control-Allow-Methods": CORS_ALLOWED_METHODS,
+        "Access-Control-Allow-Headers": CORS_ALLOWED_HEADERS,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": CORS_MAX_AGE,
+        Vary: "Origin",
+      },
+    });
+  }
 
   // ── Resolve site ──────────────────────────────────────
   // 1. Try static config lookup first (fast, no DB call)
@@ -398,11 +451,28 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   }
 
   // ── CSRF protection for state-changing API routes ─────
-  // H-4: Delegated to composable module. The module still uses
-  // CRON_PATH_PREFIX and startsWith(CRON_PATH_PREFIX) internally.
-  const csrfCtx = { ...maintenanceCtx, siteId: siteId ?? null, verifiedSite, traceId, pathname };
-  const csrfResponse = withCsrf(request, csrfCtx);
-  if (csrfResponse) return csrfResponse;
+  const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+  if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
+    const origin = request.headers.get("origin") ?? "";
+    // G-33: pass the verified site reference, not the raw hostname.
+    const allowedOrigins = getAllowedOrigins(verifiedSite);
+
+    // 1. If Origin is present, reject mismatched origins immediately
+    if (origin && !allowedOrigins.includes(origin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // 2. Always validate the CSRF double-submit cookie token
+    const isExempt = csrfExemptPaths().has(pathname) || pathname.startsWith(CRON_PATH_PREFIX);
+
+    if (!isExempt) {
+      const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
+      const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
+      if (!validateCsrfToken(cookieValue, headerValue)) {
+        return new NextResponse("Forbidden – missing CSRF token", { status: 403 });
+      }
+    }
+  }
 
   // ── Inject x-site-id and trace-id headers into request ──
   // siteId is guaranteed non-null at this point: the `if (!siteId)` guard

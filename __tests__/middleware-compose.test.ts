@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { compose, type MiddlewareContext, type MiddlewareFunction } from "@/lib/middleware/compose";
+import { withCsrf } from "@/lib/middleware/csrf";
+import { withCorsPreflight } from "@/lib/middleware/cors";
 
 function makeCtx(overrides: Partial<MiddlewareContext> = {}): MiddlewareContext {
   return {
@@ -116,5 +118,13 @@ describe("H-4: Middleware compose utility", () => {
     await pipeline(makeRequest(), makeCtx());
 
     expect(finalizerCalled).toBe(true);
+  });
+
+  it("withCsrf module is a callable middleware function", () => {
+    expect(typeof withCsrf).toBe("function");
+  });
+
+  it("withCorsPreflight module is a callable middleware function", () => {
+    expect(typeof withCorsPreflight).toBe("function");
   });
 });
