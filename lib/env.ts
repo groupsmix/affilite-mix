@@ -3,6 +3,48 @@
  */
 
 /**
+ * F9: Refuse to start in production if ALLOW_LOCALHOST_FALLBACK_IN_PROD is set.
+ * This flag is only for CI builds (Lighthouse, smoke tests). If it leaks into
+ * a real prod deploy, it weakens tenant resolution by allowing localhost
+ * fallback sites. The assertion runs at module-load time so the Worker fails
+ * fast before serving any request.
+ */
+if (
+  process.env.NODE_ENV === "production" &&
+  !process.env.NEXT_PHASE &&
+  process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1"
+) {
+  throw new Error(
+    "[env] ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 is set in a production runtime. " +
+      "This flag is only for CI/Lighthouse runs. Remove it from the production " +
+      "environment to prevent localhost tenant-resolution bypass.",
+  );
+}
+
+/**
+ * F8: Log missing per-trigger cron secrets at startup so silent cron
+ * failures (data-retention, commission-ingest) are caught early.
+ * We import the secret list lazily to avoid circular deps.
+ */
+if (process.env.NODE_ENV === "production" && !process.env.NEXT_PHASE) {
+  // Defer to avoid blocking module init; the registry is a plain data module.
+  void Promise.resolve().then(async () => {
+    try {
+      const { listAllCronSecretEnvVars } = await import("./cron-registry");
+      const missing = listAllCronSecretEnvVars().filter((name) => !process.env[name]?.trim());
+      if (missing.length > 0) {
+        console.warn(
+          `[env] F8: ${missing.length} cron secret(s) missing in production: ${missing.join(", ")}. ` +
+            "Affected crons will fail to authenticate.",
+        );
+      }
+    } catch {
+      // fail-safe: registry import failure should not crash the Worker
+    }
+  });
+}
+
+/**
  * Read an environment variable. In production **runtime** the function
  * throws if the variable is missing or empty so that misconfiguration
  * surfaces as an immediate, explicit failure instead of silently
