@@ -147,6 +147,20 @@ function isPiiKey(key: string): boolean {
   return PII_PATTERNS.some((pattern) => pattern.test(key));
 }
 
+/**
+ * S3-003: Value-level PII pattern for emails.
+ * Catches PII values under semantically-unrelated keys (e.g. `actor: "admin@corp.com"`).
+ */
+const EMAIL_VALUE_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function redactPiiValue(value: string): string {
+  if (EMAIL_VALUE_PATTERN.test(value)) {
+    const [, domain] = value.split("@");
+    return `[REDACTED_EMAIL@${domain}]`;
+  }
+  return value;
+}
+
 function jsonReplacer(key: string, value: unknown): unknown {
   if (value instanceof Error) {
     return { message: value.message, name: value.name, stack: value.stack };
@@ -159,6 +173,10 @@ function jsonReplacer(key: string, value: unknown): unknown {
   // F-026: Tighten IP truncation logic to catch all common IP keys
   if (/^(?:req_)?ip(?:_address)?$|peer(?:_ip)?|^client_ip$/i.test(key)) {
     return typeof value === "string" ? truncateIp(value) : value;
+  }
+  // S3-003: Value-level redaction for PII patterns (emails under arbitrary keys)
+  if (typeof value === "string" && key !== "msg" && key !== "ts" && key !== "level") {
+    return redactPiiValue(value);
   }
   return value;
 }
