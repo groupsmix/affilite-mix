@@ -123,12 +123,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid image_url" }, { status: 400 });
   }
 
-  // Turnstile verification (skipped if TURNSTILE_SECRET_KEY is not set, i.e. dev).
-  if (body.turnstileToken) {
-    const turnstileOk = await verifyTurnstile(body.turnstileToken, ip);
-    if (!turnstileOk) {
-      return NextResponse.json({ error: "Captcha verification failed" }, { status: 403 });
-    }
+  // SEC-TURNSTILE-01 (#628): Turnstile verification is REQUIRED —
+  // always call verifyTurnstile so it rejects when Turnstile is enabled
+  // but the token is missing. In dev (ENABLE_TURNSTILE unset) it
+  // auto-passes; in production omitting the token is a 403.
+  const turnstileResult = await verifyTurnstile(body.turnstileToken ?? null, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json(
+      { error: turnstileResult.error ?? "Captcha verification failed" },
+      { status: 403 },
+    );
   }
 
   try {
