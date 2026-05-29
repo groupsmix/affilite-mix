@@ -95,12 +95,33 @@ function bcryptNeedsRehash(storedHash: string): boolean {
   }
 }
 
-/** Hash a password using bcrypt and return a storable string */
+/**
+ * RISK-SEC-01 (#604): SHA-256 pre-hash to eliminate bcrypt 72-byte truncation.
+ *
+ * The "Dropbox pattern": hash the password with SHA-256 first, then feed the
+ * 64-char hex digest (always < 72 bytes) to bcrypt. This removes the 72-byte
+ * ceiling entirely — password-policy.ts MAX_LENGTH (128 chars) becomes the
+ * only length constraint.
+ *
+ * New hashes are prefixed with `$sha256$` so verifyPassword can detect them
+ * and apply the pre-hash before bcrypt.compare. Existing bcrypt-only and
+ * legacy PBKDF2 hashes remain valid and are upgraded on next successful login.
+ */
+const PREHASH_PREFIX = "$sha256$";
+
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** Hash a password using SHA-256 pre-hash + bcrypt. */
 export async function hashPassword(password: string): Promise<string> {
-  if (new TextEncoder().encode(password).byteLength > 72) {
-    throw new Error("Password too long (>72 bytes after UTF-8 encode)");
-  }
-  return bcrypt.hash(password, BCRYPT_ROUNDS);
+  const hex = await sha256Hex(password);
+  const hash = await bcrypt.hash(hex, BCRYPT_ROUNDS);
+  return PREHASH_PREFIX + hash;
 }
 
 export interface VerifyResult {
@@ -125,8 +146,12 @@ export interface VerifyResult {
 export async function verifyPassword(password: string, storedHash: string): Promise<VerifyResult> {
   if (!storedHash) return { valid: false, needsRehash: false };
 
-  if (new TextEncoder().encode(password).byteLength > 72) {
-    return { valid: false, needsRehash: false };
+  // SHA-256 pre-hashed passwords (#604)
+  if (storedHash.startsWith(PREHASH_PREFIX)) {
+    const bcryptPart = storedHash.slice(PREHASH_PREFIX.length);
+    const hex = await sha256Hex(password);
+    const valid = await bcrypt.compare(hex, bcryptPart);
+    return { valid, needsRehash: valid && bcryptNeedsRehash(bcryptPart) };
   }
 
   if (isLegacyHash(storedHash)) {
@@ -134,6 +159,7 @@ export async function verifyPassword(password: string, storedHash: string): Prom
     return { valid, needsRehash: valid };
   }
 
+  // Legacy bcrypt-only hash (no pre-hash) — verify and flag for rehash
   const valid = await bcrypt.compare(password, storedHash);
-  return { valid, needsRehash: valid && bcryptNeedsRehash(storedHash) };
+  return { valid, needsRehash: valid };
 }
