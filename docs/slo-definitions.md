@@ -122,6 +122,48 @@ When an SLO's error budget is exhausted (or projected to exhaust within the wind
 3. **Post-mortem required** — any incident that consumes > 25% of a monthly error budget triggers a post-mortem (see [incident-response.md](./incident-response.md))
 4. **Review burn rate** — if 50% of budget is consumed in the first week, proactively investigate
 
+## Multi-Window Multi-Burn-Rate Alert Rules
+
+S3-006: Automated burn-rate alerts based on Google SRE Workbook ch. 5.
+Each SLO surface should have both a fast-burn and slow-burn alert rule configured
+in the alerting backend (Sentry, Better Stack, or Cloudflare notifications).
+
+### Fast-Burn Alerts (page-worthy)
+
+| Surface            | SLO    | Burn Rate | Long Window | Short Window | Action        |
+| ------------------ | ------ | --------- | ----------- | ------------ | ------------- |
+| Public pages       | 99.9%  | 14.4×     | 1h          | 5m           | Page on-call  |
+| Auth               | 99.95% | 14.4×     | 1h          | 5m           | Page on-call  |
+| Click tracking     | 99.9%  | 14.4×     | 1h          | 5m           | Page on-call  |
+| Admin panel        | 99.5%  | 14.4×     | 1h          | 5m           | Alert on-call |
+| Cron jobs          | 99%    | 14.4×     | 1h          | 5m           | Alert on-call |
+| Newsletter signups | 99.5%  | 14.4×     | 1h          | 5m           | Alert on-call |
+
+### Slow-Burn Alerts (ticket-worthy)
+
+| Surface            | SLO    | Burn Rate | Long Window | Short Window | Action        |
+| ------------------ | ------ | --------- | ----------- | ------------ | ------------- |
+| Public pages       | 99.9%  | 6×        | 6h          | 30m          | Create ticket |
+| Auth               | 99.95% | 6×        | 6h          | 30m          | Create ticket |
+| Click tracking     | 99.9%  | 6×        | 6h          | 30m          | Create ticket |
+| Admin panel        | 99.5%  | 6×        | 6h          | 30m          | Create ticket |
+| Cron jobs          | 99%    | 6×        | 6h          | 30m          | Create ticket |
+| Newsletter signups | 99.5%  | 6×        | 6h          | 30m          | Create ticket |
+
+### Alert Rule Formula
+
+For a 30-day SLO window:
+
+```
+error_rate > (1 - SLO) × burn_rate
+  AND sustained for short_window
+```
+
+Example for Public Pages (99.9%, fast-burn 14.4×):
+
+- Threshold: `(1 - 0.999) × 14.4 = 0.0144` → 1.44% error rate
+- Fires when 5xx rate exceeds 1.44% for 5 minutes within a 1-hour window
+
 ---
 
 ## Measurement Infrastructure
