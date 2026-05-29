@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useMemo } from "react";
 
 /* ------------------------------------------------------------------ */
 /*  Layout variants                                                     */
@@ -37,10 +37,6 @@ const defaultTheme: SiteThemeConfig = {
 };
 
 const ThemeContext = createContext<SiteThemeConfig>(defaultTheme);
-
-function useTheme(): SiteThemeConfig {
-  return useContext(ThemeContext);
-}
 
 /* ------------------------------------------------------------------ */
 /*  ThemeProvider                                                        */

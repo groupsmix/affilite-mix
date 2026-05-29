@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     // A98-59: Fetch the row first to validate token expiry before unsubscribing.
     // This prevents expired tokens from being accepted.
-    const { data: subscriber, error: fetchErr } = await sb
+    const { data: subscriber } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
       .select("id, created_at")
