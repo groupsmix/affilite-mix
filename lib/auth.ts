@@ -206,6 +206,8 @@ export interface AdminPayload {
   email?: string;
   userId?: string;
   role: "admin" | "super_admin";
+  /** M6-03: tenant scope. Present on tokens minted per-site; verified to match the resolved tenant. */
+  site_id?: string;
   /**
    * F-035: optional user-agent + IP fingerprint bound at token issuance.
    * Present on tokens minted from a login request; verified on every read
@@ -407,7 +409,8 @@ async function requestFromHeaders(): Promise<Request | undefined> {
     const headerList = await headers();
     return new Request("https://internal/admin-session", { headers: headerList });
   } catch {
-    // fail-open: best-effort [criticality:defence-in-depth]
+    // D10-02: returns undefined → binding check is skipped (fail-safe for the
+    // main auth flow; defence-in-depth binding simply becomes unavailable)
     return undefined;
   }
 }

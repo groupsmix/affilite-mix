@@ -23,6 +23,23 @@
 
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
+/**
+ * I2-01: Allowed order columns. Only these may be interpolated into
+ * PostgREST .or()/.order() strings. Any value outside this set is
+ * rejected at runtime, preventing filter injection via `orderColumn`.
+ */
+const ALLOWED_ORDER_COLUMNS = new Set([
+  "created_at",
+  "updated_at",
+  "name",
+  "title",
+  "price",
+  "rating",
+  "popularity",
+  "published_at",
+  "id",
+]);
+
 export interface CursorPageOptions {
   siteId: string;
   limit?: number;
@@ -65,7 +82,7 @@ function decodeCursor(cursor: string): CursorPayload | null {
     if (!isSafeCursorValue(parsed.val) || !isSafeCursorValue(parsed.id)) return null;
     return parsed;
   } catch {
-    // fail-open: parse failure returns safe default value
+    // D10-02: parse failure returns null → caller starts from page 1 (fail-safe)
     return null;
   }
 }
@@ -78,6 +95,14 @@ export async function cursorPaginate<T extends object>(
   const sb = await getClient();
   const limit = Math.min(opts.limit ?? 50, 200);
   const col = opts.orderColumn ?? "created_at";
+
+  // I2-01: Reject orderColumn values not in the allow-list.
+  if (!ALLOWED_ORDER_COLUMNS.has(col)) {
+    throw new Error(
+      `Invalid orderColumn '${col}'. Allowed: ${[...ALLOWED_ORDER_COLUMNS].join(", ")}`,
+    );
+  }
+
   const asc = opts.ascending ?? false;
   const select = opts.select;
 
