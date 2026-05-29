@@ -79,6 +79,8 @@ jobs:
           # C-4: Clear the localhost fallback during production-equivalent build
           # so Next.js static analysis does not capture it into the bundle.
           ALLOW_LOCALHOST_FALLBACK_IN_PROD: ""
+      - name: Dead code analysis (knip)
+        run: npx knip
       - name: Bundle size check
         run: npx size-limit
       - name: Verify no dev fallback secrets in production (F-018, F-021)
