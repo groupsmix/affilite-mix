@@ -83,11 +83,15 @@ export async function applyStripeEventAtomic(
 ): Promise<StripeEventApplyResult> {
   const sb = getPrivilegedSupabaseClient();
 
-  const { data, error } = await sb.rpc("apply_stripe_membership_event", {
-    p_stripe_event_id: stripeEventId,
-    p_event_type: eventType,
-    p_event_data: payload as unknown as import("@/types/supabase").Json,
-  });
+  // NEW-03: Stripe events are cross-tenant (no p_site_id) — opt out of
+  // the F-API-01 RPC guard explicitly.
+  const { data, error } = await sb
+    .rpc("apply_stripe_membership_event", {
+      p_stripe_event_id: stripeEventId,
+      p_event_type: eventType,
+      p_event_data: payload as unknown as import("@/types/supabase").Json,
+    })
+    .unsafeNoSiteFilter();
 
   if (error) throw error;
 

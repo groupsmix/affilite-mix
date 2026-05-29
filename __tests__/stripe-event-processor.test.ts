@@ -12,8 +12,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const rpcMock = vi.fn();
 
+/** Wraps the rpcMock return value so `.unsafeNoSiteFilter()` chains. */
+function chainableRpc(...args: unknown[]) {
+  const result = rpcMock(...args);
+  if (result && typeof result.then === "function") {
+    // Promise — attach unsafeNoSiteFilter that resolves to the same value.
+    return Object.assign(result, { unsafeNoSiteFilter: () => result });
+  }
+  return Object.assign(Promise.resolve(result), {
+    unsafeNoSiteFilter: () => Promise.resolve(result),
+    then: (r: unknown, j: unknown) => Promise.resolve(result).then(r as never, j as never),
+  });
+}
+
 vi.mock("@/lib/server-only/service-role", () => ({
-  getPrivilegedSupabaseClient: () => ({ rpc: rpcMock }),
+  getPrivilegedSupabaseClient: () => ({ rpc: chainableRpc }),
 }));
 
 vi.mock("@/lib/logger", () => ({

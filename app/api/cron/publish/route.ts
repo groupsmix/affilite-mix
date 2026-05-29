@@ -60,7 +60,9 @@ export async function POST(request: NextRequest) {
   // around. We now refuse to publish on this signal and surface the
   // misconfiguration via Sentry + a 503 response so the cron retries
   // with backoff instead of double-publishing on the next tick.
-  const { data: dbNowResult, error: dbNowError } = await sb.rpc("db_now");
+  // NEW-03: db_now() is a cross-tenant utility RPC — opt out of the
+  // F-API-01 RPC guard.
+  const { data: dbNowResult, error: dbNowError } = await sb.rpc("db_now").unsafeNoSiteFilter();
   if (dbNowError || dbNowResult == null) {
     captureException(dbNowError ?? new Error("db_now() returned null/undefined"), {
       context: "[api/cron/publish] cron clock unavailable — refusing to publish on worker clock",
