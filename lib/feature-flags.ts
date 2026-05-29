@@ -149,15 +149,3 @@ export function validateFlagRegistry(): string[] {
 
   return errors;
 }
-
-/**
- * A90: Enforce the no-permanent-flags policy by throwing if validation fails.
- * Import and call this at app startup in production to fail loud.
- */
-export function enforceNoPermanentFlags(): void {
-  const errors = validateFlagRegistry();
-  if (errors.length > 0) {
-    logger.error("Feature flag validation failed", { errors });
-    throw new Error(`Feature flag policy violation:\n${errors.join("\n")}`);
-  }
-}
