@@ -53,7 +53,9 @@ export async function getLinkedProducts(
   // Join through products to ensure only products belonging to this site are returned
   const { data, error } = await sb
     .from(TABLE)
-    .select("*, product:products!inner(*)")
+    .select(
+      "content_id, product_id, role, product:products!inner(id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at)",
+    )
     .eq("content_id", contentId)
     .eq("product.site_id", siteId)
     .order("content_id", { ascending: true });
@@ -103,7 +105,9 @@ async function getRelatedContentForProduct(
   const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
-    .select("content:content!inner(*)")
+    .select(
+      "content:content!inner(id, site_id, title, slug, body, excerpt, featured_image, type, status, category_id, tags, author, publish_at, meta_title, meta_description, og_image, body_previous, review_state, ai_generated, human_reviewed_at, created_at, updated_at)",
+    )
     .eq("product_id", productId)
     .eq("content.site_id", siteId);
 
