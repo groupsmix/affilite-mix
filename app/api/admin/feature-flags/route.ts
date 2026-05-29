@@ -25,8 +25,7 @@ export const GET = withAuthz(
       return NextResponse.json({ flags });
     } catch (err) {
       captureException(err, { context: "[api/admin/feature-flags] GET failed:" });
-      const message = err instanceof Error ? err.message : "Failed to list feature flags";
-      return NextResponse.json({ error: message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to list feature flags" }, { status: 500 });
     }
   },
 );
@@ -78,8 +77,7 @@ export const POST = withAuthz(
       return NextResponse.json(flag, { status: 200 });
     } catch (err) {
       captureException(err, { context: "[api/admin/feature-flags] POST failed:" });
-      const message = err instanceof Error ? err.message : "Failed to upsert feature flag";
-      return NextResponse.json({ error: message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to upsert feature flag" }, { status: 500 });
     }
   },
 );
@@ -125,8 +123,7 @@ export const PATCH = withAuthz(
       return NextResponse.json({ flags: results });
     } catch (err) {
       captureException(err, { context: "[api/admin/feature-flags] PATCH failed:" });
-      const message = err instanceof Error ? err.message : "Failed to bulk upsert feature flags";
-      return NextResponse.json({ error: message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to bulk upsert feature flags" }, { status: 500 });
     }
   },
 );
@@ -150,6 +147,9 @@ export const DELETE = withAuthz(
     if (!flagKey) {
       return NextResponse.json({ error: "flag_key is required" }, { status: 400 });
     }
+    if (flagKey.length > 128 || !/^[a-z0-9_-]+$/i.test(flagKey)) {
+      return NextResponse.json({ error: "Invalid flag_key format" }, { status: 400 });
+    }
 
     try {
       await deleteFeatureFlag(dbSiteId, flagKey);
@@ -165,8 +165,7 @@ export const DELETE = withAuthz(
       return NextResponse.json({ ok: true });
     } catch (err) {
       captureException(err, { context: "[api/admin/feature-flags] DELETE failed:" });
-      const message = err instanceof Error ? err.message : "Failed to delete feature flag";
-      return NextResponse.json({ error: message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to delete feature flag" }, { status: 500 });
     }
   },
 );

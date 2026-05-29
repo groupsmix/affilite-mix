@@ -57,6 +57,12 @@ export const POST = withAuthz(
 
     const publisherId = typeof body.publisher_id === "string" ? body.publisher_id : "";
     const apiKeyRef = typeof body.api_key_ref === "string" ? body.api_key_ref : "";
+    if (publisherId.length > 256 || apiKeyRef.length > 256) {
+      return NextResponse.json(
+        { error: "publisher_id and api_key_ref must be 256 chars or less" },
+        { status: 400 },
+      );
+    }
     const isActive = typeof body.is_active === "boolean" ? body.is_active : true;
     const config =
       typeof body.config === "object" && body.config !== null && !Array.isArray(body.config)
