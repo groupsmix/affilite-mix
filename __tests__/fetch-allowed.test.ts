@@ -15,7 +15,7 @@ describe("fetch-allowed", () => {
     delete (process.env as Record<string, string>).OUTBOUND_ALLOWED_HOSTNAMES;
   });
 
-  it("allows fetch to stripe api", async () => {
+  it("allows fetch to stripe api", { timeout: 15_000 }, async () => {
     // We only care that the allow-list lets api.stripe.com through, not
     // whether the upstream request succeeds. The call may resolve (e.g. with a
     // 401) or reject (network error), but neither outcome should be a
@@ -41,7 +41,7 @@ describe("fetch-allowed", () => {
     );
   });
 
-  it("respects OUTBOUND_ALLOWED_HOSTNAMES env var", async () => {
+  it("respects OUTBOUND_ALLOWED_HOSTNAMES env var", { timeout: 15_000 }, async () => {
     process.env.OUTBOUND_ALLOWED_HOSTNAMES = "custom.example.com,api.partner.io";
     __resetFetchAllowedCache();
 
@@ -56,7 +56,7 @@ describe("fetch-allowed", () => {
     );
   });
 
-  it("supports wildcard hostnames in env var", async () => {
+  it("supports wildcard hostnames in env var", { timeout: 15_000 }, async () => {
     process.env.OUTBOUND_ALLOWED_HOSTNAMES = "*.internal.example.com";
     __resetFetchAllowedCache();
 
