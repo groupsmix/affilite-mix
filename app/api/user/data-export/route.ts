@@ -5,6 +5,7 @@ import { captureException } from "@/lib/sentry";
 import { getTenantClient } from "@/lib/supabase-server";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { logger } from "@/lib/logger";
+import { isValidEmail, sanitizeEmailInput } from "@/lib/validate-email";
 
 /**
  * S3-004: GDPR Art. 20 — self-service data portability endpoint.
@@ -32,8 +33,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const email = request.nextUrl.searchParams.get("email")?.trim().toLowerCase();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  const rawEmail = request.nextUrl.searchParams.get("email");
+  const email = rawEmail ? sanitizeEmailInput(rawEmail).trim().toLowerCase() : "";
+  if (!email || !isValidEmail(email)) {
     return NextResponse.json({ error: "A valid email parameter is required." }, { status: 400 });
   }
 
