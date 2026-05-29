@@ -9,6 +9,7 @@ import { checkSentryConfig } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { validateServerEnv, formatMissingEnvMessage } from "@/lib/server-env";
 import { checkRotationWindowExpiry } from "@/lib/jwt-secret";
+import { allSites, WILDCARD_PARENT_DOMAINS } from "@/config/sites";
 
 export function register() {
   // Check Sentry configuration (actual init happens via withSentry wrapper)
@@ -105,6 +106,32 @@ export function register() {
         throw new Error(rotationError);
       } else {
         logger.warn(rotationError);
+      }
+    }
+  }
+
+  // A100-25: Validate APP_URL against known production domains at startup.
+  // Catches typos, copy-paste errors, and misconfigured deploys early.
+  if (process.env.NODE_ENV === "production" && !isBuild) {
+    const appUrl = process.env.APP_URL ?? "";
+    if (appUrl) {
+      try {
+        const parsed = new URL(appUrl);
+        const host = parsed.hostname.toLowerCase();
+        const knownDomains = allSites.map((s) => s.domain.toLowerCase());
+        const isKnownDomain = knownDomains.includes(host);
+        const isWildcardChild = WILDCARD_PARENT_DOMAINS.some((parent) =>
+          host.endsWith(`.${parent.toLowerCase()}`),
+        );
+        const isLocal = host === "localhost" || host === "127.0.0.1";
+        if (!isKnownDomain && !isWildcardChild && !isLocal) {
+          logger.error(
+            `APP_URL hostname "${host}" does not match any known production domain ` +
+              `(${knownDomains.join(", ")}). This may indicate a misconfiguration.`,
+          );
+        }
+      } catch {
+        logger.error(`APP_URL ("${appUrl}") is not a valid URL.`);
       }
     }
   }
