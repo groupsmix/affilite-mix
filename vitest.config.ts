@@ -25,14 +25,16 @@ export default defineConfig({
         "node_modules/**",
         "scripts/**",
       ],
-      // R2-06 / R3-09: Coverage ratchets — set to current measured levels as
-      // no-regression baselines. Per-directory gates for critical paths ratchet
-      // up as coverage improves. Do not lower without documenting why.
+      // R2-06 / R3-09 / C1: Coverage ratchets — set to current measured
+      // levels as no-regression baselines. Per-directory gates for critical
+      // paths ratchet up as coverage improves. Do not lower without also
+      // documenting why. C1: ratcheted 2026-05-29 from 23/19/19/23 to
+      // measured levels (24/20/20/24).
       thresholds: {
-        statements: 23,
-        branches: 19,
-        functions: 19,
-        lines: 23,
+        statements: 24,
+        branches: 20,
+        functions: 20,
+        lines: 24,
         // Per-directory gates for critical code paths — set to current levels
         "lib/auth*": { statements: 50, branches: 46, functions: 71, lines: 52 },
         "lib/authz*": { statements: 58, branches: 62, functions: 57, lines: 60 },
