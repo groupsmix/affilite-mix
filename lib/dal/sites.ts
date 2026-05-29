@@ -113,9 +113,43 @@ export const getSiteRowByDomain = unstable_cache(
 /*  Write operations                                                  */
 /* ------------------------------------------------------------------ */
 import { revalidateTag } from "next/cache";
+import { getAppCacheKV } from "@/lib/runtime-env";
+import { logger } from "@/lib/logger";
 
-function invalidateSiteCache(): void {
+/**
+ * S9-C3: Invalidate both Next.js unstable_cache AND middleware KV cache.
+ *
+ * The middleware caches site-domain mappings in KV with a 60s TTL
+ * (`site-domain:<hostname>`). Without explicit deletion during
+ * invalidation there is a window where stale KV entries point to old
+ * site data after a domain change — a cross-tenant data leak.
+ */
+function invalidateSiteCache(oldDomain?: string, newDomain?: string): void {
   revalidateTag("sites");
+
+  void (async () => {
+    try {
+      const kv = getAppCacheKV();
+      if (!kv) return;
+
+      const domainsToDelete = new Set<string>();
+      if (oldDomain) domainsToDelete.add(oldDomain);
+      if (newDomain) domainsToDelete.add(newDomain);
+
+      if (domainsToDelete.size === 0) {
+        const sites = await listSites();
+        for (const site of sites) {
+          if (site.domain) domainsToDelete.add(site.domain);
+        }
+      }
+
+      await Promise.allSettled([...domainsToDelete].map((d) => kv.delete(`site-domain:${d}`)));
+    } catch (e) {
+      logger.warn("[sites] KV cache invalidation failed", {
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  })();
 }
 
 /** Create a new site */
@@ -187,6 +221,15 @@ export async function updateSite(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<SiteRow> {
   const sb = await getClient();
+
+  // S9-C3: Capture the old domain before the update so we can invalidate
+  // both old and new KV cache entries during a domain migration.
+  let oldDomain: string | undefined;
+  if (input.domain) {
+    const existing = await getSiteRowById(id, getClient);
+    oldDomain = existing?.domain ?? undefined;
+  }
+
   // MA-001 (defence-in-depth): server-controlled columns must never be
   // mutated by a client-supplied payload. The TypeScript signature
   // already excludes them, but `input` is `Record<string, unknown>` at
@@ -208,7 +251,7 @@ export async function updateSite(
     .single();
 
   if (error) throw error;
-  invalidateSiteCache();
+  invalidateSiteCache(oldDomain, input.domain ?? undefined);
   return assertRow<SiteRow>(data, "Site");
 }
 
