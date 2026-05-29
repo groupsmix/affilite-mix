@@ -49,6 +49,15 @@ const CORS_ALLOWED_HEADERS = [CSRF_HEADER, "Content-Type", "Authorization", TRAC
 const CORS_MAX_AGE = "3600";
 
 /**
+ * NEW-01: Hoisted to module scope — the env var does not change within an
+ * isolate's lifetime, so there is no reason to re-parse it on every request.
+ */
+const PREVIEW_HOST_ALLOWLIST: Set<string> | null = (() => {
+  const raw = process.env.PREVIEW_HOST_ALLOWLIST ?? "";
+  return raw ? new Set(raw.split(",").map((h) => h.trim().toLowerCase())) : null;
+})();
+
+/**
  * Returns a redirect to the tenant-aware 404 page.
  * The app's not-found.tsx will render with proper branding and localization.
  */
@@ -216,14 +225,10 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // hosts are accepted, adding a second gate beyond the boolean flag.
   const hostWithoutPort = hostname.includes(":") ? hostname.split(":")[0] : hostname;
   const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
-  const previewAllowlistRaw = process.env.PREVIEW_HOST_ALLOWLIST ?? "";
-  const previewAllowlist = previewAllowlistRaw
-    ? new Set(previewAllowlistRaw.split(",").map((h) => h.trim().toLowerCase()))
-    : null;
   const isLocalhostDev =
     (process.env.NODE_ENV !== "production" || allowLocalhostInProd) &&
     (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost")) &&
-    (!previewAllowlist || previewAllowlist.has(hostWithoutPort.toLowerCase()));
+    (!PREVIEW_HOST_ALLOWLIST || PREVIEW_HOST_ALLOWLIST.has(hostWithoutPort.toLowerCase()));
 
   // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
   // Reuse an existing x-trace-id (from an upstream proxy) or cf-ray; otherwise mint a new one.
