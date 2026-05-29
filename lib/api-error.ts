@@ -182,7 +182,7 @@ export async function parseJsonBody(
     }
     return parsed as Record<string, unknown>;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
   }
 }

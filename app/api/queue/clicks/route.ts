@@ -98,7 +98,7 @@ function isHttpUrl(value: string, maxLength: number): boolean {
   try {
     url = new URL(value);
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return false;
   }
   return ALLOWED_URL_PROTOCOLS.has(url.protocol);
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     // INTERNAL_API_TOKEN_CLICK_QUEUE is not configured (transition window).
     expected = getInternalTokenFor("click_queue");
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
 
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
   try {
     body = JSON.parse(bodyText) as QueueBody;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 

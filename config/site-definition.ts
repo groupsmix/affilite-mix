@@ -120,6 +120,8 @@ export interface TenantQuotaOverrides {
 export interface FeatureFlags {
   blog?: { source: "database" };
   brandSpotlights?: boolean;
+  /** A90-2: Runtime kill-switch for login CAPTCHA (Turnstile). */
+  captchaOnLogin?: boolean;
   giftFinder?: boolean;
   newsletter?: boolean;
   rssFeed?: boolean;

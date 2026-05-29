@@ -74,8 +74,7 @@ variable "dns_records" {
   EOT
   default = {
     # ── A144: Email authentication ─────────────────────────────────────
-    # SPF: authorise Resend as the only legitimate sender (~all = softfail,
-    # tighten to -all after ≥30 days of clean DMARC aggregate reports).
+    # F9: SPF hardfail (-all). Resend is the only authorised sender.
     # A39: proxied=false required — TXT records for email auth must not
     # be proxied or they will not be visible to receiving MTAs.
     "spf" = {
@@ -84,7 +83,7 @@ variable "dns_records" {
       content = "v=spf1 include:_spf.resend.com -all"
       ttl     = 300
       proxied = false
-      comment = "A144/A39/S8-F6: SPF — authorises Resend. Hardened to -all per Season 8 CEO audit (F6). DNS-only (unproxied) by design."
+      comment = "A144/A39/F9/S8-F6: SPF — authorises Resend, hardfail all others. DNS-only (unproxied) by design."
     }
 
     # DMARC: p=reject, 100% coverage, strict alignment, aggregate + forensic reports.

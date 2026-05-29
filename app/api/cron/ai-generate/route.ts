@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       try {
         dbSiteId = await resolveDbSiteId(site.id);
       } catch {
-        // fail-open: best-effort
+        // fail-open: best-effort [criticality:non-critical]
         siteResult.errors.push("Could not resolve DB site ID");
         results.push(siteResult);
         continue;
@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
           // Check for obvious harmful content patterns. If flagged, set status
           // to 'rejected' (the existing AIDraftRow type doesn't have a 'flagged'
           // status). An admin can filter rejected drafts and manually approve.
-          const combinedText = `${result.title} ${result.excerpt} ${result.body}`;
+          // S5-02: Include metaTitle/metaDescription in the scan.
+          const combinedText = `${result.title} ${result.excerpt} ${result.metaTitle} ${result.metaDescription} ${result.body}`;
           const flagged = containsProhibitedContent(combinedText);
 
           await createAIDraft(

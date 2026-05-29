@@ -48,7 +48,7 @@ export async function POST(
   try {
     body = await request.json();
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 

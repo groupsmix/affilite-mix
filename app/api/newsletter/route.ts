@@ -77,7 +77,9 @@ export async function POST(request: Request) {
       logger.error(
         "[api/newsletter] RESEND_API_KEY not configured in production — rejecting signup",
       );
-      return apiError(503, "Newsletter email is temporarily unavailable");
+      return apiError(503, "Newsletter email is temporarily unavailable", undefined, {
+        "Retry-After": "60",
+      });
     }
 
     const ip = getClientIp(request);
@@ -208,7 +210,14 @@ export async function POST(request: Request) {
       captureException(new Error("buildConfirmationEmail: safeHref rejected confirmation URL"), {
         context: "[api/newsletter] confirmation URL failed safeHref validation",
       });
-      return apiError(503, "Newsletter email is temporarily unavailable. Please try again later.");
+      return apiError(
+        503,
+        "Newsletter email is temporarily unavailable. Please try again later.",
+        undefined,
+        {
+          "Retry-After": "60",
+        },
+      );
     }
 
     // A5-001: Build a plain-text email that also escapes the site name and domain.
@@ -224,6 +233,8 @@ export async function POST(request: Request) {
         return apiError(
           503,
           "Newsletter email is temporarily unavailable. Please try again later.",
+          undefined,
+          { "Retry-After": "60" },
         );
       }
       logger.warn("[newsletter] email provider unavailable (dev)", {
@@ -275,7 +286,14 @@ export async function POST(request: Request) {
           context: "[api/newsletter] Failed to send confirmation email via Resend",
         });
         if (isProd) {
-          return apiError(503, "Newsletter email could not be delivered. Please try again later.");
+          return apiError(
+            503,
+            "Newsletter email could not be delivered. Please try again later.",
+            undefined,
+            {
+              "Retry-After": "30",
+            },
+          );
         }
       }
     }

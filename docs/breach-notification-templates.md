@@ -7,8 +7,12 @@
 
 ## 1. GDPR Art. 33 — Supervisory Authority (72-hour window)
 
-**To:** [Lead supervisory authority, e.g. ICO, CNIL, DPC — determined by establishment location]  
+**To:** Irish Data Protection Commission (DPC) — the pre-determined lead supervisory authority based on establishment location  
+**Fallback (if DPC is unavailable):** ICO (UK), CNIL (France) — use only if the DPC portal is down during a live incident  
+**Contact:** [DPC Online Portal](https://forms.dataprotection.ie/report-a-breach-of-personal-data), Tel: +353 (0)1 765 0100  
 **Subject:** Personal Data Breach Notification — [Company Name] — Incident [INCIDENT-ID]
+
+> **A190 Note:** The lead supervisory authority is pre-determined as the **Irish DPC** based on the organization's EU establishment. Do not leave this as a bracket to fill in during an incident — the 72-hour clock does not allow for research.
 
 ---
 

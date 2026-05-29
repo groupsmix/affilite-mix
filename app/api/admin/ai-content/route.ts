@@ -409,7 +409,7 @@ export const DELETE = withAuthz(
       const body = await request.json();
       id = body?.id ?? null;
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // fallback to query params
     }
     if (!id) {

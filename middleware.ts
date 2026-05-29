@@ -126,6 +126,8 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
         status: 503,
         headers: {
           "Content-Type": "application/json",
+          // A91-2: Retry-After lets clients/proxies back off intelligently.
+          "Retry-After": "120",
           // G-35: never let a CDN, browser, or shared proxy cache the
           // maintenance response — once the operator flips the flag
           // back off, the next request must hit the worker again.
@@ -151,6 +153,7 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
           status: 503,
           headers: {
             "Content-Type": "application/json",
+            "Retry-After": "120",
             // G-35: same no-store guarantee as the env-var branch above.
             "Cache-Control": "no-store",
             Pragma: "no-cache",
@@ -680,9 +683,22 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // For non-API routes, we can't easily resolve siteId if DB/KV failed.
-    // Passing through without headers allows the app to render its generic fallback.
+    // F10: For non-API routes, attach a minimal safe CSP + security headers
+    // even when DB/KV is down. Without this, error pages ship without CSP
+    // exactly when they're most likely to echo influenced data.
     const response = NextResponse.next();
+    response.headers.set(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; upgrade-insecure-requests",
+    );
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
+    );
+    response.headers.set("Cache-Control", "no-store, max-age=0");
     return response;
   }
 }
