@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const rl = await checkRateLimit(`csrf-token:${ip}`, {
     maxRequests: 30,
     windowMs: 60_000,
-    failPolicy: "closed" as const,
+    failPolicy: "grace" as const,
   });
   if (!rl.allowed) {
     return NextResponse.json(
