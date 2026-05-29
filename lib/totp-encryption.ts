@@ -171,10 +171,11 @@ export function isTotpSecretEncrypted(stored: string): boolean {
 }
 
 /**
- * A100-05: Check whether a stored secret needs re-encryption with the latest key.
- * Returns true if the secret is either plaintext or encrypted with an older key version.
+ * A100-05 / H-3 (#594): Check whether a stored secret needs re-encryption
+ * with the latest key. Returns true if the secret is either plaintext or
+ * encrypted with an older key version.
  */
-function needsReEncryption(stored: string): boolean {
+export function needsReEncryption(stored: string): boolean {
   const keyInfo = getLatestKeyInfo();
   if (!keyInfo) return false; // No key configured, can't re-encrypt
 
@@ -186,4 +187,25 @@ function needsReEncryption(stored: string): boolean {
 
   // Encrypted with older version — needs rotation
   return true;
+}
+
+/**
+ * H-3 (#594): Decrypt a stored TOTP secret and re-encrypt it with the
+ * latest key version if needed. Returns `{ plaintext, newEncrypted, rotated }`.
+ *
+ * - `rotated` is true when the stored value was plaintext or encrypted with
+ *   an older key, and a fresh ciphertext was produced with the current key.
+ * - Callers should persist `newEncrypted` back to the DB when `rotated` is true.
+ */
+export async function decryptAndRotate(
+  stored: string,
+): Promise<{ plaintext: string; newEncrypted: string | null; rotated: boolean }> {
+  const plaintext = await decryptTotpSecret(stored);
+
+  if (!needsReEncryption(stored)) {
+    return { plaintext, newEncrypted: null, rotated: false };
+  }
+
+  const newEncrypted = await encryptTotpSecret(plaintext);
+  return { plaintext, newEncrypted, rotated: true };
 }
