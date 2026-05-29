@@ -58,6 +58,37 @@ function safeKeyPart(s: string): string {
  * AUDIT-FIX A5-005/A7-004/A11-006: Returns "error" on KV failure so callers
  * can fail analytics closed while still redirecting.
  */
+/**
+ * A99-3: KV write-rate monitoring for click dedup.
+ * Tracks per-minute write count and emits a warning when the rate
+ * exceeds the configurable threshold (KV_DEDUP_WRITE_ALERT_RATE,
+ * default 500 writes/min).
+ */
+let _kvDedupWriteCount = 0;
+let _kvDedupWriteWindowStart = Date.now();
+const KV_DEDUP_WRITE_WINDOW_MS = 60_000;
+function trackKvDedupWrite(): void {
+  const now = Date.now();
+  if (now - _kvDedupWriteWindowStart >= KV_DEDUP_WRITE_WINDOW_MS) {
+    _kvDedupWriteCount = 0;
+    _kvDedupWriteWindowStart = now;
+  }
+  _kvDedupWriteCount++;
+
+  const threshold = Number(process.env.KV_DEDUP_WRITE_ALERT_RATE) || 500;
+  if (_kvDedupWriteCount === threshold) {
+    logger.warn("[track/click] KV dedup write rate exceeded threshold", {
+      metric: "kv_dedup_write_rate_exceeded",
+      writes_in_window: _kvDedupWriteCount,
+      threshold,
+      window_ms: KV_DEDUP_WRITE_WINDOW_MS,
+    });
+    captureException(new Error(`KV dedup write rate exceeded ${threshold}/min`), {
+      context: "[api/track/click] kv-dedup-write-rate",
+    });
+  }
+}
+
 async function isDuplicateClick(
   fingerprint: string,
   siteId: string,
@@ -70,6 +101,8 @@ async function isDuplicateClick(
     const existing = await kv.get(dedupKey);
     if (existing !== null) return "duplicate";
     await kv.put(dedupKey, "1", { expirationTtl: 86400 });
+    // A99-3: Track KV write rate for monitoring/alerting.
+    trackKvDedupWrite();
     return "unique";
   } catch {
     // fail-open: best-effort [criticality:non-critical]

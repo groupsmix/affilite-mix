@@ -33,6 +33,28 @@ function currentThreshold(): number {
   return process.env.NODE_ENV === "production" ? LEVEL_ORDER.info : LEVEL_ORDER.debug;
 }
 
+/**
+ * A99-6: Configurable log sampling for high-volume routes.
+ * LOG_SAMPLE_RATE env var controls the probability (0–1) that an
+ * info/debug log line is emitted. warn/error are never sampled.
+ * Defaults to 1 (emit everything) when unset.
+ */
+function getLogSampleRate(): number {
+  const raw = process.env.LOG_SAMPLE_RATE;
+  if (!raw) return 1;
+  const rate = Number(raw);
+  if (Number.isNaN(rate) || rate < 0) return 1;
+  return Math.min(rate, 1);
+}
+
+function shouldSample(level: LogLevel): boolean {
+  if (level === "warn" || level === "error") return true;
+  const rate = getLogSampleRate();
+  if (rate >= 1) return true;
+  if (rate <= 0) return false;
+  return Math.random() < rate;
+}
+
 export interface Logger {
   debug: (msg: string, extras?: Record<string, unknown>) => void;
   info: (msg: string, extras?: Record<string, unknown>) => void;
@@ -49,6 +71,8 @@ function emit(
   extras?: Record<string, unknown>,
 ) {
   if (LEVEL_ORDER[level] < currentThreshold()) return;
+  // A99-6: Sample info/debug logs to control volume at scale.
+  if (!shouldSample(level)) return;
 
   const line = {
     ts: new Date().toISOString(),
