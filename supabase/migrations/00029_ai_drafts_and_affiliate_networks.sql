@@ -96,7 +96,7 @@ INSERT INTO sites (slug, name, domain, language, direction, is_active, monetizat
 VALUES (
   'ai-compared',
   'AI Compared',
-  'aicompared.site',
+  'compareai.site',
   'en',
   'ltr',
   true,

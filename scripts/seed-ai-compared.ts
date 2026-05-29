@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Seed script for the "AI Compared" site (aicompared.site).
+ * Seed script for the "AI Compared" site (compareai.site).
  *
  * Populates the AI-for-creators/marketers niche: categories, AI-tool products
  * (each scored with the 0–10 "AI Value Score"), and review / comparison / guide
@@ -36,7 +36,7 @@ const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 const SITE = {
   slug: "ai-compared",
   name: "AI Compared",
-  domain: "aicompared.site",
+  domain: "compareai.site",
   language: "en",
   direction: "ltr" as const,
 };
