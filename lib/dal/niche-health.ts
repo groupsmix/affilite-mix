@@ -1,4 +1,5 @@
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { MAX_LIMIT } from "./pagination-guard";
 
 export interface NicheHealthRow {
   site_id: string;
@@ -13,6 +14,7 @@ export interface NicheHealthRow {
 /**
  * Fetch aggregated health stats for all active sites in a single RPC call.
  * Replaces the N+1 pattern of querying each table per site individually.
+ * Results are capped at MAX_LIMIT to prevent unbounded result sets.
  */
 export async function getNicheHealthStats(
   sevenDaysAgo: string,
@@ -21,10 +23,12 @@ export async function getNicheHealthStats(
 ): Promise<NicheHealthRow[]> {
   const sb = await getClient();
 
-  const { data, error } = await sb.rpc("get_niche_health_stats", {
-    p_seven_days_ago: sevenDaysAgo,
-    p_fourteen_days_ago: fourteenDaysAgo,
-  });
+  const { data, error } = await sb
+    .rpc("get_niche_health_stats", {
+      p_seven_days_ago: sevenDaysAgo,
+      p_fourteen_days_ago: fourteenDaysAgo,
+    })
+    .limit(MAX_LIMIT);
 
   if (error) throw error;
 

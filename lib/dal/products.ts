@@ -147,19 +147,30 @@ export async function countProducts(
 
 export async function listDistinctMerchants(
   siteId: string,
+  opts: { limit?: number; offset?: number } = {},
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<string[]> {
   if (shouldSkipDbCall()) {
     return [];
   }
   const sb = await getClient();
-  const { data, error } = await sb
+  const { limit, offset } = clampPagination(opts);
+
+  let query = sb
     .from(TABLE)
     .select("merchant")
     .eq("site_id", siteId)
     .not("merchant", "is", null)
     .neq("merchant", "")
     .order("merchant", { ascending: true });
+
+  if (offset > 0) {
+    query = query.range(offset, offset + limit - 1);
+  } else {
+    query = query.limit(limit);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   const rows = assertRows<{ merchant?: string }>(data);
   const seen = new Set<string>();
