@@ -244,11 +244,28 @@ interface MemoryRateLimitEntry {
 const memoryStore = new Map<string, MemoryRateLimitEntry>();
 
 /**
- * A75/A78: Hard cap on in-memory rate-limit entries to prevent unbounded
+ * A75/A78/A99-1: Hard cap on in-memory rate-limit entries to prevent unbounded
  * memory growth between cleanup intervals. When the cap is hit, entries
  * are evicted by least-recently-used (LRU) order, not FIFO insertion order.
+ *
+ * A99-1: The previous hard-coded 10K cap fills in seconds at 100× traffic,
+ * evicting IP counters and effectively disabling rate limiting. The cap is
+ * now configurable via RATE_LIMIT_MEMORY_MAX_ENTRIES (clamped to a sane
+ * range) and defaults to 50_000 — enough headroom for realistic traffic
+ * bursts while still bounding memory.
  */
-const MEMORY_STORE_MAX_ENTRIES = 10_000;
+function getMemoryStoreMaxEntries(): number {
+  const raw = process.env.RATE_LIMIT_MEMORY_MAX_ENTRIES;
+  if (raw) {
+    const n = Number.parseInt(raw, 10);
+    // Clamp to [1_000, 500_000] to prevent misconfiguration
+    if (Number.isFinite(n) && n >= 1_000 && n <= 500_000) return n;
+  }
+  return 50_000;
+}
+
+/** Resolved max entries (evaluated once per isolate cold-start). */
+const MEMORY_STORE_MAX_ENTRIES = getMemoryStoreMaxEntries();
 
 const CLEANUP_INTERVAL_MS = 60_000;
 let lastCleanup = Date.now();

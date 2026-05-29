@@ -42,4 +42,9 @@ describe("validateCsrfToken", () => {
   it("returns false for empty strings", () => {
     expect(validateCsrfToken("", "")).toBe(false);
   });
+
+  // A88-1: timingSafeCompare must reject tokens of different lengths
+  it("returns false when tokens have different lengths", () => {
+    expect(validateCsrfToken("short", "muchlongertoken")).toBe(false);
+  });
 });
