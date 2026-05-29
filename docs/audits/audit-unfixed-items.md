@@ -6,6 +6,12 @@
 
 > **Note**: etap-5 and etap-6 were generated for a different codebase (Oltigo Health).
 > Items inapplicable to affilite-mix are marked N/A with rationale.
+>
+> **S8-F13 (A249-M6): Cross-codebase audit contamination risk.** 8 items below
+> originated from Oltigo Health audits (etap-5/etap-6) and were correctly N/A'd:
+> MED #4, #5, #11, #14, #16; LOW #28, #29. Each N/A includes explicit
+> rationale. No affilite-mix findings were mislabeled N/A. This note was
+> added in Season 8 to make the contamination boundary unambiguous.
 
 ## Summary
 
