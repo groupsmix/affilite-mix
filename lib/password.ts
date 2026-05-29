@@ -90,7 +90,7 @@ function bcryptNeedsRehash(storedHash: string): boolean {
   try {
     return bcrypt.getRounds(storedHash) < BCRYPT_ROUNDS;
   } catch {
-    // fail-open: best-effort [criticality:non-critical]
+    // fail-safe: skip rehash on parse error [criticality:non-critical]
     return false;
   }
 }

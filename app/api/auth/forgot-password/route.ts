@@ -126,7 +126,7 @@ export async function POST(request: Request) {
           direction: site.direction,
         });
       } catch {
-        // fail-open: best-effort
+        // fail-open: best-effort [criticality:non-critical]
         // A8-001: Never log URLs that contain tokens — capture a sanitized
         // error with only safe metadata (tenant domain, no URL/token).
         captureException(

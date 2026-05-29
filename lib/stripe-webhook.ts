@@ -187,7 +187,7 @@ export async function constructStripeEvent(
   try {
     event = JSON.parse(rawBody) as StripeEvent;
   } catch {
-    // fail-open: best-effort
+    // fail-closed: invalid JSON is rejected [criticality:security-critical]
     throw new StripeSignatureError("Invalid JSON payload");
   }
   if (!event || typeof event !== "object" || typeof event.id !== "string") {

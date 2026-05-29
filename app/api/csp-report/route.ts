@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   try {
     report = JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 

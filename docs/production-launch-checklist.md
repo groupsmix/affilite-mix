@@ -28,6 +28,10 @@ the audit document.
 - [ ] `SENTRY_DSN` set
 - [ ] `RESEND_API_KEY` set (or newsletter disabled)
 - [ ] All per-trigger cron secrets set (CR-02)
+- [ ] `ENABLE_TURNSTILE=true` (C-1 — anti-bot must be on before real traffic)
+- [ ] `TURNSTILE_SECRET_KEY` set
+- [ ] `NEXT_PUBLIC_TURNSTILE_SITE_KEY` set
+- [ ] Verify login page serves a Turnstile widget in the production deployment
 
 ## Authorization & RBAC (A-01)
 

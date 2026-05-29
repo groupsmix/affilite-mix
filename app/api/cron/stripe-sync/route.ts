@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
             "warning",
           );
         } catch {
-          // fail-open: best-effort
+          // fail-open: best-effort [criticality:non-critical]
           // ignore if sentry is not available
         }
 
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
             "warning",
           );
         } catch {
-          // fail-open: best-effort
+          // fail-open: best-effort [criticality:non-critical]
           // ignore if sentry is not available
         }
         await untypedFrom(sb, "memberships")

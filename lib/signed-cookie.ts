@@ -72,7 +72,7 @@ export async function verifyCookieValue(
     // Value is everything before the last two pipe-separated parts
     return parts.slice(0, -2).join("|");
   } catch {
-    // fail-open: best-effort
+    // fail-closed: verification error → treat as invalid [criticality:defence-in-depth]
     return null;
   }
 }

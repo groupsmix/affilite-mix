@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   try {
     internalToken = getInternalTokenFor("internal");
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
 
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       siteId = body.site_id;
     }
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     // No body or invalid JSON — use defaults.
   }
 
