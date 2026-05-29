@@ -4,51 +4,8 @@ import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { getClientIp, truncateIp } from "@/lib/get-client-ip";
 import { apiError, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
+import { checkRateLimit } from "@/lib/rate-limit";
 import crypto from "crypto";
-
-/**
- * A100-10: In-memory rate limiter for consent log endpoint.
- * Limits to 5 requests per IP per 60 seconds to prevent bot flooding
- * of the consent_log table. Uses a simple sliding-window approach.
- */
-const CONSENT_RATE_LIMIT = 5;
-const CONSENT_RATE_WINDOW_MS = 60_000;
-const consentRateLimitMap = new Map<string, number[]>();
-
-// Periodic cleanup to prevent unbounded memory growth
-let lastCleanup = Date.now();
-function cleanupRateLimitMap() {
-  const now = Date.now();
-  if (now - lastCleanup < CONSENT_RATE_WINDOW_MS) return;
-  lastCleanup = now;
-  const cutoff = now - CONSENT_RATE_WINDOW_MS;
-  for (const [key, timestamps] of consentRateLimitMap) {
-    const valid = timestamps.filter((t) => t > cutoff);
-    if (valid.length === 0) {
-      consentRateLimitMap.delete(key);
-    } else {
-      consentRateLimitMap.set(key, valid);
-    }
-  }
-  // Hard cap: prevent unbounded growth even under distributed attack
-  if (consentRateLimitMap.size > 10_000) {
-    consentRateLimitMap.clear();
-  }
-}
-
-function isConsentRateLimited(ip: string): boolean {
-  cleanupRateLimitMap();
-  const now = Date.now();
-  const cutoff = now - CONSENT_RATE_WINDOW_MS;
-  const timestamps = consentRateLimitMap.get(ip) ?? [];
-  const valid = timestamps.filter((t) => t > cutoff);
-  if (valid.length >= CONSENT_RATE_LIMIT) {
-    return true;
-  }
-  valid.push(now);
-  consentRateLimitMap.set(ip, valid);
-  return false;
-}
 
 /**
  * A98-62: Valid IAB TCF / GPP consent categories.
@@ -95,8 +52,15 @@ function validateConsentCategories(categories: unknown): string | null {
  */
 export async function POST(request: NextRequest) {
   // A100-10: Rate limit consent log to prevent bot flooding.
+  // Uses the shared distributed rate limiter (KV/DO backed) instead of
+  // per-isolate in-memory maps which are ineffective on CF Workers (#646).
   const clientIp = getClientIp(request) ?? "unknown";
-  if (isConsentRateLimited(clientIp)) {
+  const rl = await checkRateLimit(`consent-log:${clientIp}`, {
+    maxRequests: 5,
+    windowMs: 60_000,
+    failPolicy: "grace" as const,
+  });
+  if (!rl.allowed) {
     return apiError(429, "Too many consent log requests");
   }
 
