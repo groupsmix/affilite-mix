@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { parseJsonBody } from "@/lib/api-error";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import {
@@ -50,12 +51,9 @@ export async function POST(
     email?: string;
     session_id?: string;
   };
-  try {
-    body = await request.json();
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request);
+  if (parsed instanceof NextResponse) return parsed;
+  body = parsed as typeof body;
 
   try {
     const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
