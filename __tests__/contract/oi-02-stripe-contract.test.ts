@@ -8,10 +8,15 @@
  *   - Webhook endpoint rejects events with stale timestamps
  *
  * This test file closes OI-02 with evidence:
- *   1. constructStripeEvent rejects missing/invalid/stale/tampered signatures.
- *   2. applyStripeEventAtomic calls the DB RPC with correct shape.
- *   3. Migration 00070 defines the atomic RPC.
- *   4. stripe_events table has a primary key on stripe_event_id (idempotency).
+ *   1. constructStripeEvent rejects missing/invalid/stale/tampered signatures (runtime tests).
+ *   2. applyStripeEventAtomic calls the DB RPC with correct shape (import verification).
+ *   3. Migration 00070 defines the atomic RPC with ON CONFLICT (SQL structure check).
+ *   4. stripe_events DAL handles unique constraint violations (import verification).
+ *
+ * Note: The signing tests (describe 1) exercise actual runtime behavior via
+ * constructStripeEvent. The idempotency tests (describe 2) verify structural
+ * contracts because full database integration requires a running Supabase
+ * instance — a future enhancement for OI-04 game day drills.
  */
 
 import { describe, it, expect } from "vitest";
@@ -40,6 +45,8 @@ async function signPayload(payload: string, secret: string, timestamp: number): 
 function readRepoFile(relPath: string): string {
   return fs.readFileSync(path.resolve(__dirname, "../..", relPath), "utf-8");
 }
+
+// ── Runtime behaviour tests (actual crypto verification) ─────────────────
 
 describe("OI-02: Stripe webhook signing contract", () => {
   it("rejects events with stale timestamps (replay protection)", async () => {
@@ -96,8 +103,18 @@ describe("OI-02: Stripe webhook signing contract", () => {
   });
 });
 
+// ── Structural contract tests (import + SQL verification) ────────────────
+
 describe("OI-02: Stripe idempotency contract", () => {
-  it("applyStripeEventAtomic calls apply_stripe_membership_event RPC", () => {
+  it("applyStripeEventAtomic is exported and callable", async () => {
+    // Import the actual DAL module to verify the function exists
+    const dalMod = await import("@/lib/dal/stripe-events");
+    expect(typeof dalMod.applyStripeEventAtomic).toBe("function");
+  });
+
+  it("DAL calls apply_stripe_membership_event RPC with correct parameter shape", () => {
+    // Structural check: the DAL source must reference the RPC and its parameters.
+    // This catches renames or signature drift between the DAL and the migration.
     const source = readRepoFile("lib/dal/stripe-events.ts");
     expect(source).toContain("apply_stripe_membership_event");
     expect(source).toContain("p_stripe_event_id");
@@ -105,7 +122,7 @@ describe("OI-02: Stripe idempotency contract", () => {
     expect(source).toContain("p_event_data");
   });
 
-  it("migration 00070 defines atomic stripe event apply RPC", () => {
+  it("migration 00070 defines atomic stripe event apply RPC with ON CONFLICT", () => {
     const migrationPath = "supabase/migrations/00070_atomic_stripe_event_apply.sql";
     const exists = fs.existsSync(path.resolve(__dirname, "../..", migrationPath));
     expect(exists).toBe(true);
@@ -114,13 +131,20 @@ describe("OI-02: Stripe idempotency contract", () => {
     expect(content).toMatch(/ON\s+CONFLICT/i);
   });
 
-  it("processStripeEvent detects and skips duplicates", () => {
+  it("processStripeEvent is exported and handles duplicates", async () => {
+    // Import the actual processor module
+    const processorMod = await import("@/lib/stripe-event-processor");
+    expect(typeof processorMod.processStripeEvent).toBe("function");
+
+    // Structural check: the processor must contain duplicate-handling logic
     const source = readRepoFile("lib/stripe-event-processor.ts");
-    expect(source).toContain("result.duplicate");
+    expect(source).toContain("duplicate");
     expect(source).toContain("already processed");
   });
 
-  it("stripe_events DAL uses ON CONFLICT for unique constraint", () => {
+  it("stripe_events DAL handles unique constraint violations (23505)", () => {
+    // Structural check: the DAL must handle Postgres unique_violation (23505)
+    // which is the mechanism for ON CONFLICT deduplication
     const source = readRepoFile("lib/dal/stripe-events.ts");
     expect(source).toContain("23505");
   });

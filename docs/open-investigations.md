@@ -17,7 +17,7 @@ Each should be scoped into its own remediation ticket once confirmed.
 
 **Files to audit**: `lib/ai/content-generator.ts`, `lib/ai/providers.ts`, `lib/ai/prompt-sanitization.ts`, `app/api/cron/ai-generate/route.ts`
 
-**Resolution (S8-F7):** All investigation items verified with contract tests in `__tests__/ai/oi-01-auto-publish-gate.test.ts`:
+**Resolution (S8-F7):** All investigation items verified with source-code contract tests in `__tests__/ai/oi-01-auto-publish-gate.test.ts` (type-level + structural checks; full database integration tests are a future OI-04 game-day enhancement):
 
 - AI cron handler (`app/api/cron/ai-generate/route.ts`) sets status to `"pending"` or `"rejected"` — never `"published"` or `"approved"`.
 - `createAIDraft` input type omits `reviewed_at`/`reviewed_by`, making it physically impossible for the AI pipeline to mark content as human-reviewed.
@@ -37,7 +37,7 @@ Each should be scoped into its own remediation ticket once confirmed.
 
 **Files to audit**: `lib/stripe-webhook.ts`, `lib/stripe-event-processor.ts`, `lib/dal/stripe-events.ts`, `app/api/membership/webhook/route.ts`, `supabase/migrations/00070_atomic_stripe_event_apply.sql`
 
-**Resolution (S8-F8):** All investigation items verified with contract tests in `__tests__/contract/oi-02-stripe-contract.test.ts`:
+**Resolution (S8-F8):** Signing tests exercise runtime behaviour via `constructStripeEvent`; idempotency tests use source-code structural checks (full DB integration tests deferred to OI-04 game-day drills). See `__tests__/contract/oi-02-stripe-contract.test.ts`:
 
 - `constructStripeEvent` rejects missing, invalid, stale, and tampered signatures (HMAC-SHA256 + constant-time comparison).
 - `applyStripeEventAtomic` calls `apply_stripe_membership_event` Postgres RPC with `ON CONFLICT DO NOTHING` idempotency.
@@ -57,7 +57,7 @@ Each should be scoped into its own remediation ticket once confirmed.
 
 **Files to audit**: `supabase/migrations/00086_extend_purge_retention_experiment_ad.sql`, `supabase/migrations/00088_erase_user_rpc.sql`, all tables listed in `docs/vendor-dpas.md`
 
-**Resolution (S8-F9):** Full PII-table-to-RPC coverage map created (`docs/pii-table-coverage.md`). Contract tests in `__tests__/contract/oi-03-pii-coverage.test.ts` verify:
+**Resolution (S8-F9):** Full PII-table-to-RPC coverage map created (`docs/pii-table-coverage.md`). Source-code contract tests in `__tests__/contract/oi-03-pii-coverage.test.ts` verify SQL DML targeting (DELETE/UPDATE) for each table (full DB integration tests deferred to OI-04 game-day drills):
 
 - `erase_subject_data()` covers all 7 user-facing PII tables (site-scoped erasure).
 - `erase_user()` covers all 7 user-facing PII tables (global erasure).
