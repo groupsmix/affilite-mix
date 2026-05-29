@@ -105,6 +105,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // SEC-UUID-01 (#631): Validate product_id is a UUID before DB insert.
+  if (body.product_id && !isUsableUuid(body.product_id)) {
+    return NextResponse.json({ error: "Invalid product_id" }, { status: 400 });
+  }
+
   // S9-NEW-01: Validate email format.
   if (!isValidEmail(body.user_email)) {
     return NextResponse.json({ error: "Invalid email format" }, { status: 400 });

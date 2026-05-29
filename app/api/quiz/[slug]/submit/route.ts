@@ -13,6 +13,7 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
+import { isUsableUuid } from "@/lib/security/uuid";
 
 /**
  * POST /api/quiz/:slug/submit
@@ -75,6 +76,11 @@ export async function POST(
 
     const answers = body.answers || {};
     const resultTags = deriveResultTags(quiz.steps, answers);
+
+    // SEC-UUID-01 (#631): Validate submission_id is a UUID before DB query.
+    if (body.submission_id && !isUsableUuid(body.submission_id)) {
+      return NextResponse.json({ error: "Invalid submission_id" }, { status: 400 });
+    }
 
     let submission;
     if (body.submission_id) {
