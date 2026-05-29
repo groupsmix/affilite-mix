@@ -1,13 +1,12 @@
 -- ═══════════════════════════════════════════════════════
--- DB-09: This file is intentionally empty in-repo.
+-- DB-09: This file is intentionally empty in the repo.
 -- ═══════════════════════════════════════════════════════
 --
--- The canonical schema is defined by the 237+ migration files in
--- supabase/migrations/. A full schema snapshot is generated only
--- as a CI artifact (not committed) because committing it creates
--- noisy diffs on every migration and stale snapshots mislead reviewers.
+-- The canonical schema is defined by the migration files in
+-- supabase/migrations/. A full snapshot is generated as a CI
+-- artifact and is NOT committed to the repo.
 --
--- To generate a local snapshot for inspection:
+-- To generate a local snapshot:
 --   pg_dump --schema-only --no-owner --no-privileges \
 --     -d "$SUPABASE_DB_URL" > supabase/schema.sql
 --
