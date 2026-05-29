@@ -129,6 +129,19 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
         return (table: string) =>
           wrapTable((t.from as unknown as (name: string) => QueryBuilder)(table));
       }
+      // NEW-03: Intercept `.rpc()` so every RPC call is forced through
+      // `wrapRpc`, which enforces a `p_site_id` parameter (or an explicit
+      // `.unsafeNoSiteFilter()` opt-out) before the query is awaited.
+      if (p === "rpc") {
+        return (fn: string, args?: Record<string, unknown>, options?: unknown) => {
+          const rawResult = options
+            ? (t.rpc as (f: string, a: unknown, o: unknown) => QueryBuilder)(fn, args, options)
+            : args
+              ? (t.rpc as (f: string, a: unknown) => QueryBuilder)(fn, args)
+              : (t.rpc as (f: string) => QueryBuilder)(fn);
+          return wrapRpc(rawResult, fn, args);
+        };
+      }
       return Reflect.get(t, p, r);
     },
   }) as SupabaseClient<Database>;
@@ -319,6 +332,32 @@ function wrapBuilder(builder: QueryBuilder, state: SiteFilterState): QueryBuilde
   };
 
   return new Proxy(builder, handler);
+}
+
+/**
+ * NEW-03: Proxy wrapper for RPC calls to enforce tenant isolation.
+ *
+ * Mirrors `wrapTable` / `wrapBuilder` but for `.rpc()` results. The RPC
+ * is considered tenant-scoped when the args object contains a `p_site_id`
+ * key whose value is a non-empty string. RPCs that are intentionally
+ * cross-tenant (e.g. `db_now`, `purge_retention`) must call
+ * `.unsafeNoSiteFilter()` on the returned builder before awaiting.
+ */
+function wrapRpc(
+  builder: QueryBuilder,
+  fnName: string,
+  args?: Record<string, unknown>,
+): QueryBuilder {
+  const hasSiteId =
+    args !== undefined &&
+    args !== null &&
+    "p_site_id" in args &&
+    isUsableSiteIdValue(args.p_site_id);
+  const state: SiteFilterState = {
+    siteFilterApplied: hasSiteId,
+    lastTerminal: `rpc(${fnName})`,
+  };
+  return wrapBuilder(builder, state);
 }
 
 /**
