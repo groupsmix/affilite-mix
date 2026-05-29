@@ -323,7 +323,9 @@ export async function POST(request: NextRequest) {
     const userRecord = await getAdminUserByEmail(email, () =>
       getPrivilegedSupabaseClient("login:lockout-check"),
     );
-    if (userRecord?.login_locked_until && new Date(userRecord.login_locked_until) > new Date()) {
+    // A96-3: Use >= so the account stays locked for the full duration
+    // (previously unlocked one tick early at the exact boundary).
+    if (userRecord?.login_locked_until && new Date(userRecord.login_locked_until) >= new Date()) {
       return apiError(
         423,
         "Account temporarily locked due to too many failed login attempts. Please try again later.",

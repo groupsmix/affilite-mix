@@ -19,7 +19,7 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 - **Newsletter signups** — per-site subscriber management with Turnstile captcha
 - **Scheduled jobs** — publish/archive content and products on a schedule
 - **SEO** — JSON-LD structured data, Open Graph, canonical URLs, sitemap
-- **Security** — CSRF protection, rate limiting, HTML sanitization, bcrypt password hashing (with transparent PBKDF2 legacy upgrade), CSP headers
+- **Security** — CSRF protection, rate limiting, HTML sanitization, bcrypt password hashing (with transparent PBKDF2 legacy upgrade), CSP headers. Admin login is protected by IP/email/global rate-limiting with fail-closed policy and account lockout (Turnstile captcha is used on newsletter, checkout, and comment endpoints).
 
 ## Tech Stack
 
