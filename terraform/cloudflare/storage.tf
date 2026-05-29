@@ -109,40 +109,48 @@ resource "null_resource" "r2_bucket_hardening" {
       set -euo pipefail
       echo "=== A37: R2 Bucket Hardening ==="
 
-      # --- Public-access-block on both buckets ---
-      echo "Applying public-access-block to ${cloudflare_r2_bucket.worker_logs.name}..."
-      curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/policy/public-access" \
-        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"public_access": "forbidden"}' || echo "WARN: public-access-block API not yet available for worker_logs (expected for non-GA features)"
+      # F5: Helper that fails the apply on non-2xx responses instead of
+      # swallowing errors. Without this, a 403/500 leaves buckets
+      # unprotected while terraform reports success.
+      r2_api() {
+        local method="$1" url="$2" data="$3" desc="$4"
+        local http_code
+        http_code=$(curl -sS -o /dev/stderr -w '%%{http_code}' \
+          -X "$method" "$url" \
+          -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "$data" 2>&1)
+        if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]]; then
+          echo "FATAL: $desc returned HTTP $http_code — aborting apply" >&2
+          exit 1
+        fi
+        echo "$desc succeeded (HTTP $http_code)"
+      }
 
-      echo "Applying public-access-block to ${cloudflare_r2_bucket.next_inc_cache.name}..."
-      curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.next_inc_cache.name}/policy/public-access" \
-        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"public_access": "forbidden"}' || echo "WARN: public-access-block API not yet available for next_inc_cache"
+      # --- Public-access-block on both buckets ---
+      r2_api PUT \
+        "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/policy/public-access" \
+        '{"public_access": "forbidden"}' \
+        "PAB on ${cloudflare_r2_bucket.worker_logs.name}"
+
+      r2_api PUT \
+        "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.next_inc_cache.name}/policy/public-access" \
+        '{"public_access": "forbidden"}' \
+        "PAB on ${cloudflare_r2_bucket.next_inc_cache.name}"
 
       # --- WORM / Object Lock on worker_logs bucket ---
       if [ "${var.r2_worm_enabled}" = "true" ]; then
-        echo "Enabling WORM / Object Lock on ${cloudflare_r2_bucket.worker_logs.name}..."
-        curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/lock" \
-          -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "enabled": true,
-            "default_retention": {
-              "mode": "compliance",
-              "days": ${var.r2_log_retention_days}
-            }
-          }' || echo "WARN: Object Lock API not yet available (may require Enterprise)"
+        r2_api PUT \
+          "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/lock" \
+          '{"enabled":true,"default_retention":{"mode":"compliance","days":${var.r2_log_retention_days}}}' \
+          "Object Lock on ${cloudflare_r2_bucket.worker_logs.name}"
       fi
 
       # --- Enable versioning on worker_logs bucket ---
-      echo "Enabling versioning on ${cloudflare_r2_bucket.worker_logs.name}..."
-      curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/versioning" \
-        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"status": "enabled"}' || echo "WARN: Versioning API not yet available"
+      r2_api PUT \
+        "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/versioning" \
+        '{"status": "enabled"}' \
+        "Versioning on ${cloudflare_r2_bucket.worker_logs.name}"
 
       echo "=== A37: R2 Bucket Hardening Complete ==="
     EOT
@@ -239,14 +247,17 @@ JSON
         }
       rm -f "$CACHE_RULE_FILE"
 
-      # --- Drift check: verify lifecycle rules are applied ---
+      # --- F5: Drift check — fail if lifecycle rules are missing ---
       echo "=== A37: Lifecycle Drift Check ==="
       sleep 5
       for BUCKET in "${cloudflare_r2_bucket.worker_logs.name}" "${cloudflare_r2_bucket.next_inc_cache.name}"; do
         echo "Checking lifecycle on $BUCKET..."
         curl -sS "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/$BUCKET/lifecycle" \
           -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | \
-          jq -e '.result.rules | length > 0' || echo "WARNING: No lifecycle rules found for $BUCKET — manual verification required"
+          jq -e '.result.rules | length > 0' || {
+            echo "FATAL: No lifecycle rules found for $BUCKET — apply cannot be considered successful" >&2
+            exit 1
+          }
       done
 
       echo "=== A37: R2 Lifecycle Complete ==="

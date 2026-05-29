@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     expected = getInternalTokenFor("internal");
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Internal auth misconfigured" }, { status: 500 });
   }
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       isActive: row.is_active,
     });
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "DB lookup failed" }, { status: 500 });
   }
 }

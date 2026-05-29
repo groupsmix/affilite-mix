@@ -4,6 +4,8 @@ import { arabicToolsSite } from "./arabic-tools";
 import { cryptoToolsSite } from "./crypto-tools";
 import { watchToolsSite } from "./watch-tools";
 
+// A95-2: Named re-exports kept for test consumers
+// (__tests__/get-site-by-domain.test.ts). All runtime code uses allSites/getSiteById.
 export { arabicToolsSite, cryptoToolsSite };
 
 /** All registered sites. Add new sites here. */
@@ -124,11 +126,17 @@ export function getSiteById(id: string): SiteDefinition | undefined {
  * Extract subdomain from a hostname given a parent domain.
  * e.g. extractSubdomain("coffee.wristnerd.xyz", "wristnerd.xyz") → "coffee"
  * Returns null if hostname doesn't match the parent or is the bare parent.
+ *
+ * A96-1: Normalizes hostname (lowercase, strip port and trailing FQDN dot)
+ * for defense-in-depth against case/port/trailing-dot mismatches.
  */
 export function extractSubdomain(hostname: string, parentDomain: string): string | null {
-  const suffix = `.${parentDomain}`;
-  if (!hostname.endsWith(suffix)) return null;
-  const sub = hostname.slice(0, -suffix.length);
+  if (!hostname || !parentDomain) return null;
+  const normalized = hostname.toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
+  const normalizedParent = parentDomain.toLowerCase().replace(/\.$/, "");
+  const suffix = `.${normalizedParent}`;
+  if (!normalized.endsWith(suffix)) return null;
+  const sub = normalized.slice(0, -suffix.length);
   // Ignore empty or nested subdomains (only single-level wildcards)
   if (!sub || sub.includes(".")) return null;
   return sub;

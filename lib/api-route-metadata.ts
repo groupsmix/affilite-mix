@@ -262,6 +262,16 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   {
     ...ADMIN_DEFAULTS,
     auth: "super_admin",
+    path: "/api/admin/privacy/rectify",
+    methods: ["POST"],
+    requestSchema: "PrivacyRectifyInput",
+    responseSchema: "Ok",
+    sensitiveFields: ["email", "new_email", "new_name"],
+    notes: "S3-004: GDPR Art. 16 — rectify inaccurate personal data. Always audit-logged.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
     path: "/api/admin/privacy/object",
     methods: ["POST", "DELETE"],
     requestSchema: "PrivacyObjectInput",

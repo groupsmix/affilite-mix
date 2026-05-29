@@ -68,16 +68,56 @@ export interface RuntimeEnv {
  * so vitest can `vi.spyOn(runtimeEnv, "getRuntimeEnv").mockImplementation`
  * to inject a fake binding map.
  */
-export const getRuntimeEnv: () => RuntimeEnv = () => {
+// C-4: Lazy-cached reference to getCloudflareContext, resolved via dynamic
+// import() instead of CJS require(). The previous require() call was a
+// portability risk under stricter ESM bundlers.
+let _cfContextFn: (() => { env: RuntimeEnv } | undefined) | null | false = null;
+
+function resolveCloudflareContext(): { env: RuntimeEnv } | undefined {
+  if (_cfContextFn === false) return undefined;
+
+  if (_cfContextFn) {
+    try {
+      return _cfContextFn();
+    } catch {
+      // Cloudflare context unavailable (e.g. initOpenNextCloudflareForDev
+      // not called in dev/test) — fall through to process.env.
+      return undefined;
+    }
+  }
+
+  // Synchronous probe: the module may already be in the require cache from
+  // @opennextjs/cloudflare's own entry point. If not, schedule an async
+  // import for future calls and fall through to process.env this time.
   try {
-    const { getCloudflareContext } = require("@opennextjs/cloudflare") as {
+    const mod = require("@opennextjs/cloudflare") as {
       getCloudflareContext: () => { env: RuntimeEnv } | undefined;
     };
-    const ctx = getCloudflareContext();
-    if (ctx?.env) return ctx.env;
+    _cfContextFn = mod.getCloudflareContext;
+    try {
+      return _cfContextFn();
+    } catch {
+      // Module loaded but context unavailable (dev/test without init)
+      return undefined;
+    }
   } catch {
-    // Outside Cloudflare runtime (dev/test) — fall through
+    // Module not available — schedule async import for next call
+    import("@opennextjs/cloudflare")
+      .then((mod) => {
+        _cfContextFn = (
+          mod as unknown as { getCloudflareContext: () => { env: RuntimeEnv } | undefined }
+        ).getCloudflareContext;
+      })
+      .catch(() => {
+        _cfContextFn = false;
+      });
+    return undefined;
   }
+}
+
+export const getRuntimeEnv: () => RuntimeEnv = () => {
+  const ctx = resolveCloudflareContext();
+  if (ctx?.env) return ctx.env;
   return process.env as unknown as RuntimeEnv;
 };
 

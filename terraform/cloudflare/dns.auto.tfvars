@@ -21,7 +21,7 @@ dns_records = {
   "spf-apex" = {
     name    = "@"
     type    = "TXT"
-    content = "v=spf1 include:_spf.mx.cloudflare.net include:_spf.resend.com ~all"
+    content = "v=spf1 include:_spf.mx.cloudflare.net include:_spf.resend.com -all"
     ttl     = 300
     proxied = false
     comment = "A144-03/A144-05: SPF — CF Email Routing + Resend. Tighten ~all to -all after DMARC monitoring."

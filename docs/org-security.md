@@ -129,6 +129,25 @@ When a developer laptop compromise is suspected:
 | CI/CD secret inventory        | Quarterly | Security lead    |
 | CODEOWNERS file accuracy      | Quarterly | Engineering lead |
 
+### CODEOWNERS Recertification (A180)
+
+Every quarter (aligned with the access recertification in `docs/access-recertification.md`), the Engineering Lead must verify:
+
+1. Every team listed in `.github/CODEOWNERS` (`@groupsmix/engineering`, `@groupsmix/platform`, `@groupsmix/security`) has **≥ 2 active members** (no single point of failure for approvals).
+2. No shared/service accounts are members of any CODEOWNERS team.
+3. Team membership matches current employee roster (departures removed, new hires added).
+4. Record the verification in the Recertification Log (`docs/access-recertification.md`).
+
+### Evidence Links Guidance (A179)
+
+Each `[ ]` checkbox in this document represents a control that must be **enforced and evidenced**, not merely aspirational. When checking a box:
+
+1. Change `[ ]` to `[x]`.
+2. Add an inline evidence link or reference, e.g.: `[x] Enable mandatory 2FA — [CF Dashboard screenshot 2026-Q2](link)`.
+3. Record the verification date.
+
+Until a checkbox has a dated evidence link, it is considered **not operating** for SOC 2 Type II purposes.
+
 ---
 
 ## 8. Offboarding Checklist

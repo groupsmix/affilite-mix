@@ -340,20 +340,53 @@ function getGlobalDailyCeilingMicroUsd(): number {
   return Math.round(usd * 1_000_000);
 }
 
-/** In-memory daily cost tracker. Resets on new UTC day. */
-let globalDailyCost = { date: "", microUsd: 0 };
+/**
+ * S5-04: Global daily cost tracker backed by KV for fleet-wide visibility.
+ * Falls back to in-memory when KV is unavailable (dev/test), but in
+ * production the counter is shared across all isolates via KV.
+ */
+let globalDailyCostFallback = { date: "", microUsd: 0 };
 
-function getGlobalDailyTracker(): { microUsd: number; date: string } {
+async function getGlobalDailyCostMicroUsd(): Promise<number> {
   const today = new Date().toISOString().slice(0, 10);
-  if (globalDailyCost.date !== today) {
-    globalDailyCost = { date: today, microUsd: 0 };
+  try {
+    const { getKVNamespace } = await import("@/lib/rate-limit");
+    const kv = getKVNamespace();
+    if (kv) {
+      const key = `global:ai_cost:${today}`;
+      const data = (await kv.get(key, "json")) as { count: number } | null;
+      return data?.count ?? 0;
+    }
+  } catch {
+    // KV unavailable — fall through to in-memory fallback
   }
-  return globalDailyCost;
+  if (globalDailyCostFallback.date !== today) {
+    globalDailyCostFallback = { date: today, microUsd: 0 };
+  }
+  return globalDailyCostFallback.microUsd;
 }
 
-function recordGlobalCost(microUsd: number): void {
-  const tracker = getGlobalDailyTracker();
-  tracker.microUsd += microUsd;
+async function recordGlobalCost(microUsd: number): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const { getKVNamespace } = await import("@/lib/rate-limit");
+    const kv = getKVNamespace();
+    if (kv) {
+      const key = `global:ai_cost:${today}`;
+      const data = (await kv.get(key, "json")) as { count: number } | null;
+      const current = data?.count ?? 0;
+      await kv.put(key, JSON.stringify({ count: current + microUsd }), {
+        expirationTtl: 60 * 60 * 36, // 36h
+      });
+      return;
+    }
+  } catch {
+    // KV unavailable — fall through to in-memory fallback
+  }
+  if (globalDailyCostFallback.date !== today) {
+    globalDailyCostFallback = { date: today, microUsd: 0 };
+  }
+  globalDailyCostFallback.microUsd += microUsd;
 }
 
 class GlobalCostCeilingError extends Error {
@@ -368,9 +401,10 @@ export async function generateWithFallback(
   systemPrompt?: string,
   options: GenerateOptions = {},
 ): Promise<{ text: string; provider: string; model: string }> {
-  // A114-F1: Check global daily cost ceiling before any work.
-  const tracker = getGlobalDailyTracker();
-  if (tracker.microUsd >= getGlobalDailyCeilingMicroUsd()) {
+  // A114-F1 / S5-04: Check global daily cost ceiling before any work.
+  // Now KV-backed for fleet-wide visibility across all isolates.
+  const globalCostSoFar = await getGlobalDailyCostMicroUsd();
+  if (globalCostSoFar >= getGlobalDailyCeilingMicroUsd()) {
     throw new GlobalCostCeilingError();
   }
 
@@ -379,12 +413,34 @@ export async function generateWithFallback(
 
   const inputTokenEstimate = estimateTokens(safePrompt) + estimateTokens(safeSystemPrompt ?? "");
 
+  // S5-03: Estimate worst-case cost pre-flight using the most expensive
+  // available provider's pricing so the per-tenant cost ceiling is enforced
+  // before any generation happens (denial-of-wallet protection).
+  const MAX_OUTPUT_TOKENS = 4096;
+  const availableProviders = ALL_PROVIDERS.filter(
+    (p) => p.isAvailable() && getCircuitBreaker(p.name).getState() !== "OPEN",
+  );
+  const worstCaseMicroUsd =
+    availableProviders.length > 0
+      ? Math.max(
+          ...availableProviders.map(
+            (p) =>
+              Math.ceil((inputTokenEstimate * p.pricing.inputMicroUsdPer1k) / 1000) +
+              Math.ceil((MAX_OUTPUT_TOKENS * p.pricing.outputMicroUsdPer1k) / 1000),
+          ),
+        )
+      : 0;
+
   if (options.siteId) {
     // RC-RECHECK-02: Reserve quota atomically before generation so concurrent
     // requests see the reservation. If all providers fail, release the reservation.
     await reserveQuota(options.siteId, "ai_requests", 1);
     if (inputTokenEstimate > 0) {
       await reserveQuota(options.siteId, "ai_tokens", inputTokenEstimate);
+    }
+    // S5-03: Reserve estimated cost pre-flight against ai_cost_micro_usd ceiling.
+    if (worstCaseMicroUsd > 0) {
+      await reserveQuota(options.siteId, "ai_cost_micro_usd", worstCaseMicroUsd);
     }
   }
 
@@ -426,17 +482,17 @@ export async function generateWithFallback(
             fn: () => recordUsage(options.siteId!, "ai_tokens", tokenDelta),
           });
         }
-        if (microUsd > 0) {
-          accountingOps.push({
-            resource: "ai_cost_micro_usd",
-            amount: microUsd,
-            fn: () =>
-              recordUsage(
-                options.siteId!,
-                "ai_cost_micro_usd",
-                costToMicroUsd(microUsd / 1_000_000),
-              ),
-          });
+        // S5-03: Reconcile cost reservation — credit back the difference
+        // between worst-case estimate and actual cost, or charge the extra.
+        if (worstCaseMicroUsd > 0 || microUsd > 0) {
+          const costDelta = microUsd - worstCaseMicroUsd;
+          if (costDelta !== 0) {
+            accountingOps.push({
+              resource: "ai_cost_micro_usd",
+              amount: costDelta,
+              fn: () => recordUsage(options.siteId!, "ai_cost_micro_usd", costDelta),
+            });
+          }
         }
         for (const op of accountingOps) {
           try {
@@ -452,11 +508,11 @@ export async function generateWithFallback(
           }
         }
       }
-      // A114-F1: Track global daily cost for circuit-breaker protection.
+      // A114-F1 / S5-04: Track global daily cost (KV-backed for fleet-wide protection).
       const globalCostIncrement =
         Math.ceil((inputTokenEstimate * provider.pricing.inputMicroUsdPer1k) / 1000) +
         Math.ceil((estimateTokens(text) * provider.pricing.outputMicroUsdPer1k) / 1000);
-      recordGlobalCost(globalCostIncrement);
+      void recordGlobalCost(globalCostIncrement);
 
       return { text, provider: provider.name, model: provider.model };
     } catch (err) {
@@ -477,8 +533,12 @@ export async function generateWithFallback(
       if (inputTokenEstimate > 0) {
         await releaseQuota(options.siteId, "ai_tokens", inputTokenEstimate);
       }
+      // S5-03: Release the cost reservation on total failure.
+      if (worstCaseMicroUsd > 0) {
+        await releaseQuota(options.siteId, "ai_cost_micro_usd", worstCaseMicroUsd);
+      }
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // Best-effort release — if KV is down the reservation stays but
       // will be reconciled by the next window rollover.
     }
