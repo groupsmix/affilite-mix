@@ -6,7 +6,6 @@
 import { generateWithFallback } from "./providers";
 import {
   moderateInput,
-  moderateOutput,
   moderateOutputExtended,
   logModerationRejection,
 } from "./content-moderation";
