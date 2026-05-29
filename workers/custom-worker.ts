@@ -16,7 +16,7 @@
 
 // @ts-expect-error -- `.open-next/worker.js` is generated at build time
 import { default as handler } from "../.open-next/worker.js";
-import { withSentry } from "@sentry/cloudflare";
+import { withSentry, captureException } from "@sentry/cloudflare";
 import { RateLimiterDO } from "./rate-limiter-do";
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
 import { signInternalRequest } from "../lib/internal-hmac";
@@ -83,11 +83,13 @@ const worker = {
     // the route handlers, and .env.example never drift apart.
     const job = getCronJobBySchedule(controller.cron);
     if (!job) {
-      console.error(
+      const err = new Error(
         `[scheduled] Unknown cron schedule "${controller.cron}" -- no matching route. ` +
           "Add it to lib/cron-registry.ts so the registry, wrangler.jsonc, " +
           "and the dispatch map all stay in sync.",
       );
+      console.error(err.message);
+      captureException(err);
       return;
     }
 
@@ -105,11 +107,13 @@ const worker = {
           : null;
 
     if (!cronSecret) {
-      console.error(
+      const err = new Error(
         `[scheduled] Neither ${job.secretEnvVar} nor ${CRON_FALLBACK_SECRET_ENV} is configured ` +
           `for cron "${controller.cron}" (${job.path}) -- skipping dispatch. ` +
           `Set it with: wrangler secret put ${job.secretEnvVar}`,
       );
+      console.error(err.message);
+      captureException(err);
       return;
     }
 
@@ -146,6 +150,7 @@ const worker = {
         })
         .catch((err: unknown) => {
           console.error("[scheduled] cron=%s -- fetch error:", controller.cron, err);
+          captureException(err instanceof Error ? err : new Error(String(err)));
         }),
     );
   },
