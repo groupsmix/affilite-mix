@@ -41,11 +41,6 @@ function parseDecimalMoney(v: unknown): number | null {
   return num;
 }
 
-/** A29-001: Check if a value is a valid decimal money string or number */
-function isDecimalMoney(v: unknown): v is number {
-  return parseDecimalMoney(v) !== null;
-}
-
 function isBoolean(v: unknown): v is boolean {
   return typeof v === "boolean";
 }
@@ -142,47 +137,6 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 /** Currency rounding modes. Most currencies use half-up;
  * JPY/KRW/CLP/ISK are zero-decimal and always round to integer. */
-type RoundingMode = "half-up" | "zero-decimal";
-
-interface CurrencyRoundingPolicy {
-  mode: RoundingMode;
-  decimals: number;
-}
-
-/** Per-currency rounding policies. Extend as needed. */
-const CURRENCY_POLICIES: Readonly<Record<string, CurrencyRoundingPolicy>> = {
-  USD: { mode: "half-up", decimals: 2 },
-  EUR: { mode: "half-up", decimals: 2 },
-  GBP: { mode: "half-up", decimals: 2 },
-  CAD: { mode: "half-up", decimals: 2 },
-  AUD: { mode: "half-up", decimals: 2 },
-  CHF: { mode: "half-up", decimals: 2 },
-  // Zero-decimal currencies (no fractional units)
-  JPY: { mode: "zero-decimal", decimals: 0 },
-  KRW: { mode: "zero-decimal", decimals: 0 },
-  CLP: { mode: "zero-decimal", decimals: 0 },
-  ISK: { mode: "zero-decimal", decimals: 0 },
-  BHD: { mode: "half-up", decimals: 3 }, // 3-decimal currency
-  OMR: { mode: "half-up", decimals: 3 },
-  JOD: { mode: "half-up", decimals: 3 },
-};
-
-/** Get the rounding policy for a currency. Defaults to half-up with 2 decimals. */
-function getCurrencyRoundingPolicy(currency: string): CurrencyRoundingPolicy {
-  return CURRENCY_POLICIES[currency.toUpperCase()] ?? { mode: "half-up", decimals: 2 };
-}
-
-/** Round a monetary amount according to the currency's policy. */
-function roundMoney(amount: number, currency: string): number {
-  const policy = getCurrencyRoundingPolicy(currency);
-  const factor = 10 ** policy.decimals;
-  if (policy.mode === "zero-decimal") {
-    return Math.round(amount); // always integer
-  }
-  // half-up: round to nearest, ties away from zero
-  return Math.round(amount * factor) / factor;
-}
-
 // ── Enum type guards ─────────────────────────────────────
 
 type TaxonomyType = "general" | "budget" | "occasion" | "recipient" | "brand";
