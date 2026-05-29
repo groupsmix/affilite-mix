@@ -152,6 +152,45 @@ while IFS= read -r -d '' file; do
   fi
 done < <(find "$MIGRATIONS_DIR" -type f -name '*.sql' -print0 | sort -z)
 
+# ── F7: Enforce RLS + anon revoke for every CREATE TABLE ──────────
+# Every new table must ship with ENABLE ROW LEVEL SECURITY and
+# REVOKE ... FROM anon in the same migration file. Without this,
+# Supabase's default `GRANT ALL ... TO anon` leaves the table
+# wide-open until the next sweep migration.
+#
+# Legacy migrations (before the F7 lint was added) are exempt because
+# their tables were retroactively hardened by sweep migrations 00003,
+# 00055, 00078, and 00079. Only new migrations need to self-contain
+# RLS + revoke.
+F7_LEGACY_CUTOFF="2026052900"
+while IFS= read -r -d '' file; do
+  base="$(basename "$file")"
+  case "$base" in
+    *-down.sql) continue ;;
+  esac
+
+  # Extract the numeric prefix (e.g. "00001" or "2026052901") and skip
+  # files whose prefix sorts before the cutoff.
+  migration_prefix="${base%%_*}"
+  if [[ "$migration_prefix" < "$F7_LEGACY_CUTOFF" ]]; then
+    continue
+  fi
+
+  body_f7=$(strip_sql_comments "$file")
+
+  # Only check files that CREATE TABLE.
+  if echo "$body_f7" | grep -qiE 'CREATE[[:space:]]+TABLE'; then
+    if ! echo "$body_f7" | grep -qiE 'ENABLE[[:space:]]+ROW[[:space:]]+LEVEL[[:space:]]+SECURITY'; then
+      echo "::error file=$file::Migration creates a table without ENABLE ROW LEVEL SECURITY. Add it in the same file — see audit F7." >&2
+      violations=$((violations + 1))
+    fi
+    if ! echo "$body_f7" | grep -qiE 'REVOKE[[:space:]].*FROM[[:space:]]+anon'; then
+      echo "::error file=$file::Migration creates a table without REVOKE ... FROM anon. Revoke default anon grants in the same file — see audit F7." >&2
+      violations=$((violations + 1))
+    fi
+  fi
+done < <(find "$MIGRATIONS_DIR" -type f -name '*.sql' -print0 | sort -z)
+
 # ── ETAP1-07: Enforce -down.sql existence for every up-migration ──
 missing_down=0
 while IFS= read -r -d '' file; do
