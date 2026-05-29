@@ -50,6 +50,9 @@ export const POST = withAuthz(
     if (!name || typeof name !== "string") {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
+    if (name.length > 256) {
+      return NextResponse.json({ error: "name too long (max 256 chars)" }, { status: 400 });
+    }
     if (!VALID_PLACEMENT_TYPES.includes(placement_type)) {
       return NextResponse.json(
         { error: `placement_type must be one of: ${VALID_PLACEMENT_TYPES.join(", ")}` },

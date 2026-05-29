@@ -133,6 +133,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "slug, name, and domain are required" }, { status: 400 });
   }
 
+  if (slug.length > 128) {
+    return NextResponse.json({ error: "slug too long (max 128 chars)" }, { status: 400 });
+  }
+  if (name.length > 256) {
+    return NextResponse.json({ error: "name too long (max 256 chars)" }, { status: 400 });
+  }
+  if (domain.length > 256) {
+    return NextResponse.json({ error: "domain too long (max 256 chars)" }, { status: 400 });
+  }
+
   if (!/^[a-z0-9-]+$/.test(slug)) {
     return NextResponse.json(
       { error: "slug must be lowercase alphanumeric with hyphens only" },
