@@ -11,6 +11,8 @@ import {
 import { getTenantClient } from "@/lib/supabase-server";
 import { getClientIp } from "@/lib/get-client-ip";
 import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
+import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 
 /**
  * POST /api/quiz/:slug/submit
@@ -134,9 +136,12 @@ export async function POST(
       products: products || [],
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: "Failed to submit quiz", detail: err instanceof Error ? err.message : undefined },
-      { status: 500 },
-    );
+    // SEC-ERR-01 (#630): Log internally but never leak error details to client.
+    logger.error("quiz.submit_failed", {
+      slug,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    captureException(err, { context: "api/quiz/submit.POST" });
+    return NextResponse.json({ error: "Failed to submit quiz" }, { status: 500 });
   }
 }
