@@ -76,7 +76,6 @@ export async function POST(request: NextRequest) {
       if (fetchErr) throw fetchErr;
 
       if (!batch || batch.length === 0) {
-        hasMore = false;
         break;
       }
 
