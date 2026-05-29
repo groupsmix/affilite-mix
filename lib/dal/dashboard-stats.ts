@@ -122,8 +122,8 @@ async function fallbackDashboardStats(
   // S9-C1: Content with no linked products — capped to prevent full table scans.
   // Previous implementation fetched ALL published IDs with no limit, then did a
   // client-side filter. At 10K+ articles the `.in()` query would exceed PostgREST
-  // URL limits (~8KB). Cap at 5000 and show approximate count when capped.
-  const CONTENT_CAP = 5000;
+  // URL limits (~8KB). Cap at 2000 and log a warning when the cap is hit.
+  const CONTENT_CAP = 2000;
   const { data: publishedIds } = await sb
     .from("content")
     .select("id")
@@ -131,6 +131,12 @@ async function fallbackDashboardStats(
     .eq("status", "published")
     .limit(CONTENT_CAP);
   const pubIds: string[] = (publishedIds ?? []).map((r: { id: string }) => r.id);
+  if (pubIds.length >= CONTENT_CAP) {
+    logger.warn("[dashboard-stats] fallback content query hit CONTENT_CAP — count is approximate", {
+      siteId,
+      cap: CONTENT_CAP,
+    });
+  }
   let contentNoProducts = pubIds.length;
   if (pubIds.length > 0) {
     // Batch the .in() query to avoid exceeding PostgREST URL limits.
