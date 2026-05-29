@@ -48,46 +48,38 @@ export function buildCategoryNameIlikePattern(q: string | undefined): string | n
   return `%${escapeLikePattern(trimmed)}%`;
 }
 
-// Chain-builder shared by `listCategories` so the base query (and optional
-// filters) are applied identically across each column-fallback attempt.
+type QueryResult = {
+  data: unknown[] | null;
+  error: { message?: string } | null;
+};
+
 type CategoriesQueryBuilder = {
   eq: (col: string, val: string) => CategoriesQueryBuilder;
   ilike: (col: string, pattern: string) => CategoriesQueryBuilder;
-  order: (
-    col: string,
-    opts: { ascending: boolean },
-  ) => Promise<{ data: unknown[] | null; error: { message?: string } | null }>;
+  order: (col: string, opts: { ascending: boolean }) => Promise<QueryResult>;
 };
 
-/** List all categories for a site, ordered by name. */
-export async function listCategories(
+/**
+ * Run a categories query with automatic column fallback.
+ *
+ * Tries FULL_COLUMNS first; if the error mentions a missing column
+ * ("description" or "taxonomy_type"), retries with narrower column sets.
+ */
+async function queryCategoriesWithFallback(
+  sb: ReturnType<typeof getAnonClient>,
   siteId: string,
-  opts: ListCategoriesOptions = {},
-): Promise<CategoryRow[]> {
-  // Skip DB calls when Supabase is not configured or during next build
-  // (SUPABASE_SERVICE_ROLE_KEY is a Worker runtime secret, not available at build time).
-  if (shouldSkipDbCall()) {
-    return [];
-  }
-  const sb = getAnonClient();
-  const ilikePattern = buildCategoryNameIlikePattern(opts.q);
-
-  const runQuery = async (
-    columns: string,
-  ): Promise<{ data: unknown[] | null; error: { message?: string } | null }> => {
-    const base = sb.from(TABLE).select(columns).eq("site_id", siteId) as unknown as
-      | CategoriesQueryBuilder
-      | (CategoriesQueryBuilder & {
-          order: CategoriesQueryBuilder["order"];
-        });
-    const filtered = ilikePattern
-      ? (base as CategoriesQueryBuilder).ilike("name", ilikePattern)
-      : (base as CategoriesQueryBuilder);
-    return filtered.order("name", { ascending: true });
+  addFilters?: (builder: CategoriesQueryBuilder) => CategoriesQueryBuilder,
+): Promise<QueryResult> {
+  const runQuery = async (columns: string): Promise<QueryResult> => {
+    let builder = sb
+      .from(TABLE)
+      .select(columns)
+      .eq("site_id", siteId) as unknown as CategoriesQueryBuilder;
+    if (addFilters) builder = addFilters(builder);
+    return builder.order("name", { ascending: true });
   };
 
   let result = await runQuery(FULL_COLUMNS);
-
   if (result.error) {
     const msg = result.error.message ?? "";
     if (msg.includes("description")) {
@@ -96,6 +88,23 @@ export async function listCategories(
       result = await runQuery(MIN_COLUMNS);
     }
   }
+  return result;
+}
+
+/** List all categories for a site, ordered by name. */
+export async function listCategories(
+  siteId: string,
+  opts: ListCategoriesOptions = {},
+): Promise<CategoryRow[]> {
+  if (shouldSkipDbCall()) return [];
+  const sb = getAnonClient();
+  const ilikePattern = buildCategoryNameIlikePattern(opts.q);
+
+  const result = await queryCategoriesWithFallback(
+    sb,
+    siteId,
+    ilikePattern ? (b) => b.ilike("name", ilikePattern) : undefined,
+  );
 
   if (result.error) throw result.error;
   return normalizeCategoryRows(result.data);
@@ -106,40 +115,17 @@ export async function listCategoriesByTaxonomy(
   siteId: string,
   taxonomyType: TaxonomyType,
 ): Promise<CategoryRow[]> {
-  // Skip DB calls when Supabase is not configured or during next build
-  // (SUPABASE_SERVICE_ROLE_KEY is a Worker runtime secret, not available at build time).
-  if (shouldSkipDbCall()) {
-    return [];
-  }
+  if (shouldSkipDbCall()) return [];
   const sb = getAnonClient();
-  let result: { data: unknown[] | null; error: { message?: string } | null } = (await sb
-    .from(TABLE)
-    .select(FULL_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("taxonomy_type", taxonomyType)
-    .order("name", { ascending: true })) as unknown as {
-    data: unknown[] | null;
-    error: { message?: string } | null;
-  };
+
+  const result = await queryCategoriesWithFallback(sb, siteId, (b) =>
+    b.eq("taxonomy_type", taxonomyType),
+  );
 
   if (result.error) {
-    const msg = result.error.message ?? "";
-    if (msg.includes("taxonomy_type")) return [];
-    if (msg.includes("description")) {
-      result = (await sb
-        .from(TABLE)
-        .select(NO_DESCRIPTION_COLUMNS)
-        .eq("site_id", siteId)
-        .eq("taxonomy_type", taxonomyType)
-        .order("name", { ascending: true })) as unknown as {
-        data: unknown[] | null;
-        error: { message?: string } | null;
-      };
-      if (result.error && (result.error.message ?? "").includes("taxonomy_type")) return [];
-    }
+    if ((result.error.message ?? "").includes("taxonomy_type")) return [];
+    return [];
   }
-
-  if (result.error) return [];
   return normalizeCategoryRows(result.data);
 }
 
@@ -187,44 +173,10 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
 export async function listCategoriesWithProductCount(
   siteId: string,
 ): Promise<(CategoryRow & { product_count: number })[]> {
-  // Skip DB calls when Supabase is not configured or during next build
-  // (SUPABASE_SERVICE_ROLE_KEY is a Worker runtime secret, not available at build time).
-  if (shouldSkipDbCall()) {
-    return [];
-  }
+  if (shouldSkipDbCall()) return [];
 
   const sb = getAnonClient();
-  let catsResult: { data: unknown[] | null; error: { message?: string } | null } = (await sb
-    .from(TABLE)
-    .select(FULL_COLUMNS)
-    .eq("site_id", siteId)
-    .order("name", { ascending: true })) as unknown as {
-    data: unknown[] | null;
-    error: { message?: string } | null;
-  };
-  if (catsResult.error) {
-    const msg = catsResult.error.message ?? "";
-    if (msg.includes("description")) {
-      catsResult = (await sb
-        .from(TABLE)
-        .select(NO_DESCRIPTION_COLUMNS)
-        .eq("site_id", siteId)
-        .order("name", { ascending: true })) as unknown as {
-        data: unknown[] | null;
-        error: { message?: string } | null;
-      };
-    } else if (msg.includes("taxonomy_type")) {
-      catsResult = (await sb
-        .from(TABLE)
-        .select(MIN_COLUMNS)
-        .eq("site_id", siteId)
-        .order("name", { ascending: true })) as unknown as {
-        data: unknown[] | null;
-        error: { message?: string } | null;
-      };
-    }
-  }
-
+  const catsResult = await queryCategoriesWithFallback(sb, siteId);
   if (catsResult.error) return [];
 
   const { data: counts, error: countError } = await sb

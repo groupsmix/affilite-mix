@@ -32,83 +32,46 @@ export async function POST(request: NextRequest) {
 
   const sb = getPrivilegedSupabaseClient();
 
-  const tasks = [
-    (async () => {
-      if (process.env.CJ_API_KEY) {
-        try {
-          const reports = await fetchCjReports();
-          const { resolved, discarded } = await resolveCommissions(reports, sb);
-          const ingest = await ingestCommissions(resolved, () => sb);
-          results.cj = { ...ingest, discarded };
-          logger.info("CJ commission ingest complete", results.cj);
-        } catch (err) {
-          results.cj = {
-            inserted: 0,
-            skipped: 0,
-            discarded: 0,
-            error: err instanceof Error ? err.message : String(err),
-          };
-          logger.error("CJ commission ingest failed", { error: results.cj.error });
-        }
-      } else {
-        results.cj = { inserted: 0, skipped: 0, discarded: 0, error: "CJ_API_KEY not configured" };
-      }
-    })(),
-    (async () => {
-      if (process.env.ADMITAD_API_KEY) {
-        try {
-          const reports = await fetchAdmitadReports();
-          const { resolved, discarded } = await resolveCommissions(reports, sb);
-          const ingest = await ingestCommissions(resolved, () => sb);
-          results.admitad = { ...ingest, discarded };
-          logger.info("Admitad commission ingest complete", results.admitad);
-        } catch (err) {
-          results.admitad = {
-            inserted: 0,
-            skipped: 0,
-            discarded: 0,
-            error: err instanceof Error ? err.message : String(err),
-          };
-          logger.error("Admitad commission ingest failed", { error: results.admitad.error });
-        }
-      } else {
-        results.admitad = {
-          inserted: 0,
-          skipped: 0,
-          discarded: 0,
-          error: "ADMITAD_API_KEY not configured",
-        };
-      }
-    })(),
-    (async () => {
-      if (process.env.PARTNERSTACK_API_KEY) {
-        try {
-          const reports = await fetchPartnerStackReports();
-          const { resolved, discarded } = await resolveCommissions(reports, sb);
-          const ingest = await ingestCommissions(resolved, () => sb);
-          results.partnerstack = { ...ingest, discarded };
-          logger.info("PartnerStack commission ingest complete", results.partnerstack);
-        } catch (err) {
-          results.partnerstack = {
-            inserted: 0,
-            skipped: 0,
-            discarded: 0,
-            error: err instanceof Error ? err.message : String(err),
-          };
-          logger.error("PartnerStack commission ingest failed", {
-            error: results.partnerstack.error,
-          });
-        }
-      } else {
-        results.partnerstack = {
-          inserted: 0,
-          skipped: 0,
-          discarded: 0,
-          error: "PARTNERSTACK_API_KEY not configured",
-        };
-      }
-    })(),
+  const networks: {
+    name: string;
+    envVar: string;
+    fetcher: () => Promise<NormalizedCommission[]>;
+  }[] = [
+    { name: "cj", envVar: "CJ_API_KEY", fetcher: fetchCjReports },
+    { name: "admitad", envVar: "ADMITAD_API_KEY", fetcher: fetchAdmitadReports },
+    { name: "partnerstack", envVar: "PARTNERSTACK_API_KEY", fetcher: fetchPartnerStackReports },
   ];
+
+  const tasks = networks.map((network) =>
+    (async () => {
+      if (!process.env[network.envVar]) {
+        results[network.name] = {
+          inserted: 0,
+          skipped: 0,
+          discarded: 0,
+          error: `${network.envVar} not configured`,
+        };
+        return;
+      }
+      try {
+        const reports = await network.fetcher();
+        const { resolved, discarded } = await resolveCommissions(reports, sb);
+        const ingest = await ingestCommissions(resolved, () => sb);
+        results[network.name] = { ...ingest, discarded };
+        logger.info(`${network.name} commission ingest complete`, results[network.name]);
+      } catch (err) {
+        results[network.name] = {
+          inserted: 0,
+          skipped: 0,
+          discarded: 0,
+          error: err instanceof Error ? err.message : String(err),
+        };
+        logger.error(`${network.name} commission ingest failed`, {
+          error: results[network.name].error,
+        });
+      }
+    })(),
+  );
 
   await Promise.allSettled(tasks);
 

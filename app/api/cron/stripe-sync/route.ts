@@ -6,6 +6,7 @@ import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { getStripeClient } from "@/lib/stripe-client";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { untypedFrom } from "@/lib/dal/type-guards";
 
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
     void recordCronLiveness("stripe-sync");
     return NextResponse.json({ success: true, syncedCount, reconcileFixed });
   } catch (error) {
+    captureException(error, { context: "[cron/stripe-sync] failed" });
     logger.error("Stripe sync failed", {
       error: error instanceof Error ? error.message : String(error),
     });
