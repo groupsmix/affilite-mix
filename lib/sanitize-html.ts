@@ -97,11 +97,13 @@ const ALLOWED_URL_SCHEMES = new Set(["http:", "https:"]);
 export function isSafeUrl(value: string): boolean {
   if (typeof value !== "string") return false;
 
-  // Strip all ASCII tab, newline and carriage-return characters (anywhere
-  // in the string — the URL parser removes them globally), then trim
-  // leading/trailing C0 controls and spaces.
+  // Strip all ASCII tab, newline, carriage-return, and backtick characters
+  // (anywhere in the string — the URL parser removes tab/NL/CR globally).
+  // Backticks are stripped because some parsers (including htmlparser2) may
+  // pass backtick-quoted attribute values with the backticks intact; browsers
+  // resolve `javascript:...` wrapped in backticks as a valid URL.
   // P-01: Use iterative trimming instead of ReDoS-prone regex for C0 controls
-  let trimmed = value.replace(/[\t\n\r]/g, "");
+  let trimmed = value.replace(/[\t\n\r`]/g, "");
   let start = 0;
   let end = trimmed.length;
   while (start < end && trimmed.charCodeAt(start) <= 0x20) start++;
