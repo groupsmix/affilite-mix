@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { expireDeals } from "@/lib/dal/deals";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
     void recordCronLiveness("expire-deals");
     return NextResponse.json({ message: "Deals expiry check complete", expired });
   } catch (err) {
+    captureException(err, { context: "[cron/expire-deals] failed" });
     logger.error("Expire deals cron failed", {
       error: err instanceof Error ? err.message : String(err),
     });
