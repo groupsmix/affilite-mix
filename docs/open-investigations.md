@@ -3,7 +3,7 @@
 These items were flagged during the consolidated audit but not fully proven.
 Each should be scoped into its own remediation ticket once confirmed.
 
-## OI-01: AI Content Pipeline
+## OI-01: AI Content Pipeline — ✅ CLOSED (Season 8)
 
 **Risk**: Prompt injection, provenance, moderation, human review.
 
@@ -17,7 +17,14 @@ Each should be scoped into its own remediation ticket once confirmed.
 
 **Files to audit**: `lib/ai/content-generator.ts`, `lib/ai/providers.ts`, `lib/ai/prompt-sanitization.ts`, `app/api/cron/ai-generate/route.ts`
 
-## OI-02: Stripe / Webhook Idempotency + Signing Audit
+**Resolution (S8-F7):** All investigation items verified with contract tests in `__tests__/ai/oi-01-auto-publish-gate.test.ts`:
+
+- AI cron handler (`app/api/cron/ai-generate/route.ts`) sets status to `"pending"` or `"rejected"` — never `"published"` or `"approved"`.
+- `createAIDraft` input type omits `reviewed_at`/`reviewed_by`, making it physically impossible for the AI pipeline to mark content as human-reviewed.
+- `GeneratedContent` type includes `provider` and `model` fields for provenance.
+- AI-generated watermark (`<meta name="ai-generated">`) prepended to every body (EU AI Act Art. 50).
+
+## OI-02: Stripe / Webhook Idempotency + Signing Audit — ✅ CLOSED (Season 8)
 
 **Risk**: Duplicate event processing, unsigned webhook acceptance.
 
@@ -30,7 +37,14 @@ Each should be scoped into its own remediation ticket once confirmed.
 
 **Files to audit**: `lib/stripe-webhook.ts`, `lib/stripe-event-processor.ts`, `lib/dal/stripe-events.ts`, `app/api/membership/webhook/route.ts`, `supabase/migrations/00070_atomic_stripe_event_apply.sql`
 
-## OI-03: Privacy Deletion / Retention Table-by-Table Audit
+**Resolution (S8-F8):** All investigation items verified with contract tests in `__tests__/contract/oi-02-stripe-contract.test.ts`:
+
+- `constructStripeEvent` rejects missing, invalid, stale, and tampered signatures (HMAC-SHA256 + constant-time comparison).
+- `applyStripeEventAtomic` calls `apply_stripe_membership_event` Postgres RPC with `ON CONFLICT DO NOTHING` idempotency.
+- `processStripeEvent` detects and skips duplicate events.
+- `stripe_events` DAL uses unique violation (code `23505`) for deduplication.
+
+## OI-03: Privacy Deletion / Retention Table-by-Table Audit — ✅ CLOSED (Season 8)
 
 **Risk**: Incomplete data erasure, unbounded PII retention.
 
@@ -43,7 +57,12 @@ Each should be scoped into its own remediation ticket once confirmed.
 
 **Files to audit**: `supabase/migrations/00086_extend_purge_retention_experiment_ad.sql`, `supabase/migrations/00088_erase_user_rpc.sql`, all tables listed in `docs/vendor-dpas.md`
 
-**Partially addressed**: `erase_user()` RPC covers 7 tables. `purge_retention()` covers 9 tables. Need to verify completeness.
+**Resolution (S8-F9):** Full PII-table-to-RPC coverage map created (`docs/pii-table-coverage.md`). Contract tests in `__tests__/contract/oi-03-pii-coverage.test.ts` verify:
+
+- `erase_subject_data()` covers all 7 user-facing PII tables (site-scoped erasure).
+- `erase_user()` covers all 7 user-facing PII tables (global erasure).
+- `purge_retention()` covers all 9 analytics/event tables with defined retention windows.
+- Admin tables (`admin_users`, `subject_restrictions`, `gdpr_objections`) are excluded by design — admin offboarding and legal holds.
 
 ## OI-04: Operational Game Days
 
