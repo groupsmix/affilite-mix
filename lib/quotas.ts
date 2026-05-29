@@ -385,6 +385,12 @@ export async function checkQuota(
  * effectively grant the tenant extra capacity beyond their ceiling).
  * Non-finite or zero amounts are no-ops.
  */
+// S1-A10-01 / S1-A18-01: Known limitation — KV has no atomic increment.
+// Concurrent recordUsage calls may lose increments (read→add→write race).
+// This is an accounting concern, not a security boundary (rate limits are
+// the security ceiling via RATE_LIMITER_DO). Accepted risk: under-counts
+// AI cost/tokens/storage under high concurrency. Future fix: migrate
+// counters to Durable Object atomic RMW.
 export async function recordUsage(
   siteId: string,
   resource: QuotaResource,

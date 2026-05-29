@@ -83,7 +83,23 @@ function canonicalizeHostname(hostname: string): string {
  * A98-49: Accepts an AbortSignal so the timeout wrapper can cancel
  * downstream async work (KV reads, DB lookups) when the deadline fires.
  */
+/** F-09: Maximum allowed recursion depth for self-referential subrequests. */
+const MAX_RECURSION_DEPTH = 3;
+const RECURSION_DEPTH_HEADER = "x-worker-recursion-depth";
+
 async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
+  // F-09: Guard against self-referential subrequest amplification.
+  // WORKER_SELF_REFERENCE (wrangler.jsonc) can cause the Worker to re-enter
+  // itself; cap the depth to prevent runaway cost/CPU spikes.
+  const depthStr = request.headers.get(RECURSION_DEPTH_HEADER);
+  const depth = depthStr ? parseInt(depthStr, 10) : 0;
+  if (depth >= MAX_RECURSION_DEPTH) {
+    return NextResponse.json(
+      { error: "Too many internal redirects", code: "RECURSION_LIMIT" },
+      { status: 508, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const { pathname } = request.nextUrl;
   let { hostname } = request.nextUrl;
 
@@ -518,6 +534,9 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // siteId is guaranteed non-null at this point: the `if (!siteId)` guard
   // above returns `nicheNotFoundResponse(request)` for the falsy case.
   const requestHeaders = new Headers(request.headers);
+  // F-09: Propagate incremented recursion depth so self-referential
+  // subrequests via WORKER_SELF_REFERENCE are capped at MAX_RECURSION_DEPTH.
+  requestHeaders.set(RECURSION_DEPTH_HEADER, String(depth + 1));
   requestHeaders.set("x-site-id", siteId);
   // A7-005: Sign the site-id header so downstream getTenantClient() can
   // verify it came from middleware, not from a spoofed client request.
