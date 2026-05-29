@@ -5,6 +5,7 @@ import { verifyInternalHmac } from "@/lib/internal-hmac";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { untypedFrom } from "@/lib/dal/type-guards";
+import { getCircuitBreaker, CircuitOpenError } from "@/lib/ai/circuit-breaker";
 
 /**
  * POST /api/queue/clicks
@@ -91,6 +92,17 @@ const MAX_CLICK_ID_LEN = 128;
 const SITE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALLOWED_URL_PROTOCOLS = new Set(["http:", "https:"]);
 const CLICK_ID_RE = /^[A-Za-z0-9_-]+$/;
+
+/**
+ * S9-H2: Circuit breaker for Supabase click inserts. Prevents connection
+ * pool exhaustion under sustained load by short-circuiting after 3
+ * consecutive failures with a 15s recovery window. When open, returns 500
+ * so Cloudflare Queues backs off and routes to DLQ after max_retries.
+ */
+const supabaseClicksBreaker = getCircuitBreaker("supabase-clicks", {
+  failureThreshold: 3,
+  recoveryTimeoutMs: 15_000,
+});
 
 function isHttpUrl(value: string, maxLength: number): boolean {
   if (value.length === 0 || value.length > maxLength) return false;
@@ -379,19 +391,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(emptyResponse);
     }
 
+    // S9-H2: Wrap the Supabase upsert in a circuit breaker to prevent
+    // connection pool exhaustion under sustained load. The breaker treats
+    // Supabase-level errors (returned via { error }) as failures by throwing,
+    // so the breaker counts them toward the failure threshold.
     // Use upsert with ignoreDuplicates so retried queue messages with the
     // same click_id are silently skipped (ON CONFLICT (click_id) DO NOTHING).
-    const { error } = await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: queue worker uses privileged client; gated by INTERNAL_API_TOKEN
-      .from("affiliate_clicks")
-      .upsert(rows, { onConflict: "click_id", ignoreDuplicates: true });
-    if (error) {
-      captureException(new Error(error.message), { context: "[api/queue/clicks] upsert" });
+    let upsertError: Error | null = null;
+    try {
+      await supabaseClicksBreaker.execute(async () => {
+        const result = await sb
+          // eslint-disable-next-line no-restricted-syntax -- Audited: queue worker uses privileged client; gated by INTERNAL_API_TOKEN
+          .from("affiliate_clicks")
+          .upsert(rows, { onConflict: "click_id", ignoreDuplicates: true });
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+      });
+    } catch (cbErr) {
+      if (cbErr instanceof CircuitOpenError) throw cbErr;
+      upsertError = cbErr as Error;
+    }
+
+    if (upsertError) {
+      captureException(upsertError, { context: "[api/queue/clicks] upsert" });
       if (anyMsgId) {
-        // audit5-#13: insert failed for the whole batch — fail every
-        // msgId that contributed a row. The worker retries them.
-        // (Cloudflare Queues' built-in retry-with-backoff still applies
-        // to the message itself; this just makes the failure explicit.)
         const allFailed = unwrapped
           .map((u) => u.msgId)
           .filter((id): id is string => typeof id === "string");
@@ -402,6 +426,7 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({ error: "DB insert failed" }, { status: 500 });
     }
+
     if (anyMsgId) {
       // audit5-#13: every validated message was upserted; the conflict-
       // ignore semantics mean a duplicate insert is still "acked" from
@@ -420,6 +445,18 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ ok: true, inserted: rows.length, rejected: rejectedCount });
   } catch (err) {
+    // S9-H2: When the circuit breaker is open, return 500 so Cloudflare
+    // Queues backs off with exponential retry and eventually routes to DLQ.
+    if (err instanceof CircuitOpenError) {
+      logger.warn("click_queue_circuit_open", {
+        breaker: "supabase-clicks",
+        metrics: supabaseClicksBreaker.metrics(),
+      });
+      return NextResponse.json(
+        { error: "Service temporarily unavailable", reason: "circuit_breaker_open" },
+        { status: 500 },
+      );
+    }
     captureException(err, { context: "[api/queue/clicks] POST" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

@@ -119,7 +119,7 @@ export class CircuitBreaker {
   }
 }
 
-class CircuitOpenError extends Error {
+export class CircuitOpenError extends Error {
   constructor(providerName: string) {
     super(`Circuit breaker OPEN for AI provider: ${providerName}`);
     this.name = "CircuitOpenError";
@@ -140,7 +140,7 @@ export function getCircuitBreaker(
 }
 
 /** Reset a specific breaker (useful in tests). */
-function resetCircuitBreaker(providerName: string): void {
+export function resetCircuitBreaker(providerName: string): void {
   registry.delete(providerName);
 }
 
