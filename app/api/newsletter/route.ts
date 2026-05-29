@@ -146,13 +146,13 @@ export async function POST(request: Request) {
 
     const confirmationToken = crypto.randomUUID();
     const confirmationTokenHash = await hashNewsletterToken(confirmationToken);
+    const unsubscribeToken = crypto.randomUUID();
+    const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
 
     if (existing) {
       if (existing.status === "active" && existing.confirmed_at) {
         return NextResponse.json({ ok: true, message: t("newsletter.already_subscribed") });
       }
-      const unsubscribeToken = crypto.randomUUID();
-      const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
       const { error: updateError } = await sb
         // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber update is query-justified as no DAL wrapper exists
         .from("newsletter_subscribers")
@@ -173,8 +173,6 @@ export async function POST(request: Request) {
         return apiError(500, "Failed to subscribe");
       }
     } else {
-      const unsubscribeToken = crypto.randomUUID();
-      const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
       // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber insert is query-justified as no DAL wrapper exists
       const { error: insertError } = await sb.from("newsletter_subscribers").insert({
         site_id: site.id,
@@ -255,6 +253,8 @@ export async function POST(request: Request) {
         );
       }
       const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${safeDomain}`;
+      // A150-01: RFC 8058 / Gmail-Yahoo 2024 bulk-sender one-click unsubscribe.
+      const unsubscribeUrl = `${baseUrl}/api/newsletter/unsubscribe?token=${unsubscribeToken}`;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -267,6 +267,10 @@ export async function POST(request: Request) {
           subject: t("newsletter.confirm_subject").replace("{siteName}", safeSiteName),
           html: emailHtml,
           text: emailText,
+          headers: {
+            "List-Unsubscribe": `<${unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
         }),
       });
       if (!res.ok) {
