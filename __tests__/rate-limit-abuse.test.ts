@@ -138,6 +138,10 @@ describe("Rate-limit abuse protection: login endpoint", () => {
     expect(content).toContain("login-totp:");
     expect(content).toContain('failPolicy: "closed"');
   });
+
+  // C-2: Removed misleading skipped test that claimed Turnstile was
+  // "temporarily removed." Turnstile is active on checkout, newsletter,
+  // and comments routes. Login uses rate-limiting + TOTP as its defence.
 });
 
 describe("Rate-limit abuse protection: community endpoints", () => {

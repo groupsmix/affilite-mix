@@ -30,10 +30,6 @@ export async function verifyTurnstile(
     process.env.ENABLE_TURNSTILE === "true" || process.env.ENABLE_TURNSTILE === "1";
 
   if (!enableTurnstile) {
-    // C-1: In production, log a warning so operators see Turnstile is off.
-    // This surfaces in Sentry/structured logs as a metric that can feed
-    // an SLO burn-rate alert — "anti-bot disabled in prod" is an explicit,
-    // auditable event, not a silent default.
     if (process.env.NODE_ENV === "production") {
       logger.warn("turnstile.disabled_in_production", {
         metric: "turnstile_disabled",

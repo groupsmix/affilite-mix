@@ -7,6 +7,7 @@ import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { determineAuthMode } from "@/lib/revalidate-auth";
+import { isUsableUuid } from "@/lib/security/uuid";
 
 /**
  * POST /api/revalidate — On-demand cache revalidation webhook.
@@ -91,7 +92,14 @@ export async function POST(request: NextRequest) {
         kinds = requested;
       }
     }
-    if (typeof body.site_id === "string" && body.site_id.length > 0) {
+    // T1-02: Validate site_id is a well-formed UUID before using it.
+    // A present-but-malformed value is rejected rather than ignored, so a
+    // typo'd site_id on an all-sites token can't silently widen into a
+    // full cross-tenant purge.
+    if (typeof body.site_id === "string") {
+      if (!isUsableUuid(body.site_id)) {
+        return NextResponse.json({ error: "site_id must be a valid UUID" }, { status: 400 });
+      }
       siteId = body.site_id;
     }
   } catch {

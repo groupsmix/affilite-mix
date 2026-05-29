@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { parseBoolEnv } from "@/lib/env-bool";
 // A11-05: single source of truth for timing-safe iteration cap
 import { MAX_COMPARE_LEN } from "@/lib/csrf";
+import { captureException } from "@/lib/sentry";
 
 /**
  * Timing-safe comparison of two byte arrays.
@@ -107,9 +108,10 @@ export function verifyCronAuth(request: NextRequest, options: VerifyCronAuthOpti
     // SEC-06 (etap-3): skip too-short secrets in production. Logging once is
     // enough to surface misconfiguration via Sentry/structured logs.
     if (isProdEnv && value.length < MIN_SECRET_LENGTH) {
-      console.error(
-        `[cron-auth] ${name} is shorter than the production minimum of ${MIN_SECRET_LENGTH} bytes — refusing to use it`,
-      );
+      // F-12: Surface misconfiguration via Sentry alert, not just console
+      const msg = `[cron-auth] ${name} is shorter than the production minimum of ${MIN_SECRET_LENGTH} bytes — refusing to use it`;
+      console.error(msg);
+      captureException(new Error(msg), { context: "cron-auth.secret_too_short", secretName: name });
       continue;
     }
     anySecretConfigured = true;
