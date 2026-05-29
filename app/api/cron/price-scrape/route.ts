@@ -8,6 +8,7 @@ import { createPriceSnapshots } from "@/lib/dal/price-snapshots";
 import { findTriggeredAlerts, markAlertTriggered } from "@/lib/dal/price-alerts";
 import { getSiteRowById } from "@/lib/dal/sites";
 import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
@@ -202,6 +203,7 @@ export async function POST(request: NextRequest) {
       alerts_triggered: alertsTriggered,
     });
   } catch (err) {
+    captureException(err, { context: "[cron/price-scrape] failed" });
     logger.error("Price scrape cron failed", {
       error: err instanceof Error ? err.message : String(err),
     });
