@@ -156,6 +156,10 @@ variable "dns_records" {
     # Resend publishes DKIM keys under the `resend` selector. This CNAME
     # delegates key rotation to Resend's infrastructure so the signing
     # key stays current without manual IaC updates.
+    # ⚠ VERIFY: confirm the exact CNAME target in your Resend dashboard
+    #   (Domains → DNS records) — Resend may use a per-account value
+    #   (e.g. resend._domainkey.<hash>.dkim.amazonses.com) instead of
+    #   the generic resend._domainkey.resend.dev shown here.
     # A39: proxied=false required — DKIM CNAME must be DNS-visible.
     "dkim-resend" = {
       name    = "resend._domainkey"
@@ -197,6 +201,7 @@ variable "dns_records" {
 # apply (Cloudflare dashboard shows the DS parameters).
 resource "cloudflare_zone_dnssec" "this" {
   zone_id = var.zone_id
+  status  = "active"
 }
 
 resource "cloudflare_workers_custom_domain" "worker_domains" {

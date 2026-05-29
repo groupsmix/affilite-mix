@@ -9,6 +9,10 @@
  *   2. erase_user() covers all 7 user-facing PII tables.
  *   3. purge_retention() covers all 9 analytics/event tables.
  *   4. The PII coverage map doc exists and is current.
+ *
+ * Note: These tests verify SQL migration structure (DELETE/UPDATE statements
+ * targeting each table). Full database integration tests against a running
+ * Supabase instance are a future enhancement (see OI-04 game day drills).
  */
 
 import { describe, it, expect } from "vitest";
@@ -41,12 +45,23 @@ const RETENTION_TABLES = [
   "ad_impressions",
 ] as const;
 
+// Tables appearing in both lists — PII erasure takes precedence over retention.
+const OVERLAPPING_TABLES = PII_TABLES.filter((t) =>
+  (RETENTION_TABLES as readonly string[]).includes(t),
+);
+
 describe("OI-03: erase_subject_data() PII coverage", () => {
   const source = readRepoFile("supabase/migrations/2026050301_erase_subject_data_complete.sql");
 
   for (const table of PII_TABLES) {
-    it(`covers table: ${table}`, () => {
-      expect(source).toContain(table);
+    it(`targets table in DELETE/UPDATE statement: ${table}`, () => {
+      // Verify the table appears in a SQL DML context (FROM, UPDATE, or DELETE),
+      // not just in a comment.
+      const dmlPattern = new RegExp(
+        `(?:DELETE\\s+FROM|UPDATE|FROM|INTO)\\s+(?:public\\.)?${table}`,
+        "i",
+      );
+      expect(source).toMatch(dmlPattern);
     });
   }
 });
@@ -55,8 +70,12 @@ describe("OI-03: erase_user() PII coverage", () => {
   const source = readRepoFile("supabase/migrations/00088_erase_user_rpc.sql");
 
   for (const table of PII_TABLES) {
-    it(`covers table: ${table}`, () => {
-      expect(source).toContain(table);
+    it(`targets table in DELETE/UPDATE statement: ${table}`, () => {
+      const dmlPattern = new RegExp(
+        `(?:DELETE\\s+FROM|UPDATE|FROM|INTO)\\s+(?:public\\.)?${table}`,
+        "i",
+      );
+      expect(source).toMatch(dmlPattern);
     });
   }
 });
@@ -65,10 +84,25 @@ describe("OI-03: purge_retention() analytics coverage", () => {
   const source = readRepoFile("supabase/migrations/00086_extend_purge_retention_experiment_ad.sql");
 
   for (const table of RETENTION_TABLES) {
-    it(`covers table: ${table}`, () => {
-      expect(source).toContain(table);
+    it(`targets table in DELETE/UPDATE statement: ${table}`, () => {
+      const dmlPattern = new RegExp(
+        `(?:DELETE\\s+FROM|UPDATE|FROM|INTO)\\s+(?:public\\.)?${table}`,
+        "i",
+      );
+      expect(source).toMatch(dmlPattern);
     });
   }
+});
+
+describe("OI-03: PII/retention overlap sanity check", () => {
+  it("overlapping tables are documented", () => {
+    // newsletter_subscribers, quiz_submissions, comments appear in both
+    // PII erasure and retention purge — both operations must handle them.
+    expect(OVERLAPPING_TABLES.length).toBeGreaterThanOrEqual(3);
+    expect(OVERLAPPING_TABLES).toContain("newsletter_subscribers");
+    expect(OVERLAPPING_TABLES).toContain("quiz_submissions");
+    expect(OVERLAPPING_TABLES).toContain("comments");
+  });
 });
 
 describe("OI-03: PII coverage documentation", () => {
