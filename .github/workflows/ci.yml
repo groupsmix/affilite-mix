@@ -81,6 +81,8 @@ jobs:
           ALLOW_LOCALHOST_FALLBACK_IN_PROD: ""
       - name: Dead code analysis (knip)
         run: npx knip
+        env:
+          E2E_BASE_URL: http://localhost:3000
       - name: Bundle size check
         run: npx size-limit
       - name: Verify no dev fallback secrets in production (F-018, F-021)
