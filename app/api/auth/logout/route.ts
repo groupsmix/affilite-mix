@@ -1,10 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { COOKIE_NAME, ACTIVITY_COOKIE, BINDING_COOKIE } from "@/lib/auth";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { CSRF_COOKIE } from "@/lib/csrf";
 import { revokeToken } from "@/lib/jwt-revocation";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
 
 /**
  * B-03: Clear every auth-related cookie on logout.
@@ -13,7 +15,20 @@ import { revokeToken } from "@/lib/jwt-revocation";
  * binding cookie, activity cookie, and CSRF cookie were left behind,
  * which could confuse subsequent sessions or leak stale fingerprints.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`auth-logout:${ip}`, {
+    maxRequests: 30,
+    windowMs: 60_000,
+    failPolicy: "closed" as const,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get(COOKIE_NAME)?.value;
