@@ -92,8 +92,14 @@ export async function POST(request: NextRequest) {
         kinds = requested;
       }
     }
-    // T1-02: Validate site_id is a well-formed UUID before using it
-    if (typeof body.site_id === "string" && isUsableUuid(body.site_id)) {
+    // T1-02: Validate site_id is a well-formed UUID before using it.
+    // A present-but-malformed value is rejected rather than ignored, so a
+    // typo'd site_id on an all-sites token can't silently widen into a
+    // full cross-tenant purge.
+    if (typeof body.site_id === "string") {
+      if (!isUsableUuid(body.site_id)) {
+        return NextResponse.json({ error: "site_id must be a valid UUID" }, { status: 400 });
+      }
       siteId = body.site_id;
     }
   } catch {

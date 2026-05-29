@@ -134,11 +134,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
   }
 
+  // V4-01: user_name comes from untrusted JSON; the required-field check above
+  // only tests truthiness, so a non-string (e.g. a number) would throw on the
+  // String methods below and surface as a 500. Guard the type for a clean 400.
+  if (typeof body.user_name !== "string") {
+    return NextResponse.json({ error: "user_name must be a string" }, { status: 400 });
+  }
+
   // V4-01: Normalize user_name to NFC and strip bidi-control / invisible chars
-  // to prevent homoglyph spoofing and RTL-override display tricks.
+  // (including bidi isolates U+2066-U+2069 and the Arabic Letter Mark U+061C,
+  // matching lib/safe-redirect.ts) to prevent homoglyph spoofing and
+  // RTL-override display tricks.
   body.user_name = body.user_name
     .normalize("NFC")
-    .replace(/[\u00AD\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060\uFEFF]/g, "");
+    .replace(/[\u00AD\u061C\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g, "");
 
   // Validate user_name length (after normalization)
   if (body.user_name.length > 80) {
