@@ -16,6 +16,15 @@ export const allSites: SiteDefinition[] = [
   watchToolsSite,
 ];
 
+/**
+ * NEW-01: Hoisted to module scope — the env var does not change within an
+ * isolate's lifetime, so there is no reason to re-parse it on every call.
+ */
+const PREVIEW_HOST_ALLOWLIST: Set<string> | null = (() => {
+  const raw = process.env.PREVIEW_HOST_ALLOWLIST ?? "";
+  return raw ? new Set(raw.split(",").map((h) => h.trim().toLowerCase())) : null;
+})();
+
 /* ------------------------------------------------------------------ */
 /*  TS → DB row derivation (single source of truth)                    */
 /* ------------------------------------------------------------------ */
@@ -170,13 +179,9 @@ export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
   // set, only hostnames in the list are served; when unset, all *.localhost
   // patterns are accepted (backward-compatible for CI).
   const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
-  const previewAllowlistRaw = process.env.PREVIEW_HOST_ALLOWLIST ?? "";
-  const previewAllowlist = previewAllowlistRaw
-    ? new Set(previewAllowlistRaw.split(",").map((h) => h.trim().toLowerCase()))
-    : null;
   if (process.env.NODE_ENV !== "production" || allowLocalhostInProd) {
     // A7-008: When a preview allowlist is configured, reject hosts not on it.
-    if (previewAllowlist && !previewAllowlist.has(host.toLowerCase())) {
+    if (PREVIEW_HOST_ALLOWLIST && !PREVIEW_HOST_ALLOWLIST.has(host.toLowerCase())) {
       return undefined;
     }
     // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
