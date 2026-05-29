@@ -83,10 +83,9 @@ function trackKvDedupWrite(): void {
       threshold,
       window_ms: KV_DEDUP_WRITE_WINDOW_MS,
     });
-    captureException(
-      new Error(`KV dedup write rate exceeded ${threshold}/min`),
-      { context: "[api/track/click] kv-dedup-write-rate" },
-    );
+    captureException(new Error(`KV dedup write rate exceeded ${threshold}/min`), {
+      context: "[api/track/click] kv-dedup-write-rate",
+    });
   }
 }
 
