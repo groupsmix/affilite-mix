@@ -180,7 +180,8 @@ describe("POST /api/auth/login (integration)", () => {
 describe("POST /api/auth/logout (integration)", () => {
   it("returns 200 and clears auth cookies", async () => {
     const { POST } = await import("@/app/api/auth/logout/route");
-    const res = await POST();
+    const req = new Request("http://localhost/api/auth/logout", { method: "POST" });
+    const res = await POST(req as Parameters<typeof POST>[0]);
 
     expect(res.status).toBe(200);
     const body = await res.json();

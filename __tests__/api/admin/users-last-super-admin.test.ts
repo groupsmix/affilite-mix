@@ -75,7 +75,7 @@ interface AdminRow {
 
 function makeRow(partial: Partial<AdminRow>): AdminRow {
   return {
-    id: "id",
+    id: "11111111-1111-1111-1111-111111111111",
     email: "a@test.com",
     password_hash: "",
     name: "",
@@ -118,7 +118,7 @@ describe("admin/users last-super_admin safety guard", () => {
       error: null,
       session: {
         email: "root@test.com",
-        userId: "root-id",
+        userId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
         role: "super_admin",
       },
       dbSiteId: "site-uuid",
@@ -132,12 +132,14 @@ describe("admin/users last-super_admin safety guard", () => {
     const { listAdminUsers, hasAnotherActiveSuperAdmin, updateAdminUser } =
       await import("@/lib/dal/admin-users");
     vi.mocked(listAdminUsers).mockResolvedValue([
-      makeRow({ id: "u1", role: "super_admin", is_active: true }),
+      makeRow({ id: "22222222-2222-2222-2222-222222222222", role: "super_admin", is_active: true }),
     ]);
     vi.mocked(hasAnotherActiveSuperAdmin).mockResolvedValue(false);
 
     const { PATCH } = await import("@/app/api/admin/users/route");
-    const res = await PATCH(patchRequest({ id: "u1", role: "admin" }));
+    const res = await PATCH(
+      patchRequest({ id: "22222222-2222-2222-2222-222222222222", role: "admin" }),
+    );
 
     expect(res.status).toBe(409);
     const body = await res.json();
@@ -149,12 +151,14 @@ describe("admin/users last-super_admin safety guard", () => {
     const { listAdminUsers, hasAnotherActiveSuperAdmin, updateAdminUser } =
       await import("@/lib/dal/admin-users");
     vi.mocked(listAdminUsers).mockResolvedValue([
-      makeRow({ id: "u1", role: "super_admin", is_active: true }),
+      makeRow({ id: "22222222-2222-2222-2222-222222222222", role: "super_admin", is_active: true }),
     ]);
     vi.mocked(hasAnotherActiveSuperAdmin).mockResolvedValue(false);
 
     const { PATCH } = await import("@/app/api/admin/users/route");
-    const res = await PATCH(patchRequest({ id: "u1", is_active: false }));
+    const res = await PATCH(
+      patchRequest({ id: "22222222-2222-2222-2222-222222222222", is_active: false }),
+    );
 
     expect(res.status).toBe(409);
     expect(vi.mocked(updateAdminUser)).not.toHaveBeenCalled();
@@ -164,16 +168,18 @@ describe("admin/users last-super_admin safety guard", () => {
     const { listAdminUsers, hasAnotherActiveSuperAdmin, updateAdminUser } =
       await import("@/lib/dal/admin-users");
     vi.mocked(listAdminUsers).mockResolvedValue([
-      makeRow({ id: "u1", role: "super_admin", is_active: true }),
-      makeRow({ id: "u2", role: "super_admin", is_active: true }),
+      makeRow({ id: "22222222-2222-2222-2222-222222222222", role: "super_admin", is_active: true }),
+      makeRow({ id: "33333333-3333-3333-3333-333333333333", role: "super_admin", is_active: true }),
     ]);
     vi.mocked(hasAnotherActiveSuperAdmin).mockResolvedValue(true);
     vi.mocked(updateAdminUser).mockResolvedValue(
-      makeRow({ id: "u1", role: "admin", is_active: true }),
+      makeRow({ id: "22222222-2222-2222-2222-222222222222", role: "admin", is_active: true }),
     );
 
     const { PATCH } = await import("@/app/api/admin/users/route");
-    const res = await PATCH(patchRequest({ id: "u1", role: "admin" }));
+    const res = await PATCH(
+      patchRequest({ id: "22222222-2222-2222-2222-222222222222", role: "admin" }),
+    );
 
     expect(res.status).toBe(200);
     expect(vi.mocked(updateAdminUser)).toHaveBeenCalledTimes(1);
@@ -183,14 +189,16 @@ describe("admin/users last-super_admin safety guard", () => {
     const { listAdminUsers, hasAnotherActiveSuperAdmin, updateAdminUser } =
       await import("@/lib/dal/admin-users");
     vi.mocked(listAdminUsers).mockResolvedValue([
-      makeRow({ id: "u1", role: "admin", is_active: true }),
+      makeRow({ id: "22222222-2222-2222-2222-222222222222", role: "admin", is_active: true }),
     ]);
     vi.mocked(updateAdminUser).mockResolvedValue(
-      makeRow({ id: "u1", role: "admin", is_active: false }),
+      makeRow({ id: "22222222-2222-2222-2222-222222222222", role: "admin", is_active: false }),
     );
 
     const { PATCH } = await import("@/app/api/admin/users/route");
-    const res = await PATCH(patchRequest({ id: "u1", is_active: false }));
+    const res = await PATCH(
+      patchRequest({ id: "22222222-2222-2222-2222-222222222222", is_active: false }),
+    );
 
     expect(res.status).toBe(200);
     expect(vi.mocked(hasAnotherActiveSuperAdmin)).not.toHaveBeenCalled();
@@ -202,12 +210,12 @@ describe("admin/users last-super_admin safety guard", () => {
     const { listAdminUsers, hasAnotherActiveSuperAdmin, deleteAdminUser } =
       await import("@/lib/dal/admin-users");
     vi.mocked(listAdminUsers).mockResolvedValue([
-      makeRow({ id: "u1", role: "super_admin", is_active: true }),
+      makeRow({ id: "22222222-2222-2222-2222-222222222222", role: "super_admin", is_active: true }),
     ]);
     vi.mocked(hasAnotherActiveSuperAdmin).mockResolvedValue(false);
 
     const { DELETE } = await import("@/app/api/admin/users/route");
-    const res = await DELETE(deleteRequest("u1"));
+    const res = await DELETE(deleteRequest("22222222-2222-2222-2222-222222222222"));
 
     expect(res.status).toBe(409);
     const body = await res.json();
@@ -219,15 +227,15 @@ describe("admin/users last-super_admin safety guard", () => {
     const { listAdminUsers, hasAnotherActiveSuperAdmin, deleteAdminUser } =
       await import("@/lib/dal/admin-users");
     vi.mocked(listAdminUsers).mockResolvedValue([
-      makeRow({ id: "u1", role: "super_admin", is_active: true }),
-      makeRow({ id: "u2", role: "super_admin", is_active: true }),
+      makeRow({ id: "22222222-2222-2222-2222-222222222222", role: "super_admin", is_active: true }),
+      makeRow({ id: "33333333-3333-3333-3333-333333333333", role: "super_admin", is_active: true }),
     ]);
     vi.mocked(hasAnotherActiveSuperAdmin).mockResolvedValue(true);
 
     const { DELETE } = await import("@/app/api/admin/users/route");
-    const res = await DELETE(deleteRequest("u1"));
+    const res = await DELETE(deleteRequest("22222222-2222-2222-2222-222222222222"));
 
     expect(res.status).toBe(200);
-    expect(vi.mocked(deleteAdminUser)).toHaveBeenCalledWith("u1");
+    expect(vi.mocked(deleteAdminUser)).toHaveBeenCalledWith("22222222-2222-2222-2222-222222222222");
   });
 });

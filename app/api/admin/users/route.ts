@@ -13,6 +13,7 @@ import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
+import { isUsableUuid } from "@/lib/security/uuid";
 
 /** GET /api/admin/users — list all admin users (super_admin only) */
 export async function GET() {
@@ -137,6 +138,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
+  if (!isUsableUuid(id)) {
+    return NextResponse.json({ error: "Invalid id format" }, { status: 400 });
+  }
+
   // Prevent demoting or deactivating the last active super_admin.
   const wouldDemote = role !== undefined && role !== "super_admin";
   const wouldDeactivate = is_active === false;
@@ -211,6 +216,10 @@ export async function DELETE(request: NextRequest) {
 
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  if (!isUsableUuid(id)) {
+    return NextResponse.json({ error: "Invalid id format" }, { status: 400 });
   }
 
   // Prevent self-deletion
