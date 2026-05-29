@@ -113,8 +113,12 @@ variable "waf_blocked_asns" {
 }
 
 variable "waf_blocked_countries" {
-  type        = list(string)
-  default     = ["KP", "IR", "SY", "CU"]
+  type = list(string)
+  # S8-F14: Expanded from 4 to 9 countries per Season 8 CEO audit.
+  # RU=Russia, BY=Belarus, MM=Myanmar, VE=Venezuela, SD=Sudan added.
+  # Sub-region sanctions (Crimea, Donetsk, Luhansk) cannot be targeted
+  # at WAF geo layer — RU block provides partial coverage.
+  default     = ["KP", "IR", "SY", "CU", "RU", "BY", "MM", "VE", "SD"]
   description = "ISO 3166-1 alpha-2 country codes to hard-block on the http_request_firewall_custom phase (OFAC sanctioned)."
   validation {
     condition     = alltrue([for c in var.waf_blocked_countries : can(regex("^[A-Z]{2}$", c))])

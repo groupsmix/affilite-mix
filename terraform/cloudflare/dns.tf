@@ -88,7 +88,7 @@ variable "dns_records" {
       content = "v=spf1 include:_spf.mx.cloudflare.net include:_spf.resend.com -all"
       ttl     = 300
       proxied = false
-      comment = "A144-03/A144-05/A39/F9: SPF — CF Email Routing + Resend, hardfail all others. DNS-only (unproxied)."
+      comment = "A144-03/A144-05/A39/F9/S8-F6: SPF — CF Email Routing + Resend, hardfail all others. DNS-only (unproxied)."
     }
 
     # DMARC: start at p=none for monitoring, ramp to p=quarantine after
@@ -152,6 +152,24 @@ variable "dns_records" {
       comment = "A145-02/A39: CAA iodef — cert mis-issuance reporting. DNS-only (unproxied)."
     }
 
+    # ── A249-H2: DKIM signing record ──────────────────────────────────────
+    # Resend publishes DKIM keys under the `resend` selector. This CNAME
+    # delegates key rotation to Resend's infrastructure so the signing
+    # key stays current without manual IaC updates.
+    # ⚠ VERIFY: confirm the exact CNAME target in your Resend dashboard
+    #   (Domains → DNS records) — Resend may use a per-account value
+    #   (e.g. resend._domainkey.<hash>.dkim.amazonses.com) instead of
+    #   the generic resend._domainkey.resend.dev shown here.
+    # A39: proxied=false required — DKIM CNAME must be DNS-visible.
+    "dkim-resend" = {
+      name    = "resend._domainkey"
+      type    = "CNAME"
+      content = "resend._domainkey.resend.dev"
+      ttl     = 300
+      proxied = false
+      comment = "S8-F2/A144/A39: DKIM — delegates signing key to Resend. DNS-only (unproxied) by design."
+    }
+
     # MTA-STS discovery record — id= must change whenever the policy changes.
     # A39: proxied=false required — MTA-STS TXT records must be DNS-visible.
     "mta-sts" = {
@@ -174,6 +192,16 @@ variable "dns_records" {
       comment = "A145/A39: TLS-RPT — SMTP TLS failure reporting. DNS-only (unproxied) by design."
     }
   }
+}
+
+# ── S8-F1 / A249-H1: DNSSEC ──────────────────────────────────────────────
+# Enable DNSSEC on the zone to prevent DNS response forgery (cache
+# poisoning, on-path manipulation). Cloudflare manages the signing
+# keys; the DS record must be added at the registrar after initial
+# apply (Cloudflare dashboard shows the DS parameters).
+resource "cloudflare_zone_dnssec" "this" {
+  zone_id = var.zone_id
+  status  = "active"
 }
 
 resource "cloudflare_workers_custom_domain" "worker_domains" {
