@@ -29,9 +29,6 @@ interface ReadAfterWriteOptions {
   writeTimestamp?: number;
 }
 
-/** Default max staleness for bounded reads (5 seconds). */
-const DEFAULT_MAX_STALENESS_MS = 5_000;
-
 /**
  * A30-002: Determine whether to use primary or replica for a read
  * following a write. In the current single-primary setup this always
@@ -47,19 +44,6 @@ function routeForReadAfterWrite(opts: ReadAfterWriteOptions = {}): "primary" | "
     return "primary"; // conservative — can relax once bounded staleness is implemented
   }
   return "replica";
-}
-
-/**
- * A30-002: Wait for a write to be observable.
- *
- * In a single-primary DB this is a no-op (writes are immediately visible).
- * When async replication is introduced, this becomes an async waiter
- * that polls the replica until the write is visible or timeout.
- */
-async function awaitWriteVisibility(_opts: ReadAfterWriteOptions = {}): Promise<void> {
-  // Single-primary: writes are immediately visible.
-  // Future: implement replication-lag polling here.
-  return;
 }
 
 /**
@@ -91,20 +75,6 @@ async function readAfterWrite<T>(
     });
     throw error;
   }
-}
-
-/**
- * A30-006: Bounded staleness read for non-critical queries (reporting).
- *
- * Returns a read strategy for queries that can tolerate some staleness.
- * When replicas are introduced, this routes to replica with a freshness check.
- */
-function boundedStalenessRead(maxStalenessMs: number = DEFAULT_MAX_STALENESS_MS): {
-  route: "primary" | "replica";
-  maxStalenessMs: number;
-} {
-  // Conservative default: use primary until replica lag monitoring is in place
-  return { route: "primary", maxStalenessMs };
 }
 
 /**

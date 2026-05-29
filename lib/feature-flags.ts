@@ -84,19 +84,6 @@ export const FLAG_REGISTRY: FeatureFlagDefinition[] = [
 ];
 
 /**
- * Check a feature flag's value and log the access decision.
- * Used for telemetry/audit on flag evaluations.
- */
-function evaluateFlag(key: string, enabled: boolean, context?: Record<string, unknown>): boolean {
-  logger.debug("Feature flag evaluated", {
-    flag: key,
-    enabled,
-    ...context,
-  });
-  return enabled;
-}
-
-/**
  * Get all flags that have passed their expiry date.
  * Run in CI or startup to alert on stale flags.
  */

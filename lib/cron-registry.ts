@@ -263,11 +263,6 @@ export function listCronSchedules(): readonly string[] {
   return cronJobs.map((j) => j.schedule);
 }
 
-/** A-018: schedules for heavy jobs (run on the dedicated heavy-crons Worker). */
-function listHeavyCronSchedules(): readonly string[] {
-  return cronJobs.filter((j) => j.heavy).map((j) => j.schedule);
-}
-
 /** A-018: schedules for light jobs (run on the main affilite-mix Worker). */
 export function listLightCronSchedules(): readonly string[] {
   return cronJobs.filter((j) => !j.heavy).map((j) => j.schedule);

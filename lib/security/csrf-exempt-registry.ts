@@ -158,8 +158,3 @@ const csrfExemptSet = new Set<string>(CSRF_EXEMPT_ROUTES.map((r) => r.path));
 export function csrfExemptPaths(): ReadonlySet<string> {
   return csrfExemptSet;
 }
-
-/** True when `pathname` is registered in the exemption list. */
-function isCsrfExempt(pathname: string): boolean {
-  return csrfExemptSet.has(pathname);
-}

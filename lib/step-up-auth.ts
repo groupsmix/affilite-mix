@@ -70,14 +70,3 @@ export function requireStepUpAuth(
 
   return null; // Step-up is valid
 }
-
-/**
- * Mark a session as step-up authenticated at the given timestamp.
- * Call this after a successful password or TOTP verification.
- */
-function markStepUpAuth(session: AdminPayload): AdminPayload {
-  return {
-    ...session,
-    [STEP_UP_CLAIM]: Date.now(),
-  } as AdminPayload;
-}
