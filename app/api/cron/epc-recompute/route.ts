@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { upsertProductEpc } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { untypedFrom } from "@/lib/dal/type-guards";
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
     void recordCronLiveness("epc-recompute");
     return NextResponse.json({ message: "EPC recompute complete", updated });
   } catch (err) {
+    captureException(err, { context: "[cron/epc-recompute] failed" });
     logger.error("EPC recompute failed", {
       error: err instanceof Error ? err.message : String(err),
     });
