@@ -47,6 +47,28 @@ The following are in scope for security reports:
 - Issues in third-party dependencies (report these to the upstream project)
 - Issues requiring physical access to a user's device
 
+### Safe Harbor (A194)
+
+We support safe harbor for security researchers who:
+
+1. Make a good faith effort to avoid privacy violations, destruction of data, and interruption or degradation of our services.
+2. Only interact with accounts you own or with explicit permission of the account holder.
+3. Do not exploit a security issue for purposes other than verification.
+4. Report any vulnerability to us before disclosing it publicly.
+5. Do not perform attacks against our users, social engineering, denial of service, or spam.
+
+We will not initiate legal action against researchers who discover and report security vulnerabilities in accordance with this policy. We consider security research conducted under this policy to be authorized conduct under the Computer Fraud and Abuse Act (CFAA), the DMCA, and similar laws. We will not bring a claim against you for circumventing technology controls we have deployed to protect the applications in scope.
+
+If legal action is initiated by a third party against you and you have complied with this security policy, we will take steps to make it known that your actions were conducted in compliance with this policy.
+
+### Retest Commitment
+
+Once a reported vulnerability has been remediated, we will notify the original reporter and invite them to verify the fix. We aim to close the loop within **14 days** of the initial patch deployment.
+
+### Recognition
+
+We maintain a security acknowledgements page for researchers who responsibly disclose valid security issues. If you would like to be credited, please indicate this in your report.
+
 ## Security Controls
 
 This project implements the following security measures:

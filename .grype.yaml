@@ -19,6 +19,18 @@ ignore:
 # Set to false to see all CVEs including those without fixes
 only-fixed: false
 
-# Minimum severity to report (informational — enforcement is done in the workflow step)
+# A174 remediation: enforce fail-on-severity directly in grype config so the
+# gate cannot be bypassed by running grype outside of CI.
 # Options: negligible, low, medium, high, critical
-fail-on-severity: ""
+fail-on-severity: "high"
+
+# Vulnerability SLA per severity (A174):
+#   Critical — remediate within 7 calendar days
+#   High     — remediate within 30 calendar days
+#   Medium   — remediate within 90 calendar days
+#   Low      — remediate within 180 calendar days or accept with documented risk
+#
+# If a fix is not available upstream, add an ignore entry above with:
+#   - The tracking issue URL
+#   - The reason for acceptance
+#   - A review-by date not exceeding the SLA above
