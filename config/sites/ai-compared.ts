@@ -3,7 +3,7 @@ import { defineSite } from "../define-site";
 export const aiComparedSite = defineSite({
   id: "ai-compared",
   name: "AI Compared",
-  domain: "aicompared.site",
+  domain: "compareai.site",
   aliases: ["ai.localhost"],
   niche: "AI Tools & Software Reviews",
   description:
@@ -66,7 +66,7 @@ export const aiComparedSite = defineSite({
     contact: {
       title: "Contact Us",
       description: "Get in touch with the AI Compared team",
-      email: "contact@aicompared.site",
+      email: "contact@compareai.site",
     },
     affiliateDisclosurePage: {
       title: "Affiliate Disclosure",
