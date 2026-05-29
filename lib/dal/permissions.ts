@@ -74,49 +74,9 @@ export async function listPermissions(
   return assertRows<PermissionRow>(data);
 }
 
-/** Get permissions for a role */
-async function getPermissionsForRole(
-  roleId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<PermissionRow[]> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from("role_permissions")
-    .select("permission_id")
-    .eq("role_id", roleId);
-
-  if (error) throw error;
-  const permIds = (data as { permission_id: string }[]).map((d) => d.permission_id);
-  if (permIds.length === 0) return [];
-
-  const { data: perms, error: permError } = await sb
-    .from("permissions")
-    .select(PERMISSION_COLUMNS)
-    .in("id", permIds);
-
-  if (permError) throw permError;
-  return assertRows<PermissionRow>(perms);
-}
-
 /* ------------------------------------------------------------------ */
 /*  User-Site-Role assignments                                         */
 /* ------------------------------------------------------------------ */
-
-/** List all role assignments for a user */
-async function listUserSiteRoles(
-  userId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<UserSiteRoleRow[]> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from("user_site_roles")
-    .select(USER_SITE_ROLE_COLUMNS)
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-  return assertRows<UserSiteRoleRow>(data);
-}
 
 /** List all role assignments for a site */
 export async function listSiteUserRoles(

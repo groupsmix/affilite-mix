@@ -61,28 +61,6 @@ export async function listAdminSiteMemberships(
 }
 
 /**
- * Grant an admin user membership for a site (idempotent).
- */
-async function grantAdminSiteMembership(
-  adminUserId: string,
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<AdminSiteMembershipRow> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .upsert(
-      { admin_user_id: adminUserId, site_id: siteId },
-      { onConflict: "admin_user_id,site_id" },
-    )
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as AdminSiteMembershipRow;
-}
-
-/**
  * List all admin site memberships across all admin users, joined with the
  * corresponding site slug. Used by the admin users table to render the
  * "Sites access" column without issuing one query per user.
@@ -108,22 +86,4 @@ export async function listAllAdminSiteMembershipsWithSlugs(
       site_slug: site?.slug ?? "",
     };
   });
-}
-
-/**
- * Revoke an admin user's membership for a site.
- */
-async function revokeAdminSiteMembership(
-  adminUserId: string,
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<void> {
-  const sb = await getClient();
-  const { error } = await sb
-    .from(TABLE)
-    .delete()
-    .eq("admin_user_id", adminUserId)
-    .eq("site_id", siteId);
-
-  if (error) throw error;
 }

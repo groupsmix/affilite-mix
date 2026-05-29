@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import { getAnonClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
@@ -200,26 +199,6 @@ export async function getProductById(
   return rowOrNull<ProductRow>(data);
 }
 
-/** A27-003: Admin-only getter that can see all products regardless of status.
- * Public-facing code must use getProductById() or getProductBySlugPublic()
- * which enforce active-product filtering via RLS + explicit status checks. */
-async function getProductByIdAdmin(
-  siteId: string,
-  id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<ProductRow | null> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(LIST_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("id", id)
-    .single();
-
-  if (error && error.code !== "PGRST116") throw error;
-  return rowOrNull<ProductRow>(data);
-}
-
 export async function getProductBySlug(siteId: string, slug: string): Promise<ProductRow | null> {
   const sb = getAnonClient();
   const { data, error } = await sb
@@ -232,24 +211,6 @@ export async function getProductBySlug(siteId: string, slug: string): Promise<Pr
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<ProductRow>(data);
 }
-
-const getProductBySlugPublic = unstable_cache(
-  async (siteId: string, slug: string): Promise<ProductRow | null> => {
-    if (shouldSkipDbCall()) return null;
-    const sb = getAnonClient();
-    const { data, error } = await sb
-      .from(TABLE)
-      .select(LIST_COLUMNS)
-      .eq("site_id", siteId)
-      .eq("slug", slug)
-      .single();
-
-    if (error && error.code !== "PGRST116") throw error;
-    return rowOrNull<ProductRow>(data);
-  },
-  ["product-by-slug"],
-  { revalidate: 60, tags: ["products"] },
-);
 
 /**
  * ISO18-001: Optimistic locking — if `expectedVersion` is supplied, the update

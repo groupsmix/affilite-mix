@@ -91,13 +91,3 @@ export function hasStringProp<K extends string>(
     typeof (value as Record<string, unknown>)[key] === "string"
   );
 }
-
-/** Type guard: checks that value has a specific number property */
-function hasNumberProp<K extends string>(value: unknown, key: K): value is Record<K, number> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    key in value &&
-    typeof (value as Record<string, unknown>)[key] === "number"
-  );
-}

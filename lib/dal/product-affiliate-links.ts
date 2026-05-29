@@ -1,5 +1,5 @@
 // DESIGN: No site_id filtering — operates on product_affiliate_links within already-scoped product contexts.
-import { assertRows, assertRow } from "./type-guards";
+import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface ProductAffiliateLinkRow {
@@ -35,67 +35,6 @@ async function listProductAffiliateLinks(
 
   if (error) throw error;
   return assertRows<ProductAffiliateLinkRow>(data);
-}
-
-/** List all affiliate links for a product (including inactive) */
-async function listAllProductAffiliateLinks(
-  productId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<ProductAffiliateLinkRow[]> {
-  const sb = await getClient();
-
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(ALL_COLUMNS)
-    .eq("product_id", productId)
-    .order("weight", { ascending: false });
-
-  if (error) throw error;
-  return assertRows<ProductAffiliateLinkRow>(data);
-}
-
-/** Create an affiliate link for a product */
-async function createProductAffiliateLink(
-  input: {
-    product_id: string;
-    network: string;
-    geo?: string;
-    url: string;
-    weight?: number;
-  },
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<ProductAffiliateLinkRow> {
-  const sb = await getClient();
-
-  const { data, error } = await sb.from(TABLE).insert(input).select().single();
-
-  if (error) throw error;
-  return assertRow<ProductAffiliateLinkRow>(data, "ProductAffiliateLink");
-}
-
-/** Update an affiliate link */
-async function updateProductAffiliateLink(
-  id: string,
-  input: Partial<Pick<ProductAffiliateLinkRow, "network" | "geo" | "url" | "weight" | "is_active">>,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<ProductAffiliateLinkRow> {
-  const sb = await getClient();
-
-  const { data, error } = await sb.from(TABLE).update(input).eq("id", id).select().single();
-
-  if (error) throw error;
-  return assertRow<ProductAffiliateLinkRow>(data, "ProductAffiliateLink");
-}
-
-/** Delete an affiliate link */
-async function deleteProductAffiliateLink(
-  id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<void> {
-  const sb = await getClient();
-
-  const { error } = await sb.from(TABLE).delete().eq("id", id);
-  if (error) throw error;
 }
 
 /**
