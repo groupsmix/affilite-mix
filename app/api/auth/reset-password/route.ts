@@ -133,7 +133,9 @@ export async function POST(request: Request) {
         }
       }
     } catch (e) {
-      // Ignore malformed tokens
+      captureException(e, {
+        context: "[api/auth/reset-password] Failed to decode JWT for revocation",
+      });
     }
 
     const response = NextResponse.json({
