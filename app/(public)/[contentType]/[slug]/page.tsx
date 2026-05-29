@@ -233,6 +233,17 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         </div>
       )}
 
+      {/* AI disclosure — EU AI Act Art. 50 compliance */}
+      {content.ai_generated && (
+        <aside
+          role="note"
+          aria-label="AI disclosure"
+          className="mb-6 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800"
+        >
+          This content was generated with AI assistance and reviewed by a human editor.
+        </aside>
+      )}
+
       {/* Hero product (for reviews) — uses consent-aware tracking */}
       {isReview && heroProduct && <HeroProductCta product={heroProduct} language={site.language} />}
 
