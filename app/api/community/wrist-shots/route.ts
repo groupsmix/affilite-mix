@@ -10,6 +10,7 @@ import { captureException } from "@/lib/sentry";
 import { isUsableUuid } from "@/lib/security/uuid";
 import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { checkImageHostAllowlist } from "@/lib/security/image-host-allowlist";
 /** V4-01: Strip bidi-control / invisible chars to prevent homoglyph spoofing. */
 function stripBidi(str: string): string {
   return str
@@ -116,13 +117,20 @@ export async function POST(request: NextRequest) {
   if (body.image_url.length > 2048) {
     return NextResponse.json({ error: "image_url too long" }, { status: 400 });
   }
+  let imgUrl: URL;
   try {
-    const imgUrl = new URL(body.image_url);
+    imgUrl = new URL(body.image_url);
     if (imgUrl.protocol !== "https:") {
       return NextResponse.json({ error: "image_url must use https" }, { status: 400 });
     }
   } catch {
     return NextResponse.json({ error: "Invalid image_url" }, { status: 400 });
+  }
+
+  // S11-001: Reject URLs not hosted on an approved image domain.
+  const hostCheck = checkImageHostAllowlist(imgUrl.hostname);
+  if (!hostCheck.valid) {
+    return NextResponse.json({ error: hostCheck.error }, { status: 400 });
   }
 
   // SEC-TURNSTILE-01 (#628): Turnstile verification is REQUIRED —
