@@ -315,6 +315,14 @@ jobs:
 
           echo "All required secrets are present"
 
+      # ── RISK-OBS-01 (#586): Validate production alerting config ─────
+      - name: Validate alerting configuration
+        run: |
+          set -euo pipefail
+          npx tsx scripts/validate-alerting-config.ts || {
+            echo "::warning::Production alerting is not configured. See terraform/cloudflare/production.tfvars.example."
+          }
+
       # ── Require scoped API token (no Global API Key fallback) ──────
       - name: Require scoped CLOUDFLARE_API_TOKEN
         run: |
