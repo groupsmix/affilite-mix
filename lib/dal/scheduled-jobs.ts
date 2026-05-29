@@ -1,13 +1,9 @@
-import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "scheduled_jobs";
 const LIST_COLUMNS =
   "id, site_id, job_type, target_id, scheduled_for, status, executed_at, error, created_at" as const;
-// A23-01: Full row including payload (used only when the job needs to be executed)
-const ALL_COLUMNS =
-  "id, site_id, job_type, target_id, scheduled_for, status, payload, executed_at, error, created_at" as const;
-
 export interface ScheduledJobRow {
   id: string;
   site_id: string;
@@ -93,22 +89,4 @@ export async function cancelScheduledJob(
     .eq("status", "pending");
 
   if (error) throw error;
-}
-
-/** Get a scheduled job by id */
-async function getScheduledJobById(
-  siteId: string,
-  jobId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<ScheduledJobRow | null> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(ALL_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("id", jobId)
-    .single();
-
-  if (error && error.code !== "PGRST116") throw error;
-  return rowOrNull<ScheduledJobRow>(data);
 }

@@ -6,7 +6,7 @@
  */
 
 import type { IntegrationProviderRow, SiteIntegrationRow } from "@/types/database";
-import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const PROVIDER_COLUMNS =
@@ -32,38 +32,6 @@ export async function listIntegrationProviders(
   return assertRows<IntegrationProviderRow>(data);
 }
 
-/** List integration providers by category */
-async function listProvidersByCategory(
-  category: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<IntegrationProviderRow[]> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from("integration_providers")
-    .select(PROVIDER_COLUMNS)
-    .eq("category", category)
-    .order("name", { ascending: true });
-
-  if (error) throw error;
-  return assertRows<IntegrationProviderRow>(data);
-}
-
-/** Get a provider by key */
-async function getProviderByKey(
-  key: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<IntegrationProviderRow | null> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from("integration_providers")
-    .select(PROVIDER_COLUMNS)
-    .eq("key", key)
-    .single();
-
-  if (error && error.code !== "PGRST116") throw error;
-  return rowOrNull<IntegrationProviderRow>(data);
-}
-
 /* ------------------------------------------------------------------ */
 /*  Site Integrations                                                  */
 /* ------------------------------------------------------------------ */
@@ -82,41 +50,6 @@ export async function listSiteIntegrations(
 
   if (error) throw error;
   return assertRows<SiteIntegrationRow>(data);
-}
-
-/** List only enabled integrations for a site */
-async function listEnabledIntegrations(
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<SiteIntegrationRow[]> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from("site_integrations")
-    .select(SITE_INTEGRATION_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("is_enabled", true)
-    .order("provider_key", { ascending: true });
-
-  if (error) throw error;
-  return assertRows<SiteIntegrationRow>(data);
-}
-
-/** Get a specific site integration */
-async function getSiteIntegration(
-  siteId: string,
-  providerKey: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<SiteIntegrationRow | null> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from("site_integrations")
-    .select(SITE_INTEGRATION_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("provider_key", providerKey)
-    .single();
-
-  if (error && error.code !== "PGRST116") throw error;
-  return rowOrNull<SiteIntegrationRow>(data);
 }
 
 /** Upsert a site integration (enable/disable + config) */
@@ -146,31 +79,6 @@ export async function upsertSiteIntegration(
 
   if (error) throw error;
   return assertRow<SiteIntegrationRow>(data, "SiteIntegration");
-}
-
-/** Bulk-upsert integrations for a site (used during site creation) */
-async function bulkUpsertSiteIntegrations(
-  siteId: string,
-  integrations: { provider_key: string; is_enabled: boolean; config?: Record<string, unknown> }[],
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<SiteIntegrationRow[]> {
-  if (integrations.length === 0) return [];
-
-  const sb = await getClient();
-  const rows = integrations.map((i) => ({
-    site_id: siteId,
-    provider_key: i.provider_key,
-    is_enabled: i.is_enabled,
-    config: i.config ?? {},
-  }));
-
-  const { data, error } = await sb
-    .from("site_integrations")
-    .upsert(rows, { onConflict: "site_id,provider_key" })
-    .select();
-
-  if (error) throw error;
-  return assertRows<SiteIntegrationRow>(data);
 }
 
 /** Delete a site integration */

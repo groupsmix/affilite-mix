@@ -74,24 +74,6 @@ export async function listAIDrafts(
   return assertRows<AIDraftRow>(data);
 }
 
-/** Get a single AI draft by id */
-async function getAIDraftById(
-  siteId: string,
-  id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<AIDraftRow | null> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(DRAFT_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("id", id)
-    .single();
-
-  if (error && error.code !== "PGRST116") throw error;
-  return rowOrNull<AIDraftRow>(data);
-}
-
 /** Create a new AI draft */
 export async function createAIDraft(
   input: Omit<AIDraftRow, "id" | "created_at" | "updated_at" | "reviewed_at" | "reviewed_by">,
@@ -150,20 +132,4 @@ export async function deleteAIDraft(
   const sb = await getClient();
   const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("id", id);
   if (error) throw error;
-}
-
-/** Count AI drafts by status */
-async function countAIDrafts(
-  siteId: string,
-  status?: AIDraftRow["status"],
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<number> {
-  const sb = await getClient();
-  let query = sb.from(TABLE).select("id", { count: "exact", head: true }).eq("site_id", siteId);
-
-  if (status) query = query.eq("status", status);
-
-  const { count, error } = await query;
-  if (error) throw error;
-  return count ?? 0;
 }

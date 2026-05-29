@@ -9,13 +9,10 @@ import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
  * idempotent. We record every event id we start processing; repeat
  * deliveries short-circuit before any side effects run.
  *
- * LIVE-10 / F-024: the preferred entry point is now
- * `applyStripeEventAtomic`, which delegates to a SECURITY DEFINER
- * Postgres RPC (`apply_stripe_membership_event`) that records the
- * event id and runs the membership-side effect inside a single
- * transaction. The legacy `recordStripeEvent` helper below is kept
- * for backfill/reconciliation flows that genuinely want to record
- * the event id without applying any side effect.
+ * LIVE-10 / F-024: the entry point is `applyStripeEventAtomic`,
+ * which delegates to a SECURITY DEFINER Postgres RPC
+ * (`apply_stripe_membership_event`) that records the event id and
+ * runs the membership-side effect inside a single transaction.
  */
 
 const TABLE = "stripe_events";
@@ -72,6 +69,10 @@ export interface StripeEventApplyResult {
  *  3. Returns `{ duplicate: true }` when the insert lost (i.e. the
  *     event was already processed).
  *
+ * Deduplication relies on a unique constraint on `stripe_event_id`
+ * (Postgres error 23505) enforced via ON CONFLICT DO NOTHING inside
+ * the RPC, so application-level error handling is not needed.
+ *
  * Uses the privileged service-role client because the RPC is granted
  * to `service_role` and the `stripe_events` table denies all
  * authenticated/anon access.
@@ -105,46 +106,6 @@ export async function applyStripeEventAtomic(
     return { duplicate: false, membership_id: null };
   }
   return result;
-}
-
-/**
- * Record that a Stripe webhook event has been received (without any
- * side effect).
- *
- * Returns `true` when this is the first time we've seen the event
- * (safe to process), `false` when it's a duplicate (skip side effects
- * and return 200 so Stripe stops retrying).
- *
- * Duplicates are detected by a unique-violation (Postgres code 23505)
- * on the primary key, so concurrent webhook deliveries are handled
- * atomically — only one insert wins.
- *
- * Prefer `applyStripeEventAtomic` for the webhook hot path; this
- * helper is retained for tooling that records reconciled event ids
- * without applying a side effect.
- */
-async function recordStripeEvent(
-  stripeEventId: string,
-  eventType: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<boolean> {
-  const sb = await getClient();
-
-  const { error } = await sb
-    .from(TABLE)
-    .insert({
-      stripe_event_id: stripeEventId,
-      event_type: eventType,
-    })
-    .unsafeNoSiteFilter();
-
-  if (!error) return true;
-
-  // Unique violation => we've already processed this event.
-  if ((error as { code?: string }).code === "23505") {
-    return false;
-  }
-  throw error;
 }
 
 export async function getRecentStripeEventIds(

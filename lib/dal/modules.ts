@@ -33,42 +33,6 @@ export async function listSiteModules(
   return assertRows<SiteModuleRow>(data);
 }
 
-/** List only enabled modules for a site */
-async function listEnabledModules(
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<SiteModuleRow[]> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(LIST_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("is_enabled", true)
-    .order("module_key", { ascending: true });
-
-  if (error) throw error;
-  return assertRows<SiteModuleRow>(data);
-}
-
-/** Check if a specific module is enabled for a site */
-async function isModuleEnabled(
-  siteId: string,
-  moduleKey: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<boolean> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select("is_enabled")
-    .eq("site_id", siteId)
-    .eq("module_key", moduleKey)
-    .single();
-
-  if (error && error.code === "PGRST116") return false; // not found
-  if (error) throw error;
-  return (data as { is_enabled: boolean } | null)?.is_enabled ?? false;
-}
-
 /* ------------------------------------------------------------------ */
 /*  Write operations                                                   */
 /* ------------------------------------------------------------------ */
@@ -125,16 +89,4 @@ export async function bulkUpsertSiteModules(
 
   if (error) throw error;
   return assertRows<SiteModuleRow>(data);
-}
-
-/** Delete a module record for a site */
-async function deleteSiteModule(
-  siteId: string,
-  moduleKey: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<void> {
-  const sb = await getClient();
-  const { error } = await sb.from(TABLE).delete().eq("site_id", siteId).eq("module_key", moduleKey);
-
-  if (error) throw error;
 }
