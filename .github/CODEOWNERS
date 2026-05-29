@@ -38,3 +38,6 @@
 # Infrastructure as Code
 /terraform/             @groupsmix/platform @groupsmix/security
 /.github/workflows/     @groupsmix/platform
+# C2: deploy.yml is the single path to production (~1,500 lines);
+# changes require both platform and security review.
+/.github/workflows/deploy.yml @groupsmix/platform @groupsmix/security
