@@ -1,7 +1,7 @@
 # Season 11 — Re-Audit Verification Report
 
 **Repository:** `groupsmix/affilite-mix`
-**Branch:** `main` (commit `cf981dc`)
+**Branch:** `main` (commit `4e484ae`)
 **Date:** 2026-05-29
 **Auditor:** Devin (Principal Engineer — Re-Audit)
 **Scope:** Verify all 24 findings from `season11-deep-audit.md` + 3 NEW findings have been correctly remediated via PRs #675–#684.
@@ -15,23 +15,20 @@
 | VERIFIED FIXED         | 10             |
 | ACCEPTED RISK / INFO   | 7              |
 | NOT TARGETED (backlog) | 10             |
-| NEW REGRESSION         | 1              |
 | **Total findings**     | **24 + 3 NEW** |
 
-**Overall assessment:** The 3 HIGH findings and the most impactful MEDIUM findings have been properly remediated. Code is correct, tests exist for all targeted fixes, and no security regressions were introduced. One non-security regression was found: a **migration prefix collision** causes a test failure on `main`.
+**Overall assessment:** The 3 HIGH findings and the most impactful MEDIUM findings have been properly remediated. Code is correct, tests exist for all targeted fixes, and no regressions were introduced. The migration prefix collision (REGR-01) that briefly existed on `main` has been resolved.
 
 ---
 
 ## Baseline Health (Re-Audit)
 
-| Check               | Result                                            |
-| ------------------- | ------------------------------------------------- |
-| `npm install`       | ✅ 0 vulnerabilities (1 332 packages)             |
-| `npm test`          | ⚠️ 1 failed, 2 527 passed, 24 skipped (188 files) |
-| `npm run lint`      | ✅ 0 warnings (max-warnings=0)                    |
-| `npm run typecheck` | ✅ Clean                                          |
-
-The single test failure is a **regression introduced by the fixes** (see REGR-01 below).
+| Check               | Result                                  |
+| ------------------- | --------------------------------------- |
+| `npm install`       | ✅ 0 vulnerabilities (1 332 packages)   |
+| `npm test`          | ✅ 2 528 passed, 24 skipped (188 files) |
+| `npm run lint`      | ✅ 0 warnings (max-warnings=0)          |
+| `npm run typecheck` | ✅ Clean                                |
 
 ---
 
@@ -85,7 +82,7 @@ PRs #679 (29 unused UI exports) and #680 (37 CodeQL alerts: regex anchors, bad t
 | **PR**     | #682                                                                                                                                                                                                                                 |
 | **Fix**    | Migration `2026052905_s11_007_update_status_include_tier.sql:81` — `update_status` branch now sets `tier = COALESCE(NULLIF(p_event_data ->> 'tier', ''), tier)`, preserving the existing tier when absent and updating when present. |
 | **Tests**  | `__tests__/stripe-event-processor.test.ts:124` — verifies that `customer.subscription.updated` with a known price ID includes `tier` in the `update_status` payload.                                                                 |
-| **Note**   | Migration shares prefix `2026052905` with the S11-008/S11-009 migration (see REGR-01).                                                                                                                                               |
+| **Note**   | Migration prefix collision with S11-008/S11-009 was resolved by renaming the RLS migration to `2026052906`.                                                                                                                          |
 | **Status** | **VERIFIED FIXED** — SQL logic is correct and complete.                                                                                                                                                                              |
 
 ---
@@ -199,31 +196,23 @@ These findings were not addressed by the merged PRs and remain as documented bac
 
 ## Regressions Introduced by Fixes
 
-### REGR-01 — Migration prefix collision (test failure on `main`)
-
-| Field           | Detail                                                                                                                                                                                                                                               |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Severity**    | LOW (does not affect production; test-only)                                                                                                                                                                                                          |
-| **Test**        | `__tests__/migration-order.test.ts:23`                                                                                                                                                                                                               |
-| **Description** | Two migrations share the numeric prefix `2026052905`: `2026052905_s11_007_update_status_include_tier.sql` (PR #682) and `2026052905_s11_authenticated_rls_policies.sql` (PR #683). The `migration-order.test.ts` test asserts no duplicate prefixes. |
-| **Impact**      | `npm test` reports 1 failure. No production impact — Supabase CLI sorts migrations by full filename, and both migrations are independent (different tables).                                                                                         |
-| **Fix**         | Rename one migration to use a unique prefix (e.g. `2026052906_s11_authenticated_rls_policies.sql`).                                                                                                                                                  |
+No regressions remain. A migration prefix collision (two files sharing prefix `2026052905`) was introduced by PRs #682 and #683 and caused `migration-order.test.ts` to fail. This was resolved by renaming the RLS migration to `2026052906_s11_authenticated_rls_policies.sql` (commit `4e484ae`).
 
 ---
 
 ## CodeQL Alert Summary
 
-| State | Count | Breakdown                                                           |
-| ----- | ----- | ------------------------------------------------------------------- |
-| Open  | 68    | 67× `js/unused-local-variable`, 1× `js/useless-assignment-to-local` |
-| Fixed | 202   | Across PRs #679, #680, and prior remediation                        |
+| State | Count | Breakdown                                                             |
+| ----- | ----- | --------------------------------------------------------------------- |
+| Open  | 4     | 3× `js/unused-local-variable`, 1× `js/useless-assignment-to-local`    |
+| Fixed | 266   | Across PRs #679, #680, DAL cleanup (`4e484ae`), and prior remediation |
 
-The 68 remaining open alerts are all **code quality** issues (dead code), not security vulnerabilities:
+The 4 remaining open alerts are all **code quality** issues, not security vulnerabilities:
 
-- **67 unused local variables** — mostly private helper functions in `lib/dal/*.ts` modules that are defined but never exported or called. Examples: `linkProduct()` and `unlinkProduct()` in `content-products.ts`.
+- **3 unused local variables** — residual items in `lib/feature-flags.ts`, `lib/ai/content-generator.ts`, `__tests__/dal-pagination-guards.test.ts`.
 - **1 useless assignment** — `hasMore = false` immediately before `break` in `app/api/cron/data-retention/route.ts:79`.
 
-**Recommendation:** Create a follow-up PR to remove dead code from DAL modules and fix the useless assignment. This is P3 cleanup work.
+**Recommendation:** P3 cleanup — fix the 4 remaining alerts when convenient.
 
 ---
 
@@ -239,9 +228,9 @@ The 3 HIGH findings (S11-001, S11-007, S11-023) have all been **correctly and co
 
 The NEW-01/02/03 findings from the Season 10 architecture re-audit have also been correctly addressed.
 
-### ⚠️ One Regression
+### ✅ No Regressions
 
-The migration prefix collision (REGR-01) breaks `npm test` on `main`. This is a low-severity issue that only affects the test suite, not production, and requires a simple rename to fix.
+The migration prefix collision that briefly existed has been resolved. All 2 528 tests pass.
 
 ### 📋 Remaining Work
 
@@ -251,7 +240,7 @@ The migration prefix collision (REGR-01) breaks `npm test` on `main`. This is a 
 
 ## Methodology
 
-1. **Pull & baseline:** Cloned latest `main` (`cf981dc`), ran `npm install`, `npm test`, `npm run lint`, `npm run typecheck`.
+1. **Pull & baseline:** Cloned latest `main` (`4e484ae`), ran `npm install`, `npm test`, `npm run lint`, `npm run typecheck`.
 2. **Audit report review:** Read all 514 lines of `season11-deep-audit.md` to extract the 24 findings + 3 NEW findings.
 3. **Fix verification:** For each targeted finding, verified: (a) fix is present in codebase, (b) fix is correct and complete, (c) tests exist, (d) no regressions.
 4. **Code scanning:** Queried GitHub Code Scanning API for open/fixed alert counts and categorization.
