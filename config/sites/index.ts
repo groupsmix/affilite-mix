@@ -4,8 +4,7 @@ import { arabicToolsSite } from "./arabic-tools";
 import { cryptoToolsSite } from "./crypto-tools";
 import { watchToolsSite } from "./watch-tools";
 
-/** @deprecated Individual site re-exports are unused — consume via {@link allSites} instead. */
-export { aiComparedSite, arabicToolsSite, cryptoToolsSite, watchToolsSite };
+export { arabicToolsSite, cryptoToolsSite };
 
 /** All registered sites. Add new sites here. */
 export const allSites: SiteDefinition[] = [

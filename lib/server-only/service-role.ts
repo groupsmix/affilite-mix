@@ -69,21 +69,6 @@ let _cachedUrl: string | null = null;
 let _cachedKey: string | null = null;
 
 /**
- * C-7: Force-invalidate the cached privileged client. Call after an
- * emergency key rotation to ensure the next request picks up the new
- * service-role key immediately, without waiting for the TTL.
- *
- * @deprecated No callers — quarantined by cleanup audit C3. Remove
- * in the next cleanup cycle if still unused.
- */
-export function flushPrivilegedClient(): void {
-  _privilegedClient = null;
-  _privilegedClientCreatedAt = 0;
-  _cachedUrl = null;
-  _cachedKey = null;
-}
-
-/**
  * Returns a Supabase client authenticated with `SUPABASE_SERVICE_ROLE_KEY`.
  *
  * RLS is bypassed by this client — every caller is responsible for its own
