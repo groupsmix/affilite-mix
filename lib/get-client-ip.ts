@@ -23,9 +23,16 @@ export function getClientIp(request: Request): string {
   const cfIp = request.headers.get("cf-connecting-ip");
   if (cfIp) return cfIp;
 
-  // R10-01: Warn once per isolate when the expected header is absent in prod.
-  // This catches misconfigured/origin-direct deployments where all clients
-  // collapse to the shared "unknown" rate-limit bucket.
+  if (isProxyHeaderTrusted()) {
+    const xff = request.headers.get("x-forwarded-for");
+    const first = xff?.split(",")[0]?.trim();
+    if (first) return first;
+  }
+
+  // R10-01: Warn once per isolate only when we actually fall back to the shared
+  // "unknown" bucket in production — i.e. no cf-connecting-ip AND no trusted
+  // XFF. Warning before the XFF check would misfire for valid proxy setups
+  // where clients are correctly bucketed by x-forwarded-for.
   if (process.env.NODE_ENV === "production" && !_warnedMissingCfIp) {
     _warnedMissingCfIp = true;
     // Use console.warn to avoid import cycle with logger (which may import us).
@@ -36,12 +43,6 @@ export function getClientIp(request: Request): string {
         metric: "missing_cf_connecting_ip",
       }),
     );
-  }
-
-  if (isProxyHeaderTrusted()) {
-    const xff = request.headers.get("x-forwarded-for");
-    const first = xff?.split(",")[0]?.trim();
-    if (first) return first;
   }
 
   return "unknown";
