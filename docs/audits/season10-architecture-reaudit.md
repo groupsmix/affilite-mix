@@ -11,12 +11,12 @@
 
 Nine open architecture issues (#597, #598, #605, #606, #607, #609, #610, #611, #613) were verified against the actual codebase. **Six are confirmed real, two are partially mitigated but retain residual risk, and one is a false positive.** Four new architecture-level findings are documented below.
 
-| Verdict      | Count |
-| ------------ | ----- |
-| **CONFIRMED** | 6     |
+| Verdict                                   | Count |
+| ----------------------------------------- | ----- |
+| **CONFIRMED**                             | 6     |
 | **PARTIAL** (mitigated but residual risk) | 2     |
-| **FALSE POSITIVE** | 1     |
-| **NEW findings** | 4     |
+| **FALSE POSITIVE**                        | 1     |
+| **NEW findings**                          | 4     |
 
 ---
 
@@ -27,6 +27,7 @@ Nine open architecture issues (#597, #598, #605, #606, #607, #609, #610, #611, #
 **Verdict: CONFIRMED — Real, Low-Severity Maintainability Concern**
 
 `middleware.ts` is exactly 722 lines. The file handles:
+
 - Recursion depth guard (lines 90–101)
 - Hostname canonicalization + sanitization (lines 73–114)
 - Maintenance mode with KV cache (lines 121–166)
@@ -56,6 +57,7 @@ Nine open architecture issues (#597, #598, #605, #606, #607, #609, #610, #611, #
 The issue claims concurrent requests on cache expiry cause a thundering herd stampede to the database.
 
 **Evidence of mitigation:**
+
 - `lib/single-flight.ts` implements a classic single-flight/request-coalescing pattern. `getMiddlewareSiteRowByDomain()` (`lib/middleware-site-lookup.ts:37`) wraps every DB lookup in `singleFlight(`site-lookup:${domain}`, ...)`.
 - When a cached site row expires and N concurrent requests hit the same domain, only the first triggers the DB lookup — all others coalesce on the same Promise.
 - The KV cache has a 60-second TTL (`middleware.ts:421`), and the negative cache uses an exponential TTL ramp (300s → 3600s) via `getNegativeCacheTtlSeconds()`.
@@ -74,6 +76,7 @@ The issue claims concurrent requests on cache expiry cause a thundering herd sta
 The issue claims KV cache entries could leak data across tenants.
 
 **Evidence:**
+
 - The middleware caches site resolution rows at `site-domain:${hostname}` (`middleware.ts:352, 421`). The cache key includes the hostname, which is correct — each tenant domain maps to exactly one site row.
 - The product URL cache in `app/api/track/click/route.ts:169` uses `product-url:${siteId}:${productSlug}` — site-scoped, correct.
 - **However**, the `maintenance_mode` KV key (`middleware.ts:144`) is a **global singleton** — there is no per-tenant maintenance mode. This is documented behavior (the flag is platform-wide), not a cross-tenant leak.
@@ -91,6 +94,7 @@ The issue claims KV cache entries could leak data across tenants.
 The issue claims the circuit breaker (`lib/ai/circuit-breaker.ts`) is ineffective on Cloudflare Workers because state is per-isolate.
 
 **Evidence:**
+
 - The `registry` Map (line 130) is module-level, meaning it lives only for the lifetime of a single Worker isolate.
 - The code itself documents this limitation extensively in the `S5-07` comment block (lines 14–23): "the breaker state is NOT shared across isolates… the breaker rarely reaches a useful fleet-wide OPEN state."
 - The mitigation is also documented: "the per-provider fallback chain already provides availability."
@@ -108,11 +112,13 @@ The issue claims the circuit breaker (`lib/ai/circuit-breaker.ts`) is ineffectiv
 The issue claims dashboard queries lack pagination and could scan entire tables.
 
 **Evidence of mitigation:**
+
 - `lib/dal/pagination-guard.ts` implements `clampPagination()` with `MAX_LIMIT = 200` and `MAX_OFFSET = 100_000`.
 - All major DAL list functions (`listContent`, `listProducts`, `listAuditLogs`) use `clampPagination()`.
 - `getDashboardStats()` (`lib/dal/dashboard-stats.ts`) uses an RPC call as the primary path, which is bounded server-side.
 
 **Residual risk:**
+
 - The **fallback path** in `fallbackDashboardStats()` (lines 61–173) fetches up to `CONTENT_CAP = 5000` content IDs into memory (line 127–132), then batches `.in()` queries at 500-per-batch. While capped, this is still a significant amount of data for what should be a simple count.
 - `listAdminUsers()` (`lib/dal/admin-users.ts:76-89`) has **no pagination at all** — it fetches all admin users with `.unsafeNoSiteFilter().order(...)` and no `.limit()`. For a small number of admins this is fine, but the absence of a guard is a pattern violation.
 - `getNicheHealthStats()` (`lib/dal/niche-health.ts`) uses an RPC with no limit — the result size scales with the number of active sites. At 100+ sites this could return a significant payload.
@@ -129,6 +135,7 @@ The issue claims dashboard queries lack pagination and could scan entire tables.
 The issue claims the click queue producer has no backpressure mechanism.
 
 **Evidence:**
+
 - `publishClick()` in `lib/click-queue.ts` calls `queue.send(payload)` (line 88) without any rate limiting, queue depth check, or backpressure signal.
 - The Cloudflare Queue `.send()` API is fire-and-forget — it does not expose queue depth or consumer lag. If the consumer falls behind, the queue silently grows until Cloudflare's internal limits are hit.
 - When `queue.send()` fails, the code falls back to `logClickFailure()` (line 98) in production, which inserts into `click_failures`. This is a reasonable degradation, but there is **no feedback loop** to slow down the producer.
@@ -146,11 +153,13 @@ The issue claims the click queue producer has no backpressure mechanism.
 The issue claims the AbortSignal from the middleware timeout is not propagated to downstream async calls.
 
 **Evidence of mitigation:**
+
 - The middleware timeout wrapper (`middleware.ts:622-652`) creates an `AbortController` and passes `signal` to `innerMiddleware()`.
 - `innerMiddleware()` calls `throwIfAborted(signal)` at multiple checkpoints (lines 140, 145, 260, 303, 358, 415, 417).
 - `fetchWithTimeout()` (`lib/fetch-timeout.ts:46-47`) composes AbortSignals via `AbortSignal.any()`.
 
 **Residual risk:**
+
 - The `signal` parameter is **not forwarded** to `getMiddlewareSiteRowByDomain()` (`lib/middleware-site-lookup.ts`). The site lookup calls `fetchWithTimeout()` with its own 1.5-second timeout but does not accept an external AbortSignal. If the middleware's 5-second timeout fires during the fetch, the `throwIfAborted()` check on line 417 catches it, but the underlying HTTP request continues running until the 1.5-second fetch timeout expires — wasting isolate CPU time.
 - Similarly, the `checkRateLimit()` call on line 305 does not receive the abort signal. If rate limiting uses Durable Objects (`lib/rate-limit.ts:122`), the DO `fetch()` call runs independently of the middleware timeout.
 - The KV `.get()` and `.put()` calls in the middleware body are not signal-aware. KV operations are typically fast (<5ms), so this is low-risk.
@@ -166,6 +175,7 @@ The issue claims the AbortSignal from the middleware timeout is not propagated t
 The issue claims `unsafeNoSiteFilter()` is used excessively, weakening the tenant isolation guard.
 
 **Evidence:**
+
 - Grep finds **86 occurrences** across the codebase.
 - Many usages are **legitimate**: `admin_users` table has no `site_id` column (global accounts), `click_failures` is a cross-tenant DLQ, `stripe_events` / `webhook_dlq` are global event tables, cron jobs operate across all sites.
 - **Concerning patterns:**
@@ -188,6 +198,7 @@ The issue claims `unsafeNoSiteFilter()` is used excessively, weakening the tenan
 The issue claims click deduplication has gaps.
 
 **Evidence:**
+
 - `app/api/track/click/route.ts:61-78` implements `isDuplicateClick()` using KV with a 24-hour TTL. The fingerprint is an HMAC of `siteId + contentSlug + ipPrefix + uaHash` (line 38).
 - **Gap 1:** Dedup only runs when `hmacKey` is set AND the click is not internal (line 327). If `CLICK_CACHE_HMAC_KEY` is missing, dedup is entirely skipped. The code logs an error in production (line 130) but still proceeds to record the click.
 - **Gap 2:** The dedup key is `click-dedup:${siteId}:${contentSlug}:${fingerprint}`. If the same user clicks the same product from different content pages, the clicks are NOT deduped (different `contentSlug`). This may be intentional (per-campaign attribution) but reduces dedup effectiveness.
@@ -227,7 +238,9 @@ void (async () => {
   if (ctx) {
     try {
       ctx.waitUntil(wrapped);
-    } catch { /* ... */ }
+    } catch {
+      /* ... */
+    }
   }
 })();
 ```
@@ -248,6 +261,7 @@ The Proxy on the privileged client intercepts `.from()` to enforce `site_id` fil
 Currently, the RPC functions accept `p_site_id` as a parameter and filter internally, so the risk depends on correct usage at call sites. But the architectural guarantee provided by the F-API-01 proxy — "you cannot execute a query without a site_id filter" — does not extend to RPC calls. A new RPC function added without a `site_id` parameter would silently escape the guard.
 
 Files using `.rpc()` through the privileged client:
+
 - `lib/dal/dashboard-stats.ts:30` — passes `p_site_id` ✓
 - `lib/dal/niche-health.ts:24` — no site filter (cross-tenant by design, but unguarded)
 - `lib/dal/admin-users.ts:167-189` — atomic login counter RPC, no site_id (correct for global admin_users table)
@@ -279,18 +293,18 @@ Unlike every other list function in the DAL (which uses `clampPagination()`), `l
 
 ## 3. Summary Table
 
-| Issue | Title | Verdict | Severity | Action Needed |
-| ----- | ----- | ------- | -------- | ------------- |
-| #598 | Middleware 722 lines | **CONFIRMED** | Low | Optional refactor; already partially decomposed |
-| #597 | Thundering herd | **FALSE POSITIVE** | N/A | Close — single-flight pattern is in place |
-| #607 | Cache cross-tenant leak | **CONFIRMED** | Medium | Add cache invalidation race guard on domain reassignment |
-| #606 | Circuit breaker on CF Workers | **CONFIRMED** | Low | Accept or back with KV/DO (documented as low-priority) |
-| #605 | Dashboard unbounded queries | **PARTIAL** | Low-Medium | Add limit to `listAdminUsers`, cap niche health RPC |
-| #609 | Click queue no backpressure | **CONFIRMED** | Medium | Add producer-side rate/depth check or circuit breaker |
-| #610 | AbortSignal dropped | **PARTIAL** | Low | Forward signal to `getMiddlewareSiteRowByDomain` and rate-limit |
-| #611 | `unsafeNoSiteFilter` overuse | **CONFIRMED** | Medium | Add lint rule or CODEOWNER gate for opt-out usage |
-| #613 | Click dedup gaps | **CONFIRMED** | Low | Accept as best-effort or add atomic check via DO |
-| NEW-01 | Allowlist parsed per request | **NEW** | Low | Hoist to module scope |
-| NEW-02 | `runAfterResponse` async race | **NEW** | Medium | Call `waitUntil` synchronously in fetch handler |
-| NEW-03 | RPC bypasses F-API-01 proxy | **NEW** | Medium | Extend proxy to intercept `.rpc()` or add separate guard |
-| NEW-04 | `listAdminUsers` unbounded | **NEW** | Low | Add `.limit()` or use `clampPagination()` |
+| Issue  | Title                         | Verdict            | Severity   | Action Needed                                                   |
+| ------ | ----------------------------- | ------------------ | ---------- | --------------------------------------------------------------- |
+| #598   | Middleware 722 lines          | **CONFIRMED**      | Low        | Optional refactor; already partially decomposed                 |
+| #597   | Thundering herd               | **FALSE POSITIVE** | N/A        | Close — single-flight pattern is in place                       |
+| #607   | Cache cross-tenant leak       | **CONFIRMED**      | Medium     | Add cache invalidation race guard on domain reassignment        |
+| #606   | Circuit breaker on CF Workers | **CONFIRMED**      | Low        | Accept or back with KV/DO (documented as low-priority)          |
+| #605   | Dashboard unbounded queries   | **PARTIAL**        | Low-Medium | Add limit to `listAdminUsers`, cap niche health RPC             |
+| #609   | Click queue no backpressure   | **CONFIRMED**      | Medium     | Add producer-side rate/depth check or circuit breaker           |
+| #610   | AbortSignal dropped           | **PARTIAL**        | Low        | Forward signal to `getMiddlewareSiteRowByDomain` and rate-limit |
+| #611   | `unsafeNoSiteFilter` overuse  | **CONFIRMED**      | Medium     | Add lint rule or CODEOWNER gate for opt-out usage               |
+| #613   | Click dedup gaps              | **CONFIRMED**      | Low        | Accept as best-effort or add atomic check via DO                |
+| NEW-01 | Allowlist parsed per request  | **NEW**            | Low        | Hoist to module scope                                           |
+| NEW-02 | `runAfterResponse` async race | **NEW**            | Medium     | Call `waitUntil` synchronously in fetch handler                 |
+| NEW-03 | RPC bypasses F-API-01 proxy   | **NEW**            | Medium     | Extend proxy to intercept `.rpc()` or add separate guard        |
+| NEW-04 | `listAdminUsers` unbounded    | **NEW**            | Low        | Add `.limit()` or use `clampPagination()`                       |
