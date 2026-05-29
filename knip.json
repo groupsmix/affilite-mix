@@ -1,5 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreExportsUsedInFile": true,
   "ignore": [
     "__tests__/helpers/server-only-shim.ts",
     "lighthouserc.cjs",
@@ -7,15 +8,12 @@
     "open-next.config.ts",
     "scripts/check-db-types.mjs",
     "scripts/load-test.mjs",
+    "types/supabase.ts",
     "workers/custom-worker.ts",
     "workers/heavy-crons.ts",
     "workers/log-shipper/index.ts",
-    "workers/rate-limiter-do.ts",
-    "types/supabase.ts"
+    "workers/rate-limiter-do.ts"
   ],
-  "ignoreDependencies": ["eslint-config-next"],
-  "ignoreExportsUsedInFile": true,
-  "entry": ["lib/cookie-utils.ts"],
   "ignoreBinaries": [
     "wrangler",
     "license-checker",
@@ -30,5 +28,6 @@
     "Unlicense",
     "0BSD",
     "BlueOak-1.0.0"
-  ]
+  ],
+  "ignoreDependencies": ["eslint-config-next"]
 }

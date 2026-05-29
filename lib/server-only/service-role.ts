@@ -68,10 +68,6 @@ let _privilegedClientCreatedAt = 0;
 let _cachedUrl: string | null = null;
 let _cachedKey: string | null = null;
 
-// C-6: flushPrivilegedClient() removed — zero callers, quarantined by
-// cleanup audit C3. If emergency key-rotation flush is ever needed,
-// the TTL (60s) already handles propagation.
-
 /**
  * Returns a Supabase client authenticated with `SUPABASE_SERVICE_ROLE_KEY`.
  *

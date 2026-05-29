@@ -281,11 +281,3 @@ describeIfService("RLS policies are installed on tenant tables", () => {
     });
   }
 });
-
-// When the test suite is skipped, give a single clear message in the output
-// so CI logs make it obvious this didn't silently no-op.
-if (!hasRealDb) {
-  describe("RLS isolation", () => {
-    it.skip("skipped: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY not set to a real instance", () => {});
-  });
-}
