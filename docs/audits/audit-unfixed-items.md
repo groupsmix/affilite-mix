@@ -1,27 +1,25 @@
 # Consolidated Audit Report — Resolution Status
 
-**Date**: 2026-05-26
-**Branch**: `devin/1779842975-fix-all-audit-items`
-**Sources**: etap-0, etap-1, etap-2, etap-3, etap-5, etap-6, etap-all-check
+**Date**: 2026-05-29 (rebaselined)
+**Branch**: `main`
+**Sources**: etap-0, etap-1, etap-2, etap-3 (**repo-scoped only**)
 
-> **Note**: etap-5 and etap-6 were generated for a different codebase (Oltigo Health).
-> Items inapplicable to affilite-mix are marked N/A with rationale.
->
-> **S8-F13 (A249-M6): Cross-codebase audit contamination risk.** 8 items below
-> originated from Oltigo Health audits (etap-5/etap-6) and were correctly N/A'd:
-> MED #4, #5, #11, #14, #16; LOW #28, #29. Each N/A includes explicit
-> rationale. No affilite-mix findings were mislabeled N/A. This note was
-> added in Season 8 to make the contamination boundary unambiguous.
+> **Rebaseline note (F2 remediation):** etap-5 and etap-6 findings originated
+> from a different codebase (Oltigo Health) and have been **removed** from this
+> register. The previous version carried 7 Oltigo items as N/A (MED #4, #5,
+> #11, #14, #16; LOW #28, #29). Keeping foreign findings — even marked N/A —
+> contaminates the audit trail and undermines compliance evidence. This file
+> now contains only affilite-mix-scoped findings with provenance.
 
 ## Summary
 
-| Priority  | Total  | Fixed  | N/A   | Documented |
-| --------- | ------ | ------ | ----- | ---------- |
-| MEDIUM    | 16     | 10     | 6     | 6          |
-| LOW       | 17     | 11     | 2     | 4          |
-| **Total** | **33** | **21** | **8** | **10**     |
+| Priority  | Total  | Fixed  | Documented |
+| --------- | ------ | ------ | ---------- |
+| MEDIUM    | 11     | 7      | 4          |
+| LOW       | 15     | 11     | 4          |
+| **Total** | **26** | **18** | **8**      |
 
-All 33 items addressed: 21 code-fixed, 8 not-applicable (wrong codebase), 4 documented with ADR/plan.
+All 26 items addressed: 18 code-fixed, 8 documented with ADR/plan. 7 foreign (Oltigo Health) items removed during F2 rebaseline.
 
 ---
 
@@ -40,14 +38,6 @@ ADR-0010: `docs/adr/0010-per-tenant-encryption-keys.md` — 3-phase envelope enc
 
 `lib/ai/circuit-breaker.ts` already existed. Now wired into `lib/ai/providers.ts` —
 OPEN circuit breakers are skipped in the provider fallback chain.
-
-### MED #4: Server-side impersonation sessions — N/A
-
-No impersonation feature exists in affilite-mix. This finding was from Oltigo Health (etap-6).
-
-### MED #5: ClamAV integration — N/A
-
-affilite-mix handles product images via R2 presigned uploads, not PHI file uploads.
 
 ### MED #6: Audit log retry queue ✅ ALREADY FIXED
 
@@ -70,10 +60,6 @@ ADR-0011: `docs/adr/0011-supabase-connection-pooling.md` — Supavisor upgrade +
 
 `vitest.config.ts` lines 31-37: per-module thresholds. CI runs `npm run test:coverage`.
 
-### MED #11: Booking E2E test — N/A
-
-No booking feature in affilite-mix. Oltigo Health finding.
-
 ### MED #12: GDPR Art.18 restriction endpoint ✅ ALREADY FIXED
 
 `app/api/admin/privacy/restrict/route.ts` — POST/DELETE with audit logging.
@@ -83,17 +69,9 @@ No booking feature in affilite-mix. Oltigo Health finding.
 `app/api/admin/privacy/object/route.ts` — POST/DELETE with scope (marketing/profiling/analytics/all).
 Migration: `2026052602_gdpr_art21_objections.sql`.
 
-### MED #14: Privacy policy WhatsApp disclosure — N/A
-
-No WhatsApp integration in affilite-mix.
-
 ### MED #15: Pen test plan ✅ DOCUMENTED
 
 `docs/penetration-test-plan.md` — scope, categories, timeline, vendor requirements, remediation SLAs.
-
-### MED #16: WhatsApp DPA plan — N/A
-
-No WhatsApp integration in affilite-mix.
 
 ---
 
@@ -162,14 +140,6 @@ duration, P99 metrics, and 5% error rate threshold.
 `app/api/cron/access-review/route.ts` — SOC 2 CC6.1 recertification cron.
 Migration: `2026052603_access_review_log.sql`.
 Flags: inactive 90d+ accounts, super_admin roles for manual review.
-
-### LOW #28: Expired token mutation test — N/A
-
-No booking tokens in affilite-mix. Oltigo Health finding.
-
-### LOW #29: Phone validation regex — N/A
-
-No phone number fields in affilite-mix. Oltigo Health finding.
 
 ### LOW #30: Terraform for Supabase ✅ DOCUMENTED
 
