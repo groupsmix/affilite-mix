@@ -5,7 +5,6 @@ import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
-import { cursorPaginate, type CursorPage } from "./cursor-pagination";
 import { clampPagination } from "./pagination-guard";
 
 const TABLE = "products";
@@ -105,28 +104,6 @@ export async function listProducts(
   const { data, error } = await query;
   if (error) throw error;
   return assertRows<ProductRow>(data);
-}
-
-/**
- * Cursor-based (keyset) pagination for products.
- * Preferred over offset for deep pages — O(1) seek vs O(n) scan.
- */
-async function listProductsCursor(
-  opts: Omit<ListProductsOptions, "offset"> & { cursor?: string | null },
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<CursorPage<ProductRow>> {
-  return cursorPaginate<ProductRow>(
-    TABLE,
-    {
-      siteId: opts.siteId,
-      limit: opts.limit,
-      cursor: opts.cursor,
-      orderColumn: opts.sortBy ?? "created_at",
-      ascending: opts.sortDirection === "asc",
-      select: LIST_COLUMNS,
-    },
-    getClient,
-  );
 }
 
 export async function countProducts(
