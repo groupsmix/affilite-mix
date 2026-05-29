@@ -24,19 +24,27 @@ interface CloudflareExecutionContextLike {
   waitUntil(promise: Promise<unknown>): void;
 }
 
-/** Try to grab the Worker's ExecutionContext via @opennextjs/cloudflare. */
-async function getExecutionContext(): Promise<CloudflareExecutionContextLike | undefined> {
+/**
+ * Eagerly resolve the Worker's ExecutionContext at module load time.
+ *
+ * NEW-02: The previous implementation resolved this asynchronously inside an
+ * unawaited IIFE, meaning `ctx.waitUntil()` could fire after the response
+ * was already sent and the execution context was closing.  On Cloudflare
+ * Workers, `waitUntil()` must be called synchronously within the fetch
+ * handler (or inside an already-registered waitUntil chain).
+ *
+ * `getCloudflareContext()` (without `{ async: true }`) returns synchronously
+ * when called within a request handler, so `runAfterResponse` can call
+ * `waitUntil()` synchronously.  Not cached — the context is per-request.
+ */
+function getExecutionContextSync(): CloudflareExecutionContextLike | undefined {
   try {
-    const mod = (await import("@opennextjs/cloudflare")) as {
-      getCloudflareContext?: (opts?: {
-        async?: boolean;
-      }) =>
-        | { ctx: CloudflareExecutionContextLike }
-        | Promise<{ ctx: CloudflareExecutionContextLike }>;
+    const mod = require("@opennextjs/cloudflare") as {
+      getCloudflareContext?: () => { ctx: CloudflareExecutionContextLike };
     };
     if (typeof mod.getCloudflareContext !== "function") return undefined;
-    const awaited = await Promise.resolve(mod.getCloudflareContext({ async: true }));
-    return awaited?.ctx;
+    const result = mod.getCloudflareContext();
+    return result?.ctx;
   } catch {
     // fail-open: best-effort [criticality:non-critical]
     return undefined;
@@ -68,21 +76,17 @@ export function runAfterResponse<T>(
     throw err;
   });
 
-  // Fire-and-forget the Workers handoff; we never await it here so the
-  // HTTP response is not delayed.
-  void (async () => {
-    const ctx = await getExecutionContext();
-    if (ctx) {
-      try {
-        ctx.waitUntil(wrapped);
-      } catch {
-        // fail-open: best-effort [criticality:non-critical]
-        // waitUntil can throw if the context has already been closed.
-        // The `.catch()` above still protects us from an unhandled
-        // rejection; just swallow this.
-      }
+  // NEW-02: Call waitUntil synchronously so it is registered before the
+  // response is returned, matching the pattern in custom-worker.ts.
+  const ctx = getExecutionContextSync();
+  if (ctx) {
+    try {
+      ctx.waitUntil(wrapped);
+    } catch {
+      // fail-open: best-effort [criticality:non-critical]
+      // waitUntil can throw if the context has already been closed.
     }
-  })();
+  }
 
   return wrapped;
 }
