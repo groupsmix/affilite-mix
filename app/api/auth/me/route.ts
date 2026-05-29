@@ -4,6 +4,7 @@ import { getActiveSiteSlug } from "@/lib/active-site";
 import { getSiteById } from "@/config/sites";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { logger } from "@/lib/logger";
 
 /** 60 auth/me requests per minute per IP.
  * F-006: failPolicy: "closed" — auth endpoints must never silently skip
@@ -15,6 +16,11 @@ const AUTH_ME_RATE_LIMIT = {
 };
 
 export async function GET(request: NextRequest) {
+  const requestId = request.headers.get("x-trace-id") ?? crypto.randomUUID();
+  const log = logger.child({ requestId });
+
+  log.info("auth/me");
+
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`auth-me:${ip}`, AUTH_ME_RATE_LIMIT);
   if (!rl.allowed) {

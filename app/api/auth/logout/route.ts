@@ -7,6 +7,7 @@ import { CSRF_COOKIE } from "@/lib/csrf";
 import { revokeToken } from "@/lib/jwt-revocation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { logger } from "@/lib/logger";
 
 /**
  * B-03: Clear every auth-related cookie on logout.
@@ -16,6 +17,11 @@ import { getClientIp } from "@/lib/get-client-ip";
  * which could confuse subsequent sessions or leak stale fingerprints.
  */
 export async function POST(request: NextRequest) {
+  const requestId = request.headers.get("x-trace-id") ?? crypto.randomUUID();
+  const log = logger.child({ requestId });
+
+  log.info("logout");
+
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`logout:${ip}`, {
     maxRequests: 10,
