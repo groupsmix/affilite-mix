@@ -49,8 +49,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response);
   } catch (err) {
     captureException(err, { context: "[api/admin/permissions] GET failed:" });
-    const message = err instanceof Error ? err.message : "Failed to list permissions";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to list permissions" }, { status: 500 });
   }
 }
 
@@ -87,7 +86,7 @@ export async function POST(request: NextRequest) {
   try {
     const role = await getRoleByName(role_name);
     if (!role) {
-      return NextResponse.json({ error: `Role not found: ${role_name}` }, { status: 404 });
+      return NextResponse.json({ error: "Role not found" }, { status: 404 });
     }
 
     const assignment = await assignUserSiteRole({
@@ -109,8 +108,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(assignment, { status: 200 });
   } catch (err) {
     captureException(err, { context: "[api/admin/permissions] POST failed:" });
-    const message = err instanceof Error ? err.message : "Failed to assign role";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to assign role" }, { status: 500 });
   }
 }
 
@@ -149,7 +147,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     captureException(err, { context: "[api/admin/permissions] DELETE failed:" });
-    const message = err instanceof Error ? err.message : "Failed to remove role";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to remove role" }, { status: 500 });
   }
 }

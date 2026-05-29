@@ -103,13 +103,7 @@ export async function GET() {
     return NextResponse.json({ sites: mergedSites });
   } catch (err) {
     captureException(err, { context: "admin-sites-get" });
-    return NextResponse.json(
-      {
-        error: "Internal error listing sites",
-        detail: err instanceof Error ? err.message : String(err),
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal error listing sites" }, { status: 500 });
   }
 }
 
@@ -201,14 +195,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(site, { status: 201 });
   } catch (err) {
     captureException(err, { context: "[api/admin/sites] POST create failed:" });
-    const message = err instanceof Error ? err.message : "Failed to create site";
-    if (message.includes("duplicate") || message.includes("unique")) {
+    const rawMsg = err instanceof Error ? err.message : "";
+    if (rawMsg.includes("duplicate") || rawMsg.includes("unique")) {
       return NextResponse.json(
         { error: "A site with this slug or domain already exists" },
         { status: 409 },
       );
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create site" }, { status: 500 });
   }
 }
 
@@ -292,8 +286,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(site);
   } catch (err) {
     captureException(err, { context: "[api/admin/sites] PATCH update failed:" });
-    const message = err instanceof Error ? err.message : "Failed to update site";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update site" }, { status: 500 });
   }
 }
 
@@ -328,7 +321,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     captureException(err, { context: "[api/admin/sites] DELETE failed:" });
-    const message = err instanceof Error ? err.message : "Failed to delete site";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete site" }, { status: 500 });
   }
 }

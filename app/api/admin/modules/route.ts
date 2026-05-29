@@ -35,8 +35,7 @@ export const GET = withAuthz("modules", "read", async (request, { session }) => 
     return NextResponse.json({ modules: merged, registry: MODULE_REGISTRY });
   } catch (err) {
     captureException(err, { context: "[api/admin/modules] GET failed:" });
-    const message = err instanceof Error ? err.message : "Failed to list modules";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to list modules" }, { status: 500 });
   }
 });
 
@@ -67,7 +66,7 @@ export const POST = withAuthz("modules", "configure", async (request, { session 
   const validKeys = MODULE_REGISTRY.map((m) => m.key);
   if (!validKeys.includes(module_key)) {
     return NextResponse.json(
-      { error: `Invalid module_key: ${module_key}. Valid keys: ${validKeys.join(", ")}` },
+      { error: `Invalid module_key. Valid keys: ${validKeys.join(", ")}` },
       { status: 400 },
     );
   }
@@ -92,8 +91,7 @@ export const POST = withAuthz("modules", "configure", async (request, { session 
     return NextResponse.json(mod, { status: 200 });
   } catch (err) {
     captureException(err, { context: "[api/admin/modules] POST failed:" });
-    const message = err instanceof Error ? err.message : "Failed to upsert module";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to upsert module" }, { status: 500 });
   }
 });
 
@@ -131,7 +129,6 @@ export const PATCH = withAuthz("modules", "configure", async (request, { session
     return NextResponse.json({ modules: results });
   } catch (err) {
     captureException(err, { context: "[api/admin/modules] PATCH failed:" });
-    const message = err instanceof Error ? err.message : "Failed to bulk upsert modules";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to bulk upsert modules" }, { status: 500 });
   }
 });
