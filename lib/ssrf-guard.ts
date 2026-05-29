@@ -14,7 +14,18 @@ import { logger } from "./logger";
 import dns from "node:dns";
 import { promisify } from "node:util";
 
-const lookupAsync = promisify(dns.lookup);
+const lookupAsyncRaw = promisify(dns.lookup);
+
+/** T1-01 / P7-03: Wrap dns.lookup with a timeout to prevent resolver stalls. */
+const DNS_TIMEOUT_MS = 5_000;
+function lookupAsync(hostname: string): Promise<{ address: string; family: number }> {
+  return Promise.race([
+    lookupAsyncRaw(hostname),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("DNS lookup timed out")), DNS_TIMEOUT_MS),
+    ),
+  ]);
+}
 
 // Blocked hostnames / IP ranges
 const BLOCKED_HOSTS = new Set([
@@ -260,6 +271,29 @@ export async function validateExternalUrl(
           return {
             valid: false,
             error: `Resolved IP range '${cidr}' is blocked (SSRF risk)`,
+          };
+        }
+      }
+    }
+
+    // T1-01: Validate resolved IPv6 addresses against private/link-local ranges.
+    // Previously, only the input hostname was checked for IPv6 prefixes; a
+    // hostname resolving to an AAAA record (e.g. fd00::1) would slip through.
+    if (isBlockedIPv6Prefix(resolvedIp)) {
+      return {
+        valid: false,
+        error: `Resolved IPv6 address '${resolvedIp}' is in a private/link-local range (SSRF risk)`,
+      };
+    }
+
+    // Also check IPv6-mapped IPv4 in the resolved address.
+    const resolvedMapped = ipv6MappedToIPv4(resolvedIp);
+    if (resolvedMapped) {
+      for (const cidr of BLOCKED_IP_RANGES) {
+        if (ipInRange(resolvedMapped, cidr)) {
+          return {
+            valid: false,
+            error: `Resolved IPv6-mapped IPv4 '${resolvedMapped}' falls in blocked range '${cidr}'`,
           };
         }
       }

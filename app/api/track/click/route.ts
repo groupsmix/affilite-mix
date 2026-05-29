@@ -97,9 +97,7 @@ async function hasValidAdminSession(request: NextRequest, siteId?: string): Prom
     if (!payload) return false;
     // RC-001: Require token to carry a site_id claim that matches the resolved tenant.
     // Tokens without site_id (legacy/older) must NOT be treated as internal.
-    const tokenSiteId = (payload as unknown as Record<string, unknown>).site_id as
-      | string
-      | undefined;
+    const tokenSiteId = payload.site_id;
     if (siteId && tokenSiteId !== siteId) {
       return false;
     }

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import dns from "node:dns";
 import { validateExternalUrl } from "../lib/ssrf-guard";
 
 describe("SSRF Guard", () => {
@@ -138,6 +139,63 @@ describe("SSRF Guard", () => {
     it("blocks URLs with ports on private IPs", async () => {
       expect((await validateExternalUrl("https://127.0.0.1:443")).valid).toBe(false);
       expect((await validateExternalUrl("https://192.168.1.1:8443")).valid).toBe(false);
+    });
+  });
+
+  // C8-03: T1-01 regression — hostname resolving to private IPv6
+  describe("IPv6 resolve guard (T1-01)", () => {
+    it("blocks hostname resolving to ULA IPv6 (fd00::1)", async () => {
+      const lookupSpy = vi.spyOn(dns, "lookup").mockImplementation((...args: unknown[]) => {
+        const cb = args[args.length - 1] as (
+          err: NodeJS.ErrnoException | null,
+          address: string,
+          family: number,
+        ) => void;
+        cb(null, "fd00::1", 6);
+      });
+      try {
+        const result = await validateExternalUrl("https://evil-ipv6.example.com");
+        expect(result.valid).toBe(false);
+        expect(result.error).toMatch(/private|link-local|blocked/i);
+      } finally {
+        lookupSpy.mockRestore();
+      }
+    });
+
+    it("blocks hostname resolving to link-local IPv6 (fe80::1)", async () => {
+      const lookupSpy = vi.spyOn(dns, "lookup").mockImplementation((...args: unknown[]) => {
+        const cb = args[args.length - 1] as (
+          err: NodeJS.ErrnoException | null,
+          address: string,
+          family: number,
+        ) => void;
+        cb(null, "fe80::1", 6);
+      });
+      try {
+        const result = await validateExternalUrl("https://evil-linklocal.example.com");
+        expect(result.valid).toBe(false);
+        expect(result.error).toMatch(/private|link-local|blocked/i);
+      } finally {
+        lookupSpy.mockRestore();
+      }
+    });
+
+    it("blocks hostname resolving to IPv6-mapped private IPv4 (::ffff:10.0.0.1)", async () => {
+      const lookupSpy = vi.spyOn(dns, "lookup").mockImplementation((...args: unknown[]) => {
+        const cb = args[args.length - 1] as (
+          err: NodeJS.ErrnoException | null,
+          address: string,
+          family: number,
+        ) => void;
+        cb(null, "::ffff:10.0.0.1", 6);
+      });
+      try {
+        const result = await validateExternalUrl("https://evil-mapped.example.com");
+        expect(result.valid).toBe(false);
+        expect(result.error).toMatch(/blocked|mapped/i);
+      } finally {
+        lookupSpy.mockRestore();
+      }
     });
   });
 });
