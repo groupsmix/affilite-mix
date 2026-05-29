@@ -15,7 +15,7 @@ import { sanitizeHtml, isSafeUrl } from "@/lib/sanitize-html";
  */
 function assertNoExecutable(output: string): void {
   const lower = output.toLowerCase();
-  expect(lower).not.toMatch(/<script[\s>]/);
+  expect(lower).not.toMatch(/<script[\s>]/i);
   // Check for event handlers as HTML attributes (not inside quoted attr values).
   // Match on\w+= only when preceded by a space (attribute position), not inside
   // a quoted value like title="...onerror=...".

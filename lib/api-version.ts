@@ -15,7 +15,6 @@ const CURRENT_API_VERSION = "2026-05-25";
 
 /** Header names for API versioning. */
 const API_VERSION_HEADER = "API-Version";
-const ACCEPT_VERSION_HEADER = "Accept-Version";
 const SUNSET_HEADER = "Sunset";
 
 /**

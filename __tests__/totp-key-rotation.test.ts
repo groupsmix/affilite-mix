@@ -6,7 +6,7 @@
  *   - decryptAndRotate transparently re-encrypts with the latest key
  *   - Secrets already on the latest key are not unnecessarily rotated
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   encryptTotpSecret,
   decryptTotpSecret,

@@ -104,9 +104,3 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   "app/api/admin/sites/route.ts",
   "app/api/admin/sites/select/route.ts",
 ] as const;
-
-type ServiceRoleAllowlistedPath = (typeof SERVICE_ROLE_IMPORT_ALLOWLIST)[number];
-
-function isServiceRoleAllowlisted(repoRelativePath: string): boolean {
-  return (SERVICE_ROLE_IMPORT_ALLOWLIST as readonly string[]).includes(repoRelativePath);
-}

@@ -76,10 +76,3 @@ export function t(key: string, locale: SupportedLocale = "en"): string {
   const catalog = CATALOGS[locale] ?? CATALOGS.en;
   return catalog.messages[key] ?? CATALOGS.en.messages[key] ?? key;
 }
-
-/**
- * Get the text direction for a locale.
- */
-function getDirection(locale: SupportedLocale): "ltr" | "rtl" {
-  return CATALOGS[locale]?.direction ?? "ltr";
-}

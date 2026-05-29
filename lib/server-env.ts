@@ -280,54 +280,6 @@ const FEATURE_CONDITIONAL_ENV: readonly {
   },
 ] as const;
 
-/**
- * Extended feature condition check for production observability.
- * In production (NODE_ENV=production), if OTEL_ENDPOINT is set,
- * OTEL_AUTH_TOKEN must also be configured.
- */
-function validateObservabilityEnv(): { missing: string[] } {
-  const missing: string[] = [];
-
-  // In production, if observability endpoint is configured, require auth token
-  if (process.env.NODE_ENV === "production") {
-    const otelEndpoint = process.env.OTEL_ENDPOINT;
-    const otelAuthToken = process.env.OTEL_AUTH_TOKEN;
-
-    if (otelEndpoint && otelEndpoint.trim().length > 0 && !otelAuthToken) {
-      missing.push("OTEL_AUTH_TOKEN (required when OTEL_ENDPOINT is set in production)");
-    }
-
-    // Log shipping requires the R2 bucket and worker to be configured
-    const logShipperEnabled = process.env.LOG_SHIPPER_ENABLED === "true";
-    if (logShipperEnabled) {
-      // This check happens at deploy time via CI validation
-      // Just document the requirement here
-    }
-  }
-
-  return { missing };
-}
-
-/**
- * Get a formatted message for feature-specific missing env vars.
- * Includes the feature name and how to fix the issue.
- */
-function formatFeatureEnvMessage(feature: string, missing: readonly RequiredEnvVar[]): string {
-  return [
-    "",
-    "=".repeat(60),
-    `Missing environment variables for feature: ${feature}`,
-    "=".repeat(60),
-    ...missing.map(
-      ({ name, description, ownerFile }) => `  - ${name}: ${description} (used by ${ownerFile})`,
-    ),
-    "",
-    `To enable ${feature}, configure the above environment variables.`,
-    "=".repeat(60),
-    "",
-  ].join("\n");
-}
-
 /** Run the full audit of required + recommended server env vars. */
 export function validateServerEnv(): {
   missing: RequiredEnvVar[];

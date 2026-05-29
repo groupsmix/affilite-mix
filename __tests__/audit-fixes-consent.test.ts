@@ -15,7 +15,6 @@ const VALID_CONSENT_CATEGORIES = new Set([
   "performance",
 ]);
 const MAX_CATEGORIES = 10;
-const MAX_BANNER_VERSION_LENGTH = 64;
 
 function validateConsentCategories(categories: unknown): string | null {
   if (!Array.isArray(categories)) return "categories must be an array";

@@ -2,7 +2,7 @@
  * Tests for lib/ai/output-validation.ts
  * Covers: validateOutputFormat, checkContentQuality, validateGeneratedLinks
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
 import {
   validateOutputFormat,

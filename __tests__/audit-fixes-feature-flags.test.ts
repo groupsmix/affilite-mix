@@ -7,7 +7,6 @@ import {
   FLAG_REGISTRY,
   getExpiredFlags,
   validateFlagRegistry,
-  enforceNoPermanentFlags,
   MAX_FLAG_LIFETIME_DAYS,
 } from "@/lib/feature-flags";
 
