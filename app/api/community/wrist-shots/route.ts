@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { parseJsonBody } from "@/lib/api-error";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createWristShot, listApprovedWristShots } from "@/lib/dal/community";
@@ -90,13 +91,9 @@ export async function POST(request: NextRequest) {
     caption?: string;
     turnstileToken?: string;
   };
-  try {
-    body = await request.json();
-  } catch {
-    // audit5-#10: malformed JSON is a 400 (client error); do not log.
-    // See app/api/community/comments/route.ts for the rationale.
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request);
+  if (parsed instanceof NextResponse) return parsed;
+  body = parsed as typeof body;
 
   if (!body.user_email || !body.user_name || !body.image_url) {
     return NextResponse.json(

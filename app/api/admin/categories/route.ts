@@ -115,12 +115,9 @@ export const DELETE = withAuthz(
     if (rlResponse) return rlResponse;
 
     let id: string | null = null;
-    try {
-      const body = await request.json();
-      id = body?.id ?? null;
-    } catch {
-      // fail-open: best-effort [criticality:non-critical]
-      // fallback to query params for backward compatibility
+    const bodyOrErr = await parseJsonBody(request);
+    if (!(bodyOrErr instanceof NextResponse)) {
+      id = (bodyOrErr as { id?: string }).id ?? null;
     }
     if (!id) {
       id = request.nextUrl.searchParams.get("id");
