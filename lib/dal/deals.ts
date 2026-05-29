@@ -1,4 +1,4 @@
-import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface DealRow {
@@ -48,99 +48,6 @@ export async function listActiveDeals(
   // Filter out expired deals client-side (Supabase doesn't support OR NULL in same filter easily)
   const rows = assertRows<DealRow>(data);
   return rows.filter((d) => !d.expires_at || new Date(d.expires_at) > new Date());
-}
-
-/** List featured deals */
-async function listFeaturedDeals(
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<DealRow[]> {
-  const sb = await getClient();
-  const now = new Date().toISOString();
-
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(LIST_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("is_active", true)
-    .eq("is_featured", true)
-    .lte("starts_at", now)
-    .order("discount_pct", { ascending: false, nullsFirst: false })
-    .limit(10);
-
-  if (error) throw error;
-  const rows = assertRows<DealRow>(data);
-  return rows.filter((d) => !d.expires_at || new Date(d.expires_at) > new Date());
-}
-
-/** Get deal by ID */
-async function getDealById(
-  id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<DealRow | null> {
-  const sb = await getClient();
-
-  const { data, error } = await sb.from(TABLE).select(LIST_COLUMNS).eq("id", id).maybeSingle();
-
-  if (error) throw error;
-  return rowOrNull<DealRow>(data);
-}
-
-/** Create a deal */
-async function createDeal(
-  input: {
-    site_id: string;
-    product_id?: string;
-    title: string;
-    description?: string;
-    discount_pct?: number;
-    original_price?: number;
-    deal_price?: number;
-    currency?: string;
-    source?: string;
-    url: string;
-    starts_at?: string;
-    expires_at?: string;
-    is_featured?: boolean;
-  },
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<DealRow> {
-  const sb = await getClient();
-
-  const { data, error } = await sb.from(TABLE).insert(input).select().single();
-  if (error) throw error;
-  return assertRow<DealRow>(data, "Deal");
-}
-
-/** Update a deal */
-async function updateDeal(
-  id: string,
-  input: Partial<
-    Pick<
-      DealRow,
-      | "title"
-      | "description"
-      | "discount_pct"
-      | "original_price"
-      | "deal_price"
-      | "url"
-      | "expires_at"
-      | "is_active"
-      | "is_featured"
-    >
-  >,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<DealRow> {
-  const sb = await getClient();
-
-  const { data, error } = await sb
-    .from(TABLE)
-    .update({ ...input, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) throw error;
-  return assertRow<DealRow>(data, "Deal");
 }
 
 /** Auto-expire deals past their expiry date.

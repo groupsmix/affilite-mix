@@ -314,40 +314,6 @@ export async function deleteAdminUser(
   if (error) throw error;
 }
 
-/** Count admin users (to check if any exist) */
-async function countAdminUsers(
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<number> {
-  const sb = await getClient();
-  const { count, error } = await sb
-    .from(TABLE)
-    .select("id", { count: "exact", head: true })
-    .unsafeNoSiteFilter();
-
-  if (error) {
-    // Table might not exist yet — fall back to 0
-    if (error.code === "42P01" || error.message?.includes("does not exist")) {
-      return 0;
-    }
-    throw error;
-  }
-  return count ?? 0;
-}
-
-/**
- * Check if the admin_users table exists and has any rows.
- * Returns false if the table doesn't exist or has no users.
- */
-async function hasAdminUsers(): Promise<boolean> {
-  try {
-    const count = await countAdminUsers();
-    return count > 0;
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
-    return false;
-  }
-}
-
 /**
  * Returns true iff there is at least one OTHER active super_admin besides
  * the one identified by `excludingId`. Used to prevent deleting, deactivating,

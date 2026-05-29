@@ -33,41 +33,6 @@ export async function listSiteFeatureFlags(
   return assertRows<SiteFeatureFlagRow>(data);
 }
 
-/** Check if a specific feature flag is enabled for a site */
-async function isFeatureFlagEnabled(
-  siteId: string,
-  flagKey: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<boolean> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select("is_enabled")
-    .eq("site_id", siteId)
-    .eq("flag_key", flagKey)
-    .single();
-
-  if (error && error.code === "PGRST116") return false;
-  if (error) throw error;
-  return (data as { is_enabled: boolean } | null)?.is_enabled ?? false;
-}
-
-/** Get all enabled flag keys for a site (fast lookup) */
-async function getEnabledFlagKeys(
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<string[]> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select("flag_key")
-    .eq("site_id", siteId)
-    .eq("is_enabled", true);
-
-  if (error) throw error;
-  return (data as { flag_key: string }[] | null)?.map((d) => d.flag_key) ?? [];
-}
-
 /* ------------------------------------------------------------------ */
 /*  Write operations                                                   */
 /* ------------------------------------------------------------------ */

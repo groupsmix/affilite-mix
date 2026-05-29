@@ -1,4 +1,4 @@
-import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 // ── Wrist Shots ──────────────────────────────────────────────
@@ -73,47 +73,6 @@ export async function listApprovedWristShots(
   return assertRows<WristShotRow>(data);
 }
 
-/** List pending wrist shots for moderation */
-async function listPendingWristShots(
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<WristShotRow[]> {
-  const sb = await getClient();
-
-  const { data, error } = await sb
-    .from(WRIST_SHOTS_TABLE)
-    .select(WRIST_SHOT_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-  return assertRows<WristShotRow>(data);
-}
-
-/** Moderate a wrist shot */
-async function moderateWristShot(
-  id: string,
-  status: "approved" | "rejected",
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<WristShotRow> {
-  const sb = await getClient();
-
-  const { data, error } = await sb
-    .from(WRIST_SHOTS_TABLE)
-    .update({
-      status,
-      ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return assertRow<WristShotRow>(data, "WristShot");
-}
-
 // ── Comments ──────────────────────────────────────────────
 
 export interface CommentRow {
@@ -182,62 +141,4 @@ export async function listApprovedComments(
 
   if (error) throw error;
   return assertRows<CommentRow>(data);
-}
-
-/** List pending comments for moderation */
-async function listPendingComments(
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<CommentRow[]> {
-  const sb = await getClient();
-
-  const { data, error } = await sb
-    .from(COMMENTS_TABLE)
-    .select(COMMENT_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-  return assertRows<CommentRow>(data);
-}
-
-/** Moderate a comment */
-async function moderateComment(
-  id: string,
-  status: "approved" | "rejected" | "spam",
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<CommentRow> {
-  const sb = await getClient();
-
-  const { data, error } = await sb
-    .from(COMMENTS_TABLE)
-    .update({
-      status,
-      ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return assertRow<CommentRow>(data, "Comment");
-}
-
-/** Get comment by ID */
-async function getCommentById(
-  id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<CommentRow | null> {
-  const sb = await getClient();
-
-  const { data, error } = await sb
-    .from(COMMENTS_TABLE)
-    .select(COMMENT_COLUMNS)
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) throw error;
-  return rowOrNull<CommentRow>(data);
 }

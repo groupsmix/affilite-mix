@@ -1,47 +1,8 @@
-import type { ContentProductRow, ContentRow, ProductRow } from "@/types/database";
-import { assertRow, assertRows } from "./type-guards";
+import type { ContentProductRow, ProductRow } from "@/types/database";
+import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 const TABLE = "content_products";
-
-/** Link a product to a content item */
-async function linkProduct(
-  input: ContentProductRow,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<ContentProductRow> {
-  const sb = await getClient();
-  const { data, error } = await sb.from(TABLE).insert(input).select().single();
-  if (error) throw error;
-  return assertRow<ContentProductRow>(data, "ContentProduct");
-}
-
-/** Unlink a product from a content item (verifies content belongs to site) */
-async function unlinkProduct(
-  siteId: string,
-  contentId: string,
-  productId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<void> {
-  const sb = await getClient();
-
-  // Verify the content belongs to this site
-  const { data: contentRow, error: contentErr } = await sb
-    .from("content")
-    .select("id")
-    .eq("id", contentId)
-    .eq("site_id", siteId)
-    .maybeSingle();
-  if (contentErr) throw contentErr;
-  if (!contentRow) throw new Error("Content not found for this site");
-
-  const { error } = await sb
-    .from(TABLE)
-    .delete()
-    .eq("content_id", contentId)
-    .eq("product_id", productId);
-
-  if (error) throw error;
-}
 
 /** Get all linked products for a content item (with full product data, scoped to site) */
 export async function getLinkedProducts(
@@ -62,59 +23,6 @@ export async function getLinkedProducts(
 
   if (error) throw error;
   return assertRows<ContentProductRow & { product: ProductRow }>(data);
-}
-
-/** Update link metadata (role) — verifies content belongs to site */
-async function updateProductLink(
-  siteId: string,
-  contentId: string,
-  productId: string,
-  input: Partial<Pick<ContentProductRow, "role">>,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<ContentProductRow> {
-  const sb = await getClient();
-
-  // Verify the content belongs to this site
-  const { data: contentRow, error: contentErr } = await sb
-    .from("content")
-    .select("id")
-    .eq("id", contentId)
-    .eq("site_id", siteId)
-    .maybeSingle();
-  if (contentErr) throw contentErr;
-  if (!contentRow) throw new Error("Content not found for this site");
-
-  const { data, error } = await sb
-    .from(TABLE)
-    .update(input)
-    .eq("content_id", contentId)
-    .eq("product_id", productId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return assertRow<ContentProductRow>(data, "ContentProduct");
-}
-
-/** Get content items that link to a given product (scoped to site) */
-async function getRelatedContentForProduct(
-  siteId: string,
-  productId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<ContentRow[]> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(
-      "content:content!inner(id, site_id, title, slug, body, excerpt, featured_image, type, status, category_id, tags, author, publish_at, meta_title, meta_description, og_image, body_previous, review_state, ai_generated, human_reviewed_at, created_at, updated_at)",
-    )
-    .eq("product_id", productId)
-    .eq("content.site_id", siteId);
-
-  if (error) throw error;
-  return assertRows<{ content: ContentRow }>(data ?? [])
-    .map((row) => row.content)
-    .filter(Boolean);
 }
 
 /**

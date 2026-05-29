@@ -80,19 +80,3 @@ export async function listSharedTargets(
   if (error) throw error;
   return assertRows<SharedContentRow>(data ?? []);
 }
-
-/** List content shared TO a given site (from other sites) */
-async function listContentSharedToSite(
-  targetSiteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<SharedContentRow[]> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(LIST_COLUMNS)
-    .eq("target_site_id", targetSiteId)
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-  return assertRows<SharedContentRow>(data ?? []);
-}

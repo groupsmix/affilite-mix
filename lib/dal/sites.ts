@@ -42,12 +42,6 @@ export const listSites = unstable_cache(
   { revalidate: 60, tags: ["sites"] },
 );
 
-/** List all active sites (cached, filtered) */
-async function getAllActiveSites(): Promise<SiteRow[]> {
-  const all = await listSites();
-  return all.filter((s) => s.is_active);
-}
-
 /** Get a single site by its database UUID */
 export async function getSiteRowById(
   id: string,

@@ -1,4 +1,4 @@
-import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { assertRows, assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 export interface AffiliateNetworkRow {
@@ -31,24 +31,6 @@ export async function listAffiliateNetworks(
 
   if (error) throw error;
   return assertRows<AffiliateNetworkRow>(data);
-}
-
-/** Get a single affiliate network config by id */
-async function getAffiliateNetworkById(
-  siteId: string,
-  id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<AffiliateNetworkRow | null> {
-  const sb = await getClient();
-  const { data, error } = await sb
-    .from(TABLE)
-    .select(LIST_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("id", id)
-    .single();
-
-  if (error && error.code !== "PGRST116") throw error;
-  return rowOrNull<AffiliateNetworkRow>(data);
 }
 
 /** Create or update an affiliate network config */
