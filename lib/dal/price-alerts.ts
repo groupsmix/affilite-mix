@@ -112,14 +112,19 @@ export async function markAlertTriggered(
   if (error) throw error;
 }
 
-/** Unsubscribe from an alert */
-export async function deactivatePriceAlert(
+/** Unsubscribe from an alert (scoped by site_id to prevent cross-tenant IDOR) */
+export async function deactivatePriceAlertScoped(
   id: string,
+  siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<void> {
   const sb = await getClient();
 
-  const { error } = await sb.from(TABLE).update({ is_active: false }).eq("id", id);
+  const { error } = await sb
+    .from(TABLE)
+    .update({ is_active: false })
+    .eq("id", id)
+    .eq("site_id", siteId);
   if (error) throw error;
 }
 
