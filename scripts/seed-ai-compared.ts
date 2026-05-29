@@ -78,7 +78,7 @@ interface ProductSeed {
   description: string;
   affiliate_url: string;
   merchant: string;
-  price: string;
+  price_label: string;
   price_amount: number;
   score: number; // 0–10
   featured: boolean;
@@ -97,7 +97,7 @@ const products: ProductSeed[] = [
       "Enterprise-grade AI writing and marketing copilot with brand voice, templates, and team workflows.",
     affiliate_url: "https://www.jasper.ai/",
     merchant: "Jasper",
-    price: "From $49/mo",
+    price_label: "From $49/mo",
     price_amount: 49,
     score: 8.7,
     featured: true,
@@ -113,7 +113,7 @@ const products: ProductSeed[] = [
       "Affordable AI writer with SEO-friendly article generation, chat, and a generous free tier.",
     affiliate_url: "https://writesonic.com/",
     merchant: "Writesonic",
-    price: "From $20/mo",
+    price_label: "From $20/mo",
     price_amount: 20,
     score: 8.4,
     featured: false,
@@ -129,7 +129,7 @@ const products: ProductSeed[] = [
       "AI copywriter built around go-to-market workflows, with strong short-form and sales copy.",
     affiliate_url: "https://www.copy.ai/",
     merchant: "Copy.ai",
-    price: "From $49/mo",
+    price_label: "From $49/mo",
     price_amount: 49,
     score: 8.1,
     featured: false,
@@ -146,7 +146,7 @@ const products: ProductSeed[] = [
       "AI avatar video platform that turns scripts into talking-head videos with realistic avatars and voice cloning.",
     affiliate_url: "https://www.heygen.com/",
     merchant: "HeyGen",
-    price: "From $29/mo",
+    price_label: "From $29/mo",
     price_amount: 29,
     score: 9.0,
     featured: true,
@@ -162,7 +162,7 @@ const products: ProductSeed[] = [
       "Enterprise AI video generator for training and explainer content, with 230+ avatars and 140+ languages.",
     affiliate_url: "https://www.synthesia.io/",
     merchant: "Synthesia",
-    price: "From $29/mo",
+    price_label: "From $29/mo",
     price_amount: 29,
     score: 8.8,
     featured: true,
@@ -179,7 +179,7 @@ const products: ProductSeed[] = [
       "Best-in-class AI voice generation and cloning with natural prosody across dozens of languages.",
     affiliate_url: "https://elevenlabs.io/",
     merchant: "ElevenLabs",
-    price: "From $5/mo",
+    price_label: "From $5/mo",
     price_amount: 5,
     score: 9.2,
     featured: true,
@@ -195,7 +195,7 @@ const products: ProductSeed[] = [
       "Studio AI voiceover platform with a built-in editor, great for presentations, e-learning, and ads.",
     affiliate_url: "https://murf.ai/",
     merchant: "Murf",
-    price: "From $29/mo",
+    price_label: "From $29/mo",
     price_amount: 29,
     score: 8.5,
     featured: false,
@@ -212,7 +212,7 @@ const products: ProductSeed[] = [
       "All-in-one SEO and marketing toolkit for keyword research, competitor analysis, and content.",
     affiliate_url: "https://www.semrush.com/",
     merchant: "Semrush",
-    price: "From $139/mo",
+    price_label: "From $139/mo",
     price_amount: 139,
     score: 9.1,
     featured: true,
@@ -228,7 +228,7 @@ const products: ProductSeed[] = [
       "AI content optimization tool that scores and guides your writing to rank for target keywords.",
     affiliate_url: "https://surferseo.com/",
     merchant: "Surfer",
-    price: "From $99/mo",
+    price_label: "From $99/mo",
     price_amount: 99,
     score: 8.9,
     featured: true,
