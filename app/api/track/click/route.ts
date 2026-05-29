@@ -4,7 +4,7 @@ import { getProductBySlug } from "@/lib/dal/products";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { apiError, rateLimitHeaders } from "@/lib/api-error";
+import { apiError } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { getClientIp, getIpPrefix } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";

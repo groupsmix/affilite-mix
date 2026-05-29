@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import { Loader2 } from "lucide-react";
 

@@ -11,9 +11,6 @@ import { NewsletterSignup } from "./newsletter-signup";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-/** Revalidate taxonomy pages every 60 seconds (ISR) */
-const TAXONOMY_REVALIDATE = 60;
-
 const PAGE_SIZE = 12;
 
 export interface TaxonomyConfig {
