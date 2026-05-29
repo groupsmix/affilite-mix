@@ -53,7 +53,7 @@ export async function GET(
       })),
     });
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Failed to load price history" }, { status: 500 });
   }
 }

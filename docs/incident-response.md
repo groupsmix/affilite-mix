@@ -242,8 +242,9 @@ ETA: [Estimated resolution time, if known]
 1. Schedule the post-mortem within 48 hours of resolution
 2. The incident responder drafts the document
 3. Review with the team — focus on systemic improvements, not blame
-4. Track action items to completion
+4. **Track action items to closure (A195):** Every action item must be filed as a GitHub Issue with the `post-mortem` label and linked back to the post-mortem document. The Security Lead reviews open post-mortem issues weekly and escalates overdue items. Action items are considered overdue if they exceed their stated due date by more than 7 days.
 5. Archive in `docs/post-mortems/` directory
+6. Report overdue action items in the quarterly board cyber metrics (`docs/board-cyber-metrics.md`)
 
 ---
 
@@ -296,12 +297,25 @@ If the breach is likely to result in a high risk to the rights and freedoms of i
 - **Secondary Escalation:** Security & Data Teams (L2).
 - **SLA for Acknowledgement:** 15 minutes (Critical/P0), 1 hour (High/P1).
 
-### 2. RTO / RPO Targets
+### 2. On-Call Rotation & Paging Configuration (A187)
+
+| Rotation                       | Schedule                      | Members                   | Escalation Path                       |
+| ------------------------------ | ----------------------------- | ------------------------- | ------------------------------------- |
+| Primary (Platform Engineering) | 24/7 follow-the-sun (US + EU) | 2+ engineers per timezone | Auto-page after 15 min no-ack         |
+| Secondary (Security & Data)    | On-call for L2 escalation     | Security Lead + 1 backup  | Engaged by primary on-call            |
+| Executive Escalation           | Available for SEV-1 decisions | Engineering Lead, CEO     | Engaged by IC for SEV-1 within 30 min |
+
+**Paging tool:** PagerDuty  
+**Integration:** Cloudflare Notifications → PagerDuty, Sentry Alerts → PagerDuty, Uptime Monitor → PagerDuty  
+**Rotation management:** PagerDuty schedules (managed by Engineering Lead)  
+**Handoff:** End-of-shift handoff note in `#on-call` Slack channel
+
+### 3. RTO / RPO Targets
 
 - **Recovery Time Objective (RTO):** 4 Hours for full platform restoration in a secondary region.
 - **Recovery Point Objective (RPO):** 5 Minutes (governed by Supabase PITR settings).
 
-### 3. Recent Incidents Log (Template)
+### 4. Recent Incidents Log (Template)
 
 | Date       | Incident                   | Severity | Root Cause                                      | Remediation / Post-Mortem                             |
 | ---------- | -------------------------- | -------- | ----------------------------------------------- | ----------------------------------------------------- |

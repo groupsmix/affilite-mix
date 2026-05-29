@@ -27,6 +27,7 @@
 
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
+import { getRuntimeEnv } from "@/lib/runtime-env";
 
 // ── Durable Object binding types ────────────────────────────────────
 // Minimal structural types for the RATE_LIMITER_DO binding so this file
@@ -82,40 +83,16 @@ export interface RateLimitResult {
 }
 
 // ── Binding lookup helpers ──────────────────────────────────────────
-// In @opennextjs/cloudflare, non-string bindings (KV, R2, DO, Queue) are
-// available via `getCloudflareContext().env`, NOT on `process.env`.
-// Test environments use `globalThis` stubs via `vi.stubGlobal(...)`.
-
-// C-4: Eagerly resolve getCloudflareContext at module load (once) rather
-// than using a dynamic require() per call. This is ESM-safe and keeps the
-// function synchronous.
-type GetCloudflareContextFn = () => { env: Record<string, unknown> } | undefined;
-let _getCloudflareContext: GetCloudflareContextFn | null = null;
-try {
-  const mod = require("@opennextjs/cloudflare") as {
-    getCloudflareContext: GetCloudflareContextFn;
-  };
-  _getCloudflareContext = mod.getCloudflareContext;
-} catch {
-  // Outside Cloudflare runtime (dev/test) — leave null.
-}
+// C-4: Replaced the duplicated require("@opennextjs/cloudflare") call
+// with getRuntimeEnv() from lib/runtime-env.ts — the single source of
+// truth for Cloudflare binding resolution. Test environments use
+// `vi.stubGlobal(...)` stubs which getRuntimeEnv() also handles.
 
 function readBinding(name: string): unknown {
   const fromGlobal = (globalThis as Record<string, unknown>)[name];
   if (fromGlobal !== undefined) return fromGlobal;
-  try {
-    const ctx = _getCloudflareContext?.();
-    if (ctx?.env?.[name] !== undefined) return ctx.env[name];
-  } catch {
-    // Outside Cloudflare runtime — fall through
-  }
-  try {
-    // eslint-disable-next-line no-restricted-syntax
-    return (process.env as Record<string, unknown>)[name];
-  } catch {
-    // fail-open: best-effort
-    return undefined;
-  }
+  const env = getRuntimeEnv();
+  return env[name];
 }
 
 // ── Durable Object-based implementation (F-005, preferred) ──────────

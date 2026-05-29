@@ -1,4 +1,0 @@
-alerts_enabled = true
-alert_email_destinations = ["sec-oncall@example.com"]
-pagerduty_routing_key = ""
-slack_webhook_secret_ref = "cf://secrets/slack-alerts"

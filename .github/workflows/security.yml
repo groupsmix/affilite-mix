@@ -114,12 +114,12 @@ jobs:
   # A173: socket.dev supply-chain protection.
   # Detects typosquatting, compromised packages, and post-install scripts
   # that npm audit / Dependabot cannot catch (they only check known CVEs).
+  #
+  # A173 remediation: scan is now BLOCKING on both PRs and push-to-main so
+  # a Monday-published malicious dep cannot land via a re-run or direct push.
   socket-security:
     name: Socket.dev supply chain scan
     runs-on: ubuntu-latest
-    # Only block on PRs; schedule + main-push runs are informational so a
-    # compromised published package on a Monday scan doesn't block deploys
-    # that were already in-flight.
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6

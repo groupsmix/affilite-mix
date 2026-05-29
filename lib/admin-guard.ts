@@ -135,8 +135,8 @@ export async function requireAdmin(): Promise<AdminResult> {
       }
     }
   } catch {
-    // fail-open: best-effort
-    // Ignore KV errors
+    // fail-open: best-effort [criticality:non-critical]
+    // KV cache miss — falls through to DB lookup
   }
 
   if (!dbSiteId) {
@@ -149,8 +149,8 @@ export async function requireAdmin(): Promise<AdminResult> {
           await kv.put(kvCacheKey, JSON.stringify({ id: dbSiteId }), { expirationTtl: 300 });
         }
       } catch {
-        // fail-open: best-effort
-        // Ignore KV write errors
+        // fail-open: best-effort [criticality:non-critical]
+        // KV cache write failure — no impact on auth decision
       }
     }
   }

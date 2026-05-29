@@ -126,7 +126,7 @@ export function verifyTotpToken(
       // A6-001: Use the secret from the parsed URI, not a newly generated random one
       secretBase32 = parsed.secret.base32;
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // If URI parsing fails, fall back to SHA-256 (matches enrollment default)
       algorithm ??= DEFAULT_ALGORITHM;
     }

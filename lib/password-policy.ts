@@ -98,7 +98,7 @@ export async function checkBreachedPassword(password: string): Promise<number> {
 
     return 0;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     // Fail-open: if the check fails, don't block the user
     return -1;
   }

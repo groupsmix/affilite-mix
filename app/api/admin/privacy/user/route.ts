@@ -170,12 +170,26 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
     // A62-F1: GDPR Art. 20 data portability — support CSV format
     const format = searchParams.get("format");
     if (format === "csv") {
-      /** Properly escape a CSV field value (RFC 4180). */
-      function escapeCsv(val: string): string {
-        if (val.includes(",") || val.includes('"') || val.includes("\n") || val.includes("\r")) {
-          return `"${val.replace(/"/g, '""')}"`;
+      /** S3-002: Neutralize spreadsheet formula injection (CWE-1236). */
+      function sanitizeCsvValue(val: string): string {
+        if (/^[=+\-@\t\r]/.test(val)) {
+          val = "'" + val;
         }
         return val;
+      }
+
+      /** Properly escape a CSV field value (RFC 4180). */
+      function escapeCsv(val: string): string {
+        const sanitized = sanitizeCsvValue(val);
+        if (
+          sanitized.includes(",") ||
+          sanitized.includes('"') ||
+          sanitized.includes("\n") ||
+          sanitized.includes("\r")
+        ) {
+          return `"${sanitized.replace(/"/g, '""')}"`;
+        }
+        return sanitized;
       }
 
       const csvRows: string[] = [];

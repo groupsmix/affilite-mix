@@ -72,7 +72,7 @@ async function isDuplicateClick(
     await kv.put(dedupKey, "1", { expirationTtl: 86400 });
     return "unique";
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return "error";
   }
 }
@@ -105,7 +105,7 @@ async function hasValidAdminSession(request: NextRequest, siteId?: string): Prom
     }
     return true;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return false;
   }
 }
@@ -132,7 +132,9 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         captureException(new Error("CLICK_CACHE_HMAC_KEY missing and getOrDeriveHmacKey failed"), {
           context: "[api/track/click] missing signing secret",
         });
-        return apiError(503, "Service temporarily unavailable");
+        return apiError(503, "Service temporarily unavailable", undefined, {
+          "Retry-After": "30",
+        });
       }
     }
 
@@ -197,7 +199,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         }
       }
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // Ignore KV errors and fallback to DB
     }
 
@@ -241,7 +243,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
             );
           }
         } catch {
-          // fail-open: best-effort
+          // fail-open: best-effort [criticality:non-critical]
           // ignore cache write errors
         }
       }
@@ -256,7 +258,7 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         return apiError(400, "Invalid affiliate URL scheme");
       }
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       return apiError(400, "Malformed affiliate URL");
     }
 

@@ -120,7 +120,7 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
       }
     }
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     // If not in a request context where cookies work, ignore
   }
 

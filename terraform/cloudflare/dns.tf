@@ -76,22 +76,19 @@ variable "dns_records" {
     # ── A144: Email authentication ─────────────────────────────────────
     # SPF: authorise Cloudflare Email Routing (inbound forwarding) and
     # Resend (outbound newsletter sends) as legitimate senders.
-    # ~all = softfail — tighten to -all after ≥30 days of clean DMARC
-    # aggregate reports.
     # A144-03/A144-05: both include:s are required; omitting CF Email
     # Routing causes SPF failures on forwarded replies, omitting Resend
     # causes SPF failures on newsletter confirmation mails.
-    # A144-08: verify _spf.resend.com resolves for your Resend
-    # account/region before applying (dig TXT _spf.resend.com).
+    # F9: hardfail (-all).
     # A39: proxied=false required — TXT records for email auth must not
     # be proxied or they will not be visible to receiving MTAs.
     "spf" = {
       name    = "@"
       type    = "TXT"
-      content = "v=spf1 include:_spf.mx.cloudflare.net include:_spf.resend.com ~all"
+      content = "v=spf1 include:_spf.mx.cloudflare.net include:_spf.resend.com -all"
       ttl     = 300
       proxied = false
-      comment = "A144-03/A144-05/A39: SPF — CF Email Routing + Resend. Tighten to -all after DMARC monitoring. DNS-only (unproxied)."
+      comment = "A144-03/A144-05/A39/F9: SPF — CF Email Routing + Resend, hardfail all others. DNS-only (unproxied)."
     }
 
     # DMARC: start at p=none for monitoring, ramp to p=quarantine after

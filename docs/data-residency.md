@@ -9,18 +9,18 @@ and transmitted across the affilite-mix platform infrastructure.
 
 ## Data Processing Locations
 
-| Service             | Provider               | Region                     | Data Type                         | GDPR Basis                    |
-| ------------------- | ---------------------- | -------------------------- | --------------------------------- | ----------------------------- |
-| **Database**        | Supabase               | `eu-central-1` (Frankfurt) | All PII, content, analytics       | Adequacy (EU)                 |
-| **Edge Compute**    | Cloudflare Workers     | Global (anycast)           | Request processing, rate limiting | Legitimate interest + DLS     |
-| **Object Storage**  | Cloudflare R2          | Auto (nearest region)      | Images, SBOM, logs                | Legitimate interest           |
-| **KV Store**        | Cloudflare KV          | Global (replicated)        | Rate limit counters, cache        | No PII stored                 |
-| **Durable Objects** | Cloudflare             | Global (routed)            | Atomic rate limit state           | No PII stored                 |
-| **Email**           | Resend                 | US (AWS)                   | Email addresses, content          | Consent (newsletter)          |
-| **Payments**        | Stripe                 | Global                     | Payment data (PCI scope)          | Contract (payment processing) |
-| **AI Providers**    | Cloudflare/Google/Groq | Various                    | Content prompts (no PII)          | Legitimate interest           |
-| **Error Tracking**  | Sentry                 | US (GCP)                   | Stack traces, request metadata    | Legitimate interest           |
-| **CI/CD**           | GitHub Actions         | US                         | Source code, build artifacts      | Contract                      |
+| Service             | Provider               | Region                     | Data Type                         | GDPR Basis                    | Transfer Mechanism (Ch. V)                          |
+| ------------------- | ---------------------- | -------------------------- | --------------------------------- | ----------------------------- | --------------------------------------------------- |
+| **Database**        | Supabase               | `eu-central-1` (Frankfurt) | All PII, content, analytics       | Adequacy (EU)                 | N/A (EU-resident)                                   |
+| **Edge Compute**    | Cloudflare Workers     | Global (anycast)           | Request processing, rate limiting | Legitimate interest + DLS     | DPA + SCC (Module 2) — see `docs/vendor-dpas.md`    |
+| **Object Storage**  | Cloudflare R2          | Auto (nearest region)      | Images, SBOM, logs                | Legitimate interest           | DPA + SCC (Module 2) — see `docs/vendor-dpas.md`    |
+| **KV Store**        | Cloudflare KV          | Global (replicated)        | Rate limit counters, cache        | No PII stored                 | N/A (no PII)                                        |
+| **Durable Objects** | Cloudflare             | Global (routed)            | Atomic rate limit state           | No PII stored                 | N/A (no PII)                                        |
+| **Email**           | Resend                 | US (AWS)                   | Email addresses, content          | Consent (newsletter)          | SCC (Module 2) + TIA — see `docs/schrems-ii-tia.md` |
+| **Payments**        | Stripe                 | Global                     | Payment data (PCI scope)          | Contract (payment processing) | EU-US DPF + SCC (Module 2)                          |
+| **AI Providers**    | Cloudflare/Google/Groq | Various                    | Content prompts (no PII)          | Legitimate interest           | SCC (Module 2) + TIA — see `docs/schrems-ii-tia.md` |
+| **Error Tracking**  | Sentry                 | US (GCP)                   | Stack traces, request metadata    | Legitimate interest           | SCC (Module 2) + TIA — see `docs/schrems-ii-tia.md` |
+| **CI/CD**           | GitHub Actions         | US                         | Source code, build artifacts      | Contract                      | EU-US DPF + SCC (Module 2)                          |
 
 ## PII Data Flow
 
