@@ -200,6 +200,28 @@ npm run test:e2e -- accessibility.spec.ts
 
 ---
 
+## DCO Sign-Off Requirement (A178)
+
+All contributions must include a `Signed-off-by` line in the commit message, certifying the [Developer Certificate of Origin (DCO)](https://developercertificate.org/):
+
+```
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+Add it automatically with `git commit -s`. Pull requests without a valid sign-off on every commit will not be merged.
+
+---
+
+## Intellectual Property & Contractor Contributions (A197)
+
+Before being granted commit access to this repository, external contractors and freelancers must have a signed **Proprietary Information and Inventions Assignment (PIIA)** agreement on file with the organization. This ensures that all contributions are properly assigned and that IP ownership is clear.
+
+- **Employees:** Covered by the standard employment agreement's invention-assignment clause.
+- **Contractors:** Must sign the PIIA template (contact the Engineering Lead) before submitting any code.
+- **Open-source contributions:** Governed by the project `LICENSE` and the DCO sign-off above.
+
+---
+
 ## Project Structure
 
 ```
