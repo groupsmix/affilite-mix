@@ -29,8 +29,14 @@ describe("F-AUTHZ-01: nh_active_site cookie integrity", () => {
 
   it("rejects a tampered cookie value", async () => {
     const signed = await signCookieValue(siteSlug, userId);
-    // Flip a character in the base64
-    const tampered = signed.slice(0, -1) + (signed.slice(-1) === "A" ? "B" : "A");
+    // Decode, corrupt the HMAC signature portion, and re-encode so the
+    // tampering reliably invalidates the HMAC regardless of base64 padding.
+    const decoded = atob(signed);
+    const lastDot = decoded.lastIndexOf(".");
+    const payload = decoded.slice(0, lastDot);
+    const sig = decoded.slice(lastDot + 1);
+    const corruptedSig = sig.slice(0, -2) + (sig.slice(-2) === "ff" ? "00" : "ff");
+    const tampered = btoa(`${payload}.${corruptedSig}`);
     const result = await verifyCookieValue(tampered, userId);
     expect(result).toBeNull();
   });
