@@ -22,6 +22,8 @@ describe("#647: admin/content GET query param validation", () => {
   });
 
   it("imports CONTENT_TYPES and CONTENT_STATUSES from validation", () => {
-    expect(src).toMatch(/import.*CONTENT_TYPES.*CONTENT_STATUSES.*from.*validation/);
+    expect(src).toMatch(/CONTENT_TYPES/);
+    expect(src).toMatch(/CONTENT_STATUSES/);
+    expect(src).toMatch(/from\s+["']@\/lib\/validation["']/);
   });
 });
