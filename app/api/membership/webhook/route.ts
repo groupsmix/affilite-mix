@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { logger } from "@/lib/logger";
 import { constructStripeEvent, prewarmStripeWebhookKey } from "@/lib/stripe-webhook";
-import { getRuntimeEnv, type CloudflareKVBinding } from "@/lib/runtime-env";
+import { getAppCacheKV, type CloudflareKVBinding } from "@/lib/runtime-env";
 import type Stripe from "stripe";
 import { getStripeClient } from "@/lib/stripe-client";
 import { writeToDlq } from "@/lib/dal/webhook-dlq";
@@ -49,12 +49,8 @@ function redactStripeErrorMessage(msg: string): string {
     .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z]{2,}\b/gi, "[EMAIL_REDACTED]");
 }
 
-function getRateLimitKv(): CloudflareKVBinding | null {
-  const kv = getRuntimeEnv().RATE_LIMIT_KV;
-  if (kv && typeof kv === "object" && "get" in kv && "put" in kv) {
-    return kv;
-  }
-  return null;
+function getWebhookRetryKv(): CloudflareKVBinding | null {
+  return getAppCacheKV();
 }
 
 export async function POST(request: NextRequest) {
@@ -116,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     let attempts = 1;
     try {
-      const kv = getRateLimitKv();
+      const kv = getWebhookRetryKv();
       if (kv && typeof kv.get === "function" && typeof kv.put === "function") {
         const attemptKey = `webhook-attempt:${event.id}`;
         attempts = parseInt((await kv.get(attemptKey)) || "0", 10) + 1;
