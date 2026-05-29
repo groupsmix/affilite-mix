@@ -33,8 +33,8 @@ describe("SEC-CSRF-01 (#629): CSRF token endpoint rate limit", () => {
     expect(routeSource).toContain("Retry-After");
   });
 
-  it("uses closed fail policy (fail-secure)", () => {
-    expect(routeSource).toContain('"closed"');
+  it("uses grace fail policy (graceful degradation with in-memory fallback)", () => {
+    expect(routeSource).toContain('"grace"');
   });
 
   it("accepts NextRequest parameter for IP extraction", () => {
