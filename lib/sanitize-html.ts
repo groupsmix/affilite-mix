@@ -58,7 +58,7 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
   blockquote: new Set(["cite"]),
   code: new Set(["class"]),
   pre: new Set(["class"]),
-  div: new Set(["class"]),
+  div: new Set(["class", "data-ai-generated"]),
   span: new Set(["class"]),
 };
 
