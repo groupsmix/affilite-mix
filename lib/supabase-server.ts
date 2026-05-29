@@ -10,6 +10,7 @@ import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 import { authzPrimaryRead } from "@/lib/read-after-write";
+import { getCircuitBreaker, CircuitOpenError } from "@/lib/ai/circuit-breaker";
 // F-1: signSiteIdFallback moved to lib/site-id-signer.ts (Edge-safe leaf)
 // to avoid pulling bcryptjs + jose/deflate into the middleware bundle.
 // Callers should import directly from @/lib/site-id-signer.
@@ -156,6 +157,13 @@ export function getAnonClient(): SupabaseClient<Database> {
     return _anonClient;
   }
 
+  // A98-16: Circuit breaker for Supabase anon client — prevents cascading
+  // failures when Supabase is degraded by short-circuiting fetch calls.
+  const anonBreaker = getCircuitBreaker("supabase-anon", {
+    failureThreshold: 3,
+    recoveryTimeoutMs: 15_000,
+  });
+
   _anonClient = createClient<Database>(url, key, {
     auth: {
       persistSession: false,
@@ -165,19 +173,26 @@ export function getAnonClient(): SupabaseClient<Database> {
     global: {
       fetch: async (input, init) => {
         try {
-          const res = await fetchWithTimeout(input as string, {
-            ...init,
-            timeoutMs: 8000,
-            next: {
-              revalidate: 60,
-              ...(init as FetchWithTimeoutOptions | undefined)?.next,
-            },
-          });
-          return res;
+          return await anonBreaker.execute(() =>
+            fetchWithTimeout(input as string, {
+              ...init,
+              timeoutMs: 8000,
+              next: {
+                revalidate: 60,
+                ...(init as FetchWithTimeoutOptions | undefined)?.next,
+              },
+            }),
+          );
         } catch (error) {
-          logger.error("[getAnonClient] DB fetch failed (timeout or network)", {
-            error: error instanceof Error ? error.message : String(error),
-          });
+          if (error instanceof CircuitOpenError) {
+            logger.warn("[getAnonClient] circuit breaker OPEN — fast-failing", {
+              breaker: anonBreaker.metrics(),
+            });
+          } else {
+            logger.error("[getAnonClient] DB fetch failed (timeout or network)", {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
           return new Response(JSON.stringify({ error: "Service Unavailable", data: null }), {
             status: 503,
             headers: {

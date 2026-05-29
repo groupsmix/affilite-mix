@@ -1,6 +1,7 @@
 import { requireEnvInProduction } from "@/lib/env";
 import { singleFlight } from "@/lib/single-flight";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { CircuitBreaker } from "@/lib/ai/circuit-breaker";
 
 /**
  * Hard cap for the Supabase REST site-lookup. Middleware already
@@ -11,6 +12,17 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
  * frees the isolate for the next request.
  */
 const SITE_LOOKUP_TIMEOUT_MS = 1500;
+
+/**
+ * A99-2: Circuit breaker for middleware site-resolution DB calls.
+ * Prevents repeated Supabase lookups when the DB is degraded.
+ * Uses a low threshold (3 failures) and short recovery (10s) because
+ * middleware is latency-critical.
+ */
+const siteLookupBreaker = new CircuitBreaker("middleware-site-lookup", {
+  failureThreshold: 3,
+  recoveryTimeoutMs: 10_000,
+});
 
 export interface MiddlewareSiteRow {
   id?: string;
@@ -43,28 +55,31 @@ async function _fetchSiteRowByDomain(domain: string): Promise<MiddlewareSiteRow 
 
   if (!supabaseUrl || !anonKey) return null;
 
-  const endpoint = new URL(
-    "/rest/v1/sites",
-    supabaseUrl.endsWith("/") ? supabaseUrl : `${supabaseUrl}/`,
-  );
-  endpoint.searchParams.set("select", "id,slug,is_active");
-  endpoint.searchParams.set("domain", `eq.${domain}`);
-  endpoint.searchParams.set("limit", "1");
+  // A99-2: Circuit breaker wraps the DB call so repeated failures fast-fail.
+  return siteLookupBreaker.execute(async () => {
+    const endpoint = new URL(
+      "/rest/v1/sites",
+      supabaseUrl.endsWith("/") ? supabaseUrl : `${supabaseUrl}/`,
+    );
+    endpoint.searchParams.set("select", "id,slug,is_active");
+    endpoint.searchParams.set("domain", `eq.${domain}`);
+    endpoint.searchParams.set("limit", "1");
 
-  const response = await fetchWithTimeout(endpoint.toString(), {
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-      Accept: "application/json",
-    },
-    cache: "no-store",
-    timeoutMs: SITE_LOOKUP_TIMEOUT_MS,
+    const response = await fetchWithTimeout(endpoint.toString(), {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      timeoutMs: SITE_LOOKUP_TIMEOUT_MS,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Supabase site lookup failed with status ${response.status}`);
+    }
+
+    const rows = (await response.json()) as MiddlewareSiteRow[];
+    return rows[0] ?? null;
   });
-
-  if (!response.ok) {
-    throw new Error(`Supabase site lookup failed with status ${response.status}`);
-  }
-
-  const rows = (await response.json()) as MiddlewareSiteRow[];
-  return rows[0] ?? null;
 }
