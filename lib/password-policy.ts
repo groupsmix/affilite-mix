@@ -12,12 +12,10 @@ import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 const MIN_LENGTH = 8;
 /**
- * SEC-05: Maximum password length. bcrypt silently truncates input to 72
- * bytes, so passwords longer than that give users a false sense of
- * security. We cap at 128 characters (well above 72 bytes for ASCII,
- * accommodating multi-byte UTF-8) to prevent DoS via extremely long
- * password strings being fed to the bcrypt hash function, while staying
- * generous enough for passphrase users.
+ * SEC-05 / RISK-SEC-01 (#604): Maximum password length. The SHA-256
+ * pre-hash (Dropbox pattern) in password.ts eliminates the old bcrypt
+ * 72-byte truncation risk — the SHA-256 hex digest is always 64 bytes.
+ * 128 characters is the DoS ceiling for the hashing pipeline.
  */
 const MAX_LENGTH = 128;
 const HAS_UPPERCASE = /[A-Z]/;

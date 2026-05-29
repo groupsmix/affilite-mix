@@ -3,9 +3,9 @@ import bcrypt from "bcryptjs";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 describe("hashPassword", () => {
-  it("returns a bcrypt hash string", async () => {
+  it("returns a SHA-256 pre-hashed bcrypt string (#604)", async () => {
     const result = await hashPassword("my-secret");
-    expect(result).toMatch(/^\$2[aby]\$/);
+    expect(result).toMatch(/^\$sha256\$\$2[aby]\$/);
   });
 
   it("produces different hashes for the same password (random salt)", async () => {
