@@ -190,7 +190,7 @@ export function validateAdminUrl(
   try {
     url = new URL(raw);
   } catch {
-    // fail-open: best-effort
+    // fail-closed: malformed URL is rejected [criticality:defence-in-depth]
     return { valid: false, error: "URL is malformed" };
   }
 

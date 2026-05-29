@@ -107,7 +107,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         await kv.delete(`admin-guard:site-slug:${site.slug}`).catch(() => {});
       }
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // Ignore KV purge errors — cache will expire naturally.
     }
 
@@ -159,7 +159,7 @@ export async function DELETE(
         await kv.delete(`admin-guard:site-slug:*`).catch(() => {});
       }
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // Ignore KV purge errors.
     }
 

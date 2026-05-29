@@ -326,7 +326,7 @@ async function hasAdminUsers(): Promise<boolean> {
     const count = await countAdminUsers();
     return count > 0;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return false;
   }
 }

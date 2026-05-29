@@ -43,7 +43,7 @@ export async function POST(
   try {
     body = await request.json();
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
@@ -79,7 +79,7 @@ export async function POST(
 
     return NextResponse.json({ message: "Price alert created", alert }, { status: 201 });
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Failed to create price alert" }, { status: 500 });
   }
 }
@@ -113,7 +113,7 @@ export async function DELETE(
   try {
     body = await request.json();
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
@@ -131,7 +131,7 @@ export async function DELETE(
     await deactivatePriceAlert(body.alert_id);
     return NextResponse.json({ message: "Alert deactivated" });
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Failed to deactivate alert" }, { status: 500 });
   }
 }

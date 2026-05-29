@@ -64,7 +64,7 @@ function getClickQueue(): CloudflareQueue<ClickQueueMessage> | undefined {
     const q = getRuntimeClickQueue();
     if (q) return q as unknown as CloudflareQueue<ClickQueueMessage>;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return undefined;
   }
   return undefined;

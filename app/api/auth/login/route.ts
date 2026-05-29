@@ -470,7 +470,7 @@ export async function POST(request: NextRequest) {
     try {
       passwordBreached = await isBreachedPassword(password);
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // fail-open
     }
 

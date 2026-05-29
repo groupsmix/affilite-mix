@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         const u = new URL(capped);
         return u.origin + u.pathname;
       } catch {
-        // fail-open: best-effort
+        // fail-open: best-effort [criticality:non-critical]
         // If it's just a path like "/about", strip query/hash manually
         return capped.split("?")[0].split("#")[0];
       }
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 }

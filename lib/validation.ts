@@ -111,7 +111,7 @@ function isUrl(v: unknown): v is string {
     new URL(v);
     return true;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return false;
   }
 }
@@ -123,7 +123,7 @@ function isHttpsUrl(v: unknown): v is string {
     const url = new URL(v);
     return url.protocol === "https:";
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return false;
   }
 }

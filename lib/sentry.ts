@@ -103,7 +103,7 @@ export function captureException(error: unknown, context?: Record<string, unknow
         sentryCaptureException(error, { data: context });
       });
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       if (context?.traceId && typeof context.traceId === "string") {
         setTag("traceId", context.traceId);
       }
@@ -151,7 +151,7 @@ export function captureMessage(message: string, level: SeverityLevel = "info") {
         sentryCaptureMessage(message, level);
       });
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       sentryCaptureMessage(message, level);
     }
   }
