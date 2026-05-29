@@ -13,8 +13,6 @@
  * Access decisions are logged for telemetry and audit (F-08).
  */
 
-import { logger } from "./logger";
-
 /** Maximum lifetime of a feature flag in days (6 months hard cap). */
 export const MAX_FLAG_LIFETIME_DAYS = 180;
 
