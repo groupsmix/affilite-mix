@@ -74,29 +74,39 @@ variable "dns_records" {
   EOT
   default = {
     # ── A144: Email authentication ─────────────────────────────────────
-    # SPF: authorise Resend as the only legitimate sender (~all = softfail,
-    # tighten to -all after ≥30 days of clean DMARC aggregate reports).
+    # SPF: authorise Cloudflare Email Routing (inbound forwarding) and
+    # Resend (outbound newsletter sends) as legitimate senders.
+    # ~all = softfail — tighten to -all after ≥30 days of clean DMARC
+    # aggregate reports.
+    # A144-03/A144-05: both include:s are required; omitting CF Email
+    # Routing causes SPF failures on forwarded replies, omitting Resend
+    # causes SPF failures on newsletter confirmation mails.
+    # A144-08: verify _spf.resend.com resolves for your Resend
+    # account/region before applying (dig TXT _spf.resend.com).
     # A39: proxied=false required — TXT records for email auth must not
     # be proxied or they will not be visible to receiving MTAs.
     "spf" = {
       name    = "@"
       type    = "TXT"
-      content = "v=spf1 include:_spf.resend.com ~all"
+      content = "v=spf1 include:_spf.mx.cloudflare.net include:_spf.resend.com ~all"
       ttl     = 300
       proxied = false
-      comment = "A144/A39: SPF — authorises Resend. Tighten to -all after DMARC monitoring. DNS-only (unproxied) by design."
+      comment = "A144-03/A144-05/A39: SPF — CF Email Routing + Resend. Tighten to -all after DMARC monitoring. DNS-only (unproxied)."
     }
 
-    # DMARC: p=reject, 100% coverage, strict alignment, aggregate + forensic reports.
-    # Replace zone_domain placeholder with your actual domain in tfvars.
+    # DMARC: start at p=none for monitoring, ramp to p=quarantine after
+    # 30 days of clean aggregate reports, then p=reject.
+    # Ramp plan: p=none → p=quarantine (pct=50) → p=quarantine → p=reject.
+    # Override this default in dns.auto.tfvars with rua/ruf addresses.
+    # A144-01: six of seven zones had NO DMARC record.
     # A39: proxied=false required — DMARC records must be DNS-visible.
     "dmarc" = {
       name    = "_dmarc"
       type    = "TXT"
-      content = "v=DMARC1; p=reject; sp=reject; pct=100; adkim=s; aspf=s; fo=1"
+      content = "v=DMARC1; p=none; sp=none; pct=100; adkim=s; aspf=s; fo=1"
       ttl     = 300
       proxied = false
-      comment = "A144/A39: DMARC p=reject, 100% coverage. Add rua/ruf mailto: in tfvars. DNS-only (unproxied) by design."
+      comment = "A144-01/A39: DMARC monitoring phase. Add rua/ruf in tfvars. Ramp to p=reject after clean reports. DNS-only (unproxied)."
     }
 
     # ── A145: DNS hardening ────────────────────────────────────────────
@@ -119,7 +129,30 @@ variable "dns_records" {
       content = "0 issuewild \";\""
       ttl     = 3600
       proxied = false
-      comment = "A145/A39: CAA — block wildcard cert issuance from all CAs. DNS-only (unproxied) by design."
+      comment = "A145-02/A39: CAA — block wildcard cert issuance from all CAs. DNS-only (unproxied)."
+    }
+
+    # A145-02/A148-01: Allow Google Trust Services to issue certs (used by
+    # Cloudflare Universal SSL). Without this, GTS issuance is uncontrolled.
+    # A39: proxied=false required — CAA records must be DNS-visible.
+    "caa-issue-google" = {
+      name    = "@"
+      type    = "CAA"
+      content = "0 issue \"pki.goog\""
+      ttl     = 3600
+      proxied = false
+      comment = "A145-02/A148-01/A39: CAA — allow Google Trust Services cert issuance. DNS-only (unproxied)."
+    }
+
+    # A145-02: Security contact for certificate mis-issuance reports.
+    # A39: proxied=false required — CAA records must be DNS-visible.
+    "caa-iodef" = {
+      name    = "@"
+      type    = "CAA"
+      content = "0 iodef \"mailto:security@groupsmix.com\""
+      ttl     = 3600
+      proxied = false
+      comment = "A145-02/A39: CAA iodef — cert mis-issuance reporting. DNS-only (unproxied)."
     }
 
     # MTA-STS discovery record — id= must change whenever the policy changes.
