@@ -397,15 +397,35 @@ export async function POST(request: NextRequest) {
     // so the breaker counts them toward the failure threshold.
     // Use upsert with ignoreDuplicates so retried queue messages with the
     // same click_id are silently skipped (ON CONFLICT (click_id) DO NOTHING).
-    await supabaseClicksBreaker.execute(async () => {
-      const result = await sb
-        // eslint-disable-next-line no-restricted-syntax -- Audited: queue worker uses privileged client; gated by INTERNAL_API_TOKEN
-        .from("affiliate_clicks")
-        .upsert(rows, { onConflict: "click_id", ignoreDuplicates: true });
-      if (result.error) {
-        throw new Error(result.error.message);
+    let upsertError: Error | null = null;
+    try {
+      await supabaseClicksBreaker.execute(async () => {
+        const result = await sb
+          // eslint-disable-next-line no-restricted-syntax -- Audited: queue worker uses privileged client; gated by INTERNAL_API_TOKEN
+          .from("affiliate_clicks")
+          .upsert(rows, { onConflict: "click_id", ignoreDuplicates: true });
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+      });
+    } catch (cbErr) {
+      if (cbErr instanceof CircuitOpenError) throw cbErr;
+      upsertError = cbErr as Error;
+    }
+
+    if (upsertError) {
+      captureException(upsertError, { context: "[api/queue/clicks] upsert" });
+      if (anyMsgId) {
+        const allFailed = unwrapped
+          .map((u) => u.msgId)
+          .filter((id): id is string => typeof id === "string");
+        return NextResponse.json(
+          { error: "DB insert failed", acked: [], failed: allFailed },
+          { status: 500 },
+        );
       }
-    });
+      return NextResponse.json({ error: "DB insert failed" }, { status: 500 });
+    }
 
     if (anyMsgId) {
       // audit5-#13: every validated message was upserted; the conflict-
