@@ -126,6 +126,8 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
         status: 503,
         headers: {
           "Content-Type": "application/json",
+          // A91-2: Retry-After lets clients/proxies back off intelligently.
+          "Retry-After": "120",
           // G-35: never let a CDN, browser, or shared proxy cache the
           // maintenance response — once the operator flips the flag
           // back off, the next request must hit the worker again.
@@ -151,6 +153,7 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
           status: 503,
           headers: {
             "Content-Type": "application/json",
+            "Retry-After": "120",
             // G-35: same no-store guarantee as the env-var branch above.
             "Cache-Control": "no-store",
             Pragma: "no-cache",

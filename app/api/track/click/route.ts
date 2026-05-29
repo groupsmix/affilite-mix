@@ -132,7 +132,9 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
         captureException(new Error("CLICK_CACHE_HMAC_KEY missing and getOrDeriveHmacKey failed"), {
           context: "[api/track/click] missing signing secret",
         });
-        return apiError(503, "Service temporarily unavailable");
+        return apiError(503, "Service temporarily unavailable", undefined, {
+          "Retry-After": "30",
+        });
       }
     }
 
