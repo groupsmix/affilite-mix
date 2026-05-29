@@ -143,3 +143,21 @@
 
 [Date + scenario]
 ```
+
+---
+
+## Post-Exercise Gap Log (A189)
+
+Record outcomes from each completed tabletop exercise below. This log demonstrates that exercises are not just planned but **executed and learned from** (SOC 2 Type II operating effectiveness).
+
+| Date                         | Scenario | Facilitator | Participants | Key Gaps Found | Action Items Filed | Report Link |
+| ---------------------------- | -------- | ----------- | ------------ | -------------- | ------------------ | ----------- |
+| (no exercises completed yet) |          |             |              |                |                    |             |
+
+**Process:**
+
+1. After each exercise, fill out the Post-Exercise Report Template above.
+2. Save the report to `docs/post-mortems/tabletop-YYYY-MM-DD-scenario.md`.
+3. File action items as GitHub Issues with the `tabletop` label.
+4. Add a summary row to this log.
+5. Report exercise completion and gap trends in the quarterly board cyber metrics (`docs/board-cyber-metrics.md`).
