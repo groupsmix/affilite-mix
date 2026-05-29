@@ -150,12 +150,24 @@ function parseResponse(
 }
 
 /**
- * A109 audit fix: AI-generated content watermark. Prepended to every
- * generated HTML body so downstream platforms can detect AI provenance
- * (EU AI Act Art. 50 transparency obligation).
+ * A109 / S5-05: AI-generated content watermark.
+ *
+ * The previous in-body approach (HTML comment + <meta> tag prepended to
+ * body HTML) was stripped by `sanitizeHtml` on every render and publish
+ * path because `<meta>` is not in the sanitizer allowlist and HTML
+ * comments have no handler. The watermark was therefore dead.
+ *
+ * Fix: the `ai_generated` boolean DB column (set via `createContent`
+ * in the publish path) is the authoritative provenance signal. The
+ * public-facing `<meta name="ai-generated">` tag is now emitted from
+ * the page-level template/layout where it is outside the sanitized
+ * body and cannot be stripped. See `app/[site]/[slug]/page.tsx`.
+ *
+ * The in-body constant is retained only as a `data-` attribute on an
+ * allowed wrapper tag so it survives sanitization as a secondary
+ * in-content signal for downstream syndication scrapers.
  */
-const AI_GENERATED_WATERMARK =
-  '<!-- ai-generated: true -->\n<meta name="ai-generated" content="true" />\n';
+const AI_GENERATED_WATERMARK = '<div data-ai-generated="true"></div>\n';
 
 /**
  * Error thrown when content moderation rejects input or output.
@@ -225,7 +237,9 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
 
   // A108: Screen model output for prohibited content, leaked secrets, and
   // regulatory claims (A115-F1).
-  const combinedOutput = `${parsed.title} ${parsed.excerpt} ${parsed.body}`;
+  // S5-02: Include metaTitle and metaDescription in the scanned text so
+  // secrets or prohibited content in <meta> fields cannot bypass the scanner.
+  const combinedOutput = `${parsed.title} ${parsed.excerpt} ${parsed.metaTitle} ${parsed.metaDescription} ${parsed.body}`;
   const outputCheck = moderateOutputExtended(combinedOutput);
   if (!outputCheck.passed) {
     // A108-F3: Log moderation rejection to audit trail.
@@ -261,7 +275,8 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
     );
   }
 
-  // A109: Prepend AI-generated watermark to the body.
+  // A109 / S5-05: Prepend AI-generated watermark using a data-attribute on
+  // an allowed tag so it survives sanitization (unlike the old <meta>/comment).
   const watermarkedBody = `${AI_GENERATED_WATERMARK}${sanitizedBody}`;
 
   return {

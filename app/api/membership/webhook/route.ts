@@ -28,7 +28,7 @@ function redactStripePayloadForLogs(rawBody: string): Record<string, unknown> {
       object_type: parsed.data?.object?.object,
     };
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return { parse_error: true };
   }
 }

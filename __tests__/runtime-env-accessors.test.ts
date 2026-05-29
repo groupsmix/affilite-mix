@@ -152,7 +152,9 @@ describe("ESLint rule blocks `(process.env as Record<string, unknown>).BINDING`"
     }
 
     const offenders: string[] = [];
-    const allowList = new Set([path.join(repoRoot, "lib", "rate-limit.ts")]);
+    // C-4: rate-limit.ts no longer uses the banned (process.env as Record<…>) cast;
+    // it delegates to getRuntimeEnv() instead. No allowlist entries needed.
+    const allowList = new Set<string>();
 
     for (const root of ["lib", "app", "workers"]) {
       const fullRoot = path.join(repoRoot, root);
@@ -173,12 +175,11 @@ describe("ESLint rule blocks `(process.env as Record<string, unknown>).BINDING`"
     expect(offenders).toEqual([]);
   });
 
-  it("rate-limit.ts's one allow-listed call site has the inline eslint-disable", async () => {
+  it("rate-limit.ts delegates to getRuntimeEnv() instead of direct process.env cast", async () => {
     const { promises: fs } = await import("node:fs");
     const path = await import("node:path");
     const src = await fs.readFile(path.resolve(__dirname, "..", "lib", "rate-limit.ts"), "utf8");
-    expect(src).toMatch(
-      /eslint-disable-next-line no-restricted-syntax\s*\n\s*return \(process\.env as Record<string, unknown>\)/,
-    );
+    expect(src).toMatch(/getRuntimeEnv/);
+    expect(src).not.toMatch(/\(process\.env as Record<string, unknown>\)/);
   });
 });

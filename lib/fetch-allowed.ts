@@ -112,7 +112,7 @@ export async function fetchAllowed(url: string, options?: RequestInit): Promise<
   try {
     parsed = new URL(url);
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     throw new TypeError(`Invalid URL: ${url}`);
   }
 

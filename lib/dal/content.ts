@@ -52,7 +52,7 @@ const LIST_COLUMNS =
 
 // A23-01: Full explicit column list for detail views (includes body).
 const DETAIL_COLUMNS =
-  "id, site_id, title, slug, body, excerpt, featured_image, type, status, review_state, category_id, tags, author, publish_at, meta_title, meta_description, og_image, body_previous, created_at, updated_at" as const;
+  "id, site_id, title, slug, body, excerpt, featured_image, type, status, review_state, category_id, tags, author, publish_at, meta_title, meta_description, og_image, body_previous, ai_generated, created_at, updated_at" as const;
 
 /** List content for a site with optional filters */
 export async function listContent(
