@@ -385,12 +385,13 @@ export async function checkQuota(
  * effectively grant the tenant extra capacity beyond their ceiling).
  * Non-finite or zero amounts are no-ops.
  */
-// S1-A10-01 / S1-A18-01: Known limitation — KV has no atomic increment.
-// Concurrent recordUsage calls may lose increments (read→add→write race).
-// This is an accounting concern, not a security boundary (rate limits are
-// the security ceiling via RATE_LIMITER_DO). Accepted risk: under-counts
-// AI cost/tokens/storage under high concurrency. Future fix: migrate
-// counters to Durable Object atomic RMW.
+// S1-A10-01 / S1-A18-01 / S5-06: Known limitation — KV has no atomic
+// increment. Concurrent recordUsage calls may lose increments
+// (read→add→write race). This is an accounting concern, not a security
+// boundary (rate limits are the security ceiling via RATE_LIMITER_DO).
+// Accepted risk: under-counts AI cost/tokens/storage under high
+// concurrency. Quotas are documented as soft/best-effort. Future fix:
+// migrate counters to Durable Object atomic RMW.
 export async function recordUsage(
   siteId: string,
   resource: QuotaResource,
@@ -441,12 +442,22 @@ export async function assertQuota(
 }
 
 /**
- * RC-RECHECK-02: Reserve quota atomically before performing the side-effect.
+ * RC-RECHECK-02: Reserve quota before performing the side-effect.
  *
  * Unlike checkQuota (read-only) → recordUsage (post-hoc), this function
  * increments the counter immediately so concurrent requests see the
  * reservation and don't over-commit. If the side-effect fails, the caller
  * should call `releaseQuota()` to credit the amount back.
+ *
+ * S5-06: Known limitation — Cloudflare KV does not support atomic
+ * read-modify-write. The check+write here is a TOCTOU race: concurrent
+ * requests for the same tenant may both read the pre-increment value,
+ * both pass the check, and both write, potentially exceeding the ceiling
+ * by a small amount under high concurrency. This makes quotas a
+ * **soft/best-effort** ceiling, not a hard security boundary. The
+ * security-grade ceiling is the per-tenant rate limiter in
+ * `lib/rate-limit.ts` (backed by Durable Objects). To make quotas hard,
+ * migrate counters to a Durable Object with atomic RMW.
  *
  * Throws `QuotaExceededError` if the reservation would exceed the limit.
  */
