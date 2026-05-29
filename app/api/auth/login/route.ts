@@ -232,6 +232,9 @@ const LOGIN_RATE_LIMIT_EMAIL = {
 };
 
 export async function POST(request: NextRequest) {
+  const requestId = request.headers.get("x-trace-id") ?? crypto.randomUUID();
+  const log = logger.child({ requestId });
+
   // F-FE-01: Fail fast if critical env vars are missing at runtime.
   // Checked at request time (not module load) to avoid build-time failures.
   // Only enforced in production — dev/test uses a random fallback via lib/jwt-secret.ts.
@@ -349,7 +352,7 @@ export async function POST(request: NextRequest) {
           const code =
             e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
           if (code !== "42703") {
-            logger.error("Failed to update admin user lockout", { error: e });
+            log.error("Failed to update admin user lockout", { error: e });
           }
         }
       }
@@ -369,7 +372,7 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (auditErr) {
-        logger.warn("Failed to record audit event for failed login", { error: auditErr });
+        log.warn("Failed to record audit event for failed login", { error: auditErr });
       }
       return apiError(401, "Invalid credentials");
     }
@@ -384,7 +387,7 @@ export async function POST(request: NextRequest) {
       } catch (e: unknown) {
         const code = e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
         if (code !== "42703") {
-          logger.error("Failed to reset admin user lockout", { error: e });
+          log.error("Failed to reset admin user lockout", { error: e });
         }
       }
     }
@@ -457,7 +460,7 @@ export async function POST(request: NextRequest) {
             const code =
               e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
             if (code !== "42703") {
-              logger.error("Failed to update TOTP lockout", { error: e });
+              log.error("Failed to update TOTP lockout", { error: e });
             }
           }
           return apiError(401, "Invalid 2FA token");
