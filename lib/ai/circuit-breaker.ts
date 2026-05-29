@@ -207,8 +207,3 @@ export function getCircuitBreaker(
 export function resetCircuitBreaker(providerName: string): void {
   registry.delete(providerName);
 }
-
-/** Dump all breaker metrics (for /api/health or admin observability). */
-export function allCircuitBreakerMetrics() {
-  return Array.from(registry.values()).map((cb) => cb.metrics());
-}
