@@ -11,22 +11,24 @@
  *   OPEN     — calls are rejected immediately; a probe is scheduled.
  *   HALF_OPEN — one trial call is let through to test recovery.
  *
- * S5-07: Best-effort / per-isolate limitation.
- * On Cloudflare Workers each isolate is independent and short-lived,
- * so the breaker state (stored in the module-level `registry` Map) is
- * NOT shared across isolates. A provider that is failing fleet-wide
- * will be re-probed independently by every isolate; the breaker rarely
- * reaches a useful fleet-wide OPEN state. This is acceptable because
- * the per-provider fallback chain already provides availability —
- * when one provider fails, the next is tried. To achieve fleet-wide
- * trip state, back the registry with KV or a Durable Object (low
- * priority — the fallback chain is the primary availability mechanism).
+ * S9-C2: Fleet-wide KV-backed state sharing.
+ * When a KV binding is available (Cloudflare Workers production), the
+ * breaker writes its OPEN state to KV on trip and reads it before each
+ * execute. This means all isolates learn about a provider failure within
+ * one KV read latency (~1ms) instead of independently discovering it
+ * after `failureThreshold` failures each.
+ *
+ * The per-isolate module-level registry remains as a fast local cache —
+ * KV is consulted only when the local state is CLOSED to check for a
+ * fleet-wide trip, and on state transitions to propagate changes.
  *
  * Usage (in lib/ai/providers.ts or any provider wrapper):
  *   import { getCircuitBreaker } from "@/lib/ai/circuit-breaker";
  *   const cb = getCircuitBreaker("groq");
  *   const result = await cb.execute(() => groqClient.chat(...));
  */
+
+import { getAppCacheKV } from "@/lib/runtime-env";
 
 export type CircuitState = "CLOSED" | "OPEN" | "HALF_OPEN";
 
@@ -37,6 +39,12 @@ export interface CircuitBreakerOptions {
   recoveryTimeoutMs?: number;
   /** Milliseconds since last state change after which the breaker resets to CLOSED (default 300 000). */
   resetTimeoutMs?: number;
+}
+
+/** Shape of the KV-stored fleet-wide breaker state. */
+interface KVBreakerState {
+  state: "OPEN";
+  until: number;
 }
 
 export class CircuitBreaker {
@@ -69,31 +77,44 @@ export class CircuitBreaker {
   async execute<T>(fn: () => Promise<T>): Promise<T> {
     const currentState = this.getState();
 
+    // S9-C2: If local state is CLOSED, check KV for a fleet-wide OPEN signal.
+    if (currentState === "CLOSED") {
+      const fleetOpen = await this.checkFleetState();
+      if (fleetOpen) {
+        this.transitionTo("OPEN");
+        throw new CircuitOpenError(this.name);
+      }
+    }
+
     if (currentState === "OPEN") {
       throw new CircuitOpenError(this.name);
     }
 
     try {
       const result = await fn();
-      this.onSuccess();
+      await this.onSuccess();
       return result;
     } catch (err) {
-      this.onFailure();
+      await this.onFailure();
       throw err;
     }
   }
 
-  private onSuccess(): void {
+  private async onSuccess(): Promise<void> {
     this.failures = 0;
     if (this.state !== "CLOSED") {
       this.transitionTo("CLOSED");
+      // S9-C2: Clear fleet-wide OPEN signal on recovery.
+      await this.clearFleetState();
     }
   }
 
-  private onFailure(): void {
+  private async onFailure(): Promise<void> {
     this.failures++;
     if (this.state === "HALF_OPEN" || this.failures >= this.failureThreshold) {
       this.transitionTo("OPEN");
+      // S9-C2: Propagate OPEN state to fleet via KV.
+      await this.writeFleetState();
     }
   }
 
@@ -108,6 +129,49 @@ export class CircuitBreaker {
     }
   }
 
+  /** S9-C2: Check KV for fleet-wide OPEN state. */
+  private async checkFleetState(): Promise<boolean> {
+    const kv = getAppCacheKV();
+    if (!kv) return false;
+    try {
+      const stored = (await kv.get(`cb:${this.name}`, "json")) as KVBreakerState | null;
+      if (stored && stored.state === "OPEN" && Date.now() < stored.until) {
+        return true;
+      }
+    } catch {
+      // KV read failure — fall through to local state (best-effort).
+    }
+    return false;
+  }
+
+  /** S9-C2: Write OPEN state to KV for fleet-wide propagation. */
+  private async writeFleetState(): Promise<void> {
+    const kv = getAppCacheKV();
+    if (!kv) return;
+    try {
+      const payload: KVBreakerState = {
+        state: "OPEN",
+        until: Date.now() + this.recoveryTimeoutMs,
+      };
+      await kv.put(`cb:${this.name}`, JSON.stringify(payload), {
+        expirationTtl: Math.ceil(this.recoveryTimeoutMs / 1000) + 10,
+      });
+    } catch {
+      // KV write failure — per-isolate breaker still works locally.
+    }
+  }
+
+  /** S9-C2: Clear fleet-wide OPEN state on recovery. */
+  private async clearFleetState(): Promise<void> {
+    const kv = getAppCacheKV();
+    if (!kv) return;
+    try {
+      await kv.delete(`cb:${this.name}`);
+    } catch {
+      // Best-effort — KV key will expire via TTL anyway.
+    }
+  }
+
   /** Expose metrics for observability / health endpoints. */
   metrics() {
     return {
@@ -119,14 +183,14 @@ export class CircuitBreaker {
   }
 }
 
-class CircuitOpenError extends Error {
+export class CircuitOpenError extends Error {
   constructor(providerName: string) {
-    super(`Circuit breaker OPEN for AI provider: ${providerName}`);
+    super(`Circuit breaker OPEN for provider: ${providerName}`);
     this.name = "CircuitOpenError";
   }
 }
 
-/** Global registry — one breaker per named AI provider. */
+/** Global registry — one breaker per named provider. */
 const registry = new Map<string, CircuitBreaker>();
 
 export function getCircuitBreaker(
@@ -140,11 +204,11 @@ export function getCircuitBreaker(
 }
 
 /** Reset a specific breaker (useful in tests). */
-function resetCircuitBreaker(providerName: string): void {
+export function resetCircuitBreaker(providerName: string): void {
   registry.delete(providerName);
 }
 
 /** Dump all breaker metrics (for /api/health or admin observability). */
-function allCircuitBreakerMetrics() {
+export function allCircuitBreakerMetrics() {
   return Array.from(registry.values()).map((cb) => cb.metrics());
 }
