@@ -206,7 +206,7 @@ function isProductStatus(v: unknown): v is ProductStatus {
 }
 
 type ContentType = "article" | "review" | "comparison" | "guide" | "blog";
-const CONTENT_TYPES: ReadonlySet<string> = new Set([
+export const CONTENT_TYPES: ReadonlySet<string> = new Set([
   "article",
   "review",
   "comparison",
@@ -219,7 +219,7 @@ function isContentType(v: unknown): v is ContentType {
 }
 
 type ContentStatus = "draft" | "review" | "scheduled" | "published" | "archived";
-const CONTENT_STATUSES: ReadonlySet<string> = new Set([
+export const CONTENT_STATUSES: ReadonlySet<string> = new Set([
   "draft",
   "review",
   "scheduled",
