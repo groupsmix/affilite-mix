@@ -432,12 +432,14 @@ jobs:
           # New call sites require a code comment with audit-ticket reference.
           set -euo pipefail
           # Baseline raised from 33 → 67 in PR-A: F-API-01 cron proxy
-          # unbreak. Every new opt-out is annotated with an `F-API-01`
+          # unbreak, then 67 → 73 in NEW-03: extend F-API-01 guard to
+          # .rpc() calls (+6 opt-outs for cross-tenant/user-scoped RPCs).
+          # Every new opt-out is annotated with an `F-API-01` or `NEW-03`
           # audit-ticket comment in lib/ or app/ documenting why the
           # site_id filter does not apply (global/cross-tenant tables,
           # lookup queries that *resolve* site_id, or cross-tenant
           # rollups). The cron-proxy-guard test asserts each chain.
-          BASELINE=67
+          BASELINE=73
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
