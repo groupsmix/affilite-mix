@@ -171,8 +171,8 @@ export async function POST(request: NextRequest) {
     const auditDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
     // Try the transactional RPC first
-    // NEW-03: purge_retention is a cross-tenant maintenance RPC — opt out
-    // of the F-API-01 RPC guard.
+    // F-API-01 / NEW-03: purge_retention is a cross-tenant maintenance
+    // RPC (no p_site_id) — opt out of the RPC guard.
     const { data: rpcResult, error: rpcError } = await sb
       // @ts-expect-error ACCEPTED: purge_retention RPC exists (migration 00099) but generated types show Args: never — regenerate types after deploying migration to fix
       .rpc("purge_retention", {

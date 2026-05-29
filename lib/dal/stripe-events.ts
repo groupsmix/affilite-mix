@@ -83,8 +83,8 @@ export async function applyStripeEventAtomic(
 ): Promise<StripeEventApplyResult> {
   const sb = getPrivilegedSupabaseClient();
 
-  // NEW-03: Stripe events are cross-tenant (no p_site_id) — opt out of
-  // the F-API-01 RPC guard explicitly.
+  // F-API-01 / NEW-03: Stripe events are cross-tenant (no p_site_id) —
+  // opt out of the RPC guard explicitly.
   const { data, error } = await sb
     .rpc("apply_stripe_membership_event", {
       p_stripe_event_id: stripeEventId,
