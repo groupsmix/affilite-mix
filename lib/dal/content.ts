@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import { getAnonClient } from "@/lib/supabase-server";
 import type { ContentRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
@@ -138,29 +137,6 @@ export async function getContentBySlug(
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<ContentRow>(data);
 }
-
-/**
- * A-007: Stale-while-revalidate cached variant for public content pages.
- * Falls back to the uncached `getContentBySlug` if skip-db is active.
- */
-const getContentBySlugPublic = unstable_cache(
-  async (siteId: string, slug: string): Promise<ContentRow | null> => {
-    if (shouldSkipDbCall()) return null;
-    const sb = getAnonClient();
-    const { data, error } = await sb
-      .from(TABLE)
-      .select(DETAIL_COLUMNS)
-      .eq("site_id", siteId)
-      .eq("slug", slug)
-      .eq("status", "published")
-      .single();
-
-    if (error && error.code !== "PGRST116") throw error;
-    return rowOrNull<ContentRow>(data);
-  },
-  ["content-by-slug"],
-  { revalidate: 60, tags: ["content"] },
-);
 
 /** Create content */
 export async function createContent(

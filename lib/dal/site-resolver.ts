@@ -1,4 +1,4 @@
-import { getSiteRowBySlug, getSiteRowByDomain } from "@/lib/dal/sites";
+import { getSiteRowBySlug } from "@/lib/dal/sites";
 import type { SiteRow } from "@/types/database";
 
 /**
@@ -11,14 +11,6 @@ export async function resolveDbSiteId(slug: string): Promise<string> {
     throw new Error(`Site not found in database for slug: ${slug}`);
   }
   return row.id;
-}
-
-/**
- * Resolves a hostname to a full SiteRow from the database.
- * Returns null if no matching site is found.
- */
-async function resolveDbSiteByDomain(domain: string): Promise<SiteRow | null> {
-  return getSiteRowByDomain(domain);
 }
 
 /**

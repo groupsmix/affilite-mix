@@ -1,4 +1,4 @@
-import { assertRows, assertRow, rowOrNull } from "./type-guards";
+import { assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 /** A single quiz step definition */
@@ -52,9 +52,6 @@ const SUBMISSION_TABLE = "quiz_submissions";
 // A23-01: Explicit column lists prevent future sensitive columns from leaking.
 const QUIZ_COLUMNS =
   "id, site_id, slug, title, description, steps, result_config, is_active, created_at, updated_at" as const;
-const SUBMISSION_COLUMNS =
-  "id, quiz_id, site_id, session_id, email, answers, result_tags, status, completed_at, created_at, updated_at" as const;
-
 /** Get active quiz by slug */
 export async function getQuizBySlug(
   siteId: string,
@@ -73,43 +70,6 @@ export async function getQuizBySlug(
 
   if (error) throw error;
   return rowOrNull<QuizRow>(data);
-}
-
-/** List active quizzes for a site */
-async function listQuizzes(
-  siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<QuizRow[]> {
-  const sb = await getClient();
-
-  const { data, error } = await sb
-    .from(QUIZ_TABLE)
-    .select(QUIZ_COLUMNS)
-    .eq("site_id", siteId)
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return assertRows<QuizRow>(data);
-}
-
-/** Create a quiz */
-async function createQuiz(
-  input: {
-    site_id: string;
-    slug: string;
-    title: string;
-    description?: string;
-    steps: QuizStep[];
-    result_config: QuizResultConfig;
-  },
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<QuizRow> {
-  const sb = await getClient();
-
-  const { data, error } = await sb.from(QUIZ_TABLE).insert(input).select().single();
-  if (error) throw error;
-  return assertRow<QuizRow>(data, "Quiz");
 }
 
 /** Start a quiz submission */
@@ -150,23 +110,6 @@ export async function updateQuizSubmission(
     .single();
   if (error) throw error;
   return assertRow<QuizSubmissionRow>(data, "QuizSubmission");
-}
-
-/** Get a submission by ID */
-async function getQuizSubmission(
-  id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
-): Promise<QuizSubmissionRow | null> {
-  const sb = await getClient();
-
-  const { data, error } = await sb
-    .from(SUBMISSION_TABLE)
-    .select(SUBMISSION_COLUMNS)
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) throw error;
-  return rowOrNull<QuizSubmissionRow>(data);
 }
 
 /**
