@@ -12,7 +12,9 @@
 if (
   process.env.NODE_ENV === "production" &&
   !process.env.NEXT_PHASE &&
-  process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1"
+  process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1" &&
+  process.env.CI !== "true" &&
+  process.env.GITHUB_ACTIONS !== "true"
 ) {
   throw new Error(
     "[env] ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 is set in a production runtime. " +
