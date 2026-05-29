@@ -51,6 +51,13 @@ export default async function TermsPage() {
             : `${site.name} is not liable for any damages resulting from the use of this website or the products mentioned herein.`}
         </p>
 
+        <h2>{isAr ? "العمر المطلوب" : "Age Requirement"}</h2>
+        <p>
+          {isAr
+            ? "خدماتنا غير موجهة للأطفال دون سن 16 عامًا (في الاتحاد الأوروبي/المملكة المتحدة) أو 13 عامًا (في الولايات المتحدة). باستخدامك لهذا الموقع، فإنك تؤكد أنك تبلغ من العمر 16 عامًا أو أكثر (أو 13 عامًا أو أكثر في الولايات المتحدة) أو أنك تستخدم الموقع تحت إشراف ولي أمر."
+            : "Our services are not directed to children under 16 (EU/UK) or under 13 (US). By using this site, you confirm that you are at least 16 years old (or 13 in the US), or that you are using this site under parental supervision. We do not knowingly collect personal information from children. See our Privacy Policy for details."}
+        </p>
+
         <h2>{isAr ? "التغييرات" : "Changes"}</h2>
         <p>
           {isAr
