@@ -2,7 +2,7 @@ dns_records = {
   "spf-apex" = {
     name    = "@"
     type    = "TXT"
-    content = "v=spf1 include:_spf.resend.com ~all"
+    content = "v=spf1 include:_spf.resend.com -all"
     proxied = false
   }
   "dmarc-apex" = {

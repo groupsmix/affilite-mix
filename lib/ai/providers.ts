@@ -478,7 +478,7 @@ export async function generateWithFallback(
         await releaseQuota(options.siteId, "ai_tokens", inputTokenEstimate);
       }
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // Best-effort release — if KV is down the reservation stays but
       // will be reconciled by the next window rollover.
     }

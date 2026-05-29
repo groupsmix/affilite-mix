@@ -41,7 +41,7 @@ async function resolveDomain(): Promise<string> {
       if (bareHost && KNOWN_HOSTS.has(bareHost)) return bareHost;
     }
   } catch {
-    // fail-open: best-effort; happens in tests where headers() is unavailable.
+    // fail-open: best-effort; happens in tests where headers() is unavailable. [criticality:non-critical]
   }
   // Fall back to the resolved site context.
   try {
@@ -49,7 +49,7 @@ async function resolveDomain(): Promise<string> {
     const site = await getCurrentSite();
     return site.domain;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
   }
   return DEFAULT_DOMAIN;
 }

@@ -39,7 +39,7 @@ export function safeHref(input: string, allowedHostnames?: readonly string[]): s
   try {
     parsed = new URL(input);
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return null;
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
