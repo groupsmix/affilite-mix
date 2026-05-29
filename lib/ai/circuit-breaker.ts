@@ -11,6 +11,17 @@
  *   OPEN     — calls are rejected immediately; a probe is scheduled.
  *   HALF_OPEN — one trial call is let through to test recovery.
  *
+ * S5-07: Best-effort / per-isolate limitation.
+ * On Cloudflare Workers each isolate is independent and short-lived,
+ * so the breaker state (stored in the module-level `registry` Map) is
+ * NOT shared across isolates. A provider that is failing fleet-wide
+ * will be re-probed independently by every isolate; the breaker rarely
+ * reaches a useful fleet-wide OPEN state. This is acceptable because
+ * the per-provider fallback chain already provides availability —
+ * when one provider fails, the next is tried. To achieve fleet-wide
+ * trip state, back the registry with KV or a Durable Object (low
+ * priority — the fallback chain is the primary availability mechanism).
+ *
  * Usage (in lib/ai/providers.ts or any provider wrapper):
  *   import { getCircuitBreaker } from "@/lib/ai/circuit-breaker";
  *   const cb = getCircuitBreaker("groq");
