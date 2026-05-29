@@ -584,6 +584,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      migrations_applied: ${{ steps.migrate.outputs.migrations_applied }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -676,6 +678,7 @@ jobs:
 
       # ── Apply production migrations ────────────────────────────────
       - name: Apply database migrations to production
+        id: migrate
         if: steps.skip-check.outputs.skip != 'true'
         env:
           _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -716,10 +719,15 @@ jobs:
             );
           "
 
+          # H-5: Track newly applied migrations for automated rollback
+          : > /tmp/applied-migrations.txt
+
           if [ -d "supabase/migrations" ]; then
             for file in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
               filename=$(basename "$file")
               [[ "$filename" == *.sql ]] || continue
+              # Skip down-migration files — they are not forward migrations
+              [[ "$filename" == *-down.sql ]] && continue
 
               # Check if this migration has already been applied
               applied=$(psql "$DB_URL" -t -A -c \
@@ -734,6 +742,7 @@ jobs:
               if psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$file"; then
                 psql "$DB_URL" -c \
                   "INSERT INTO _migrations_applied (filename) VALUES ('$filename') ON CONFLICT DO NOTHING;"
+                echo "$filename" >> /tmp/applied-migrations.txt
                 echo "Applied: $filename"
               else
                 echo "::error::Failed: $filename"
@@ -742,7 +751,9 @@ jobs:
             done
           fi
 
-          echo "Database migrations complete"
+          APPLIED_COUNT=$(wc -l < /tmp/applied-migrations.txt)
+          echo "migrations_applied=$APPLIED_COUNT" >> "$GITHUB_OUTPUT"
+          echo "Database migrations complete ($APPLIED_COUNT newly applied)"
 
       # ── Verify schema after migration ──────────────────────────────
       - name: Verify production schema
@@ -1589,11 +1600,92 @@ jobs:
           echo "See: \`.github/workflows/deploy-gradual.yml\`" >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════════════
+  # H-5: Automated migration rollback on deploy/health failure
+  #
+  # When the Worker deploy or post-deploy health check fails after
+  # migrations were applied, this job runs the corresponding down-
+  # migration files in reverse order to restore the production schema
+  # to its pre-deploy state.
+  # ═══════════════════════════════════════════════════════════════════
+  rollback-migrations:
+    if: failure() && needs.migrate-production.outputs.migrations_applied > 0
+    needs: [migrate-production, deploy, health-check]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client 2>&1 | tail -5
+
+      - name: Run down-migrations (reverse order)
+        env:
+          _DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          _DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+        run: |
+          set -euo pipefail
+          DB_URL="${_DB_POOLER_URL:-$_DB_URL}"
+          DB_URL="${DB_URL%%\?*}"
+
+          if [ -z "$DB_URL" ]; then
+            echo "::error::No DB URL available for rollback"
+            exit 1
+          fi
+
+          echo "::warning::H-5: Deploy failed after migrations. Running automated rollback..."
+
+          # Get the list of migrations applied in this run from the ledger.
+          # We identify "this run's" migrations as the N most recently applied,
+          # where N = migrations_applied output from the migrate step.
+          ROLLBACK_COUNT=${{ needs.migrate-production.outputs.migrations_applied }}
+          echo "Migrations to roll back: $ROLLBACK_COUNT"
+
+          # Fetch the most recently applied migrations (reverse order)
+          RECENT_MIGRATIONS=$(psql "$DB_URL" -t -A -c "
+            SELECT filename FROM _migrations_applied
+            ORDER BY applied_at DESC
+            LIMIT $ROLLBACK_COUNT;
+          ")
+
+          ROLLBACK_FAILED=0
+          for migration in $RECENT_MIGRATIONS; do
+            # Derive the down-migration filename
+            down_file="supabase/migrations/${migration%.sql}-down.sql"
+            if [ ! -f "$down_file" ]; then
+              echo "::error::Down-migration not found: $down_file"
+              ROLLBACK_FAILED=1
+              continue
+            fi
+
+            echo "Rolling back: $migration (using $down_file)"
+            if psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$down_file"; then
+              # Remove from ledger
+              psql "$DB_URL" -c \
+                "DELETE FROM _migrations_applied WHERE filename = '$migration';"
+              echo "Rolled back: $migration"
+            else
+              echo "::error::Rollback failed for: $migration"
+              ROLLBACK_FAILED=1
+              break
+            fi
+          done
+
+          if [ "$ROLLBACK_FAILED" = "1" ]; then
+            echo "::error::Automated rollback incomplete — manual intervention required."
+            echo "::error::See docs/DR-RUNBOOK.md for manual rollback procedures."
+            exit 1
+          fi
+
+          echo "::notice::H-5: Automated rollback complete. $ROLLBACK_COUNT migration(s) reverted."
+
+  # ═══════════════════════════════════════════════════════════════════
   # STAGE 5: Notify on deploy failure (AUD-03 / AUD-11)
   # ═══════════════════════════════════════════════════════════════════
   notify-failure:
     if: failure()
-    needs: [deploy, health-check]
+    needs: [deploy, health-check, rollback-migrations]
     runs-on: ubuntu-latest
     permissions:
       contents: read
