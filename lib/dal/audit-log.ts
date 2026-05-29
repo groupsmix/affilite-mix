@@ -1,4 +1,4 @@
-import { escapeLike } from "./search-utils";
+import { escapeLike, stripPostgrestMeta } from "./search-utils";
 import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { clampPagination } from "./pagination-guard";
@@ -83,11 +83,13 @@ export async function listAuditLogs(
   }
 
   if (filters?.actor) {
-    query = query.ilike("actor", `%${escapeLike(filters.actor)}%`);
+    // T1-01: strip PostgREST metacharacters before interpolation
+    query = query.ilike("actor", `%${escapeLike(stripPostgrestMeta(filters.actor))}%`);
   }
 
   if (filters?.q) {
-    const pattern = `%${escapeLike(filters.q)}%`;
+    // T1-01: strip PostgREST metacharacters to prevent .or() injection
+    const pattern = `%${escapeLike(stripPostgrestMeta(filters.q))}%`;
     query = query.or(`actor.ilike.${pattern},entity_id.ilike.${pattern}`);
   }
 
@@ -128,11 +130,13 @@ export async function countAuditLogs(
   }
 
   if (filters?.actor) {
-    query = query.ilike("actor", `%${escapeLike(filters.actor)}%`);
+    // T1-01: strip PostgREST metacharacters before interpolation
+    query = query.ilike("actor", `%${escapeLike(stripPostgrestMeta(filters.actor))}%`);
   }
 
   if (filters?.q) {
-    const pattern = `%${escapeLike(filters.q)}%`;
+    // T1-01: strip PostgREST metacharacters to prevent .or() injection
+    const pattern = `%${escapeLike(stripPostgrestMeta(filters.q))}%`;
     query = query.or(`actor.ilike.${pattern},entity_id.ilike.${pattern}`);
   }
 

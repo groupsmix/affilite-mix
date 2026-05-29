@@ -335,10 +335,12 @@ export async function safeFetchWithRedirectValidation(
     }
   }
 
+  // R10-02: Set redirect:"manual" AFTER the spread so callers cannot
+  // accidentally re-enable auto-follow and bypass per-hop SSRF validation.
   const mergedOptions: RequestInit & { timeoutMs: number } = {
     timeoutMs: 15000,
-    redirect: "manual", // Don't auto-follow; validate each redirect
     ...options,
+    redirect: "manual", // Don't auto-follow; validate each redirect
     headers: {
       ...(options?.headers as Record<string, string> | undefined),
       ...extraHeaders,

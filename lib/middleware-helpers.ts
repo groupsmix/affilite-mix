@@ -74,6 +74,9 @@ export function applySecurityHeaders(
   );
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
+  // F11-01: Spectre-class / cross-origin-leak hardening
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
   response.headers.set(TRACE_ID_HEADER_NAME, traceId);
 
   if (gpcEnabled) {
