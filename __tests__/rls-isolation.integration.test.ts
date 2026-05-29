@@ -66,7 +66,7 @@ function isRlsDenial(error: { code?: string; message?: string } | null): boolean
   );
 }
 
-describeIfDb("RLS isolation (anon key)", () => {
+describeIfDb("RLS isolation (anon key) [needs SUPABASE_ANON_KEY]", () => {
   let anon: SupabaseClient;
 
   beforeAll(() => {
@@ -254,7 +254,7 @@ describeIfDb("RLS isolation (anon key)", () => {
 const describeIfService =
   hasRealDb && !!SUPABASE_SERVICE && SUPABASE_SERVICE !== "placeholder" ? describe : describe.skip;
 
-describeIfService("RLS policies are installed on tenant tables", () => {
+describeIfService("RLS policies are installed on tenant tables [needs SERVICE_ROLE_KEY]", () => {
   let service: SupabaseClient;
 
   beforeAll(() => {

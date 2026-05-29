@@ -69,6 +69,18 @@ export const FLAG_REGISTRY: FeatureFlagDefinition[] = [
     rolloutPercent: 100,
     ticketRef: "#2345",
   },
+  {
+    name: "Login CAPTCHA (Turnstile)",
+    key: "features.captchaOnLogin",
+    owner: "security-team",
+    createdAt: "2026-05-29",
+    expiresAt: "2026-11-25", // 180 days — decide permanently by then
+    blastRadius: "Admin login route (/api/auth/login)",
+    rollbackInstructions:
+      "Set features.captchaOnLogin=false in site config or set CAPTCHA_ON_LOGIN_DISABLED=true env var",
+    rolloutPercent: 0, // Not yet enabled — tracking intent per A89-1
+    ticketRef: "#567",
+  },
 ];
 
 /**
