@@ -10,6 +10,7 @@ import {
 } from "@/lib/dal/quizzes";
 import { getTenantClient } from "@/lib/supabase-server";
 import { getClientIp } from "@/lib/get-client-ip";
+import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
 
 /**
  * POST /api/quiz/:slug/submit
@@ -31,6 +32,7 @@ export async function POST(
   const rl = await checkRateLimit(`quiz-submit:${ip}`, {
     maxRequests: 30,
     windowMs: 60 * 60 * 1000,
+    failPolicy: "closed" as const,
   });
   if (!rl.allowed) {
     return NextResponse.json(
@@ -59,6 +61,14 @@ export async function POST(
     const quiz = await getQuizBySlug(siteId, slug);
     if (!quiz) {
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+    }
+
+    // S9-NEW-05: Validate and normalize email before storage.
+    if (body.email) {
+      if (!isValidEmail(body.email)) {
+        return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+      }
+      body.email = normalizeEmail(body.email);
     }
 
     const answers = body.answers || {};

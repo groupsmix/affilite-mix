@@ -37,7 +37,7 @@ import { parseJsonBody } from "@/lib/api-error";
  * `lifetime`) then requires only an env-var update + adding the tier
  * to `ALLOWED_TIERS` below — no code change to the lookup function.
  */
-const ALLOWED_TIERS = new Set(["insider", "pro", "enterprise"]);
+const ALLOWED_TIERS = new Set(["insider", "pro"]);
 
 /**
  * Parse the optional `STRIPE_PRICE_MAP` env var into a `tier → priceId`
