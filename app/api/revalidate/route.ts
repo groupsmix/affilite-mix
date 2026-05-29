@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { parseJsonBody } from "@/lib/api-error";
 import { getInternalTokenFor } from "@/lib/internal-auth";
 import { getTenantClient } from "@/lib/supabase-server";
 import { CONTENT_TAGS, siteTag, type ContentTag } from "@/lib/cache-tags";
@@ -81,10 +82,14 @@ export async function POST(request: NextRequest) {
   let kinds: ContentTag[] = [...CONTENT_TAGS];
   let siteId: string | null = null;
 
-  try {
-    const body = await request.json();
+  const bodyOrError = await parseJsonBody(request);
+  if (bodyOrError instanceof NextResponse) {
+    // fail-open: best-effort [criticality:non-critical]
+    // 413 from parseJsonBody is still enforced; invalid JSON uses defaults.
+  } else {
+    const body = bodyOrError;
     if (Array.isArray(body.tags) && body.tags.length > 0) {
-      const requested = body.tags.filter(
+      const requested = (body.tags as unknown[]).filter(
         (t: unknown): t is ContentTag =>
           typeof t === "string" && (CONTENT_TAGS as readonly string[]).includes(t),
       );
@@ -93,18 +98,12 @@ export async function POST(request: NextRequest) {
       }
     }
     // T1-02: Validate site_id is a well-formed UUID before using it.
-    // A present-but-malformed value is rejected rather than ignored, so a
-    // typo'd site_id on an all-sites token can't silently widen into a
-    // full cross-tenant purge.
     if (typeof body.site_id === "string") {
       if (!isUsableUuid(body.site_id)) {
         return NextResponse.json({ error: "site_id must be a valid UUID" }, { status: 400 });
       }
       siteId = body.site_id;
     }
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
-    // No body or invalid JSON — use defaults.
   }
 
   // A98-64: Route authorization — per-site token requires site_id;
