@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
+import { parseJsonBody } from "@/lib/api-error";
 import { assertRole } from "@/lib/admin-guard";
 import { listDlqEntries, resolveDlqEntry } from "@/lib/dal/webhook-dlq";
 import { captureException } from "@/lib/sentry";
@@ -62,7 +63,9 @@ export const PATCH = withAuthz(
     if (roleErr) return roleErr;
 
     try {
-      const body = (await request.json()) as { eventId?: string };
+      const bodyOrError = await parseJsonBody(request);
+      if (bodyOrError instanceof NextResponse) return bodyOrError;
+      const body = bodyOrError as { eventId?: string };
       if (!body.eventId || typeof body.eventId !== "string") {
         return NextResponse.json({ error: "eventId is required" }, { status: 400 });
       }

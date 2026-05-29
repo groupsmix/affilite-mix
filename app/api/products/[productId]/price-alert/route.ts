@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { parseJsonBody } from "@/lib/api-error";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
@@ -44,12 +45,9 @@ export async function POST(
   }
 
   let body: { email?: string; target_price?: number; currency?: string; turnstileToken?: string };
-  try {
-    body = await request.json();
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request);
+  if (parsed instanceof NextResponse) return parsed;
+  body = parsed as typeof body;
 
   const { email, target_price, currency } = body;
 
@@ -137,11 +135,9 @@ export async function DELETE(
   }
 
   let body: { alert_id?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsedDel = await parseJsonBody(request);
+  if (parsedDel instanceof NextResponse) return parsedDel;
+  body = parsedDel as typeof body;
 
   if (!body.alert_id) {
     return NextResponse.json({ error: "alert_id is required" }, { status: 400 });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { parseJsonBody } from "@/lib/api-error";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { createComment, listApprovedComments } from "@/lib/dal/community";
@@ -104,16 +105,9 @@ export async function POST(request: NextRequest) {
     body?: string;
     turnstileToken?: string;
   };
-  try {
-    body = await request.json();
-  } catch {
-    // audit5-#10: malformed JSON is a 400 (client error); we do not
-    // log/Sentry it because it is high-volume noise from misbehaving
-    // clients and crawlers. The comment is intentionally specific so
-    // a future reviewer doesn't "add a captureException" and flood
-    // Sentry with hostile-client noise.
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request);
+  if (parsed instanceof NextResponse) return parsed;
+  body = parsed as typeof body;
 
   if (!body.target_type || !body.target_id || !body.user_email || !body.user_name || !body.body) {
     return NextResponse.json(
