@@ -29,7 +29,7 @@ export interface CursorPageOptions {
   cursor?: string | null;
   orderColumn?: string;
   ascending?: boolean;
-  select?: string;
+  select: string;
 }
 
 export interface CursorPage<T> {
@@ -79,7 +79,7 @@ export async function cursorPaginate<T extends object>(
   const limit = Math.min(opts.limit ?? 50, 200);
   const col = opts.orderColumn ?? "created_at";
   const asc = opts.ascending ?? false;
-  const select = opts.select ?? "*";
+  const select = opts.select;
 
   let query = sb.from(table).select(select).eq("site_id", opts.siteId);
 

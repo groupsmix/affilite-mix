@@ -20,6 +20,7 @@ interface CommissionRow {
 
 export interface ProductEpcRow {
   id: string;
+  site_id: string;
   product_id: string;
   network: string;
   clicks_30d: number;
@@ -36,7 +37,7 @@ const EPC_TABLE = "product_epc_stats";
 const COMMISSION_COLUMNS =
   "id, site_id, product_id, network, order_id, click_id, commission_amount, currency, status, sale_amount, event_date, ingested_at, network_transaction_id, network_status, network_sale_amount, items_count, customer_country, raw_data, created_at" as const;
 const EPC_COLUMNS =
-  "id, product_id, network, clicks_30d, commissions_30d, epc_30d, clicks_7d, commissions_7d, epc_7d, updated_at" as const;
+  "id, site_id, product_id, network, clicks_30d, commissions_30d, epc_30d, clicks_7d, commissions_7d, epc_7d, updated_at" as const;
 
 /** Ingest a batch of commission reports (with dedup) */
 export async function ingestCommissions(
@@ -104,6 +105,7 @@ async function getCommissionStats(
 /** Upsert EPC stats for a product+network */
 export async function upsertProductEpc(
   input: {
+    site_id: string;
     product_id: string;
     network: string;
     clicks_30d: number;
@@ -121,11 +123,8 @@ export async function upsertProductEpc(
     .from(EPC_TABLE)
     .upsert(
       { ...input, updated_at: new Date().toISOString() },
-      { onConflict: "product_id,network" },
+      { onConflict: "site_id,product_id,network" },
     )
-    // F-API-01: `product_epc_stats` is keyed by (product_id, network) and
-    // is a global rollup table — no `site_id` column.
-    .unsafeNoSiteFilter()
     .select()
     .single();
 
