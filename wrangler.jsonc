@@ -149,6 +149,9 @@
         "max_batch_size": 25,
         "max_batch_timeout": 5,
         "max_retries": 3,
+        // S9-H2: Limit concurrent batch processing to prevent Supabase
+        // connection pool exhaustion under high volume.
+        "max_concurrency": 2,
         "dead_letter_queue": "click-tracking-dlq",
       },
     ],
