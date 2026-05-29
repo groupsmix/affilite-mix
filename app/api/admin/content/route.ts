@@ -27,6 +27,11 @@ export const GET = withAuthz(
     const pagination = parsePagination(searchParams);
     if (pagination instanceof NextResponse) return pagination;
 
+    const categoryId = searchParams.get("category_id");
+    if (categoryId && !isUsableUuid(categoryId)) {
+      return NextResponse.json({ error: "Invalid category_id format" }, { status: 400 });
+    }
+
     try {
       const content = await listContent({
         siteId,
@@ -38,7 +43,7 @@ export const GET = withAuthz(
             | "published"
             | "scheduled"
             | "archived") ?? undefined,
-        categoryId: searchParams.get("category_id") ?? undefined,
+        categoryId: categoryId ?? undefined,
         limit: pagination.limit,
         offset: pagination.offset,
       });
