@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -166,5 +166,34 @@ describe("password reset validation", () => {
   it("rejects empty reset token", () => {
     const token = "";
     expect(!token).toBe(true);
+  });
+});
+
+// ── A88-2: verifyToken must reject revoked tokens ──────────────
+
+describe("verifyToken revoked-token handling (A88-2)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("rejects a revoked token when revocation check is enabled", async () => {
+    // Enable strict revocation
+    process.env.ADMIN_SESSION_TOKEN_REVOCATION_STRICT = "true";
+
+    // Mock isTokenRevoked to return true
+    vi.doMock("@/lib/jwt-revocation", () => ({
+      isTokenRevoked: vi.fn().mockResolvedValue(true),
+    }));
+
+    const { createToken, verifyToken } = await import("@/lib/auth");
+
+    const payload = { email: "admin@test.com", userId: "user-1", role: "admin" as const };
+    const token = await createToken(payload);
+
+    const decoded = await verifyToken(token);
+    expect(decoded).toBeNull();
+
+    // Cleanup
+    delete process.env.ADMIN_SESSION_TOKEN_REVOCATION_STRICT;
   });
 });

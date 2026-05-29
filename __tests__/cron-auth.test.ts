@@ -126,3 +126,34 @@ describe("verifyCronAuth — per-trigger secrets (B-3)", () => {
     expect(verifyCronAuth(reqB, opts)).toBe(true);
   });
 });
+
+// ── A88-7: verifyCronAuth — correct vs wrong vs missing secret ──
+describe("verifyCronAuth — correct/wrong/missing secret (A88-7)", () => {
+  const originalCronSecret = process.env.CRON_SECRET;
+
+  afterEach(() => {
+    if (originalCronSecret === undefined) {
+      delete process.env.CRON_SECRET;
+    } else {
+      process.env.CRON_SECRET = originalCronSecret;
+    }
+  });
+
+  it("returns true for the correct secret", () => {
+    process.env.CRON_SECRET = "the-correct-secret-that-is-long-enough";
+    const req = makeRequest("Bearer the-correct-secret-that-is-long-enough");
+    expect(verifyCronAuth(req)).toBe(true);
+  });
+
+  it("returns false for a wrong secret", () => {
+    process.env.CRON_SECRET = "the-correct-secret-that-is-long-enough";
+    const req = makeRequest("Bearer wrong-secret-value-that-is-long-enough");
+    expect(verifyCronAuth(req)).toBe(false);
+  });
+
+  it("returns false when secret is missing (not configured)", () => {
+    delete process.env.CRON_SECRET;
+    const req = makeRequest("Bearer any-token-at-all");
+    expect(verifyCronAuth(req)).toBe(false);
+  });
+});
