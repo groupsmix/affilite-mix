@@ -165,11 +165,14 @@ export async function incrementLoginFailedAttempts(
   const sb = await getClient();
 
   // Try atomic RPC first (requires DB function: increment_login_failed_attempts)
-  const { data, error } = await sb.rpc("increment_login_failed_attempts", {
-    user_id: id,
-    lockout_threshold: lockoutThreshold,
-    lockout_duration_ms: lockoutDurationMs,
-  });
+  // NEW-03: User-scoped RPC (no p_site_id) — opt out of F-API-01 RPC guard.
+  const { data, error } = await sb
+    .rpc("increment_login_failed_attempts", {
+      user_id: id,
+      lockout_threshold: lockoutThreshold,
+      lockout_duration_ms: lockoutDurationMs,
+    })
+    .unsafeNoSiteFilter();
 
   if (!error && data) {
     return { attempts: data.attempts, locked: data.locked };
@@ -233,11 +236,14 @@ export async function incrementTotpFailedAttempts(
 ): Promise<{ attempts: number; locked: boolean }> {
   const sb = await getClient();
 
-  const { data, error } = await sb.rpc("increment_totp_failed_attempts", {
-    user_id: id,
-    lockout_threshold: lockoutThreshold,
-    lockout_duration_ms: lockoutDurationMs,
-  });
+  // NEW-03: User-scoped RPC (no p_site_id) — opt out of F-API-01 RPC guard.
+  const { data, error } = await sb
+    .rpc("increment_totp_failed_attempts", {
+      user_id: id,
+      lockout_threshold: lockoutThreshold,
+      lockout_duration_ms: lockoutDurationMs,
+    })
+    .unsafeNoSiteFilter();
 
   if (!error && data) {
     return { attempts: data.attempts, locked: data.locked };
