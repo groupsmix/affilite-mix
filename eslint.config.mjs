@@ -32,6 +32,19 @@ const runtimeEnvCastBan = {
     "Don't cast process.env to Record<string, unknown> to access Cloudflare bindings. Use a typed accessor from lib/runtime-env.ts (getAppCacheKV, getRateLimitKV, getRateLimiterDO, getClickQueue, getAuditArchiveR2). (PR-E P2-B)",
 };
 
+/**
+ * F-ARCH-03 (#611): Ban `.unsafeNoSiteFilter()` calls outside the DAL layer
+ * and privileged routes (cron/queue/webhook/admin). This method bypasses
+ * tenant scoping and must be confined to audited call-sites.
+ */
+const unsafeNoSiteFilterBan = {
+  selector: "CallExpression[callee.property.name='unsafeNoSiteFilter']",
+  message:
+    "unsafeNoSiteFilter() bypasses tenant scoping. Only lib/dal/*, lib/server-only/*, " +
+    "lib/click-queue.ts, and privileged API routes (cron/queue/webhook/admin/internal) " +
+    "may use it. Add tenant filtering with .eq('site_id', …) instead. (#611)",
+};
+
 const eslintConfig = [
   { ignores: [".open-next/**", ".next/**", "coverage/**"] },
   ...compat.extends("next/core-web-vitals"),
@@ -124,6 +137,45 @@ const eslintConfig = [
           // because it delegates to the same `sanitizeHtml` implementation;
           // any output that satisfies the bare sanitizer also satisfies
           // the memoized one.
+          selector:
+            "JSXAttribute[name.name='dangerouslySetInnerHTML']:not(:has(CallExpression[callee.name=/^(sanitizeHtml|sanitizeHtmlMemoized|safeJsonLdString)$/]))",
+          message:
+            "dangerouslySetInnerHTML must wrap its `__html` value in sanitizeHtml(...), sanitizeHtmlMemoized(...) or safeJsonLdString(...) at the JSX call site. Hand-controlled literals (e.g. nonced bootstrap scripts) require an `// eslint-disable-next-line` comment naming the source. (audit-etap1 #6)",
+        },
+        runtimeEnvCastBan,
+      ],
+    },
+  },
+  {
+    // F-ARCH-03 (#611): Ban unsafeNoSiteFilter() in regular app routes.
+    // Privileged contexts (cron, queue, webhook, admin, internal, auth)
+    // are excluded — they operate cross-tenant by design.
+    files: ["app/**/*.ts", "app/**/*.tsx"],
+    ignores: [
+      "app/api/cron/**",
+      "app/api/queue/**",
+      "app/api/internal/**",
+      "app/api/membership/webhook/**",
+      "app/api/admin/**",
+      "app/api/auth/**",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        unsafeNoSiteFilterBan,
+        {
+          selector: "CallExpression[callee.property.name='from'] > Literal:first-child",
+          message:
+            "Prefer tenantQuery() from @/lib/dal/tenant-query over raw .from(). " +
+            "If this is Array.from() or a privileged context (cron/queue/webhook), " +
+            "add an eslint-disable comment with audit justification.",
+        },
+        {
+          selector: "CallExpression[callee.property.name='select'] > Literal[value='*']",
+          message:
+            'select("*") exposes future sensitive columns. Use an explicit column list constant (e.g. LIST_COLUMNS).',
+        },
+        {
           selector:
             "JSXAttribute[name.name='dangerouslySetInnerHTML']:not(:has(CallExpression[callee.name=/^(sanitizeHtml|sanitizeHtmlMemoized|safeJsonLdString)$/]))",
           message:
