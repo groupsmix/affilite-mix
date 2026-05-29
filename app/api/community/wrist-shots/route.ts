@@ -7,6 +7,14 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import { isUsableUuid } from "@/lib/security/uuid";
+import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
+import { verifyTurnstile } from "@/lib/turnstile";
+/** V4-01: Strip bidi-control / invisible chars to prevent homoglyph spoofing. */
+function stripBidi(str: string): string {
+  return str
+    .normalize("NFC")
+    .replace(/[\u00AD\u061C\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g, "");
+}
 
 /**
  * GET /api/community/wrist-shots?product_id=xxx
@@ -62,7 +70,11 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = await checkRateLimit(`wrist-shot:${ip}`, { maxRequests: 5, windowMs: 60 * 60 * 1000 });
+  const rl = await checkRateLimit(`wrist-shot:${ip}`, {
+    maxRequests: 5,
+    windowMs: 60 * 60 * 1000,
+    failPolicy: "closed" as const,
+  });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many submissions. Try again later." },
@@ -76,6 +88,7 @@ export async function POST(request: NextRequest) {
     user_name?: string;
     image_url?: string;
     caption?: string;
+    turnstileToken?: string;
   };
   try {
     body = await request.json();
@@ -92,17 +105,45 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // S9-NEW-01: Validate email format.
+  if (!isValidEmail(body.user_email)) {
+    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+  }
+
+  // S9-NEW-01: Validate image_url — must be https and capped at 2048 chars.
+  if (body.image_url.length > 2048) {
+    return NextResponse.json({ error: "image_url too long" }, { status: 400 });
+  }
+  try {
+    const imgUrl = new URL(body.image_url);
+    if (imgUrl.protocol !== "https:") {
+      return NextResponse.json({ error: "image_url must use https" }, { status: 400 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Invalid image_url" }, { status: 400 });
+  }
+
+  // Turnstile verification (skipped if TURNSTILE_SECRET_KEY is not set, i.e. dev).
+  if (body.turnstileToken) {
+    const turnstileOk = await verifyTurnstile(body.turnstileToken, ip);
+    if (!turnstileOk) {
+      return NextResponse.json({ error: "Captcha verification failed" }, { status: 403 });
+    }
+  }
+
   try {
     const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
     const siteId = await resolveDbSiteId(siteSlug);
 
+    const sanitizedName = stripBidi(body.user_name).slice(0, 80);
+
     const shot = await createWristShot({
       site_id: siteId,
       product_id: body.product_id,
-      user_email: body.user_email,
-      user_name: body.user_name,
+      user_email: normalizeEmail(body.user_email),
+      user_name: sanitizedName,
       image_url: body.image_url,
-      caption: body.caption,
+      caption: body.caption ? stripBidi(body.caption).slice(0, 500) : undefined,
     });
 
     return NextResponse.json(
