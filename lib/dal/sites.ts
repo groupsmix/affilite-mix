@@ -6,6 +6,7 @@ import type { SiteRow } from "@/types/database";
 import type { Database, Json } from "@/types/supabase";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { siteLookupFlight } from "@/lib/singleflight";
 
 type SiteInsert = Database["public"]["Tables"]["sites"]["Insert"];
 type SiteUpdate = Database["public"]["Tables"]["sites"]["Update"];
@@ -85,8 +86,8 @@ export async function getSiteRowBySlugWithClient(
   return rowOrNull<SiteRow>(data);
 }
 
-/** Get a single site by slug (cached) */
-export const getSiteRowBySlug = unstable_cache(
+/** Get a single site by slug (cached + singleflight coalesced) */
+const _getSiteRowBySlugCached = unstable_cache(
   async (slug: string): Promise<SiteRow | null> => {
     return getSiteRowBySlugWithClient(slug, getTenantClient);
   },
@@ -94,8 +95,17 @@ export const getSiteRowBySlug = unstable_cache(
   { revalidate: 60, tags: ["sites"] },
 );
 
-/** Get a single site by domain (cached) */
-export const getSiteRowByDomain = unstable_cache(
+// S9-H2: Wrap with singleflight so concurrent cache-miss requests for the
+// same slug share a single in-flight DB query instead of each independently
+// hitting Supabase.
+export async function getSiteRowBySlug(slug: string): Promise<SiteRow | null> {
+  return siteLookupFlight.do(`slug:${slug}`, () =>
+    _getSiteRowBySlugCached(slug),
+  ) as Promise<SiteRow | null>;
+}
+
+/** Get a single site by domain (cached + singleflight coalesced) */
+const _getSiteRowByDomainCached = unstable_cache(
   async (domain: string): Promise<SiteRow | null> => {
     if (shouldSkipDbCall()) return null;
 
@@ -108,6 +118,14 @@ export const getSiteRowByDomain = unstable_cache(
   ["site-by-domain"],
   { revalidate: 60, tags: ["sites"] },
 );
+
+// S9-H2: Wrap with singleflight so concurrent cache-miss requests for the
+// same domain share a single in-flight DB query.
+export async function getSiteRowByDomain(domain: string): Promise<SiteRow | null> {
+  return siteLookupFlight.do(`domain:${domain}`, () =>
+    _getSiteRowByDomainCached(domain),
+  ) as Promise<SiteRow | null>;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Write operations                                                  */
