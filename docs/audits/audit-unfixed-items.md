@@ -2,7 +2,7 @@
 
 **Date**: 2026-05-29 (rebaselined)
 **Branch**: `main`
-**Sources**: etap-0, etap-1, etap-2, etap-3 (**repo-scoped only**)
+**Sources**: etap-0, etap-1, etap-2, etap-3, **Season 8** (**repo-scoped only**)
 
 > **Rebaseline note (F2 remediation):** etap-5 and etap-6 findings originated
 > from a different codebase (Oltigo Health) and have been **removed** from this
@@ -15,11 +15,11 @@
 
 | Priority  | Total  | Fixed  | Documented |
 | --------- | ------ | ------ | ---------- |
-| MEDIUM    | 11     | 7      | 4          |
-| LOW       | 15     | 11     | 4          |
-| **Total** | **26** | **18** | **8**      |
+| MEDIUM    | 13     | 9      | 4          |
+| LOW       | 17     | 13     | 4          |
+| **Total** | **30** | **22** | **8**      |
 
-All 26 items addressed: 18 code-fixed, 8 documented with ADR/plan. 7 foreign (Oltigo Health) items removed during F2 rebaseline.
+All 30 items addressed: 22 code-fixed, 8 documented with ADR/plan. 7 foreign (Oltigo Health) items removed during F2 rebaseline.
 
 ---
 
@@ -72,6 +72,38 @@ Migration: `2026052602_gdpr_art21_objections.sql`.
 ### MED #15: Pen test plan ✅ DOCUMENTED
 
 `docs/penetration-test-plan.md` — scope, categories, timeline, vendor requirements, remediation SLAs.
+
+---
+
+## Season 8 Findings
+
+### T1-01 (Medium — SSRF): Resolved IPv6 skips private-range re-check ✅ FIXED
+
+`lib/ssrf-guard.ts:279-287` — `isBlockedIPv6Prefix(resolvedIp)` now validates
+DNS-resolved IPv6 addresses against private/link-local ranges. Previously only
+the input hostname was checked; a hostname resolving to an AAAA record (e.g.
+`fd00::1`) would bypass the guard. Tests: `__tests__/ssrf-guard.test.ts:145-183`
+(ULA, link-local, IPv6-mapped private IPv4). Fixed in PRs #584/#585.
+
+### DB1-01 (Medium — Money): No UNIQUE on stripe_subscription_id ✅ FIXED
+
+`supabase/migrations/2026052904_db1_01_unique_stripe_subscription_id.sql` —
+Added `UNIQUE` partial index on `memberships.stripe_subscription_id` (WHERE NOT
+NULL). Prevents duplicate subscription rows from concurrent/replayed webhooks.
+Lock test: `__tests__/db1-01-unique-stripe-sub.test.ts`. Fixed in PR #614.
+
+### I2-01 (Low — Injection): Cursor ORDER BY lacks runtime allow-list ✅ FIXED
+
+`lib/dal/cursor-pagination.ts:31-41` — `ALLOWED_ORDER_COLUMNS` set restricts
+`orderColumn` to a known-safe list. Runtime rejection at lines 99-104 throws on
+any value outside the set, preventing PostgREST filter injection. Tests:
+`__tests__/cursor-pagination.test.ts:30-77`. Fixed in PRs #584/#585.
+
+### P7-03 (Low — DoS): SSRF DNS resolve has no timeout ✅ FIXED
+
+`lib/ssrf-guard.ts:19-28` — `DNS_TIMEOUT_MS = 5_000` with `Promise.race`
+wrapper around `dns.lookup`. Prevents resolver stalls from blocking the
+request indefinitely. Fixed in PRs #584/#585.
 
 ---
 
