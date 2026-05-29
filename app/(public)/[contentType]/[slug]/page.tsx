@@ -75,9 +75,14 @@ export async function generateMetadata({
   const ogImageUrl = content.og_image || content.featured_image || undefined;
   const ogImages = ogImageUrl ? [{ url: ogImageUrl, width: 1200, height: 630 }] : undefined;
 
+  // S5-05 / A109: Emit AI-generated provenance <meta> tag from the page
+  // template (outside sanitized body HTML) so it cannot be stripped.
+  const otherMeta = content.ai_generated ? { "ai-generated": "true" } : undefined;
+
   return {
     title: metaTitle,
     description: metaDesc,
+    ...(otherMeta && { other: otherMeta }),
     alternates: {
       canonical: url,
     },
