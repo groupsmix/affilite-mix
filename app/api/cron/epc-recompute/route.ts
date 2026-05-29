@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Get all product+network combos that have affiliate links
 
     const { data: links, error: linkErr } = await untypedFrom(sb, "product_affiliate_links")
-      .select("product_id, network, url")
+      .select("product_id, network, url, products!inner(site_id)")
       // F-API-01: nightly EPC recompute reads every site's links so the
       // rollup is global by definition.
       .unsafeNoSiteFilter()
@@ -45,7 +45,12 @@ export async function POST(request: NextRequest) {
 
     let updated = 0;
 
-    for (const link of links as { product_id: string; network: string; url: string }[]) {
+    for (const link of links as {
+      product_id: string;
+      network: string;
+      url: string;
+      products: { site_id: string };
+    }[]) {
       // Count clicks (30d and 7d) — match via affiliate_url from the link
       const { count: clicks30d } = await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
@@ -99,6 +104,7 @@ export async function POST(request: NextRequest) {
 
       await upsertProductEpc(
         {
+          site_id: link.products.site_id,
           product_id: link.product_id,
           network: link.network,
           clicks_30d: c30,
