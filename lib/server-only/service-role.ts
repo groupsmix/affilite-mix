@@ -20,6 +20,7 @@ import { requireEnvInProduction } from "@/lib/env";
 import type { Database } from "@/types/supabase";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { logger } from "@/lib/logger";
+import { getCircuitBreaker, CircuitOpenError } from "@/lib/ai/circuit-breaker";
 
 // FIX-04 (F-001, F-011): Branded type for the privileged client.
 // Callers receive a PrivilegedSupabaseClient instead of a plain
@@ -100,6 +101,13 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
     return _privilegedClient as PrivilegedSupabaseClient;
   }
 
+  // A98-16: Circuit breaker for privileged Supabase client — prevents
+  // cascading failures when Supabase is degraded.
+  const privBreaker = getCircuitBreaker("supabase-privileged", {
+    failureThreshold: 3,
+    recoveryTimeoutMs: 15_000,
+  });
+
   const rawClient = createClient<Database>(url, key, {
     auth: {
       persistSession: false,
@@ -108,10 +116,21 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
     },
     global: {
       fetch: async (input, init) => {
-        return fetchWithTimeout(input as string, {
-          ...init,
-          timeoutMs: 12000,
-        });
+        try {
+          return await privBreaker.execute(() =>
+            fetchWithTimeout(input as string, {
+              ...init,
+              timeoutMs: 12000,
+            }),
+          );
+        } catch (error) {
+          if (error instanceof CircuitOpenError) {
+            logger.warn("[getPrivilegedSupabaseClient] circuit breaker OPEN — fast-failing", {
+              breaker: privBreaker.metrics(),
+            });
+          }
+          throw error;
+        }
       },
     },
   });
