@@ -45,6 +45,22 @@ const tableRows: Record<string, Row[]> = {
     { id: "content-on-A", site_id: SITE_A },
     { id: "content-on-B", site_id: SITE_B },
   ],
+  quizzes: [
+    { id: "quiz-on-A", site_id: SITE_A },
+    { id: "quiz-on-B", site_id: SITE_B },
+  ],
+  drip_campaigns: [
+    { id: "drip-on-A", site_id: SITE_A },
+    { id: "drip-on-B", site_id: SITE_B },
+  ],
+  commissions: [
+    { id: "comm-on-A", site_id: SITE_A },
+    { id: "comm-on-B", site_id: SITE_B },
+  ],
+  memberships: [
+    { id: "member-on-A", site_id: SITE_A },
+    { id: "member-on-B", site_id: SITE_B },
+  ],
 };
 
 /** Set this to a truthy value to make the next maybeSingle() return an error. */
@@ -311,6 +327,134 @@ describe("authorizeResource — cross-tenant negative paths", () => {
     if (!result.ok) {
       expect([403, 404]).toContain(result.status);
     }
+  });
+
+  it("admin of site A cannot access site B quiz (S11-005 catalog expansion)", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "content",
+      action: "edit",
+      resourceType: "quiz",
+      resourceId: "quiz-on-B",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(403);
+  });
+
+  it("admin of site A CAN access site A quiz (S11-005)", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "content",
+      action: "edit",
+      resourceType: "quiz",
+      resourceId: "quiz-on-A",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.siteId).toBe(SITE_A);
+  });
+
+  it("admin of site A cannot access site B drip_campaign (S11-005)", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "content",
+      action: "edit",
+      resourceType: "drip_campaign",
+      resourceId: "drip-on-B",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(403);
+  });
+
+  it("admin of site A CAN access site A drip_campaign (S11-005)", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "content",
+      action: "edit",
+      resourceType: "drip_campaign",
+      resourceId: "drip-on-A",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.siteId).toBe(SITE_A);
+  });
+
+  it("admin of site A cannot access site B commission (S11-005)", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "products",
+      action: "view",
+      resourceType: "commission",
+      resourceId: "comm-on-B",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(403);
+  });
+
+  it("admin of site A CAN access site A commission (S11-005)", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "products",
+      action: "view",
+      resourceType: "commission",
+      resourceId: "comm-on-A",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.siteId).toBe(SITE_A);
+  });
+
+  it("admin of site A cannot access site B membership (S11-005)", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "settings",
+      action: "view",
+      resourceType: "membership",
+      resourceId: "member-on-B",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.status).toBe(403);
+  });
+
+  it("admin of site A CAN access site A membership (S11-005)", async () => {
+    memberships["user-a"] = new Set([SITE_A]);
+    const { authorizeResource } = await import("@/lib/authz");
+
+    const result = await authorizeResource({
+      session: makeSession("user-a"),
+      feature: "settings",
+      action: "view",
+      resourceType: "membership",
+      resourceId: "member-on-A",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.siteId).toBe(SITE_A);
   });
 });
 
