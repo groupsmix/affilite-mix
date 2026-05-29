@@ -119,21 +119,33 @@ async function fallbackDashboardStats(
     .eq("status", "active")
     .or("affiliate_url.is.null,affiliate_url.eq.");
 
-  // Content with no linked products
-  // Fetch only published content IDs for this site, then check which have linked products
+  // S9-C1: Content with no linked products — capped to prevent full table scans.
+  // Previous implementation fetched ALL published IDs with no limit, then did a
+  // client-side filter. At 10K+ articles the `.in()` query would exceed PostgREST
+  // URL limits (~8KB). Cap at 5000 and show approximate count when capped.
+  const CONTENT_CAP = 5000;
   const { data: publishedIds } = await sb
     .from("content")
     .select("id")
     .eq("site_id", siteId)
-    .eq("status", "published");
+    .eq("status", "published")
+    .limit(CONTENT_CAP);
   const pubIds: string[] = (publishedIds ?? []).map((r: { id: string }) => r.id);
   let contentNoProducts = pubIds.length;
   if (pubIds.length > 0) {
-    const { data: linkedRows } = await sb
-      .from("content_products")
-      .select("content_id")
-      .in("content_id", pubIds);
-    const linkedIds = new Set((linkedRows ?? []).map((r: { content_id: string }) => r.content_id));
+    // Batch the .in() query to avoid exceeding PostgREST URL limits.
+    const BATCH_SIZE = 500;
+    const linkedIds = new Set<string>();
+    for (let i = 0; i < pubIds.length; i += BATCH_SIZE) {
+      const batch = pubIds.slice(i, i + BATCH_SIZE);
+      const { data: linkedRows } = await sb
+        .from("content_products")
+        .select("content_id")
+        .in("content_id", batch);
+      for (const r of linkedRows ?? []) {
+        linkedIds.add((r as { content_id: string }).content_id);
+      }
+    }
     contentNoProducts = pubIds.filter((id) => !linkedIds.has(id)).length;
   }
 
