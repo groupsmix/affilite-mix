@@ -33,6 +33,11 @@ import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { getAppCacheKV } from "@/lib/runtime-env";
+import {
+  MAX_SESSION_AGE_REGULAR_SECONDS,
+  MAX_SESSION_AGE_ADMIN_SECONDS,
+  ADMIN_JWT_EXPIRY_SECONDS,
+} from "@/lib/auth-constants";
 
 /**
  * P1-4 / P1-6: KV cache TTL for HIBP range responses (in seconds).
@@ -498,12 +503,22 @@ export async function POST(request: NextRequest) {
     response.cookies.delete(ACTIVITY_COOKIE);
     response.cookies.delete(BINDING_COOKIE);
 
+    // A100-1: role-aware absolute session lifetime.
+    // super_admin gets a tighter window (12h); regular admin gets 24h.
+    // The cookie maxAge is the minimum of the JWT expiry and the
+    // role-based cap so the cookie never outlives the token.
+    const absoluteMaxAge =
+      authResult.role === "super_admin"
+        ? MAX_SESSION_AGE_ADMIN_SECONDS
+        : MAX_SESSION_AGE_REGULAR_SECONDS;
+    const cookieMaxAge = Math.min(ADMIN_JWT_EXPIRY_SECONDS, absoluteMaxAge);
+
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
       sameSite: "strict",
       path: "/",
-      maxAge: 60 * 60 * 4, // 4 hours (matches JWT expiry)
+      maxAge: cookieMaxAge,
     });
 
     // A-012: set a separate binding cookie so the JWT cannot be replayed
