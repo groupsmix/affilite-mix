@@ -165,7 +165,7 @@ export async function incrementLoginFailedAttempts(
   const sb = await getClient();
 
   // Try atomic RPC first (requires DB function: increment_login_failed_attempts)
-  // NEW-03: User-scoped RPC (no p_site_id) — opt out of F-API-01 RPC guard.
+  // F-API-01 / NEW-03: user-scoped lockout RPC (no p_site_id) — opt out of RPC guard.
   const { data, error } = await sb
     .rpc("increment_login_failed_attempts", {
       user_id: id,
@@ -236,7 +236,7 @@ export async function incrementTotpFailedAttempts(
 ): Promise<{ attempts: number; locked: boolean }> {
   const sb = await getClient();
 
-  // NEW-03: User-scoped RPC (no p_site_id) — opt out of F-API-01 RPC guard.
+  // F-API-01 / NEW-03: user-scoped lockout RPC (no p_site_id) — opt out of RPC guard.
   const { data, error } = await sb
     .rpc("increment_totp_failed_attempts", {
       user_id: id,
