@@ -32,11 +32,25 @@ export const GET = withAuthz(
         "deal_expires_at",
       ];
 
-      function escapeCsv(val: string): string {
-        if (val.includes(",") || val.includes('"') || val.includes("\n")) {
-          return `"${val.replace(/"/g, '""')}"`;
+      /** S3-002: Neutralize spreadsheet formula injection (CWE-1236). */
+      function sanitizeCsvValue(val: string): string {
+        if (/^[=+\-@\t\r]/.test(val)) {
+          val = "'" + val;
         }
         return val;
+      }
+
+      function escapeCsv(val: string): string {
+        const sanitized = sanitizeCsvValue(val);
+        if (
+          sanitized.includes(",") ||
+          sanitized.includes('"') ||
+          sanitized.includes("\n") ||
+          sanitized.includes("\r")
+        ) {
+          return `"${sanitized.replace(/"/g, '""')}"`;
+        }
+        return sanitized;
       }
 
       const rows = products.map((p) =>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantClient } from "@/lib/supabase-server";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
-import { getClientIp } from "@/lib/get-client-ip";
+import { getClientIp, truncateIp } from "@/lib/get-client-ip";
 import { apiError, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import crypto from "crypto";
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
   }
 
   const ip = getClientIp(request);
-  const ipTruncated = ip ? ip.split(".").slice(0, 3).join(".") + ".0" : "unknown";
+  const ipTruncated = ip ? truncateIp(ip) : "unknown";
   const ua = request.headers.get("user-agent") ?? "";
   const uaHash = crypto.createHash("sha256").update(ua).digest("hex").substring(0, 16);
 
