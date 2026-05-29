@@ -7,6 +7,7 @@
 
 // A6-03: use purpose-derived HMAC sub-key instead of the raw JWT secret
 import { deriveHmacKey } from "@/lib/hmac-key";
+import { captureException } from "@/lib/sentry";
 
 async function getHmacKey(usage: KeyUsage[]): Promise<CryptoKey> {
   return deriveHmacKey("signed-cookie", usage);
@@ -71,8 +72,8 @@ export async function verifyCookieValue(
 
     // Value is everything before the last two pipe-separated parts
     return parts.slice(0, -2).join("|");
-  } catch {
-    // fail-closed: verification error → treat as invalid [criticality:defence-in-depth]
+  } catch (e) {
+    captureException(e, { context: "[signed-cookie] Failed to decode/verify signed cookie value" });
     return null;
   }
 }
