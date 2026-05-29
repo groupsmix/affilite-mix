@@ -43,12 +43,17 @@ export async function fetchWithTimeout(url: string, options: FetchWithTimeoutOpt
     const id = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
+      const signal = fetchOptions.signal
+        ? AbortSignal.any([fetchOptions.signal, controller.signal])
+        : controller.signal;
+      const { signal: _callerSignal, ...restFetchOptions } = fetchOptions;
       const response = await fetch(url, {
-        ...fetchOptions,
-        signal: controller.signal,
+        ...restFetchOptions,
+        signal,
       });
 
       if (attempt < maxRetries && retryableStatuses.includes(response.status)) {
+        fetchOptions.signal?.throwIfAborted();
         const delay = jitteredBackoff(attempt, baseDelayMs, maxDelayMs);
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
@@ -58,6 +63,7 @@ export async function fetchWithTimeout(url: string, options: FetchWithTimeoutOpt
     } catch (err) {
       lastError = err;
       if (attempt < maxRetries) {
+        fetchOptions.signal?.throwIfAborted();
         const delay = jitteredBackoff(attempt, baseDelayMs, maxDelayMs);
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
