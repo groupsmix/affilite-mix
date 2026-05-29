@@ -1,9 +1,29 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { generateCsrfToken, CSRF_COOKIE } from "@/lib/csrf";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/get-client-ip";
 
-/** GET /api/auth/csrf — Issue a CSRF token (double-submit cookie pattern) */
-export async function GET() {
+/**
+ * GET /api/auth/csrf — Issue a CSRF token (double-submit cookie pattern).
+ *
+ * SEC-CSRF-01 (#629): Rate-limited to 30 req/min per IP to prevent
+ * token-generation abuse and entropy exhaustion.
+ */
+export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = await checkRateLimit(`csrf-token:${ip}`, {
+    maxRequests: 30,
+    windowMs: 60_000,
+    failPolicy: "closed" as const,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
   const token = generateCsrfToken();
 
   const response = NextResponse.json({ csrfToken: token });
