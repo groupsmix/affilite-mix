@@ -3,12 +3,18 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { createPriceAlert, getPriceAlert, deactivatePriceAlert } from "@/lib/dal/price-alerts";
+import {
+  createPriceAlert,
+  getPriceAlert,
+  deactivatePriceAlertScoped,
+} from "@/lib/dal/price-alerts";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
 
 /**
  * POST /api/products/:productId/price-alert
  * Subscribe to a price-drop alert.
- * Body: { email: string, target_price: number, currency?: string }
+ * Body: { email: string, target_price: number, currency?: string, turnstileToken?: string }
  */
 export async function POST(
   request: NextRequest,
@@ -22,11 +28,9 @@ export async function POST(
     return NextResponse.json({ error: "Invalid product ID format" }, { status: 400 });
   }
 
-  // Rate limit: 10 alerts/hour per IP
-  // SEC-10 / F-376: use centralized getClientIp() instead of raw
-  // x-forwarded-for parsing, which was trivially bypassable via spoofed
-  // headers and allowed unlimited price alert signups from a single client.
   const ip = getClientIp(request);
+
+  // F-05: IP rate limit
   const rl = await checkRateLimit(`price-alert:${ip}`, {
     maxRequests: 10,
     windowMs: 60 * 60 * 1000,
@@ -39,7 +43,7 @@ export async function POST(
     );
   }
 
-  let body: { email?: string; target_price?: number; currency?: string };
+  let body: { email?: string; target_price?: number; currency?: string; turnstileToken?: string };
   try {
     body = await request.json();
   } catch {
@@ -54,6 +58,30 @@ export async function POST(
   }
   if (!target_price || typeof target_price !== "number" || target_price <= 0) {
     return NextResponse.json({ error: "target_price must be a positive number" }, { status: 400 });
+  }
+
+  // F-05: Verify Turnstile CAPTCHA (consistent with comments endpoint)
+  const turnstileResult = await verifyTurnstile(body.turnstileToken, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json(
+      { error: turnstileResult.error || "Captcha verification failed" },
+      { status: 403 },
+    );
+  }
+
+  // F-05: Per-email rate limit to prevent email-bombing via rotating IPs
+  const normalizedEmail = normalizeEmail(email);
+  const rateLimitEmail = await hashEmailForRateLimit(normalizedEmail);
+  const emailRl = await checkRateLimit(`price-alert-email:${rateLimitEmail}`, {
+    maxRequests: 5,
+    windowMs: 60 * 60 * 1000,
+    failPolicy: "closed" as const,
+  });
+  if (!emailRl.allowed) {
+    return NextResponse.json(
+      { error: "Too many alerts for this email. Try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(emailRl.retryAfterMs / 1000)) } },
+    );
   }
 
   try {
@@ -95,7 +123,6 @@ export async function DELETE(
 ) {
   await params; // consume params
 
-  // SEC-12: Add rate limiting to DELETE endpoint (was completely unprotected)
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`price-alert-del:${ip}`, {
     maxRequests: 20,
@@ -113,7 +140,6 @@ export async function DELETE(
   try {
     body = await request.json();
   } catch {
-    // fail-open: best-effort
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
@@ -121,17 +147,18 @@ export async function DELETE(
     return NextResponse.json({ error: "alert_id is required" }, { status: 400 });
   }
 
-  // SEC-13: Validate alert_id is a UUID to prevent injection
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!UUID_RE.test(body.alert_id)) {
     return NextResponse.json({ error: "Invalid alert_id format" }, { status: 400 });
   }
 
   try {
-    await deactivatePriceAlert(body.alert_id);
+    // F-10: Scope delete by site_id to prevent cross-tenant IDOR
+    const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
+    const siteId = await resolveDbSiteId(siteSlug);
+    await deactivatePriceAlertScoped(body.alert_id, siteId);
     return NextResponse.json({ message: "Alert deactivated" });
   } catch {
-    // fail-open: best-effort
     return NextResponse.json({ error: "Failed to deactivate alert" }, { status: 500 });
   }
 }
