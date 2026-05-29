@@ -121,6 +121,45 @@ describe("processStripeEvent — atomic idempotency (LIVE-10 / F-024)", () => {
     });
   });
 
+  it("customer.subscription.updated with a known price ID includes tier in update_status payload (S11-007)", async () => {
+    // Simulate the env var that resolveTierFromPriceId checks
+    process.env.STRIPE_PRICE_ID_PRO = "price_pro_123";
+
+    rpcMock.mockResolvedValueOnce({
+      data: { duplicate: false, membership_id: "mem_tier" },
+      error: null,
+    });
+
+    const stripe = makeStripe();
+    const event = {
+      id: "evt_upgrade",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_upgrade",
+          status: "active",
+          items: { data: [{ price: { id: "price_pro_123" } }] },
+        },
+      },
+    } as any;
+
+    const result = await processStripeEvent(stripe as any, event);
+
+    expect(result).toEqual({ duplicate: false, membershipId: "mem_tier" });
+    expect(rpcMock).toHaveBeenCalledWith("apply_stripe_membership_event", {
+      p_stripe_event_id: "evt_upgrade",
+      p_event_type: "customer.subscription.updated",
+      p_event_data: {
+        op: "update_status",
+        stripe_subscription_id: "sub_upgrade",
+        status: "active",
+        tier: "pro",
+      },
+    });
+
+    delete process.env.STRIPE_PRICE_ID_PRO;
+  });
+
   it("propagates RPC errors so the route returns 500 and Stripe retries", async () => {
     rpcMock.mockResolvedValueOnce({
       data: null,
