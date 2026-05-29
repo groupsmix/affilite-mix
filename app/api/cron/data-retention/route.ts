@@ -113,21 +113,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Clear checkpoint on successful completion
-    if (!hasMore) {
-      await sb
-        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
-        .from("cron_state")
-        // F-API-01: global job-progress table.
-        .upsert(
-          {
-            job_name: "data-retention:clicks",
-            last_id: null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "job_name" },
-        )
-        .unsafeNoSiteFilter();
-    }
+    await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+      .from("cron_state")
+      // F-API-01: global job-progress table.
+      .upsert(
+        {
+          job_name: "data-retention:clicks",
+          last_id: null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "job_name" },
+      )
+      .unsafeNoSiteFilter();
 
     results.affiliate_clicks = { success: true, deleted: totalDeleted };
   } catch (err) {

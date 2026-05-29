@@ -2,7 +2,7 @@
  * Tests for A98-51: Rate-limit memory eviction FIFO→LRU.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 describe("A98-51: Rate-limit LRU eviction", () => {
   // Test the LRU eviction logic directly

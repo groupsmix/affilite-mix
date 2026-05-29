@@ -100,14 +100,14 @@ export function checkContentQuality(body: string, expectedKeywords?: string[]): 
  */
 const ALLOWED_LINK_DOMAIN_PATTERNS: ReadonlyArray<RegExp> = [
   // Common affiliate networks
-  /^(www\.)?amazon\.(com|co\.uk|de|fr|es|it|ca|com\.au|co\.jp)/,
-  /^(www\.)?amzn\.(to|com)/,
-  /^(www\.)?ebay\.(com|co\.uk|de|fr)/,
-  /^(www\.)?aliexpress\.com/,
+  /^(www\.)?amazon\.(com|co\.uk|de|fr|es|it|ca|com\.au|co\.jp)(\/|$)/,
+  /^(www\.)?amzn\.(to|com)(\/|$)/,
+  /^(www\.)?ebay\.(com|co\.uk|de|fr)(\/|$)/,
+  /^(www\.)?aliexpress\.com(\/|$)/,
   // Common generic domains (Wikipedia, YouTube, etc.)
-  /^(www\.|en\.)?wikipedia\.org/,
-  /^(www\.)?youtube\.com/,
-  /^(www\.)?youtu\.be/,
+  /^(www\.|en\.)?wikipedia\.org(\/|$)/,
+  /^(www\.)?youtube\.com(\/|$)/,
+  /^(www\.)?youtu\.be(\/|$)/,
   // Relative or same-site links (no domain)
   /^$/,
 ];

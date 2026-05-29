@@ -118,7 +118,7 @@ describe("C5: auth.ts fail-open branches", () => {
 
   describe("Branch 1: rehash failure is non-critical", () => {
     it("returns authenticated payload even when rehash throws", async () => {
-      const { getAdminUserByEmail, updateAdminUser } = await import("@/lib/dal/admin-users");
+      const { getAdminUserByEmail } = await import("@/lib/dal/admin-users");
       const { verifyPassword, hashPassword } = await import("@/lib/password");
       const { logger } = await import("@/lib/logger");
 

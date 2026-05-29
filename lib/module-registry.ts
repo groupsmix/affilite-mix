@@ -190,30 +190,3 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     dependencies: [],
   },
 ] as const;
-
-/** Look up a module definition by key */
-function getModuleDefinition(key: string): ModuleDefinition | undefined {
-  return MODULE_REGISTRY.find((m) => m.key === key);
-}
-
-/** Get all module keys */
-function getAllModuleKeys(): string[] {
-  return MODULE_REGISTRY.map((m) => m.key);
-}
-
-/** Get default-enabled module keys */
-function getDefaultEnabledModules(): string[] {
-  return MODULE_REGISTRY.filter((m) => m.defaultEnabled).map((m) => m.key);
-}
-
-/** Group modules by category */
-function getModulesByCategory(): Record<string, ModuleDefinition[]> {
-  const grouped: Record<string, ModuleDefinition[]> = {};
-  for (const mod of MODULE_REGISTRY) {
-    if (!grouped[mod.category]) {
-      grouped[mod.category] = [];
-    }
-    grouped[mod.category].push(mod);
-  }
-  return grouped;
-}

@@ -10,7 +10,6 @@ import {
   getModerationRejections,
   containsRegulatoryTerms,
   moderateOutputExtended,
-  moderateOutput,
 } from "@/lib/ai/content-moderation";
 
 describe("logModerationRejection", () => {
