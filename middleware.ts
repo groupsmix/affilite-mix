@@ -680,9 +680,22 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // For non-API routes, we can't easily resolve siteId if DB/KV failed.
-    // Passing through without headers allows the app to render its generic fallback.
+    // F10: For non-API routes, attach a minimal safe CSP + security headers
+    // even when DB/KV is down. Without this, error pages ship without CSP
+    // exactly when they're most likely to echo influenced data.
     const response = NextResponse.next();
+    response.headers.set(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; upgrade-insecure-requests",
+    );
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
+    );
+    response.headers.set("Cache-Control", "no-store, max-age=0");
     return response;
   }
 }

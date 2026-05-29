@@ -114,8 +114,8 @@ variable "waf_blocked_asns" {
 
 variable "waf_blocked_countries" {
   type        = list(string)
-  default     = ["KP", "IR", "SY"]
-  description = "ISO 3166-1 alpha-2 country codes to managed-challenge on the http_request_firewall_custom phase."
+  default     = ["KP", "IR", "SY", "CU"]
+  description = "ISO 3166-1 alpha-2 country codes to hard-block on the http_request_firewall_custom phase (OFAC sanctioned)."
   validation {
     condition     = alltrue([for c in var.waf_blocked_countries : can(regex("^[A-Z]{2}$", c))])
     error_message = "waf_blocked_countries entries must be uppercase ISO 3166-1 alpha-2 codes (e.g. \"KP\")."
@@ -334,16 +334,26 @@ locals {
 resource "cloudflare_ruleset" "waf_custom" {
   zone_id     = var.zone_id
   name        = "WAF Custom Block Rules"
-  description = "Challenge Tor/VPN traffic and high-risk ASNs from sensitive endpoints"
+  description = "Hard-block OFAC-sanctioned countries; challenge high-risk ASNs"
   kind        = "zone"
   phase       = "http_request_firewall_custom"
 
-  rules = [{
-    action      = "managed_challenge"
-    expression  = local.waf_expression
-    description = "Challenge high-risk traffic"
-    enabled     = true
-  }]
+  # F4: OFAC sanctioned countries get a hard block (not a solvable challenge).
+  # ASNs keep managed_challenge so legitimate users on shared hosting can pass.
+  rules = concat(
+    length(var.waf_blocked_countries) > 0 ? [{
+      action      = "block"
+      expression  = local.waf_country_clause
+      description = "F4: Hard-block OFAC-sanctioned countries (31 CFR)"
+      enabled     = true
+    }] : [],
+    length(var.waf_blocked_asns) > 0 ? [{
+      action      = "managed_challenge"
+      expression  = local.waf_asn_clause
+      description = "Challenge high-risk ASNs"
+      enabled     = true
+    }] : [],
+  )
 
   lifecycle {
     precondition {
