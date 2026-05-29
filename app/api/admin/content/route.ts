@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { contentTag } from "@/lib/cache-tags";
 import { listContent, createContent, updateContent, deleteContent } from "@/lib/dal/content";
-import { validateCreateContent, validateUpdateContent } from "@/lib/validation";
+import {
+  validateCreateContent,
+  validateUpdateContent,
+  CONTENT_TYPES,
+  CONTENT_STATUSES,
+} from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
@@ -27,17 +32,28 @@ export const GET = withAuthz(
     const pagination = parsePagination(searchParams);
     if (pagination instanceof NextResponse) return pagination;
 
+    const contentType = searchParams.get("content_type");
+    if (contentType && !CONTENT_TYPES.has(contentType)) {
+      return NextResponse.json(
+        { error: `Invalid content_type. Must be one of: ${[...CONTENT_TYPES].join(", ")}` },
+        { status: 400 },
+      );
+    }
+
+    const status = searchParams.get("status");
+    if (status && !CONTENT_STATUSES.has(status)) {
+      return NextResponse.json(
+        { error: `Invalid status. Must be one of: ${[...CONTENT_STATUSES].join(", ")}` },
+        { status: 400 },
+      );
+    }
+
     try {
       const content = await listContent({
         siteId,
-        contentType: searchParams.get("content_type") ?? undefined,
+        contentType: contentType ?? undefined,
         status:
-          (searchParams.get("status") as
-            | "draft"
-            | "review"
-            | "published"
-            | "scheduled"
-            | "archived") ?? undefined,
+          (status as "draft" | "review" | "published" | "scheduled" | "archived") ?? undefined,
         categoryId: searchParams.get("category_id") ?? undefined,
         limit: pagination.limit,
         offset: pagination.offset,
