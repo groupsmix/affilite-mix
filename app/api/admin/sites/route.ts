@@ -72,7 +72,7 @@ export async function GET() {
         db_id: r.id,
       }));
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // DB might not be reachable; fall back to config-only
     }
 

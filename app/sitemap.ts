@@ -35,7 +35,7 @@ function getKv(): KVNamespace | null {
     const kv = (process.env as unknown as { APP_CACHE_KV?: KVNamespace }).APP_CACHE_KV;
     return kv ?? null;
   } catch {
-    // fail-open: best-effort
+    // fail-open: best-effort [criticality:non-critical]
     return null;
   }
 }

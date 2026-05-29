@@ -22,7 +22,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
         if (dbSite.meta_description) siteDescription = dbSite.meta_description;
       }
     } catch {
-      // fail-open: best-effort
+      // fail-open: best-effort [criticality:non-critical]
       // Use config values
     }
   }
