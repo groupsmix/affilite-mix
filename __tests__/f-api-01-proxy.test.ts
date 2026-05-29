@@ -323,3 +323,145 @@ describe("F-API-01 Proxy enforcement matrix", () => {
     });
   });
 });
+
+// -----------------------------------------------------------------
+// NEW-03: RPC guard enforcement
+// -----------------------------------------------------------------
+describe("F-API-01 RPC guard (NEW-03)", () => {
+  describe("accepts RPC calls that include p_site_id", () => {
+    it("accepts `.rpc(fn, { p_site_id: <non-empty string>, ... })`", async () => {
+      const sb = await loadPrivileged();
+      const p = sb.rpc("get_dashboard_stats", {
+        p_site_id: "site-1",
+        p_today_start: "2025-01-01",
+        p_seven_days_ago: "2024-12-25",
+      });
+      const result = await Promise.race([
+        p.then(() => "passed-guard"),
+        new Promise((r) => setTimeout(() => r("passed-guard"), 50)),
+      ]);
+      expect(result).toBe("passed-guard");
+    });
+
+    it("accepts `.rpc(fn, { p_site_id: ... })` with additional args", async () => {
+      const sb = await loadPrivileged();
+      const p = sb.rpc("get_top_products", {
+        p_site_id: "site-1",
+        p_since: "2025-01-01",
+        p_limit: 10,
+      });
+      const result = await Promise.race([
+        p.then(() => "passed-guard"),
+        new Promise((r) => setTimeout(() => r("passed-guard"), 50)),
+      ]);
+      expect(result).toBe("passed-guard");
+    });
+  });
+
+  describe("accepts RPC calls with `.unsafeNoSiteFilter()` opt-out", () => {
+    it("accepts `.rpc(fn).unsafeNoSiteFilter()` (no args)", async () => {
+      const sb = await loadPrivileged();
+      const p = (
+        sb.rpc("db_now") as ReturnType<typeof sb.rpc> & {
+          unsafeNoSiteFilter: () => ReturnType<typeof sb.rpc>;
+        }
+      ).unsafeNoSiteFilter();
+      const result = await Promise.race([
+        p.then(() => "passed-guard"),
+        new Promise((r) => setTimeout(() => r("passed-guard"), 50)),
+      ]);
+      expect(result).toBe("passed-guard");
+    });
+
+    it("accepts `.rpc(fn, args).unsafeNoSiteFilter()` (no p_site_id)", async () => {
+      const sb = await loadPrivileged();
+      const p = (
+        sb.rpc("increment_login_failed_attempts", {
+          user_id: "u1",
+          lockout_threshold: 10,
+          lockout_duration_ms: 3600000,
+        }) as ReturnType<typeof sb.rpc> & { unsafeNoSiteFilter: () => ReturnType<typeof sb.rpc> }
+      ).unsafeNoSiteFilter();
+      const result = await Promise.race([
+        p.then(() => "passed-guard"),
+        new Promise((r) => setTimeout(() => r("passed-guard"), 50)),
+      ]);
+      expect(result).toBe("passed-guard");
+    });
+  });
+
+  describe("rejects RPC calls without p_site_id or opt-out", () => {
+    it("rejects `.rpc(fn)` with no args and no opt-out", async () => {
+      const sb = await loadPrivileged();
+      await expectRejects(sb.rpc("db_now"));
+    });
+
+    it("rejects `.rpc(fn, { ... })` without p_site_id", async () => {
+      const sb = await loadPrivileged();
+      await expectRejects(
+        sb.rpc("increment_login_failed_attempts", {
+          user_id: "u1",
+          lockout_threshold: 10,
+          lockout_duration_ms: 3600000,
+        }),
+      );
+    });
+
+    it("rejects `.rpc(fn, { p_site_id: '' })` (empty string)", async () => {
+      const sb = await loadPrivileged();
+      await expectRejects(
+        sb.rpc("get_dashboard_stats", {
+          p_site_id: "",
+          p_today_start: "2025-01-01",
+          p_seven_days_ago: "2024-12-25",
+        }),
+      );
+    });
+
+    it("rejects `.rpc(fn, { p_site_id: null })` (null)", async () => {
+      const sb = await loadPrivileged();
+      await expectRejects(
+        sb.rpc("get_dashboard_stats", {
+          p_site_id: null as unknown as string,
+          p_today_start: "2025-01-01",
+          p_seven_days_ago: "2024-12-25",
+        }),
+      );
+    });
+
+    it("rejects `.rpc(fn, { p_site_id: undefined })`", async () => {
+      const sb = await loadPrivileged();
+      await expectRejects(
+        sb.rpc("get_dashboard_stats", {
+          p_site_id: undefined as unknown as string,
+          p_today_start: "2025-01-01",
+          p_seven_days_ago: "2024-12-25",
+        }),
+      );
+    });
+
+    it("rejects `.rpc(fn, { p_site_id: 42 })` (number, not string)", async () => {
+      const sb = await loadPrivileged();
+      await expectRejects(
+        sb.rpc("get_dashboard_stats", {
+          p_site_id: 42 as unknown as string,
+          p_today_start: "2025-01-01",
+          p_seven_days_ago: "2024-12-25",
+        }),
+      );
+    });
+  });
+
+  describe("error message includes F-API-01 and the RPC function name", () => {
+    it("rejection names the rpc function in the error", async () => {
+      const sb = await loadPrivileged();
+      try {
+        await sb.rpc("db_now");
+        throw new Error("expected rejection");
+      } catch (err) {
+        expect((err as Error).message).toMatch(/F-API-01/);
+        expect((err as Error).message).toMatch(/rpc\(db_now\)/);
+      }
+    });
+  });
+});
