@@ -296,9 +296,3 @@ describeIfDb("Direct anon insert blocked (abuse regression)", () => {
     ).toBe(true);
   });
 });
-
-if (!hasRealDb) {
-  describe("Direct anon insert blocked (abuse regression)", () => {
-    it.skip("skipped: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY not set", () => {});
-  });
-}
