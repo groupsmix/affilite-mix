@@ -48,13 +48,18 @@ export const GET = withAuthz(
       );
     }
 
+    const categoryId = searchParams.get("category_id");
+    if (categoryId && !isUsableUuid(categoryId)) {
+      return NextResponse.json({ error: "Invalid category_id format" }, { status: 400 });
+    }
+
     try {
       const content = await listContent({
         siteId,
         contentType: contentType ?? undefined,
         status:
           (status as "draft" | "review" | "published" | "scheduled" | "archived") ?? undefined,
-        categoryId: searchParams.get("category_id") ?? undefined,
+        categoryId: categoryId ?? undefined,
         limit: pagination.limit,
         offset: pagination.offset,
       });
