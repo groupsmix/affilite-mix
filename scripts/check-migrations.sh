@@ -157,11 +157,24 @@ done < <(find "$MIGRATIONS_DIR" -type f -name '*.sql' -print0 | sort -z)
 # REVOKE ... FROM anon in the same migration file. Without this,
 # Supabase's default `GRANT ALL ... TO anon` leaves the table
 # wide-open until the next sweep migration.
+#
+# Legacy migrations (before the F7 lint was added) are exempt because
+# their tables were retroactively hardened by sweep migrations 00003,
+# 00055, 00078, and 00079. Only new migrations need to self-contain
+# RLS + revoke.
+F7_LEGACY_CUTOFF="2026052900"
 while IFS= read -r -d '' file; do
   base="$(basename "$file")"
   case "$base" in
     *-down.sql) continue ;;
   esac
+
+  # Extract the numeric prefix (e.g. "00001" or "2026052901") and skip
+  # files whose prefix sorts before the cutoff.
+  migration_prefix="${base%%_*}"
+  if [[ "$migration_prefix" < "$F7_LEGACY_CUTOFF" ]]; then
+    continue
+  fi
 
   body_f7=$(strip_sql_comments "$file")
 
