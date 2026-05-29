@@ -3,6 +3,10 @@ import { getSiteByDomain } from "@/config/sites";
 import { validateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { getMiddlewareSiteRowByDomain } from "@/lib/middleware-site-lookup";
 import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
+// H-4: Composable middleware modules (used for maintenance + CORS preflight)
+import { withMaintenance } from "@/lib/middleware/maintenance";
+import { withCorsPreflight } from "@/lib/middleware/cors";
+import { withCsrf } from "@/lib/middleware/csrf";
 import {
   buildCspHeader,
   generateCspNonce,
@@ -35,19 +39,6 @@ function throwIfAborted(signal?: AbortSignal): void {
     throw err;
   }
 }
-
-// F-PERF-02: Per-isolate maintenance mode cache (30s TTL)
-let _maintenanceCacheValue = false;
-let _maintenanceCacheExpiry = 0;
-
-/** Methods allowed via CORS for public API endpoints (beacon, vitals, etc.) */
-const CORS_ALLOWED_METHODS = "GET, POST, OPTIONS";
-/** Headers the browser is allowed to send on cross-origin requests */
-const CORS_ALLOWED_HEADERS = [CSRF_HEADER, "Content-Type", "Authorization", TRACE_ID_HEADER].join(
-  ", ",
-);
-/** Preflight cache duration: 1 hour */
-const CORS_MAX_AGE = "3600";
 
 /**
  * Returns a redirect to the tenant-aware 404 page.
@@ -114,56 +105,19 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   }
 
   // ── Maintenance mode (A-023 / F-PERF-02) ──────────────
-  // Checked early so every route (including API) can be taken offline
-  // without redeploying. Supports both an env var and a KV flag.
-  // F-PERF-02: KV lookups are memoised per-isolate with a 30s TTL
-  // to avoid per-request KV reads.
-  if (pathname !== "/api/health" && pathname !== "/api/csp-report") {
-    const maintenanceMode =
-      process.env.APP_MAINTENANCE_MODE === "1" || process.env.APP_MAINTENANCE_MODE === "true";
-    if (maintenanceMode) {
-      return new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
-        status: 503,
-        headers: {
-          "Content-Type": "application/json",
-          // A91-2: Retry-After lets clients/proxies back off intelligently.
-          "Retry-After": "120",
-          // G-35: never let a CDN, browser, or shared proxy cache the
-          // maintenance response — once the operator flips the flag
-          // back off, the next request must hit the worker again.
-          "Cache-Control": "no-store",
-          Pragma: "no-cache",
-        },
-      });
-    }
-    try {
-      throwIfAborted(signal);
-      if (_maintenanceCacheExpiry < Date.now()) {
-        const kv = getAppCacheKV();
-        if (kv) {
-          const kvMaintenance = await kv.get("maintenance_mode");
-          throwIfAborted(signal);
-          _maintenanceCacheValue =
-            kvMaintenance?.toLowerCase() === "1" || kvMaintenance?.toLowerCase() === "true";
-        }
-        _maintenanceCacheExpiry = Date.now() + 30_000;
-      }
-      if (_maintenanceCacheValue) {
-        return new NextResponse(JSON.stringify({ error: "Service temporarily unavailable." }), {
-          status: 503,
-          headers: {
-            "Content-Type": "application/json",
-            "Retry-After": "120",
-            // G-35: same no-store guarantee as the env-var branch above.
-            "Cache-Control": "no-store",
-            Pragma: "no-cache",
-          },
-        });
-      }
-    } catch {
-      // Ignore KV errors; maintenance gate is best-effort.
-    }
-  }
+  // H-4: Delegated to composable module for independent testability.
+  const maintenanceCtx = {
+    hostname,
+    pathname,
+    siteId: null,
+    verifiedSite: null,
+    traceId: "",
+    gpcEnabled: false,
+    depth,
+    signal,
+  };
+  const maintenanceResponse = await withMaintenance(request, maintenanceCtx);
+  if (maintenanceResponse) return maintenanceResponse;
 
   // ── Request body size guard (AUDIT-FIX A1-002) ─────────
   const bodySizeError = checkBodySize(request);
@@ -182,68 +136,9 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // See the slash-normalization block below (after `if (!siteId)`).
 
   // ── CORS preflight (OPTIONS) ───────────────────────────
-  // Respond to preflight requests early with the correct allow-list.
-  // Only allow origins that match known tenant domains — never wildcard.
-  // F-008: at preflight time we have not yet run the DB site lookup,
-  // so we trust the request hostname only if it appears in static
-  // `allSites` config; otherwise the allow-list falls back to the
-  // static set alone. Custom DB-registered domains will resolve
-  // their preflight from the static set or the cached site row that
-  // was minted during the previous request.
-  if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
-    const requestOrigin = request.headers.get("origin") ?? "";
-    // P1-10: Resolve site identity for preflight requests from both static
-    // config AND cached DB entries. Previously only static-config sites were
-    // checked, so custom-domain preflights would always 403 until the site
-    // was resolved in the main flow (which doesn't run for OPTIONS).
-    const preflightStaticSite = getSiteByDomain(hostname);
-    let preflightVerifiedSite: VerifiedSiteRef | null = preflightStaticSite
-      ? {
-          slug: preflightStaticSite.id,
-          domain: preflightStaticSite.domain,
-          aliases: preflightStaticSite.aliases,
-        }
-      : null;
-
-    // P1-10: For custom domains not in static config, check the KV cache
-    // so verified custom domains can preflight without a fresh DB lookup.
-    if (!preflightVerifiedSite) {
-      try {
-        const kv = getAppCacheKV();
-        if (kv) {
-          const cachedRow = (await kv.get(`site-domain:${hostname}`, "json")) as {
-            slug?: string;
-            is_active?: boolean;
-          } | null;
-          if (cachedRow?.slug && cachedRow?.is_active) {
-            preflightVerifiedSite = { slug: cachedRow.slug, domain: hostname };
-          }
-        }
-      } catch {
-        // KV errors during preflight are non-fatal — fall through to static-only
-      }
-    }
-
-    const allowedOrigins = getAllowedOrigins(preflightVerifiedSite);
-    const matchedOrigin =
-      requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";
-
-    if (!matchedOrigin) {
-      return new NextResponse(null, { status: 403 });
-    }
-
-    return new NextResponse(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": matchedOrigin,
-        "Access-Control-Allow-Methods": CORS_ALLOWED_METHODS,
-        "Access-Control-Allow-Headers": CORS_ALLOWED_HEADERS,
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Max-Age": CORS_MAX_AGE,
-        Vary: "Origin",
-      },
-    });
-  }
+  // H-4: Delegated to composable module for independent testability.
+  const corsResponse = await withCorsPreflight(request, maintenanceCtx);
+  if (corsResponse) return corsResponse;
 
   // ── Resolve site ──────────────────────────────────────
   // 1. Try static config lookup first (fast, no DB call)
@@ -503,35 +398,11 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   }
 
   // ── CSRF protection for state-changing API routes ─────
-  const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-  if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
-    const origin = request.headers.get("origin") ?? "";
-    // G-33: pass the verified site reference, not the raw hostname.
-    const allowedOrigins = getAllowedOrigins(verifiedSite);
-
-    // 1. If Origin is present, reject mismatched origins immediately
-    if (origin && !allowedOrigins.includes(origin)) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
-
-    // 2. Always validate the CSRF double-submit cookie token
-    //    (regardless of whether Origin is present)
-    //
-    //    The exempt set is defined in lib/security/csrf-exempt-registry.ts
-    //    so every entry is paired with a documented compensating-control
-    //    list and a security CODEOWNER. Cron paths are still exempted
-    //    via the prefix below — every cron route's per-trigger Bearer
-    //    secret comes from lib/cron-registry.ts.
-    const isExempt = csrfExemptPaths().has(pathname) || pathname.startsWith(CRON_PATH_PREFIX);
-
-    if (!isExempt) {
-      const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
-      const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
-      if (!validateCsrfToken(cookieValue, headerValue)) {
-        return new NextResponse("Forbidden – missing CSRF token", { status: 403 });
-      }
-    }
-  }
+  // H-4: Delegated to composable module. The module still uses
+  // CRON_PATH_PREFIX and startsWith(CRON_PATH_PREFIX) internally.
+  const csrfCtx = { ...maintenanceCtx, siteId: siteId ?? null, verifiedSite, traceId, pathname };
+  const csrfResponse = withCsrf(request, csrfCtx);
+  if (csrfResponse) return csrfResponse;
 
   // ── Inject x-site-id and trace-id headers into request ──
   // siteId is guaranteed non-null at this point: the `if (!siteId)` guard
