@@ -1,6 +1,7 @@
 // DESIGN: No site_id filtering — admin users are global accounts; membership scoping is handled by the authz layer.
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { clampPagination } from "./pagination-guard";
 import { logger } from "@/lib/logger";
 
 export interface AdminUserRow {
@@ -74,10 +75,13 @@ export async function getAdminUserById(
 
 /** List all admin users (excludes password_hash for safety) */
 export async function listAdminUsers(
+  opts: { limit?: number; offset?: number } = {},
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<AdminUserPublic[]> {
   const sb = await getClient();
-  const { data, error } = await sb
+  const { limit, offset } = clampPagination(opts);
+
+  let query = sb
     .from(TABLE)
     .select(
       "id, email, name, role, is_active, totp_enabled, totp_verified_at, created_at, updated_at",
@@ -85,6 +89,13 @@ export async function listAdminUsers(
     .unsafeNoSiteFilter()
     .order("created_at", { ascending: true });
 
+  if (offset > 0) {
+    query = query.range(offset, offset + limit - 1);
+  } else {
+    query = query.limit(limit);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return assertRows<AdminUserPublic>(data);
 }
