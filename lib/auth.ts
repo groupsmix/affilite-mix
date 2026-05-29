@@ -448,7 +448,14 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
 
   // F-035: verify the token's UA/IP binding (if present) against the
   // current request. A mismatch = possible session hijack → reject.
+  // S1-A7-01: fail-closed when binding is strict and headers are unavailable.
   const req = await requestFromHeaders();
+  if (!req && bindingStrict) {
+    logger.warn(
+      "Admin session rejected: unable to read request headers for binding check (strict mode)",
+    );
+    return null;
+  }
   const payload = await verifyToken(token, req);
   if (!payload) return null;
 
