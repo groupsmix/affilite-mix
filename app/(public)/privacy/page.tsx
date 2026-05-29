@@ -282,11 +282,62 @@ export default async function PrivacyPage() {
             ? "نحن لا نبيع أو نشارك معلوماتك الشخصية كما هو محدد في CCPA/CPRA. تتبع الشركاء التابعين يُستخدم لإسناد العمولات فقط ولا يشكل بيعًا أو مشاركة للمعلومات الشخصية. نحن لا نعالج معلومات شخصية حساسة كما هو محدد في قسم 1798.121 من CPRA. نحن نحترم إشارة Global Privacy Control (GPC) ونعاملها كطلب إلغاء اشتراك."
             : "We do not sell or share your personal information as defined by CCPA/CPRA. Affiliate tracking is used for commission attribution only and does not constitute a sale or sharing of personal information. We do not process sensitive personal information as defined in CPRA Section 1798.121. We honor the Global Privacy Control (GPC) signal and treat it as an opt-out request."}
         </p>
-        <p>
+        <h3>
           {isAr
-            ? "فئات المعلومات الشخصية التي جمعناها في الأشهر الـ 12 الماضية: المعرفات (البريد الإلكتروني)، معلومات النشاط عبر الإنترنت (النقرات، مقاييس الأداء)، والاستدلالات (تفضيلات الاختبار)."
-            : "Categories of personal information collected in the last 12 months: Identifiers (email), Internet activity information (clicks, performance metrics), and Inferences (quiz preferences)."}
-        </p>
+            ? "فئات المعلومات الشخصية المُجمَّعة"
+            : "Categories of Personal Information Collected"}
+        </h3>
+        <table>
+          <thead>
+            <tr>
+              <th>{isAr ? "الفئة" : "Category"}</th>
+              <th>{isAr ? "الغرض" : "Purpose"}</th>
+              <th>{isAr ? "مشاركة مع أطراف ثالثة" : "Third-Party Sharing"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{isAr ? "المعرّفات (البريد الإلكتروني)" : "Identifiers (email)"}</td>
+              <td>
+                {isAr
+                  ? "النشرة البريدية، تنبيهات الأسعار، التعليقات"
+                  : "Newsletter, price alerts, comments"}
+              </td>
+              <td>
+                {isAr
+                  ? "Resend (توصيل البريد)، Supabase (تخزين)"
+                  : "Resend (email delivery), Supabase (storage)"}
+              </td>
+            </tr>
+            <tr>
+              <td>
+                {isAr
+                  ? "نشاط الإنترنت (النقرات، مقاييس الأداء)"
+                  : "Internet activity (clicks, performance metrics)"}
+              </td>
+              <td>
+                {isAr
+                  ? "إسناد العمولات، تحسين الأداء"
+                  : "Commission attribution, performance improvement"}
+              </td>
+              <td>
+                {isAr
+                  ? "Cloudflare (تحليلات)، Sentry (مراقبة الأخطاء)"
+                  : "Cloudflare (analytics), Sentry (error monitoring)"}
+              </td>
+            </tr>
+            <tr>
+              <td>{isAr ? "الاستدلالات (تفضيلات الاختبار)" : "Inferences (quiz preferences)"}</td>
+              <td>{isAr ? "توصيات المنتجات المخصصة" : "Personalized product recommendations"}</td>
+              <td>{isAr ? "لا تتم المشاركة" : "Not shared"}</td>
+            </tr>
+            <tr>
+              <td>{isAr ? "بيانات الدفع (عبر Stripe)" : "Payment data (via Stripe)"}</td>
+              <td>{isAr ? "معالجة العضويات" : "Membership processing"}</td>
+              <td>Stripe</td>
+            </tr>
+          </tbody>
+        </table>
 
         <h2>{isAr ? "بيانات الأطفال" : "Children\u2019s Privacy"}</h2>
         <p>

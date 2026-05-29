@@ -123,6 +123,7 @@ export default function CookieConsentCmp({
         consentModal: {
           layout: "box inline",
           position: "bottom left",
+          equalWeightButtons: true,
         },
         preferencesModal: {
           layout: "box",
@@ -160,13 +161,13 @@ export default function CookieConsentCmp({
               description:
                 "We use essential cookies to make this site work. With your consent, we also use analytics and affiliate cookies to improve your experience and track conversions. You can manage your preferences at any time.",
               acceptAllBtn: "Accept All",
-              acceptNecessaryBtn: "Reject Non-Essential",
+              acceptNecessaryBtn: "Reject All",
               showPreferencesBtn: "Manage Preferences",
             },
             preferencesModal: {
               title: "Cookie Preferences",
               acceptAllBtn: "Accept All",
-              acceptNecessaryBtn: "Reject Non-Essential",
+              acceptNecessaryBtn: "Reject All",
               savePreferencesBtn: "Save Preferences",
               sections: [
                 {
@@ -231,13 +232,13 @@ export default function CookieConsentCmp({
               description:
                 "نستخدم ملفات تعريف الارتباط الأساسية لتشغيل هذا الموقع. بموافقتك، نستخدم أيضًا ملفات تعريف الارتباط التحليلية لفهم كيفية تفاعلك مع المحتوى وملفات تعريف الارتباط التابعة لتتبع التحويلات.",
               acceptAllBtn: "قبول الكل",
-              acceptNecessaryBtn: "رفض غير الأساسية",
+              acceptNecessaryBtn: "رفض الكل",
               showPreferencesBtn: "إدارة التفضيلات",
             },
             preferencesModal: {
               title: "تفضيلات ملفات تعريف الارتباط",
               acceptAllBtn: "قبول الكل",
-              acceptNecessaryBtn: "رفض غير الأساسية",
+              acceptNecessaryBtn: "رفض الكل",
               savePreferencesBtn: "حفظ التفضيلات",
               sections: [
                 {
