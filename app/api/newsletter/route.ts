@@ -292,7 +292,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           from: fromEmail,
           to: [email],
-          subject: t("newsletter.confirm_subject").replace("{siteName}", safeSiteName),
+          subject: t("newsletter.confirm_subject", locale).replace("{siteName}", safeSiteName),
           html: emailHtml,
           text: emailText,
           headers: {

@@ -33,6 +33,11 @@ import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { getAppCacheKV } from "@/lib/runtime-env";
+import {
+  MAX_SESSION_AGE_REGULAR_SECONDS,
+  MAX_SESSION_AGE_ADMIN_SECONDS,
+  ADMIN_JWT_EXPIRY_SECONDS,
+} from "@/lib/auth-constants";
 
 /**
  * P1-4 / P1-6: KV cache TTL for HIBP range responses (in seconds).
@@ -227,6 +232,9 @@ const LOGIN_RATE_LIMIT_EMAIL = {
 };
 
 export async function POST(request: NextRequest) {
+  const requestId = request.headers.get("x-trace-id") ?? crypto.randomUUID();
+  const log = logger.child({ requestId });
+
   // F-FE-01: Fail fast if critical env vars are missing at runtime.
   // Checked at request time (not module load) to avoid build-time failures.
   // Only enforced in production — dev/test uses a random fallback via lib/jwt-secret.ts.
@@ -344,7 +352,7 @@ export async function POST(request: NextRequest) {
           const code =
             e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
           if (code !== "42703") {
-            logger.error("Failed to update admin user lockout", { error: e });
+            log.error("Failed to update admin user lockout", { error: e });
           }
         }
       }
@@ -364,7 +372,7 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (auditErr) {
-        logger.warn("Failed to record audit event for failed login", { error: auditErr });
+        log.warn("Failed to record audit event for failed login", { error: auditErr });
       }
       return apiError(401, "Invalid credentials");
     }
@@ -379,7 +387,7 @@ export async function POST(request: NextRequest) {
       } catch (e: unknown) {
         const code = e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
         if (code !== "42703") {
-          logger.error("Failed to reset admin user lockout", { error: e });
+          log.error("Failed to reset admin user lockout", { error: e });
         }
       }
     }
@@ -452,7 +460,7 @@ export async function POST(request: NextRequest) {
             const code =
               e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
             if (code !== "42703") {
-              logger.error("Failed to update TOTP lockout", { error: e });
+              log.error("Failed to update TOTP lockout", { error: e });
             }
           }
           return apiError(401, "Invalid 2FA token");
@@ -498,12 +506,22 @@ export async function POST(request: NextRequest) {
     response.cookies.delete(ACTIVITY_COOKIE);
     response.cookies.delete(BINDING_COOKIE);
 
+    // A100-1: role-aware absolute session lifetime.
+    // super_admin gets a tighter window (12h); regular admin gets 24h.
+    // The cookie maxAge is the minimum of the JWT expiry and the
+    // role-based cap so the cookie never outlives the token.
+    const absoluteMaxAge =
+      authResult.role === "super_admin"
+        ? MAX_SESSION_AGE_ADMIN_SECONDS
+        : MAX_SESSION_AGE_REGULAR_SECONDS;
+    const cookieMaxAge = Math.min(ADMIN_JWT_EXPIRY_SECONDS, absoluteMaxAge);
+
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
       sameSite: "strict",
       path: "/",
-      maxAge: 60 * 60 * 4, // 4 hours (matches JWT expiry)
+      maxAge: cookieMaxAge,
     });
 
     // A-012: set a separate binding cookie so the JWT cannot be replayed

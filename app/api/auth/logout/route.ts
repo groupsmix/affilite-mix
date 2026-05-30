@@ -5,8 +5,10 @@ import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { CSRF_COOKIE } from "@/lib/csrf";
 import { revokeToken } from "@/lib/jwt-revocation";
+import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
+import { logger } from "@/lib/logger";
 
 /**
  * B-03: Clear every auth-related cookie on logout.
@@ -16,6 +18,11 @@ import { getClientIp } from "@/lib/get-client-ip";
  * which could confuse subsequent sessions or leak stale fingerprints.
  */
 export async function POST(request: NextRequest) {
+  const requestId = request.headers.get("x-trace-id") ?? crypto.randomUUID();
+  const log = logger.child({ requestId });
+
+  log.info("logout");
+
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`logout:${ip}`, {
     maxRequests: 10,
@@ -43,7 +50,7 @@ export async function POST(request: NextRequest) {
           await revokeToken(payload.jti);
         }
       } catch (e) {
-        // Ignore malformed tokens
+        captureException(e, { context: "[api/auth/logout] Failed to decode JWT for revocation" });
       }
     }
   } catch (err) {

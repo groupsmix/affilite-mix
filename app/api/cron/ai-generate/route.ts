@@ -11,6 +11,7 @@ import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { cronLock } from "@/lib/cron-lock";
 import type { AIContentType } from "@/lib/ai/content-generator";
 import { containsProhibitedContent } from "@/lib/ai/content-moderation";
+import { supabaseBreaker } from "@/lib/supabase-circuit-breaker";
 
 /**
  * Cron endpoint: Auto-generate AI articles for all active sites.
@@ -39,20 +40,35 @@ export async function POST(request: NextRequest) {
     const contentTypes: AIContentType[] = ["article", "review", "guide"];
     const results: { site: string; generated: number; errors: string[] }[] = [];
 
-    for (const site of allSites) {
+    // S3-056: Resumable cursor — skip sites/articles already processed.
+    const cursorParam = request.nextUrl.searchParams.get("cursor");
+    let startSite = 0;
+    let startArticle = 0;
+    if (cursorParam) {
+      const [s, a] = cursorParam.split(":").map(Number);
+      if (Number.isFinite(s) && Number.isFinite(a)) {
+        startSite = s;
+        startArticle = a;
+      }
+    }
+
+    let lastCursor = `${startSite}:${startArticle}`;
+
+    for (let si = startSite; si < allSites.length; si++) {
+      const site = allSites[si];
       const siteResult = { site: site.id, generated: 0, errors: [] as string[] };
 
       let dbSiteId: string;
       try {
         dbSiteId = await resolveDbSiteId(site.id);
       } catch {
-        // fail-open: best-effort [criticality:non-critical]
         siteResult.errors.push("Could not resolve DB site ID");
         results.push(siteResult);
         continue;
       }
 
-      for (let i = 0; i < ARTICLES_PER_SITE; i++) {
+      const articleStart = si === startSite ? startArticle : 0;
+      for (let i = articleStart; i < ARTICLES_PER_SITE; i++) {
         const contentType = contentTypes[i % contentTypes.length];
         const niche = site.brand.niche;
         const topics = [
@@ -74,31 +90,30 @@ export async function POST(request: NextRequest) {
           });
 
           // F-AI-02: Basic content moderation before creating the draft.
-          // Check for obvious harmful content patterns. If flagged, set status
-          // to 'rejected' (the existing AIDraftRow type doesn't have a 'flagged'
-          // status). An admin can filter rejected drafts and manually approve.
           // S5-02: Include metaTitle/metaDescription in the scan.
           const combinedText = `${result.title} ${result.excerpt} ${result.metaTitle} ${result.metaDescription} ${result.body}`;
           const flagged = containsProhibitedContent(combinedText);
 
-          await createAIDraft(
-            {
-              site_id: dbSiteId,
-              title: result.title,
-              slug: result.slug,
-              body: result.body,
-              excerpt: result.excerpt,
-              content_type: result.contentType,
-              topic,
-              keywords: [],
-              ai_provider: result.provider,
-              ai_model: result.model,
-              status: flagged ? "rejected" : "pending",
-              generated_at: new Date().toISOString(),
-              meta_title: result.metaTitle,
-              meta_description: result.metaDescription,
-            },
-            getPrivilegedSupabaseClient,
+          await supabaseBreaker.execute(() =>
+            createAIDraft(
+              {
+                site_id: dbSiteId,
+                title: result.title,
+                slug: result.slug,
+                body: result.body,
+                excerpt: result.excerpt,
+                content_type: result.contentType,
+                topic,
+                keywords: [],
+                ai_provider: result.provider,
+                ai_model: result.model,
+                status: flagged ? "rejected" : "pending",
+                generated_at: new Date().toISOString(),
+                meta_title: result.metaTitle,
+                meta_description: result.metaDescription,
+              },
+              getPrivilegedSupabaseClient,
+            ),
           );
 
           siteResult.generated++;
@@ -109,6 +124,8 @@ export async function POST(request: NextRequest) {
             context: `[cron/ai-generate] Failed for ${site.id}`,
           });
         }
+        // S3-056: Update checkpoint after each article attempt.
+        lastCursor = `${si}:${i + 1}`;
       }
 
       results.push(siteResult);
@@ -120,6 +137,7 @@ export async function POST(request: NextRequest) {
     void recordCronLiveness("ai-generate");
     return NextResponse.json({
       ok: true,
+      cursor: lastCursor,
       summary: `Generated ${totalGenerated} drafts across ${results.length} sites (${totalErrors} errors)`,
       results,
     });
