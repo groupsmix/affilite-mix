@@ -54,6 +54,12 @@ export async function POST(request: Request) {
 
     const user = await getAdminUserByEmail(email);
     if (!user) {
+      // S0-A3-007: add a random delay (200-600ms) to match the response
+      // time of the existing-user path (which performs DB writes + email
+      // send). Without this, an attacker can distinguish "user exists"
+      // from "user doesn't exist" by measuring response latency. CWE-203.
+      const delayMs = 200 + Math.floor(Math.random() * 400);
+      await new Promise((r) => setTimeout(r, delayMs));
       return successResponse;
     }
 
