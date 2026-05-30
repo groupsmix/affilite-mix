@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "target_type and target_id are required" }, { status: 400 });
   }
 
-  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 1), 100);
+  const limit = Math.min(
+    Math.max(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 1),
+    100,
+  );
   const offset = Math.max(parseInt(url.searchParams.get("offset") ?? "0", 10) || 0, 0);
 
   try {
