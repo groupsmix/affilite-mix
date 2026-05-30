@@ -8,6 +8,8 @@ import { getJwtSecret, getJwtSecretPrevious, getJwtKid } from "@/lib/jwt-secret"
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
 import { isTokenRevoked } from "@/lib/jwt-revocation";
+// RISK-05 (étap-3): In-memory revocation check for immediate effect
+import { isTokenRevokedImmediate } from "@/lib/jwt-revocation-strong";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 // A6-03: use purpose-derived HMAC sub-key instead of the raw JWT secret
 import { deriveHmacKey } from "@/lib/hmac-key";
@@ -366,9 +368,17 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   // operators can still individually toggle a control if one infra dependency
   // (e.g. KV availability for revocation) is genuinely unhealthy.
   const strictRevocation = isAdminControlEnabled("ADMIN_SESSION_TOKEN_REVOCATION_STRICT");
-  if (strictRevocation && payload.jti && (await isTokenRevoked(payload.jti as string))) {
-    logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
-    return null;
+  if (strictRevocation && payload.jti) {
+    // RISK-05 (étap-3): Check in-memory blocklist first for immediate effect
+    // (covers same-isolate revocation within milliseconds), then fall back to
+    // KV for cross-isolate propagation (~60s eventual consistency).
+    if (
+      isTokenRevokedImmediate(payload.jti as string) ||
+      (await isTokenRevoked(payload.jti as string))
+    ) {
+      logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
+      return null;
+    }
   }
 
   const adminPayload = payload as unknown as AdminPayload;
