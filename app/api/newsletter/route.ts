@@ -11,7 +11,7 @@ import { hashNewsletterToken } from "@/lib/newsletter-token";
 import { escapeAttribute, escapeHtml, safeHexColor, safeHref } from "@/lib/email-templates/escape";
 import { logger } from "@/lib/logger";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
-import { t, tFormat, type SupportedLocale } from "@/lib/i18n";
+import { t, type SupportedLocale } from "@/lib/i18n";
 
 /**
  * Build a branded HTML email for newsletter confirmation.
@@ -37,8 +37,16 @@ function buildConfirmationEmail(
   if (safeUrlValue === null) return null;
   const safeUrlAttr = escapeAttribute(safeUrlValue);
   const safeUrlText = escapeHtml(safeUrlValue);
+  const dir = locale === "ar" ? "rtl" : "ltr";
+  const headingText = escapeHtml(t("newsletter.confirm_heading", locale));
+  const thanksText = escapeHtml(
+    t("newsletter.confirm_thanks", locale).replace("{siteName}", siteName),
+  );
+  const buttonText = escapeHtml(t("newsletter.confirm_button", locale));
+  const linkHintText = escapeHtml(t("newsletter.confirm_link_hint", locale));
+  const ignoreText = escapeHtml(t("newsletter.confirm_ignore", locale));
   return `<!DOCTYPE html>
-<html lang="${locale}"${locale === "ar" ? ' dir="rtl"' : ""}>
+<html lang="${locale}" dir="${dir}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
@@ -48,16 +56,16 @@ function buildConfirmationEmail(
           <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${safeName}</h1>
         </td></tr>
         <tr><td style="padding:32px;">
-          <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">${escapeHtml(t("newsletter.confirm_heading", locale))}</h2>
-          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">${escapeHtml(tFormat("newsletter.confirm_thanks", locale, { siteName }))}</p>
+          <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">${headingText}</h2>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">${thanksText}</p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
             <tr><td style="background-color:${safeColor};border-radius:8px;">
-              <a href="${safeUrlAttr}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">${escapeHtml(t("newsletter.confirm_button", locale))}</a>
+              <a href="${safeUrlAttr}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">${buttonText}</a>
             </td></tr>
           </table>
-          <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">${escapeHtml(t("newsletter.confirm_link_hint", locale))}</p>
+          <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">${linkHintText}</p>
           <p style="margin:0 0 24px;font-size:13px;color:#6b7280;word-break:break-all;">${safeUrlText}</p>
-          <p style="margin:0;font-size:13px;color:#9ca3af;">${escapeHtml(t("newsletter.confirm_ignore", locale))}</p>
+          <p style="margin:0;font-size:13px;color:#9ca3af;">${ignoreText}</p>
         </td></tr>
         <tr><td style="padding:16px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
           <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${year} ${safeName} &mdash; ${safeDomain}</p>
@@ -191,15 +199,15 @@ export async function POST(request: Request) {
       }
     }
 
-    const siteLocale = (site.locale === "ar" ? "ar" : "en") as SupportedLocale;
     const baseUrl = `https://${site.domain}`;
     const confirmUrl = `${baseUrl}/newsletter/confirm?token=${confirmationToken}`;
+    const locale = (site.language === "ar" ? "ar" : "en") as SupportedLocale;
     const emailHtml = buildConfirmationEmail(
       site.name,
       confirmUrl,
       site.domain,
       (site.theme as Record<string, string>)?.accentColor ?? "#10B981",
-      siteLocale,
+      locale,
     );
 
     if (emailHtml === null) {
@@ -224,7 +232,13 @@ export async function POST(request: Request) {
     // A5-001: Build a plain-text email that also escapes the site name and domain.
     const safeTextSiteName = site.name.replace(/[<&>"']/g, " ");
     const safeTextDomain = site.domain.replace(/[<&>"']/g, " ");
-    const emailText = `${tFormat("newsletter.confirm_plain_thanks", siteLocale, { siteName: safeTextSiteName })}\n\n${t("newsletter.confirm_plain_link_prompt", siteLocale)}\n${confirmUrl}\n\n${t("newsletter.confirm_ignore", siteLocale)}\n\n© ${new Date().getFullYear()} ${safeTextSiteName} — ${safeTextDomain}`;
+    const plainThanks = t("newsletter.confirm_plain_thanks", locale).replace(
+      "{siteName}",
+      safeTextSiteName,
+    );
+    const plainLinkPrompt = t("newsletter.confirm_plain_link_prompt", locale);
+    const plainIgnore = t("newsletter.confirm_ignore", locale);
+    const emailText = `${plainThanks}\n\n${plainLinkPrompt}\n${confirmUrl}\n\n${plainIgnore}\n\n© ${new Date().getFullYear()} ${safeTextSiteName} — ${safeTextDomain}`;
 
     if (!resendKey) {
       if (isProd) {
@@ -278,7 +292,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           from: fromEmail,
           to: [email],
-          subject: tFormat("newsletter.confirm_subject", siteLocale, { siteName: safeSiteName }),
+          subject: t("newsletter.confirm_subject", locale).replace("{siteName}", safeSiteName),
           html: emailHtml,
           text: emailText,
           headers: {
