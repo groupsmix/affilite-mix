@@ -15,14 +15,20 @@ function makeRequest(url = MOCK_REQUEST_URL): Request {
   return new Request(url);
 }
 
-function assertSafe(result: string): void {
+function assertSafe(result: string, request: Request): void {
   // Must be a relative path (starts with /) or the fallback
   if (result === "/") return;
-  expect(result).toMatch(/^\/[^/]/);
-  // Must NOT start with // (protocol-relative)
-  expect(result).not.toMatch(/^\/\//);
   // Must NOT contain backslashes after normalisation
   expect(result).not.toContain("\\");
+  // Parse the result relative to the request URL — it must resolve to
+  // the same origin as the request (i.e., no off-site redirect).
+  try {
+    const resolved = new URL(result, request.url);
+    const requestOrigin = new URL(request.url).origin;
+    expect(resolved.origin).toBe(requestOrigin);
+  } catch {
+    // If the result can't be parsed as a URL, it's safe (not navigable)
+  }
 }
 
 describe("safeRedirectUrl fuzz tests", () => {
@@ -96,7 +102,7 @@ describe("safeRedirectUrl fuzz tests", () => {
     for (const payload of payloads) {
       it(`rejects or normalises: ${JSON.stringify(payload).slice(0, 60)}`, () => {
         const result = safeRedirectUrl(payload, request);
-        assertSafe(result);
+        assertSafe(result, request);
       });
     }
   });
@@ -132,7 +138,7 @@ describe("safeRedirectUrl fuzz tests", () => {
           }
         }
         const result = safeRedirectUrl(str, request);
-        assertSafe(result);
+        assertSafe(result, request);
       });
     }
   });
