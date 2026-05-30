@@ -189,11 +189,12 @@ export async function incrementLoginFailedAttempts(
     return { attempts: data.attempts, locked: data.locked };
   }
 
-  // RC-004: Only fall back for missing function (42883). All other RPC errors
-  // (permissions, timeouts, transient failures) must fail closed to prevent
-  // race-condition bypass of the lockout counter.
-  if (error && error.code !== "42883") {
-    logger.error("increment_login_failed_attempts RPC failed; refusing degraded lockout", {
+  // S1-A10-001: All RPC errors (including missing function 42883) must fail
+  // closed. The non-atomic fallback had a TOCTOU race condition (CWE-362)
+  // that allowed concurrent login attempts to undercount the lockout counter.
+  // The RPC function MUST be deployed — there is no safe degraded path.
+  if (error) {
+    logger.error("increment_login_failed_attempts RPC failed; failing closed", {
       userId: id,
       code: error.code,
       message: error.message,
@@ -201,37 +202,8 @@ export async function incrementLoginFailedAttempts(
     throw error;
   }
 
-  // Fallback: non-atomic read-then-write (only when RPC function is not yet deployed)
-  logger.warn("increment_login_failed_attempts RPC missing (42883); using non-atomic fallback", {
-    userId: id,
-  });
-
-  const { data: user, error: readErr } = await sb
-    .from(TABLE)
-    .select("login_failed_attempts")
-    .unsafeNoSiteFilter()
-    .eq("id", id)
-    .single();
-
-  if (readErr) throw readErr;
-
-  const attempts =
-    ((user as { login_failed_attempts?: number } | null)?.login_failed_attempts ?? 0) + 1;
-  const updates: { login_failed_attempts: number; login_locked_until?: string | null } = {
-    login_failed_attempts: attempts,
-  };
-  if (attempts >= lockoutThreshold) {
-    updates.login_locked_until = new Date(Date.now() + lockoutDurationMs).toISOString();
-  }
-
-  const { error: writeErr } = await sb
-    .from(TABLE)
-    .update(updates)
-    .unsafeNoSiteFilter()
-    .eq("id", id);
-  if (writeErr) throw writeErr;
-
-  return { attempts, locked: attempts >= lockoutThreshold };
+  // Unreachable: data is guaranteed non-null when error is null
+  return { attempts: 0, locked: false };
 }
 
 /**
@@ -260,10 +232,12 @@ export async function incrementTotpFailedAttempts(
     return { attempts: data.attempts, locked: data.locked };
   }
 
-  // RC-004: Only fall back for missing function (42883). All other RPC errors
-  // must fail closed to prevent race-condition bypass of TOTP lockout.
-  if (error && error.code !== "42883") {
-    logger.error("increment_totp_failed_attempts RPC failed; refusing degraded lockout", {
+  // S1-A10-001: All RPC errors (including missing function 42883) must fail
+  // closed. The non-atomic fallback had a TOCTOU race condition (CWE-362)
+  // that allowed concurrent TOTP attempts to undercount the lockout counter.
+  // The RPC function MUST be deployed — there is no safe degraded path.
+  if (error) {
+    logger.error("increment_totp_failed_attempts RPC failed; failing closed", {
       userId: id,
       code: error.code,
       message: error.message,
@@ -271,37 +245,8 @@ export async function incrementTotpFailedAttempts(
     throw error;
   }
 
-  // Fallback: non-atomic read-then-write (only when RPC function is not yet deployed)
-  logger.warn("increment_totp_failed_attempts RPC missing (42883); using non-atomic fallback", {
-    userId: id,
-  });
-
-  const { data: user, error: readErr } = await sb
-    .from(TABLE)
-    .select("totp_failed_attempts")
-    .unsafeNoSiteFilter()
-    .eq("id", id)
-    .single();
-
-  if (readErr) throw readErr;
-
-  const attempts =
-    ((user as { totp_failed_attempts?: number } | null)?.totp_failed_attempts ?? 0) + 1;
-  const updates: { totp_failed_attempts: number; totp_locked_until?: string | null } = {
-    totp_failed_attempts: attempts,
-  };
-  if (attempts >= lockoutThreshold) {
-    updates.totp_locked_until = new Date(Date.now() + lockoutDurationMs).toISOString();
-  }
-
-  const { error: writeErr } = await sb
-    .from(TABLE)
-    .update(updates)
-    .unsafeNoSiteFilter()
-    .eq("id", id);
-  if (writeErr) throw writeErr;
-
-  return { attempts, locked: attempts >= lockoutThreshold };
+  // Unreachable: data is guaranteed non-null when error is null
+  return { attempts: 0, locked: false };
 }
 
 /** Delete an admin user */
