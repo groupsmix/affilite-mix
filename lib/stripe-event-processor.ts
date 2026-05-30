@@ -2,6 +2,14 @@ import type Stripe from "stripe";
 import { applyStripeEventAtomic, type StripeEventOp } from "@/lib/dal/stripe-events";
 import { logger } from "@/lib/logger";
 
+/** A91-2: Typed error wrapper preserving the original cause. */
+class ProcessorError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "ProcessorError";
+  }
+}
+
 export interface StripeProcessingResult {
   duplicate: boolean;
   membershipId: string | null;
@@ -82,10 +90,11 @@ async function buildStripeEventPayload(
       try {
         sub = await stripe.subscriptions.retrieve(subscriptionId);
       } catch (err) {
-        logger.error("Failed to retrieve subscription from Stripe in checkout.session.completed", {
-          subscriptionId,
-          error: err,
-        });
+        const wrapped = new ProcessorError(
+          "checkout.session.completed: subscription retrieval failed",
+          { cause: err },
+        );
+        logger.error(wrapped.message, { subscriptionId, cause: String(err) });
         return { op: "noop" };
       }
       return {
@@ -113,10 +122,10 @@ async function buildStripeEventPayload(
       try {
         sub = await stripe.subscriptions.retrieve(subscriptionId);
       } catch (err) {
-        logger.error("Failed to retrieve subscription from Stripe in invoice.paid", {
-          subscriptionId,
-          error: err,
+        const wrapped = new ProcessorError("invoice.paid: subscription retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { subscriptionId, cause: String(err) });
         return { op: "noop" };
       }
       return {
@@ -163,10 +172,10 @@ async function buildStripeEventPayload(
       try {
         invoice = await stripe.invoices.retrieve(invoiceId);
       } catch (err) {
-        logger.error("Failed to retrieve invoice from Stripe in charge.refunded", {
-          invoiceId,
-          error: err,
+        const wrapped = new ProcessorError("charge.refunded: invoice retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { invoiceId, cause: String(err) });
         return { op: "noop" };
       }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
@@ -193,10 +202,10 @@ async function buildStripeEventPayload(
       try {
         charge = await stripe.charges.retrieve(dispute.charge);
       } catch (err) {
-        logger.error("Failed to retrieve charge from Stripe in dispute handler", {
-          chargeId: dispute.charge,
-          error: err,
+        const wrapped = new ProcessorError("charge.dispute: charge retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { chargeId: dispute.charge, cause: String(err) });
         return { op: "noop" };
       }
       const invoiceId = getChargeInvoiceId(charge);
@@ -205,10 +214,10 @@ async function buildStripeEventPayload(
       try {
         invoice = await stripe.invoices.retrieve(invoiceId);
       } catch (err) {
-        logger.error("Failed to retrieve invoice from Stripe in dispute handler", {
-          invoiceId,
-          error: err,
+        const wrapped = new ProcessorError("charge.dispute: invoice retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { invoiceId, cause: String(err) });
         return { op: "noop" };
       }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
