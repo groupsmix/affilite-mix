@@ -126,6 +126,8 @@ export function apiError(
  */
 /** Maximum JSON body size (1 MB). Reject before parsing to prevent memory exhaustion. */
 const MAX_JSON_BODY_BYTES = 1_048_576;
+/** A77-F1: Maximum nesting depth for parsed JSON to prevent stack overflow. */
+const MAX_JSON_DEPTH = 20;
 
 /**
  * Safely parse the JSON body of a request.
@@ -176,13 +178,47 @@ export async function parseJsonBody(
   }
 
   try {
-    const parsed = JSON.parse(new TextDecoder().decode(body));
+    const text = new TextDecoder().decode(body);
+
+    // A77-F1: Pre-parse depth check — scan for maximum nesting of { / [
+    // to reject pathologically nested payloads before JSON.parse can
+    // stack-overflow.
+    let depth = 0;
+    let maxDepth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escaped = inString;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+      if (ch === "{" || ch === "[") {
+        depth++;
+        if (depth > maxDepth) maxDepth = depth;
+        if (maxDepth > MAX_JSON_DEPTH) {
+          return apiError(400, "JSON nesting too deep", undefined, undefined, "INVALID_JSON");
+        }
+      } else if (ch === "}" || ch === "]") {
+        depth--;
+      }
+    }
+
+    const parsed = JSON.parse(text);
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
     }
     return parsed as Record<string, unknown>;
   } catch {
-    // fail-open: best-effort [criticality:non-critical]
     return apiError(400, "Invalid JSON body", undefined, undefined, "INVALID_JSON");
   }
 }
