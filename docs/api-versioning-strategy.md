@@ -41,7 +41,7 @@ When API versioning becomes necessary, adopt **URL path versioning**:
 ## Internal API Contracts
 
 Even without versioning, internal API contracts should be tested. See the
-contract tests in `__tests__/contracts/` which validate response shapes for
+contract tests in `__tests__/contract/` which validate response shapes for
 critical endpoints.
 
 ## When to Version

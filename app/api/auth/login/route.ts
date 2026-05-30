@@ -475,10 +475,9 @@ export async function POST(request: NextRequest) {
         }
 
         // E2-009: Detect legacy SHA-1 TOTP and signal the client to re-enroll.
-        // The decrypted secret is already in scope from verification above.
+        // Check the stored (encrypted) form — enc:v1: means SHA-256 era.
         try {
-          const decrypted = await decryptTotpSecret(user.totp_secret);
-          if (needsSha256Reenrollment(decrypted)) {
+          if (needsSha256Reenrollment(user.totp_secret)) {
             totpNeedsReenroll = true;
           }
         } catch {

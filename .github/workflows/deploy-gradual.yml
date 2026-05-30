@@ -31,6 +31,7 @@ permissions:
 
 env:
   WRANGLER_VERSION: "4.93.1"
+  WORKER_NAME: ${{ inputs.worker_name }}
 
 jobs:
   deploy-gradual:
@@ -62,11 +63,11 @@ jobs:
         run: |
           # Upload the new version without activating it
           npx --yes wrangler@${WRANGLER_VERSION} versions upload \
-            --name ${{ inputs.worker_name }}
+            --name "$WORKER_NAME"
 
           # Get the latest two version IDs
           VERSIONS_JSON=$(npx --yes wrangler@${WRANGLER_VERSION} versions list \
-            --name ${{ inputs.worker_name }} --json 2>/dev/null || echo "[]")
+            --name "$WORKER_NAME" --json 2>/dev/null || echo "[]")
 
           NEW_VERSION=$(echo "$VERSIONS_JSON" | jq -r '.[0].id // empty')
           OLD_VERSION=$(echo "$VERSIONS_JSON" | jq -r '.[1].id // empty')
@@ -95,12 +96,12 @@ jobs:
           if [ -n "$OLD_VERSION" ]; then
             npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
               "${NEW_VERSION}@${PERCENTAGE}%" "${OLD_VERSION}@${OLD_PCT}%" \
-              --name ${{ inputs.worker_name }} --yes
+              --name "$WORKER_NAME" --yes
           else
             # First deploy — no old version to split with
             npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
               "${NEW_VERSION}@100%" \
-              --name ${{ inputs.worker_name }} --yes
+              --name "$WORKER_NAME" --yes
           fi
 
       - name: Post-deploy smoke tests
@@ -112,7 +113,7 @@ jobs:
 
           FAILED=0
           for path in "/" "/api/health" "/sitemap.xml" "/robots.txt" "/admin/login"; do
-            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" "https://${SMOKE_HOST}${path}" || echo "000")
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "https://${SMOKE_HOST}${path}" || echo "000")
             if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
               echo "  ✓ ${path} → ${HTTP_CODE}"
             else
@@ -137,7 +138,7 @@ jobs:
           echo "Smoke tests passed — promoting to 100%"
           npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
             "${NEW_VERSION}@100%" \
-            --name ${{ inputs.worker_name }} --yes
+            --name "$WORKER_NAME" --yes
           echo "✓ Promoted to 100%"
 
       - name: Rollback on failure
@@ -150,7 +151,7 @@ jobs:
           echo "::warning::Smoke tests failed — rolling back to previous version"
           npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
             "${OLD_VERSION}@100%" \
-            --name ${{ inputs.worker_name }} --yes
+            --name "$WORKER_NAME" --yes
           echo "Rolled back to ${OLD_VERSION}"
 
       - name: Summary

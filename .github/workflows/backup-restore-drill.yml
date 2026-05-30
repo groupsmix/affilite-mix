@@ -41,6 +41,7 @@ jobs:
           ENVIRONMENT: ${{ inputs.environment || 'staging' }}
           STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DR_DATABASE_URL: ${{ inputs.environment == 'production' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
 
       - name: Validate restored schema
         if: always()
