@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { applyStripeEventAtomic, type StripeEventOp } from "@/lib/dal/stripe-events";
 import { logger } from "@/lib/logger";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 export interface StripeProcessingResult {
   duplicate: boolean;
@@ -21,6 +22,10 @@ export async function processStripeEvent(
     });
   } else {
     logStripeSideEffect(event.type, payload, result.membership_id);
+    // A167-01: Record membership mutations in the audit trail
+    await recordMembershipAudit(event.type, payload, result.membership_id).catch((err) => {
+      logger.warn("Failed to record membership audit event", { error: err });
+    });
   }
 
   return { duplicate: result.duplicate, membershipId: result.membership_id };
@@ -318,4 +323,57 @@ function mapStripeStatus(
     default:
       return "past_due";
   }
+}
+
+/**
+ * A167-01: Record membership mutations in the audit trail.
+ * Best-effort — failures are caught by the caller and logged.
+ */
+async function recordMembershipAudit(
+  eventType: string,
+  payload: StripeEventOp,
+  membershipId: string | null,
+): Promise<void> {
+  if (payload.op === "noop") return;
+
+  const action = `membership.${payload.op}`;
+  const details: Record<string, unknown> = { stripe_event_type: eventType };
+
+  switch (payload.op) {
+    case "create_membership":
+      details.status = "active";
+      details.tier = payload.tier;
+      details.stripe_subscription_id = payload.stripe_subscription_id;
+      details.stripe_customer_id = payload.stripe_customer_id;
+      details.current_period_start = payload.current_period_start;
+      details.current_period_end = payload.current_period_end;
+      break;
+    case "renew_membership":
+      details.status = "active";
+      details.stripe_subscription_id = payload.stripe_subscription_id;
+      details.current_period_start = payload.current_period_start;
+      details.current_period_end = payload.current_period_end;
+      break;
+    case "update_status":
+      details.status = payload.status;
+      details.stripe_subscription_id = payload.stripe_subscription_id;
+      details.tier = payload.tier;
+      break;
+    case "cancel_membership":
+      details.status = "cancelled";
+      details.stripe_subscription_id = payload.stripe_subscription_id;
+      break;
+  }
+
+  await recordAuditEvent({
+    site_id:
+      "op" in payload && "site_id" in payload
+        ? (payload as { site_id: string }).site_id
+        : "_global",
+    actor: "stripe-webhook",
+    action,
+    entity_type: "membership",
+    entity_id: membershipId ?? "unknown",
+    details,
+  });
 }
