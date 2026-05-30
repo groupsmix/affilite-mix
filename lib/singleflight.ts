@@ -47,3 +47,16 @@ export class Singleflight<T> {
  * resolution requests (the hottest read path in middleware).
  */
 export const siteLookupFlight = new Singleflight<unknown>();
+
+// ---------------------------------------------------------------------------
+// Functional API (convenience wrapper around a global Singleflight instance)
+// ---------------------------------------------------------------------------
+const globalFlight = new Singleflight<unknown>();
+
+/**
+ * Execute `fn` only once for the given `key` at any point in time.
+ * Concurrent callers with the same key receive the same promise.
+ */
+export async function singleFlight<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  return globalFlight.do(key, fn) as Promise<T>;
+}

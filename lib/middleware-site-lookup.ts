@@ -1,5 +1,5 @@
 import { requireEnvInProduction } from "@/lib/env";
-import { singleFlight } from "@/lib/single-flight";
+import { singleFlight } from "@/lib/singleflight";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { CircuitBreaker } from "@/lib/ai/circuit-breaker";
 

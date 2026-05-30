@@ -26,7 +26,8 @@ import {
 import { getAppCacheKV } from "@/lib/runtime-env";
 import { signSiteIdFallback } from "@/lib/site-id-signer";
 import { checkBodySize, applySecurityHeaders } from "@/lib/middleware-helpers";
-import { parseOrCreateTraceContext, applyTraceHeaders } from "@/lib/tracing";
+import { parseOrCreateTraceContext, applyTraceHeaders, exportTraceSpan } from "@/lib/tracing";
+import { emitMetric } from "@/lib/metrics";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -595,7 +596,22 @@ export async function middleware(request: NextRequest) {
       abortController.signal.addEventListener("abort", () => clearTimeout(timer));
     });
 
-    return await Promise.race([innerMiddleware(request, abortController.signal), timeoutPromise]);
+    const start = performance.now();
+    const traceCtx = parseOrCreateTraceContext(request);
+    const result = await Promise.race([
+      innerMiddleware(request, abortController.signal),
+      timeoutPromise,
+    ]);
+    const durationMs = Math.round(performance.now() - start);
+    emitMetric("middleware_latency_ms", durationMs, {
+      path: request.nextUrl.pathname,
+      status: String(result.status),
+    });
+    exportTraceSpan(traceCtx, "middleware", durationMs, {
+      path: request.nextUrl.pathname,
+      status: result.status,
+    });
+    return result;
   } catch (err) {
     // A98-49: Swallow AbortError — it means the timeout fired and we already
     // returned 503. Other errors are genuine and should be reported.
