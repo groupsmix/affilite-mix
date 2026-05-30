@@ -1059,6 +1059,19 @@ jobs:
       - name: Build OpenNext bundle
         run: npx @opennextjs/cloudflare build
 
+      # ── A34-05: Generate SBOM for supply-chain transparency ──────────
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.cdx.json --output-format json --omit dev
+          echo "SBOM generated: $(jq '.components | length' sbom.cdx.json) components"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
+
       # ── Set Worker secrets BEFORE deploy (audit R-004) ────────────────
       #
       # Cloudflare evaluates secrets at request time, so a deploy that
