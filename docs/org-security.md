@@ -17,7 +17,7 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 
 | Role                | Who                       | Permissions                                 |
 | ------------------- | ------------------------- | ------------------------------------------- |
-| Super Administrator | Org owner only (1 person) | Full account access                         |
+| Super Administrator | Org owner + 1 backup (A180: ≥ 2 humans required) | Full account access |
 | Administrator       | Security lead             | All settings except billing                 |
 | Workers Developer   | Developers                | Workers Scripts:Edit, KV:Edit, R2:Edit only |
 | Analytics Viewer    | On-call / SRE             | Read-only analytics and logs                |
@@ -30,6 +30,9 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 - [ ] Rotate API tokens quarterly (see [`docs/secrets-rotation-runbook.md`](secrets-rotation-runbook.md))
 - [ ] Review account audit log monthly for unexpected role changes
 - [ ] Disable Global API Key if not required
+- [ ] Configure IP-based conditional access on the Cloudflare dashboard (A179-F4)
+
+> **A180-F3 — Shared Account Prohibition:** Shared accounts are prohibited across all platforms. Every access credential must be tied to a named individual. Service accounts (e.g., CI/CD tokens) are permissible only when scoped to automation, audited, and owned by a named human.
 
 ---
 
@@ -52,6 +55,7 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 - [ ] Restrict repository creation to org admins
 - [ ] Enable GitHub Advanced Security (secret scanning, code scanning)
 - [ ] Review org audit log monthly for membership changes and permission escalations
+- [ ] Configure IP allow-list for the GitHub organization (A179-F4)
 
 ---
 
@@ -64,6 +68,7 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 - [ ] Never share the `service_role` key outside of `wrangler secret put`
 - [ ] Enable MFA on all Supabase dashboard accounts
 - [ ] Review the Supabase auth audit log monthly
+- [ ] Configure IP restrictions on the Supabase dashboard (A179-F4)
 
 ### Database Security
 
@@ -84,6 +89,7 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 - [ ] No production secrets stored in `.env.local` (only build-time variables)
 - [ ] SSH keys protected with a passphrase
 - [ ] Git commit signing configured
+- [ ] USB mass-storage access disabled or restricted (A182)
 
 ### Recommended
 
@@ -91,6 +97,16 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 - [ ] VPN required for accessing admin dashboards
 - [ ] Hardware security key (YubiKey) for GitHub and Cloudflare MFA
 - [ ] Separate browser profile for admin dashboards (no extensions)
+
+### MDM Recommendation (A182-F2)
+
+Evaluate and deploy a lightweight MDM solution to enforce the controls above centrally:
+
+- **macOS:** Mosyle Business (free for ≤ 30 devices) or Kandji
+- **Windows:** Microsoft Intune (bundled with M365 Business Premium)
+- **Linux:** Fleet or osquery-based compliance checks
+
+MDM provides: remote wipe capability, FDE enforcement, OS patch compliance reporting, and USB control. Until MDM is deployed, quarterly self-attestation of the checklist above is required from every team member.
 
 ---
 
@@ -164,3 +180,20 @@ When a team member leaves:
 - [ ] Review recent commits and deployments by the departing member
 - [ ] Remove SSH keys from any shared infrastructure
 - [ ] Update CODEOWNERS if the person was listed
+- [ ] Collect company devices and verify FDE status
+- [ ] Issue legal hold if applicable (coordinate with legal counsel)
+- [ ] Obtain signed exit checklist (see `docs/templates/exit-checklist.md`)
+
+> **A179-F3 — Deprovision SLA:** All access across GitHub, Cloudflare, Supabase, Stripe, Sentry, and Resend **must be revoked within 1 hour** of an employee's departure. The Engineering Lead is the designated owner of this SLA. For immediate-departure scenarios (termination, resignation with same-day exit), invoke §6 Incident Response (Org-Side) in parallel.
+
+---
+
+## 9. Assumed-Breach Mitigations (A207)
+
+If a developer laptop is compromised, the attacker may reach production in under 30 minutes via cloned repos, local `.env`, and dashboard access. To limit blast radius:
+
+1. **Never store production secrets in local `.env` files.** Use `wrangler secret` for production values; local `.env` should contain only development/test credentials.
+2. **Enforce hardware MFA on all services** (GitHub, Cloudflare, Supabase) — a stolen session cookie alone should not grant access.
+3. **Enable conditional access (IP restrictions)** on Cloudflare and Supabase dashboards — limit dashboard logins to known corporate/VPN IPs.
+4. **Segment permissions** — developers should have `Workers Developer` (not `Administrator`) on Cloudflare, and project-level (not org-level) roles on Supabase.
+5. **Monitor for anomalies** — insider-risk detection rules (A184) should flag unusual access patterns from developer accounts.
