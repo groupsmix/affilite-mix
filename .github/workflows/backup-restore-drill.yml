@@ -13,6 +13,7 @@ on:
         type: choice
         options:
           - staging
+          - production
 
 concurrency:
   group: backup-restore-drill
@@ -22,7 +23,7 @@ jobs:
   backup-restore:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: staging
+    environment: ${{ inputs.environment || 'staging' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
         with:
@@ -39,11 +40,14 @@ jobs:
         env:
           ENVIRONMENT: ${{ inputs.environment || 'staging' }}
           STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DR_DATABASE_URL: ${{ inputs.environment == 'production' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
 
       - name: Validate restored schema
         if: always()
         env:
           STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |
           echo "Validating restored schema..."
 
@@ -59,9 +63,21 @@ jobs:
             "webhook_dlq"
           )
 
+          # E2-015: Use the correct database URL based on the environment
+          if [ "${{ inputs.environment || 'staging' }}" = "production" ]; then
+            DB_URL="$PRODUCTION_DATABASE_URL"
+          else
+            DB_URL="$STAGING_DATABASE_URL"
+          fi
+
+          if [ -z "$DB_URL" ]; then
+            echo "::error::Database URL not set for environment ${{ inputs.environment || 'staging' }}"
+            exit 1
+          fi
+
           FAILED=0
           for table in "${TABLES[@]}"; do
-            if psql "$STAGING_DATABASE_URL" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '$table')" 2>/dev/null | grep -q "t"; then
+            if psql "$DB_URL" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '$table')" 2>/dev/null | grep -q "t"; then
               echo "  ✓ Table $table exists"
             else
               echo "  ✗ Table $table MISSING"
@@ -72,7 +88,7 @@ jobs:
           # Check RLS is enabled on tenant-scoped tables
           RLS_TABLES=("sites" "content" "products" "affiliate_clicks")
           for table in "${RLS_TABLES[@]}"; do
-            if psql "$STAGING_DATABASE_URL" -tAc "SELECT rowsecurity FROM pg_tables WHERE tablename = '$table'" 2>/dev/null | grep -q "t"; then
+            if psql "$DB_URL" -tAc "SELECT rowsecurity FROM pg_tables WHERE tablename = '$table'" 2>/dev/null | grep -q "t"; then
               echo "  ✓ RLS enabled on $table"
             else
               echo "  ✗ RLS NOT enabled on $table"
@@ -82,7 +98,7 @@ jobs:
 
           # Check migration count matches
           MIGRATION_COUNT=$(ls supabase/migrations/*.sql 2>/dev/null | wc -l)
-          DB_MIGRATION_COUNT=$(psql "$STAGING_DATABASE_URL" -tAc "SELECT count(*) FROM _migrations_applied" 2>/dev/null | tr -d '[:space:]' || echo "0")
+          DB_MIGRATION_COUNT=$(psql "$DB_URL" -tAc "SELECT count(*) FROM _migrations_applied" 2>/dev/null | tr -d '[:space:]' || echo "0")
           echo "  Migrations on disk: $MIGRATION_COUNT, in DB: $DB_MIGRATION_COUNT"
           if [ "$DB_MIGRATION_COUNT" != "$MIGRATION_COUNT" ]; then
             echo "  ✗ Migration count mismatch"

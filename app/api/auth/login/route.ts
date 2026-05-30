@@ -28,7 +28,7 @@ import {
   incrementTotpFailedAttempts,
 } from "@/lib/dal/admin-users";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
-import { verifyTotpToken } from "@/lib/totp";
+import { verifyTotpToken, needsSha256Reenrollment } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -395,6 +395,7 @@ export async function POST(request: NextRequest) {
     // AUDIT-FIX A3-001/A7-005: HIBP check moved AFTER TOTP completion to avoid
     // external dependency calls before full authentication is complete.
     let passwordBreached = false;
+    let totpNeedsReenroll = false;
 
     // Enforce TOTP 2FA if enabled on the account
     if (authResult.email) {
@@ -472,6 +473,16 @@ export async function POST(request: NextRequest) {
             getPrivilegedSupabaseClient("login:totp-reset"),
           );
         }
+
+        // E2-009: Detect legacy SHA-1 TOTP and signal the client to re-enroll.
+        // Check the stored (encrypted) form — enc:v1: means SHA-256 era.
+        try {
+          if (needsSha256Reenrollment(user.totp_secret)) {
+            totpNeedsReenroll = true;
+          }
+        } catch {
+          // fail-open: best-effort [criticality:non-critical]
+        }
       }
     }
 
@@ -493,6 +504,8 @@ export async function POST(request: NextRequest) {
         // A154: Advisory flag — if true, prompt the user to change their password.
         // Does NOT block login; the UI should show a security notice.
         ...(passwordBreached ? { password_breached: true } : {}),
+        // E2-009: Advisory flag — if true, prompt re-enrollment with SHA-256 TOTP.
+        ...(totpNeedsReenroll ? { totp_needs_reenroll: true } : {}),
       },
       {
         headers: rateLimitHeaders(LOGIN_RATE_LIMIT_IP, rl),

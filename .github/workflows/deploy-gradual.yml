@@ -4,37 +4,165 @@ on:
   workflow_dispatch:
     inputs:
       smoke_host:
-        description: "Host to run smoke tests against"
+        description: "Host to run smoke tests against (e.g. example.com)"
         required: true
         type: string
       percentage:
-        description: "Traffic percentage for canary"
+        description: "Traffic percentage for new version (1-100)"
         required: false
         default: "10"
         type: string
+      worker_name:
+        description: "Cloudflare Worker name"
+        required: false
+        default: "affilite-mix"
+        type: string
+      auto_promote:
+        description: "Auto-promote to 100% if smoke tests pass"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+env:
+  WRANGLER_VERSION: "4.93.1"
+  WORKER_NAME: ${{ inputs.worker_name }}
 
 jobs:
   deploy-gradual:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4
         with:
           node-version-file: .nvmrc
           cache: npm
+
       - run: npm ci
-      - name: Deploy canary
+
+      - name: Build
+        run: npx --yes @opennextjs/cloudflare build
         env:
-          PERCENTAGE: ${{ inputs.percentage }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+
+      - name: Upload new version
+        id: upload
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "Deploying canary at ${PERCENTAGE}%"
+          # Upload the new version without activating it
+          npx --yes wrangler@${WRANGLER_VERSION} versions upload \
+            --name "$WORKER_NAME"
+
+          # Get the latest two version IDs
+          VERSIONS_JSON=$(npx --yes wrangler@${WRANGLER_VERSION} versions list \
+            --name "$WORKER_NAME" --json 2>/dev/null || echo "[]")
+
+          NEW_VERSION=$(echo "$VERSIONS_JSON" | jq -r '.[0].id // empty')
+          OLD_VERSION=$(echo "$VERSIONS_JSON" | jq -r '.[1].id // empty')
+
+          if [ -z "$NEW_VERSION" ]; then
+            echo "::error::Failed to get new version ID"
+            exit 1
+          fi
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "New version: $NEW_VERSION"
+          echo "Old version: $OLD_VERSION"
+
+      - name: Deploy canary split
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PERCENTAGE: ${{ inputs.percentage }}
+          NEW_VERSION: ${{ steps.upload.outputs.new_version }}
+          OLD_VERSION: ${{ steps.upload.outputs.old_version }}
+        run: |
+          OLD_PCT=$((100 - PERCENTAGE))
+          echo "Deploying canary: ${PERCENTAGE}% new, ${OLD_PCT}% old"
+
+          if [ -n "$OLD_VERSION" ]; then
+            npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
+              "${NEW_VERSION}@${PERCENTAGE}%" "${OLD_VERSION}@${OLD_PCT}%" \
+              --name "$WORKER_NAME" --yes
+          else
+            # First deploy — no old version to split with
+            npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
+              "${NEW_VERSION}@100%" \
+              --name "$WORKER_NAME" --yes
+          fi
+
       - name: Post-deploy smoke tests
         env:
           SMOKE_HOST: ${{ inputs.smoke_host }}
         run: |
-          curl -sf "https://${SMOKE_HOST}/" > /dev/null
-          curl -sf "https://${SMOKE_HOST}/api/health" > /dev/null
-          curl -sf "https://${SMOKE_HOST}/sitemap.xml" > /dev/null
-          curl -sf "https://${SMOKE_HOST}/robots.txt" > /dev/null
-          curl -sf "https://${SMOKE_HOST}/admin/login" > /dev/null
+          echo "Running smoke tests against https://${SMOKE_HOST}..."
+          sleep 10  # Allow propagation
+
+          FAILED=0
+          for path in "/" "/api/health" "/sitemap.xml" "/robots.txt" "/admin/login"; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "https://${SMOKE_HOST}${path}" || echo "000")
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+              echo "  ✓ ${path} → ${HTTP_CODE}"
+            else
+              echo "  ✗ ${path} → ${HTTP_CODE}"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::${FAILED} smoke test(s) failed"
+            exit 1
+          fi
           echo "All smoke tests passed"
+
+      - name: Auto-promote to 100%
+        if: inputs.auto_promote == 'true' && success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEW_VERSION: ${{ steps.upload.outputs.new_version }}
+        run: |
+          echo "Smoke tests passed — promoting to 100%"
+          npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
+            "${NEW_VERSION}@100%" \
+            --name "$WORKER_NAME" --yes
+          echo "✓ Promoted to 100%"
+
+      - name: Rollback on failure
+        if: failure() && steps.upload.outputs.old_version != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OLD_VERSION: ${{ steps.upload.outputs.old_version }}
+        run: |
+          echo "::warning::Smoke tests failed — rolling back to previous version"
+          npx --yes wrangler@${WRANGLER_VERSION} versions deploy \
+            "${OLD_VERSION}@100%" \
+            --name "$WORKER_NAME" --yes
+          echo "Rolled back to ${OLD_VERSION}"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Gradual Deploy Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Date**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **New version**: ${{ steps.upload.outputs.new_version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Old version**: ${{ steps.upload.outputs.old_version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Traffic split**: ${{ inputs.percentage }}% new" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Auto-promote**: ${{ inputs.auto_promote }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Smoke host**: ${{ inputs.smoke_host }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
