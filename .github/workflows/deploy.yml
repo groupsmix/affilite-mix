@@ -61,6 +61,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Serialize all deploys to the same ref so concurrent pushes to main
+# (e.g. batch-merging multiple PRs) do not hit Cloudflare API rate
+# limits from parallel `wrangler secret put` calls (each deploy makes
+# ~35 sequential API calls). cancel-in-progress: false queues later
+# runs instead of cancelling them, so no migration is interrupted.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 # Top-level default: read-only. Each deploy job below explicitly opts into
 # the extra scopes it needs (e.g. `id-token: write` for OIDC,
 # `deployments: write` for GitHub deployment statuses).
