@@ -11,7 +11,7 @@ import { hashNewsletterToken } from "@/lib/newsletter-token";
 import { escapeAttribute, escapeHtml, safeHexColor, safeHref } from "@/lib/email-templates/escape";
 import { logger } from "@/lib/logger";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
-import { t, type SupportedLocale } from "@/lib/i18n";
+import { t, tFormat, type SupportedLocale } from "@/lib/i18n";
 
 /**
  * Build a branded HTML email for newsletter confirmation.
@@ -49,7 +49,7 @@ function buildConfirmationEmail(
         </td></tr>
         <tr><td style="padding:32px;">
           <h2 style="margin:0 0 12px;font-size:20px;color:#111827;">${escapeHtml(t("newsletter.confirm_heading", locale))}</h2>
-          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">${escapeHtml(t("newsletter.confirm_thanks", locale).replace("{siteName}", siteName))}</p>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4b5563;">${escapeHtml(tFormat("newsletter.confirm_thanks", locale, { siteName }))}</p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
             <tr><td style="background-color:${safeColor};border-radius:8px;">
               <a href="${safeUrlAttr}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">${escapeHtml(t("newsletter.confirm_button", locale))}</a>
@@ -224,7 +224,7 @@ export async function POST(request: Request) {
     // A5-001: Build a plain-text email that also escapes the site name and domain.
     const safeTextSiteName = site.name.replace(/[<&>"']/g, " ");
     const safeTextDomain = site.domain.replace(/[<&>"']/g, " ");
-    const emailText = `${t("newsletter.confirm_plain_thanks", siteLocale).replace("{siteName}", safeTextSiteName)}\n\n${t("newsletter.confirm_plain_link_prompt", siteLocale)}\n${confirmUrl}\n\n${t("newsletter.confirm_ignore", siteLocale)}\n\n© ${new Date().getFullYear()} ${safeTextSiteName} — ${safeTextDomain}`;
+    const emailText = `${tFormat("newsletter.confirm_plain_thanks", siteLocale, { siteName: safeTextSiteName })}\n\n${t("newsletter.confirm_plain_link_prompt", siteLocale)}\n${confirmUrl}\n\n${t("newsletter.confirm_ignore", siteLocale)}\n\n© ${new Date().getFullYear()} ${safeTextSiteName} — ${safeTextDomain}`;
 
     if (!resendKey) {
       if (isProd) {
@@ -278,7 +278,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           from: fromEmail,
           to: [email],
-          subject: t("newsletter.confirm_subject", siteLocale).replace("{siteName}", safeSiteName),
+          subject: tFormat("newsletter.confirm_subject", siteLocale, { siteName: safeSiteName }),
           html: emailHtml,
           text: emailText,
           headers: {
