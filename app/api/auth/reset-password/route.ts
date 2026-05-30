@@ -43,10 +43,10 @@ export async function POST(request: Request) {
     const token = ((bodyOrError.token as string) ?? "").trim();
     const password = (bodyOrError.password as string) ?? "";
 
-    // AUDIT-FIX A4-003: Validate token format (URL-safe base64, hex, or
-    // UUID with hyphens; 8-256 chars) before hashing / DB lookup to
-    // prevent DoS from huge tokens and reject obviously malformed input.
-    if (!token || !/^[A-Za-z0-9_-]{8,256}$/.test(token)) {
+    // S1-A14-006: Tightened max from 256 to 128 chars. Real reset tokens
+    // are 32-64 chars (hex or base64url). 128 is generous while still
+    // preventing DoS from oversized inputs hitting SHA-256 hashing.
+    if (!token || !/^[A-Za-z0-9_-]{8,128}$/.test(token)) {
       return NextResponse.json({ error: "Invalid or missing reset token" }, { status: 400 });
     }
 
