@@ -315,13 +315,27 @@ jobs:
 
           echo "All required secrets are present"
 
-      # ── RISK-OBS-01 (#586): Validate production alerting config ─────
+      # ── RISK-OBS-01 (#586) + A40-03: Validate production alerting config ──
+      # A40-03: Upgraded from warning to error for production deploys.
+      # Alert mechanisms must be configured before shipping to production.
       - name: Validate alerting configuration
         run: |
           set -euo pipefail
-          npx tsx scripts/validate-alerting-config.ts || {
-            echo "::warning::Production alerting is not configured. See terraform/cloudflare/production.tfvars.example."
-          }
+          if npx tsx scripts/validate-alerting-config.ts; then
+            echo "Alerting configuration validated"
+          else
+            if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              echo "::error::A40-03: Production alerting is not configured. Alert mechanisms must be set before deploying to production."
+              echo "::error::See terraform/cloudflare/production.tfvars.example for required alert_mechanisms configuration."
+              echo "::error::Set repo variable SKIP_ALERTING_CHECK=true for a temporary override (audit-logged)."
+              if [ "${{ vars.SKIP_ALERTING_CHECK }}" != "true" ]; then
+                exit 1
+              fi
+              echo "::warning::SKIP_ALERTING_CHECK=true — bypassing alerting validation (override by ${{ github.actor }})"
+            else
+              echo "::warning::Production alerting is not configured. See terraform/cloudflare/production.tfvars.example."
+            fi
+          fi
 
       # ── Require scoped API token (no Global API Key fallback) ──────
       - name: Require scoped CLOUDFLARE_API_TOKEN
