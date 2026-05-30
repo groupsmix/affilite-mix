@@ -267,7 +267,10 @@ function fireTrackingBeacon(slug: string) {
     if (navigator.sendBeacon) {
       navigator.sendBeacon(trackUrl);
     } else {
-      fetch(trackUrl, { method: "GET", keepalive: true }).catch(() => {});
+      fetch(trackUrl, { method: "GET", keepalive: true }).catch((err) => {
+        // A91-6: Log tracking failures for observability.
+        console.warn("[gift-finder] impression tracking failed:", err);
+      });
     }
   } catch {
     // fail-open: best-effort

@@ -85,6 +85,17 @@ export interface SiteDefinition {
   productCardStyle?: "standard" | "compact" | "detailed";
 
   /**
+   * A144-01: Per-tenant transactional email sender address.
+   *
+   * Each tenant should send email from its own verified domain to ensure
+   * SPF/DKIM alignment. When set, this overrides the global
+   * `NEWSLETTER_FROM_EMAIL` env var for this site. When unset, falls
+   * back to `noreply@<domain>`. The domain portion MUST be verified in
+   * the email provider (Resend) and have SPF/DKIM/DMARC configured.
+   */
+  sendingEmail?: string;
+
+  /**
    * Per-tenant cost / usage ceilings (G-42).
    *
    * Optional per-site override of the global ceilings configured via
