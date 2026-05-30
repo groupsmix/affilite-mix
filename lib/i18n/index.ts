@@ -100,9 +100,9 @@ export function tFormat(
   let message = t(key, locale);
   if (!params) return message;
 
-  // Simple {key} interpolation
+  // Simple {key} interpolation (split/join avoids regex metachar issues)
   for (const [k, v] of Object.entries(params)) {
-    message = message.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+    message = message.split(`{${k}}`).join(String(v));
   }
 
   // Plural: {count, plural, one {# item} other {# items}}

@@ -1,17 +1,24 @@
-# Stripe Raw HTTP Integration — Maintenance Guide
+# Stripe Integration — Maintenance Guide
 
-## Why Raw HTTP Instead of the SDK
+## Architecture: SDK + Raw HTTP Hybrid
 
-This codebase uses Stripe's raw HTTP API (via `lib/stripe-webhook.ts` and
-`lib/stripe-event-processor.ts`) instead of the official `stripe` npm package.
-This was a deliberate architectural decision:
+This codebase uses a **hybrid approach** for Stripe:
 
-- **Bundle size**: The Stripe SDK adds ~200KB+ to the Cloudflare Worker bundle.
-  On Workers, every KB matters for cold-start latency.
-- **Edge compatibility**: The SDK has historically assumed Node.js APIs (e.g.
-  `http`, `net`) that are not available in the Cloudflare Workers runtime.
-- **Minimal surface**: We only use webhook signature verification and a small
-  set of event types — the SDK's 300+ endpoint wrappers are unused weight.
+- **Stripe SDK (`stripe` npm package)**: Used for checkout session creation,
+  subscription management, and typed event processing via `lib/stripe-client.ts`.
+  The SDK is lazy-loaded (dynamic import) to minimize cold-start impact.
+- **Raw HTTP (`lib/stripe-webhook.ts`)**: Used exclusively for webhook signature
+  verification (HMAC-SHA256). This avoids importing the full SDK on the hot path
+  for incoming webhook requests.
+
+### Why the hybrid approach
+
+- **Bundle size**: The Stripe SDK (~250KB) is deferred via dynamic import so it
+  only loads when needed (checkout, subscription ops) — not on every request.
+- **Webhook hot path**: Signature verification uses Web Crypto directly
+  (`lib/stripe-webhook.ts`) to avoid loading the SDK for every webhook delivery.
+- **SDK for typed operations**: Checkout, subscription, and invoice operations
+  use the typed SDK for safety and forward compatibility.
 
 ## Risks to Monitor
 

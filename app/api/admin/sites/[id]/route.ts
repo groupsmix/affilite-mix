@@ -161,12 +161,16 @@ export async function DELETE(
     try {
       const kv = getAppCacheKV();
       if (kv) {
+        // KV.delete() only accepts exact keys — no wildcard support.
+        // Delete the site-specific cache entries using the site ID.
         await kv
-          .delete(`site-domain-miss:*`)
-          .catch((e) => captureException(e, { context: "KV cache purge: site-domain-miss" }));
+          .delete(`site-domain-miss:${id}`)
+          .catch((e: unknown) =>
+            captureException(e, { context: "KV cache purge: site-domain-miss" }),
+          );
         await kv
-          .delete(`admin-guard:site-slug:*`)
-          .catch((e) => captureException(e, { context: "KV cache purge: admin-guard" }));
+          .delete(`admin-guard:site-slug:${id}`)
+          .catch((e: unknown) => captureException(e, { context: "KV cache purge: admin-guard" }));
       }
     } catch {
       // fail-open: best-effort [criticality:non-critical]

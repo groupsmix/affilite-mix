@@ -152,23 +152,19 @@ export function verifyTotpToken(
  * E2-009: Detect whether a stored TOTP secret uses the legacy SHA-1 algorithm.
  * Returns true when the secret should be re-enrolled with SHA-256.
  *
- * Detection heuristic:
- *   - otpauth:// URIs with algorithm=SHA1 → needs re-enrollment
- *   - otpauth:// URIs with algorithm=SHA256/SHA512 → OK
- *   - Plain base32 strings (no URI) → legacy SHA-1, needs re-enrollment
+ * Detection heuristic (operates on the **stored/encrypted** form):
+ *   - enc:v1: prefix → enrolled after SHA-256 became default → OK
+ *   - enc:v0: prefix or plaintext → legacy enrollment → needs re-enrollment
+ *
+ * IMPORTANT: This must be called with the raw stored secret (before decryption),
+ * because after decryption all secrets are plain base32 strings and the algorithm
+ * cannot be inferred.
  */
-export function needsSha256Reenrollment(rawSecret: string | null | undefined): boolean {
-  if (!rawSecret) return false;
-  if (rawSecret.startsWith("otpauth://")) {
-    try {
-      const url = new URL(rawSecret);
-      const alg = url.searchParams.get("algorithm")?.toUpperCase();
-      return !alg || alg === "SHA1";
-    } catch {
-      return true;
-    }
-  }
-  // Plain base32 secret without URI → enrolled before algorithm parameter was stored → SHA-1
+export function needsSha256Reenrollment(storedSecret: string | null | undefined): boolean {
+  if (!storedSecret) return false;
+  // enc:v1: was introduced alongside SHA-256 default — these are current
+  if (storedSecret.startsWith("enc:v1:")) return false;
+  // enc:v0: or plaintext → legacy SHA-1 era enrollment
   return true;
 }
 
