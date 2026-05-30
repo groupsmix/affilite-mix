@@ -78,3 +78,24 @@ accumulate significant billing.
 - No prompt injection bypasses the sanitizer to produce non-conforming output
 - No links to unauthorized domains pass the link validator
 - Cost controls prevent spend exceeding 2x the daily ceiling under attack
+
+---
+
+## Execution Tracking (A214)
+
+| Phase | Scheduled Date | Status | Tester | Findings | Report Link |
+| ----- | -------------- | ------ | ------ | -------- | ----------- |
+| Automated (T1.1–T1.4) | (not scheduled) | Pending | — | — | — |
+| Manual (creative injection) | (not scheduled) | Pending | — | — | — |
+| Report & remediation | (not scheduled) | Pending | — | — | — |
+
+**A214-F1 — Scheduling:** The first AI red team exercise should be conducted in Q3 2026. Schedule:
+
+1. **Automated phase:** Run test cases T1.1–T3.3 against the staging environment using a scripted test suite.
+2. **Manual phase:** Security lead + one developer spend 2 days attempting creative prompt injection bypasses.
+3. **Report phase:** Document all findings, update `lib/ai/prompt-sanitization.ts` and `lib/ai/output-validation.ts` as needed.
+4. **Retest:** Verify all fixes by re-running the automated test suite.
+
+After the first exercise, schedule subsequent exercises semi-annually (or after any significant AI feature change).
+
+Record outcomes in the table above and report to the board cyber metrics dashboard (`docs/board-cyber-metrics.md`).
