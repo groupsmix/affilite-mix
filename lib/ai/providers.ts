@@ -332,11 +332,21 @@ export interface GenerateOptions {
  *
  * Configured via AI_GLOBAL_DAILY_CEILING_USD env var (default: 50 USD).
  */
+/**
+ * S5-A114-03: Apply a 10 % safety margin to the configured ceiling.
+ * `recordGlobalCost` uses a KV read-then-write pattern that is subject
+ * to a TOCTOU race under concurrent requests (Cloudflare KV does not
+ * support atomic CAS). Triggering the limit at 90 % of the nominal
+ * value absorbs the maximum plausible overrun from concurrent writes.
+ * The per-tenant quota system (`lib/quotas.ts`) remains the primary
+ * financial control.
+ */
 function getGlobalDailyCeilingMicroUsd(): number {
   const raw = process.env.AI_GLOBAL_DAILY_CEILING_USD;
   const usd = raw ? Number(raw) : 50;
-  if (!Number.isFinite(usd) || usd <= 0) return 50_000_000; // $50 default
-  return Math.round(usd * 1_000_000);
+  const SAFETY_MARGIN = 0.9;
+  if (!Number.isFinite(usd) || usd <= 0) return Math.round(50_000_000 * SAFETY_MARGIN);
+  return Math.round(usd * 1_000_000 * SAFETY_MARGIN);
 }
 
 /**
@@ -365,6 +375,14 @@ async function getGlobalDailyCostMicroUsd(): Promise<number> {
   return globalDailyCostFallback.microUsd;
 }
 
+/**
+ * S5-A114-03: Record global daily AI cost.
+ *
+ * The KV path uses a read-then-write pattern which has an inherent
+ * TOCTOU race under concurrent requests (Cloudflare KV lacks atomic
+ * CAS). See `getGlobalDailyCeilingMicroUsd` for the safety-margin
+ * mitigation that absorbs the race window.
+ */
 async function recordGlobalCost(microUsd: number): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   try {

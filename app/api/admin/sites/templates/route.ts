@@ -91,7 +91,8 @@ export const DELETE = withAuthz(
     try {
       await deleteNicheTemplate(id as string);
 
-      void recordAuditEvent({
+      // S0-FP-002: await audit for destructive actions so the trail is durable.
+      await recordAuditEvent({
         site_id: dbSiteId,
         actor: session.email ?? session.userId ?? "admin",
         action: "delete",

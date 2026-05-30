@@ -16,6 +16,7 @@
 
 import { getJwtSecret } from "@/lib/jwt-secret";
 import { captureException } from "@/lib/sentry";
+import { logger } from "@/lib/logger";
 
 const enc = new TextEncoder();
 
@@ -69,10 +70,12 @@ export function getOrDeriveHmacKey(purpose: string, usages: KeyUsage[]): Promise
 // Only attempt when JWT_SECRET is available to avoid unhandled rejections in
 // test suites that simulate production-without-secrets scenarios.
 if (process.env.JWT_SECRET || process.env.JWT_SECRET_CURRENT) {
-  void getOrDeriveHmacKey("activity-cookie", ["sign", "verify"]).catch((e) =>
-    captureException(e, { context: "[hmac-key] Pre-warm failed for activity-cookie" }),
-  );
-  void getOrDeriveHmacKey("signed-cookie", ["sign", "verify"]).catch((e) =>
-    captureException(e, { context: "[hmac-key] Pre-warm failed for signed-cookie" }),
-  );
+  void getOrDeriveHmacKey("activity-cookie", ["sign", "verify"]).catch((e) => {
+    logger.error("[hmac-key] Pre-warm failed for activity-cookie", { error: String(e) });
+    captureException(e, { context: "[hmac-key] Pre-warm failed for activity-cookie" });
+  });
+  void getOrDeriveHmacKey("signed-cookie", ["sign", "verify"]).catch((e) => {
+    logger.error("[hmac-key] Pre-warm failed for signed-cookie", { error: String(e) });
+    captureException(e, { context: "[hmac-key] Pre-warm failed for signed-cookie" });
+  });
 }
