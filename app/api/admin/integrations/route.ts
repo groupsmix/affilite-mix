@@ -112,7 +112,8 @@ export const DELETE = withAuthz("integrations", "delete", async (request, { sess
   try {
     await deleteSiteIntegration(siteId, providerKey);
 
-    void recordAuditEvent({
+    // S0-FP-002: await audit for destructive actions so the trail is durable.
+    await recordAuditEvent({
       site_id: siteId,
       actor: session.email ?? "admin",
       action: "delete_integration",
