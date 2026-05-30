@@ -52,11 +52,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "target_type and target_id are required" }, { status: 400 });
   }
 
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 1), 100);
+  const offset = Math.max(parseInt(url.searchParams.get("offset") ?? "0", 10) || 0, 0);
+
   try {
     const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
     const siteId = await resolveDbSiteId(siteSlug);
-    const comments = await listApprovedComments(siteId, targetType, targetId);
-    return NextResponse.json({ comments });
+    const comments = await listApprovedComments(siteId, targetType, targetId, { limit, offset });
+    return NextResponse.json({ comments, pagination: { limit, offset } });
   } catch (err) {
     // audit5-#10: this was previously `// fail-open: best-effort` with
     // no log or Sentry breadcrumb. A 500 to the user with zero

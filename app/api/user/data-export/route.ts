@@ -6,6 +6,7 @@ import { getTenantClient } from "@/lib/supabase-server";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { logger } from "@/lib/logger";
 import { isValidEmail, sanitizeEmailInput } from "@/lib/validate-email";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 /**
  * S3-004: GDPR Art. 20 — self-service data portability endpoint.
@@ -30,6 +31,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { error: "Too many requests. Try again later." },
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
+  // A47-02: Require Turnstile CAPTCHA to prevent automated email enumeration.
+  const turnstileToken = request.nextUrl.searchParams.get("turnstile_token");
+  if (!turnstileToken) {
+    return NextResponse.json(
+      { error: "turnstile_token parameter is required for bot protection." },
+      { status: 400 },
+    );
+  }
+  const turnstileResult = await verifyTurnstile(turnstileToken, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json(
+      { error: "CAPTCHA verification failed. Please try again." },
+      { status: 403 },
     );
   }
 

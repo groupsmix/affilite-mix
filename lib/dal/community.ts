@@ -121,14 +121,19 @@ export async function createComment(
  * matching comment on `listApprovedWristShots` above — the explicit
  * `.eq("site_id", siteId)` is a defense-in-depth filter that survives
  * a future swap to a privileged client which would bypass RLS.
+ *
+ * A46-03: Added limit/offset pagination to bound result size.
  */
 export async function listApprovedComments(
   siteId: string,
   targetType: "product" | "content",
   targetId: string,
+  options: { limit?: number; offset?: number } = {},
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<CommentRow[]> {
   const sb = await getClient();
+  const limit = Math.min(options.limit ?? 50, 100);
+  const offset = options.offset ?? 0;
 
   const { data, error } = await sb
     .from(COMMENTS_TABLE)
@@ -137,7 +142,8 @@ export async function listApprovedComments(
     .eq("target_type", targetType)
     .eq("target_id", targetId)
     .eq("status", "approved")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .range(offset, offset + limit - 1);
 
   if (error) throw error;
   return assertRows<CommentRow>(data);
