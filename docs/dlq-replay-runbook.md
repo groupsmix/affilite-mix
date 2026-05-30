@@ -32,6 +32,7 @@ Check the alerting-runbook.md DLQ section for alert thresholds.
 ### 2. Diagnose Root Cause
 
 Before replaying, confirm the underlying issue is resolved:
+
 - Check Supabase status (connection pool, query timeouts)
 - Verify the Worker is healthy (`wrangler tail affilite-mix`)
 - Review recent deploys that may have introduced a regression
@@ -46,12 +47,14 @@ npx tsx scripts/dlq-replay.ts --queue click-tracking-dlq --target click-tracking
 ```
 
 If `scripts/dlq-replay.ts` does not exist yet, use the Cloudflare dashboard:
+
 1. Navigate to Workers & Pages → Queues → `click-tracking-dlq`
 2. Select messages → "Retry" to re-enqueue them to the main queue
 
 ### 4. Monitor
 
 After replay:
+
 - Watch the main queue consumer logs for the replayed batch
 - Confirm the queue depth returns to zero
 - Check Sentry for any new errors from the replayed messages
