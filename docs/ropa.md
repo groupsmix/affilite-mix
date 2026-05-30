@@ -98,7 +98,7 @@ This assessment will be revisited if the platform (a) introduces profiling-based
 
 ## DPO Contact
 
-_To be designated by the data controller._
+Contact: privacy@groupsmix.com (designated by the data controller).
 
 ## Automated Retention (purge_retention)
 
@@ -116,6 +116,7 @@ and executes the following deletes inside a single transaction:
 | `web_vitals`             | `created_at < now() - interval`                                              | 90 d   |
 | `experiment_events`      | `created_at < now() - interval`                                              | 180 d  |
 | `ad_impressions`         | `created_at < now() - interval`                                              | 180 d  |
+| `consent_log`            | `created_at < now() - interval`                                              | 7 y    |
 
 The windows are defined as DECLAREs at the top of `purge_retention()`;
 any change MUST be mirrored in this table and reviewed by the DPO.
@@ -129,4 +130,4 @@ The corresponding data categories are also covered in the table above:
 
 ## Last Updated
 
-2026-04-30 (audit A61-A100: cross-border reconciliation, PII matrix, DPIA, children's data, HIPAA/PCI scoping)
+2026-05-30 (audit S3 A61-A85: added consent_log and web_vitals retention, DPO contact, IP minimization disclosure)

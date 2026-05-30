@@ -296,6 +296,46 @@ export async function POST(request: NextRequest) {
     captureException(err, { context: "[cron/data-retention] stripe_events failed:" });
   }
 
+  // A70-F2: Purge web_vitals older than 90 days (matches privacy policy).
+  try {
+    const vitalsDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const { error: vitalsError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+      .from("web_vitals")
+      .delete()
+      // F-API-01: cross-tenant web_vitals retention sweep.
+      .unsafeNoSiteFilter()
+      .lt("created_at", vitalsDate.toISOString());
+
+    if (vitalsError) throw vitalsError;
+    results.web_vitals = { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    results.web_vitals = { success: false, error: msg };
+    captureException(err, { context: "[cron/data-retention] web_vitals failed:" });
+  }
+
+  // A61-F1: Purge consent_log older than 7 years (retain as long as needed
+  // to demonstrate lawful basis per GDPR Art. 7(1), capped at statute of
+  // limitations ceiling).
+  try {
+    const consentDate = new Date(now.getTime() - 7 * 365 * 24 * 60 * 60 * 1000);
+    const { error: consentError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+      .from("consent_log")
+      .delete()
+      // F-API-01: cross-tenant consent_log retention sweep.
+      .unsafeNoSiteFilter()
+      .lt("created_at", consentDate.toISOString());
+
+    if (consentError) throw consentError;
+    results.consent_log = { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    results.consent_log = { success: false, error: msg };
+    captureException(err, { context: "[cron/data-retention] consent_log failed:" });
+  }
+
   logger.info("Data retention cron complete", { results });
 
   const hasErrors = Object.values(results).some((r) => !r.success);
