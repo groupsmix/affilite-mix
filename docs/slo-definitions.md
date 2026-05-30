@@ -128,6 +128,11 @@ S3-006: Automated burn-rate alerts based on Google SRE Workbook ch. 5.
 Each SLO surface should have both a fast-burn and slow-burn alert rule configured
 in the alerting backend (Sentry, Better Stack, or Cloudflare notifications).
 
+> **A85-F1 — Deployment status:** These alert rules are documented but not yet
+> deployed as IaC. When adopting Terraform or Pulumi for Cloudflare resources,
+> add `cloudflare_notification_policy` resources for each row below. Until then,
+> configure alerts manually in the Cloudflare dashboard or Sentry alert rules UI.
+
 ### Fast-Burn Alerts (page-worthy)
 
 | Surface            | SLO    | Burn Rate | Long Window | Short Window | Action        |

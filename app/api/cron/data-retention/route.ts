@@ -261,6 +261,23 @@ export async function POST(request: NextRequest) {
 
         if (auditError) throw auditError;
         deletedCount = ids.length;
+
+        // A82-F1: Persist checkpoint so interrupted fallback runs resume
+        // past already-deleted rows instead of re-fetching them.
+        const lastDeletedId = ids[ids.length - 1];
+        await sb
+          // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+          .from("cron_state")
+          .upsert(
+            {
+              job_name: "data-retention:audit-log-fallback",
+              last_id: lastDeletedId,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "job_name" },
+          )
+
+          .unsafeNoSiteFilter();
       }
       results.audit_log = { success: true, archived: archivedCount, deleted: deletedCount };
     } else {
