@@ -32,6 +32,7 @@
 
 import { reserveQuota, releaseQuota } from "@/lib/quotas";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { logger } from "@/lib/logger";
 
 // ── Lightweight AWS Signature V4 presigner ────────────────────────────
 
@@ -570,7 +571,12 @@ export async function promoteToPublicBucket(
     throw new Error(`R2 promote failed: ${res.status}`);
   }
   // Best-effort cleanup of staging object on success.
-  await deleteFromBucket(env.privateBucket, stagingKey).catch(() => undefined);
+  await deleteFromBucket(env.privateBucket, stagingKey).catch((e) => {
+    logger.warn("Failed to clean up staging object after promotion", {
+      stagingKey,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  });
   return {
     publicKey: stagingKey,
     publicUrl: `${env.publicUrlBase.replace(/\/$/, "")}/${stagingKey}`,
