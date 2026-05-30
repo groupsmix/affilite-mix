@@ -32,10 +32,12 @@ export function getCookieValue(name: string): string | null {
   const match = document.cookie.split("; ").find((row) => row.startsWith(`${name}=`));
   if (!match) return null;
   try {
-    return decodeURIComponent(match.split("=")[1]);
+    // A96-5 / A100-27: Use slice(1).join("=") to handle base64 values
+    // containing "=" characters that would be truncated by split("=")[1].
+    return decodeURIComponent(match.split("=").slice(1).join("="));
   } catch {
     // fail-open: best-effort [criticality:non-critical]
-    return match.split("=")[1];
+    return match.split("=").slice(1).join("=");
   }
 }
 
