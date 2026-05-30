@@ -7,6 +7,16 @@ const DEFAULT_ALGORITHM = "SHA256";
 const DIGITS = 6;
 const PERIOD = 30;
 
+/**
+ * RISK-11 (étap-3): SHA-1 TOTP hard deprecation deadline.
+ *
+ * After this date, SHA-1 TOTP verification is rejected and users are
+ * forced to re-enroll with SHA-256. Set to 90 days from the étap-3
+ * audit date (2026-05-29). The advisory `totp_needs_reenroll` flag
+ * warns users during the grace period.
+ */
+const SHA1_DEPRECATION_DEADLINE = new Date("2026-08-27T00:00:00Z");
+
 // A98-53: Markers for encrypted TOTP secrets to distinguish from legacy plaintext
 const ENCRYPTION_PREFIX = "enc:v1:";
 const ENCRYPTION_PREFIX_PREVIOUS = "enc:v0:";
@@ -169,6 +179,14 @@ export function needsSha256Reenrollment(storedSecret: string | null | undefined)
 }
 
 /**
+ * RISK-11 (étap-3): Check whether SHA-1 TOTP is past the hard deprecation deadline.
+ * After the deadline, legacy SHA-1 secrets are rejected entirely.
+ */
+export function isSha1TotpPastDeadline(): boolean {
+  return new Date() >= SHA1_DEPRECATION_DEADLINE;
+}
+
+/**
  * A98-53: Verify a TOTP token against a potentially encrypted stored secret.
  *
  * This is the RECOMMENDED verification path for DB-stored secrets because it:
@@ -187,6 +205,11 @@ export async function verifyTotpTokenWithRotation(
   decryptFn: (ciphertext: string, usePreviousKey: boolean) => Promise<string | null>,
 ): Promise<boolean> {
   if (!storedSecret || !token) return false;
+
+  // RISK-11 (étap-3): Reject SHA-1 TOTP secrets after the hard deprecation deadline
+  if (needsSha256Reenrollment(storedSecret) && isSha1TotpPastDeadline()) {
+    return false;
+  }
 
   // Normalize token (remove whitespace)
   const normalizedToken = token.replace(/\s/g, "");

@@ -78,6 +78,28 @@ Identifying details for accessibility complaints must be stored only in internal
 - **Manual testing:** Keyboard-only navigation quarterly; VoiceOver / NVDA quarterly
 - **Color contrast:** Checked via Contrast Checker on every new UI component PR
 
+### A201-F1 — External Audit Recommendation
+
+Internal automated scans (axe-core) catch ~30-40% of accessibility issues. An external audit by a qualified firm is recommended to achieve meaningful AA conformance:
+
+**Recommended firms (WCAG 2.2 specialists):**
+
+- **Deque Systems** — offers VPAT creation + remediation guidance
+- **Level Access** — provides ongoing monitoring + auditing
+- **WebAIM** — academic-affiliated, cost-effective for smaller projects
+
+**Scope for external audit:**
+
+1. Full VPAT (Voluntary Product Accessibility Template) for the public-facing sites.
+2. Manual testing with assistive technology (JAWS, NVDA, VoiceOver, TalkBack).
+3. Keyboard-only navigation audit.
+4. Color contrast analysis across all themes (light + dark mode).
+5. Prioritized remediation roadmap.
+
+**Timeline:** Commission the external audit in Q1 2027 (per the remediation roadmap above). Budget: $5,000–$15,000 depending on scope and firm.
+
+**Evidence:** Store the VPAT and audit report in `docs/compliance-evidence/accessibility/`.
+
 ---
 
 ## Legal Basis

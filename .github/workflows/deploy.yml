@@ -61,6 +61,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Serialize all deploys to the same ref so concurrent pushes to main
+# (e.g. batch-merging multiple PRs) do not hit Cloudflare API rate
+# limits from parallel `wrangler secret put` calls (each deploy makes
+# ~35 sequential API calls). cancel-in-progress: false queues later
+# runs instead of cancelling them, so no migration is interrupted.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 # Top-level default: read-only. Each deploy job below explicitly opts into
 # the extra scopes it needs (e.g. `id-token: write` for OIDC,
 # `deployments: write` for GitHub deployment statuses).
@@ -315,13 +324,27 @@ jobs:
 
           echo "All required secrets are present"
 
-      # ── RISK-OBS-01 (#586): Validate production alerting config ─────
+      # ── RISK-OBS-01 (#586) + A40-03: Validate production alerting config ──
+      # A40-03: Upgraded from warning to error for production deploys.
+      # Alert mechanisms must be configured before shipping to production.
       - name: Validate alerting configuration
         run: |
           set -euo pipefail
-          npx tsx scripts/validate-alerting-config.ts || {
-            echo "::warning::Production alerting is not configured. See terraform/cloudflare/production.tfvars.example."
-          }
+          if npx tsx scripts/validate-alerting-config.ts; then
+            echo "Alerting configuration validated"
+          else
+            if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              echo "::error::A40-03: Production alerting is not configured. Alert mechanisms must be set before deploying to production."
+              echo "::error::See terraform/cloudflare/production.tfvars.example for required alert_mechanisms configuration."
+              echo "::error::Set repo variable SKIP_ALERTING_CHECK=true for a temporary override (audit-logged)."
+              if [ "${{ vars.SKIP_ALERTING_CHECK }}" != "true" ]; then
+                exit 1
+              fi
+              echo "::warning::SKIP_ALERTING_CHECK=true — bypassing alerting validation (override by ${{ github.actor }})"
+            else
+              echo "::warning::Production alerting is not configured. See terraform/cloudflare/production.tfvars.example."
+            fi
+          fi
 
       # ── Require scoped API token (no Global API Key fallback) ──────
       - name: Require scoped CLOUDFLARE_API_TOKEN
@@ -1059,6 +1082,19 @@ jobs:
       - name: Build OpenNext bundle
         run: npx @opennextjs/cloudflare build
 
+      # ── A34-05: Generate SBOM for supply-chain transparency ──────────
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.cdx.json --output-format json --omit dev
+          echo "SBOM generated: $(jq '.components | length' sbom.cdx.json) components"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
+
       # ── Set Worker secrets BEFORE deploy (audit R-004) ────────────────
       #
       # Cloudflare evaluates secrets at request time, so a deploy that
@@ -1598,6 +1634,49 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "For gradual rollouts, use the **Deploy (gradual rollout)** workflow instead." >> "$GITHUB_STEP_SUMMARY"
           echo "See: \`.github/workflows/deploy-gradual.yml\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # RISK-06 (étap-3): Post-deploy E2E smoke tests
+  #
+  # Runs a subset of Playwright E2E specs against the live deployment
+  # URL after health checks pass. Failures are warnings (continue-on-error)
+  # to avoid blocking deploys on flaky E2E tests during rollout.
+  # ═══════════════════════════════════════════════════════════════════
+  e2e-smoke:
+    needs: [deploy, health-check]
+    if: success()
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E smoke tests
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://wristnerd.xyz' }}
+        run: |
+          set -euo pipefail
+          if [ -z "$E2E_BASE_URL" ]; then
+            echo "::warning::E2E_BASE_URL not set — skipping post-deploy E2E tests"
+            exit 0
+          fi
+          echo "Running E2E smoke tests against $E2E_BASE_URL..."
+          npx playwright test e2e/public-content.spec.ts e2e/public-search.spec.ts \
+            --reporter=list --timeout=30000 || {
+              echo "::warning::E2E smoke tests failed — review results before merging next deploy"
+              exit 0
+            }
 
   # ═══════════════════════════════════════════════════════════════════
   # H-5: Automated migration rollback on deploy/health failure
