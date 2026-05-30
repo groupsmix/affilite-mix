@@ -10,6 +10,7 @@ import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { hashResetToken } from "@/lib/reset-token";
 import { buildPasswordResetEmail } from "@/lib/email-templates/password-reset";
+import { resolveSendingEmail } from "@/lib/sending-email";
 
 /**
  * POST /api/auth/forgot-password
@@ -116,8 +117,12 @@ export async function POST(request: Request) {
     const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {
-      const fallbackFromEmail = `noreply@${site.domain}`;
-      const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? fallbackFromEmail;
+      // A144-01: per-tenant sending email for SPF/DKIM alignment
+      const safeFpDomain = site.domain
+        .normalize("NFC")
+        .replace(/[\r\n\0]/g, "")
+        .toLowerCase();
+      const fromEmail = resolveSendingEmail(site, safeFpDomain);
       // Locale-aware email body so Arabic-language tenants receive
       // translated, RTL-marked content (G-24).
       // A5-002: safeHref validation happens inside buildPasswordResetEmail.
