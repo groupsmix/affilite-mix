@@ -6,7 +6,7 @@ import { getActiveMembership } from "@/lib/dal/memberships";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
 import { logger } from "@/lib/logger";
-import { isValidEmail, normalizeEmail } from "@/lib/validate-email";
+import { isValidEmail, normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
 import { parseJsonBody } from "@/lib/api-error";
 
 /**
@@ -113,6 +113,20 @@ export async function POST(request: NextRequest) {
   }
   // AM-09: Normalize email to prevent casing-based duplicate memberships
   body.email = normalizeEmail(body.email);
+
+  // A155-02: per-email rate limit to prevent checkout abuse from rotating IPs
+  const checkoutEmailHash = await hashEmailForRateLimit(body.email);
+  const emailRl = await checkRateLimit(`membership-checkout-email:${checkoutEmailHash}`, {
+    maxRequests: 3,
+    windowMs: 60 * 60 * 1000,
+    failPolicy: "closed" as const,
+  });
+  if (!emailRl.allowed) {
+    return NextResponse.json(
+      { error: "Too many checkout attempts for this email" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(emailRl.retryAfterMs / 1000)) } },
+    );
+  }
 
   // A-2: validate tier against an allowlist *before* resolving a price.
   // We never trust the raw body value for price selection.
