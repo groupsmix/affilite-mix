@@ -182,18 +182,17 @@ export interface DomainValidationResult {
  * Returns `{ allowed: true }` if the domain is permitted, or
  * `{ allowed: false, reason }` if not.
  *
- * In "warn" enforcement mode (default), invalid domains are logged
- * but the write is still allowed. In "strict" mode, invalid domains
- * are rejected.
+ * In "strict" enforcement mode (default in all environments), invalid
+ * domains are rejected. In "warn" mode (explicit opt-in via
+ * AFFILIATE_DOMAIN_ENFORCEMENT=warn), invalid domains are logged but
+ * still allowed — use this only during a data-audit window.
  */
 export function validateAffiliateDomain(url: string): DomainValidationResult {
-  // FRESH-02: default to "strict" in production so an unapproved domain
-  // is rejected rather than logged-and-allowed. Operators can set
+  // S1-A1-001: default to "strict" in ALL environments so an unapproved
+  // domain is always rejected. Operators can explicitly set
   // AFFILIATE_DOMAIN_ENFORCEMENT=warn during a data-audit window, but
-  // "warn" must be an explicit production opt-in — not the default.
-  const enforcement =
-    process.env.AFFILIATE_DOMAIN_ENFORCEMENT ??
-    (process.env.NODE_ENV === "production" ? "strict" : "warn");
+  // "warn" must be an explicit opt-in — never the default.
+  const enforcement = process.env.AFFILIATE_DOMAIN_ENFORCEMENT ?? "strict";
 
   let hostname: string;
   try {

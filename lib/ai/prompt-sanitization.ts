@@ -154,6 +154,18 @@ const INSTRUCTION_OVERRIDE_PATTERNS: ReadonlyArray<RegExp> = [
   /new\s+instructions?:\s*/gi,
   /actually[,.]?\s*(you\s+should|your\s+real|the\s+real)\s/gi,
   /do\s+not\s+follow\s+(the\s+)?(system|previous|above)/gi,
+  // S5-A101-02: French instruction-override patterns
+  /ignore[rz]\s+(toutes?\s+)?(les\s+)?(instructions?|consignes?|r[eè]gles?)\s+(pr[eé]c[eé]dentes?|ant[eé]rieures?|ci-dessus)/gi,
+  /ne\s+(pas\s+)?sui(vre|vez)\s+(les\s+)?(instructions?|consignes?|r[eè]gles?)/gi,
+  /oublie[rz]\s+(toutes?\s+)?(les\s+)?(instructions?|consignes?)/gi,
+  // S5-A101-02: Spanish instruction-override patterns
+  /ignora(r)?\s+(todas?\s+)?(las\s+)?(instrucciones?|reglas?)\s+(previas?|anteriores?)/gi,
+  /olvida(r)?\s+(todas?\s+)?(las\s+)?(instrucciones?|reglas?)\s+(previas?|anteriores?)/gi,
+  /no\s+sigas?\s+(las\s+)?(instrucciones?|reglas?)/gi,
+  // S5-A101-02: Portuguese instruction-override patterns
+  /ignor(e|ar)\s+(todas?\s+)?(as\s+)?(instru[cç][oõ]es|regras?)\s+(previas?|anteriores?)/gi,
+  /esque[cç](a|er)\s+(todas?\s+)?(as\s+)?(instru[cç][oõ]es|regras?)/gi,
+  /n[aã]o\s+siga\s+(as\s+)?(instru[cç][oõ]es|regras?)/gi,
 ];
 
 /**

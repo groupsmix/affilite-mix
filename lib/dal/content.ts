@@ -149,12 +149,16 @@ export async function createContent(
   return assertRow<ContentRow>(data, "Content");
 }
 
-/** Update content (saves previous body for version history) */
+/** Update content (saves previous body for version history).
+ *  S1-A18-001: Accepts optional `expectedUpdatedAt` for optimistic locking.
+ *  When provided, the update is conditioned on the row's `updated_at` matching
+ *  the value the client last read — preventing lost-update races (CWE-362). */
 export async function updateContent(
   siteId: string,
   id: string,
   input: Partial<Omit<ContentRow, "id" | "site_id" | "created_at" | "updated_at">>,
   getClient: DalClientGetter = defaultDalClientGetter,
+  expectedUpdatedAt?: string,
 ): Promise<ContentRow> {
   const sb = await getClient();
 
@@ -172,15 +176,27 @@ export async function updateContent(
     }
   }
 
-  const { data, error } = await sb
-    .from(TABLE)
-    .update(input)
-    .eq("site_id", siteId)
-    .eq("id", id)
-    .select()
-    .single();
+  let query = sb.from(TABLE).update(input).eq("site_id", siteId).eq("id", id);
 
-  if (error) throw error;
+  // S1-A18-001: Optimistic locking — only update if row hasn't been
+  // modified since the client last read it.
+  if (expectedUpdatedAt) {
+    query = query.eq("updated_at", expectedUpdatedAt);
+  }
+
+  const { data, error } = await query.select().single();
+
+  if (error) {
+    // PGRST116 = no rows matched — likely an optimistic lock conflict
+    if (error.code === "PGRST116" && expectedUpdatedAt) {
+      const conflictErr = new Error(
+        "Content was modified by another user. Please refresh and try again.",
+      );
+      (conflictErr as Error & { status?: number }).status = 409;
+      throw conflictErr;
+    }
+    throw error;
+  }
   return assertRow<ContentRow>(data, "Content");
 }
 
