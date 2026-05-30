@@ -1600,6 +1600,49 @@ jobs:
           echo "See: \`.github/workflows/deploy-gradual.yml\`" >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════════════
+  # RISK-06 (étap-3): Post-deploy E2E smoke tests
+  #
+  # Runs a subset of Playwright E2E specs against the live deployment
+  # URL after health checks pass. Failures are warnings (continue-on-error)
+  # to avoid blocking deploys on flaky E2E tests during rollout.
+  # ═══════════════════════════════════════════════════════════════════
+  e2e-smoke:
+    needs: [deploy, health-check]
+    if: success()
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E smoke tests
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL || 'https://wristnerd.xyz' }}
+        run: |
+          set -euo pipefail
+          if [ -z "$E2E_BASE_URL" ]; then
+            echo "::warning::E2E_BASE_URL not set — skipping post-deploy E2E tests"
+            exit 0
+          fi
+          echo "Running E2E smoke tests against $E2E_BASE_URL..."
+          npx playwright test e2e/public-content.spec.ts e2e/public-search.spec.ts \
+            --reporter=list --timeout=30000 || {
+              echo "::warning::E2E smoke tests failed — review results before merging next deploy"
+              exit 0
+            }
+
+  # ═══════════════════════════════════════════════════════════════════
   # H-5: Automated migration rollback on deploy/health failure
   #
   # When the Worker deploy or post-deploy health check fails after
