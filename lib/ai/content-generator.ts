@@ -11,7 +11,11 @@ import {
 } from "./content-moderation";
 import { sanitizePrompt } from "./prompt-sanitization";
 import { sanitizeHtml } from "@/lib/sanitize-html";
-import { validateOutputFormat, validateGeneratedLinks, checkContentQuality } from "./output-validation";
+import {
+  validateOutputFormat,
+  validateGeneratedLinks,
+  checkContentQuality,
+} from "./output-validation";
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
 
