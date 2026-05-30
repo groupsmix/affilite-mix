@@ -2,6 +2,14 @@ import type Stripe from "stripe";
 import { applyStripeEventAtomic, type StripeEventOp } from "@/lib/dal/stripe-events";
 import { logger } from "@/lib/logger";
 
+/** A91-2: Typed error wrapper preserving the original cause. */
+class ProcessorError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "ProcessorError";
+  }
+}
+
 export interface StripeProcessingResult {
   duplicate: boolean;
   membershipId: string | null;
@@ -82,10 +90,11 @@ async function buildStripeEventPayload(
       try {
         sub = await stripe.subscriptions.retrieve(subscriptionId);
       } catch (err) {
-        logger.error("Failed to retrieve subscription from Stripe in checkout.session.completed", {
-          subscriptionId,
-          error: err,
-        });
+        const wrapped = new ProcessorError(
+          "checkout.session.completed: subscription retrieval failed",
+          { cause: err },
+        );
+        logger.error(wrapped.message, { subscriptionId, cause: String(err) });
         return { op: "noop" };
       }
       return {
@@ -113,10 +122,10 @@ async function buildStripeEventPayload(
       try {
         sub = await stripe.subscriptions.retrieve(subscriptionId);
       } catch (err) {
-        logger.error("Failed to retrieve subscription from Stripe in invoice.paid", {
-          subscriptionId,
-          error: err,
+        const wrapped = new ProcessorError("invoice.paid: subscription retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { subscriptionId, cause: String(err) });
         return { op: "noop" };
       }
       return {
@@ -155,7 +164,17 @@ async function buildStripeEventPayload(
       const charge = event.data.object as Stripe.Charge;
       const paymentIntentId =
         typeof charge.payment_intent === "string" ? charge.payment_intent : undefined;
-      logger.info("Stripe charge refunded", { chargeId: charge.id, paymentIntentId });
+      // A169-01: distinguish partial vs full refund
+      const amountRefunded = charge.amount_refunded ?? 0;
+      const amountTotal = charge.amount ?? 0;
+      const isFullRefund = amountTotal > 0 && amountRefunded >= amountTotal;
+      logger.info("Stripe charge refunded", {
+        chargeId: charge.id,
+        paymentIntentId,
+        amountRefunded,
+        amountTotal,
+        isFullRefund,
+      });
 
       const invoiceId = getChargeInvoiceId(charge);
       if (!invoiceId) return { op: "noop" };
@@ -163,25 +182,35 @@ async function buildStripeEventPayload(
       try {
         invoice = await stripe.invoices.retrieve(invoiceId);
       } catch (err) {
-        logger.error("Failed to retrieve invoice from Stripe in charge.refunded", {
-          invoiceId,
-          error: err,
+        const wrapped = new ProcessorError("charge.refunded: invoice retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { invoiceId, cause: String(err) });
         return { op: "noop" };
       }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
-      return {
-        op: "cancel_membership",
-        stripe_subscription_id: subscriptionId,
-      };
+      // A169-01: only cancel on full refund; partial refunds just log
+      if (isFullRefund) {
+        return {
+          op: "cancel_membership",
+          stripe_subscription_id: subscriptionId,
+        };
+      }
+      logger.info("Partial refund — membership retained", {
+        subscriptionId,
+        amountRefunded,
+        amountTotal,
+      });
+      return { op: "noop" };
     }
 
     case "charge.dispute.created":
     case "charge.dispute.updated": {
       const dispute = event.data.object as Stripe.Dispute;
-      logger.warn("Stripe dispute received — manual review required", {
+      // A169-02: auto-suspend membership on dispute
+      logger.warn("Stripe dispute received — auto-suspending membership", {
         disputeId: dispute.id,
         status: dispute.status,
         amount: dispute.amount,
@@ -193,10 +222,10 @@ async function buildStripeEventPayload(
       try {
         charge = await stripe.charges.retrieve(dispute.charge);
       } catch (err) {
-        logger.error("Failed to retrieve charge from Stripe in dispute handler", {
-          chargeId: dispute.charge,
-          error: err,
+        const wrapped = new ProcessorError("charge.dispute: charge retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { chargeId: dispute.charge, cause: String(err) });
         return { op: "noop" };
       }
       const invoiceId = getChargeInvoiceId(charge);
@@ -205,19 +234,20 @@ async function buildStripeEventPayload(
       try {
         invoice = await stripe.invoices.retrieve(invoiceId);
       } catch (err) {
-        logger.error("Failed to retrieve invoice from Stripe in dispute handler", {
-          invoiceId,
-          error: err,
+        const wrapped = new ProcessorError("charge.dispute: invoice retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { invoiceId, cause: String(err) });
         return { op: "noop" };
       }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
+      // A169-02: set to "disputed" instead of "past_due" for clear audit trail
       return {
         op: "update_status",
         stripe_subscription_id: subscriptionId,
-        status: "past_due",
+        status: "disputed",
       };
     }
 

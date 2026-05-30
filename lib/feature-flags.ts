@@ -123,6 +123,16 @@ export function validateFlagRegistry(): string[] {
       continue;
     }
 
+    // A100-30: Validate ISO 8601 date format (YYYY-MM-DD or full ISO timestamp).
+    // String comparison in getExpiredFlags() depends on zero-padded dates.
+    const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?Z?)?$/;
+    if (!ISO_DATE_RE.test(flag.createdAt) || !ISO_DATE_RE.test(flag.expiresAt)) {
+      errors.push(
+        `Flag "${flag.key}" has non-ISO date format. createdAt and expiresAt must be zero-padded ISO 8601 (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ).`,
+      );
+      continue;
+    }
+
     // Check createdAt <= expiresAt
     const created = new Date(flag.createdAt);
     const expires = new Date(flag.expiresAt);

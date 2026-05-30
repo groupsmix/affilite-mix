@@ -24,6 +24,9 @@ on:
         required: false
         default: "15s"
         type: string
+  # RISK-14 (étap-3): Nightly load test to catch performance regressions
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
 
 jobs:
   load-test:
@@ -38,5 +41,6 @@ jobs:
       - name: Run load test
         run: bash scripts/load-test.sh
         env:
-          TARGET_URL: ${{ inputs.target_url }}
-          DURATION: ${{ inputs.duration }}
+          # RISK-14: For scheduled runs, fall back to production URL
+          TARGET_URL: ${{ inputs.target_url || 'https://wristnerd.xyz' }}
+          DURATION: ${{ inputs.duration || '15s' }}
