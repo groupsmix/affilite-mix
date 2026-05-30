@@ -1,8 +1,8 @@
 # AI System Technical Documentation — EU AI Act Annex IV
 
 **System Name:** Affilite-Mix AI Content Generation Subsystem
-**Version:** 1.0
-**Date:** 2026-05-24
+**Version:** 1.1
+**Date:** 2026-05-30
 **Risk Classification:** MINIMAL RISK (Article 6, Annex III)
 **Classification Rationale:** Content generation assistant for affiliate marketing; does not make decisions affecting natural persons' rights, safety, health, or access to services.
 
@@ -122,8 +122,9 @@ The AI system generates draft affiliate marketing content (articles, reviews, co
 
 ### 4.4 Transparency Marking
 
-- Machine-readable: `<!-- ai-generated: true -->` + `<meta name="ai-generated">`
-- Human-readable: visible "AI-assisted content" disclosure on published pages
+- Machine-readable: `<div data-ai-generated="true">` in body + `<meta name="ai-generated">` in page head
+- Database: `content.ai_generated` boolean column (authoritative source)
+- Human-readable: visible "AI-assisted content" disclosure on published pages (Art. 50)
 
 ## 5. Risk Management (Annex IV §5)
 
@@ -143,12 +144,15 @@ The AI system generates draft affiliate marketing content (articles, reviews, co
 - Semantic-level jailbreaks (mitigated by output format validation + human review)
 - Arabic text token estimation imprecision (mitigated by language-aware heuristic)
 - Provider-side model updates between pinned versions (mitigated by version pinning + CI checks)
+- KV global cost counter TOCTOU race under concurrency (mitigated by 10% safety margin — S5-A114-03)
+- Multilingual prompt injection in uncovered languages (mitigated by system-prompt hardening — S5-A101-02)
 
 ## 6. Changes and Updates
 
 | Date       | Change                                  | Author        |
 | ---------- | --------------------------------------- | ------------- |
 | 2026-05-24 | Initial documentation per audit A109-F2 | Security team |
+| 2026-05-30 | S5 audit: updated watermark format, added residual risks (A114-03, A101-02) | Season 5 audit |
 
 ---
 
