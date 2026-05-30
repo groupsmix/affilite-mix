@@ -28,6 +28,19 @@
 - Warm-standby Supabase project provisioned in a second region.
 - Daily logical backup → restore CI job running successfully.
 
+### A191 — Warm-Standby Verification Schedule
+
+The warm-standby must be **tested quarterly** to ensure it is actually functional and data is current:
+
+1. **Monthly:** Verify the daily logical backup CI job completed successfully (check GitHub Actions run history).
+2. **Quarterly:** Perform a full failover drill:
+   - Trigger the failover procedure (§2 below) against a **staging** environment.
+   - Verify data freshness: compare row counts on key tables (`click_events`, `newsletter_subscribers`, `sites`) between primary and standby.
+   - Verify read-only mode works: confirm POST/PUT/PATCH/DELETE return 503.
+   - Execute failback and verify full functionality restored.
+   - Record the drill result in the tabletop exercise log (`docs/tabletop-exercises.md`).
+3. **Acceptance criteria:** If any drill step fails, file a P1 issue and fix within 7 days. The RTO target (4 hours) is only valid if the standby is verified operational.
+
 ### Failover Procedure
 
 1. **Assess the outage:** Check Supabase status page and confirm the primary region is down.

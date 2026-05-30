@@ -19,5 +19,12 @@ terraform {
     region         = "us-east-1"
     dynamodb_table = "groupsmix-tflock"
     encrypt        = true
+    # A35-03: If cross-account access is used, uncomment and set external_id
+    # to prevent confused-deputy attacks. Generate a unique value per
+    # environment and store it alongside the assume_role configuration.
+    # assume_role = {
+    #   role_arn    = "arn:aws:iam::ACCOUNT_ID:role/TerraformRole"
+    #   external_id = "UNIQUE_EXTERNAL_ID"
+    # }
   }
 }
