@@ -83,11 +83,11 @@ accumulate significant billing.
 
 ## Execution Tracking (A214)
 
-| Phase | Scheduled Date | Status | Tester | Findings | Report Link |
-| ----- | -------------- | ------ | ------ | -------- | ----------- |
-| Automated (T1.1–T1.4) | (not scheduled) | Pending | — | — | — |
-| Manual (creative injection) | (not scheduled) | Pending | — | — | — |
-| Report & remediation | (not scheduled) | Pending | — | — | — |
+| Phase                       | Scheduled Date  | Status  | Tester | Findings | Report Link |
+| --------------------------- | --------------- | ------- | ------ | -------- | ----------- |
+| Automated (T1.1–T1.4)       | (not scheduled) | Pending | —      | —        | —           |
+| Manual (creative injection) | (not scheduled) | Pending | —      | —        | —           |
+| Report & remediation        | (not scheduled) | Pending | —      | —        | —           |
 
 **A214-F1 — Scheduling:** The first AI red team exercise should be conducted in Q3 2026. Schedule:
 

@@ -52,6 +52,7 @@ terraform state list | grep cloudflare_worker_route
 For each dashboard-routed resource:
 
 1. **Import into Terraform state:**
+
    ```bash
    terraform import cloudflare_record.<resource_name> <zone_id>/<record_id>
    ```
