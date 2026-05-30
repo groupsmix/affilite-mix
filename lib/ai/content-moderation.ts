@@ -47,6 +47,15 @@ const PROHIBITED_PATTERNS: ReadonlyArray<RegExp> = [
   // F-23: Obfuscation attempts (zero-width characters, leetspeak common patterns)
   /\bp[h4]1sh[i1]ng\b/i,
   /\bm[a@]lw[a@]re\b/i,
+  // S5-A107-03: Social engineering, harassment, and additional abuse vectors
+  /\b(social\s*engineer(ing)?)\s*(guide|tutorial|how\s*to|attack|technique)\b/i,
+  /\b(doxx(ing)?|swatt(ing)?)\s*(guide|how\s*to|tutorial)?\b/i,
+  /\b(keylogg(er|ing)|spyware)\s*(install|deploy|guide|tutorial)\b/i,
+  /\b(ddos|denial.of.service)\s*(attack|tool|guide|how\s*to)\b/i,
+  /\b(deepfake)\s*(porn|nude|revenge|blackmail|create|make|how\s*to)\b/i,
+  /\b(stalk(er|ing))\s*(guide|how\s*to|software|app)\b/i,
+  // S5-A107-03: Credential abuse
+  /\b(brute\s*force|credential\s*stuff(ing)?|password\s*crack(er|ing)?)\s*(tool|guide|how\s*to)?\b/i,
 ];
 
 /**

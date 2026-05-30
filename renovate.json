@@ -2,13 +2,19 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "schedule:weekly", ":separateMultipleMajorReleases"],
   "labels": ["dependencies"],
-  "automerge": true,
+  "automerge": false,
   "automergeType": "pr",
   "automergeStrategy": "squash",
   "packageRules": [
     {
-      "description": "Auto-merge patch & minor updates (non-breaking)",
+      "description": "A173-F2: Production dependencies require human review (supply-chain risk)",
+      "matchDepTypes": ["dependencies"],
+      "automerge": false
+    },
+    {
+      "description": "Auto-merge patch & minor updates for devDependencies only",
       "matchUpdateTypes": ["patch", "minor"],
+      "matchDepTypes": ["devDependencies"],
       "automerge": true
     },
     {
