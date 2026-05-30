@@ -29,8 +29,18 @@ const ACTIVITY_COOKIE = `${COOKIE_PREFIX}nh_admin_activity`;
  *  Even if the JWT is exfiltrated (e.g. via XSS), an attacker without
  *  this cookie cannot replay the session from a different device. */
 const BINDING_COOKIE = `${COOKIE_PREFIX}nh_admin_binding`;
-/** Admin sessions expire after 30 minutes of inactivity */
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+/**
+ * Admin sessions expire after 30 minutes of inactivity.
+ *
+ * S0-A3-004: the env var override is clamped to [5, 60] minutes so a
+ * misconfiguration cannot set an absurdly long (or zero) idle timeout.
+ */
+const IDLE_TIMEOUT_MINS = (() => {
+  const envVal = Number(process.env.ADMIN_ACTIVITY_TIMEOUT_MINS);
+  if (!Number.isFinite(envVal) || envVal <= 0) return 30;
+  return Math.max(5, Math.min(60, envVal));
+})();
+const IDLE_TIMEOUT_MS = IDLE_TIMEOUT_MINS * 60 * 1000;
 // F-SEC-03: Reduced from 8h to limit exposure. Sourced from
 // `lib/auth-constants.ts` so the JWT lifetime, the KV revocation TTL,
 // and the admin cookie maxAge all derive from one value.
