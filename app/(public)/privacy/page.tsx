@@ -138,7 +138,11 @@ export default async function PrivacyPage() {
             : "We retain your personal data only as long as necessary for the purposes for which it was collected:"}
         </p>
         <ul>
-          <li>{isAr ? "بيانات النقرات التابعة: 365 يومًا" : "Affiliate click data: 365 days"}</li>
+          <li>
+            {isAr
+              ? "بيانات النقرات التابعة: 365 يومًا (يتم حذف عنوان IP بعد 30 يومًا)"
+              : "Affiliate click data: 365 days (IP addresses erased after 30 days)"}
+          </li>
           <li>
             {isAr
               ? "اشتراكات النشرة البريدية: حتى إلغاء الاشتراك"
@@ -151,6 +155,11 @@ export default async function PrivacyPage() {
             {isAr
               ? "سجل التدقيق: 365 يومًا (ساخن)، 7 سنوات (أرشيف)"
               : "Audit log: 365 days (hot), 7 years (archive)"}
+          </li>
+          <li>
+            {isAr
+              ? "سجلات الموافقة: 7 سنوات (لإثبات الأساس القانوني)"
+              : "Consent records: 7 years (to demonstrate lawful basis)"}
           </li>
         </ul>
 
