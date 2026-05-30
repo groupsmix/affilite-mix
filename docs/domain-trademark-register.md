@@ -7,12 +7,12 @@
 
 ## 1. Domain Portfolio
 
-| Domain | Registrar | Expiry | Auto-Renew | DNSSEC | Managed By | Purpose |
-| ------ | --------- | ------ | ---------- | ------ | ---------- | ------- |
-| wristnerd.site | (check registrar) | (check) | ☐ Verify | ☐ Verify | Cloudflare DNS | Primary production domain |
-| wristnerd.xyz | (check registrar) | (check) | ☐ Verify | ☐ Verify | Cloudflare DNS | Alternative / legacy |
-| arabictools.wristnerd.xyz | — (subdomain) | — | — | — | Cloudflare DNS | Arabic tools tenant |
-| crypto.wristnerd.xyz | — (subdomain) | — | — | — | Cloudflare DNS | Crypto content tenant |
+| Domain                    | Registrar         | Expiry  | Auto-Renew | DNSSEC   | Managed By     | Purpose                   |
+| ------------------------- | ----------------- | ------- | ---------- | -------- | -------------- | ------------------------- |
+| wristnerd.site            | (check registrar) | (check) | ☐ Verify   | ☐ Verify | Cloudflare DNS | Primary production domain |
+| wristnerd.xyz             | (check registrar) | (check) | ☐ Verify   | ☐ Verify | Cloudflare DNS | Alternative / legacy      |
+| arabictools.wristnerd.xyz | — (subdomain)     | —       | —          | —        | Cloudflare DNS | Arabic tools tenant       |
+| crypto.wristnerd.xyz      | — (subdomain)     | —       | —          | —        | Cloudflare DNS | Crypto content tenant     |
 
 ### Action Items
 
@@ -26,9 +26,9 @@
 
 ## 2. Trademark Status
 
-| Mark | Jurisdiction | Filing Status | Class | Filing Date | Registration # | Notes |
-| ---- | ------------ | ------------- | ----- | ----------- | -------------- | ----- |
-| (none filed) | — | — | — | — | — | Evaluate whether "Affilite-Mix" or "WristNerd" need TM protection |
+| Mark         | Jurisdiction | Filing Status | Class | Filing Date | Registration # | Notes                                                             |
+| ------------ | ------------ | ------------- | ----- | ----------- | -------------- | ----------------------------------------------------------------- |
+| (none filed) | —            | —             | —     | —           | —              | Evaluate whether "Affilite-Mix" or "WristNerd" need TM protection |
 
 ### Trademark Action Items
 
