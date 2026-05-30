@@ -9,6 +9,7 @@
 > **Facilitator:** Security lead or external red-team facilitator.
 >
 > **A189-F1 — Scheduling:** Add a recurring calendar invite (quarterly) for all engineers + security lead + one executive. Suggested schedule:
+>
 > - **Q3 2026:** Scenario 1 (Ransomware) — first exercise; establishes baseline.
 > - **Q4 2026:** Scenario 2 (Insider Exfiltration) — tests offboarding/A183 procedures.
 > - **Q1 2027:** Scenario 3 (Credential Leak / Supply Chain) — tests secret rotation/A181.

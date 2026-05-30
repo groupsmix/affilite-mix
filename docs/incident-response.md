@@ -239,6 +239,7 @@ ETA: [Estimated resolution time, if known]
 ## Action Item Tracking (A195)
 
 Every action item MUST be filed as a GitHub Issue within 24 hours of the post-mortem:
+
 - Label: `post-mortem`
 - Assignee: the named owner from the table above
 - Due date: set in the issue body
@@ -339,9 +340,9 @@ During any incident where forensic evidence may be needed (SEV-1, SEV-2, or any 
 1. **Designate an Evidence Custodian** — typically the incident commander or a delegated security team member.
 2. **Create a custody log** (use a shared Google Doc or GitHub Issue with the `evidence-custody` label):
 
-   | Timestamp (UTC) | Action | Actor | Evidence Item | Hash (SHA-256) | Storage Location |
-   | --------------- | ------ | ----- | ------------- | -------------- | ---------------- |
-   | YYYY-MM-DD HH:MM | Collected | [Name] | [Description] | [hash] | [R2/GCS/local path] |
+   | Timestamp (UTC)  | Action    | Actor  | Evidence Item | Hash (SHA-256) | Storage Location    |
+   | ---------------- | --------- | ------ | ------------- | -------------- | ------------------- |
+   | YYYY-MM-DD HH:MM | Collected | [Name] | [Description] | [hash]         | [R2/GCS/local path] |
 
 3. **Collect evidence** (do NOT modify originals):
    - Cloudflare Worker logs: Export via Logpush or R2 bucket snapshot.

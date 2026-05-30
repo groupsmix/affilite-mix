@@ -8,15 +8,15 @@
 
 ## 1. Evidence Sources
 
-| Source | What to Collect | How to Export | Retention |
-| ------ | --------------- | ------------- | --------- |
-| Cloudflare Workers | Runtime logs, request metadata, exceptions | Logpush → R2 bucket (automated) | 365 days (WORM) |
-| Cloudflare Audit Log | Account-level actions (user logins, config changes, Worker deploys) | Dashboard → Audit Log → Export CSV, or API: `GET /accounts/{id}/audit_logs` | 18 months (Cloudflare retains) |
-| GitHub Audit Log | Org membership changes, repo access, secret access, workflow runs | API: `gh api /orgs/groupsmix/audit-log --paginate` | 180 days (GitHub retains); export to R2 monthly |
-| Supabase | Query logs (pgaudit), auth logs, connection logs | SQL `COPY` to CSV → upload to R2 | Per pgaudit config; target 365 days |
-| Sentry | Error events, breadcrumbs, user context | Sentry API: `GET /api/0/issues/{id}/events/` | 90 days (Sentry plan-dependent) |
-| Stripe | Webhook delivery logs, payment events | Stripe Dashboard → Developers → Events | 30 days (Stripe retains); export for longer retention |
-| DNS (Cloudflare) | Zone changes, record modifications | Cloudflare API: `GET /zones/{id}/dns_records` | Snapshot monthly to R2 |
+| Source               | What to Collect                                                     | How to Export                                                               | Retention                                             |
+| -------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Cloudflare Workers   | Runtime logs, request metadata, exceptions                          | Logpush → R2 bucket (automated)                                             | 365 days (WORM)                                       |
+| Cloudflare Audit Log | Account-level actions (user logins, config changes, Worker deploys) | Dashboard → Audit Log → Export CSV, or API: `GET /accounts/{id}/audit_logs` | 18 months (Cloudflare retains)                        |
+| GitHub Audit Log     | Org membership changes, repo access, secret access, workflow runs   | API: `gh api /orgs/groupsmix/audit-log --paginate`                          | 180 days (GitHub retains); export to R2 monthly       |
+| Supabase             | Query logs (pgaudit), auth logs, connection logs                    | SQL `COPY` to CSV → upload to R2                                            | Per pgaudit config; target 365 days                   |
+| Sentry               | Error events, breadcrumbs, user context                             | Sentry API: `GET /api/0/issues/{id}/events/`                                | 90 days (Sentry plan-dependent)                       |
+| Stripe               | Webhook delivery logs, payment events                               | Stripe Dashboard → Developers → Events                                      | 30 days (Stripe retains); export for longer retention |
+| DNS (Cloudflare)     | Zone changes, record modifications                                  | Cloudflare API: `GET /zones/{id}/dns_records`                               | Snapshot monthly to R2                                |
 
 ---
 
@@ -26,12 +26,12 @@
 
 Every log source includes one or more correlation identifiers:
 
-| Source | Correlation Key | Example |
-| ------ | --------------- | ------- |
+| Source             | Correlation Key                     | Example                |
+| ------------------ | ----------------------------------- | ---------------------- |
 | Cloudflare Workers | `cf-ray` header, `traceId` (Sentry) | `ray=8a1b2c3d4e5f-IAD` |
-| Sentry | `traceId` tag | `traceId=abc123def456` |
-| Supabase | Connection PID, query timestamp | `pid=12345` |
-| GitHub | `@timestamp`, `actor`, `action` | `2026-05-30T12:00:00Z` |
+| Sentry             | `traceId` tag                       | `traceId=abc123def456` |
+| Supabase           | Connection PID, query timestamp     | `pid=12345`            |
+| GitHub             | `@timestamp`, `actor`, `action`     | `2026-05-30T12:00:00Z` |
 
 ### 2b. Correlation Workflow
 
