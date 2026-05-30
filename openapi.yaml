@@ -163,6 +163,11 @@ paths:
           in: query
           required: true
           schema: { type: string, format: email }
+        - name: turnstile_token
+          in: query
+          required: true
+          description: "A47-02: Turnstile CAPTCHA token to prevent automated email enumeration."
+          schema: { type: string }
       responses:
         "200":
           description: User data as JSON
@@ -170,6 +175,8 @@ paths:
             application/json:
               schema:
                 type: object
+        "403":
+          description: CAPTCHA verification failed
         "429":
           description: Rate limited (3 per 15 min)
 
@@ -189,9 +196,28 @@ paths:
       summary: List comments
       operationId: getComments
       tags: [Community]
+      parameters:
+        - name: target_type
+          in: query
+          required: true
+          schema: { type: string, enum: [product, content] }
+        - name: target_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          required: false
+          description: "A46-03: Max comments to return (1-100, default 50)."
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: offset
+          in: query
+          required: false
+          description: "A46-03: Number of comments to skip for pagination."
+          schema: { type: integer, minimum: 0, default: 0 }
       responses:
         "200":
-          description: Comments list
+          description: Comments list with pagination metadata
     post:
       summary: Post a comment
       operationId: postComment
