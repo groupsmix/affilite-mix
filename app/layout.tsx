@@ -63,6 +63,7 @@ export async function generateMetadata(): Promise<Metadata> {
         description,
         ...(ogImage ? { images: [ogImage] } : {}),
       },
+      manifest: "/manifest.webmanifest",
     };
   } catch (err) {
     logger.warn("Failed to generate metadata from DB, falling back to defaults", {

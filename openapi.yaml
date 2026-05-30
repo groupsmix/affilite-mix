@@ -1,0 +1,225 @@
+openapi: 3.1.0
+info:
+  title: Affilite Mix API
+  version: 1.0.0
+  description: |
+    Multi-tenant affiliate marketing platform API.
+    All endpoints require the `x-site-id` header for tenant scoping
+    unless otherwise noted.
+  contact:
+    name: Affilite Mix
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://ai-compared.com
+    description: Production (ai-compared)
+  - url: https://staging.ai-compared.com
+    description: Staging
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      tags: [System]
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "ok" }
+
+  /api/auth/login:
+    post:
+      summary: Admin login
+      operationId: postLogin
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                totp_code: { type: string, pattern: "^\\d{6}$" }
+      responses:
+        "200":
+          description: Login successful
+        "401":
+          description: Invalid credentials
+        "429":
+          description: Too many attempts
+
+  /api/auth/logout:
+    post:
+      summary: Admin logout
+      operationId: postLogout
+      tags: [Auth]
+      responses:
+        "200":
+          description: Logged out
+
+  /api/auth/me:
+    get:
+      summary: Get current user
+      operationId: getMe
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user info
+        "401":
+          description: Not authenticated
+
+  /api/auth/refresh:
+    post:
+      summary: Refresh access token
+      operationId: postRefresh
+      tags: [Auth]
+      responses:
+        "200":
+          description: Token refreshed
+
+  /api/newsletter:
+    post:
+      summary: Subscribe to newsletter
+      operationId: postNewsletter
+      tags: [Newsletter]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                turnstile_token: { type: string }
+      responses:
+        "200":
+          description: Confirmation email sent
+        "400":
+          description: Invalid email
+        "429":
+          description: Rate limited
+
+  /api/newsletter/confirm:
+    get:
+      summary: Confirm newsletter subscription
+      operationId: getNewsletterConfirm
+      tags: [Newsletter]
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to confirmation page
+
+  /api/newsletter/unsubscribe:
+    get:
+      summary: Unsubscribe from newsletter
+      operationId: getNewsletterUnsubscribe
+      tags: [Newsletter]
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to unsubscribed page
+
+  /api/track/click:
+    get:
+      summary: Track affiliate click
+      operationId: getTrackClick
+      tags: [Tracking]
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema: { type: string, format: uri }
+      responses:
+        "302":
+          description: Redirect to affiliate URL
+
+  /api/user/data-export:
+    get:
+      summary: GDPR data export
+      operationId: getDataExport
+      tags: [Privacy]
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema: { type: string, format: email }
+      responses:
+        "200":
+          description: User data as JSON
+          content:
+            application/json:
+              schema:
+                type: object
+        "429":
+          description: Rate limited (3 per 15 min)
+
+  /api/membership/checkout:
+    post:
+      summary: Create Stripe checkout session
+      operationId: postCheckout
+      tags: [Membership]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Checkout session URL
+
+  /api/community/comments:
+    get:
+      summary: List comments
+      operationId: getComments
+      tags: [Community]
+      responses:
+        "200":
+          description: Comments list
+    post:
+      summary: Post a comment
+      operationId: postComment
+      tags: [Community]
+      responses:
+        "201":
+          description: Comment created
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    siteId:
+      name: x-site-id
+      in: header
+      required: true
+      schema: { type: string }
+      description: Tenant identifier
+
+tags:
+  - name: System
+  - name: Auth
+  - name: Newsletter
+  - name: Tracking
+  - name: Privacy
+  - name: Membership
+  - name: Community
