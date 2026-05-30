@@ -28,7 +28,7 @@
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
   --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
+  --muted-foreground: oklch(0.45 0.046 257.417);
   --accent: oklch(0.968 0.007 247.896);
   --accent-foreground: oklch(0.208 0.042 265.755);
   --destructive: oklch(0.577 0.245 27.325);
@@ -337,11 +337,15 @@ h6 {
 /* ─── WCAG 2.4.7: Focus ring consistency ──────────────────────────── *
  * etap-6 A68-02: Custom focus-visible style for all interactive
  * elements. Uses a 2px offset ring in the primary accent colour so
- * keyboard focus is always clearly visible regardless of background. */
+ * keyboard focus is always clearly visible regardless of background.
+ * A68-F2: Dark-mode ring uses a lighter shade for sufficient contrast. */
 :focus-visible {
   outline: 2px solid var(--ring, oklch(0.551 0.027 264.364));
   outline-offset: 2px;
   border-radius: var(--radius, 0.25rem);
+}
+.dark :focus-visible {
+  outline-color: oklch(0.75 0.06 264);
 }
 
 /* Remove default focus ring (replaced by focus-visible above). */

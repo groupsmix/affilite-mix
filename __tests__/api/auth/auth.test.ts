@@ -197,3 +197,81 @@ describe("verifyToken revoked-token handling (A88-2)", () => {
     delete process.env.ADMIN_SESSION_TOKEN_REVOCATION_STRICT;
   });
 });
+
+// ── A100-1 / A98-8: Absolute session lifetime enforcement ──────
+
+describe("verifyToken absolute session lifetime (A100-1)", () => {
+  it("accepts a token whose session_start is within the 24h regular admin cap", async () => {
+    const { createToken, verifyToken } = await import("@/lib/auth");
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const payload = {
+      email: "admin@test.com",
+      userId: "user-1",
+      role: "admin" as const,
+      session_start: nowSec - 60, // 1 minute ago
+    };
+    const token = await createToken(payload);
+    const decoded = await verifyToken(token);
+    expect(decoded).not.toBeNull();
+    expect(decoded?.session_start).toBe(payload.session_start);
+  });
+
+  it("rejects a regular admin token whose session exceeds 24h", async () => {
+    const { createToken, verifyToken } = await import("@/lib/auth");
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const payload = {
+      email: "admin@test.com",
+      userId: "user-1",
+      role: "admin" as const,
+      session_start: nowSec - 25 * 60 * 60, // 25 hours ago
+    };
+    const token = await createToken(payload);
+    const decoded = await verifyToken(token);
+    expect(decoded).toBeNull();
+  });
+
+  it("rejects a super_admin token whose session exceeds 12h", async () => {
+    const { createToken, verifyToken } = await import("@/lib/auth");
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const payload = {
+      email: "admin@test.com",
+      userId: "user-1",
+      role: "super_admin" as const,
+      session_start: nowSec - 13 * 60 * 60, // 13 hours ago
+    };
+    const token = await createToken(payload);
+    const decoded = await verifyToken(token);
+    expect(decoded).toBeNull();
+  });
+
+  it("accepts a super_admin token within the 12h cap", async () => {
+    const { createToken, verifyToken } = await import("@/lib/auth");
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const payload = {
+      email: "admin@test.com",
+      userId: "user-1",
+      role: "super_admin" as const,
+      session_start: nowSec - 11 * 60 * 60, // 11 hours ago
+    };
+    const token = await createToken(payload);
+    const decoded = await verifyToken(token);
+    expect(decoded).not.toBeNull();
+  });
+
+  it("accepts a legacy token without session_start (backward compat)", async () => {
+    const { createToken, verifyToken } = await import("@/lib/auth");
+
+    const payload = {
+      email: "admin@test.com",
+      userId: "user-1",
+      role: "admin" as const,
+    };
+    const token = await createToken(payload);
+    const decoded = await verifyToken(token);
+    expect(decoded).not.toBeNull();
+  });
+});
