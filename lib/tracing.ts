@@ -86,4 +86,31 @@ export function applyTraceHeaders(responseHeaders: Headers, ctx: TraceContext): 
   }
 }
 
+/**
+ * RISK-07: Export trace span data for distributed tracing observability.
+ *
+ * Emits a structured log line for each completed span. Cloudflare Logpush
+ * or `wrangler tail` can route these to Jaeger/Zipkin/Honeycomb/Grafana Tempo.
+ * Format is compatible with OpenTelemetry JSON log exporter conventions.
+ */
+export function exportTraceSpan(
+  ctx: TraceContext,
+  spanName: string,
+  durationMs: number,
+  attributes: Record<string, string | number> = {},
+): void {
+  console.log(
+    JSON.stringify({
+      _otel: true,
+      traceId: ctx.traceId,
+      spanId: ctx.spanId,
+      spanName,
+      durationMs,
+      traceFlags: ctx.traceFlags,
+      attributes,
+      timestamp: new Date().toISOString(),
+    }),
+  );
+}
+
 export type { TraceContext };

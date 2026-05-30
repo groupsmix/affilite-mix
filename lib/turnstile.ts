@@ -24,17 +24,14 @@ export async function verifyTurnstile(
   token: string | null | undefined,
   ip?: string,
 ): Promise<TurnstileResult> {
-  // P1-5: Gate all verification on ENABLE_TURNSTILE so the feature is
-  // explicitly opt-in. When not enabled, skip verification entirely.
+  // RISK-16: Turnstile defaults to ON in production. Explicitly set
+  // ENABLE_TURNSTILE=false to opt out (e.g. local dev, CI).
+  const isProduction = process.env.NODE_ENV === "production";
+  const envVal = process.env.ENABLE_TURNSTILE;
   const enableTurnstile =
-    process.env.ENABLE_TURNSTILE === "true" || process.env.ENABLE_TURNSTILE === "1";
+    envVal === "true" || envVal === "1" || (isProduction && envVal !== "false" && envVal !== "0");
 
   if (!enableTurnstile) {
-    if (process.env.NODE_ENV === "production") {
-      logger.warn("turnstile.disabled_in_production", {
-        metric: "turnstile_disabled",
-      });
-    }
     return { success: true };
   }
 

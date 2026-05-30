@@ -48,8 +48,16 @@ jobs:
       # AUD-10: Fail on moderate and above (previously high-only).
       # 0 moderate vulns as of 2026-05-28; lowered to catch Prototype
       # Pollution / ReDoS / SSRF in transitive deps early.
-      - name: Run npm audit
+      - name: Run npm audit (production deps)
         run: npm audit --omit=dev --audit-level=moderate
+
+      # RISK-24: devDependency audit — informational, non-blocking.
+      # Dev deps run in CI with access to secrets and deploy tokens.
+      # A compromised dev dep (eslint plugin, vitest, etc.) could
+      # exfiltrate secrets. Alert on critical to catch the worst cases.
+      - name: Run npm audit (devDependencies — informational)
+        run: npm audit --audit-level=critical || echo "::warning::Critical devDependency vulnerabilities found — review npm audit output above."
+        continue-on-error: true
 
   licenses:
     name: License compliance

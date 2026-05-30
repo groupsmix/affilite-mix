@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       deployment_id:
-        description: "Deployment ID to rollback to"
+        description: "Deployment/version ID to rollback to"
         required: true
         type: string
       environment:
@@ -15,17 +15,51 @@ on:
         options:
           - production
           - staging
+      worker_name:
+        description: "Worker name (default: affilite-mix)"
+        required: false
+        default: "affilite-mix"
+        type: string
+
+env:
+  WRANGLER_VERSION: "4.93.1"
+  WORKER_NAME: ${{ inputs.worker_name || 'affilite-mix' }}
 
 jobs:
   rollback:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
       - name: Rollback deployment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          ENVIRONMENT: ${{ inputs.environment }}
-          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
         run: |
-          echo "Rolling back to deployment: $DEPLOYMENT_ID"
-          npx wrangler rollback --message "Rollback to $DEPLOYMENT_ID"
+          echo "Rolling back $WORKER_NAME to version: ${{ inputs.deployment_id }}"
+          npx --yes wrangler@${WRANGLER_VERSION} versions rollback \
+            --name "$WORKER_NAME" \
+            --version-id "${{ inputs.deployment_id }}" \
+            --message "Rollback triggered by GitHub Actions (run ${{ github.run_id }})" \
+            --yes
+
+      - name: Post-rollback smoke tests
+        env:
+          SMOKE_HOST: ${{ inputs.environment == 'production' && 'ai-compared.com' || 'staging.ai-compared.com' }}
+        run: |
+          echo "Running post-rollback smoke tests against $SMOKE_HOST..."
+          FAILURES=0
+          for path in "/" "/api/health"; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "https://${SMOKE_HOST}${path}" || echo "000")
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+              echo "✓ ${path} → ${HTTP_CODE}"
+            else
+              echo "✗ ${path} → ${HTTP_CODE}"
+              FAILURES=$((FAILURES + 1))
+            fi
+          done
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "::error::${FAILURES} smoke test(s) failed after rollback"
+            exit 1
+          fi
+          echo "All smoke tests passed after rollback."

@@ -1,0 +1,17 @@
+{
+  "name": "Affilite Mix",
+  "short_name": "AffiliteMix",
+  "description": "Multi-tenant affiliate marketing platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
