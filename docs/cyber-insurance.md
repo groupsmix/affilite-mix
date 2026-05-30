@@ -22,14 +22,14 @@ Cyber insurance transfers these residual risks to an insurer.
 
 ## 2. Recommended Coverage
 
-| Coverage Type | Minimum Limit | Rationale |
-| ------------- | ------------- | --------- |
-| Data breach response | $1M | Notification costs, credit monitoring, forensic investigation |
-| Business interruption | $500K | Revenue loss during extended Cloudflare/Supabase outage |
-| Regulatory defense | $500K | GDPR/CCPA enforcement actions, legal counsel |
-| Media liability | $250K | Defamation claims from AI-generated or affiliate content |
-| Cyber extortion | $250K | Ransomware negotiation/payment (if ever authorized) |
-| Third-party liability | $1M | Claims from affiliates or users due to platform breach |
+| Coverage Type         | Minimum Limit | Rationale                                                     |
+| --------------------- | ------------- | ------------------------------------------------------------- |
+| Data breach response  | $1M           | Notification costs, credit monitoring, forensic investigation |
+| Business interruption | $500K         | Revenue loss during extended Cloudflare/Supabase outage       |
+| Regulatory defense    | $500K         | GDPR/CCPA enforcement actions, legal counsel                  |
+| Media liability       | $250K         | Defamation claims from AI-generated or affiliate content      |
+| Cyber extortion       | $250K         | Ransomware negotiation/payment (if ever authorized)           |
+| Third-party liability | $1M           | Claims from affiliates or users due to platform breach        |
 
 ---
 
@@ -48,13 +48,14 @@ When selecting a policy, evaluate:
 
 ## 4. Insurer Shortlist
 
-| Insurer | Product | Estimated Premium | Notes |
-| ------- | ------- | ----------------- | ----- |
-| Coalition | Active Cyber Insurance | TBD | Includes free security scanning; good for SMBs |
-| At-Bay | Cyber Insurance | TBD | Strong tech-sector focus |
-| Corvus | Smart Cyber Insurance | TBD | Automated underwriting based on security posture |
+| Insurer   | Product                | Estimated Premium | Notes                                            |
+| --------- | ---------------------- | ----------------- | ------------------------------------------------ |
+| Coalition | Active Cyber Insurance | TBD               | Includes free security scanning; good for SMBs   |
+| At-Bay    | Cyber Insurance        | TBD               | Strong tech-sector focus                         |
+| Corvus    | Smart Cyber Insurance  | TBD               | Automated underwriting based on security posture |
 
 **Action:** Request quotes from at least 2 insurers. Provide them with:
+
 - This document as evidence of security controls
 - `SECURITY.md` (vulnerability disclosure policy)
 - `docs/incident-response.md` (IR playbook)
@@ -64,14 +65,14 @@ When selecting a policy, evaluate:
 
 ## 5. Policy Tracking
 
-| Field | Value |
-| ----- | ----- |
-| Insurer | (not yet selected) |
-| Policy number | — |
-| Coverage period | — |
-| Premium | — |
-| Renewal date | — |
-| Broker contact | — |
+| Field           | Value              |
+| --------------- | ------------------ |
+| Insurer         | (not yet selected) |
+| Policy number   | —                  |
+| Coverage period | —                  |
+| Premium         | —                  |
+| Renewal date    | —                  |
+| Broker contact  | —                  |
 
 ---
 
