@@ -13,7 +13,12 @@ import { timingSafeEqual } from "@/lib/internal-hmac";
 import { deriveHmacKey } from "@/lib/hmac-key";
 // SEC-02 (etap-3): canonical boolean env-var parser — accepts "1"/"true"/"yes"/"on"
 import { parseBoolEnv, parseTriBoolEnv } from "@/lib/env-bool";
-import { ADMIN_JWT_EXPIRY_SECONDS, ADMIN_JWT_EXPIRY_STRING } from "@/lib/auth-constants";
+import {
+  ADMIN_JWT_EXPIRY_SECONDS,
+  ADMIN_JWT_EXPIRY_STRING,
+  MAX_SESSION_AGE_REGULAR_SECONDS,
+  MAX_SESSION_AGE_ADMIN_SECONDS,
+} from "@/lib/auth-constants";
 
 // A7-012: Use __Host- prefix in production (Secure context) to prevent
 // Domain attribute injection and scope cookies to the exact origin.
@@ -214,6 +219,12 @@ export interface AdminPayload {
    * so a token replayed from a different device/network is rejected.
    */
   bnd?: string;
+  /**
+   * A100-1 / A98-8: Unix epoch (seconds) of the original login.
+   * Carried forward on token refresh so absolute session lifetime can
+   * be enforced regardless of how many times the token is refreshed.
+   */
+  session_start?: number;
 }
 
 /**
@@ -355,6 +366,29 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
         futureSkewSec: futureSkew,
         iat,
         nowSec,
+      });
+      return null;
+    }
+  }
+
+  // A100-1 / A98-8: Absolute session lifetime enforcement.
+  // Prevents indefinite sessions via repeated refresh. The `session_start`
+  // claim is set at login and carried forward on every refresh. Even if the
+  // JWT itself hasn't expired (4h window), the session is rejected once the
+  // absolute ceiling is reached.
+  const sessionStart = typeof payload.session_start === "number" ? payload.session_start : null;
+  if (sessionStart !== null) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const role = (payload.role as string) ?? "admin";
+    const maxAge =
+      role === "super_admin" ? MAX_SESSION_AGE_ADMIN_SECONDS : MAX_SESSION_AGE_REGULAR_SECONDS;
+    const elapsed = nowSec - sessionStart;
+    if (elapsed > maxAge) {
+      logger.warn("Admin token rejected: absolute session lifetime exceeded", {
+        sessionStart,
+        elapsedSec: elapsed,
+        maxAgeSec: maxAge,
+        role,
       });
       return null;
     }
