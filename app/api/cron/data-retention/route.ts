@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
     // F-API-01 / NEW-03: purge_retention is a cross-tenant maintenance
     // RPC (no p_site_id) — opt out of the RPC guard.
     const { data: rpcResult, error: rpcError } = await sb
-      // @ts-expect-error ACCEPTED: purge_retention RPC exists (migration 00099) but generated types show Args: never — regenerate types after deploying migration to fix
+      // @ts-expect-error ACCEPTED: the 3-arg overload purge_retention(p_table, p_cutoff, p_batch_limit) is not yet created — only the no-arg form exists (migration 00077/00085). If the RPC errors, we fall back to fetch→archive→delete below. Regenerate types once the overload migration lands.
       .rpc("purge_retention", {
         p_table: "audit_log",
         p_cutoff: auditDate.toISOString(),

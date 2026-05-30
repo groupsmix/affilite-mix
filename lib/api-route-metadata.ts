@@ -886,6 +886,21 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     sensitiveFields: [],
     notes: "OF-04: Log consent banner acceptance. IP is truncated to /24 before storage.",
   },
+
+  // --- User self-service ---------------------------------------------------
+  {
+    path: "/api/user/data-export",
+    methods: ["GET"],
+    auth: "public",
+    adminRequired: false,
+    scope: "site",
+    rateLimit: true,
+    csrf: false,
+    requestSchema: "{ email: string }",
+    responseSchema: "DataExportPayload",
+    sensitiveFields: ["email"],
+    notes: "S3-004: GDPR Art. 20 self-service data portability.",
+  },
 ];
 
 export const API_ROUTE_METADATA_BY_PATH: ReadonlyMap<string, RouteMetadata> = new Map(

@@ -39,3 +39,22 @@ export const REVOKED_JWT_TTL_SECONDS = ADMIN_JWT_EXPIRY_SECONDS + 5 * 60;
  * literal "4h" continue to pass.
  */
 export const ADMIN_JWT_EXPIRY_STRING = `${ADMIN_JWT_EXPIRY_SECONDS}s` as const;
+
+/**
+ * A100-1: Absolute session lifetime caps.
+ *
+ * No session may live beyond these ceilings regardless of activity.
+ * This limits the damage window if a token is stolen. The JWT `exp`
+ * claim already constrains token lifetime, but cookie `maxAge` was
+ * previously set to match `exp` without a role-aware ceiling.
+ *
+ * - Regular admin: 24 hours
+ * - Super-admin:   12 hours (higher-privilege ⇒ tighter window)
+ *
+ * The cookie maxAge in the login route should use these values instead
+ * of hard-coding `4h`. If the JWT expiry (`ADMIN_JWT_EXPIRY_SECONDS`)
+ * is shorter, the JWT itself still governs — these caps only prevent
+ * the cookie from outliving the intended session boundary.
+ */
+export const MAX_SESSION_AGE_REGULAR_SECONDS = 24 * 60 * 60; // 24h
+export const MAX_SESSION_AGE_ADMIN_SECONDS = 12 * 60 * 60; // 12h for super_admin

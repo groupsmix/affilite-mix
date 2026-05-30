@@ -54,6 +54,7 @@ describe("A98-51: Rate-limit LRU eviction", () => {
 
   it("triggers LRU eviction when memory store reaches capacity", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("RATE_LIMIT_MEMORY_MAX_ENTRIES", "10000");
     const { checkRateLimit } = await loadModule();
 
     const config = { maxRequests: 5, windowMs: 60_000 };
@@ -78,6 +79,7 @@ describe("A98-51: Rate-limit LRU eviction", () => {
 
   it("evicts least-recently-used entries, not oldest", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("RATE_LIMIT_MEMORY_MAX_ENTRIES", "10000");
     const { checkRateLimit } = await loadModule();
 
     const config = { maxRequests: 5, windowMs: 60_000 };

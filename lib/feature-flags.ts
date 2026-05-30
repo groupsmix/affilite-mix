@@ -79,6 +79,19 @@ export const FLAG_REGISTRY: FeatureFlagDefinition[] = [
     rolloutPercent: 0, // Not yet enabled — tracking intent per A89-1
     ticketRef: "#567",
   },
+  {
+    name: "Login Global Rate-Limit Kill-Switch",
+    key: "LOGIN_RATE_LIMIT_GLOBAL_DISABLED",
+    owner: "security-team",
+    createdAt: "2026-05-29",
+    expiresAt: "2026-11-25", // A90-1: must be retired or converted to a proper mechanism
+    blastRadius:
+      "Admin login route (/api/auth/login) — disables the global rate-limit check; per-IP and per-email limits still apply",
+    rollbackInstructions:
+      "Unset LOGIN_RATE_LIMIT_GLOBAL_DISABLED env var or set it to any value other than 'true'",
+    rolloutPercent: 0, // Incident-only — not active under normal operation
+    ticketRef: "#A90-1",
+  },
 ];
 
 /**

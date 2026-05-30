@@ -85,6 +85,43 @@ jobs:
           E2E_BASE_URL: http://localhost:3000
       - name: Bundle size check
         run: npx size-limit
+      - name: Markdown internal link check (FR-012)
+        run: |
+          # FR-012: Validate that internal cross-references in docs/ and
+          # top-level markdown files are not broken. Only checks relative
+          # file links — skips external URLs, anchors-only, code references
+          # (file:line), and HTML fragments to avoid false positives.
+          set -uo pipefail
+          rm -f /tmp/broken-links.txt
+          for f in $(find docs/ -name '*.md' -type f) README.md CONTRIBUTING.md SECURITY.md CHANGELOG.md; do
+            [ -f "$f" ] || continue
+            DIR=$(dirname "$f")
+            # Extract markdown links: [text](path) — skip URLs, anchors, mailto
+            # Use || true to prevent pipefail from aborting when grep finds no matches
+            LINKS=$(grep -oP '\]\(\K[^)]+' "$f" 2>/dev/null \
+              | grep -vE '^(https?://|mailto:|#|<)' \
+              | grep -vE ':[0-9]+$' \
+              | grep -vE '^\s*$' || true)
+            [ -z "$LINKS" ] && continue
+            echo "$LINKS" | while read -r link; do
+              # Strip anchor suffix and leading/trailing whitespace
+              TARGET="${link%%#*}"
+              TARGET="${TARGET%% *}"
+              [ -z "$TARGET" ] && continue
+              # Skip if it looks like a code reference (contains : but isn't ./)
+              case "$TARGET" in *:*) continue ;; esac
+              # Resolve relative to the file's directory
+              if [ ! -e "$DIR/$TARGET" ]; then
+                echo "::warning file=$f::Broken link: $link (target $DIR/$TARGET not found)"
+                echo "$f: $link" >> /tmp/broken-links.txt
+              fi
+            done
+          done
+          if [ -f /tmp/broken-links.txt ]; then
+            COUNT=$(wc -l < /tmp/broken-links.txt)
+            echo "::warning::Found $COUNT broken internal link(s) in docs — see annotations above."
+          fi
+          echo "Internal link check complete."
       - name: Verify no dev fallback secrets in production (F-018, F-021)
         run: |
           # Ensure wrangler.jsonc production vars don't contain dev fallback tokens.

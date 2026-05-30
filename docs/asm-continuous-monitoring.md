@@ -7,7 +7,7 @@
 
 ## 1. Problem
 
-- Two domains (`cryptoranked.xyz`, `aicompared.site`) are routed via the Cloudflare Dashboard, **not** managed by Terraform IaC (`terraform/cloudflare/dns.tf`). This creates configuration drift risk (A206).
+- Two domains (`cryptoranked.xyz`, `compareai.site`) are routed via the Cloudflare Dashboard, **not** managed by Terraform IaC (`terraform/cloudflare/dns.tf`). This creates configuration drift risk (A206).
 - No automated daily diff alerts for new ports, subdomains, or certificates appearing on the attack surface (A213).
 
 ---
@@ -19,7 +19,7 @@ The following domains are currently configured via the Cloudflare Dashboard and 
 | Domain             | Routing Method         | Reason Not in IaC                | Risk                                  | Action                                                  |
 | ------------------ | ---------------------- | -------------------------------- | ------------------------------------- | ------------------------------------------------------- |
 | `cryptoranked.xyz` | Dashboard Worker Route | Legacy setup before IaC adoption | Medium — config drift, no audit trail | Migrate to Terraform `cloudflare_workers_custom_domain` |
-| `aicompared.site`  | Dashboard Worker Route | Legacy setup before IaC adoption | Medium — config drift, no audit trail | Migrate to Terraform `cloudflare_workers_custom_domain` |
+| `compareai.site`   | Dashboard Worker Route | Legacy setup before IaC adoption | Medium — config drift, no audit trail | Migrate to Terraform `cloudflare_workers_custom_domain` |
 
 ### Migration Plan
 
@@ -28,7 +28,7 @@ The following domains are currently configured via the Cloudflare Dashboard and 
    ```bash
    terraform import 'cloudflare_workers_custom_domain.worker_domains["cryptoranked.xyz"]' \
      "${var.cloudflare_account_id}/<custom-domain-id>"
-   terraform import 'cloudflare_workers_custom_domain.worker_domains["aicompared.site"]' \
+   terraform import 'cloudflare_workers_custom_domain.worker_domains["compareai.site"]' \
      "${var.cloudflare_account_id}/<custom-domain-id>"
    ```
 3. Add the domains to the `worker_custom_domains` variable in `terraform.tfvars`.
