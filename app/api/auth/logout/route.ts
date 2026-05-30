@@ -5,6 +5,7 @@ import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { CSRF_COOKIE } from "@/lib/csrf";
 import { revokeToken } from "@/lib/jwt-revocation";
+import { decodeJwtClaims } from "@/lib/decode-jwt-claims";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -42,12 +43,11 @@ export async function POST(request: NextRequest) {
 
     if (token) {
       try {
-        // Decode without verifying just to get JTI for revocation
-        const [, payloadStr] = token.split(".");
-        const base64 = payloadStr.replace(/-/g, "+").replace(/_/g, "/");
-        const payload = JSON.parse(atob(base64));
-        if (payload.jti) {
-          await revokeToken(payload.jti);
+        // A100-3: Use jose.decodeJwt() instead of JSON.parse(atob())
+        // to prevent prototype pollution from crafted JWT payloads.
+        const claims = decodeJwtClaims(token);
+        if (claims?.jti) {
+          await revokeToken(claims.jti);
         }
       } catch (e) {
         captureException(e, { context: "[api/auth/logout] Failed to decode JWT for revocation" });

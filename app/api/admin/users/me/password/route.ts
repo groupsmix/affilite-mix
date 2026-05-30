@@ -9,6 +9,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { revokeToken } from "@/lib/jwt-revocation";
+import { decodeJwtClaims } from "@/lib/decode-jwt-claims";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 
@@ -78,11 +79,9 @@ export async function POST(request: Request) {
       const cookieStore = await cookies();
       const token = cookieStore.get(COOKIE_NAME)?.value;
       if (token) {
-        const [, payloadStr] = token.split(".");
-        const base64 = payloadStr.replace(/-/g, "+").replace(/_/g, "/");
-        const payload = JSON.parse(atob(base64));
-        if (payload.jti) {
-          await revokeToken(payload.jti);
+        const claims = decodeJwtClaims(token);
+        if (claims?.jti) {
+          await revokeToken(claims.jti);
         }
       }
     } catch (e) {
