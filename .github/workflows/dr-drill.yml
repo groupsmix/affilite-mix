@@ -1,6 +1,9 @@
 name: DR Drill
 
 on:
+  schedule:
+    # A40-04: Quarterly DR drill — first Monday of Jan/Apr/Jul/Oct at 10:00 UTC.
+    - cron: "0 10 1-7 1,4,7,10 1"
   workflow_dispatch:
     inputs:
       environment:
@@ -19,4 +22,4 @@ jobs:
       - name: Run DR drill
         run: bash scripts/dr-drill.sh
         env:
-          ENVIRONMENT: ${{ inputs.environment }}
+          ENVIRONMENT: ${{ inputs.environment || 'staging' }}

@@ -58,6 +58,49 @@ export function getRateLimitEmailKey(email: string): string {
 }
 
 /**
+ * A153-03: De-alias an email for deduplication purposes.
+ *
+ * Strips `+` tags from the local part (all providers) and dots from the
+ * local part for providers that ignore dots (Gmail, Googlemail, Fastmail,
+ * ProtonMail). The result should be used as a dedup key — never overwrite
+ * the user-provided email in storage.
+ *
+ * Examples:
+ *   "User.Name+tag@Gmail.com"  → "username@gmail.com"
+ *   "user+tag@example.com"     → "user@example.com"
+ */
+const DOT_INSENSITIVE_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "fastmail.com",
+  "fastmail.fm",
+  "protonmail.com",
+  "protonmail.ch",
+  "proton.me",
+  "pm.me",
+]);
+
+export function dealiasEmail(email: string): string {
+  const normalized = normalizeEmail(email);
+  const atIdx = normalized.lastIndexOf("@");
+  if (atIdx === -1) return normalized;
+
+  let local = normalized.slice(0, atIdx);
+  const domain = normalized.slice(atIdx + 1);
+
+  // Strip + alias tags
+  const plusIdx = local.indexOf("+");
+  if (plusIdx !== -1) local = local.slice(0, plusIdx);
+
+  // Strip dots for providers that ignore them
+  if (DOT_INSENSITIVE_DOMAINS.has(domain)) {
+    local = local.replace(/\./g, "");
+  }
+
+  return `${local}@${domain}`;
+}
+
+/**
  * F-007: Hash email addresses before using them in rate-limit / cache keys.
  *
  * Raw email addresses in operational keys can leak into logs, dashboards,
