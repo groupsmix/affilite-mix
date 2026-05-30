@@ -12,6 +12,8 @@ import { cronLock } from "@/lib/cron-lock";
 import type { AIContentType } from "@/lib/ai/content-generator";
 import { containsProhibitedContent } from "@/lib/ai/content-moderation";
 import { supabaseBreaker } from "@/lib/supabase-circuit-breaker";
+import { recordAuditEvent } from "@/lib/audit-log";
+import { logger } from "@/lib/logger";
 
 /**
  * Cron endpoint: Auto-generate AI articles for all active sites.
@@ -117,6 +119,22 @@ export async function POST(request: NextRequest) {
           );
 
           siteResult.generated++;
+
+          // E2-005: Audit trail for AI-generated content requiring human review.
+          void recordAuditEvent({
+            site_id: dbSiteId,
+            actor: "cron:ai-generate",
+            action: flagged ? "ai_draft_rejected" : "ai_draft_pending_review",
+            entity_type: "ai_draft",
+            entity_id: result.slug,
+            details: {
+              title: result.title,
+              contentType: result.contentType,
+              provider: result.provider,
+              model: result.model,
+              flagged,
+            },
+          });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           siteResult.errors.push(`${contentType} "${topic}": ${msg}`);
@@ -133,6 +151,15 @@ export async function POST(request: NextRequest) {
 
     const totalGenerated = results.reduce((sum, r) => sum + r.generated, 0);
     const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
+
+    // E2-005: Log summary so operators see pending review count in structured logs.
+    if (totalGenerated > 0) {
+      logger.info("[cron/ai-generate] Drafts created — require human review before publishing", {
+        totalGenerated,
+        totalErrors,
+        sites: results.length,
+      });
+    }
 
     void recordCronLiveness("ai-generate");
     return NextResponse.json({

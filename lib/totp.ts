@@ -149,6 +149,26 @@ export function verifyTotpToken(
 }
 
 /**
+ * E2-009: Detect whether a stored TOTP secret uses the legacy SHA-1 algorithm.
+ * Returns true when the secret should be re-enrolled with SHA-256.
+ *
+ * Detection heuristic (operates on the **stored/encrypted** form):
+ *   - enc:v1: prefix → enrolled after SHA-256 became default → OK
+ *   - enc:v0: prefix or plaintext → legacy enrollment → needs re-enrollment
+ *
+ * IMPORTANT: This must be called with the raw stored secret (before decryption),
+ * because after decryption all secrets are plain base32 strings and the algorithm
+ * cannot be inferred.
+ */
+export function needsSha256Reenrollment(storedSecret: string | null | undefined): boolean {
+  if (!storedSecret) return false;
+  // enc:v1: was introduced alongside SHA-256 default — these are current
+  if (storedSecret.startsWith("enc:v1:")) return false;
+  // enc:v0: or plaintext → legacy SHA-1 era enrollment
+  return true;
+}
+
+/**
  * A98-53: Verify a TOTP token against a potentially encrypted stored secret.
  *
  * This is the RECOMMENDED verification path for DB-stored secrets because it:
