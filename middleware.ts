@@ -141,6 +141,31 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   const bodySizeError = checkBodySize(request);
   if (bodySizeError) return bodySizeError;
 
+  // ── A157-01: Global per-IP rate limit for public pages ────
+  // A generous limit (200 req/min) that only catches aggressive scrapers
+  // and DoS attempts. Normal users won't hit this.
+  if (!pathname.startsWith("/api/")) {
+    const publicIp = request.headers.get("cf-connecting-ip") ?? "unknown";
+    try {
+      const publicRl = await checkRateLimit(`public-page:${publicIp}`, {
+        maxRequests: 200,
+        windowMs: 60 * 1000,
+        failPolicy: "open" as const,
+      });
+      if (!publicRl.allowed) {
+        return new NextResponse("Too Many Requests", {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil(publicRl.retryAfterMs / 1000)),
+            "Cache-Control": "no-store",
+          },
+        });
+      }
+    } catch {
+      // fail-open: rate limit infra unavailable — allow request
+    }
+  }
+
   // ── GPC (Global Privacy Control) signal (A63) ───────────
   // If the browser sends Sec-GPC: 1, attach a response header so
   // the cookie-consent CMP can default non-essential categories to
