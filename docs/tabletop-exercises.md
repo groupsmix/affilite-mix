@@ -7,6 +7,13 @@
 > **Cadence:** Once per quarter minimum. Schedule in advance; announce roles 1 week before.  
 > **Duration:** 90 minutes per scenario.  
 > **Facilitator:** Security lead or external red-team facilitator.
+>
+> **A189-F1 — Scheduling:** Add a recurring calendar invite (quarterly) for all engineers + security lead + one executive. Suggested schedule:
+> - **Q3 2026:** Scenario 1 (Ransomware) — first exercise; establishes baseline.
+> - **Q4 2026:** Scenario 2 (Insider Exfiltration) — tests offboarding/A183 procedures.
+> - **Q1 2027:** Scenario 3 (Credential Leak / Supply Chain) — tests secret rotation/A181.
+> - **Q2 2027:** Scenario 4 (Account Takeover) — tests MFA/conditional access/A179.
+> - Rotate through Scenario 5 (AI) as needed. Add new scenarios based on real incidents.
 
 ---
 
