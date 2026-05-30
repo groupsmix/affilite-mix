@@ -495,6 +495,10 @@ export async function POST(request: NextRequest) {
       // fail-open
     }
 
+    // A100-1 / A98-8: Stamp the original login time into the token so
+    // absolute session lifetime can be enforced across refreshes.
+    authResult.session_start = Math.floor(Date.now() / 1000);
+
     // F-035: bind the token to the originating user-agent + IP /24.
     const token = await createToken(authResult, request);
 
