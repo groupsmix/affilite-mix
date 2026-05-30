@@ -155,7 +155,17 @@ async function buildStripeEventPayload(
       const charge = event.data.object as Stripe.Charge;
       const paymentIntentId =
         typeof charge.payment_intent === "string" ? charge.payment_intent : undefined;
-      logger.info("Stripe charge refunded", { chargeId: charge.id, paymentIntentId });
+      // A169-01: distinguish partial vs full refund
+      const amountRefunded = charge.amount_refunded ?? 0;
+      const amountTotal = charge.amount ?? 0;
+      const isFullRefund = amountTotal > 0 && amountRefunded >= amountTotal;
+      logger.info("Stripe charge refunded", {
+        chargeId: charge.id,
+        paymentIntentId,
+        amountRefunded,
+        amountTotal,
+        isFullRefund,
+      });
 
       const invoiceId = getChargeInvoiceId(charge);
       if (!invoiceId) return { op: "noop" };
@@ -172,16 +182,26 @@ async function buildStripeEventPayload(
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
-      return {
-        op: "cancel_membership",
-        stripe_subscription_id: subscriptionId,
-      };
+      // A169-01: only cancel on full refund; partial refunds just log
+      if (isFullRefund) {
+        return {
+          op: "cancel_membership",
+          stripe_subscription_id: subscriptionId,
+        };
+      }
+      logger.info("Partial refund — membership retained", {
+        subscriptionId,
+        amountRefunded,
+        amountTotal,
+      });
+      return { op: "noop" };
     }
 
     case "charge.dispute.created":
     case "charge.dispute.updated": {
       const dispute = event.data.object as Stripe.Dispute;
-      logger.warn("Stripe dispute received — manual review required", {
+      // A169-02: auto-suspend membership on dispute
+      logger.warn("Stripe dispute received — auto-suspending membership", {
         disputeId: dispute.id,
         status: dispute.status,
         amount: dispute.amount,
@@ -214,10 +234,11 @@ async function buildStripeEventPayload(
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
+      // A169-02: set to "disputed" instead of "past_due" for clear audit trail
       return {
         op: "update_status",
         stripe_subscription_id: subscriptionId,
-        status: "past_due",
+        status: "disputed",
       };
     }
 
