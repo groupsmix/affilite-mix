@@ -34,11 +34,16 @@ import { resolveDbSiteBySlug, resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getSiteById } from "@/config/sites";
 
 import { requireAdminSession } from "../components/admin-guard";
+import { AnalyticsKpis } from "./analytics-kpis";
 import { ClickChart } from "./click-chart";
+import { ConversionFunnel } from "./conversion-funnel";
+import { DomainChart } from "./domain-chart";
 import { ExpandableTable } from "./expandable-table";
 import { MultiNicheOverview } from "./multi-niche-overview";
 import { RangeSelector } from "./range-selector";
 import { RecentClicksTable, type RecentClickRow } from "./recent-clicks-table";
+import { RevenueChart } from "./revenue-chart";
+import { TopProductsTable } from "./top-products-table";
 
 function formatUSD(value: number): string {
   return value.toLocaleString("en-US", {
@@ -168,6 +173,9 @@ export default async function AnalyticsPage({
 
       {isSuperAdmin && <MultiNicheOverview />}
 
+      {/* Revenue KPIs — client-side fetched */}
+      <AnalyticsKpis />
+
       <div aria-live="polite" className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div role="region" aria-label="Clicks KPI">
           <KpiCard
@@ -215,6 +223,67 @@ export default async function AnalyticsPage({
           </CardHeader>
           <CardContent>
             <ClickChart data={dailyClicks} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Revenue trend — line chart with period toggle */}
+      <div className="mb-6">
+        <Card role="region" aria-label="Revenue trend">
+          <CardHeader>
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Revenue trend</CardTitle>
+              <CardDescription>Estimated revenue over time based on clicks.</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <RevenueChart />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top products table + domain breakdown */}
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <Card role="region" aria-label="Top products by revenue">
+          <CardHeader>
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Top products by revenue</CardTitle>
+              <CardDescription>Best-performing products over the last 30 days.</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <TopProductsTable />
+          </CardContent>
+        </Card>
+
+        {isSuperAdmin && (
+          <Card role="region" aria-label="Domain breakdown">
+            <CardHeader>
+              <div className="flex flex-col gap-1">
+                <CardTitle className="text-base">Domain breakdown</CardTitle>
+                <CardDescription>Performance by site (last 7 days).</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <DomainChart />
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Conversion funnel */}
+      <div className="mb-6">
+        <Card role="region" aria-label="Conversion funnel">
+          <CardHeader>
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Conversion funnel</CardTitle>
+              <CardDescription>
+                Pipeline: Products Created → Active → Content Published → Clicks.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ConversionFunnel />
           </CardContent>
         </Card>
       </div>

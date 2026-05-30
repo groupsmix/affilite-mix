@@ -1,4 +1,5 @@
 // Card composition patterns adapted from https://github.com/Qualiora/shadboard (MIT).
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getDailyClicks } from "@/lib/dal/affiliate-clicks";
@@ -148,26 +149,30 @@ export default async function AdminDashboard() {
 
       {/* Section 1 — KPI grid. 1 col on sm, 2 on md, 4 on xl. */}
       <div aria-live="polite" className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          title="Clicks (today)"
-          value={<CountUpValue value={clicksToday} />}
-          description={`Baseline: ${avgDailyClicks.toFixed(1)}/day average over last 7 days.`}
-          delta={
-            avgDailyClicks > 0 || clicksToday > 0
-              ? { valuePct: todayDelta, label: "Change vs. 7d average" }
-              : null
-          }
-        />
-        <KpiCard
-          title="Clicks (7d)"
-          value={<CountUpValue value={clicks7d} />}
-          description="Total affiliate-link clicks across the last 7 days."
-          chart={
-            clickSeries.length > 1 ? (
-              <Sparkline data={clickSeries} width={240} height={32} className="h-8 w-full" />
-            ) : null
-          }
-        />
+        <Link href="/admin/analytics" className="block">
+          <KpiCard
+            title="Clicks (today)"
+            value={<CountUpValue value={clicksToday} />}
+            description={`Baseline: ${avgDailyClicks.toFixed(1)}/day average over last 7 days.`}
+            delta={
+              avgDailyClicks > 0 || clicksToday > 0
+                ? { valuePct: todayDelta, label: "Change vs. 7d average" }
+                : null
+            }
+          />
+        </Link>
+        <Link href="/admin/analytics" className="block">
+          <KpiCard
+            title="Clicks (7d)"
+            value={<CountUpValue value={clicks7d} />}
+            description="Total affiliate-link clicks across the last 7 days."
+            chart={
+              clickSeries.length > 1 ? (
+                <Sparkline data={clickSeries} width={240} height={32} className="h-8 w-full" />
+              ) : null
+            }
+          />
+        </Link>
         <KpiCard
           title="Active products"
           value={<CountUpValue value={activeProducts} />}
