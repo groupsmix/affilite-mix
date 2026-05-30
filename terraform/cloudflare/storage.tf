@@ -34,6 +34,9 @@ resource "cloudflare_r2_bucket" "next_inc_cache" {
   # This is enforced via the Cloudflare API; the provider may not
   # support direct PAB configuration yet, so we also enforce it
   # via the post-create API call below.
+  #
+  # A31-02: Versioning is enabled via the r2_bucket_hardening
+  # null_resource below (same pattern as worker_logs bucket).
   lifecycle {
     prevent_destroy = true
   }
@@ -151,6 +154,13 @@ resource "null_resource" "r2_bucket_hardening" {
         "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.worker_logs.name}/versioning" \
         '{"status": "enabled"}' \
         "Versioning on ${cloudflare_r2_bucket.worker_logs.name}"
+
+      # --- A31-02: Enable versioning on next-inc-cache bucket ---
+      # Provides rollback trail for stale/malicious cache objects.
+      r2_api PUT \
+        "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/${cloudflare_r2_bucket.next_inc_cache.name}/versioning" \
+        '{"status": "enabled"}' \
+        "Versioning on ${cloudflare_r2_bucket.next_inc_cache.name}"
 
       echo "=== A37: R2 Bucket Hardening Complete ==="
     EOT
