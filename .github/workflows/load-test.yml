@@ -12,6 +12,18 @@ on:
         required: false
         default: "30s"
         type: string
+  # E2-020: Allow the deploy workflow to call load tests as a post-deploy gate.
+  workflow_call:
+    inputs:
+      target_url:
+        description: "Target URL for load testing"
+        required: true
+        type: string
+      duration:
+        description: "Test duration (e.g. 30s, 1m)"
+        required: false
+        default: "15s"
+        type: string
 
 jobs:
   load-test:

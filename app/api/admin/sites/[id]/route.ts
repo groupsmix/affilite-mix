@@ -102,9 +102,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     try {
       const kv = getAppCacheKV();
       if (kv && site) {
-        await kv.delete(`site-domain:${site.domain}`).catch(() => {});
-        await kv.delete(`site-slug:${site.slug}`).catch(() => {});
-        await kv.delete(`admin-guard:site-slug:${site.slug}`).catch(() => {});
+        await kv
+          .delete(`site-domain:${site.domain}`)
+          .catch((e) => captureException(e, { context: "KV cache purge: site-domain" }));
+        await kv
+          .delete(`site-slug:${site.slug}`)
+          .catch((e) => captureException(e, { context: "KV cache purge: site-slug" }));
+        await kv
+          .delete(`admin-guard:site-slug:${site.slug}`)
+          .catch((e) => captureException(e, { context: "KV cache purge: admin-guard" }));
       }
     } catch {
       // fail-open: best-effort [criticality:non-critical]
@@ -155,8 +161,12 @@ export async function DELETE(
     try {
       const kv = getAppCacheKV();
       if (kv) {
-        await kv.delete(`site-domain-miss:*`).catch(() => {});
-        await kv.delete(`admin-guard:site-slug:*`).catch(() => {});
+        await kv
+          .delete(`site-domain-miss:*`)
+          .catch((e) => captureException(e, { context: "KV cache purge: site-domain-miss" }));
+        await kv
+          .delete(`admin-guard:site-slug:*`)
+          .catch((e) => captureException(e, { context: "KV cache purge: admin-guard" }));
       }
     } catch {
       // fail-open: best-effort [criticality:non-critical]
