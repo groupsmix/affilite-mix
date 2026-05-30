@@ -11,6 +11,7 @@ import { hashNewsletterToken } from "@/lib/newsletter-token";
 import { escapeAttribute, escapeHtml, safeHexColor, safeHref } from "@/lib/email-templates/escape";
 import { logger } from "@/lib/logger";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
+import { resolveSendingEmail } from "@/lib/sending-email";
 import { t, type SupportedLocale } from "@/lib/i18n";
 
 /**
@@ -280,7 +281,8 @@ export async function POST(request: Request) {
           "Newsletter email is temporarily unavailable. Please try again later.",
         );
       }
-      const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${safeDomain}`;
+      // A144-01: per-tenant sending email for SPF/DKIM alignment
+      const fromEmail = resolveSendingEmail(site, safeDomain);
       // A150-01: RFC 8058 / Gmail-Yahoo 2024 bulk-sender one-click unsubscribe.
       const unsubscribeUrl = `${baseUrl}/api/newsletter/unsubscribe?token=${unsubscribeToken}`;
       const res = await fetch("https://api.resend.com/emails", {
