@@ -278,7 +278,7 @@ Each cycle of findings is tracked in `docs/audits/`:
 - **Tech-debt follow-ups from the 2026-05-28 audit** — see
   [`docs/audits/audit5-tech-debt-followups.md`](docs/audits/audit5-tech-debt-followups.md).
 - **Security disclosure policy** — `app/.well-known/security.txt` (dynamic
-  route) + [`docs/security/disclosure.md`](docs/security/disclosure.md) if present.
+  route) + [`SECURITY.md`](SECURITY.md).
 - **On-call runbooks** — [`docs/runbooks/`](docs/runbooks/) (DLQ overflow,
   incident response, DB-backup retention, etc.).
 
