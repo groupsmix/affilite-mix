@@ -15,6 +15,8 @@
  */
 
 export class Singleflight<T> {
+  // A75-F1: Cap the inflight map to prevent unbounded growth.
+  private static readonly MAX_INFLIGHT = 10_000;
   private inflight = new Map<string, Promise<T>>();
 
   /**
@@ -25,6 +27,14 @@ export class Singleflight<T> {
     const existing = this.inflight.get(key);
     if (existing) {
       return existing;
+    }
+
+    // Evict oldest entry (FIFO) when the map reaches its cap.
+    if (this.inflight.size >= Singleflight.MAX_INFLIGHT) {
+      const oldest = this.inflight.keys().next();
+      if (!oldest.done) {
+        this.inflight.delete(oldest.value);
+      }
     }
 
     const promise = fn().finally(() => {
