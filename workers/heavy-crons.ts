@@ -26,6 +26,16 @@ interface CloudflareExecutionContext {
 }
 
 const worker = {
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === "/health" || url.pathname === "/") {
+      return new Response(JSON.stringify({ ok: true, worker: "heavy-crons" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response("Not Found", { status: 404 });
+  },
+
   async scheduled(
     controller: CloudflareScheduledController,
     env: Record<string, unknown>,

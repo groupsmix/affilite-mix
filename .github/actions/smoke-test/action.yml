@@ -1,0 +1,40 @@
+name: "Smoke Test"
+description: "Run HTTP smoke tests against a deployed host"
+inputs:
+  host:
+    description: "Host to test (e.g. ai-compared.com)"
+    required: true
+  paths:
+    description: "Comma-separated paths to test (default: /,/api/health,/sitemap.xml,/robots.txt)"
+    required: false
+    default: "/,/api/health,/sitemap.xml,/robots.txt"
+  timeout:
+    description: "Timeout per request in seconds"
+    required: false
+    default: "20"
+runs:
+  using: composite
+  steps:
+    - name: Run smoke tests
+      shell: bash
+      run: |
+        HOST="${{ inputs.host }}"
+        TIMEOUT="${{ inputs.timeout }}"
+        IFS=',' read -ra PATHS <<< "${{ inputs.paths }}"
+        echo "Running smoke tests against ${HOST}..."
+        FAILURES=0
+        for path in "${PATHS[@]}"; do
+          path=$(echo "$path" | xargs)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" "https://${HOST}${path}" || echo "000")
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+            echo "✓ ${path} → ${HTTP_CODE}"
+          else
+            echo "✗ ${path} → ${HTTP_CODE}"
+            FAILURES=$((FAILURES + 1))
+          fi
+        done
+        if [ "$FAILURES" -gt 0 ]; then
+          echo "::error::${FAILURES} smoke test(s) failed"
+          exit 1
+        fi
+        echo "All smoke tests passed"
