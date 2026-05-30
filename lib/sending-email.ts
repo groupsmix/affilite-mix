@@ -46,5 +46,8 @@ export function resolveSendingEmail(
 }
 
 function sanitizeEmailHeader(email: string): string {
-  return email.normalize("NFC").replace(/[\r\n\0]/g, "").trim();
+  return email
+    .normalize("NFC")
+    .replace(/[\r\n\0]/g, "")
+    .trim();
 }
