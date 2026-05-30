@@ -11,6 +11,11 @@ import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { isOriginAllowed } from "@/lib/security/allowed-origins";
+import {
+  ADMIN_JWT_EXPIRY_SECONDS,
+  MAX_SESSION_AGE_REGULAR_SECONDS,
+  MAX_SESSION_AGE_ADMIN_SECONDS,
+} from "@/lib/auth-constants";
 
 /** 10 refresh requests per minute per session */
 const REFRESH_RATE_LIMIT = {
@@ -58,17 +63,35 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // A100-1 / A98-8: Carry forward the original login timestamp so
+    // absolute session lifetime is enforced even after multiple refreshes.
+    // Tokens minted before this change won't have session_start — set it
+    // to now as a best-effort fallback (those sessions get at most one
+    // more full window before expiry).
+    if (!session.session_start) {
+      session.session_start = Math.floor(Date.now() / 1000);
+    }
+
     // P0-1: Pass the request so the refreshed token includes the bnd claim.
     const token = await createToken(session, request);
     const response = NextResponse.json({ ok: true });
 
-    // P0-1 / F-SEC-03: Align cookie maxAge with JWT expiry (4h).
+    // A100-1: Compute remaining absolute session time so the cookie
+    // never outlives the role-based ceiling.
+    const absoluteMaxAge =
+      session.role === "super_admin"
+        ? MAX_SESSION_AGE_ADMIN_SECONDS
+        : MAX_SESSION_AGE_REGULAR_SECONDS;
+    const elapsed = Math.floor(Date.now() / 1000) - (session.session_start ?? 0);
+    const remaining = Math.max(0, absoluteMaxAge - elapsed);
+    const cookieMaxAge = Math.min(ADMIN_JWT_EXPIRY_SECONDS, remaining);
+
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: IS_SECURE_COOKIE,
       sameSite: "strict",
       path: "/",
-      maxAge: 60 * 60 * 4, // 4 hours — matches JWT EXPIRY
+      maxAge: cookieMaxAge,
     });
 
     // P0-1: Re-issue the binding cookie so it stays in sync with the

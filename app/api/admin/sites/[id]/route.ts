@@ -178,7 +178,8 @@ export async function DELETE(
     }
 
     await deleteSite(id);
-    void recordAuditEvent({
+    // S0-FP-002: await audit for destructive actions so the trail is durable.
+    await recordAuditEvent({
       site_id: id,
       actor: session.email ?? "admin",
       action: "delete",
