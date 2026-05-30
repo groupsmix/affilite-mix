@@ -81,20 +81,20 @@ When an insider-risk alert fires:
 
 Each detection rule maps to one or more ATT&CK technique IDs for purple-team validation:
 
-| Rule ID  | ATT&CK Technique                                                  | Tactic                       |
-| -------- | ----------------------------------------------------------------- | ---------------------------- |
-| IR-CF-01 | T1567 — Exfiltration Over Web Service                             | Exfiltration                 |
+| Rule ID  | ATT&CK Technique                                                  | Tactic                            |
+| -------- | ----------------------------------------------------------------- | --------------------------------- |
+| IR-CF-01 | T1567 — Exfiltration Over Web Service                             | Exfiltration                      |
 | IR-CF-02 | T1078.004 — Valid Accounts: Cloud Accounts                        | Persistence, Privilege Escalation |
-| IR-CF-03 | T1530 — Data from Cloud Storage                                   | Collection                   |
-| IR-CF-04 | T1059.009 — Command and Scripting: Cloud API                      | Execution                    |
-| IR-GH-01 | T1213.003 — Data from Information Repositories: Code Repositories | Collection                   |
-| IR-GH-02 | T1098.001 — Account Manipulation: Additional Cloud Credentials    | Persistence                  |
-| IR-GH-03 | T1098.001 — Account Manipulation: Additional Cloud Credentials    | Persistence                  |
-| IR-GH-04 | T1078 — Valid Accounts                                            | Defense Evasion              |
-| IR-SB-01 | T1530 — Data from Cloud Storage                                   | Collection                   |
-| IR-SB-02 | T1041 — Exfiltration Over C2 Channel                              | Exfiltration                 |
-| IR-SB-03 | T1078.004 — Valid Accounts: Cloud Accounts                        | Initial Access               |
-| IR-SB-04 | T1565.001 — Data Manipulation: Stored Data Manipulation           | Impact                       |
+| IR-CF-03 | T1530 — Data from Cloud Storage                                   | Collection                        |
+| IR-CF-04 | T1059.009 — Command and Scripting: Cloud API                      | Execution                         |
+| IR-GH-01 | T1213.003 — Data from Information Repositories: Code Repositories | Collection                        |
+| IR-GH-02 | T1098.001 — Account Manipulation: Additional Cloud Credentials    | Persistence                       |
+| IR-GH-03 | T1098.001 — Account Manipulation: Additional Cloud Credentials    | Persistence                       |
+| IR-GH-04 | T1078 — Valid Accounts                                            | Defense Evasion                   |
+| IR-SB-01 | T1530 — Data from Cloud Storage                                   | Collection                        |
+| IR-SB-02 | T1041 — Exfiltration Over C2 Channel                              | Exfiltration                      |
+| IR-SB-03 | T1078.004 — Valid Accounts: Cloud Accounts                        | Initial Access                    |
+| IR-SB-04 | T1565.001 — Data Manipulation: Stored Data Manipulation           | Impact                            |
 
 **A208-F1 — Purple-team validation:** Once log collection (Phase 1) is operational, run synthetic attack simulations for each ATT&CK technique above. Measure MTTA (Mean Time to Alert) and MTTR (Mean Time to Respond) for each. Target: MTTA < 15 minutes for Critical rules (IR-CF-04, IR-SB-03, IR-SB-04), < 1 hour for all others.
 

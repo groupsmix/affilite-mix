@@ -15,12 +15,12 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 
 ### Role Assignments (Least Privilege)
 
-| Role                | Who                       | Permissions                                 |
-| ------------------- | ------------------------- | ------------------------------------------- |
-| Super Administrator | Org owner + 1 backup (A180: ≥ 2 humans required) | Full account access |
-| Administrator       | Security lead             | All settings except billing                 |
-| Workers Developer   | Developers                | Workers Scripts:Edit, KV:Edit, R2:Edit only |
-| Analytics Viewer    | On-call / SRE             | Read-only analytics and logs                |
+| Role                | Who                                              | Permissions                                 |
+| ------------------- | ------------------------------------------------ | ------------------------------------------- |
+| Super Administrator | Org owner + 1 backup (A180: ≥ 2 humans required) | Full account access                         |
+| Administrator       | Security lead                                    | All settings except billing                 |
+| Workers Developer   | Developers                                       | Workers Scripts:Edit, KV:Edit, R2:Edit only |
+| Analytics Viewer    | On-call / SRE                                    | Read-only analytics and logs                |
 
 ### Required Controls
 
