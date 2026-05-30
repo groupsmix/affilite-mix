@@ -149,9 +149,9 @@ The AI system generates draft affiliate marketing content (articles, reviews, co
 
 ## 6. Changes and Updates
 
-| Date       | Change                                  | Author        |
-| ---------- | --------------------------------------- | ------------- |
-| 2026-05-24 | Initial documentation per audit A109-F2 | Security team |
+| Date       | Change                                                                      | Author         |
+| ---------- | --------------------------------------------------------------------------- | -------------- |
+| 2026-05-24 | Initial documentation per audit A109-F2                                     | Security team  |
 | 2026-05-30 | S5 audit: updated watermark format, added residual risks (A114-03, A101-02) | Season 5 audit |
 
 ---
