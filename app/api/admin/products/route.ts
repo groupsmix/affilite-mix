@@ -26,7 +26,9 @@ export const GET = withAuthz(
     const rl = await checkRateLimit(`admin:products:get:${session.userId}`, {
       maxRequests: 100,
       windowMs: 60_000,
-      failPolicy: "open" as const,
+      // S0-F10-001: admin endpoints use "closed" so a KV/DO outage
+      // doesn't silently remove rate limiting for authenticated callers.
+      failPolicy: "closed" as const,
     });
     if (!rl.allowed) {
       return NextResponse.json(
