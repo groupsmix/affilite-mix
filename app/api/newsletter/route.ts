@@ -12,6 +12,7 @@ import { escapeAttribute, escapeHtml, safeHexColor, safeHref } from "@/lib/email
 import { logger } from "@/lib/logger";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
 import { t, type SupportedLocale } from "@/lib/i18n";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 /**
  * Build a branded HTML email for newsletter confirmation.
@@ -283,8 +284,10 @@ export async function POST(request: Request) {
       const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${safeDomain}`;
       // A150-01: RFC 8058 / Gmail-Yahoo 2024 bulk-sender one-click unsubscribe.
       const unsubscribeUrl = `${baseUrl}/api/newsletter/unsubscribe?token=${unsubscribeToken}`;
-      const res = await fetch("https://api.resend.com/emails", {
+      // A74-F1: Use fetchWithTimeout to prevent hanging if Resend is degraded.
+      const res = await fetchWithTimeout("https://api.resend.com/emails", {
         method: "POST",
+        timeoutMs: 10_000,
         headers: {
           Authorization: `Bearer ${resendKey}`,
           "Content-Type": "application/json",
