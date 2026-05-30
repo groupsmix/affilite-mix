@@ -7,7 +7,8 @@ import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
-import { revokeToken } from "@/lib/jwt-revocation";
+// RISK-05 (étap-3): Use strong revocation for immediate in-isolate effect
+import { revokeTokenStrong } from "@/lib/jwt-revocation-strong";
 import { COOKIE_NAME } from "@/lib/auth";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
@@ -129,7 +130,7 @@ export async function POST(request: Request) {
         const base64 = payloadStr.replace(/-/g, "+").replace(/_/g, "/");
         const payload = JSON.parse(atob(base64));
         if (payload.jti) {
-          await revokeToken(payload.jti);
+          await revokeTokenStrong(payload.jti);
         }
       }
     } catch (e) {
