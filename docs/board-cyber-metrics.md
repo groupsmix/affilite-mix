@@ -109,7 +109,48 @@ This document defines the quarterly cyber risk metrics to be reported to the boa
 
 ---
 
-## 5. Reporting Cadence
+## 5. Baseline Measurement Instructions (A203-F1)
+
+All "Current" columns above are blank (`—`). To establish the baseline (first measurement):
+
+### 5a. Vulnerability Management Baseline
+
+```bash
+# Run grype scan and count critical/high CVEs
+grype dir:. --fail-on critical -o table 2>&1 | grep -c "Critical"
+grype dir:. -o table 2>&1 | grep -c "High"
+
+# SBOM completeness: verify CycloneDX output from CI
+# Check latest CI run artifact for sbom.json
+```
+
+### 5b. Incident Response Baseline
+
+- If no incidents have occurred, record "N/A — no incidents" for MTTD/MTTR/MTTC.
+- Check `docs/post-mortems/` for any existing post-mortem documents.
+- Open post-mortem action items: `gh issue list --label post-mortem --state open`
+
+### 5c. Access & Identity Baseline
+
+- Access recertification: check `docs/access-recertification.md` for the latest completed review.
+- MFA enforcement: audit `docs/org-security.md` checkboxes — count `[x]` vs `[ ]`.
+- Stale accounts: review GitHub org members, Cloudflare account members, Supabase project members for last-activity date.
+
+### 5d. Training Baseline
+
+- Check `docs/workforce-training-log.md` §2 and §3 for completion records.
+- If no training has been conducted, record "0% — training not yet executed."
+
+### 5e. Supply Chain Baseline
+
+- Vendor DPA coverage: count vendors in `docs/vendor-dpas.md` with signed DPAs vs total vendors.
+- Shadow IT: check `docs/shadow-it-discovery.md` §3 for discovery log entries.
+
+**Target:** Complete the first baseline measurement by end of Q3 2026. Record all values in the "Current" columns above and commit the updated file.
+
+---
+
+## 6. Reporting Cadence
 
 - **Frequency:** Quarterly (first week of Jan / Apr / Jul / Oct, aligned with access recertification).
 - **Distribution:** Board or executive leadership, Security Lead, Engineering Lead.
