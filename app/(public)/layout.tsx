@@ -117,7 +117,12 @@ export default async function PublicLayout({ children }: { children: React.React
           {children}
         </main>
         <SiteFooter site={site} dbFooterNav={dbFooterNav} />
-        <Toaster position="bottom-right" richColors closeButton />
+        <Toaster
+          position="bottom-right"
+          richColors
+          closeButton
+          containerAriaLabel="Notifications"
+        />
       </div>
     </ThemeProvider>
   );
