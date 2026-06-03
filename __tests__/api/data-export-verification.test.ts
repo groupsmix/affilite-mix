@@ -41,6 +41,13 @@ vi.mock("@/lib/sentry", () => ({
   captureException: vi.fn(),
 }));
 
+// A47-02: Turnstile CAPTCHA is required on GET. Mock as always-success here
+// so the test can focus on the verification-code logic; turnstile gating is
+// covered elsewhere.
+vi.mock("@/lib/turnstile", () => ({
+  verifyTurnstile: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 vi.mock("@/lib/logger", () => ({
   logger: {
     info: vi.fn(),
@@ -75,7 +82,9 @@ describe("Data export verification flow", () => {
   it("GET without code returns 400 requesting verification", async () => {
     const { GET } = await import("@/app/api/user/data-export/route");
 
-    const url = new URL("https://example.com/api/user/data-export?email=test@example.com");
+    const url = new URL(
+      "https://example.com/api/user/data-export?email=test@example.com&turnstile_token=test",
+    );
     const request = new Request(url.toString(), {
       headers: new Headers({ "x-site-id": "test-site" }),
     });
@@ -95,7 +104,7 @@ describe("Data export verification flow", () => {
     const { GET } = await import("@/app/api/user/data-export/route");
 
     const url = new URL(
-      "https://example.com/api/user/data-export?email=test@example.com&code=000000",
+      "https://example.com/api/user/data-export?email=test@example.com&code=000000&turnstile_token=test",
     );
     const request = new Request(url.toString(), {
       headers: new Headers({ "x-site-id": "test-site" }),
