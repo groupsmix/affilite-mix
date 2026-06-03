@@ -8,6 +8,7 @@ import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
 import { ContentCard } from "../../components/content-card";
 import { Breadcrumbs } from "../../components/breadcrumbs";
+import { ReportContentLink } from "../../components/report-content-link";
 import dynamic from "next/dynamic";
 
 const ComparisonTable = dynamic(() =>
@@ -317,6 +318,15 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
           </div>
         </section>
       )}
+
+      {/* A159-01: Public content reporting link */}
+      <div className="mt-10 border-t border-gray-200 pt-6 text-right">
+        <ReportContentLink
+          contentUrl={`https://${site.domain}/${content.type}/${content.slug}`}
+          contentTitle={content.title}
+          abuseEmail={site.brand.contactEmail}
+        />
+      </div>
 
       {/* Sticky CTA bar — only for affiliate/both sites */}
       {heroProduct && heroProduct.affiliate_url && site.monetizationType !== "ads" && (

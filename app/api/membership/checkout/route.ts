@@ -59,7 +59,11 @@ function parsePriceMap(): Record<string, string> | null {
       out[k.toLowerCase()] = v;
     }
     return Object.keys(out).length > 0 ? out : null;
-  } catch {
+  } catch (err) {
+    // A100-5: Log malformed STRIPE_PRICE_MAP instead of silently ignoring.
+    logger.error("[checkout] STRIPE_PRICE_MAP is set but not valid JSON", {
+      error: String(err),
+    });
     return null;
   }
 }

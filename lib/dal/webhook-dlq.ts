@@ -31,6 +31,75 @@ export interface DlqEntry {
 }
 
 /**
+ * A162-03: Scrub PII from DLQ payloads before persistence.
+ *
+ * Recursively walks the payload and redacts:
+ *   - Email addresses (RFC 5322 pattern)
+ *   - Phone numbers (E.164 and common US/intl formats)
+ *   - Known PII field names (name, address, etc.)
+ */
+const PII_FIELD_NAMES = new Set([
+  "email",
+  "customer_email",
+  "receipt_email",
+  "billing_email",
+  "name",
+  "customer_name",
+  "billing_name",
+  "shipping_name",
+  "phone",
+  "customer_phone",
+  "billing_phone",
+  "address_line1",
+  "address_line2",
+  "address_city",
+  "address_state",
+  "address_zip",
+  "address_country",
+  "line1",
+  "line2",
+  "city",
+  "state",
+  "postal_code",
+  "ip_address",
+]);
+
+const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+const PHONE_PATTERN = /\+?\d[\d\s().-]{7,}\d/g;
+
+function scrubPiiFromValue(value: string): string {
+  return value
+    .replace(EMAIL_PATTERN, "[REDACTED_EMAIL]")
+    .replace(PHONE_PATTERN, "[REDACTED_PHONE]");
+}
+
+function scrubPiiFromPayload(obj: unknown, depth = 0): unknown {
+  if (depth > 20) return "[TRUNCATED]";
+
+  if (typeof obj === "string") {
+    return scrubPiiFromValue(obj);
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => scrubPiiFromPayload(item, depth + 1));
+  }
+
+  if (obj !== null && typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      if (PII_FIELD_NAMES.has(key.toLowerCase())) {
+        result[key] = "[REDACTED_PII]";
+      } else {
+        result[key] = scrubPiiFromPayload(value, depth + 1);
+      }
+    }
+    return result;
+  }
+
+  return obj;
+}
+
+/**
  * Write a failed webhook event to the durable DLQ table.
  *
  * R2-01: This function now THROWS on failure so that callers cannot
@@ -42,6 +111,10 @@ export interface DlqEntry {
  * table is not RLS-protected; access is restricted via service-role only.
  */
 export async function writeToDlq(entry: DlqEntry): Promise<void> {
+  // A162-03: scrub PII from payload before persisting to DLQ
+  const scrubbedPayload = scrubPiiFromPayload(entry.payload) as Record<string, unknown>;
+  const scrubbedError = scrubPiiFromValue(entry.error_message);
+
   const sb = getPrivilegedSupabaseClient();
   const { error } = await sb
     .from("webhook_dlq")
@@ -49,8 +122,8 @@ export async function writeToDlq(entry: DlqEntry): Promise<void> {
       {
         event_id: entry.event_id,
         event_type: entry.event_type,
-        payload: entry.payload as unknown as import("@/types/supabase").Json,
-        error_message: entry.error_message,
+        payload: scrubbedPayload as unknown as import("@/types/supabase").Json,
+        error_message: scrubbedError,
         attempts: entry.attempts,
         status: "pending",
       },

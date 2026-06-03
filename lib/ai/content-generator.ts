@@ -11,7 +11,11 @@ import {
 } from "./content-moderation";
 import { sanitizePrompt } from "./prompt-sanitization";
 import { sanitizeHtml } from "@/lib/sanitize-html";
-import { validateOutputFormat, validateGeneratedLinks } from "./output-validation";
+import {
+  validateOutputFormat,
+  validateGeneratedLinks,
+  checkContentQuality,
+} from "./output-validation";
 
 export type AIContentType = "article" | "review" | "comparison" | "guide";
 
@@ -39,6 +43,8 @@ export interface GeneratedContent {
   model: string;
   /** A115-F1: Regulatory terms found that require manual verification before publishing. */
   regulatoryWarnings?: string[];
+  /** S5-A105-02: Content quality warnings (word count, missing keywords). Non-blocking. */
+  qualityWarnings?: string[];
 }
 
 const SYSTEM_PROMPTS: Record<AIContentType, string> = {
@@ -278,6 +284,10 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
   // an allowed tag so it survives sanitization (unlike the old <meta>/comment).
   const watermarkedBody = `${AI_GENERATED_WATERMARK}${sanitizedBody}`;
 
+  // S5-A105-02: Run content quality gates (word count, keyword presence).
+  // Non-blocking — warnings are surfaced to the admin review queue, not a hard rejection.
+  const qualityCheck = checkContentQuality(sanitizedBody, input.keywords);
+
   return {
     ...parsed,
     body: watermarkedBody,
@@ -285,5 +295,7 @@ export async function generateContent(input: GenerateContentInput): Promise<Gene
     model,
     // A115-F1: Include regulatory warnings so admin UI can surface them.
     ...(outputCheck.regulatoryWarnings && { regulatoryWarnings: outputCheck.regulatoryWarnings }),
+    // S5-A105-02: Include quality warnings so admin UI can surface them.
+    ...(qualityCheck.warnings.length > 0 && { qualityWarnings: qualityCheck.warnings }),
   };
 }
