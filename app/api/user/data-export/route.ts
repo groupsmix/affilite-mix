@@ -7,6 +7,8 @@ import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { logger } from "@/lib/logger";
 import { isValidEmail, sanitizeEmailInput, hashEmailForRateLimit } from "@/lib/validate-email";
 import { getAppCacheKV } from "@/lib/runtime-env";
+// A47-02: Turnstile CAPTCHA on GET to prevent automated email enumeration
+import { verifyTurnstile } from "@/lib/turnstile";
 
 /**
  * SEC-01 (étap-3 RISK-01): GDPR Art. 20 data portability endpoint.
@@ -133,6 +135,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { error: "Too many requests. Try again later." },
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
+  // A47-02: Require Turnstile CAPTCHA to prevent automated email enumeration.
+  const turnstileToken = request.nextUrl.searchParams.get("turnstile_token");
+  if (!turnstileToken) {
+    return NextResponse.json(
+      { error: "turnstile_token parameter is required for bot protection." },
+      { status: 400 },
+    );
+  }
+  const turnstileResult = await verifyTurnstile(turnstileToken, ip);
+  if (!turnstileResult.success) {
+    return NextResponse.json(
+      { error: "CAPTCHA verification failed. Please try again." },
+      { status: 403 },
     );
   }
 
