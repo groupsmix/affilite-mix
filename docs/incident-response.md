@@ -235,6 +235,18 @@ ETA: [Estimated resolution time, if known]
 ## Lessons Learned
 
 [Key takeaways for the team]
+
+## Action Item Tracking (A195)
+
+Every action item MUST be filed as a GitHub Issue within 24 hours of the post-mortem:
+
+- Label: `post-mortem`
+- Assignee: the named owner from the table above
+- Due date: set in the issue body
+- Link: reference this post-mortem document in the issue
+
+Weekly review: Security Lead checks all open `post-mortem` issues every Monday.
+Overdue threshold: 7 days past due date → escalate to Engineering Lead.
 ```
 
 ### Post-Mortem Process
@@ -321,7 +333,28 @@ If the breach is likely to result in a high risk to the rights and freedoms of i
 | ---------- | -------------------------- | -------- | ----------------------------------------------- | ----------------------------------------------------- |
 | YYYY-MM-DD | Connection Pool Exhaustion | P1       | Spiky viral traffic exceeded pooler max limits. | Migrated domain resolution to KV cache (See PR #274). |
 
-### 4. Branch Protection Rules (GitHub)
+### 5. Evidence Chain-of-Custody Procedure (A187-F2)
+
+During any incident where forensic evidence may be needed (SEV-1, SEV-2, or any security incident):
+
+1. **Designate an Evidence Custodian** — typically the incident commander or a delegated security team member.
+2. **Create a custody log** (use a shared Google Doc or GitHub Issue with the `evidence-custody` label):
+
+   | Timestamp (UTC)  | Action    | Actor  | Evidence Item | Hash (SHA-256) | Storage Location    |
+   | ---------------- | --------- | ------ | ------------- | -------------- | ------------------- |
+   | YYYY-MM-DD HH:MM | Collected | [Name] | [Description] | [hash]         | [R2/GCS/local path] |
+
+3. **Collect evidence** (do NOT modify originals):
+   - Cloudflare Worker logs: Export via Logpush or R2 bucket snapshot.
+   - Supabase audit logs: Export via SQL `COPY` to CSV, upload to R2.
+   - GitHub audit log: Export via API (`gh api /orgs/groupsmix/audit-log`).
+   - Browser/network captures: Save HAR files.
+4. **Hash every artifact** immediately upon collection: `sha256sum <file>`.
+5. **Store in the immutable R2 bucket** (`affilite-mix-audit-logs`) with object lock (see `docs/log-retention-worm.md`).
+6. **Restrict access** — only the evidence custodian and legal counsel may access evidence files during an active investigation.
+7. **Handoff** — when transferring evidence (e.g., to legal or law enforcement), record the transfer in the custody log with both parties signing off.
+
+### 6. Branch Protection Rules (GitHub)
 
 - **main branch:** Requires 1 approving review from CODEOWNERS.
 - **Enforcement:** Enforce for administrators is `enabled`.

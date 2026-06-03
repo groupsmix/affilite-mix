@@ -119,5 +119,21 @@ export async function verifyRequestBinding(
     return !requireBinding;
   }
 
-  return expected === tokenBinding;
+  // S0-FP-009: use timing-safe comparison instead of === to prevent
+  // theoretical character-by-character brute-force of the binding hash.
+  return timingSafeEqual(expected, tokenBinding);
+}
+
+/**
+ * Timing-safe string equality for binding hashes.
+ * Fixed-length SHA-256 hex strings (64 chars), so length mismatch
+ * is itself a hard reject without timing information.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
 }

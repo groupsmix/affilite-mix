@@ -210,10 +210,17 @@ export const PATCH = withAuthz(
       return NextResponse.json({ error: editUrlErr.error }, { status: 400 });
     }
     try {
+      // S1-A18-001: Pass updated_at from client for optimistic locking.
+      // If provided, the update only succeeds when the row hasn't changed.
+      const expectedUpdatedAt = (parsed.data as unknown as Record<string, unknown>).updated_at as
+        | string
+        | undefined;
       const content = await updateContent(
         siteId,
         id,
         updates as Parameters<typeof updateContent>[2],
+        undefined,
+        expectedUpdatedAt,
       );
       void revalidateTag(contentTag(siteId));
       await recordAuditEvent({
@@ -234,6 +241,10 @@ export const PATCH = withAuthz(
 
       return NextResponse.json(content);
     } catch (err) {
+      // S1-A18-001: Optimistic lock conflict → 409
+      if (err instanceof Error && (err as Error & { status?: number }).status === 409) {
+        return NextResponse.json({ error: err.message }, { status: 409 });
+      }
       captureException(err, { context: "[api/admin/content] PATCH update failed:" });
       return NextResponse.json({ error: "Failed to update content" }, { status: 500 });
     }

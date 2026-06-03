@@ -123,6 +123,14 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     try {
       const cookieStore = await cookies();
       siteSlug = cookieStore.get(SITE_COOKIE)?.value ?? null;
+      // S0-FP-004: in production, cookie-only site selection should be
+      // logged as suspicious — the header is the trusted source set by
+      // middleware, while cookies can be manipulated by the client.
+      if (siteSlug && process.env.NODE_ENV === "production") {
+        logger.warn("[site-context] site_id resolved from cookie only (no header)", {
+          siteSlug,
+        });
+      }
     } catch {
       // fail-open: best-effort [criticality:non-critical]
       // Cookies not available either

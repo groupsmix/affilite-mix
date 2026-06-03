@@ -1,6 +1,15 @@
 import type Stripe from "stripe";
 import { applyStripeEventAtomic, type StripeEventOp } from "@/lib/dal/stripe-events";
 import { logger } from "@/lib/logger";
+import { recordAuditEvent } from "@/lib/audit-log";
+
+/** A91-2: Typed error wrapper preserving the original cause. */
+class ProcessorError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "ProcessorError";
+  }
+}
 
 export interface StripeProcessingResult {
   duplicate: boolean;
@@ -21,6 +30,10 @@ export async function processStripeEvent(
     });
   } else {
     logStripeSideEffect(event.type, payload, result.membership_id);
+    // A167-01: Record membership mutations in the audit trail
+    await recordMembershipAudit(event.type, payload, result.membership_id).catch((err) => {
+      logger.warn("Failed to record membership audit event", { error: err });
+    });
   }
 
   return { duplicate: result.duplicate, membershipId: result.membership_id };
@@ -82,10 +95,11 @@ async function buildStripeEventPayload(
       try {
         sub = await stripe.subscriptions.retrieve(subscriptionId);
       } catch (err) {
-        logger.error("Failed to retrieve subscription from Stripe in checkout.session.completed", {
-          subscriptionId,
-          error: err,
-        });
+        const wrapped = new ProcessorError(
+          "checkout.session.completed: subscription retrieval failed",
+          { cause: err },
+        );
+        logger.error(wrapped.message, { subscriptionId, cause: String(err) });
         return { op: "noop" };
       }
       return {
@@ -113,10 +127,10 @@ async function buildStripeEventPayload(
       try {
         sub = await stripe.subscriptions.retrieve(subscriptionId);
       } catch (err) {
-        logger.error("Failed to retrieve subscription from Stripe in invoice.paid", {
-          subscriptionId,
-          error: err,
+        const wrapped = new ProcessorError("invoice.paid: subscription retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { subscriptionId, cause: String(err) });
         return { op: "noop" };
       }
       return {
@@ -155,7 +169,17 @@ async function buildStripeEventPayload(
       const charge = event.data.object as Stripe.Charge;
       const paymentIntentId =
         typeof charge.payment_intent === "string" ? charge.payment_intent : undefined;
-      logger.info("Stripe charge refunded", { chargeId: charge.id, paymentIntentId });
+      // A169-01: distinguish partial vs full refund
+      const amountRefunded = charge.amount_refunded ?? 0;
+      const amountTotal = charge.amount ?? 0;
+      const isFullRefund = amountTotal > 0 && amountRefunded >= amountTotal;
+      logger.info("Stripe charge refunded", {
+        chargeId: charge.id,
+        paymentIntentId,
+        amountRefunded,
+        amountTotal,
+        isFullRefund,
+      });
 
       const invoiceId = getChargeInvoiceId(charge);
       if (!invoiceId) return { op: "noop" };
@@ -163,25 +187,35 @@ async function buildStripeEventPayload(
       try {
         invoice = await stripe.invoices.retrieve(invoiceId);
       } catch (err) {
-        logger.error("Failed to retrieve invoice from Stripe in charge.refunded", {
-          invoiceId,
-          error: err,
+        const wrapped = new ProcessorError("charge.refunded: invoice retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { invoiceId, cause: String(err) });
         return { op: "noop" };
       }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
-      return {
-        op: "cancel_membership",
-        stripe_subscription_id: subscriptionId,
-      };
+      // A169-01: only cancel on full refund; partial refunds just log
+      if (isFullRefund) {
+        return {
+          op: "cancel_membership",
+          stripe_subscription_id: subscriptionId,
+        };
+      }
+      logger.info("Partial refund — membership retained", {
+        subscriptionId,
+        amountRefunded,
+        amountTotal,
+      });
+      return { op: "noop" };
     }
 
     case "charge.dispute.created":
     case "charge.dispute.updated": {
       const dispute = event.data.object as Stripe.Dispute;
-      logger.warn("Stripe dispute received — manual review required", {
+      // A169-02: auto-suspend membership on dispute
+      logger.warn("Stripe dispute received — auto-suspending membership", {
         disputeId: dispute.id,
         status: dispute.status,
         amount: dispute.amount,
@@ -193,10 +227,10 @@ async function buildStripeEventPayload(
       try {
         charge = await stripe.charges.retrieve(dispute.charge);
       } catch (err) {
-        logger.error("Failed to retrieve charge from Stripe in dispute handler", {
-          chargeId: dispute.charge,
-          error: err,
+        const wrapped = new ProcessorError("charge.dispute: charge retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { chargeId: dispute.charge, cause: String(err) });
         return { op: "noop" };
       }
       const invoiceId = getChargeInvoiceId(charge);
@@ -205,19 +239,20 @@ async function buildStripeEventPayload(
       try {
         invoice = await stripe.invoices.retrieve(invoiceId);
       } catch (err) {
-        logger.error("Failed to retrieve invoice from Stripe in dispute handler", {
-          invoiceId,
-          error: err,
+        const wrapped = new ProcessorError("charge.dispute: invoice retrieval failed", {
+          cause: err,
         });
+        logger.error(wrapped.message, { invoiceId, cause: String(err) });
         return { op: "noop" };
       }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
+      // A169-02: set to "disputed" instead of "past_due" for clear audit trail
       return {
         op: "update_status",
         stripe_subscription_id: subscriptionId,
-        status: "past_due",
+        status: "disputed",
       };
     }
 
@@ -318,4 +353,57 @@ function mapStripeStatus(
     default:
       return "past_due";
   }
+}
+
+/**
+ * A167-01: Record membership mutations in the audit trail.
+ * Best-effort — failures are caught by the caller and logged.
+ */
+async function recordMembershipAudit(
+  eventType: string,
+  payload: StripeEventOp,
+  membershipId: string | null,
+): Promise<void> {
+  if (payload.op === "noop") return;
+
+  const action = `membership.${payload.op}`;
+  const details: Record<string, unknown> = { stripe_event_type: eventType };
+
+  switch (payload.op) {
+    case "create_membership":
+      details.status = "active";
+      details.tier = payload.tier;
+      details.stripe_subscription_id = payload.stripe_subscription_id;
+      details.stripe_customer_id = payload.stripe_customer_id;
+      details.current_period_start = payload.current_period_start;
+      details.current_period_end = payload.current_period_end;
+      break;
+    case "renew_membership":
+      details.status = "active";
+      details.stripe_subscription_id = payload.stripe_subscription_id;
+      details.current_period_start = payload.current_period_start;
+      details.current_period_end = payload.current_period_end;
+      break;
+    case "update_status":
+      details.status = payload.status;
+      details.stripe_subscription_id = payload.stripe_subscription_id;
+      details.tier = payload.tier;
+      break;
+    case "cancel_membership":
+      details.status = "cancelled";
+      details.stripe_subscription_id = payload.stripe_subscription_id;
+      break;
+  }
+
+  await recordAuditEvent({
+    site_id:
+      "op" in payload && "site_id" in payload
+        ? (payload as { site_id: string }).site_id
+        : "_global",
+    actor: "stripe-webhook",
+    action,
+    entity_type: "membership",
+    entity_id: membershipId ?? "unknown",
+    details,
+  });
 }

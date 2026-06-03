@@ -45,6 +45,19 @@ const AUDIT_DETAIL_ALLOWLIST: Record<string, string[]> = {
   upload: ["contentType", "fileSize"],
   // Auth events
   admin_user: ["role"],
+  // A167-01: Membership audit trail
+  membership: [
+    "status",
+    "tier",
+    "stripe_subscription_id",
+    "stripe_customer_id",
+    "current_period_start",
+    "current_period_end",
+    "previous_status",
+    "reason",
+  ],
+  // A167-02: Commission status changes
+  commission: ["status", "previous_status", "amount", "currency", "reason"],
 };
 
 /** A8-005: Redact sensitive fields from audit details based on an allowlist. */
