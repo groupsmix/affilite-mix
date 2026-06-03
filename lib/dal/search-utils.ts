@@ -20,6 +20,9 @@ export function stripPostgrestMeta(value: string): string {
  * Splits on whitespace and joins with `&` (AND) so every term must match.
  * Each token is sanitised to prevent tsquery syntax errors.
  */
+/** S0-P7-003: max number of tsquery tokens to prevent expensive queries. */
+const MAX_TSQUERY_TOKENS = 15;
+
 export function toTsquery(raw: string): string {
   // P-05: Cap input length to prevent O(n) processing on massive strings
   return raw
@@ -27,6 +30,7 @@ export function toTsquery(raw: string): string {
     .replace(/[^\p{L}\p{N}\s]/gu, "") // strip punctuation
     .split(/\s+/)
     .filter(Boolean)
+    .slice(0, MAX_TSQUERY_TOKENS) // S0-P7-003: cap token count
     .map((t) => `${t}:*`) // prefix matching
     .join(" & ");
 }

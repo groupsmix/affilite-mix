@@ -77,10 +77,17 @@ function isSafeCursorValue(v: string): boolean {
 function decodeCursor(cursor: string): CursorPayload | null {
   try {
     const raw = Buffer.from(cursor, "base64url").toString("utf8");
-    const parsed = JSON.parse(raw) as CursorPayload;
-    if (parsed.v !== 1 || !parsed.col || !parsed.id) return null;
-    if (!isSafeCursorValue(parsed.val) || !isSafeCursorValue(parsed.id)) return null;
-    return parsed;
+    const parsed: unknown = JSON.parse(raw);
+    // A100-7: Type-check every field after deserialization to prevent
+    // CWE-502 (untrusted data flowing into PostgREST filters).
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const obj = parsed as Record<string, unknown>;
+    if (obj.v !== 1) return null;
+    if (typeof obj.col !== "string" || typeof obj.val !== "string" || typeof obj.id !== "string") {
+      return null;
+    }
+    if (!isSafeCursorValue(obj.val) || !isSafeCursorValue(obj.id)) return null;
+    return { v: 1, col: obj.col, val: obj.val, id: obj.id };
   } catch {
     // D10-02: parse failure returns null → caller starts from page 1 (fail-safe)
     return null;
