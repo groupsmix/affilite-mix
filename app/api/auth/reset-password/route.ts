@@ -9,6 +9,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 // RISK-05 (étap-3): Use strong revocation for immediate in-isolate effect
 import { revokeTokenStrong } from "@/lib/jwt-revocation-strong";
+// A100-4: Safe JWT claim decoding (replaces unsafe JSON.parse(atob()))
+import { decodeJwtClaims } from "@/lib/decode-jwt-claims";
 import { COOKIE_NAME } from "@/lib/auth";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
@@ -126,11 +128,11 @@ export async function POST(request: Request) {
       const cookieStore = await cookies();
       const token = cookieStore.get(COOKIE_NAME)?.value;
       if (token) {
-        const [, payloadStr] = token.split(".");
-        const base64 = payloadStr.replace(/-/g, "+").replace(/_/g, "/");
-        const payload = JSON.parse(atob(base64));
-        if (payload.jti) {
-          await revokeTokenStrong(payload.jti);
+        // A100-4: jose.decodeJwt() validates 3-part token structure and returns a typed
+        // JWTPayload — no __proto__/constructor keys can leak into the result.
+        const claims = decodeJwtClaims(token);
+        if (claims?.jti && typeof claims.jti === "string") {
+          await revokeTokenStrong(claims.jti);
         }
       }
     } catch (e) {
