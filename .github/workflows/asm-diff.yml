@@ -1,0 +1,108 @@
+name: ASM Drift Detection (A213)
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Daily at 06:00 UTC
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  asm-drift:
+    name: Attack Surface Drift Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch current DNS records
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: |
+          curl -sf "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records?per_page=100" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            | jq -r '.result[] | [.name, .type, .content, .proxied] | @tsv' \
+            | sort > /tmp/dns-current.tsv
+          echo "DNS records fetched: $(wc -l < /tmp/dns-current.tsv)"
+
+      - name: Fetch current Worker routes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: |
+          curl -sf "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/workers/routes" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            | jq -r '.result[] | [.pattern, .script] | @tsv' \
+            | sort > /tmp/routes-current.tsv
+          echo "Worker routes fetched: $(wc -l < /tmp/routes-current.tsv)"
+
+      - name: Compare with baseline
+        id: diff
+        run: |
+          BASELINE_DNS="docs/asm-baselines/dns-baseline.tsv"
+          BASELINE_ROUTES="docs/asm-baselines/routes-baseline.tsv"
+
+          DRIFT_FOUND=false
+
+          if [ -f "$BASELINE_DNS" ]; then
+            if ! diff -u "$BASELINE_DNS" /tmp/dns-current.tsv > /tmp/dns-diff.txt 2>&1; then
+              echo "::warning::DNS drift detected"
+              DRIFT_FOUND=true
+              echo "dns_drift<<EOF" >> "$GITHUB_OUTPUT"
+              cat /tmp/dns-diff.txt >> "$GITHUB_OUTPUT"
+              echo "EOF" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "::notice::No DNS baseline found — creating initial baseline"
+            mkdir -p docs/asm-baselines
+            cp /tmp/dns-current.tsv "$BASELINE_DNS"
+          fi
+
+          if [ -f "$BASELINE_ROUTES" ]; then
+            if ! diff -u "$BASELINE_ROUTES" /tmp/routes-current.tsv > /tmp/routes-diff.txt 2>&1; then
+              echo "::warning::Worker routes drift detected"
+              DRIFT_FOUND=true
+              echo "routes_drift<<EOF" >> "$GITHUB_OUTPUT"
+              cat /tmp/routes-diff.txt >> "$GITHUB_OUTPUT"
+              echo "EOF" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "::notice::No routes baseline found — creating initial baseline"
+            mkdir -p docs/asm-baselines
+            cp /tmp/routes-current.tsv "$BASELINE_ROUTES"
+          fi
+
+          echo "drift_found=$DRIFT_FOUND" >> "$GITHUB_OUTPUT"
+
+      - name: Open issue on drift
+        if: steps.diff.outputs.drift_found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="ASM Drift Detected — $(date +%Y-%m-%d)"
+          BODY="## Attack Surface Drift Detected
+
+          **Date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          **Workflow:** [Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          ### DNS Changes
+          \`\`\`diff
+          ${{ steps.diff.outputs.dns_drift }}
+          \`\`\`
+
+          ### Worker Route Changes
+          \`\`\`diff
+          ${{ steps.diff.outputs.routes_drift }}
+          \`\`\`
+
+          ### Required Actions
+          1. Review the changes above — are they expected?
+          2. If expected: update the baseline files in \`docs/asm-baselines/\` and close this issue.
+          3. If unexpected: investigate immediately per \`docs/incident-response.md\`.
+
+          /cc @groupsmix/security
+          "
+
+          gh issue create --title "$TITLE" --body "$BODY" --label "security,asm-drift"

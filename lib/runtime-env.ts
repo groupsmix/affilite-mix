@@ -108,7 +108,11 @@ function resolveCloudflareContext(): { env: RuntimeEnv } | undefined {
           mod as unknown as { getCloudflareContext: () => { env: RuntimeEnv } | undefined }
         ).getCloudflareContext;
       })
-      .catch(() => {
+      .catch((err) => {
+        // A100-14: Log the error instead of silently swallowing it.
+        // A misconfigured binding will cause confusing downstream failures
+        // if this failure is invisible.
+        console.warn("[runtime-env] Cloudflare context pre-warm failed:", String(err));
         _cfContextFn = false;
       });
     return undefined;

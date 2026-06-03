@@ -64,7 +64,19 @@ New team members must complete the following within their first 2 weeks:
 
 ---
 
-## 5. Reporting
+## 5. Security Reporting Hotline (A186-F2)
+
+Team members can report security concerns through the following channels:
+
+- **Email:** `security@groupsmix.com` — monitored by the security lead, response within 24 hours.
+- **Slack:** `#security-reports` channel — for non-sensitive reports; use email for anything involving credentials or PII.
+- **Anonymous:** Use the anonymous reporting form at `[INTERNAL_FORM_URL]` — for concerns that require confidentiality (e.g., insider behavior, policy violations).
+
+All reports are tracked in `docs/open-investigations.md` and triaged per `docs/incident-response.md`.
+
+---
+
+## 6. Reporting
 
 Training metrics feed into the quarterly board cyber dashboard (`docs/board-cyber-metrics.md`, A203):
 

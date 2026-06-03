@@ -4,14 +4,21 @@ import { getCurrentSite } from "@/lib/site-context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { getClientIp } from "@/lib/get-client-ip";
-import { isValidEmail, normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
+import {
+  isValidEmail,
+  normalizeEmail,
+  hashEmailForRateLimit,
+  dealiasEmail,
+} from "@/lib/validate-email";
 import { apiError, rateLimitHeaders, parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { hashNewsletterToken } from "@/lib/newsletter-token";
 import { escapeAttribute, escapeHtml, safeHexColor, safeHref } from "@/lib/email-templates/escape";
 import { logger } from "@/lib/logger";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
+import { resolveSendingEmail } from "@/lib/sending-email";
 import { t, type SupportedLocale } from "@/lib/i18n";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 /**
  * Build a branded HTML email for newsletter confirmation.
@@ -147,21 +154,41 @@ export async function POST(request: Request) {
 
     const site = await getCurrentSite();
     const sb = await getTenantClient();
+    // A153-03: de-alias email for dedup (strips +tags, dots on Gmail etc).
+    // Check both the original email and de-aliased form so alias-based
+    // duplicate signups are caught without requiring a schema migration.
+    const emailDedup = dealiasEmail(email);
+
     const { data: existing } = await sb
       // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber lookup is query-justified as no DAL wrapper exists
       .from("newsletter_subscribers")
-      .select("id, status, confirmed_at")
+      .select("id, status, confirmed_at, email")
       .eq("site_id", site.id)
       .eq("email", email)
       .single();
+
+    // A153-03: also check by de-aliased form to catch +tag / dot aliases
+    let existingByAlias = null;
+    if (!existing && emailDedup !== email) {
+      const { data: aliasMatch } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- direct newsletter subscriber dedup lookup is query-justified
+        .from("newsletter_subscribers")
+        .select("id, status, confirmed_at, email")
+        .eq("site_id", site.id)
+        .eq("email", emailDedup)
+        .single();
+      existingByAlias = aliasMatch;
+    }
+
+    const matchedExisting = existing ?? existingByAlias;
 
     const confirmationToken = crypto.randomUUID();
     const confirmationTokenHash = await hashNewsletterToken(confirmationToken);
     const unsubscribeToken = crypto.randomUUID();
     const unsubscribeTokenHash = await hashNewsletterToken(unsubscribeToken);
 
-    if (existing) {
-      if (existing.status === "active" && existing.confirmed_at) {
+    if (matchedExisting) {
+      if (matchedExisting.status === "active" && matchedExisting.confirmed_at) {
         return NextResponse.json({ ok: true, message: t("newsletter.already_subscribed") });
       }
       const { error: updateError } = await sb
@@ -173,7 +200,7 @@ export async function POST(request: Request) {
           unsubscribe_token: unsubscribeTokenHash,
           confirmed_at: null,
         })
-        .eq("id", existing.id)
+        .eq("id", matchedExisting.id)
         // AUDIT-FIX A5-002: Defense-in-depth site_id predicate on update
         .eq("site_id", site.id);
 
@@ -280,11 +307,14 @@ export async function POST(request: Request) {
           "Newsletter email is temporarily unavailable. Please try again later.",
         );
       }
-      const fromEmail = process.env.NEWSLETTER_FROM_EMAIL ?? `noreply@${safeDomain}`;
+      // A144-01: per-tenant sending email for SPF/DKIM alignment
+      const fromEmail = resolveSendingEmail(site, safeDomain);
       // A150-01: RFC 8058 / Gmail-Yahoo 2024 bulk-sender one-click unsubscribe.
       const unsubscribeUrl = `${baseUrl}/api/newsletter/unsubscribe?token=${unsubscribeToken}`;
-      const res = await fetch("https://api.resend.com/emails", {
+      // A74-F1: Use fetchWithTimeout to prevent hanging if Resend is degraded.
+      const res = await fetchWithTimeout("https://api.resend.com/emails", {
         method: "POST",
+        timeoutMs: 10_000,
         headers: {
           Authorization: `Bearer ${resendKey}`,
           "Content-Type": "application/json",
