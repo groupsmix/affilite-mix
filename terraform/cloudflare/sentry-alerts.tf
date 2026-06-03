@@ -11,6 +11,28 @@
 # 8. P2-4: Log shipper health alert
 # 9. P2-8: AI cost threshold alert
 
+# A43-04: These are currently pseudo-terraform (commented-out examples).
+# To provision as real infrastructure, add the Sentry Terraform provider:
+#
+#   terraform {
+#     required_providers {
+#       sentry = {
+#         source  = "jianyuan/sentry"
+#         version = "~> 0.12"
+#       }
+#     }
+#   }
+#
+#   provider "sentry" {
+#     token = var.sentry_auth_token
+#     base_url = "https://sentry.io/api/"
+#   }
+#
+# Then uncomment and adapt the resource blocks below. The cron heartbeat
+# missed alert (item #7) is the highest-priority one to provision, as the
+# app's cron-liveness system (lib/cron-liveness.ts) currently relies on
+# log-based alerting which may miss failures if the log shipper is down.
+#
 # To apply these rules, you would use the official Sentry Terraform provider.
 # Example:
 # resource "sentry_issue_alert" "kv_fail_open" {

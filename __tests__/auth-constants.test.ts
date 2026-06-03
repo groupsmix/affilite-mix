@@ -14,6 +14,8 @@ import {
   ADMIN_JWT_EXPIRY_SECONDS,
   ADMIN_JWT_EXPIRY_STRING,
   REVOKED_JWT_TTL_SECONDS,
+  MAX_SESSION_AGE_REGULAR_SECONDS,
+  MAX_SESSION_AGE_ADMIN_SECONDS,
 } from "@/lib/auth-constants";
 
 describe("auth-constants — single source of truth for JWT timing", () => {
@@ -34,5 +36,22 @@ describe("auth-constants — single source of truth for JWT timing", () => {
     // of the blocklist while the matching JWT is still valid — i.e.
     // the revocation becomes a no-op for the last (drift) seconds.
     expect(REVOKED_JWT_TTL_SECONDS).toBeGreaterThanOrEqual(ADMIN_JWT_EXPIRY_SECONDS);
+  });
+
+  it("absolute session caps are at least as long as JWT expiry (A100-1)", () => {
+    expect(MAX_SESSION_AGE_REGULAR_SECONDS).toBeGreaterThanOrEqual(ADMIN_JWT_EXPIRY_SECONDS);
+    expect(MAX_SESSION_AGE_ADMIN_SECONDS).toBeGreaterThanOrEqual(ADMIN_JWT_EXPIRY_SECONDS);
+  });
+
+  it("super_admin cap is tighter than regular admin (A100-1)", () => {
+    expect(MAX_SESSION_AGE_ADMIN_SECONDS).toBeLessThan(MAX_SESSION_AGE_REGULAR_SECONDS);
+  });
+
+  it("regular admin cap is 24 hours", () => {
+    expect(MAX_SESSION_AGE_REGULAR_SECONDS).toBe(24 * 60 * 60);
+  });
+
+  it("super_admin cap is 12 hours", () => {
+    expect(MAX_SESSION_AGE_ADMIN_SECONDS).toBe(12 * 60 * 60);
   });
 });

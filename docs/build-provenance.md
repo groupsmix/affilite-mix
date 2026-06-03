@@ -38,7 +38,15 @@ The current release process requires 2 PR reviewers (enforced by branch protecti
 - Any merge to `main` triggers automatic deployment.
 - A single person with merge permissions can deploy after obtaining 2 reviews.
 
-**Accepted risk:** The 2-reviewer PR rule provides adequate separation of duties for the current team size. A separate release-approval step (e.g., GitHub Environment protection rules with required reviewers) can be added when the team grows.
+**Accepted risk:** The 2-reviewer PR rule provides adequate separation of duties for the current team size.
+
+**A175-F2 — Recommended improvement:** Add a GitHub Environment protection rule on the `production` environment requiring at least 1 additional approver before the deploy workflow executes. This creates a distinct two-person gate between "code approved" and "code deployed":
+
+1. Go to Repository Settings → Environments → Create `production`.
+2. Enable "Required reviewers" and add the security lead or a deploy-approver team.
+3. Update `.github/workflows/deploy.yml` to reference `environment: production`.
+
+This change does not require code changes — it is a GitHub configuration step.
 
 ---
 

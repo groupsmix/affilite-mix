@@ -7,7 +7,10 @@ import { parseJsonBody } from "@/lib/api-error";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
-import { revokeToken } from "@/lib/jwt-revocation";
+// RISK-05 (étap-3): Use strong revocation for immediate in-isolate effect
+import { revokeTokenStrong } from "@/lib/jwt-revocation-strong";
+// A100-4: Safe JWT claim decoding (replaces unsafe JSON.parse(atob()))
+import { decodeJwtClaims } from "@/lib/decode-jwt-claims";
 import { COOKIE_NAME } from "@/lib/auth";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
@@ -43,10 +46,10 @@ export async function POST(request: Request) {
     const token = ((bodyOrError.token as string) ?? "").trim();
     const password = (bodyOrError.password as string) ?? "";
 
-    // AUDIT-FIX A4-003: Validate token format (URL-safe base64, hex, or
-    // UUID with hyphens; 8-256 chars) before hashing / DB lookup to
-    // prevent DoS from huge tokens and reject obviously malformed input.
-    if (!token || !/^[A-Za-z0-9_-]{8,256}$/.test(token)) {
+    // S1-A14-006: Tightened max from 256 to 128 chars. Real reset tokens
+    // are 32-64 chars (hex or base64url). 128 is generous while still
+    // preventing DoS from oversized inputs hitting SHA-256 hashing.
+    if (!token || !/^[A-Za-z0-9_-]{8,128}$/.test(token)) {
       return NextResponse.json({ error: "Invalid or missing reset token" }, { status: 400 });
     }
 
@@ -125,11 +128,11 @@ export async function POST(request: Request) {
       const cookieStore = await cookies();
       const token = cookieStore.get(COOKIE_NAME)?.value;
       if (token) {
-        const [, payloadStr] = token.split(".");
-        const base64 = payloadStr.replace(/-/g, "+").replace(/_/g, "/");
-        const payload = JSON.parse(atob(base64));
-        if (payload.jti) {
-          await revokeToken(payload.jti);
+        // A100-4: jose.decodeJwt() validates 3-part token structure and returns a typed
+        // JWTPayload — no __proto__/constructor keys can leak into the result.
+        const claims = decodeJwtClaims(token);
+        if (claims?.jti && typeof claims.jti === "string") {
+          await revokeTokenStrong(claims.jti);
         }
       }
     } catch (e) {

@@ -217,6 +217,13 @@ export async function POST(request: NextRequest) {
       throw err;
     }
 
+    // S0-V4-004: re-check body length after sanitization — the sanitizer
+    // may strip tags (reducing length) but the stored value should still
+    // respect the 2000-char business limit.
+    if (sanitizedBody.length > 2000) {
+      return NextResponse.json({ error: "body must be 2000 characters or less" }, { status: 400 });
+    }
+
     // SEC-06: Sanitize user_name to strip any HTML/script injection.
     // Use the same tag-stripping path as `body` (sanitizeHtml) instead of
     // HTML-entity encoding — React auto-escapes text content on render, so
