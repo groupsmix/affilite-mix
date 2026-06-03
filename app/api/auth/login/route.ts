@@ -32,6 +32,7 @@ import { verifyTotpToken, needsSha256Reenrollment } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { checkSuspiciousLogin } from "@/lib/suspicious-login";
 import { getAppCacheKV } from "@/lib/runtime-env";
 import {
   MAX_SESSION_AGE_REGULAR_SECONDS,
@@ -494,6 +495,20 @@ export async function POST(request: NextRequest) {
       // fail-open: best-effort [criticality:non-critical]
       // fail-open
     }
+
+    // A154-03: suspicious login detection — best-effort, never blocks login
+    if (authResult.userId) {
+      checkSuspiciousLogin({
+        userId: authResult.userId,
+        email: authResult.email ?? email,
+        ip,
+        userAgent: request.headers.get("user-agent") ?? "unknown",
+      }).catch(() => {});
+    }
+
+    // A100-1 / A98-8: Stamp the original login time into the token so
+    // absolute session lifetime can be enforced across refreshes.
+    authResult.session_start = Math.floor(Date.now() / 1000);
 
     // F-035: bind the token to the originating user-agent + IP /24.
     const token = await createToken(authResult, request);

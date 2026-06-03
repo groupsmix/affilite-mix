@@ -2,7 +2,8 @@
 
 > **A188 Remediation** — Centralized, immutable log retention configuration.
 > **Status:** Configuration documented; implementation requires Cloudflare Workers Paid plan features.
-> **Last updated:** 2026-05-29
+> **Priority:** ⚠️ **CRITICAL** — This is the single highest-priority infrastructure task. A184 (UEBA), A193 (forensics), A208 (purple-team MTTR), and A190 (breach notification evidence) are all blocked until this is operational. Target completion: Q3 2026.
+> **Last updated:** 2026-05-30
 
 ---
 

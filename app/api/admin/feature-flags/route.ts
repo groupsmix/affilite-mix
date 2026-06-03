@@ -9,7 +9,7 @@ import {
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
-import { parseJsonBody } from "@/lib/api-error";
+import { parseJsonBody, apiError } from "@/lib/api-error";
 
 /** GET /api/admin/feature-flags — list feature flags for the active site */
 // FIX-28 (F-009): Migrate from requireAdmin + role check to withAuthz
@@ -25,7 +25,7 @@ export const GET = withAuthz(
       return NextResponse.json({ flags });
     } catch (err) {
       captureException(err, { context: "[api/admin/feature-flags] GET failed:" });
-      return NextResponse.json({ error: "Failed to list feature flags" }, { status: 500 });
+      return apiError(500, "Failed to list feature flags", undefined, undefined, "INTERNAL_ERROR");
     }
   },
 );
@@ -154,7 +154,8 @@ export const DELETE = withAuthz(
     try {
       await deleteFeatureFlag(dbSiteId, flagKey);
 
-      void recordAuditEvent({
+      // S0-FP-002: await audit for destructive actions so the trail is durable.
+      await recordAuditEvent({
         site_id: dbSiteId,
         actor: session.email ?? "admin",
         action: "delete_feature_flag",

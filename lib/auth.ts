@@ -8,12 +8,19 @@ import { getJwtSecret, getJwtSecretPrevious, getJwtKid } from "@/lib/jwt-secret"
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
 import { isTokenRevoked } from "@/lib/jwt-revocation";
+// RISK-05 (étap-3): In-memory revocation check for immediate effect
+import { isTokenRevokedImmediate } from "@/lib/jwt-revocation-strong";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 // A6-03: use purpose-derived HMAC sub-key instead of the raw JWT secret
 import { deriveHmacKey } from "@/lib/hmac-key";
 // SEC-02 (etap-3): canonical boolean env-var parser — accepts "1"/"true"/"yes"/"on"
 import { parseBoolEnv, parseTriBoolEnv } from "@/lib/env-bool";
-import { ADMIN_JWT_EXPIRY_SECONDS, ADMIN_JWT_EXPIRY_STRING } from "@/lib/auth-constants";
+import {
+  ADMIN_JWT_EXPIRY_SECONDS,
+  ADMIN_JWT_EXPIRY_STRING,
+  MAX_SESSION_AGE_REGULAR_SECONDS,
+  MAX_SESSION_AGE_ADMIN_SECONDS,
+} from "@/lib/auth-constants";
 
 // A7-012: Use __Host- prefix in production (Secure context) to prevent
 // Domain attribute injection and scope cookies to the exact origin.
@@ -27,8 +34,18 @@ const ACTIVITY_COOKIE = `${COOKIE_PREFIX}nh_admin_activity`;
  *  Even if the JWT is exfiltrated (e.g. via XSS), an attacker without
  *  this cookie cannot replay the session from a different device. */
 const BINDING_COOKIE = `${COOKIE_PREFIX}nh_admin_binding`;
-/** Admin sessions expire after 30 minutes of inactivity */
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+/**
+ * Admin sessions expire after 30 minutes of inactivity.
+ *
+ * S0-A3-004: the env var override is clamped to [5, 60] minutes so a
+ * misconfiguration cannot set an absurdly long (or zero) idle timeout.
+ */
+const IDLE_TIMEOUT_MINS = (() => {
+  const envVal = Number(process.env.ADMIN_ACTIVITY_TIMEOUT_MINS);
+  if (!Number.isFinite(envVal) || envVal <= 0) return 30;
+  return Math.max(5, Math.min(60, envVal));
+})();
+const IDLE_TIMEOUT_MS = IDLE_TIMEOUT_MINS * 60 * 1000;
 // F-SEC-03: Reduced from 8h to limit exposure. Sourced from
 // `lib/auth-constants.ts` so the JWT lifetime, the KV revocation TTL,
 // and the admin cookie maxAge all derive from one value.
@@ -214,6 +231,12 @@ export interface AdminPayload {
    * so a token replayed from a different device/network is rejected.
    */
   bnd?: string;
+  /**
+   * A100-1 / A98-8: Unix epoch (seconds) of the original login.
+   * Carried forward on token refresh so absolute session lifetime can
+   * be enforced regardless of how many times the token is refreshed.
+   */
+  session_start?: number;
 }
 
 /**
@@ -360,15 +383,46 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
     }
   }
 
+  // A100-1 / A98-8: Absolute session lifetime enforcement.
+  // Prevents indefinite sessions via repeated refresh. The `session_start`
+  // claim is set at login and carried forward on every refresh. Even if the
+  // JWT itself hasn't expired (4h window), the session is rejected once the
+  // absolute ceiling is reached.
+  const sessionStart = typeof payload.session_start === "number" ? payload.session_start : null;
+  if (sessionStart !== null) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const role = (payload.role as string) ?? "admin";
+    const maxAge =
+      role === "super_admin" ? MAX_SESSION_AGE_ADMIN_SECONDS : MAX_SESSION_AGE_REGULAR_SECONDS;
+    const elapsed = nowSec - sessionStart;
+    if (elapsed > maxAge) {
+      logger.warn("Admin token rejected: absolute session lifetime exceeded", {
+        sessionStart,
+        elapsedSec: elapsed,
+        maxAgeSec: maxAge,
+        role,
+      });
+      return null;
+    }
+  }
+
   // SEC-CRIT-04 (deep-audit): each hardening control reads its own flag with
   // ADMIN_SESSION_STRICT as the umbrella default. A single typo on
   // ADMIN_SESSION_STRICT no longer disables three independent defences;
   // operators can still individually toggle a control if one infra dependency
   // (e.g. KV availability for revocation) is genuinely unhealthy.
   const strictRevocation = isAdminControlEnabled("ADMIN_SESSION_TOKEN_REVOCATION_STRICT");
-  if (strictRevocation && payload.jti && (await isTokenRevoked(payload.jti as string))) {
-    logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
-    return null;
+  if (strictRevocation && payload.jti) {
+    // RISK-05 (étap-3): Check in-memory blocklist first for immediate effect
+    // (covers same-isolate revocation within milliseconds), then fall back to
+    // KV for cross-isolate propagation (~60s eventual consistency).
+    if (
+      isTokenRevokedImmediate(payload.jti as string) ||
+      (await isTokenRevoked(payload.jti as string))
+    ) {
+      logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
+      return null;
+    }
   }
 
   const adminPayload = payload as unknown as AdminPayload;

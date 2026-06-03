@@ -74,13 +74,15 @@ on:
 ### Break-Glass Procedure
 
 1. **Request approval** from the security lead (via PagerDuty/Slack).
-2. **Access the secret** via GitHub Actions with the `break-glass` label:
-   ```bash
-   gh workflow run break-glass-access.yml -f secret=SECRET_NAME -f reason="INCIDENT-123"
-   ```
-3. **All access is logged** — the workflow creates an audit log entry
-   with the requester, approver, secret name, and timestamp.
+2. **Access the secret** via the Cloudflare Dashboard or GitHub Secrets UI directly:
+   - Cloudflare: Account → Workers → Settings → Variables → reveal value.
+   - GitHub: Repository → Settings → Secrets → update/reveal.
+3. **Log the access** — create a GitHub Issue titled `BREAK-GLASS: <SECRET_NAME> — <INCIDENT-ID>` with the requester, approver, reason, and timestamp.
 4. **Rotate the accessed secret** within 24 hours of break-glass use.
+
+> **A181-F2 note:** The previously referenced `break-glass-access.yml` workflow does not exist. The manual procedure above is the current break-glass process. A future improvement is to create a workflow that automates step 3 (audit logging) — tracked as an action item below.
+>
+> **A181-F1 note:** Include break-glass activation in the quarterly tabletop exercises (`docs/tabletop-exercises.md`) to validate the procedure under simulated incident conditions.
 
 ## Access Log Review
 

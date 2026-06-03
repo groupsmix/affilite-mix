@@ -56,6 +56,23 @@ export async function POST(request: NextRequest) {
   // as JSON across all three content-type variants — the spec only
   // defines a JSON shape, and `application/csp-report` is a JSON
   // sub-type from the legacy CSP 2 spec).
+  // A100-6: Reject deeply nested JSON to prevent CPU spikes from
+  // crafted payloads. CSP reports have a flat structure (max 2 levels:
+  // {"csp-report": {fields}}). Anything deeper is suspicious.
+  const MAX_NESTING = 5;
+  let depth = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c === "{" || c === "[") {
+      depth++;
+      if (depth > MAX_NESTING) {
+        return NextResponse.json({ ok: false }, { status: 400 });
+      }
+    } else if (c === "}" || c === "]") {
+      depth--;
+    }
+  }
+
   let report: Record<string, unknown> = {};
   try {
     report = JSON.parse(raw) as Record<string, unknown>;

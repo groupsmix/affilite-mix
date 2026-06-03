@@ -57,10 +57,31 @@ Under EAR §740.17(b), a one-time self-classification report and annual updates 
 
 ## 5. Sanctions Compliance
 
-The platform does not currently implement country-level access blocking. If the platform expands to serve users in sanctioned jurisdictions, implement:
+The platform does not currently implement country-level access blocking. Cloudflare's edge network and Stripe's payment processing include built-in sanctions screening, but the application layer should add defense-in-depth:
 
-1. GeoIP-based access restrictions for OFAC-sanctioned countries.
-2. User verification for high-risk jurisdictions.
-3. Legal review of sanctions obligations.
+### 5a. Recommended: Cloudflare WAF GeoIP Blocking (A198-F1)
 
-For the current SaaS model serving affiliate content, no additional sanctions controls are required beyond Cloudflare's and Stripe's built-in compliance.
+Block or challenge requests from OFAC-comprehensively-sanctioned countries using Cloudflare WAF custom rules:
+
+1. Navigate to Cloudflare Dashboard → Security → WAF → Custom Rules.
+2. Create a rule:
+   - **Name:** `OFAC Sanctions — Block Comprehensive`
+   - **Expression:** `(ip.geoip.country in {"CU" "IR" "KP" "SY" "RU"})`
+   - **Action:** Block (or Managed Challenge for RU, depending on business decision)
+3. For the admin panel (`/admin/*`), consider stricter rules:
+   - **Expression:** `(ip.geoip.country ne "US" and ip.geoip.country ne "DE" and http.request.uri.path contains "/admin")`
+   - **Action:** Block
+
+### 5b. BIS Filing Reminder (A198-F2)
+
+- [ ] **One-time filing:** Send the self-classification report to `crypt@bis.doc.gov` and `enc@nsa.gov` with the information in §3 above. No approval is required — this is a notification.
+- [ ] **Annual update:** File by February 1 of each year. Set a calendar reminder for January 15.
+- [ ] **Documentation:** Keep a copy of each filing (sent email) in `docs/compliance-evidence/` or a shared drive.
+
+### 5c. SDN List Screening
+
+If the platform adds user registration or payment processing beyond Stripe:
+
+1. Screen users against the OFAC SDN (Specially Designated Nationals) list.
+2. Use a third-party service (e.g., Chainalysis, ComplyAdvantage) for automated screening.
+3. Block accounts matching SDN entries and notify legal counsel.
