@@ -186,3 +186,20 @@ export const getAuditArchiveR2: () => CloudflareR2Binding | null = () => {
   }
   return null;
 };
+
+/**
+ * PR-8 (FR-004): Read a Cloudflare binding injected onto `globalThis` — the
+ * path tests use via `vi.stubGlobal`, and the path some runtimes expose
+ * bindings on. The single `as T` is guarded by a real runtime shape check
+ * (object + probe property), which replaces the `as unknown as T` double-casts
+ * that were previously duplicated at each call site. Returns `undefined` when
+ * the binding is absent or doesn't expose the probe — and is null-safe, unlike
+ * the older inline `"x" in obj` checks that would throw on a literal `null`.
+ */
+export function readGlobalBinding<T>(name: string, probe: keyof T & string): T | undefined {
+  const candidate = (globalThis as Record<string, unknown>)[name];
+  if (candidate && typeof candidate === "object" && probe in candidate) {
+    return candidate as T;
+  }
+  return undefined;
+}

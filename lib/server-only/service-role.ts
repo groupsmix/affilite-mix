@@ -144,9 +144,12 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
   // on the cold path, which silently bypassed the guard on every cache hit.
   _privilegedClient = new Proxy(rawClient, {
     get(t, p, r) {
+      // PR-10: one documented cast to the minimal intercepted shape; the
+      // supabase-js generics can't cross the Proxy boundary. Used only by the
+      // `from`/`rpc` interceptors below — the default path keeps the real `t`.
+      const client = t as unknown as InterceptableClient;
       if (p === "from") {
-        return (table: string) =>
-          wrapTable((t.from as unknown as (name: string) => QueryBuilder)(table));
+        return (table: string) => wrapTable(client.from(table));
       }
       // NEW-03: Intercept `.rpc()` so every RPC call is forced through
       // `wrapRpc`, which enforces a `p_site_id` parameter (or an explicit
@@ -154,10 +157,10 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
       if (p === "rpc") {
         return (fn: string, args?: Record<string, unknown>, options?: unknown) => {
           const rawResult = options
-            ? (t.rpc as (f: string, a: unknown, o: unknown) => QueryBuilder)(fn, args, options)
+            ? client.rpc(fn, args, options)
             : args
-              ? (t.rpc as (f: string, a: unknown) => QueryBuilder)(fn, args)
-              : (t.rpc as (f: string) => QueryBuilder)(fn);
+              ? client.rpc(fn, args)
+              : client.rpc(fn);
           return wrapRpc(rawResult, fn, args);
         };
       }
@@ -183,6 +186,19 @@ export function getPrivilegedSupabaseClient(caller?: string): PrivilegedSupabase
  */
 type QueryBuilder = Record<string, unknown>;
 type BuilderMethod = (...args: unknown[]) => unknown;
+
+/**
+ * PR-10 (FR-004): The supabase-js client methods intercepted by the Proxy,
+ * narrowed to the minimal call signatures the wrapper actually invokes. The
+ * upstream PostgREST generics cannot survive the Proxy boundary, so we model
+ * just the shape we call here and isolate the single load-bearing cast in
+ * `getPrivilegedSupabaseClient` instead of scattering inline casts on every
+ * `t.from(...)` / `t.rpc(...)` call.
+ */
+interface InterceptableClient {
+  from(name: string): QueryBuilder;
+  rpc(fn: string, args?: unknown, options?: unknown): QueryBuilder;
+}
 interface SiteFilterState {
   siteFilterApplied: boolean;
   lastTerminal: string;
