@@ -20,6 +20,7 @@ import { withSentry, captureException } from "@sentry/cloudflare";
 import { RateLimiterDO } from "./rate-limiter-do";
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
 import { signInternalRequest } from "../lib/internal-hmac";
+import { logger } from "../lib/logger";
 
 // Minimal type stubs for Cloudflare Worker APIs (provided by the runtime)
 interface CloudflareScheduledController {
@@ -131,13 +132,12 @@ const worker = {
         .then(async (res: Response) => {
           const body = await res.text();
           if (res.ok) {
-            console.log(
-              "[scheduled] cron=%s -- %s responded %s:",
-              controller.cron,
+            logger.info("[scheduled] cron dispatch responded", {
+              cron: controller.cron,
               path,
-              res.status,
+              status: res.status,
               body,
-            );
+            });
           } else {
             console.error(
               "[scheduled] cron=%s -- %s failed %s:",

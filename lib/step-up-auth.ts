@@ -31,6 +31,14 @@ const STEP_UP_WINDOW_MS = 15 * 60 * 1000;
 const STEP_UP_CLAIM = "step_up_at" as const;
 
 /**
+ * FR-004: The session may carry an optional `step_up_at` claim, minted after a
+ * recent password/TOTP re-verification. It is not part of the base
+ * `AdminPayload` shape, so we model it with a narrow widening type rather than
+ * laundering the session through `unknown`.
+ */
+type SessionWithStepUp = AdminPayload & { readonly [STEP_UP_CLAIM]?: number };
+
+/**
  * Check if the session has a valid step-up authentication within
  * the allowed window. Returns a 403 NextResponse if not, or null
  * if the step-up is valid.
@@ -44,7 +52,7 @@ export function requireStepUpAuth(
   }
 
   const windowMs = options?.windowMs ?? STEP_UP_WINDOW_MS;
-  const stepUpAt = (session as unknown as Record<string, unknown>)[STEP_UP_CLAIM];
+  const stepUpAt = (session as SessionWithStepUp)[STEP_UP_CLAIM];
 
   if (!stepUpAt || typeof stepUpAt !== "number") {
     return NextResponse.json(

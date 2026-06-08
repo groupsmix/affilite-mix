@@ -15,6 +15,7 @@
  */
 
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
+import { logger } from "../lib/logger";
 
 interface CloudflareScheduledController {
   cron: string;
@@ -95,7 +96,11 @@ const worker = {
         .then(async (res: Response) => {
           const body = await res.text();
           if (res.ok) {
-            console.log("[heavy-crons] %s responded %s:", job.name, res.status, body);
+            logger.info("[heavy-crons] dispatch responded", {
+              job: job.name,
+              status: res.status,
+              body,
+            });
           } else {
             console.error("[heavy-crons] %s failed %s:", job.name, res.status, body);
           }
