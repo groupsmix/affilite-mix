@@ -1,3 +1,16 @@
+/**
+ * Newsletter unsubscribe abuse tests.
+ *
+ * Part 1 (unit/integration) runs everywhere against a mocked Supabase client.
+ *
+ * Part 2 (RLS abuse) exercises real row-level-security policies and therefore
+ * only runs when a real Supabase instance is configured via
+ * `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` set to
+ * non-placeholder values. Without those, Part 2 skips (via `describe.skip`)
+ * so local `npm test` and the default CI job stay green even without a DB.
+ * It is intended to run in the `e2e.yml` workflow, which spins up a local
+ * Supabase stack and applies all migrations.
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
