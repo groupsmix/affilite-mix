@@ -152,7 +152,7 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
     logger.info("GDPR data export performed", {
       actor: session.email ?? session.userId ?? "system",
       action: "gdpr_export",
-      target_email_hash: hashEmail(email),
+      target_email_hash: hashEmailForGdpr(email),
       site_id,
     });
 
@@ -163,8 +163,8 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
       actor_user_id: session.userId,
       action: "gdpr_export",
       entity_type: "subject",
-      entity_id: hashEmail(email),
-      details: { target_email_hash: hashEmail(email) },
+      entity_id: hashEmailForGdpr(email),
+      details: { target_email_hash: hashEmailForGdpr(email) },
     });
 
     // A62-F1: GDPR Art. 20 data portability — support CSV format
@@ -277,8 +277,8 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
       actor_user_id: session.userId,
       action: "gdpr_erasure",
       entity_type: "subject",
-      entity_id: hashEmail(email),
-      details: { target_email_hash: hashEmail(email) },
+      entity_id: hashEmailForGdpr(email),
+      details: { target_email_hash: hashEmailForGdpr(email) },
     });
 
     return NextResponse.json({
@@ -293,24 +293,5 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
   }
 });
 
-import crypto from "crypto";
+import { hashEmailForGdpr } from "@/lib/gdpr-hash";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
-
-/**
- * HMAC-SHA256 hash for GDPR audit logging.
- * Replaces the weak 32-bit rolling hash to prevent dictionary attacks
- * on exported/erased user emails while still allowing correlation.
- */
-function hashEmail(email: string): string {
-  const secret = process.env.GDPR_HASH_SECRET || process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error(
-      "GDPR_HASH_SECRET or JWT_SECRET must be set — refusing to hash with a hardcoded fallback",
-    );
-  }
-  return crypto
-    .createHmac("sha256", secret)
-    .update(email.toLowerCase().trim())
-    .digest("hex")
-    .substring(0, 16);
-}

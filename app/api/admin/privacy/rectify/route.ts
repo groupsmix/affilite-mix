@@ -8,7 +8,7 @@ import { logger } from "@/lib/logger";
 import { unauthorizedResponse } from "@/lib/admin-guard";
 import { untypedFrom } from "@/lib/dal/type-guards";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
-import crypto from "crypto";
+import { hashEmailForGdpr } from "@/lib/gdpr-hash";
 
 /**
  * POST /api/admin/privacy/rectify
@@ -36,20 +36,6 @@ const RECTIFIABLE_FIELDS: Record<string, { emailCol: string; nameCol?: string }>
   price_alerts: { emailCol: "email" },
   drip_enrollments: { emailCol: "email" },
 };
-
-function hashEmail(email: string): string {
-  const secret = process.env.GDPR_HASH_SECRET || process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error(
-      "GDPR_HASH_SECRET or JWT_SECRET must be set — refusing to hash with a hardcoded fallback",
-    );
-  }
-  return crypto
-    .createHmac("sha256", secret)
-    .update(email.toLowerCase().trim())
-    .digest("hex")
-    .substring(0, 16);
-}
 
 export const POST = withAuthz("privacy", "manage", async (request, { session }) => {
   const rlResponse = await enforceAdminRateLimit("privacy-rectify", session);
@@ -127,7 +113,7 @@ export const POST = withAuthz("privacy", "manage", async (request, { session }) 
 
     logger.info("GDPR data rectification performed", {
       action: "gdpr_rectify",
-      target_email_hash: hashEmail(email),
+      target_email_hash: hashEmailForGdpr(email),
       site_id,
       tables: updatedTables.join(","),
     });
@@ -138,7 +124,7 @@ export const POST = withAuthz("privacy", "manage", async (request, { session }) 
       actor_user_id: session.userId,
       action: "gdpr.rectify",
       entity_type: "subject",
-      entity_id: hashEmail(email),
+      entity_id: hashEmailForGdpr(email),
       details: {
         tables: updatedTables,
         fields_corrected: Object.keys(corrections).filter(
