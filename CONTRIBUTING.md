@@ -155,6 +155,20 @@ npm test -- <pattern> # run specific test file
 
 Tests are in `__tests__/` and mirror the `lib/` structure.
 
+### Integration Tests (Vitest)
+
+Integration tests use a separate config (`vitest.integration.config.ts`) so they
+can run with different setup/timeouts and stay out of the default `npm test` run:
+
+```bash
+npm run test:integration   # uses vitest.integration.config.ts
+```
+
+Use the default unit config (`vitest.config.ts`, run via `npm test`) for fast,
+isolated tests with mocked dependencies. Use the integration config for tests
+that exercise real wiring (e.g. RLS-isolation suites that hit a live Supabase
+instance); those skip automatically when the required env vars are absent.
+
 ### E2E Tests (Playwright)
 
 ```bash
