@@ -109,6 +109,11 @@ describe("SEC-04: iat future-skew rejected on previous-key verification path", (
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("JWT_SECRET", currentSecret);
     vi.stubEnv("JWT_SECRET_PREVIOUS", previousSecret);
+    // F-013: the previous secret is only honored inside a valid 24h rotation
+    // window, so the rotation must look freshly started — otherwise the token
+    // would be rejected because the previous key is dropped, not because of the
+    // iat skew this test is asserting.
+    vi.stubEnv("JWT_ROTATION_STARTED_AT", new Date().toISOString());
     // Disable hardening flags so only the iat check is what trips this test.
     vi.stubEnv("ADMIN_SESSION_STRICT", "false");
     vi.stubEnv("ADMIN_SESSION_BINDING_STRICT", "false");
