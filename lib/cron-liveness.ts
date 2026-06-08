@@ -26,7 +26,7 @@
 
 import { cronJobs, type CronJob } from "@/lib/cron-registry";
 import { logger } from "@/lib/logger";
-import { getAppCacheKV } from "@/lib/runtime-env";
+import { getAppCacheKV, readGlobalBinding } from "@/lib/runtime-env";
 
 /** KV key prefix for liveness timestamps. */
 const KV_PREFIX = "cron-liveness:";
@@ -140,18 +140,12 @@ export async function checkCronLiveness(): Promise<void> {
 
 /** Read the APP_CACHE_KV binding. */
 function readKV(): KVNamespace | undefined {
-  const fromGlobal = (globalThis as Record<string, unknown>).APP_CACHE_KV;
-  if (
-    fromGlobal !== undefined &&
-    typeof fromGlobal === "object" &&
-    "get" in (fromGlobal as object)
-  ) {
-    return fromGlobal as unknown as KVNamespace;
-  }
+  const fromGlobal = readGlobalBinding<KVNamespace>("APP_CACHE_KV", "get");
+  if (fromGlobal) return fromGlobal;
   try {
     const kv = getAppCacheKV();
     if (kv) {
-      return kv as unknown as KVNamespace;
+      return kv as KVNamespace;
     }
   } catch {
     // fail-open: best-effort [criticality:non-critical]
