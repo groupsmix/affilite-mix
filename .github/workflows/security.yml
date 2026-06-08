@@ -189,3 +189,46 @@ jobs:
           languages: javascript-typescript
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+
+  # FR-015: run the in-repo Semgrep rules (.semgrep/) in CI. The custom rules
+  # encode project-specific security conventions (getClientIp usage, admin-route
+  # authz, service-role import review, safe redirects) that CodeQL's generic
+  # query packs do not cover. Findings are split by severity:
+  #   • ERROR  → blocking gate (currently: admin-route-missing-auth).
+  #   • WARNING→ advisory; surfaced in the Security tab as annotations but
+  #              non-blocking, because they are review signals governed
+  #              elsewhere (e.g. service-role imports are gated by
+  #              lib/security/service-role-allowlist.ts + tests).
+  semgrep:
+    name: Semgrep SAST (custom rules)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      # Semgrep ships as a Python CLI. pipx is preinstalled on the GitHub
+      # ubuntu runners and avoids PEP 668 "externally-managed" issues.
+      # A34-style pin: version is fixed for reproducibility — bump via
+      # Renovate/Dependabot after reviewing the changelog.
+      - name: Install Semgrep
+        run: pipx install semgrep==1.165.0
+
+      # Advisory pass: scan with every rule, emit SARIF, never fail the build
+      # here (no --error). All findings (ERROR + WARNING) land in the Security
+      # tab via the upload step below.
+      - name: Semgrep scan (SARIF, advisory)
+        run: semgrep scan --config .semgrep/ --sarif --output semgrep.sarif --metrics=off --disable-version-check
+        continue-on-error: true
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      # Blocking gate: fail the build only on ERROR-severity findings.
+      - name: Semgrep gate (ERROR severity)
+        run: semgrep scan --config .semgrep/ --severity ERROR --error --metrics=off --disable-version-check
