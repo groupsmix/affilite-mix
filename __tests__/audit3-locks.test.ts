@@ -265,7 +265,10 @@ describe("Audit-3 regression locks", () => {
 
   // ── F-007 / G-34 — Negative cache for unknown hostnames ──────────────
   describe("F-007 / G-34 unknown-host negative cache", () => {
-    const mw = read("middleware.ts");
+    // F-007: the domain→site resolution logic (negative cache, TTL ramp, LRU
+    // guard) was extracted from middleware.ts into lib/middleware/site-resolution.ts.
+    // The invariants are unchanged; these locks now follow the code to its module.
+    const mw = read("lib/middleware/site-resolution.ts");
     const guard = read("lib/security/unknown-host-guard.ts");
 
     it("middleware writes a negative-cache entry for unknown hostnames", () => {
@@ -332,7 +335,10 @@ describe("Audit-3 regression locks", () => {
 
   // ── G-35 — Maintenance response is never cached ──────────────────────
   describe("G-35 maintenance response Cache-Control", () => {
-    const mw = read("middleware.ts");
+    // F-007: the maintenance 503 branches live in lib/middleware/maintenance.ts
+    // (withMaintenance). Read that module directly rather than the middleware
+    // entrypoint that merely composes it.
+    const mw = read("lib/middleware/maintenance.ts");
 
     it("both maintenance 503 branches set Cache-Control: no-store", () => {
       // The env-var branch and the KV-flag branch each return a 503;
