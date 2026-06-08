@@ -259,7 +259,7 @@ const eslintConfig = [
     // (does NOT merge) `no-restricted-syntax` selectors across overlapping
     // file blocks, so this rule must list every selector that should fire
     // on these files.
-    files: ["lib/dal/**/*.ts", "lib/related-products.ts"],
+    files: ["lib/dal/**/*.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -285,13 +285,7 @@ const eslintConfig = [
     // accessor used by the generic rate-limit shim, not a typed-binding
     // bypass.
     files: ["lib/**/*.ts", "workers/**/*.ts"],
-    ignores: [
-      "lib/dal/**/*.ts",
-      "lib/related-products.ts",
-      "**/__tests__/**",
-      "**/*.test.ts",
-      "**/*.test.tsx",
-    ],
+    ignores: ["lib/dal/**/*.ts", "**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
     rules: {
       "no-restricted-syntax": ["error", runtimeEnvCastBan],
     },
