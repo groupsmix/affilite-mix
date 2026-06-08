@@ -13,7 +13,7 @@ import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "node:crypto";
-import { getClickQueue as getRuntimeClickQueue } from "@/lib/runtime-env";
+import { getClickQueue as getRuntimeClickQueue, readGlobalBinding } from "@/lib/runtime-env";
 
 // The privileged Supabase client wraps every PostgREST builder in a Proxy
 // (see `lib/server-only/service-role.ts`) that exposes a runtime-only
@@ -32,7 +32,7 @@ async function logClickFailure(payload: RecordClickInput, errorMessage: string):
       payload: { ...payload, _error: errorMessage } as unknown as import("@/types/supabase").Json,
       error_message: errorMessage,
     });
-    await (insertBuilder as unknown as SiteFilterOptOut<typeof insertBuilder>).unsafeNoSiteFilter();
+    await (insertBuilder as SiteFilterOptOut<typeof insertBuilder>).unsafeNoSiteFilter();
   } catch (err) {
     captureException(err, { context: "click-queue.log-failure" });
   }
@@ -56,13 +56,11 @@ function getClickQueue(): CloudflareQueue<ClickQueueMessage> | undefined {
   // wraps the @opennextjs/cloudflare `process.env` shim and validates the
   // shape, so we don't need the historical inline `typeof object && 'send' in`
   // dance here.
-  const fromGlobal = (globalThis as Record<string, unknown>).CLICK_QUEUE;
-  if (fromGlobal && typeof fromGlobal === "object" && "send" in fromGlobal) {
-    return fromGlobal as unknown as CloudflareQueue<ClickQueueMessage>;
-  }
+  const fromGlobal = readGlobalBinding<CloudflareQueue<ClickQueueMessage>>("CLICK_QUEUE", "send");
+  if (fromGlobal) return fromGlobal;
   try {
     const q = getRuntimeClickQueue();
-    if (q) return q as unknown as CloudflareQueue<ClickQueueMessage>;
+    if (q) return q as CloudflareQueue<ClickQueueMessage>;
   } catch {
     // fail-open: best-effort [criticality:non-critical]
     return undefined;
