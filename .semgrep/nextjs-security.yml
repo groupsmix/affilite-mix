@@ -23,17 +23,23 @@ rules:
   - id: admin-route-missing-auth
     patterns:
       - pattern: |
-          export async function $METHOD(request: ...) { ... }
+          export async function $METHOD(...) { ... }
       - pattern-not: |
-          export async function $METHOD(request: ...) {
+          export async function $METHOD(...) {
             ...
-            await requireAdmin()
+            await requireAdmin(...)
             ...
           }
       - pattern-not: |
-          export async function $METHOD(request: ...) {
+          export async function $METHOD(...) {
             ...
-            await requireSuperAdmin()
+            await requireSuperAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export async function $METHOD(...) {
+            ...
+            await requireAdminSession(...)
             ...
           }
     paths:
@@ -41,9 +47,11 @@ rules:
         - "**/app/api/admin/**/route.ts"
         - "**/app/api/admin/**/route.tsx"
     message: >
-      Admin API route handler does not call `requireAdmin()` /
-      `requireSuperAdmin()`. All admin routes must use an approved authz
-      wrapper.
+      Admin API route handler does not call an approved authz guard
+        (`requireAdmin()`, `requireSuperAdmin()`, or `requireAdminSession()`).
+        All admin `export async function` route handlers must gate on one of
+        these. Routes that use the `withAuthz(...)` wrapper export a `const`
+        handler and are not matched by this rule.
     languages: [typescript]
     severity: ERROR
     metadata:
