@@ -39,25 +39,55 @@ export async function processStripeEvent(
   return { duplicate: result.duplicate, membershipId: result.membership_id };
 }
 
+/**
+ * FR-004: Stripe type-gap accessors.
+ *
+ * The installed `stripe` typings omit a few fields the live API still returns:
+ * the legacy top-level `invoice.subscription`, the newer
+ * `invoice.parent.subscription_details` relationship, `charge.invoice`, and the
+ * `current_period_*` timestamps that moved off the Subscription root in recent
+ * API versions. These narrow shapes isolate the unavoidable reach past the
+ * published types into one documented place instead of scattering
+ * `as unknown as { ... }` across every call site.
+ */
+type InvoiceSubscriptionFields = {
+  subscription?: string | Stripe.Subscription | null;
+  parent?: {
+    subscription_details?: {
+      subscription?: string | Stripe.Subscription | null;
+    } | null;
+  } | null;
+};
+
+type ChargeInvoiceField = { invoice?: string | Stripe.Invoice | null };
+
+type SubscriptionPeriodFields = {
+  current_period_start?: number | null;
+  current_period_end?: number | null;
+};
+
+/** Extract the current billing-period window from a retrieved subscription. */
+function getSubscriptionPeriod(sub: Stripe.Subscription): {
+  current_period_start: string | undefined;
+  current_period_end: string | undefined;
+} {
+  const period = sub as unknown as SubscriptionPeriodFields;
+  return {
+    current_period_start: toIsoOrUndefined(period.current_period_start),
+    current_period_end: toIsoOrUndefined(period.current_period_end),
+  };
+}
+
 function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | undefined {
-  const legacySubscription = (
-    invoice as unknown as { subscription?: string | Stripe.Subscription | null }
-  ).subscription;
+  const fields = invoice as unknown as InvoiceSubscriptionFields;
+
+  const legacySubscription = fields.subscription;
   if (typeof legacySubscription === "string") return legacySubscription;
   if (legacySubscription && typeof legacySubscription === "object" && "id" in legacySubscription) {
     return legacySubscription.id;
   }
 
-  const parent = (
-    invoice as unknown as {
-      parent?: {
-        subscription_details?: {
-          subscription?: string | Stripe.Subscription | null;
-        } | null;
-      } | null;
-    }
-  ).parent;
-  const nested = parent?.subscription_details?.subscription;
+  const nested = fields.parent?.subscription_details?.subscription;
   if (typeof nested === "string") return nested;
   if (nested && typeof nested === "object" && "id" in nested) {
     return nested.id;
@@ -66,7 +96,7 @@ function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | undefined {
 }
 
 function getChargeInvoiceId(charge: Stripe.Charge): string | undefined {
-  const invoice = (charge as unknown as { invoice?: string | Stripe.Invoice | null }).invoice;
+  const invoice = (charge as unknown as ChargeInvoiceField).invoice;
   if (typeof invoice === "string") return invoice;
   if (invoice && typeof invoice === "object" && "id" in invoice) return invoice.id;
   return undefined;
@@ -109,12 +139,7 @@ async function buildStripeEventPayload(
         tier,
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
-        current_period_start: toIsoOrUndefined(
-          (sub as unknown as { current_period_start?: number | null }).current_period_start,
-        ),
-        current_period_end: toIsoOrUndefined(
-          (sub as unknown as { current_period_end?: number | null }).current_period_end,
-        ),
+        ...getSubscriptionPeriod(sub),
       };
     }
 
@@ -136,12 +161,7 @@ async function buildStripeEventPayload(
       return {
         op: "renew_membership",
         stripe_subscription_id: subscriptionId,
-        current_period_start: toIsoOrUndefined(
-          (sub as unknown as { current_period_start?: number | null }).current_period_start,
-        ),
-        current_period_end: toIsoOrUndefined(
-          (sub as unknown as { current_period_end?: number | null }).current_period_end,
-        ),
+        ...getSubscriptionPeriod(sub),
       };
     }
 
