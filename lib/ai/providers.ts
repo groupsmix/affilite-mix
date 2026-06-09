@@ -567,7 +567,7 @@ export async function generateWithFallback(
     "AI generation unavailable: all providers failed",
   );
   internalError.providerErrors = errors.map((e) =>
-    e.replace(/: status=\d+.*$/, (m) => m.split("\n")[0]),
+    e.replace(/: status=\d+.*$/, (m) => m.split("\n")[0]!),
   );
   throw internalError;
 }

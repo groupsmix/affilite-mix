@@ -330,7 +330,7 @@ export function GiftFinderQuiz({
 
   const handleSelect = (value: string) => {
     const step = steps[currentStep];
-    const newAnswers = { ...answers, [step.id]: value };
+    const newAnswers = { ...answers, [step!.id]: value };
     setAnswers(newAnswers);
 
     if (currentStep < steps.length - 1) {
@@ -602,11 +602,11 @@ export function GiftFinderQuiz({
           className="mb-8 text-2xl font-semibold md:text-3xl"
           style={{ fontFamily: "var(--font-heading)" }}
         >
-          {step.title}
+          {step!.title}
         </h2>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {step.options.map((option) => (
+          {step!.options.map((option) => (
             <button
               key={option.value}
               onClick={() => handleSelect(option.value)}

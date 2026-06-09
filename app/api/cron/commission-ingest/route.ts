@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
           error: err instanceof Error ? err.message : String(err),
         };
         logger.error(`${network.name} commission ingest failed`, {
-          error: results[network.name].error,
+          error: results[network.name]!.error,
         });
       }
     })(),

@@ -198,7 +198,7 @@ export function PageManager() {
 
     const newPages = [...pages];
 
-    [newPages[index - 1], newPages[index]] = [newPages[index], newPages[index - 1]];
+    [newPages[index - 1], newPages[index]] = [newPages[index]!, newPages[index - 1]!];
 
     const reordered = newPages.map((p, i) => ({ id: p.id, sort_order: i }));
 
@@ -227,7 +227,7 @@ export function PageManager() {
 
     const newPages = [...pages];
 
-    [newPages[index], newPages[index + 1]] = [newPages[index + 1], newPages[index]];
+    [newPages[index], newPages[index + 1]] = [newPages[index + 1]!, newPages[index]!];
 
     const reordered = newPages.map((p, i) => ({ id: p.id, sort_order: i }));
 

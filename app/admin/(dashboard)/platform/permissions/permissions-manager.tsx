@@ -39,7 +39,7 @@ export function PermissionsManager() {
       const dbSites = (data.sites as SiteOption[]).filter((s) => s.source === "database");
       setSites(dbSites);
       if (dbSites.length > 0 && !selectedSiteId) {
-        setSelectedSiteId(dbSites[0].db_id ?? dbSites[0].id);
+        setSelectedSiteId(dbSites[0]!.db_id ?? dbSites[0]!.id);
       }
     }
     setLoading(false);
@@ -77,7 +77,7 @@ export function PermissionsManager() {
   const permsByFeature: Record<string, PermissionInfo[]> = {};
   for (const perm of permissions) {
     if (!permsByFeature[perm.feature]) permsByFeature[perm.feature] = [];
-    permsByFeature[perm.feature].push(perm);
+    permsByFeature[perm.feature]!.push(perm);
   }
 
   return (

@@ -49,7 +49,7 @@ const PORT = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3000;
  *     for the other sites are skipped to avoid asserting against the
  *     wrong tenant.
  */
-const PREVIEW_DEFAULT_SITE = process.env.NEXT_PUBLIC_DEFAULT_SITE ?? SITES[0].id;
+const PREVIEW_DEFAULT_SITE = process.env.NEXT_PUBLIC_DEFAULT_SITE ?? SITES[0]!.id;
 
 function siteBaseUrl(site: SiteFixture): string {
   if (E2E_BASE_URL) return E2E_BASE_URL;

@@ -133,7 +133,7 @@ export function isSafeUrl(value: string): boolean {
     return true;
   }
 
-  return ALLOWED_URL_SCHEMES.has(schemeMatch[1].toLowerCase() + ":");
+  return ALLOWED_URL_SCHEMES.has(schemeMatch[1]!.toLowerCase() + ":");
 }
 
 /** Escape special characters in attribute values */

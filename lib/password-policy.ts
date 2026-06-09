@@ -90,7 +90,7 @@ export async function checkBreachedPassword(password: string): Promise<number> {
     for (const line of lines) {
       const [hashSuffix, count] = line.trim().split(":");
       if (hashSuffix === suffix) {
-        return parseInt(count, 10);
+        return parseInt(count!, 10);
       }
     }
 

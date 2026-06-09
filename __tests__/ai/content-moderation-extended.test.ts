@@ -21,10 +21,10 @@ describe("logModerationRejection", () => {
     logModerationRejection("input", "test reason");
     const events = getModerationRejections();
     const last = events[events.length - 1];
-    expect(last.action).toBe("ai_moderation_reject");
-    expect(last.phase).toBe("input");
-    expect(last.reason).toBe("test reason");
-    expect(last.timestamp).toBeDefined();
+    expect(last!.action).toBe("ai_moderation_reject");
+    expect(last!.phase).toBe("input");
+    expect(last!.reason).toBe("test reason");
+    expect(last!.timestamp).toBeDefined();
   });
 
   it("includes optional context when provided", () => {
@@ -34,8 +34,8 @@ describe("logModerationRejection", () => {
     });
     const events = getModerationRejections();
     const last = events[events.length - 1];
-    expect(last.siteId).toBe("site-123");
-    expect(last.topic).toBe("test topic about watches");
+    expect(last!.siteId).toBe("site-123");
+    expect(last!.topic).toBe("test topic about watches");
   });
 
   it("truncates topic to 100 chars", () => {
@@ -43,7 +43,7 @@ describe("logModerationRejection", () => {
     logModerationRejection("input", "reason", { topic: longTopic });
     const events = getModerationRejections();
     const last = events[events.length - 1];
-    expect(last.topic!.length).toBe(100);
+    expect(last!.topic!.length).toBe(100);
   });
 
   it("emits structured console.warn", () => {

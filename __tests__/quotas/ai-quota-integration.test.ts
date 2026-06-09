@@ -106,11 +106,11 @@ describe("generateWithFallback × per-tenant quotas", () => {
 
     const requestKey = Object.keys(kv).find((k) => k.startsWith("quota:site-x:ai_requests:"));
     expect(requestKey).toBeDefined();
-    expect(JSON.parse(kv[requestKey!].value).count).toBe(1);
+    expect(JSON.parse(kv[requestKey!]!.value).count).toBe(1);
 
     const tokenKey = Object.keys(kv).find((k) => k.startsWith("quota:site-x:ai_tokens:"));
     expect(tokenKey).toBeDefined();
-    expect(JSON.parse(kv[tokenKey!].value).count).toBeGreaterThan(0);
+    expect(JSON.parse(kv[tokenKey!]!.value).count).toBeGreaterThan(0);
   });
 
   it("does NOT charge quota when siteId is not supplied (legacy callers)", async () => {

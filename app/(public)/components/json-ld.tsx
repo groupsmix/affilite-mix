@@ -175,7 +175,7 @@ export function faqJsonLd(html: string): Record<string, unknown> | null {
 
   for (let i = 0; i < topLevel.length; i++) {
     const node = topLevel[i];
-    if (node.type !== "tag") continue;
+    if (node!.type !== "tag") continue;
     const el = node as Element;
 
     if (!HEADING_TAGS.has(el.tagName)) continue;
@@ -187,8 +187,8 @@ export function faqJsonLd(html: string): Record<string, unknown> | null {
     const answerParts: string[] = [];
     for (let j = i + 1; j < topLevel.length; j++) {
       const sibling = topLevel[j];
-      if (sibling.type === "tag" && HEADING_TAGS.has((sibling as Element).tagName)) break;
-      const text = getTextContent(sibling).trim();
+      if (sibling!.type === "tag" && HEADING_TAGS.has((sibling as Element).tagName)) break;
+      const text = getTextContent(sibling!).trim();
       if (text) answerParts.push(text);
     }
 

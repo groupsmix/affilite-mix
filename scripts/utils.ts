@@ -9,7 +9,7 @@
 export function toVarName(id: string): string {
   return id
     .split("-")
-    .map((w, i) => (i === 0 ? w : w[0].toUpperCase() + w.slice(1)))
+    .map((w, i) => (i === 0 ? w : w[0]!.toUpperCase() + w.slice(1)))
     .join("")
     .concat("Site");
 }

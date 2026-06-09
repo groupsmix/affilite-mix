@@ -41,9 +41,9 @@ export function DarkModeToggle() {
   const cycle = useCallback(() => {
     const order: Theme[] = ["light", "dark", "system"];
     const next = order[(order.indexOf(theme) + 1) % order.length];
-    setTheme(next);
-    applyTheme(next);
-    localStorage.setItem(STORAGE_KEY, next);
+    setTheme(next!);
+    applyTheme(next!);
+    localStorage.setItem(STORAGE_KEY, next!);
   }, [theme]);
 
   if (!mounted) {

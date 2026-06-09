@@ -30,7 +30,7 @@ describe("F-028 click-queue producer", () => {
     });
 
     expect(recordClick).toHaveBeenCalledTimes(1);
-    const arg = (recordClick as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const arg = (recordClick as ReturnType<typeof vi.fn>).mock.calls[0]![0];
     expect(arg).toMatchObject({
       site_id: "site-1",
       product_name: "Widget",
@@ -55,7 +55,7 @@ describe("F-028 click-queue producer", () => {
     });
 
     expect(send).toHaveBeenCalledTimes(1);
-    const msg = send.mock.calls[0][0];
+    const msg = send.mock.calls[0]![0];
     expect(msg).toMatchObject({
       site_id: "site-1",
       product_name: "Widget",
@@ -78,7 +78,7 @@ describe("F-028 click-queue producer", () => {
       affiliate_url: "https://example.com/aff",
     });
 
-    const arg = (recordClick as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const arg = (recordClick as ReturnType<typeof vi.fn>).mock.calls[0]![0];
     expect(arg.click_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
@@ -94,7 +94,7 @@ describe("F-028 click-queue producer", () => {
       click_id: callerSupplied,
     });
 
-    const arg = (recordClick as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const arg = (recordClick as ReturnType<typeof vi.fn>).mock.calls[0]![0];
     // F-BIZ-01: client-supplied click_id must be ignored to prevent
     // replay/suppression attacks. The producer generates a fresh UUID.
     expect(arg.click_id).not.toBe(callerSupplied);

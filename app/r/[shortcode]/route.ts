@@ -141,5 +141,5 @@ function detectGeoFromAcceptLanguage(request: NextRequest): string {
 
   // Look for locale tags like en-US, de-DE, fr-FR
   const match = acceptLang.match(/[a-z]{2}-([A-Z]{2})/);
-  return match ? match[1] : "*";
+  return match ? match[1]! : "*";
 }

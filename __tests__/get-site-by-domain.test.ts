@@ -8,13 +8,13 @@ describe("getSiteByDomain", () => {
 
   it("returns a site by its primary domain", () => {
     const site = allSites[0];
-    expect(getSiteByDomain(site.domain)).toBe(site);
+    expect(getSiteByDomain(site!.domain)).toBe(site);
   });
 
   it("returns a site by its alias", () => {
     const siteWithAlias = allSites.find((s) => s.aliases && s.aliases.length > 0);
     if (!siteWithAlias) return;
-    expect(getSiteByDomain(siteWithAlias.aliases![0])).toBe(siteWithAlias);
+    expect(getSiteByDomain(siteWithAlias.aliases![0]!)).toBe(siteWithAlias);
   });
 
   it("returns undefined for an unknown domain in production", () => {
@@ -43,7 +43,7 @@ describe("getSiteByDomain", () => {
   it("uses NEXT_PUBLIC_DEFAULT_SITE env var when set in development", () => {
     vi.stubEnv("NODE_ENV", "development");
     const secondSite = allSites[1];
-    vi.stubEnv("NEXT_PUBLIC_DEFAULT_SITE", secondSite.id);
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_SITE", secondSite!.id);
     expect(getSiteByDomain("localhost")).toBe(secondSite);
   });
 
@@ -104,7 +104,7 @@ describe("getSiteByDomain", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("ALLOW_LOCALHOST_FALLBACK_IN_PROD", "1");
     const secondSite = allSites[1];
-    vi.stubEnv("NEXT_PUBLIC_DEFAULT_SITE", secondSite.id);
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_SITE", secondSite!.id);
     expect(getSiteByDomain("localhost")).toBe(secondSite);
   });
 

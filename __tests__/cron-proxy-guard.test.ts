@@ -68,7 +68,7 @@ function extractChains(rawSrc: string): string[] {
         // doesn't continue the chain with `.method(`.
         if (c === "\n") {
           let j = end + 1;
-          while (j < src.length && /\s/.test(src[j])) j++;
+          while (j < src.length && /\s/.test(src[j]!)) j++;
           if (src[j] !== ".") break;
         } else {
           break;

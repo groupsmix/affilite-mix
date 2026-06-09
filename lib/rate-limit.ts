@@ -281,7 +281,7 @@ function lruEvict(excess: number): void {
   entries.sort((a, b) => a.lastAccess - b.lastAccess);
   // Evict the least recently used entries
   for (let i = 0; i < Math.min(excess, entries.length); i++) {
-    memoryStore.delete(entries[i].key);
+    memoryStore.delete(entries[i]!.key);
   }
 }
 
@@ -329,7 +329,7 @@ function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitRe
 
   if (entry.timestamps.length >= config.maxRequests) {
     const oldestInWindow = entry.timestamps[0];
-    const retryAfterMs = oldestInWindow + config.windowMs - now;
+    const retryAfterMs = oldestInWindow! + config.windowMs - now;
     return {
       allowed: false,
       remaining: 0,

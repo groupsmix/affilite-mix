@@ -132,7 +132,7 @@ describe("safeRedirectUrl fuzz tests", () => {
         for (let j = 0; j < len; j++) {
           const cp = codePoints[Math.floor(Math.random() * codePoints.length)];
           try {
-            str += String.fromCodePoint(cp);
+            str += String.fromCodePoint(cp!);
           } catch {
             str += "x";
           }
