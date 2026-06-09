@@ -71,11 +71,9 @@ sbom.*.bundle
 
 # security audit (keep out of public repos — see W5)
 SECURITY-AUDIT.md
+# audit #18: security audit reports (incl. red-team) must not ship in a public repo
+docs/audits/
 supabase/.temp/
-docs/audits/affilite-mix-compliance-report.md
-docs/audits/affilite-mix-redteam-audit.md
-docs/audits/audit-A31-A60.md
-docs/audits/audit-gaps-report.md
 
 # audit F-016: gitleaks binary/archive must not be vendored
 gitleaks
