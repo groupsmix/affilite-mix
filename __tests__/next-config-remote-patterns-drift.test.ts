@@ -94,10 +94,7 @@ describe("#19 next.config.ts remotePatterns drift guard", () => {
     // CodeQL flags as "incomplete URL substring sanitization". This check is
     // a heuristic, not a security boundary (assertion #1 is the boundary),
     // but keeping it tight removes the false-positive and is more correct.
-    const AMAZON_HOSTS = new Set([
-      "m.media-amazon.com",
-      "images-na.ssl-images-amazon.com",
-    ]);
+    const AMAZON_HOSTS = new Set(["m.media-amazon.com", "images-na.ssl-images-amazon.com"]);
     const hardcoded = extractHardcodedHostnames(source);
     const stillHasAmazon = hardcoded.some((h) => AMAZON_HOSTS.has(h));
     if (stillHasAmazon) {
