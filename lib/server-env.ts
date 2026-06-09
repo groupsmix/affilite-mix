@@ -309,6 +309,36 @@ export function validateServerEnv(): {
     }
   }
 
+  // F-005: Turnstile must not be silently disabled in production.
+  //
+  // lib/turnstile.ts (RISK-16) already flips the *default* to ON in
+  // production, so an unset / "true" / "1" ENABLE_TURNSTILE needs no
+  // action here. This guard closes the residual case: an operator who
+  // *explicitly* sets ENABLE_TURNSTILE=false (or 0) in production
+  // silently removes the CAPTCHA in front of /admin/login and other
+  // protected forms. We surface that as a hard startup failure unless it
+  // is consciously acknowledged via ALLOW_TURNSTILE_DISABLED_IN_PROD=1 —
+  // the same explicit opt-out idiom used for
+  // CRON_ALLOW_SHARED_FALLBACK_IN_PROD. Disabling a security control in
+  // production should take two keys, not one.
+  if (process.env.NODE_ENV === "production") {
+    const turnstileFlag = process.env.ENABLE_TURNSTILE;
+    const explicitlyDisabled = turnstileFlag === "false" || turnstileFlag === "0";
+    const acknowledged = process.env.ALLOW_TURNSTILE_DISABLED_IN_PROD === "1";
+    if (explicitlyDisabled && !acknowledged && !seenNames.has("ENABLE_TURNSTILE")) {
+      missing.push({
+        name: "ENABLE_TURNSTILE",
+        description:
+          "Turnstile is explicitly disabled in production (ENABLE_TURNSTILE=false), " +
+          "which removes bot protection from /admin/login and other protected forms. " +
+          "Set ENABLE_TURNSTILE=true (recommended), or, if you deliberately run without " +
+          "Turnstile, acknowledge the trade-off with ALLOW_TURNSTILE_DISABLED_IN_PROD=1.",
+        ownerFile: "lib/turnstile.ts",
+      });
+      seenNames.add("ENABLE_TURNSTILE");
+    }
+  }
+
   return {
     missing,
     missingRecommended: collectMissingEnv(RECOMMENDED_SERVER_ENV),
