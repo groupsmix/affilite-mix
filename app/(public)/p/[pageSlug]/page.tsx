@@ -158,8 +158,76 @@ interface ComparisonContentProps {
   slugB: string;
 }
 
+// FR-i18n: Localised strings for the comparison view. Mirrors the
+// `isArabic` ternary pattern used in `app/(public)/about/page.tsx`.
+function comparisonStrings(isAr: boolean) {
+  return {
+    breadcrumbHome: isAr ? "الرئيسية" : "Home",
+    breadcrumbCompare: isAr ? "مقارنة" : "Compare",
+    vs: isAr ? "مقابل" : "vs",
+    subtitle: isAr
+      ? "مقارنة جنباً إلى جنب للمواصفات والأسعار وحكمنا."
+      : "Side-by-side comparison of specs, pricing, and our verdict.",
+    checkPrice: isAr ? "تحقق من السعر" : "Check Price",
+    specifications: isAr ? "المواصفات" : "Specifications",
+    feature: isAr ? "الميزة" : "Feature",
+    brand: isAr ? "العلامة التجارية" : "Brand",
+    price: isAr ? "السعر" : "Price",
+    score: isAr ? "التقييم" : "Score",
+    pros: isAr ? "المزايا" : "Pros",
+    cons: isAr ? "العيوب" : "Cons",
+    priceHistory: (name: string) => (isAr ? `سجل أسعار ${name}` : `${name} Price History`),
+    ourVerdict: isAr ? "حكمنا" : "Our Verdict",
+    edgesOut: (winner: string, ws: number, ls: number, loser: string) =>
+      isAr ? (
+        <>
+          <strong>{winner}</strong> يتفوق بتقييم <strong>{ws}/10</strong> مقابل{" "}
+          <strong>{ls}/10</strong> لـ {loser}.
+        </>
+      ) : (
+        <>
+          <strong>{winner}</strong> edges out with a score of <strong>{ws}/10</strong> vs{" "}
+          <strong>{ls}/10</strong> for the {loser}.
+        </>
+      ),
+    betterValue: (loser: string) =>
+      isAr
+        ? ` ومع ذلك، يقدم ${loser} قيمة أفضل بسعر أقل.`
+        : ` However, the ${loser} offers better value at a lower price point.`,
+    takesLead: (winner: string, ws: number, ls: number, loser: string) =>
+      isAr ? (
+        <>
+          <strong>{winner}</strong> يتصدر بتقييم <strong>{ws}/10</strong> مقابل{" "}
+          <strong>{ls}/10</strong> لـ {loser}.
+        </>
+      ) : (
+        <>
+          <strong>{winner}</strong> takes the lead with a score of <strong>{ws}/10</strong> vs{" "}
+          <strong>{ls}/10</strong> for the {loser}.
+        </>
+      ),
+    equalScore: (score: number) =>
+      isAr ? (
+        <>
+          كلا المنتجين بنفس التقييم <strong>{score}/10</strong>. الاختيار يعود إلى التفضيل الشخصي
+          والسعر.
+        </>
+      ) : (
+        <>
+          Both products score equally at <strong>{score}/10</strong>. Your choice comes down to
+          personal preference and price.
+        </>
+      ),
+    noScores: isAr
+      ? "قارن المواصفات والأسعار أعلاه لاتخاذ قرارك. كلاهما خيار جيد في فئته."
+      : "Compare the specs and pricing above to make your decision. Both are solid choices in their category.",
+  };
+}
+
 async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) {
   const site = await getCurrentSite();
+  const isArabic = site.language === "ar";
+  const cs = comparisonStrings(isArabic);
 
   if (shouldSkipDbCall()) return null;
 
@@ -171,13 +239,13 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
   const { productA, productB } = result;
 
   const breadcrumbs = [
-    { name: "Home", path: "/" },
-    { name: "Compare", path: "/p" },
-    { name: `${productA.name} vs ${productB.name}`, path: `/p/${slug}` },
+    { name: cs.breadcrumbHome, path: "/" },
+    { name: cs.breadcrumbCompare, path: "/p" },
+    { name: `${productA.name} ${cs.vs} ${productB.name}`, path: `/p/${slug}` },
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-8" dir={isArabic ? "rtl" : "ltr"}>
       {/* JSON-LD */}
       <JsonLd data={breadcrumbJsonLd(site, breadcrumbs)} />
       <JsonLd data={productJsonLd(site as unknown as SiteDefinition, productA)} />
@@ -196,11 +264,9 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
 
       {/* Header */}
       <h1 className="text-center text-3xl font-bold text-gray-900">
-        {productA.name} <span className="text-gray-400">vs</span> {productB.name}
+        {productA.name} <span className="text-gray-400">{cs.vs}</span> {productB.name}
       </h1>
-      <p className="mt-2 text-center text-gray-600">
-        Side-by-side comparison of specs, pricing, and our verdict.
-      </p>
+      <p className="mt-2 text-center text-gray-600">{cs.subtitle}</p>
 
       {/* Product images + CTA */}
       <div className="mt-8 grid grid-cols-2 gap-8">
@@ -236,7 +302,7 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
                 rel="noopener noreferrer"
                 className="mt-3 inline-block rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
-                {product.cta_text || "Check Price"}
+                {product.cta_text || cs.checkPrice}
               </a>
             )}
           </div>
@@ -245,11 +311,13 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
 
       {/* Spec comparison table */}
       <div className="mt-10">
-        <h2 className="mb-4 text-xl font-bold text-gray-900">Specifications</h2>
+        <h2 className="mb-4 text-xl font-bold text-gray-900">{cs.specifications}</h2>
         <table className="w-full">
           <thead>
             <tr className="border-b-2 border-gray-200">
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Feature</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                {cs.feature}
+              </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
                 {productA.name}
               </th>
@@ -259,15 +327,15 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
             </tr>
           </thead>
           <tbody>
-            <SpecRow label="Brand" valueA={productA.merchant} valueB={productB.merchant} />
-            <SpecRow label="Price" valueA={productA.price} valueB={productB.price} />
+            <SpecRow label={cs.brand} valueA={productA.merchant} valueB={productB.merchant} />
+            <SpecRow label={cs.price} valueA={productA.price} valueB={productB.price} />
             <SpecRow
-              label="Score"
+              label={cs.score}
               valueA={productA.score !== null ? `${productA.score}/10` : "—"}
               valueB={productB.score !== null ? `${productB.score}/10` : "—"}
             />
-            <SpecRow label="Pros" valueA={productA.pros} valueB={productB.pros} />
-            <SpecRow label="Cons" valueA={productA.cons} valueB={productB.cons} />
+            <SpecRow label={cs.pros} valueA={productA.pros} valueB={productB.pros} />
+            <SpecRow label={cs.cons} valueA={productA.cons} valueB={productB.cons} />
           </tbody>
         </table>
       </div>
@@ -275,7 +343,7 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
       {/* Price history for both */}
       <div className="mt-10 grid grid-cols-2 gap-8">
         <div>
-          <h3 className="mb-2 font-semibold text-gray-900">{productA.name} Price History</h3>
+          <h3 className="mb-2 font-semibold text-gray-900">{cs.priceHistory(productA.name)}</h3>
           <PriceHistoryChart productId={productA.id} />
           <div className="mt-3">
             <PriceAlertForm
@@ -283,11 +351,12 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
               productName={productA.name}
               currentPrice={productA.price_amount ?? undefined}
               currency={productA.price_currency}
+              siteLanguage={site.language}
             />
           </div>
         </div>
         <div>
-          <h3 className="mb-2 font-semibold text-gray-900">{productB.name} Price History</h3>
+          <h3 className="mb-2 font-semibold text-gray-900">{cs.priceHistory(productB.name)}</h3>
           <PriceHistoryChart productId={productB.id} />
           <div className="mt-3">
             <PriceAlertForm
@@ -295,6 +364,7 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
               productName={productB.name}
               currentPrice={productB.price_amount ?? undefined}
               currency={productB.price_currency}
+              siteLanguage={site.language}
             />
           </div>
         </div>
@@ -302,37 +372,25 @@ async function renderComparison({ slug, slugA, slugB }: ComparisonContentProps) 
 
       {/* Verdict */}
       <div className="mt-10 rounded-lg border bg-gray-50 p-6">
-        <h2 className="text-xl font-bold text-gray-900">Our Verdict</h2>
+        <h2 className="text-xl font-bold text-gray-900">{cs.ourVerdict}</h2>
         <p className="mt-2 text-gray-700">
           {productA.score !== null && productB.score !== null ? (
             productA.score > productB.score ? (
               <>
-                <strong>{productA.name}</strong> edges out with a score of{" "}
-                <strong>{productA.score}/10</strong> vs <strong>{productB.score}/10</strong> for the{" "}
-                {productB.name}.
+                {cs.edgesOut(productA.name, productA.score, productB.score, productB.name)}
                 {productA.price_amount &&
                 productB.price_amount &&
                 productA.price_amount > productB.price_amount
-                  ? ` However, the ${productB.name} offers better value at a lower price point.`
+                  ? cs.betterValue(productB.name)
                   : ""}
               </>
             ) : productB.score > productA.score ? (
-              <>
-                <strong>{productB.name}</strong> takes the lead with a score of{" "}
-                <strong>{productB.score}/10</strong> vs <strong>{productA.score}/10</strong> for the{" "}
-                {productA.name}.
-              </>
+              cs.takesLead(productB.name, productB.score, productA.score, productA.name)
             ) : (
-              <>
-                Both products score equally at <strong>{productA.score}/10</strong>. Your choice
-                comes down to personal preference and price.
-              </>
+              cs.equalScore(productA.score)
             )
           ) : (
-            <>
-              Compare the specs and pricing above to make your decision. Both are solid choices in
-              their category.
-            </>
+            cs.noScores
           )}
         </p>
       </div>

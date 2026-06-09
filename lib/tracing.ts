@@ -11,6 +11,8 @@
  * See: https://www.w3.org/TR/trace-context/
  */
 
+import { logger } from "./logger";
+
 const TRACEPARENT_HEADER = "traceparent";
 const TRACESTATE_HEADER = "tracestate";
 
@@ -99,18 +101,19 @@ export function exportTraceSpan(
   durationMs: number,
   attributes: Record<string, string | number> = {},
 ): void {
-  console.log(
-    JSON.stringify({
-      _otel: true,
-      traceId: ctx.traceId,
-      spanId: ctx.spanId,
-      spanName,
-      durationMs,
-      traceFlags: ctx.traceFlags,
-      attributes,
-      timestamp: new Date().toISOString(),
-    }),
-  );
+  // FR-006: emit through the structured logger so the line participates
+  // in level filtering, sampling, and tail-consumer routing. The `_otel`
+  // marker remains so OTel-aware collectors can still discriminate span
+  // logs from regular log lines.
+  logger.info(spanName, {
+    _otel: true,
+    traceId: ctx.traceId,
+    spanId: ctx.spanId,
+    spanName,
+    durationMs,
+    traceFlags: ctx.traceFlags,
+    attributes,
+  });
 }
 
 export type { TraceContext };

@@ -3,9 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 
-function ResultSkeleton() {
+function ResultSkeleton({ language = "en" }: { language?: string }) {
+  const t = getStrings(language);
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+    <div
+      className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8"
+      dir={language === "ar" ? "rtl" : "ltr"}
+    >
       <div className="mb-12 text-center">
         <div className="mx-auto mb-2 h-4 w-24 animate-pulse rounded bg-gray-200" />
         <div className="mx-auto mb-4 h-9 w-72 animate-pulse rounded bg-gray-200" />
@@ -37,7 +41,7 @@ function ResultSkeleton() {
           </div>
         ))}
       </div>
-      <p className="mt-8 text-center text-sm text-gray-500">Finding your perfect matches...</p>
+      <p className="mt-8 text-center text-sm text-gray-500">{t.findingMatches}</p>
     </div>
   );
 }
@@ -364,7 +368,7 @@ export function GiftFinderQuiz({
   };
 
   if (loading) {
-    return <ResultSkeleton />;
+    return <ResultSkeleton language={language} />;
   }
 
   if (showResults) {
