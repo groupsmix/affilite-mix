@@ -41,6 +41,18 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: false,
     contentDispositionType: "attachment",
     qualities: [75],
+    // F-006: bound upstream re-fetch amplification. Every distinct
+    // /_next/image request that misses cache forces the Worker to fetch the
+    // full source image from the upstream host (incl. the still-allowlisted
+    // Amazon CDNs) and re-optimise it. Product images are effectively
+    // immutable, so pin a long minimum cache TTL (30 days): once a given
+    // (url, width, format) variant is optimised it is served from cache and
+    // NOT re-fetched upstream for the TTL window. This closes the bandwidth
+    // half of F-006 across the width axis the way `qualities: [75]` closed
+    // the quality axis. The SSRF half remains bounded by the exact-host
+    // remotePatterns below; full closure still depends on the G-48 R2 ingest
+    // migration removing the Amazon hosts entirely.
+    minimumCacheTTL: 2_592_000, // 30 days, in seconds
     remotePatterns: [
       // G-04: Cloudflare R2 public bucket, pinned to the exact hostname
       // served from R2_PUBLIC_URL. Omitted when the env var is unset
