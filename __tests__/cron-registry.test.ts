@@ -230,9 +230,13 @@ describe("cron-registry — route handler consistency", () => {
 
 describe("cron-registry — middleware CSRF exemption", () => {
   it("middleware exempts the cron path prefix from CSRF", () => {
+    // F-007: CSRF extracted to lib/middleware/csrf; middleware delegates via
+    // withCsrf. The cron-prefix exemption now lives in the module.
     const middlewareSrc = readRepoFile("middleware.ts");
-    expect(middlewareSrc).toMatch(/CRON_PATH_PREFIX/);
-    expect(middlewareSrc).toMatch(/startsWith\(\s*CRON_PATH_PREFIX\s*\)/);
+    expect(middlewareSrc).toMatch(/withCsrf\(/);
+    const csrfModule = readRepoFile("lib/middleware/csrf.ts");
+    expect(csrfModule).toMatch(/CRON_PATH_PREFIX/);
+    expect(csrfModule).toMatch(/startsWith\(\s*CRON_PATH_PREFIX\s*\)/);
   });
 });
 

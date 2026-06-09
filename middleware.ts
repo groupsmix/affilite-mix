@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSiteByDomain } from "@/config/sites";
-import { validateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
 import { TRACE_ID_HEADER } from "@/lib/trace-id";
-// H-4: Composable middleware module for maintenance mode
+// H-4: Composable middleware modules.
 import { withMaintenance } from "@/lib/middleware/maintenance";
-// F-007: hostname utils + domain→site resolution extracted for testability
+// F-007: hostname utils + domain→site resolution extracted for testability.
 import {
   canonicalizeHostname,
   isValidHostname,
   nicheNotFoundResponse,
 } from "@/lib/middleware/hostname";
 import { resolveSite } from "@/lib/middleware/site-resolution";
+// F-007: CORS preflight + CSRF concerns extracted to independently-tested
+// modules and composed here, replacing the previous inline duplicates.
+import { withCorsPreflight } from "@/lib/middleware/cors";
+import { withCsrf } from "@/lib/middleware/csrf";
+import type { MiddlewareContext } from "@/lib/middleware/compose";
 
 import {
   buildCspHeader,
@@ -20,26 +23,14 @@ import {
   buildReportingEndpointsHeader,
 } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
-import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
-import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
-import { getAllowedOrigins, type VerifiedSiteRef } from "@/lib/security/allowed-origins";
+import { getAllowedOrigins } from "@/lib/security/allowed-origins";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getAppCacheKV } from "@/lib/runtime-env";
 import { signSiteIdFallback } from "@/lib/site-id-signer";
 import { checkBodySize, applySecurityHeaders } from "@/lib/middleware-helpers";
 import { parseOrCreateTraceContext, applyTraceHeaders, exportTraceSpan } from "@/lib/tracing";
 import { emitMetric } from "@/lib/metrics";
 
 const CSP_HEADER = "Content-Security-Policy";
-
-/** Methods allowed via CORS for public API endpoints (beacon, vitals, etc.) */
-const CORS_ALLOWED_METHODS = "GET, POST, OPTIONS";
-/** Headers the browser is allowed to send on cross-origin requests */
-const CORS_ALLOWED_HEADERS = [CSRF_HEADER, "Content-Type", "Authorization", TRACE_ID_HEADER].join(
-  ", ",
-);
-/** Preflight cache duration: 1 hour */
-const CORS_MAX_AGE = "3600";
 
 /**
  * Middleware: resolves domain → site_id and injects x-site-id header.
@@ -80,19 +71,25 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
     return nicheNotFoundResponse(request);
   }
 
-  // ── Maintenance mode (A-023 / F-PERF-02) ──────────────
-  // H-4: Delegated to composable module for independent testability.
-  const maintenanceCtx = {
+  // ── Shared middleware context (H-4 / F-007) ────────────
+  // One mutable context threaded through the composable concerns
+  // (maintenance, CORS preflight, CSRF). Site resolution fills in
+  // siteId/verifiedSite/traceId partway through the pipeline.
+  const gpcEnabled = request.headers.get("sec-gpc") === "1";
+  const ctx: MiddlewareContext = {
     hostname,
     pathname,
     siteId: null,
     verifiedSite: null,
     traceId: "",
-    gpcEnabled: false,
+    gpcEnabled,
     depth,
     signal,
   };
-  const maintenanceResponse = await withMaintenance(request, maintenanceCtx);
+
+  // ── Maintenance mode (A-023 / F-PERF-02) ──────────────
+  // H-4: Delegated to composable module for independent testability.
+  const maintenanceResponse = await withMaintenance(request, ctx);
   if (maintenanceResponse) return maintenanceResponse;
 
   // ── Request body size guard (AUDIT-FIX A1-002) ─────────
@@ -125,11 +122,10 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   }
 
   // ── GPC (Global Privacy Control) signal (A63) ───────────
-  // If the browser sends Sec-GPC: 1, attach a response header so
-  // the cookie-consent CMP can default non-essential categories to
-  // rejected without showing the banner. Required by California AG
-  // enforcement (Sephora settlement, 2023).
-  const gpcEnabled = request.headers.get("sec-gpc") === "1";
+  // Computed into `ctx.gpcEnabled` above. The finalizer attaches a
+  // response header so the cookie-consent CMP can default non-essential
+  // categories to rejected without showing the banner. Required by
+  // California AG enforcement (Sephora settlement, 2023).
 
   // ── Trailing-slash normalization (SA9) ─────────────────
   // DEFERRED: moved after site resolution so the redirect uses the
@@ -137,54 +133,9 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // See the slash-normalization block below (after `if (!siteId)`).
 
   // ── CORS preflight (OPTIONS) ───────────────────────────
-  if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
-    const requestOrigin = request.headers.get("origin") ?? "";
-    const preflightStaticSite = getSiteByDomain(hostname);
-    let preflightVerifiedSite: VerifiedSiteRef | null = preflightStaticSite
-      ? {
-          slug: preflightStaticSite.id,
-          domain: preflightStaticSite.domain,
-          aliases: preflightStaticSite.aliases,
-        }
-      : null;
-
-    if (!preflightVerifiedSite) {
-      try {
-        const kv = getAppCacheKV();
-        if (kv) {
-          const cachedRow = (await kv.get(`site-domain:${hostname}`, "json")) as {
-            slug?: string;
-            is_active?: boolean;
-          } | null;
-          if (cachedRow?.slug && cachedRow?.is_active) {
-            preflightVerifiedSite = { slug: cachedRow.slug, domain: hostname };
-          }
-        }
-      } catch {
-        // KV errors during preflight are non-fatal
-      }
-    }
-
-    const allowedOrigins = getAllowedOrigins(preflightVerifiedSite);
-    const matchedOrigin =
-      requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : "";
-
-    if (!matchedOrigin) {
-      return new NextResponse(null, { status: 403 });
-    }
-
-    return new NextResponse(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": matchedOrigin,
-        "Access-Control-Allow-Methods": CORS_ALLOWED_METHODS,
-        "Access-Control-Allow-Headers": CORS_ALLOWED_HEADERS,
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Max-Age": CORS_MAX_AGE,
-        Vary: "Origin",
-      },
-    });
-  }
+  // F-007: handled by the extracted, independently-tested module.
+  const corsPreflightResponse = await withCorsPreflight(request, ctx);
+  if (corsPreflightResponse) return corsPreflightResponse;
 
   // ── Resolve site (domain → siteId) ─────────────────────
   // F-007: extracted to lib/middleware/site-resolution for independent
@@ -193,6 +144,11 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   const resolution = await resolveSite(request, hostname, signal);
   if (resolution.type === "response") return resolution.response;
   const { siteId, verifiedSite, traceId } = resolution;
+  // Thread resolved identity into the shared context for downstream
+  // composable concerns (CSRF, and any future withX modules).
+  ctx.siteId = siteId;
+  ctx.verifiedSite = verifiedSite;
+  ctx.traceId = traceId;
 
   // ── Trailing-slash normalization (SA9) — AFTER site resolution ──
   // AUDIT-FIX A1-001/A2-001: Force canonical hostname so an attacker
@@ -209,28 +165,9 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   }
 
   // ── CSRF protection for state-changing API routes ─────
-  const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-  if (!SAFE_METHODS.has(request.method) && pathname.startsWith("/api/")) {
-    const origin = request.headers.get("origin") ?? "";
-    // G-33: pass the verified site reference, not the raw hostname.
-    const allowedOrigins = getAllowedOrigins(verifiedSite);
-
-    // 1. If Origin is present, reject mismatched origins immediately
-    if (origin && !allowedOrigins.includes(origin)) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
-
-    // 2. Always validate the CSRF double-submit cookie token
-    const isExempt = csrfExemptPaths().has(pathname) || pathname.startsWith(CRON_PATH_PREFIX);
-
-    if (!isExempt) {
-      const cookieValue = request.cookies.get(CSRF_COOKIE)?.value;
-      const headerValue = request.headers.get(CSRF_HEADER) ?? undefined;
-      if (!validateCsrfToken(cookieValue, headerValue)) {
-        return new NextResponse("Forbidden – missing CSRF token", { status: 403 });
-      }
-    }
-  }
+  // F-007: handled by the extracted, independently-tested module.
+  const csrfResponse = withCsrf(request, ctx);
+  if (csrfResponse) return csrfResponse;
 
   // ── Inject x-site-id and trace-id headers into request ──
   // siteId is guaranteed non-null at this point: the `if (!siteId)` guard
