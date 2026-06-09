@@ -275,7 +275,7 @@ export function timingSafeEqual(a: string, b: string): boolean {
     // cannot prove the result is constant and optimise the dummy work
     // away -- same approach used by `lib/csrf.ts` and
     // `lib/cron-auth.ts`.
-    result |= aBuf[i % safeLenA] ^ bBuf[i % safeLenB];
+    result |= aBuf[i % safeLenA]! ^ bBuf[i % safeLenB]!;
   }
   // If the lengths differed, `result` is already non-zero from the
   // `lenA ^ lenB` term above, so the comparison still returns false.

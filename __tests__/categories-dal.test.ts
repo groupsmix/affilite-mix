@@ -153,7 +153,7 @@ describe("listCategories — q option", () => {
 
     const [session] = getSessions("categories");
     expect(session).toBeDefined();
-    const ilike = session.calls.find((c) => c.method === "ilike");
+    const ilike = session!.calls.find((c) => c.method === "ilike");
     expect(ilike).toBeUndefined();
   });
 
@@ -176,7 +176,7 @@ describe("listCategories — q option", () => {
 
     const [session] = getSessions("categories");
     expect(session).toBeDefined();
-    const ilike = session.calls.find((c) => c.method === "ilike");
+    const ilike = session!.calls.find((c) => c.method === "ilike");
     expect(ilike).toBeDefined();
     expect(ilike!.args).toEqual(["name", "%Gifts%"]);
   });
@@ -187,7 +187,7 @@ describe("listCategories — q option", () => {
     await mod.listCategories(TEST_SITE_ID, { q: "50%_off" });
 
     const [session] = getSessions("categories");
-    const ilike = session.calls.find((c) => c.method === "ilike");
+    const ilike = session!.calls.find((c) => c.method === "ilike");
     expect(ilike!.args).toEqual(["name", "%50\\%\\_off%"]);
   });
 
@@ -197,8 +197,8 @@ describe("listCategories — q option", () => {
     await mod.listCategories(TEST_SITE_ID, { q: "x" });
 
     const [session] = getSessions("categories");
-    const eq = session.calls.find((c) => c.method === "eq");
-    const order = session.calls.find((c) => c.method === "order");
+    const eq = session!.calls.find((c) => c.method === "eq");
+    const order = session!.calls.find((c) => c.method === "order");
     expect(eq?.args).toEqual(["site_id", TEST_SITE_ID]);
     expect(order?.args[0]).toBe("name");
     expect(order?.args[1]).toMatchObject({ ascending: true });
@@ -281,10 +281,10 @@ describe("getCategoryUsageCountsBatch", () => {
     for (const table of ["content", "products"]) {
       const [session] = getSessions(table);
       expect(session, `missing ${table} query`).toBeDefined();
-      const eqSite = session.calls.find(
+      const eqSite = session!.calls.find(
         (c) => c.method === "eq" && c.args[0] === "site_id" && c.args[1] === TEST_SITE_ID,
       );
-      const inCall = session.calls.find((c) => c.method === "in");
+      const inCall = session!.calls.find((c) => c.method === "in");
       expect(eqSite, `${table} must be site-scoped`).toBeDefined();
       expect(inCall?.args[0]).toBe("category_id");
       expect(inCall?.args[1]).toEqual(["a", "b"]);

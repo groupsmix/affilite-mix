@@ -87,7 +87,7 @@ function ipv6First3Segments(ip: string): [string, string, string] | null {
       out.push(segments[i] || "0");
     }
   }
-  return [out[0], out[1], out[2]];
+  return [out[0]!, out[1]!, out[2]!];
 }
 
 /**

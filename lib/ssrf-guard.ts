@@ -71,12 +71,12 @@ function normalizeHostname(hostname: string): string {
  */
 function ipv6MappedToIPv4(hostname: string): string | null {
   const dotted = hostname.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
-  if (dotted) return dotted[1];
+  if (dotted) return dotted[1]!;
 
   const hex = hostname.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
   if (hex) {
-    const high = parseInt(hex[1], 16);
-    const low = parseInt(hex[2], 16);
+    const high = parseInt(hex[1]!, 16);
+    const low = parseInt(hex[2]!, 16);
     return [(high >> 8) & 0xff, high & 0xff, (low >> 8) & 0xff, low & 0xff].join(".");
   }
 
@@ -120,15 +120,15 @@ function isBlockedIPv6Prefix(hostname: string): boolean {
  */
 function ipInRange(ip: string, cidr: string): boolean {
   const [range, bitsStr] = cidr.split("/");
-  const bits = parseInt(bitsStr, 10);
+  const bits = parseInt(bitsStr!, 10);
 
   const ipParts = ip.split(".").map(Number);
-  const rangeParts = range.split(".").map(Number);
+  const rangeParts = range!.split(".").map(Number);
 
-  const ipNum = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
+  const ipNum = (ipParts[0]! << 24) | (ipParts[1]! << 16) | (ipParts[2]! << 8) | ipParts[3]!;
 
   const rangeNum =
-    (rangeParts[0] << 24) | (rangeParts[1] << 16) | (rangeParts[2] << 8) | rangeParts[3];
+    (rangeParts[0]! << 24) | (rangeParts[1]! << 16) | (rangeParts[2]! << 8) | rangeParts[3]!;
 
   const mask = (-1 << (32 - bits)) >>> 0;
 

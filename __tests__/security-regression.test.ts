@@ -44,7 +44,7 @@ describe("F-009: security remediation regression tests", () => {
 
     it("codeql.yml has no duplicate step names", () => {
       const content = readFile(".github/workflows/codeql.yml");
-      const stepNames = [...content.matchAll(/- name:\s*(.+)/g)].map((m) => m[1].trim());
+      const stepNames = [...content.matchAll(/- name:\s*(.+)/g)].map((m) => m[1]!.trim());
       const unique = new Set(stepNames);
       expect(stepNames.length).toBe(unique.size);
     });

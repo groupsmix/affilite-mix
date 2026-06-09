@@ -46,7 +46,7 @@ export function ModulesManager() {
       const dbSites = (data.sites as SiteOption[]).filter((s) => s.source === "database");
       setSites(dbSites);
       if (dbSites.length > 0 && !selectedSiteId) {
-        setSelectedSiteId(dbSites[0].db_id ?? dbSites[0].id);
+        setSelectedSiteId(dbSites[0]!.db_id ?? dbSites[0]!.id);
       }
     }
     setLoading(false);
@@ -114,7 +114,7 @@ export function ModulesManager() {
   const grouped: Record<string, ModuleInfo[]> = {};
   for (const mod of modules) {
     if (!grouped[mod.category]) grouped[mod.category] = [];
-    grouped[mod.category].push(mod);
+    grouped[mod.category]!.push(mod);
   }
 
   return (

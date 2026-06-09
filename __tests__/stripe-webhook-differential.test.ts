@@ -68,7 +68,7 @@ async function ourHmacHex(secret: string, signedPayload: string): Promise<string
 function extractV1(header: string): string {
   const match = header.match(/v1=([0-9a-fA-F]+)/);
   if (!match) throw new Error(`No v1= component in header: ${header}`);
-  return match[1].toLowerCase();
+  return match[1]!.toLowerCase();
 }
 
 describe("G-19: Differential fuzz of custom verifier vs. Stripe SDK", () => {

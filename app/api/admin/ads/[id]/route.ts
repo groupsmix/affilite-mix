@@ -33,7 +33,7 @@ export const PUT = withAuthzDynamic(
       feature: "ads",
       action: "edit",
       resourceType: "ad_placement",
-      resourceId: id,
+      resourceId: id!,
       expectedSiteId: dbSiteId,
     });
     if (!authz.ok) return authorizationErrorResponse(authz);
@@ -72,14 +72,14 @@ export const PUT = withAuthzDynamic(
       if (is_active !== undefined) updates.is_active = is_active;
       if (priority !== undefined) updates.priority = priority;
 
-      const ad = await updateAdPlacement(dbSiteId, id, updates);
+      const ad = await updateAdPlacement(dbSiteId, id!, updates);
 
       void recordAuditEvent({
         site_id: dbSiteId,
         actor: session.email ?? session.userId ?? "admin",
         action: "update",
         entity_type: "ad_placement",
-        entity_id: id,
+        entity_id: id!,
         details: updates,
       });
 
@@ -105,13 +105,13 @@ export const DELETE = withAuthzDynamic(
       feature: "ads",
       action: "delete",
       resourceType: "ad_placement",
-      resourceId: id,
+      resourceId: id!,
       expectedSiteId: dbSiteId,
     });
     if (!authz.ok) return authorizationErrorResponse(authz);
 
     try {
-      await deleteAdPlacement(dbSiteId, id);
+      await deleteAdPlacement(dbSiteId, id!);
 
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({
@@ -119,7 +119,7 @@ export const DELETE = withAuthzDynamic(
         actor: session.email ?? session.userId ?? "admin",
         action: "delete",
         entity_type: "ad_placement",
-        entity_id: id,
+        entity_id: id!,
       });
 
       return NextResponse.json({ ok: true });

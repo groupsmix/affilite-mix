@@ -88,8 +88,8 @@ export async function resolveSite(
   const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
   const isLocalhostDev =
     (process.env.NODE_ENV !== "production" || allowLocalhostInProd) &&
-    (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost")) &&
-    (!PREVIEW_HOST_ALLOWLIST || PREVIEW_HOST_ALLOWLIST.has(hostWithoutPort.toLowerCase()));
+    (hostWithoutPort === "localhost" || hostWithoutPort!.endsWith(".localhost")) &&
+    (!PREVIEW_HOST_ALLOWLIST || PREVIEW_HOST_ALLOWLIST.has(hostWithoutPort!.toLowerCase()));
 
   // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
   // Reuse an existing x-trace-id (from an upstream proxy) or cf-ray; otherwise mint a new one.

@@ -47,7 +47,7 @@ function applyCreatedAtWindow<
 }
 
 function dateKeyUtc(date: Date): string {
-  return date.toISOString().split("T")[0];
+  return date.toISOString().split("T")[0]!;
 }
 
 function startOfUtcDay(date: Date): Date {
@@ -274,7 +274,7 @@ export async function getDailyClicks(
     const today = new Date();
     while (cursor <= today) {
       const dateStr = cursor.toISOString().split("T")[0];
-      result.push({ date: dateStr, count: counts.get(dateStr) ?? 0 });
+      result.push({ date: dateStr!, count: counts.get(dateStr!) ?? 0 });
       cursor.setDate(cursor.getDate() + 1);
     }
     return result;

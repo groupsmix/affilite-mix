@@ -100,7 +100,7 @@ describe("localhost routing (development)", () => {
   it("respects NEXT_PUBLIC_DEFAULT_SITE env var", () => {
     vi.stubEnv("NODE_ENV", "development");
     const secondSite = allSites[1];
-    vi.stubEnv("NEXT_PUBLIC_DEFAULT_SITE", secondSite.id);
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_SITE", secondSite!.id);
     expect(getSiteByDomain("localhost")).toBe(secondSite);
   });
 
@@ -122,27 +122,27 @@ describe("localhost routing (development)", () => {
 describe("toSiteRow", () => {
   it("converts a SiteDefinition to a DB-compatible row", () => {
     const site = allSites[0];
-    const row = toSiteRow(site);
+    const row = toSiteRow(site!);
 
-    expect(row.slug).toBe(site.id);
-    expect(row.name).toBe(site.name);
-    expect(row.domain).toBe(site.domain);
-    expect(row.language).toBe(site.language);
-    expect(row.direction).toBe(site.direction);
+    expect(row.slug).toBe(site!.id);
+    expect(row.name).toBe(site!.name);
+    expect(row.domain).toBe(site!.domain);
+    expect(row.language).toBe(site!.language);
+    expect(row.direction).toBe(site!.direction);
     expect(row.is_active).toBe(true);
     expect(row.monetization_type).toBe("affiliate");
   });
 
   it("generates valid theme object", () => {
-    const row = toSiteRow(allSites[0]);
+    const row = toSiteRow(allSites[0]!);
     expect(row.theme.primaryColor).toBeTruthy();
     expect(row.theme.accentColor).toBeTruthy();
   });
 
   it("generates nav_items from site nav", () => {
     const site = allSites[0];
-    const row = toSiteRow(site);
-    expect(row.nav_items.length).toBe(site.nav.length);
+    const row = toSiteRow(site!);
+    expect(row.nav_items.length).toBe(site!.nav.length);
     for (const item of row.nav_items) {
       expect(item.label).toBeTruthy();
       expect(item.href).toBeTruthy();
@@ -150,7 +150,7 @@ describe("toSiteRow", () => {
   });
 
   it("generates features as flat boolean map", () => {
-    const row = toSiteRow(allSites[0]);
+    const row = toSiteRow(allSites[0]!);
     for (const [, value] of Object.entries(row.features)) {
       expect(typeof value).toBe("boolean");
     }

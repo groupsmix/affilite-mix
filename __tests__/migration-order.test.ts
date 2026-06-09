@@ -17,7 +17,7 @@ describe("supabase migration filenames", () => {
       const match = /^(\d{5,})_/.exec(file);
       if (!match) continue;
       const prefix = match[1];
-      (prefixes[prefix] ??= []).push(file);
+      (prefixes[prefix!] ??= []).push(file);
     }
     const collisions = Object.entries(prefixes).filter(([, files]) => files.length > 1);
     expect(collisions, `Migration prefix collisions: ${JSON.stringify(collisions)}`).toEqual([]);

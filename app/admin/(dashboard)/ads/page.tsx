@@ -21,7 +21,7 @@ export default async function AdsPage() {
 
   const [placements, impressionStats] = await Promise.all([
     listAdPlacements(siteId),
-    getAdImpressionStats(siteId, thirtyDaysAgo).catch(() => []),
+    getAdImpressionStats(siteId, thirtyDaysAgo!).catch(() => []),
   ]);
 
   // Build a lookup map: placement_id → total impressions

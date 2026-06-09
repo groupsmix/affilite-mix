@@ -42,7 +42,7 @@ describe("Stripe Webhook Contract Test", () => {
 
     expect(mockEvent.type).toBe("customer.subscription.created");
     expect(mockEvent.data.object.status).toBe("active");
-    expect(mockEvent.data.object.items.data[0].price.id).toBe("price_1MockPrice123");
+    expect(mockEvent.data.object.items.data[0]!.price.id).toBe("price_1MockPrice123");
     // In a real test, you would invoke the handler or dal function with this payload
   });
 });

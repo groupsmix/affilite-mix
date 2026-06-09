@@ -48,8 +48,8 @@ function parseCronIntervalSeconds(schedule: string): number {
   const [minute, hour, , ,] = parts;
 
   // Every N minutes: */N * * * *
-  if (minute.startsWith("*/")) {
-    const n = Number.parseInt(minute.slice(2), 10);
+  if (minute!.startsWith("*/")) {
+    const n = Number.parseInt(minute!.slice(2), 10);
     if (Number.isFinite(n) && n > 0) return n * 60;
   }
 
@@ -57,7 +57,7 @@ function parseCronIntervalSeconds(schedule: string): number {
   if (hour === "*") return 3600;
 
   // Once daily at H:M: M H * * *
-  const h = Number.parseInt(hour, 10);
+  const h = Number.parseInt(hour!, 10);
   if (Number.isFinite(h)) return 86400;
 
   // Fallback

@@ -33,8 +33,8 @@ export function ConversionFunnel() {
       {data.map((step, i) => {
         const widthPct = Math.max((step.count / maxCount) * 100, 8);
         const conversionRate =
-          i > 0 && data[i - 1].count > 0
-            ? ((step.count / data[i - 1].count) * 100).toFixed(1)
+          i > 0 && data[i - 1]!.count > 0
+            ? ((step.count / data[i - 1]!.count) * 100).toFixed(1)
             : null;
 
         return (

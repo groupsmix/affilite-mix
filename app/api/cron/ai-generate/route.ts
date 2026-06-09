@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
     if (cursorParam) {
       const [s, a] = cursorParam.split(":").map(Number);
       if (Number.isFinite(s) && Number.isFinite(a)) {
-        startSite = s;
-        startArticle = a;
+        startSite = s!;
+        startArticle = a!;
       }
     }
 
@@ -58,11 +58,11 @@ export async function POST(request: NextRequest) {
 
     for (let si = startSite; si < allSites.length; si++) {
       const site = allSites[si];
-      const siteResult = { site: site.id, generated: 0, errors: [] as string[] };
+      const siteResult = { site: site!.id, generated: 0, errors: [] as string[] };
 
       let dbSiteId: string;
       try {
-        dbSiteId = await resolveDbSiteId(site.id);
+        dbSiteId = await resolveDbSiteId(site!.id);
       } catch {
         siteResult.errors.push("Could not resolve DB site ID");
         results.push(siteResult);
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       const articleStart = si === startSite ? startArticle : 0;
       for (let i = articleStart; i < ARTICLES_PER_SITE; i++) {
         const contentType = contentTypes[i % contentTypes.length];
-        const niche = site.brand.niche;
+        const niche = site!.brand.niche;
         const topics = [
           `Top ${niche} picks this month`,
           `Best ${niche} for beginners`,
@@ -83,12 +83,12 @@ export async function POST(request: NextRequest) {
 
         try {
           const result = await generateContent({
-            siteId: site.id,
-            siteName: site.name,
-            niche: site.brand.niche,
-            contentType,
-            topic,
-            language: site.language,
+            siteId: site!.id,
+            siteName: site!.name,
+            niche: site!.brand.niche,
+            contentType: contentType!,
+            topic: topic!,
+            language: site!.language,
           });
 
           // F-AI-02: Basic content moderation before creating the draft.
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
                 body: result.body,
                 excerpt: result.excerpt,
                 content_type: result.contentType,
-                topic,
+                topic: topic!,
                 keywords: [],
                 ai_provider: result.provider,
                 ai_model: result.model,
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
           const msg = err instanceof Error ? err.message : String(err);
           siteResult.errors.push(`${contentType} "${topic}": ${msg}`);
           captureException(err, {
-            context: `[cron/ai-generate] Failed for ${site.id}`,
+            context: `[cron/ai-generate] Failed for ${site!.id}`,
           });
         }
         // S3-056: Update checkpoint after each article attempt.

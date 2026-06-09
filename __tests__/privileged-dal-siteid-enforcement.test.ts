@@ -52,7 +52,7 @@ describe("FIX-04: privileged DAL siteId enforcement", () => {
         hasExportedFn = true;
         const params = match[1];
         // Skip helper/internal functions that don't need siteId
-        if (params.includes("getClient") || params.includes("siteId")) {
+        if (params!.includes("getClient") || params!.includes("siteId")) {
           continue;
         }
         // If the function uses the privileged client directly (not via getClient param),

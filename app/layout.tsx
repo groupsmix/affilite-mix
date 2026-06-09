@@ -111,10 +111,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Inter is always included as the default / fallback
   needed.add(inter.variable);
   if (site.theme?.fontHeading && fontVarMap[site.theme.fontHeading]) {
-    needed.add(fontVarMap[site.theme.fontHeading]);
+    needed.add(fontVarMap[site.theme.fontHeading]!);
   }
   if (site.theme?.fontBody && fontVarMap[site.theme.fontBody]) {
-    needed.add(fontVarMap[site.theme.fontBody]);
+    needed.add(fontVarMap[site.theme.fontBody]!);
   }
 
   return (

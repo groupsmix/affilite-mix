@@ -164,7 +164,7 @@ describe("audit5-#33 — captureException invokes the Sentry SDK when initialize
     await Promise.resolve();
 
     expect(sentryCaptureSpy).toHaveBeenCalledTimes(1);
-    const [capturedError, opts] = sentryCaptureSpy.mock.calls[0];
+    const [capturedError, opts] = sentryCaptureSpy.mock.calls[0]!;
     expect(capturedError).toBe(err);
     expect(opts).toMatchObject({ data: { traceId: "abcdef", source: "audit5-test" } });
     expect(sentrySetTagSpy).toHaveBeenCalledWith("traceId", "abcdef");

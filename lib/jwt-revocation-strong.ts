@@ -28,7 +28,7 @@ const inMemoryBlocklist: RevokedEntry[] = [];
 
 function evictExpired(): void {
   const now = Date.now();
-  while (inMemoryBlocklist.length > 0 && now - inMemoryBlocklist[0].revokedAt > EVICTION_TTL_MS) {
+  while (inMemoryBlocklist.length > 0 && now - inMemoryBlocklist[0]!.revokedAt > EVICTION_TTL_MS) {
     inMemoryBlocklist.shift();
   }
 }

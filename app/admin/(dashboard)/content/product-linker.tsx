@@ -46,14 +46,14 @@ export function ProductLinker({ products, links, onChange }: ProductLinkerProps)
   function moveUp(index: number) {
     if (index === 0) return;
     const updated = [...links];
-    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+    [updated[index - 1], updated[index]] = [updated[index]!, updated[index - 1]!];
     onChange(updated);
   }
 
   function moveDown(index: number) {
     if (index >= links.length - 1) return;
     const updated = [...links];
-    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+    [updated[index], updated[index + 1]] = [updated[index + 1]!, updated[index]!];
     onChange(updated);
   }
 

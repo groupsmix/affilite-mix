@@ -49,7 +49,7 @@ export function IntegrationsManager() {
       const dbSites = (data.sites as SiteOption[]).filter((s) => s.source === "database");
       setSites(dbSites);
       if (dbSites.length > 0 && !selectedSiteId) {
-        setSelectedSiteId(dbSites[0].db_id ?? dbSites[0].id);
+        setSelectedSiteId(dbSites[0]!.db_id ?? dbSites[0]!.id);
       }
     }
     setLoading(false);
@@ -117,7 +117,7 @@ export function IntegrationsManager() {
   const grouped: Record<string, IntegrationInfo[]> = {};
   for (const integ of integrations) {
     if (!grouped[integ.category]) grouped[integ.category] = [];
-    grouped[integ.category].push(integ);
+    grouped[integ.category]!.push(integ);
   }
 
   return (

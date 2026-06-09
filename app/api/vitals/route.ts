@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       } catch {
         // fail-open: best-effort [criticality:non-critical]
         // If it's just a path like "/about", strip query/hash manually
-        return capped.split("?")[0].split("#")[0];
+        return capped.split("?")[0]!.split("#")[0]!;
       }
     };
 
