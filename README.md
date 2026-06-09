@@ -263,20 +263,16 @@ For the full secrets inventory (build-time vs runtime, required vs optional), se
 
 ## Security & Audit
 
-<!-- audit5-#40: surface the audit framework + open-findings doc so new
-     contributors discover them on day one rather than via spelunking
-     in docs/audits/. -->
+<!-- audit #18: the internal audit framework is described here, but the
+     per-cycle findings reports are intentionally kept OUT of this public
+     repo (they map our security posture). They are retained in private
+     storage rather than docs/audits/. -->
 
 This repo runs an internal **10-layer audit framework** (security, RBAC,
 RLS, CSP, rate-limit, SSRF, redirect, observability, deploy, data-flow).
-Each cycle of findings is tracked in `docs/audits/`:
+Per-cycle findings reports are **kept private** and are intentionally not
+published in this public repository.
 
-- **Audit resolution status (last cycle: 2026-05-28 — all clear)** — see [`docs/audits/audit-unfixed-items.md`](docs/audits/audit-unfixed-items.md)
-  for the consolidated status of MEDIUM/LOW items across past audit cycles.
-- **Most-recent audit results** — `docs/audits/affilite-mix-audit-*.md` (one
-  file per cycle).
-- **Tech-debt follow-ups from the 2026-05-28 audit** — see
-  [`docs/audits/audit5-tech-debt-followups.md`](docs/audits/audit5-tech-debt-followups.md).
 - **Security disclosure policy** — `app/.well-known/security.txt` (dynamic
   route) + [`SECURITY.md`](SECURITY.md).
 - **On-call runbooks** — [`docs/runbooks/`](docs/runbooks/) (DLQ overflow,
