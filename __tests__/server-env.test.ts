@@ -123,3 +123,54 @@ describe("formatMissingEnvMessage", () => {
     expect(msg).toContain("MISSING REQUIRED ENVIRONMENT VARIABLES");
   });
 });
+
+describe("F-005: production Turnstile guard", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const turnstileGuardTripped = () =>
+    validateServerEnv().missing.some((e) => e.name === "ENABLE_TURNSTILE");
+
+  it("fails in production when Turnstile is explicitly disabled without acknowledgement", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ENABLE_TURNSTILE", "false");
+    vi.stubEnv("ALLOW_TURNSTILE_DISABLED_IN_PROD", "");
+    expect(turnstileGuardTripped()).toBe(true);
+  });
+
+  it("also trips when ENABLE_TURNSTILE=0 in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ENABLE_TURNSTILE", "0");
+    expect(turnstileGuardTripped()).toBe(true);
+  });
+
+  it("passes when the disable is consciously acknowledged", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ENABLE_TURNSTILE", "false");
+    vi.stubEnv("ALLOW_TURNSTILE_DISABLED_IN_PROD", "1");
+    expect(turnstileGuardTripped()).toBe(false);
+  });
+
+  it("does not trip when Turnstile is enabled in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ENABLE_TURNSTILE", "true");
+    expect(turnstileGuardTripped()).toBe(false);
+  });
+
+  it("does not trip when ENABLE_TURNSTILE is unset (RISK-16 prod default is ON)", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ENABLE_TURNSTILE", "");
+    expect(turnstileGuardTripped()).toBe(false);
+  });
+
+  it("never trips outside production", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("ENABLE_TURNSTILE", "false");
+    expect(turnstileGuardTripped()).toBe(false);
+  });
+});
