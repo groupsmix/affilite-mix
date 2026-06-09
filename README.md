@@ -1,4 +1,4 @@
-# Affilite-Mix — Multi-Site Affiliate Platform
+# Affilite-Mix - Multi-Site Affiliate Platform
 
 A multi-tenant affiliate content platform built with **Next.js 15** (App Router), **Supabase**, **Tailwind CSS v4**, and deployed to **Cloudflare Workers** via `@opennextjs/cloudflare`.
 
@@ -13,13 +13,13 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 
 ## Features
 
-- **Multi-site architecture** — domain-based routing via middleware; site configs in `config/sites/`
-- **Admin panel** — content CMS, product management, category management, user accounts
-- **Affiliate click tracking** — logs outbound clicks with source attribution
-- **Newsletter signups** — per-site subscriber management with Turnstile captcha
-- **Scheduled jobs** — publish/archive content and products on a schedule
-- **SEO** — JSON-LD structured data, Open Graph, canonical URLs, sitemap
-- **Security** — CSRF protection, rate limiting, HTML sanitization, bcrypt password hashing (with transparent PBKDF2 legacy upgrade), CSP headers. Admin login is protected by IP/email/global rate-limiting with fail-closed policy and account lockout (Turnstile captcha is used on newsletter, checkout, and comment endpoints).
+- **Multi-site architecture** - domain-based routing via middleware; site configs in `config/sites/`
+- **Admin panel** - content CMS, product management, category management, user accounts
+- **Affiliate click tracking** - logs outbound clicks with source attribution
+- **Newsletter signups** - per-site subscriber management with Turnstile captcha
+- **Scheduled jobs** - publish/archive content and products on a schedule
+- **SEO** - JSON-LD structured data, Open Graph, canonical URLs, sitemap
+- **Security** - CSRF protection, rate limiting, HTML sanitization, bcrypt password hashing (with transparent PBKDF2 legacy upgrade), CSP headers. Admin login is protected by IP/email/global rate-limiting with fail-closed policy and account lockout (Turnstile captcha is used on newsletter, checkout, and comment endpoints).
 
 ## Tech Stack
 
@@ -33,7 +33,7 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 | Bot protection   | Cloudflare Turnstile                            |
 | Deployment       | Cloudflare Workers via `@opennextjs/cloudflare` |
 
-> **F-008 — Deployment identity**: Production is deployed to **Cloudflare
+> **F-008 - Deployment identity**: Production is deployed to **Cloudflare
 > Workers**. The Vercel URL shown in the GitHub repo metadata is a
 > legacy preview/demo endpoint and is **not** the canonical production
 > domain. Do not rely on it for production traffic, cookies, CORS, or
@@ -88,15 +88,15 @@ Edit `.env` and fill in your values:
 Apply all migrations to your Supabase project in order:
 
 ```bash
-# Option 1 — Supabase CLI (recommended)
+# Option 1 - Supabase CLI (recommended)
 supabase db push
 
-# Option 2 — Direct psql (apply each file in numbered order)
+# Option 2 - Direct psql (apply each file in numbered order)
 for f in supabase/migrations/*.sql; do psql "$SUPABASE_DB_URL" -f "$f"; done
 ```
 
 > Migrations live in `supabase/migrations/` and are numbered sequentially.
-> Do **not** apply `supabase/schema.sql` directly — it is a snapshot for reference only.
+> Do **not** apply `supabase/schema.sql` directly - it is a snapshot for reference only.
 
 ### 4. Run the dev server
 
@@ -110,7 +110,7 @@ The app will be available at [http://localhost:3000](http://localhost:3000).
 
 ### Local multi-site testing
 
-To test multiple sites simultaneously in local development, use `<slug>.localhost` subdomains — modern browsers resolve any `*.localhost` hostname to `127.0.0.1` per [RFC 6761](https://www.rfc-editor.org/rfc/rfc6761), so no `/etc/hosts` edits are required on macOS, Linux, Windows, or WSL.
+To test multiple sites simultaneously in local development, use `<slug>.localhost` subdomains - modern browsers resolve any `*.localhost` hostname to `127.0.0.1` per [RFC 6761](https://www.rfc-editor.org/rfc/rfc6761), so no `/etc/hosts` edits are required on macOS, Linux, Windows, or WSL.
 
 1. Start the dev server:
 
@@ -119,14 +119,14 @@ To test multiple sites simultaneously in local development, use `<slug>.localhos
    ```
 
 2. Visit any registered site by its `id` (slug) from `config/sites/`:
-   - [http://arabic-tools.localhost:3000](http://arabic-tools.localhost:3000) — Arabic Tools
-   - [http://crypto-tools.localhost:3000](http://crypto-tools.localhost:3000) — CryptoRanked
-   - [http://watch-tools.localhost:3000](http://watch-tools.localhost:3000) — WristNerd
-   - [http://ai-compared.localhost:3000](http://ai-compared.localhost:3000) — AI Compared
+   - [http://arabic-tools.localhost:3000](http://arabic-tools.localhost:3000) - Arabic Tools
+   - [http://crypto-tools.localhost:3000](http://crypto-tools.localhost:3000) - CryptoRanked
+   - [http://watch-tools.localhost:3000](http://watch-tools.localhost:3000) - WristNerd
+   - [http://ai-compared.localhost:3000](http://ai-compared.localhost:3000) - AI Compared
 
 Unknown slugs (e.g. `http://unknown.localhost:3000`) return the standard "Niche not found" 404.
 
-This pattern is **development-only** — middleware gates it on `NODE_ENV !== "production"` and never makes DB calls for `.localhost` hostnames.
+This pattern is **development-only** - middleware gates it on `NODE_ENV !== "production"` and never makes DB calls for `.localhost` hostnames.
 
 ### 5. Access the admin panel
 
@@ -140,7 +140,7 @@ This project uses **domain-based multi-tenant routing**. In production, each sit
 
 ```bash
 npm run dev
-# Visit http://localhost:3000 — serves the first site in config/sites/index.ts
+# Visit http://localhost:3000 - serves the first site in config/sites/index.ts
 ```
 
 ### Choosing a default site
@@ -231,7 +231,7 @@ npm run test:e2e      # End-to-end tests (Playwright)
 3. Insert a matching row into the `sites` database table
 4. Point the domain's DNS to your Cloudflare Workers deployment
 
-> **Note:** `next.config.ts` automatically derives `images.remotePatterns` from all registered sites — no manual update needed.
+> **Note:** `next.config.ts` automatically derives `images.remotePatterns` from all registered sites - no manual update needed.
 
 ## Deployment
 
@@ -252,9 +252,9 @@ For the full secrets inventory (build-time vs runtime, required vs optional), se
 
 | Document                                                               | Description                                                                                           |
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [`docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md)                             | **Single source of truth** — account IDs, Worker bindings, secrets inventory, deploy runbook          |
+| [`docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md)                             | **Single source of truth** - account IDs, Worker bindings, secrets inventory, deploy runbook          |
 | [`docs/cloudflare-production.md`](docs/cloudflare-production.md)       | Zone security & performance toggles (SSL, HSTS, WAF, rate limiting, cache rules) with dashboard links |
-| [`docs/cloudflare-recovery.md`](docs/cloudflare-recovery.md)           | Account recovery playbook — lost access, compromised account, full rebuild from scratch               |
+| [`docs/cloudflare-recovery.md`](docs/cloudflare-recovery.md)           | Account recovery playbook - lost access, compromised account, full rebuild from scratch               |
 | [`docs/cloudflare-r2-images.md`](docs/cloudflare-r2-images.md)         | Image upload architecture (S3-API presigned URLs vs Worker binding)                                   |
 | [`docs/secrets-rotation-runbook.md`](docs/secrets-rotation-runbook.md) | Per-secret rotation procedures, impact, and frequency                                                 |
 | [`docs/rollback-strategy.md`](docs/rollback-strategy.md)               | Rollback via Dashboard, API, or Git revert                                                            |
@@ -263,28 +263,28 @@ For the full secrets inventory (build-time vs runtime, required vs optional), se
 
 ## Security & Audit
 
-<!-- audit5-#40: surface the audit framework + open-findings doc so new
-     contributors discover them on day one rather than via spelunking
-     in docs/audits/. -->
+<!-- audit5-#40 / Finding #18: surface the audit framework without linking
+     internal audit reports from the public repository. Canonical audit reports
+     and deferred-finding ledgers live in the private audit repository. -->
 
 This repo runs an internal **10-layer audit framework** (security, RBAC,
 RLS, CSP, rate-limit, SSRF, redirect, observability, deploy, data-flow).
-Each cycle of findings is tracked in `docs/audits/`:
+The public repo keeps only operational security docs and regression tests;
+raw audit reports, red-team reports, compliance reports, and deferred-finding
+ledgers are stored outside this public repository.
 
-- **Audit resolution status (last cycle: 2026-05-28 — all clear)** — see [`docs/audits/audit-unfixed-items.md`](docs/audits/audit-unfixed-items.md)
-  for the consolidated status of MEDIUM/LOW items across past audit cycles.
-- **Most-recent audit results** — `docs/audits/affilite-mix-audit-*.md` (one
-  file per cycle).
-- **Tech-debt follow-ups from the 2026-05-28 audit** — see
-  [`docs/audits/audit5-tech-debt-followups.md`](docs/audits/audit5-tech-debt-followups.md).
-- **Security disclosure policy** — `app/.well-known/security.txt` (dynamic
+- **Audit evidence policy** - public PRs should include only the safe summary
+  artifacts listed in [`docs/pr-audit-requirements.md`](docs/pr-audit-requirements.md).
+- **Security disclosure policy** - `app/.well-known/security.txt` (dynamic
   route) + [`SECURITY.md`](SECURITY.md).
-- **On-call runbooks** — [`docs/runbooks/`](docs/runbooks/) (DLQ overflow,
+- **Compliance readiness** - [`docs/compliance-readiness.md`](docs/compliance-readiness.md)
+  tracks public-safe compliance milestones and evidence locations.
+- **On-call runbooks** - [`docs/runbooks/`](docs/runbooks/) (DLQ overflow,
   incident response, DB-backup retention, etc.).
 
 For non-Cloudflare deployments, also read the
 **[`TRUST_PROXY_HEADERS` section in docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md)**
-before exposing the app behind a different reverse proxy — getting this
+before exposing the app behind a different reverse proxy - getting this
 wrong silently collapses every rate-limit bucket.
 
 ## Contributing
@@ -301,7 +301,7 @@ Contributions are welcome for internal collaborators.
 
 ## License
 
-This is **source-available, all-rights-reserved** software — _no license
+This is **source-available, all-rights-reserved** software - _no license
 is granted_ by virtue of the source being publicly visible. See
 [`LICENSE`](./LICENSE) for the full statement: narrowly-scoped permissions
 are given for reading the source for evaluation, security research with

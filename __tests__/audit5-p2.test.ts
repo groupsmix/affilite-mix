@@ -1,8 +1,8 @@
 /**
- * audit5 P2 batch — week-2/4 hardening, addresses findings #6, #8, #13,
+ * audit5 P2 batch - week-2/4 hardening, addresses findings #6, #8, #13,
  * #25, #29, #30, #39 from the 2026-05-28(1) audit. Findings #7, #14, #15,
  * #19 are deferred with rationale captured in
- * `docs/audits/audit5-tech-debt-followups.md`.
+ * the private audit/deferred-findings ledger.
  */
 
 import { describe, it, expect } from "vitest";
@@ -14,21 +14,24 @@ function readRepoFile(rel: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// audit5-#6 — CSP unsafe-inline tracked in tech-debt followups
+// audit5-#6 - CSP unsafe-inline rationale remains documented inline
 // ---------------------------------------------------------------------------
-describe("audit5-#6 — CSP unsafe-inline tracked", () => {
-  it("the followups doc exists and lists #6", () => {
-    const doc = readRepoFile("docs/audits/audit5-tech-debt-followups.md");
-    expect(doc).toMatch(/audit5-#6/);
-    expect(doc).toMatch(/style-src/);
-    expect(doc).toMatch(/Acceptance criterion/);
+describe("audit5-#6 - CSP style-src accepted risk is documented inline", () => {
+  const csp = readRepoFile("lib/csp.ts");
+
+  it("keeps script-src nonce-locked while documenting the style-src exception", () => {
+    expect(csp).toContain("'strict-dynamic'");
+    expect(csp).toContain("ACCEPTED-RISK");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    expect(csp).toContain("COMPENSATING CONTROL");
+    expect(csp).toContain("REVISIT: 2026-09-01");
   });
 });
 
 // ---------------------------------------------------------------------------
-// audit5-#8 — CSP report-uri/report-to comment correction
+// audit5-#8 - CSP report-uri/report-to comment correction
 // ---------------------------------------------------------------------------
-describe("audit5-#8 — CSP reporting comment corrected", () => {
+describe("audit5-#8 - CSP reporting comment corrected", () => {
   const csp = readRepoFile("lib/csp.ts");
 
   it("emits BOTH report-uri and report-to", () => {
@@ -49,9 +52,9 @@ describe("audit5-#8 — CSP reporting comment corrected", () => {
 });
 
 // ---------------------------------------------------------------------------
-// audit5-#13 — per-message queue ack
+// audit5-#13 - per-message queue ack
 // ---------------------------------------------------------------------------
-describe("audit5-#13 — per-message queue ack", () => {
+describe("audit5-#13 - per-message queue ack", () => {
   const worker = readRepoFile("workers/custom-worker.ts");
   const route = readRepoFile("app/api/queue/clicks/route.ts");
 
@@ -93,9 +96,9 @@ describe("audit5-#13 — per-message queue ack", () => {
 });
 
 // ---------------------------------------------------------------------------
-// audit5-#25 — Lighthouse strict-console gate
+// audit5-#25 - Lighthouse strict-console gate
 // ---------------------------------------------------------------------------
-describe("audit5-#25 — Lighthouse strict-console gate", () => {
+describe("audit5-#25 - Lighthouse strict-console gate", () => {
   const lhrc = readRepoFile("lighthouserc.cjs");
 
   it("errors-in-console + inspector-issues are dynamic on LIGHTHOUSE_STRICT_CONSOLE", () => {
@@ -110,9 +113,9 @@ describe("audit5-#25 — Lighthouse strict-console gate", () => {
 });
 
 // ---------------------------------------------------------------------------
-// audit5-#29 — env badge on admin login
+// audit5-#29 - env badge on admin login
 // ---------------------------------------------------------------------------
-describe("audit5-#29 — env badge on admin login", () => {
+describe("audit5-#29 - env badge on admin login", () => {
   const login = readRepoFile("app/admin/login/page.tsx");
 
   it("emits a DEV badge when NODE_ENV !== production", () => {
@@ -126,9 +129,9 @@ describe("audit5-#29 — env badge on admin login", () => {
 });
 
 // ---------------------------------------------------------------------------
-// audit5-#30 — reconcile remotePatterns vs CSP img-src
+// audit5-#30 - reconcile remotePatterns vs CSP img-src
 // ---------------------------------------------------------------------------
-describe("audit5-#30 — remotePatterns vs CSP img-src reconciled", () => {
+describe("audit5-#30 - remotePatterns vs CSP img-src reconciled", () => {
   const csp = readRepoFile("lib/csp.ts");
   const cfg = readRepoFile("next.config.ts");
 
@@ -163,7 +166,7 @@ describe("audit5-#30 — remotePatterns vs CSP img-src reconciled", () => {
 
   it("CSP img-src drops www.google.com (sitemap ping is server-side)", () => {
     // www.google.com may still appear in lib/fetch-allowed.ts (server-side
-    // allowlist) — we only care about the CSP img-src directive.
+    // allowlist) - we only care about the CSP img-src directive.
     // See note above re: CodeQL false-positive avoidance via parts-array.
     const stripped = stripComments(csp);
     const imgSrcBlock = stripped.slice(
@@ -188,9 +191,9 @@ describe("audit5-#30 — remotePatterns vs CSP img-src reconciled", () => {
 });
 
 // ---------------------------------------------------------------------------
-// audit5-#39 — Stripe price map JSON env
+// audit5-#39 - Stripe price map JSON env
 // ---------------------------------------------------------------------------
-describe("audit5-#39 — Stripe price map JSON env", () => {
+describe("audit5-#39 - Stripe price map JSON env", () => {
   const route = readRepoFile("app/api/membership/checkout/route.ts");
   const env = readRepoFile(".env.example");
 
@@ -214,20 +217,15 @@ describe("audit5-#39 — Stripe price map JSON env", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tech-debt followups — audit5-#7, #14, #15, #19 are tracked, not silently dropped
+// Tech-debt followups - private ledger, not public audit-report docs
 // ---------------------------------------------------------------------------
-describe("audit5 P2 — deferred-with-rationale items are tracked", () => {
-  const doc = readRepoFile("docs/audits/audit5-tech-debt-followups.md");
+describe("audit5 P2 - deferred findings are not linked as public audit docs", () => {
+  const readme = readRepoFile("README.md");
 
-  it.each(["audit5-#7", "audit5-#14", "audit5-#15", "audit5-#19"])(
-    "%s appears in the tech-debt followups doc with an owner + acceptance criterion",
-    (label) => {
-      const idx = doc.indexOf(label);
-      expect(idx).toBeGreaterThan(-1);
-      // Each section must include "Owner:" and "Acceptance criterion".
-      const block = doc.slice(idx, idx + 2000);
-      expect(block).toMatch(/Owner:/);
-      expect(block).toMatch(/Acceptance criterion/);
-    },
-  );
+  it("README points contributors to public-safe audit evidence policy", () => {
+    expect(readme).toContain("docs/pr-audit-requirements.md");
+    expect(readme).toContain("deferred-finding");
+    expect(readme).not.toContain("docs/audits/audit5-tech-debt-followups.md");
+    expect(readme).not.toContain("docs/audits/audit-unfixed-items.md");
+  });
 });

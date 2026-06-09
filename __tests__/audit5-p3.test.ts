@@ -21,7 +21,7 @@ function read(relativePath: string): string {
   return readFileSync(join(REPO_ROOT, relativePath), "utf8");
 }
 
-describe("audit5-#10 — community route observability", () => {
+describe("audit5-#10 - community route observability", () => {
   it("community/comments GET path emits logger.error + captureException", () => {
     const content = read("app/api/community/comments/route.ts");
     expect(content).toContain("logger.error");
@@ -55,7 +55,7 @@ describe("audit5-#10 — community route observability", () => {
   });
 });
 
-describe("audit5-#12 — requireAdminSession docstring + whitelist", () => {
+describe("audit5-#12 - requireAdminSession docstring + whitelist", () => {
   it("admin-guard.ts docstring lists the four call sites and the rename target", () => {
     const content = read("lib/admin-guard.ts");
     expect(content).toContain("requireAdminSessionBeforeSiteSelect");
@@ -112,7 +112,7 @@ describe("audit5-#12 — requireAdminSession docstring + whitelist", () => {
   });
 });
 
-describe("audit5-#16 — TRUST_PROXY_HEADERS documentation", () => {
+describe("audit5-#16 - TRUST_PROXY_HEADERS documentation", () => {
   it("docs/CLOUDFLARE.md has a TRUST_PROXY_HEADERS section", () => {
     const content = read("docs/CLOUDFLARE.md");
     expect(content).toContain("TRUST_PROXY_HEADERS");
@@ -124,15 +124,16 @@ describe("audit5-#16 — TRUST_PROXY_HEADERS documentation", () => {
     expect(content).toContain("cf-connecting-ip");
   });
 
-  it("README.md surfaces the Security & Audit section", () => {
+  it("README.md surfaces the public-safe Security & Audit section", () => {
     const content = read("README.md");
     expect(content).toContain("## Security & Audit");
     expect(content).toContain("audit5-#40");
-    expect(content).toContain("docs/audits");
+    expect(content).toContain("private audit repository");
+    expect(content).toContain("docs/pr-audit-requirements.md");
   });
 });
 
-describe("audit5-#17 — admin product thumbnail eslint-disable rationale", () => {
+describe("audit5-#17 - admin product thumbnail eslint-disable rationale", () => {
   it("products-table.tsx has the audit5-#17 explanation comment", () => {
     const content = read("app/admin/(dashboard)/products/products-table.tsx");
     expect(content).toContain("audit5-#17");
@@ -142,7 +143,7 @@ describe("audit5-#17 — admin product thumbnail eslint-disable rationale", () =
   });
 });
 
-describe("audit5-#21 — sitemap stale-cache observability", () => {
+describe("audit5-#21 - sitemap stale-cache observability", () => {
   it("sitemap.ts uses the cachedAt envelope shape and STALE_CACHE_ALERT_THRESHOLD_SECONDS", () => {
     const content = read("app/sitemap.ts");
     expect(content).toContain("STALE_CACHE_ALERT_THRESHOLD_SECONDS");
@@ -159,7 +160,7 @@ describe("audit5-#21 — sitemap stale-cache observability", () => {
   });
 });
 
-describe("audit5-#22 — robots.txt host header resolution", () => {
+describe("audit5-#22 - robots.txt host header resolution", () => {
   it("robots.ts imports headers() and consults KNOWN_HOSTS before trusting the request Host", () => {
     const content = read("app/robots.ts");
     expect(content).toContain("import { headers }");
@@ -203,7 +204,7 @@ describe("audit5-#22 — robots.txt host header resolution", () => {
   });
 });
 
-describe("audit5-#26 — host-prefixed cookie inventory", () => {
+describe("audit5-#26 - host-prefixed cookie inventory", () => {
   it("cookie-utils.ts exports HOST_PREFIXED_COOKIES with the CSRF entry", () => {
     const content = read("lib/cookie-utils.ts");
     expect(content).toContain("HOST_PREFIXED_COOKIES");
@@ -224,7 +225,7 @@ describe("audit5-#26 — host-prefixed cookie inventory", () => {
   });
 });
 
-describe("audit5-#31 — cookie-consent CMP language memoisation", () => {
+describe("audit5-#31 - cookie-consent CMP language memoisation", () => {
   it("cookie-consent-cmp.tsx uses useMemo on the resolved language", () => {
     const content = read("app/(public)/components/cookie-consent-cmp.tsx");
     expect(content).toContain("useMemo");
@@ -239,7 +240,7 @@ describe("audit5-#31 — cookie-consent CMP language memoisation", () => {
   });
 });
 
-describe("audit5-#34 — HMAC key cache adoption", () => {
+describe("audit5-#34 - HMAC key cache adoption", () => {
   it("app/api/track/click/route.ts uses the cached getOrDeriveHmacKey", () => {
     const content = read("app/api/track/click/route.ts");
     expect(content).toContain("getOrDeriveHmacKey");
@@ -258,7 +259,7 @@ describe("audit5-#34 — HMAC key cache adoption", () => {
   });
 });
 
-describe("audit5-#35 — gitleaks pre-commit enforcement", () => {
+describe("audit5-#35 - gitleaks pre-commit enforcement", () => {
   it(".husky/pre-commit hard-fails on missing gitleaks", () => {
     const content = read(".husky/pre-commit");
     expect(content).toContain("audit5-#35");
@@ -271,26 +272,22 @@ describe("audit5-#35 — gitleaks pre-commit enforcement", () => {
   });
 });
 
-describe("audit5-#40 — README security & audit section", () => {
-  it("README links the audit-unfixed-items and tech-debt-followups docs", () => {
+describe("audit5-#40 - README security & audit section", () => {
+  it("README links only public-safe audit and operations docs", () => {
     const content = read("README.md");
-    expect(content).toContain("docs/audits/audit-unfixed-items.md");
-    expect(content).toContain("docs/audits/audit5-tech-debt-followups.md");
+    expect(content).toContain("docs/pr-audit-requirements.md");
+    expect(content).toContain("docs/compliance-readiness.md");
     expect(content).toContain("docs/runbooks/");
+    expect(content).not.toContain("docs/audits/audit-unfixed-items.md");
+    expect(content).not.toContain("docs/audits/audit5-tech-debt-followups.md");
   });
 });
 
-describe("audit5 — deferred items are tracked, not silently dropped", () => {
-  it("audit5-tech-debt-followups.md exists and documents #11, #12, #20", () => {
-    const path = "docs/audits/audit5-tech-debt-followups.md";
-    expect(existsSync(join(REPO_ROOT, path))).toBe(true);
-    const content = read(path);
-    expect(content).toContain("audit5-#11");
-    expect(content).toContain("audit5-#12");
-    expect(content).toContain("audit5-#20");
-    // Each P3-deferred entry must carry an owner + acceptance criterion;
-    // otherwise this is just a TODO list, not tracked tech debt.
-    expect(content).toContain("Owner:");
-    expect(content).toContain("Acceptance criterion");
+describe("audit5 - internal audit ledgers stay out of the public repo", () => {
+  it("docs/audits is absent and README points to the private audit repository", () => {
+    expect(existsSync(join(REPO_ROOT, "docs/audits"))).toBe(false);
+    const content = read("README.md");
+    expect(content).toContain("private audit repository");
+    expect(content).toContain("deferred-finding");
   });
 });
