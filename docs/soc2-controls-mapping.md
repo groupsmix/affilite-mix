@@ -38,7 +38,7 @@
 | Sub-criterion | Description           | Evidence                                                                     | Owner | Status |
 | ------------- | --------------------- | ---------------------------------------------------------------------------- | ----- | ------ |
 | CC4.1         | Ongoing monitoring    | Cloudflare SLO burn-rate alerts (`alerts.tf`); Sentry error rate             | SRE   | ✅     |
-| CC4.2         | Deficiency evaluation | Audit findings in `docs/technical-audit-2026-04-30.md`; remediation tracking | Sec   | ✅     |
+| CC4.2         | Deficiency evaluation | Audit findings tracked privately; remediation tracking | Sec   | ✅     |
 
 ### CC5 — Control Activities
 

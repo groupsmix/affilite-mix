@@ -182,7 +182,7 @@ Rollback: `00067_harden_tenant_isolation_rls-down.sql` restores the
 ## Migrations 00081 — 00085 — Deep-audit follow-ups
 
 This batch implements the code-side items of the deep audit
-(see `docs/supabase-audit-followup.md` for the full runbook).
+(the full Supabase audit follow-up runbook is retained privately).
 
 | Migration                                     | Audit ref | Purpose                                                                                                                                               |
 | --------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
