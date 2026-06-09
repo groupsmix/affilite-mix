@@ -118,8 +118,14 @@ const nextConfig: NextConfig = {
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         {
           key: "Permissions-Policy",
-          // G-51: include `interest-cohort=()` to opt out of FLoC / Topics.
-          value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+          // AUDIT-11: keep this byte-for-byte identical to the per-request
+          // policy set by `applySecurityHeaders` in lib/middleware-helpers.ts.
+          // Both layers can set this header (next.config covers routes the
+          // middleware matcher excludes); if they diverge, whichever wins the
+          // precedence race silently drops directives. Unified value below.
+          // G-51: `interest-cohort=()` opts out of FLoC / Topics.
+          value:
+            "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()",
         },
         {
           key: "Strict-Transport-Security",
