@@ -96,14 +96,14 @@ export async function POST(request: NextRequest) {
           // polynomial-ReDoS shape on long attacker-controlled inputs.
           document_url:
             typeof violation.document_uri === "string"
-              ? violation.document_uri.split(/[?#]/, 1)[0].slice(0, 200)
+              ? violation.document_uri.split(/[?#]/, 1)[0]!.slice(0, 200)
               : undefined,
           violated_directive: violation["violated-directive"],
           blocked_uri: violation["blocked-uri"],
           original_policy: violation["original-policy"],
           referrer:
             typeof violation.referrer === "string"
-              ? violation.referrer.split(/[?#]/, 1)[0].slice(0, 200)
+              ? violation.referrer.split(/[?#]/, 1)[0]!.slice(0, 200)
               : undefined,
         },
       },

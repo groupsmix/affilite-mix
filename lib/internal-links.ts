@@ -128,12 +128,12 @@ function findAllMatches(
     let match: RegExpExecArray | null;
     pattern.lastIndex = 0;
     while ((match = pattern.exec(seg.text)) !== null) {
-      const matchStart = seg.offset + match.index + match[1].length;
+      const matchStart = seg.offset + match.index + match[1]!.length;
       // Double-check: skip if this position is inside an <a> ancestor
       if (isInsideAnchorTag(fullHtml, matchStart)) continue;
       positions.push({
         start: matchStart,
-        matchedText: match[2],
+        matchedText: match[2]!,
       });
     }
   }

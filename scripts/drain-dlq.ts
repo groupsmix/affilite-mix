@@ -97,28 +97,28 @@ function parseArgs(argv: string[]): CliArgs {
       args.dryRun = true;
     } else if (flag === "--json") {
       args.json = true;
-    } else if (flag.startsWith("--limit")) {
-      const value = flag.includes("=") ? flag.split("=")[1] : flags[++i];
+    } else if (flag!.startsWith("--limit")) {
+      const value = flag!.includes("=") ? flag!.split("=")[1] : flags[++i];
       const n = Number(value);
       if (!Number.isFinite(n) || n <= 0) {
         throw new Error(`--limit must be a positive number, got: ${value}`);
       }
       args.limit = Math.min(Math.floor(n), MAX_LIMIT);
-    } else if (flag.startsWith("--since")) {
-      const value = flag.includes("=") ? flag.split("=")[1] : flags[++i];
+    } else if (flag!.startsWith("--since")) {
+      const value = flag!.includes("=") ? flag!.split("=")[1] : flags[++i];
       if (!value || Number.isNaN(Date.parse(value))) {
         throw new Error(`--since must be an ISO timestamp, got: ${value}`);
       }
       args.since = new Date(value).toISOString();
-    } else if (flag.startsWith("--older-than-days")) {
-      const value = flag.includes("=") ? flag.split("=")[1] : flags[++i];
+    } else if (flag!.startsWith("--older-than-days")) {
+      const value = flag!.includes("=") ? flag!.split("=")[1] : flags[++i];
       const n = Number(value);
       if (!Number.isFinite(n) || n <= 0) {
         throw new Error(`--older-than-days must be a positive number, got: ${value}`);
       }
       args.olderThanDays = Math.floor(n);
-    } else if (flag.startsWith("--target")) {
-      const value = flag.includes("=") ? flag.split("=")[1] : flags[++i];
+    } else if (flag!.startsWith("--target")) {
+      const value = flag!.includes("=") ? flag!.split("=")[1] : flags[++i];
       if (!value || !/^https?:\/\//.test(value)) {
         throw new Error(`--target must be an http(s) URL, got: ${value}`);
       }

@@ -67,7 +67,7 @@ function ipv4ToNumber(raw: string): number | null {
   if (!m) return null;
   const parts = [m[1], m[2], m[3], m[4]].map(Number);
   if (parts.some((p) => p < 0 || p > 255)) return null;
-  return ((parts[0] << 24) >>> 0) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
+  return ((parts[0]! << 24) >>> 0) + (parts[1]! << 16) + (parts[2]! << 8) + parts[3]!;
 }
 
 const PRIVATE_IPV4_RANGES: Array<[number, number]> = (
@@ -100,12 +100,12 @@ function ipv4IsPrivate(ip: string): boolean {
  */
 function ipv6MappedToIPv4(hostname: string): string | null {
   const dotted = hostname.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
-  if (dotted) return dotted[1];
+  if (dotted) return dotted[1]!;
 
   const hex = hostname.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
   if (hex) {
-    const high = parseInt(hex[1], 16);
-    const low = parseInt(hex[2], 16);
+    const high = parseInt(hex[1]!, 16);
+    const low = parseInt(hex[2]!, 16);
     return [(high >> 8) & 0xff, high & 0xff, (low >> 8) & 0xff, low & 0xff].join(".");
   }
 

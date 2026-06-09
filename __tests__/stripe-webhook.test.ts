@@ -232,7 +232,7 @@ describe("RLS Policy Drift Test (F-027)", () => {
 
     // Should detect the insecure policy
     expect(insecurePolicies.length).toBe(1);
-    expect(insecurePolicies[0].policyname).toBe("public_select");
+    expect(insecurePolicies[0]!.policyname).toBe("public_select");
   });
 
   it("should pass when no USING (true) policies exist on tenant tables", () => {

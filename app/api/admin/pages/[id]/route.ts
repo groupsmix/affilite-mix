@@ -19,7 +19,7 @@ export const GET = withAuthzDynamic(
 
     try {
       const { id } = params;
-      const page = await getPageById(dbSiteId, id);
+      const page = await getPageById(dbSiteId, id!);
       if (!page) {
         return NextResponse.json({ error: "Page not found" }, { status: 404 });
       }
@@ -53,7 +53,7 @@ export const PATCH = withAuthzDynamic(
         feature: "pages",
         action: "edit",
         resourceType: "page",
-        resourceId: id,
+        resourceId: id!,
         expectedSiteId: dbSiteId,
       });
       if (!authz.ok) return authorizationErrorResponse(authz);
@@ -71,14 +71,14 @@ export const PATCH = withAuthzDynamic(
         }
       }
 
-      const page = await updatePage(dbSiteId, id, filtered);
+      const page = await updatePage(dbSiteId, id!, filtered);
 
       void recordAuditEvent({
         site_id: dbSiteId,
         actor: session.email ?? session.userId ?? "admin",
         action: "update",
         entity_type: "page",
-        entity_id: id,
+        entity_id: id!,
         details: { fields: Object.keys(filtered) },
       });
 
@@ -108,12 +108,12 @@ export const DELETE = withAuthzDynamic(
         feature: "pages",
         action: "delete",
         resourceType: "page",
-        resourceId: id,
+        resourceId: id!,
         expectedSiteId: dbSiteId,
       });
       if (!authz.ok) return authorizationErrorResponse(authz);
 
-      await deletePage(dbSiteId, id);
+      await deletePage(dbSiteId, id!);
 
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({
@@ -121,7 +121,7 @@ export const DELETE = withAuthzDynamic(
         actor: session.email ?? session.userId ?? "admin",
         action: "delete",
         entity_type: "page",
-        entity_id: id,
+        entity_id: id!,
       });
 
       return NextResponse.json({ ok: true });

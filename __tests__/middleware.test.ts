@@ -51,7 +51,7 @@ describe("middleware site resolution", () => {
 
   it("injects x-site-id header with the resolved site id", () => {
     // Simulate what middleware does: resolve domain, set header
-    const hostname = allSites[0].domain;
+    const hostname = allSites[0]!.domain;
     const site = getSiteByDomain(hostname);
     expect(site).toBeDefined();
 

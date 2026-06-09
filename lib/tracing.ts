@@ -50,13 +50,13 @@ export function parseOrCreateTraceContext(request: Request): TraceContext {
     if (
       parts.length === 4 &&
       parts[0] === "00" &&
-      parts[1].length === 32 &&
-      parts[2].length === 16
+      parts[1]!.length === 32 &&
+      parts[2]!.length === 16
     ) {
       return {
-        traceId: parts[1],
+        traceId: parts[1]!,
         spanId: randomHex(8),
-        traceFlags: parseInt(parts[3], 16) || 0,
+        traceFlags: parseInt(parts[3]!, 16) || 0,
         tracestate,
       };
     }

@@ -24,9 +24,9 @@ describe("validateSod", () => {
     ];
     const violations = validateSod(perms);
     expect(violations).toHaveLength(1);
-    expect(violations[0].rule).toBe("content-create-vs-publish");
-    expect(violations[0].permissionA).toBe("content:create");
-    expect(violations[0].permissionB).toBe("content:publish");
+    expect(violations[0]!.rule).toBe("content-create-vs-publish");
+    expect(violations[0]!.permissionA).toBe("content:create");
+    expect(violations[0]!.permissionB).toBe("content:publish");
   });
 
   it("detects content edit + approve conflict", () => {
@@ -36,7 +36,7 @@ describe("validateSod", () => {
     ];
     const violations = validateSod(perms);
     expect(violations).toHaveLength(1);
-    expect(violations[0].rule).toBe("content-edit-vs-approve");
+    expect(violations[0]!.rule).toBe("content-edit-vs-approve");
   });
 
   it("detects users manage + settings configure conflict", () => {
@@ -46,7 +46,7 @@ describe("validateSod", () => {
     ];
     const violations = validateSod(perms);
     expect(violations).toHaveLength(1);
-    expect(violations[0].rule).toBe("users-manage-vs-settings-configure");
+    expect(violations[0]!.rule).toBe("users-manage-vs-settings-configure");
   });
 
   it("detects products create + publish conflict", () => {
@@ -56,7 +56,7 @@ describe("validateSod", () => {
     ];
     const violations = validateSod(perms);
     expect(violations).toHaveLength(1);
-    expect(violations[0].rule).toBe("products-create-vs-publish");
+    expect(violations[0]!.rule).toBe("products-create-vs-publish");
   });
 
   it("detects privacy manage + analytics manage conflict", () => {
@@ -66,7 +66,7 @@ describe("validateSod", () => {
     ];
     const violations = validateSod(perms);
     expect(violations).toHaveLength(1);
-    expect(violations[0].rule).toBe("privacy-manage-vs-analytics-manage");
+    expect(violations[0]!.rule).toBe("privacy-manage-vs-analytics-manage");
   });
 
   it("returns multiple violations when several SOD pairs are present", () => {

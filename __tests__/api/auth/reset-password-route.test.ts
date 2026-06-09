@@ -97,9 +97,9 @@ describe("POST /api/auth/reset-password (route-level)", () => {
 
     // The first .eq() call on the select chain must match by hash, never raw token.
     const firstEqArgs = selectChain.eq.mock.calls[0];
-    expect(firstEqArgs[0]).toBe("reset_token");
-    expect(firstEqArgs[1]).toBe(storedHash);
-    expect(firstEqArgs[1]).not.toBe(rawToken);
+    expect(firstEqArgs![0]).toBe("reset_token");
+    expect(firstEqArgs![1]).toBe(storedHash);
+    expect(firstEqArgs![1]).not.toBe(rawToken);
   });
 
   it("rejects when no user matches the hashed token", async () => {

@@ -112,7 +112,7 @@ function parseResponse(
   let bodyStartIndex = 0;
 
   for (let i = 0; i < Math.min(lines.length, 10); i++) {
-    const line = lines[i].trim();
+    const line = lines[i]!.trim();
     if (line.startsWith("TITLE:")) {
       title = line.replace("TITLE:", "").trim();
       bodyStartIndex = i + 1;

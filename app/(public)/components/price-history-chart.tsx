@@ -58,7 +58,7 @@ export function PriceHistoryChart({ productId, days = 90 }: PriceHistoryChartPro
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
   const currentPrice = prices[prices.length - 1];
-  const currency = snapshots[0].currency;
+  const currency = snapshots[0]!.currency;
   const priceRange = maxPrice - minPrice || 1;
 
   // SVG dimensions
@@ -78,10 +78,10 @@ export function PriceHistoryChart({ productId, days = 90 }: PriceHistoryChartPro
   const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
 
   // Area fill path
-  const areaD = `${pathD} L ${points[points.length - 1].x} ${height - padding.bottom} L ${points[0].x} ${height - padding.bottom} Z`;
+  const areaD = `${pathD} L ${points[points.length - 1]!.x} ${height - padding.bottom} L ${points[0]!.x} ${height - padding.bottom} Z`;
 
   // Price trend color
-  const trendColor = currentPrice <= prices[0] ? "#16a34a" : "#dc2626"; // green if down, red if up
+  const trendColor = currentPrice! <= prices[0]! ? "#16a34a" : "#dc2626"; // green if down, red if up
 
   return (
     <div className="space-y-2">
@@ -98,18 +98,18 @@ export function PriceHistoryChart({ productId, days = 90 }: PriceHistoryChartPro
         <path d={pathD} fill="none" stroke={trendColor} strokeWidth={2} strokeLinejoin="round" />
         {/* Current price dot */}
         <circle
-          cx={points[points.length - 1].x}
-          cy={points[points.length - 1].y}
+          cx={points[points.length - 1]!.x}
+          cy={points[points.length - 1]!.y}
           r={4}
           fill={trendColor}
         />
       </svg>
       <div className="flex items-baseline justify-between text-xs text-gray-500">
-        <span>{formatDate(snapshots[0].scraped_at)}</span>
+        <span>{formatDate(snapshots[0]!.scraped_at)}</span>
         <span className="font-medium" style={{ color: trendColor }}>
-          Current: {formatPrice(currentPrice, currency)}
+          Current: {formatPrice(currentPrice!, currency)}
         </span>
-        <span>{formatDate(snapshots[snapshots.length - 1].scraped_at)}</span>
+        <span>{formatDate(snapshots[snapshots.length - 1]!.scraped_at)}</span>
       </div>
     </div>
   );

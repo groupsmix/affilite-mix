@@ -50,10 +50,10 @@ export async function pickBestAffiliateLink(
   if (links.length === 0) return null;
 
   const geoMatches = links.filter((l) => l.geo === geo);
-  if (geoMatches.length > 0) return geoMatches[0];
+  if (geoMatches.length > 0) return geoMatches[0]!;
 
   const wildcardMatches = links.filter((l) => l.geo === "*");
-  if (wildcardMatches.length > 0) return wildcardMatches[0];
+  if (wildcardMatches.length > 0) return wildcardMatches[0]!;
 
-  return links[0];
+  return links[0]!;
 }

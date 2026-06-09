@@ -44,19 +44,19 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
     const lastEl = focusableElements[focusableElements.length - 1];
 
     // Auto-focus the close button (first focusable)
-    firstEl.focus();
+    firstEl!.focus();
 
     function handleTab(e: KeyboardEvent) {
       if (e.key !== "Tab") return;
       if (e.shiftKey) {
         if (document.activeElement === firstEl) {
           e.preventDefault();
-          lastEl.focus();
+          lastEl!.focus();
         }
       } else {
         if (document.activeElement === lastEl) {
           e.preventDefault();
-          firstEl.focus();
+          firstEl!.focus();
         }
       }
     }

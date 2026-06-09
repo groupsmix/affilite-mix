@@ -31,7 +31,7 @@ export function generateCspNonce(): string {
   crypto.getRandomValues(bytes);
   let binary = "";
   for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+    binary += String.fromCharCode(bytes[i]!);
   }
   // base64 — matches the format used by the Next.js CSP example.
   return btoa(binary);

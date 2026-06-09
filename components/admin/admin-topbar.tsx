@@ -30,7 +30,7 @@ interface Crumb {
 function humanize(segment: string): string {
   return segment
     .split("-")
-    .map((part) => (part.length === 0 ? part : part[0].toUpperCase() + part.slice(1)))
+    .map((part) => (part.length === 0 ? part : part[0]!.toUpperCase() + part.slice(1)))
     .join(" ");
 }
 
@@ -47,7 +47,7 @@ function buildCrumbs(pathname: string): Crumb[] {
   for (let i = 1; i < parts.length; i++) {
     acc += `/${parts[i]}`;
     const match = adminNavItems.find((item) => item.href === acc);
-    const label = match?.label ?? humanize(parts[i]);
+    const label = match?.label ?? humanize(parts[i]!);
     crumbs.push({ label, href: i === parts.length - 1 ? undefined : acc });
   }
   return crumbs;

@@ -115,12 +115,12 @@ function getExportedHandlers(content: string): string[] {
   const asyncFnPattern = /export\s+async\s+function\s+(GET|POST|PATCH|PUT|DELETE)\b/g;
   let match: RegExpExecArray | null;
   while ((match = asyncFnPattern.exec(content)) !== null) {
-    handlers.push(match[1]);
+    handlers.push(match[1]!);
   }
   // Match: export const GET = withAuthz(...)
   const constPattern = /export\s+const\s+(GET|POST|PATCH|PUT|DELETE)\s*=/g;
   while ((match = constPattern.exec(content)) !== null) {
-    handlers.push(match[1]);
+    handlers.push(match[1]!);
   }
   return [...new Set(handlers)];
 }

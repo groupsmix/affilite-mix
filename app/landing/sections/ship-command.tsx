@@ -25,7 +25,7 @@ export function ShipCommandSection() {
   useEffect(() => {
     if (!isInView) return;
     if (prefersReducedMotion) {
-      setCmdChars(lines[0].text.length);
+      setCmdChars(lines[0]!.text.length);
       setVisibleLines(lines.length);
       return;
     }
@@ -35,7 +35,7 @@ export function ShipCommandSection() {
     const typeInterval = setInterval(() => {
       idx++;
       setCmdChars(idx);
-      if (idx >= lines[0].text.length) {
+      if (idx >= lines[0]!.text.length) {
         clearInterval(typeInterval);
         // Stream result lines
         lines.slice(1).forEach((_, i) => {
@@ -88,8 +88,8 @@ export function ShipCommandSection() {
           <div className="p-5 font-mono-accent text-sm leading-relaxed">
             {/* Command line */}
             <div className="text-white/60">
-              {lines[0].text.slice(0, cmdChars)}
-              {cmdChars < lines[0].text.length && (
+              {lines[0]!.text.slice(0, cmdChars)}
+              {cmdChars < lines[0]!.text.length && (
                 <span className="caret-blink ml-0.5 inline-block h-4 w-[7px] bg-tungsten align-text-bottom" />
               )}
             </div>

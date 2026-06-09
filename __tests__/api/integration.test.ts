@@ -257,14 +257,14 @@ describe("mock Supabase client chain", () => {
   });
 
   it("creates a chainable mock that returns data", async () => {
-    const result = await mockChain.single();
+    const result = await mockChain!.single!();
     expect(result.data).toEqual([{ id: "123", name: "Test" }]);
     expect(result.error).toBeNull();
   });
 
   it("simulates an error response", async () => {
     const errorChain = createMockSupabaseChain(null, { message: "Not found", code: "PGRST116" });
-    const result = await errorChain.single();
+    const result = await errorChain!.single!();
     expect(result.error).toEqual({ message: "Not found", code: "PGRST116" });
     expect(result.data).toBeNull();
   });

@@ -78,7 +78,7 @@ describe("Stripe webhook POST (A86-2)", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).received).toBe(true);
     expect(processStripeEventMock).toHaveBeenCalledOnce();
-    expect(processStripeEventMock.mock.calls[0][1].type).toBe("checkout.session.completed");
+    expect(processStripeEventMock.mock.calls[0]![1].type).toBe("checkout.session.completed");
   });
 
   it("returns duplicate flag when event replayed", async () => {

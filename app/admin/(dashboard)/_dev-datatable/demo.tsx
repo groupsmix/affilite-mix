@@ -62,8 +62,8 @@ function makeFixture(): DemoItem[] {
   return titles.map((title, i) => ({
     id: i + 1,
     title,
-    status: STATUSES[i % STATUSES.length],
-    type: TYPES[i % TYPES.length],
+    status: STATUSES[i % STATUSES.length]!,
+    type: TYPES[i % TYPES.length]!,
     createdAt: new Date(2025, 0, 1 + i).toISOString().slice(0, 10),
   }));
 }

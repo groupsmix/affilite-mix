@@ -180,7 +180,7 @@ export function CsvTools() {
       return;
     }
 
-    const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+    const headers = parseCsvLine(lines[0]!).map((h) => h.trim().toLowerCase());
 
     if (!headers.includes("name") || !headers.includes("slug")) {
       setResult({
@@ -205,7 +205,7 @@ export function CsvTools() {
     const slugCounts = new Map<string, number[]>();
 
     for (let i = 1; i < lines.length; i++) {
-      const values = parseCsvLine(lines[i]);
+      const values = parseCsvLine(lines[i]!);
 
       const row: CsvRow = {};
 

@@ -240,7 +240,7 @@ const kvFailureTimestamps: number[] = [];
 
 function recordKvFailure(now: number): number {
   const cutoff = now - KV_FAILURE_WINDOW_MS;
-  while (kvFailureTimestamps.length > 0 && kvFailureTimestamps[0] < cutoff) {
+  while (kvFailureTimestamps.length > 0 && kvFailureTimestamps[0]! < cutoff) {
     kvFailureTimestamps.shift();
   }
   kvFailureTimestamps.push(now);

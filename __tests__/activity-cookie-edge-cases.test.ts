@@ -28,7 +28,7 @@ describe("P1-8: Activity cookie signed timestamp", () => {
     expect(result.value).toContain("."); // format: timestamp.hmac
     const [tsStr, hmac] = result.value.split(".");
     expect(Number(tsStr)).toBeGreaterThan(0);
-    expect(hmac.length).toBeGreaterThan(0);
+    expect(hmac!.length).toBeGreaterThan(0);
   });
 
   it("signed timestamp round-trips correctly", async () => {

@@ -691,7 +691,7 @@ describe("withAuthzDynamic — dynamic route handler guard", () => {
     });
 
     expect(handler).toHaveBeenCalled();
-    expect(handler.mock.calls[0][1].params).toEqual({ id: "abc" });
+    expect(handler.mock.calls[0]![1].params).toEqual({ id: "abc" });
     expect(result).toBe(mockResponse);
   });
 });
