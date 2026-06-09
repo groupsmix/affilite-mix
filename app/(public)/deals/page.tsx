@@ -9,27 +9,31 @@ import type { DealRow } from "@/lib/dal/deals";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
+  const isAr = site.language === "ar";
   return staticPageMetadata({
     site,
-    title: "Today's Best Deals",
-    description: `The latest deals, discounts, and price drops curated by ${site.name}. Updated daily.`,
+    title: isAr ? "أفضل عروض اليوم" : "Today's Best Deals",
+    description: isAr
+      ? `أحدث العروض والخصومات وانخفاضات الأسعار المختارة من ${site.name}. تحديث يومي.`
+      : `The latest deals, discounts, and price drops curated by ${site.name}. Updated daily.`,
     path: "/deals",
   });
 }
 
-function formatPrice(amount: number, currency: string): string {
+function formatPrice(amount: number, currency: string, locale = "en-US"): string {
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
   } catch {
     // fail-open: best-effort
     return `${currency} ${amount.toFixed(2)}`;
   }
 }
 
-function DealCard({ deal }: { deal: DealRow }) {
+function DealCard({ deal, isAr }: { deal: DealRow; isAr: boolean }) {
   const hasExpiry = deal.expires_at !== null;
   const expiresDate = hasExpiry ? new Date(deal.expires_at!) : null;
   const isExpiringSoon = expiresDate && expiresDate.getTime() - Date.now() < 24 * 60 * 60 * 1000;
+  const locale = isAr ? "ar" : "en-US";
 
   return (
     <div className="relative overflow-hidden rounded-lg border bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -55,12 +59,12 @@ function DealCard({ deal }: { deal: DealRow }) {
         <div className="mt-3 flex items-baseline gap-3">
           {deal.deal_price !== null && (
             <span className="text-2xl font-bold text-green-700">
-              {formatPrice(deal.deal_price, deal.currency)}
+              {formatPrice(deal.deal_price, deal.currency, locale)}
             </span>
           )}
           {deal.original_price !== null && (
             <span className="text-lg text-gray-400 line-through">
-              {formatPrice(deal.original_price, deal.currency)}
+              {formatPrice(deal.original_price, deal.currency, locale)}
             </span>
           )}
         </div>
@@ -70,8 +74,14 @@ function DealCard({ deal }: { deal: DealRow }) {
           <p
             className={`mt-2 text-xs ${isExpiringSoon ? "font-semibold text-red-600" : "text-gray-500"}`}
           >
-            {isExpiringSoon ? "Expires soon — " : "Expires "}
-            {expiresDate.toLocaleDateString("en-US", {
+            {isExpiringSoon
+              ? isAr
+                ? "ينتهي قريباً — "
+                : "Expires soon — "
+              : isAr
+                ? "ينتهي "
+                : "Expires "}
+            {expiresDate.toLocaleDateString(locale, {
               month: "short",
               day: "numeric",
               year: "numeric",
@@ -86,7 +96,7 @@ function DealCard({ deal }: { deal: DealRow }) {
           rel="noopener noreferrer nofollow"
           className="mt-4 inline-block w-full rounded-md bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-700"
         >
-          Get This Deal
+          {isAr ? "احصل على هذا العرض" : "Get This Deal"}
         </a>
       </div>
     </div>
@@ -95,12 +105,17 @@ function DealCard({ deal }: { deal: DealRow }) {
 
 export default async function DealsPage() {
   const site = await getCurrentSite();
+  const isAr = site.language === "ar";
 
   if (shouldSkipDbCall()) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-12 text-center">
-        <h1 className="text-3xl font-bold text-gray-900">Deals</h1>
-        <p className="mt-4 text-gray-600">No deals available right now. Check back soon!</p>
+      <div className="mx-auto max-w-4xl px-4 py-12 text-center" dir={isAr ? "rtl" : "ltr"}>
+        <h1 className="text-3xl font-bold text-gray-900">{isAr ? "العروض" : "Deals"}</h1>
+        <p className="mt-4 text-gray-600">
+          {isAr
+            ? "لا توجد عروض متاحة الآن. عُد قريباً!"
+            : "No deals available right now. Check back soon!"}
+        </p>
       </div>
     );
   }
@@ -108,9 +123,11 @@ export default async function DealsPage() {
   const dbSite = await resolveDbSiteBySlug(site.id);
   if (!dbSite) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-12 text-center">
-        <h1 className="text-3xl font-bold text-gray-900">Deals</h1>
-        <p className="mt-4 text-gray-600">No deals available right now.</p>
+      <div className="mx-auto max-w-4xl px-4 py-12 text-center" dir={isAr ? "rtl" : "ltr"}>
+        <h1 className="text-3xl font-bold text-gray-900">{isAr ? "العروض" : "Deals"}</h1>
+        <p className="mt-4 text-gray-600">
+          {isAr ? "لا توجد عروض متاحة الآن." : "No deals available right now."}
+        </p>
       </div>
     );
   }
@@ -118,30 +135,42 @@ export default async function DealsPage() {
   const deals = await listActiveDeals(dbSite.id);
 
   const breadcrumbs = [
-    { name: "Home", path: "/" },
-    { name: "Deals", path: "/deals" },
+    { name: isAr ? "الرئيسية" : "Home", path: "/" },
+    { name: isAr ? "العروض" : "Deals", path: "/deals" },
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-8" dir={isAr ? "rtl" : "ltr"}>
       <JsonLd data={breadcrumbJsonLd(site, breadcrumbs)} />
 
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-gray-900">Today&apos;s Best Deals</h1>
-        <p className="mt-2 text-gray-600">Curated discounts and price drops, updated daily.</p>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {isAr ? "أفضل عروض اليوم" : "Today\u2019s Best Deals"}
+        </h1>
+        <p className="mt-2 text-gray-600">
+          {isAr
+            ? "خصومات وانخفاضات أسعار مختارة، تحديث يومي."
+            : "Curated discounts and price drops, updated daily."}
+        </p>
       </div>
 
       {deals.length === 0 ? (
         <div className="rounded-lg border bg-gray-50 p-12 text-center">
-          <p className="text-gray-600">No active deals right now. Check back tomorrow!</p>
+          <p className="text-gray-600">
+            {isAr
+              ? "لا توجد عروض نشطة الآن. عُد غداً!"
+              : "No active deals right now. Check back tomorrow!"}
+          </p>
           <p className="mt-2 text-sm text-gray-400">
-            Subscribe to our newsletter for daily deal alerts.
+            {isAr
+              ? "اشترك في نشرتنا البريدية لتنبيهات العروض اليومية."
+              : "Subscribe to our newsletter for daily deal alerts."}
           </p>
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2">
           {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} />
+            <DealCard key={deal.id} deal={deal} isAr={isAr} />
           ))}
         </div>
       )}
