@@ -159,7 +159,7 @@ Every quarter (aligned with the access recertification in `docs/access-recertifi
 Each `[ ]` checkbox in this document represents a control that must be **enforced and evidenced**, not merely aspirational. When checking a box:
 
 1. Change `[ ]` to `[x]`.
-2. Add an inline evidence link or reference, e.g.: `[x] Enable mandatory 2FA — [CF Dashboard screenshot 2026-Q2](link)`.
+2. Add an inline evidence link or reference, e.g.: `[x] Enable mandatory 2FA — [CF Dashboard screenshot 2026-Q2](<evidence-url>)`.
 3. Record the verification date.
 
 Until a checkbox has a dated evidence link, it is considered **not operating** for SOC 2 Type II purposes.

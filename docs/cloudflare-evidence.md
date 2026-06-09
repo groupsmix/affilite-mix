@@ -246,5 +246,6 @@ To produce the full audit packet:
   steps and verification scripts per setting.
 - [`docs/cloudflare-recovery.md`](./cloudflare-recovery.md) — account recovery
   and full rebuild playbook.
-- [`docs/cloudflare-audit-remediation.md`](./cloudflare-audit-remediation.md) —
-  prior audit findings and their remediation status.
+- `docs/cloudflare-audit-remediation.md` — prior audit findings and their
+  remediation status. **Lives in the private `groupsmix/affilite-mix-audits`
+  repo** (Finding #18 / `.gitignore:88` block this file from the public repo).
