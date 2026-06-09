@@ -104,16 +104,40 @@ export function getJwtSecret(): string {
 }
 
 /**
- * F-AUTH-03: Returns the previous JWT secret for rotation grace window.
- * Returns null if no previous secret is configured.
+ * F-AUTH-03 / F-013: Returns the previous JWT secret for the rotation grace
+ * window, or null.
+ *
+ * Returns null when no previous secret is configured OR when the 24h rotation
+ * window has lapsed / is misconfigured, so a stale or forgotten
+ * JWT_SECRET_PREVIOUS is never honored regardless of how long the isolate has
+ * been warm.
  */
 export function getJwtSecretPrevious(): string | null {
   const now = Date.now();
-  if (cachedPrevious !== undefined && now - cachedPreviousAt < SECRET_CACHE_TTL_MS)
-    return cachedPrevious;
-  cachedPrevious = resolveJwtSecretPrevious();
-  cachedPreviousAt = now;
-  return cachedPrevious;
+  let prev: string | null;
+  if (cachedPrevious !== undefined && now - cachedPreviousAt < SECRET_CACHE_TTL_MS) {
+    prev = cachedPrevious;
+  } else {
+    prev = resolveJwtSecretPrevious();
+    cachedPrevious = prev;
+    cachedPreviousAt = now;
+  }
+
+  if (prev === null) return null;
+
+  // F-013: Enforce the 24h rotation window on *every* verification, not just at
+  // startup. instrumentation.register() throws when the window has lapsed, but
+  // on Cloudflare Workers a warm isolate can run for a long time without cold-
+  // starting, so the startup check alone could keep accepting tokens signed
+  // with an expired previous key. Re-checking here means the previous secret
+  // stops being honored as soon as the window closes (or if it was never
+  // configured with a valid JWT_ROTATION_STARTED_AT), independent of isolate
+  // lifetime. checkRotationWindowExpiry() reads process.env directly, so it is
+  // not masked by the 5-minute secret cache above.
+  if (checkRotationWindowExpiry() !== null) {
+    return null;
+  }
+  return prev;
 }
 
 /**
