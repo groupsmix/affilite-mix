@@ -346,9 +346,14 @@ export async function middleware(request: NextRequest) {
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("X-Frame-Options", "DENY");
     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    // AUDIT-11: this F10 error-path fallback must stay byte-for-byte
+    // identical to the per-request policy in `applySecurityHeaders`
+    // (lib/middleware-helpers.ts) and the static copy in next.config.ts.
+    // Previously this copy was missing `interest-cohort=()` (G-51), so the
+    // degraded error response silently dropped the FLoC/Topics opt-out.
     response.headers.set(
       "Permissions-Policy",
-      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
+      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()",
     );
     response.headers.set("Cache-Control", "no-store, max-age=0");
     return response;
