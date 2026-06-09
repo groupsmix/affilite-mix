@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getSiteIdFromHeader } from "@/lib/site-context";
+import { getSiteIdFromHeader, getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getActiveMembership } from "@/lib/dal/memberships";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -162,16 +162,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Already an active member" }, { status: 409 });
     }
 
-    // AM-09: Require APP_URL in production; never derive redirect URLs from Host header
-    const appUrl = process.env.APP_URL;
-    if (!appUrl) {
-      if (process.env.NODE_ENV === "production") {
-        logger.error("APP_URL not configured in production");
-        return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
-      }
-      // Dev fallback only
+    // AM-09 / AUDIT-1: Build the Stripe redirect base URL from the *verified*
+    // tenant site, never the raw Host header. `getCurrentSite()` resolves the
+    // site from the x-site-id header that middleware sets only after it has
+    // resolved and verified the domain, so this is host-injection-safe.
+    //
+    // In production each tenant's subscribers now return to their own domain
+    // after checkout instead of always bouncing to the primary APP_URL host
+    // (the cross-tenant redirect the audit flagged). In dev we keep honouring
+    // APP_URL (typically http://localhost:3000) so local Stripe testing works.
+    const currentSite = await getCurrentSite();
+    const tenantOrigin = currentSite.domain ? `https://${currentSite.domain}` : null;
+    const baseUrl =
+      process.env.NODE_ENV === "production"
+        ? (tenantOrigin ?? process.env.APP_URL ?? null)
+        : process.env.APP_URL || tenantOrigin || `https://${request.headers.get("host")}`;
+    if (!baseUrl) {
+      logger.error("No verified tenant domain or APP_URL configured in production");
+      return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
     }
-    const baseUrl = appUrl || `https://${request.headers.get("host")}`;
 
     // Create Stripe Checkout session via API (no SDK dependency needed)
     const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {

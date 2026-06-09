@@ -68,9 +68,13 @@ export function applySecurityHeaders(
 
   response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  // AUDIT-11: authoritative per-request Permissions-Policy. Kept byte-for-byte
+  // identical to the static copy in next.config.ts so the two layers cannot
+  // emit divergent policies depending on header precedence. `interest-cohort=()`
+  // (G-51) opts out of FLoC / Topics.
   response.headers.set(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()",
   );
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
