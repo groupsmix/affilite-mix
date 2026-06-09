@@ -195,10 +195,15 @@ describe("Audit-3 regression locks", () => {
     });
 
     it("middleware delegates exemption checks to the registry", () => {
+      // F-007: CSRF (incl. exemption checks) extracted to lib/middleware/csrf;
+      // middleware delegates via withCsrf. Pin both the delegation and the
+      // registry lookup in its new module home.
       const mw = read("middleware.ts");
-      expect(mw).toMatch(/csrfExemptPaths\(\)\.has\(pathname\)/);
-      // The previous inline Set must be gone.
-      expect(mw).not.toMatch(/const csrfExemptPaths\s*=\s*new Set/);
+      expect(mw).toMatch(/withCsrf\(request, ctx\)/);
+      const csrf = read("lib/middleware/csrf.ts");
+      expect(csrf).toMatch(/csrfExemptPaths\(\)\.has\(pathname\)/);
+      // The previous inline Set must be gone (the registry is the single source).
+      expect(csrf).not.toMatch(/const csrfExemptPaths\s*=\s*new Set/);
     });
 
     it("registry covers every exempt path the middleware previously hard-coded", async () => {
@@ -372,18 +377,28 @@ describe("Audit-3 regression locks", () => {
       expect(allowedOrigins).toMatch(
         /export interface VerifiedSiteRef \{[\s\S]*?slug: string;[\s\S]*?domain: string;/,
       );
-      expect(mw).toMatch(
+      // F-007: middleware imports getAllowedOrigins for the response-CORS
+      // branch; the VerifiedSiteRef type now travels with the extracted CORS
+      // module, which must import it from the same canonical source so the
+      // trust model stays single-homed.
+      expect(mw).toMatch(/import \{ getAllowedOrigins \} from "@\/lib\/security\/allowed-origins"/);
+      const corsMod = read("lib/middleware/cors.ts");
+      expect(corsMod).toMatch(
         /import \{ getAllowedOrigins, type VerifiedSiteRef \} from "@\/lib\/security\/allowed-origins"/,
       );
     });
 
     it("OPTIONS preflight only trusts hostnames in static config (G-33)", () => {
-      // The preflight branch must guard the host with `getSiteByDomain`
+      // F-007: preflight extracted to lib/middleware/cors. The guarantee is
+      // unchanged — the branch must guard the host with `getSiteByDomain`
       // and pass a `VerifiedSiteRef` (not a raw hostname) into
       // `getAllowedOrigins`. DB-managed custom domains have not been
       // resolved yet at preflight time, so they cannot be trusted.
-      const optionsBlock = mw.match(
-        /request\.method === "OPTIONS"[\s\S]*?getAllowedOrigins\([^)]+\)/,
+      // middleware must delegate to the extracted module:
+      expect(mw).toMatch(/withCorsPreflight\(request, ctx\)/);
+      const corsMod = read("lib/middleware/cors.ts");
+      const optionsBlock = corsMod.match(
+        /request\.method !== "OPTIONS"[\s\S]*?getAllowedOrigins\([^)]+\)/,
       );
       expect(optionsBlock).toBeTruthy();
       expect(optionsBlock![0]).toMatch(/getSiteByDomain\(hostname\)/);
