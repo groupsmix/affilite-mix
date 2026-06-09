@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSiteByDomain } from "@/config/sites";
 import { validateCsrfToken, CSRF_COOKIE, CSRF_HEADER } from "@/lib/csrf";
-import { getMiddlewareSiteRowByDomain } from "@/lib/middleware-site-lookup";
-import { generateTraceId, TRACE_ID_HEADER } from "@/lib/trace-id";
+import { TRACE_ID_HEADER } from "@/lib/trace-id";
 // H-4: Composable middleware module for maintenance mode
 import { withMaintenance } from "@/lib/middleware/maintenance";
+// F-007: hostname utils + domain→site resolution extracted for testability
+import {
+  canonicalizeHostname,
+  isValidHostname,
+  nicheNotFoundResponse,
+} from "@/lib/middleware/hostname";
+import { resolveSite } from "@/lib/middleware/site-resolution";
 
 import {
   buildCspHeader,
@@ -14,15 +20,10 @@ import {
   buildReportingEndpointsHeader,
 } from "@/lib/csp";
 import { captureException } from "@/lib/sentry";
-import { logger } from "@/lib/logger";
 import { CRON_PATH_PREFIX } from "@/lib/cron-registry";
 import { csrfExemptPaths } from "@/lib/security/csrf-exempt-registry";
 import { getAllowedOrigins, type VerifiedSiteRef } from "@/lib/security/allowed-origins";
 import { checkRateLimit } from "@/lib/rate-limit";
-import {
-  getNegativeCacheTtlSeconds,
-  recordUnknownHostKvAccess,
-} from "@/lib/security/unknown-host-guard";
 import { getAppCacheKV } from "@/lib/runtime-env";
 import { signSiteIdFallback } from "@/lib/site-id-signer";
 import { checkBodySize, applySecurityHeaders } from "@/lib/middleware-helpers";
@@ -30,15 +31,6 @@ import { parseOrCreateTraceContext, applyTraceHeaders, exportTraceSpan } from "@
 import { emitMetric } from "@/lib/metrics";
 
 const CSP_HEADER = "Content-Security-Policy";
-
-/** A98-49: Throw if the request has been aborted, so downstream work stops. */
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) {
-    const err = new Error("Middleware aborted due to timeout");
-    err.name = "AbortError";
-    throw err;
-  }
-}
 
 /** Methods allowed via CORS for public API endpoints (beacon, vitals, etc.) */
 const CORS_ALLOWED_METHODS = "GET, POST, OPTIONS";
@@ -48,40 +40,6 @@ const CORS_ALLOWED_HEADERS = [CSRF_HEADER, "Content-Type", "Authorization", TRAC
 );
 /** Preflight cache duration: 1 hour */
 const CORS_MAX_AGE = "3600";
-
-/**
- * NEW-01: Hoisted to module scope — the env var does not change within an
- * isolate's lifetime, so there is no reason to re-parse it on every request.
- */
-const PREVIEW_HOST_ALLOWLIST: Set<string> | null = (() => {
-  const raw = process.env.PREVIEW_HOST_ALLOWLIST ?? "";
-  return raw ? new Set(raw.split(",").map((h) => h.trim().toLowerCase())) : null;
-})();
-
-/**
- * Returns a redirect to the tenant-aware 404 page.
- * The app's not-found.tsx will render with proper branding and localization.
- */
-function nicheNotFoundResponse(request: NextRequest): NextResponse {
-  // Rewrite to the app's not-found page instead of returning inline HTML
-  // This ensures tenant branding, localization, and proper SEO
-  const url = request.nextUrl.clone();
-  url.pathname = "/not-found";
-  return NextResponse.rewrite(url, { status: 404 });
-}
-
-/**
- * A98-52: Canonicalize a hostname for use as a cache key.
- * - Lowercases (DNS is case-insensitive)
- * - Removes trailing dot (FQDN form → canonical)
- * - Strips port number
- *
- * This prevents cache fragmentation from equivalent hostnames
- * like "Example.COM", "example.com.", and "example.com:443".
- */
-function canonicalizeHostname(hostname: string): string {
-  return hostname.toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
-}
 
 /**
  * Middleware: resolves domain → site_id and injects x-site-id header.
@@ -118,7 +76,7 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
 
   // SECURITY-FIX: Sanitize hostname to prevent prototype pollution and path traversal
   // in KV key construction (T1-001, T1-003 / CWE-1321, CWE-22)
-  if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i.test(hostname) || hostname.length > 253) {
+  if (!isValidHostname(hostname)) {
     return nicheNotFoundResponse(request);
   }
 
@@ -228,244 +186,13 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
     });
   }
 
-  // ── Resolve site ──────────────────────────────────────
-  // 1. Try static config lookup first (fast, no DB call)
-  const site = getSiteByDomain(hostname);
-  let siteId = site?.id;
-  // G-33: track the verified site (slug + domain + aliases) alongside
-  // siteId so downstream CORS / CSRF checks can pass a typed reference
-  // into `getAllowedOrigins` — never a raw hostname.
-  let verifiedSite: VerifiedSiteRef | null = site
-    ? { slug: site.id, domain: site.domain, aliases: site.aliases }
-    : null;
-
-  // A98-49: Check abort before expensive DB/KV operations
-  throwIfAborted(signal);
-
-  // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
-  // Skip the DB lookup for *.localhost in non-production — dev only, no DB calls.
-  //
-  // A7-008: ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 extends this bypass to
-  // production-mode local runs (Lighthouse CI, docker smoke tests). When
-  // PREVIEW_HOST_ALLOWLIST is set (comma-separated hostnames), only those
-  // hosts are accepted, adding a second gate beyond the boolean flag.
-  const hostWithoutPort = hostname.includes(":") ? hostname.split(":")[0] : hostname;
-  const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
-  const isLocalhostDev =
-    (process.env.NODE_ENV !== "production" || allowLocalhostInProd) &&
-    (hostWithoutPort === "localhost" || hostWithoutPort.endsWith(".localhost")) &&
-    (!PREVIEW_HOST_ALLOWLIST || PREVIEW_HOST_ALLOWLIST.has(hostWithoutPort.toLowerCase()));
-
-  // Generate a trace ID for request correlation across logs/Sentry/downstream calls.
-  // Reuse an existing x-trace-id (from an upstream proxy) or cf-ray; otherwise mint a new one.
-  // We do this early so we can log it if the DB lookup fails.
-  let traceId = request.headers.get(TRACE_ID_HEADER) ?? request.headers.get("cf-ray");
-  if (!traceId || !/^[A-Za-z0-9_-]{8,64}$/.test(traceId)) {
-    traceId = generateTraceId();
-  }
-
-  // 2. For unknown domains (dashboard-managed custom domains), do direct DB lookup.
-  //    Previous implementation used a self-fetch to /api/internal/resolve-site
-  //    which added latency and coupling on the hot path.
-  //
-  //    F-007: bot floods sending random Host: headers would force a
-  //    Supabase lookup for every unknown hostname. We negative-cache
-  //    "no such site" responses for 5 minutes so repeated hits land
-  //    entirely at the edge after the first DB miss.
-  if (!siteId && !isLocalhostDev) {
-    // FIX-08 (F-006): Per-IP rate limit on hostname resolution before DB hit.
-    // Bot floods sending random Host: headers force a Supabase lookup per
-    // request. The negative cache helps after the first hit, but the first
-    // wave still reaches the DB. Cap at 30 hostname resolutions per IP per
-    // minute — legitimate users with a few tabs open won't hit this.
-    try {
-      throwIfAborted(signal);
-      const clientIp = request.headers.get("cf-connecting-ip") ?? "unknown";
-      const rlResult = await checkRateLimit(`hostname-resolve:${clientIp}`, {
-        maxRequests: 30,
-        windowMs: 60_000,
-        failPolicy: "closed",
-      });
-      if (!rlResult.allowed) {
-        return new NextResponse("Too Many Requests", {
-          status: 429,
-          headers: {
-            "Cache-Control": "no-store, max-age=0",
-            Pragma: "no-cache",
-            "Retry-After": String(Math.ceil(rlResult.retryAfterMs / 1000) || 60),
-          },
-        });
-      }
-    } catch (rlErr) {
-      // P0-2: Rate limit check itself failed — fail CLOSED. Under a KV/DO
-      // outage or hostile Host-header flood, do NOT fall through to DB lookup.
-      captureException(rlErr, {
-        context: "middleware.hostname-resolve-rate-limit-failed",
-        extra: { hostname },
-      });
-      return new NextResponse(JSON.stringify({ error: "Rate limit unavailable" }), {
-        status: 503,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store, max-age=0",
-          Pragma: "no-cache",
-          "Retry-After": "30",
-        },
-      });
-    }
-
-    // G-34: worker-wide LRU cap on the number of *distinct* unknown
-    // hostnames we'll let touch KV in any rolling 1s window. The per-IP
-    // limit above stops any single source; this stops the cumulative
-    // effect of a distributed flood from forcing one KV read per random
-    // Host: header. When the cap is exceeded we behave as if we'd
-    // negative-cached the host: the request gets the same 404 the
-    // legitimate "unknown niche" path returns, without paying the KV or
-    // DB cost.
-    const guardResult = recordUnknownHostKvAccess(hostname);
-    if (!guardResult.allowed) {
-      return nicheNotFoundResponse(request);
-    }
-
-    try {
-      const cacheKey = `site-domain:${hostname}`;
-      const negativeCacheKey = `site-domain-miss:${hostname}`;
-      let cachedRow: { id?: string; slug?: string; is_active?: boolean } | null = null;
-      let isNegativeCached = false;
-      let priorMissCount = 0;
-      try {
-        throwIfAborted(signal);
-        const kv = getAppCacheKV();
-        if (kv) {
-          // Check negative cache first — short-circuits the DB lookup
-          // entirely for hostnames we've already seen as unknown.
-          // G-34: the value is now `{m: number}` JSON so we can ramp
-          // the TTL on each subsequent miss.  Also accept the legacy
-          // "1" sentinel for entries written by previous deploys.
-          const negative = await kv.get(negativeCacheKey);
-          if (negative === "1") {
-            isNegativeCached = true;
-            priorMissCount = 1;
-          } else if (negative) {
-            try {
-              const parsed = JSON.parse(negative) as { m?: number };
-              if (parsed && typeof parsed.m === "number" && parsed.m > 0) {
-                isNegativeCached = true;
-                priorMissCount = parsed.m;
-              }
-            } catch {
-              // Corrupt entry — treat as a fresh miss so the next
-              // write replaces it with a well-formed value.
-            }
-          } else {
-            cachedRow = (await kv.get(cacheKey, "json")) as typeof cachedRow;
-          }
-        }
-      } catch (e) {
-        logger.warn("[middleware] KV cache read failed", {
-          hostname,
-          error: e instanceof Error ? e.message : String(e),
-        });
-      }
-
-      if (isNegativeCached) {
-        // G-34: each repeat hit on the negative cache bumps the miss
-        // counter and extends the TTL via the ramp helper. Without
-        // this the entry would expire after the floor TTL even for a
-        // host that has been hammered for hours, and the ramp
-        // (300 → 600 → 1200 → 2400 → 3600s) would never activate.
-        const nextMissCount = priorMissCount + 1;
-        const ttlSeconds = getNegativeCacheTtlSeconds(nextMissCount);
-        try {
-          const kv = getAppCacheKV();
-          if (kv)
-            await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
-              expirationTtl: ttlSeconds,
-            });
-        } catch (e) {
-          logger.warn("[middleware] KV negative-cache write failed", {
-            hostname,
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
-        return nicheNotFoundResponse(request);
-      }
-
-      throwIfAborted(signal);
-      const row = cachedRow || (await getMiddlewareSiteRowByDomain(hostname));
-      throwIfAborted(signal);
-      if (row && !cachedRow) {
-        try {
-          const kv = getAppCacheKV();
-          if (kv) await kv.put(cacheKey, JSON.stringify(row), { expirationTtl: 60 });
-        } catch (e) {
-          logger.warn("[middleware] KV cache write failed", {
-            hostname,
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
-      }
-      if (row && row.is_active && row.slug) {
-        siteId = row.slug;
-        // G-33: the DB lookup matched on `domain = hostname`, so the
-        // request hostname IS a verified registered domain for this
-        // site. Build the verified ref from it so downstream callers
-        // can extend the allow-list safely.
-        verifiedSite = { slug: row.slug, domain: hostname };
-      } else if (row && !row.is_active) {
-        return nicheNotFoundResponse(request);
-      } else if (!row) {
-        // G-34: first miss writes the floor TTL; subsequent misses
-        // are handled by the negative-cache-hit branch above, which
-        // ramps the TTL toward the 1-hour ceiling.
-        const nextMissCount = priorMissCount + 1;
-        const ttlSeconds = getNegativeCacheTtlSeconds(nextMissCount);
-        try {
-          const kv = getAppCacheKV();
-          if (kv)
-            await kv.put(negativeCacheKey, JSON.stringify({ m: nextMissCount }), {
-              expirationTtl: ttlSeconds,
-            });
-        } catch (e) {
-          logger.warn("[middleware] KV negative-cache write failed", {
-            hostname,
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
-      }
-    } catch (err) {
-      // F-025: Log structured error with trace id and emit Sentry instead of silent failure
-      // T-03: Use structured logger to prevent log injection via hostname
-      logger.error("[middleware] DB lookup failed for domain", { hostname, traceId, err });
-      captureException(err, {
-        context: "[middleware] getMiddlewareSiteRowByDomain",
-        extra: { hostname, traceId },
-      });
-
-      // P1-1: Serve a branded temporary unavailable response rather than a
-      // confusing 404. All middleware-generated 5xx responses MUST set
-      // Cache-Control: no-store so CDNs/browsers never cache error pages.
-      return new NextResponse(
-        JSON.stringify({
-          error: "Service Temporarily Unavailable",
-          message: "The platform is currently experiencing database connectivity issues.",
-          traceId,
-        }),
-        {
-          status: 503,
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store, max-age=0",
-            Pragma: "no-cache",
-          },
-        },
-      );
-    }
-  }
-
-  if (!siteId) {
-    return nicheNotFoundResponse(request);
-  }
+  // ── Resolve site (domain → siteId) ─────────────────────
+  // F-007: extracted to lib/middleware/site-resolution for independent
+  // testability. Returns either a short-circuit response (404/429/503) or the
+  // resolved site context to continue with.
+  const resolution = await resolveSite(request, hostname, signal);
+  if (resolution.type === "response") return resolution.response;
+  const { siteId, verifiedSite, traceId } = resolution;
 
   // ── Trailing-slash normalization (SA9) — AFTER site resolution ──
   // AUDIT-FIX A1-001/A2-001: Force canonical hostname so an attacker
