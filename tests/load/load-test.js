@@ -1,4 +1,16 @@
 /**
+ * ⚠️ DO NOT RUN AGAINST PRODUCTION WITHOUT EXPLICIT AUTHORIZATION ⚠️
+ *
+ * This script generates real HTTP traffic. Pointing it at a production
+ * URL will:
+ *   - Trigger Cloudflare rate limits (legitimate users may be impacted).
+ *   - Pollute click-tracking + analytics with synthetic events.
+ *   - Bill against your CF Workers / Supabase quota.
+ *
+ * Default target is parameterised via BASE_URL; the CI workflow
+ * (.github/workflows/load-test.yml) hard-codes the target. Always
+ * confirm BASE_URL points at staging/preview before invoking locally.
+ *
  * F-PERF-01: Multi-scenario k6 load test.
  *
  * Scenarios:

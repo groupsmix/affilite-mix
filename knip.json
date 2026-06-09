@@ -4,7 +4,7 @@
   "ignore": [
     "__tests__/helpers/server-only-shim.ts",
     "lighthouserc.cjs",
-    "load-test.js",
+    "tests/load/load-test.js",
     "open-next.config.ts",
     "scripts/check-db-types.mjs",
     "scripts/load-test.mjs",
