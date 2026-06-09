@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 import { parseJsonBody } from "@/lib/api-error";
 import { isOriginAllowed } from "@/lib/security/allowed-origins";
+import { logger } from "@/lib/logger";
 
 const VALID_METRIC_NAMES = new Set(["CLS", "FCP", "FID", "INP", "LCP", "TTFB"]);
 
@@ -87,8 +88,9 @@ export async function POST(request: NextRequest) {
       rating: capString(body.rating),
     };
 
-    // Structured log for observability pipelines (Datadog, Vercel Logs, etc.)
-    console.info(JSON.stringify({ event: "web_vital", ...metric, ts: Date.now() }));
+    // FR-006: route through the structured logger so log-shippers and
+    // tail consumers pick this up via the canonical JSON schema.
+    logger.info("web_vital", { event: "web_vital", ...metric });
 
     // Persist to DB (best-effort, don't block the response)
     try {
