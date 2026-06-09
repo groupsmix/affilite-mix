@@ -16,12 +16,14 @@ function readRepoFile(rel: string): string {
 // ---------------------------------------------------------------------------
 // audit5-#6 — CSP unsafe-inline tracked in tech-debt followups
 // ---------------------------------------------------------------------------
-describe("audit5-#6 — CSP unsafe-inline tracked", () => {
-  it("the followups doc exists and lists #6", () => {
-    const doc = readRepoFile("docs/audits/audit5-tech-debt-followups.md");
-    expect(doc).toMatch(/audit5-#6/);
-    expect(doc).toMatch(/style-src/);
-    expect(doc).toMatch(/Acceptance criterion/);
+describe("audit5-#6 / audit #18 — CSP unsafe-inline tracking moved private", () => {
+  // The docs/audits/audit5-tech-debt-followups.md tracker (which listed the
+  // CSP style-src unsafe-inline tech debt) was removed from the public repo
+  // per audit #18; that tracking is retained in private storage now.
+  it("the tech-debt followups report is not published in the public repo", () => {
+    expect(() =>
+      readRepoFile("docs/audits/audit5-tech-debt-followups.md"),
+    ).toThrow();
   });
 });
 
@@ -216,18 +218,14 @@ describe("audit5-#39 — Stripe price map JSON env", () => {
 // ---------------------------------------------------------------------------
 // Tech-debt followups — audit5-#7, #14, #15, #19 are tracked, not silently dropped
 // ---------------------------------------------------------------------------
-describe("audit5 P2 — deferred-with-rationale items are tracked", () => {
-  const doc = readRepoFile("docs/audits/audit5-tech-debt-followups.md");
-
-  it.each(["audit5-#7", "audit5-#14", "audit5-#15", "audit5-#19"])(
-    "%s appears in the tech-debt followups doc with an owner + acceptance criterion",
-    (label) => {
-      const idx = doc.indexOf(label);
-      expect(idx).toBeGreaterThan(-1);
-      // Each section must include "Owner:" and "Acceptance criterion".
-      const block = doc.slice(idx, idx + 2000);
-      expect(block).toMatch(/Owner:/);
-      expect(block).toMatch(/Acceptance criterion/);
-    },
-  );
+describe("audit5 P2 / audit #18 — deferred-item tracking moved to private storage", () => {
+  // Previously read docs/audits/audit5-tech-debt-followups.md at collection
+  // time to assert audit5-#7/#14/#15/#19 each carried an owner + acceptance
+  // criterion. That tracker was removed from the public repo per audit #18,
+  // so the read must now fail instead of executing at module load.
+  it("the tech-debt followups report is absent from the public tree", () => {
+    expect(() =>
+      readRepoFile("docs/audits/audit5-tech-debt-followups.md"),
+    ).toThrow();
+  });
 });
