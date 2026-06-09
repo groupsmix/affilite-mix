@@ -84,3 +84,6 @@ coverage/
 
 # Playwright global-setup storage state (generated at runtime)
 e2e/.auth/
+
+# Internal audit reports (do not commit — public repo)
+docs/audits/

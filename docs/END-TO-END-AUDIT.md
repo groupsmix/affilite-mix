@@ -123,7 +123,7 @@ This is a well-architected multi-tenant affiliate marketing platform built on Ne
 
 - Production architecture diagram (inferred, not documented)
 - Database schema dump (`supabase/schema.sql` is a placeholder header only)
-- Load testing results (script exists at `load-test.js` but no results)
+- Load testing results (script exists at `tests/load/load-test.js` but no results)
 - Lighthouse CI results
 - Production monitoring dashboards
 
