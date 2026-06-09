@@ -57,7 +57,7 @@ function timingSafeCompare(a: string, b: string): boolean {
     let result = 0;
     result |= lenA ^ lenB;
     for (let i = 0; i < MAX_COMPARE_LEN; i++) {
-      result |= bufA[i % lenA] ^ bufB[i % lenB];
+      result |= bufA[i % lenA]! ^ bufB[i % lenB]!;
     }
     void result;
     return false;
@@ -67,7 +67,7 @@ function timingSafeCompare(a: string, b: string): boolean {
   const eqLen = Math.min(bufA.byteLength, MAX_COMPARE_LEN);
   let result = 0;
   for (let i = 0; i < eqLen; i++) {
-    result |= bufA[i] ^ bufB[i];
+    result |= bufA[i]! ^ bufB[i]!;
   }
   return result === 0;
 }

@@ -86,7 +86,7 @@ describe("S9-C2: KV-backed fleet-wide circuit breaker", () => {
 
     // Verify TTL is based on recoveryTimeoutMs
     const putCall = mockKV.put.mock.calls[0];
-    const ttl = putCall[2].expirationTtl;
+    const ttl = putCall![2].expirationTtl;
     expect(ttl).toBe(Math.ceil(15_000 / 1000) + 10); // 25s
   });
 

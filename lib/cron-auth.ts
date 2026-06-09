@@ -32,7 +32,7 @@ export function timingSafeCompare(a: Uint8Array, b: Uint8Array): boolean {
     let result = 0;
     result |= lenA ^ lenB;
     for (let i = 0; i < MAX_COMPARE_LEN; i++) {
-      result |= a[i % lenA] ^ b[i % lenB];
+      result |= a[i % lenA]! ^ b[i % lenB]!;
     }
     void result;
     return false;
@@ -40,7 +40,7 @@ export function timingSafeCompare(a: Uint8Array, b: Uint8Array): boolean {
   const eqLen = Math.min(a.byteLength, MAX_COMPARE_LEN);
   let result = 0;
   for (let i = 0; i < eqLen; i++) {
-    result |= a[i] ^ b[i];
+    result |= a[i]! ^ b[i]!;
   }
   return result === 0;
 }
@@ -104,7 +104,7 @@ export function verifyCronAuth(request: NextRequest, options: VerifyCronAuthOpti
   let matched = false;
   for (let i = 0; i < envVars.length; i++) {
     const name = envVars[i];
-    const value = process.env[name];
+    const value = process.env[name!];
     if (!value) continue;
     // SEC-06 (etap-3): skip too-short secrets in production. Logging once is
     // enough to surface misconfiguration via Sentry/structured logs.

@@ -299,7 +299,7 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
 
     // Grab the payload that was passed to Supabase .update().
     expect(mockUpdate).toHaveBeenCalledTimes(1);
-    const storedPayload = mockUpdate.mock.calls[0][0] as {
+    const storedPayload = mockUpdate.mock.calls[0]![0] as {
       reset_token: string;
       reset_token_expires_at: string;
     };
@@ -307,7 +307,7 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     // The DB must never receive the raw token…
     expect(storedPayload.reset_token).not.toBe(rawToken);
     // …and must store the deterministic SHA-256 hash instead.
-    expect(storedPayload.reset_token).toBe(await hashResetToken(rawToken));
+    expect(storedPayload.reset_token).toBe(await hashResetToken(rawToken!));
     // SHA-256 hex is 64 chars
     expect(storedPayload.reset_token).toMatch(/^[0-9a-f]{64}$/);
   });

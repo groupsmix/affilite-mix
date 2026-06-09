@@ -34,9 +34,9 @@ function randomClick(): ClickLog {
   return {
     id: hash,
     time,
-    site,
-    path,
-    edge,
+    site: site!,
+    path: path!,
+    edge: edge!,
     latency,
     hash: `sha256:${Math.random().toString(36).slice(2, 10)}`,
   };

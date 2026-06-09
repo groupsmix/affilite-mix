@@ -165,7 +165,7 @@ export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
   const host = hostname.includes(":") ? hostname.split(":")[0] : hostname;
 
   // Direct match on domain or alias
-  const direct = allSites.find((s) => s.domain === host || s.aliases?.includes(host));
+  const direct = allSites.find((s) => s.domain === host || s.aliases?.includes(host!));
   if (direct) return direct;
 
   // Development fallback: resolve localhost / *.localhost to a site.
@@ -181,12 +181,12 @@ export function getSiteByDomain(hostname: string): SiteDefinition | undefined {
   const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_FALLBACK_IN_PROD === "1";
   if (process.env.NODE_ENV !== "production" || allowLocalhostInProd) {
     // A7-008: When a preview allowlist is configured, reject hosts not on it.
-    if (PREVIEW_HOST_ALLOWLIST && !PREVIEW_HOST_ALLOWLIST.has(host.toLowerCase())) {
+    if (PREVIEW_HOST_ALLOWLIST && !PREVIEW_HOST_ALLOWLIST.has(host!.toLowerCase())) {
       return undefined;
     }
     // .localhost dev pattern inspired by https://github.com/vercel/platforms (MIT).
-    if (host.endsWith(".localhost")) {
-      const prefix = host.slice(0, -".localhost".length);
+    if (host!.endsWith(".localhost")) {
+      const prefix = host!.slice(0, -".localhost".length);
 
       // Match by site.id (slug): arabic-tools.localhost → arabicToolsSite
       const bySlug = allSites.find((s) => s.id === prefix);

@@ -58,7 +58,7 @@ export function checkSentryConfig() {
       addEventProcessor((event) => {
         if (event.request) {
           if (event.request.url) {
-            event.request.url = event.request.url.split("?")[0].split("#")[0];
+            event.request.url = event.request.url.split("?")[0]!.split("#")[0]!;
           }
           if (event.request.headers) {
             delete event.request.headers["cookie"];

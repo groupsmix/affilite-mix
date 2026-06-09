@@ -38,7 +38,7 @@ interface PageProps {
 function parseComparisonSlug(slug: string): { slugA: string; slugB: string } | null {
   const match = slug.match(/^(.+)-vs-(.+)$/);
   if (!match) return null;
-  return { slugA: match[1], slugB: match[2] };
+  return { slugA: match[1]!, slugB: match[2]! };
 }
 
 async function getProducts(siteId: string, slugA: string, slugB: string) {

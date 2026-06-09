@@ -67,8 +67,8 @@ describe("LIVE-18 — prompt-injection sanitization", () => {
       }>;
     };
     if (internal.ALL_PROVIDERS && internal.ALL_PROVIDERS.length > 0) {
-      internal.ALL_PROVIDERS[0].isAvailable = () => true;
-      internal.ALL_PROVIDERS[0].generate = generateMock;
+      internal.ALL_PROVIDERS[0]!.isAvailable = () => true;
+      internal.ALL_PROVIDERS[0]!.generate = generateMock;
     }
 
     try {

@@ -14,10 +14,10 @@ import { allSites } from "@/config/sites";
 
 describe("isOriginAllowed (G-47 vitals origin guard)", () => {
   const knownSite = allSites[0];
-  const knownOrigin = `https://${knownSite.domain}`;
+  const knownOrigin = `https://${knownSite!.domain}`;
 
   it("accepts an Origin matching a statically configured site domain", () => {
-    expect(isOriginAllowed(knownOrigin, knownSite.domain)).toBe(true);
+    expect(isOriginAllowed(knownOrigin, knownSite!.domain)).toBe(true);
   });
 
   it("accepts an Origin matching a configured alias", () => {
@@ -31,13 +31,13 @@ describe("isOriginAllowed (G-47 vitals origin guard)", () => {
   });
 
   it("rejects a missing/empty Origin header", () => {
-    expect(isOriginAllowed(null, knownSite.domain)).toBe(false);
-    expect(isOriginAllowed("", knownSite.domain)).toBe(false);
-    expect(isOriginAllowed(undefined, knownSite.domain)).toBe(false);
+    expect(isOriginAllowed(null, knownSite!.domain)).toBe(false);
+    expect(isOriginAllowed("", knownSite!.domain)).toBe(false);
+    expect(isOriginAllowed(undefined, knownSite!.domain)).toBe(false);
   });
 
   it("rejects an Origin from an unknown attacker domain", () => {
-    expect(isOriginAllowed("https://evil.example.com", knownSite.domain)).toBe(false);
+    expect(isOriginAllowed("https://evil.example.com", knownSite!.domain)).toBe(false);
   });
 
   it("ignores an unverified Host header (no static or DB registration)", () => {
@@ -49,7 +49,7 @@ describe("isOriginAllowed (G-47 vitals origin guard)", () => {
   });
 
   it("strips the port from the Host header before lookup", () => {
-    expect(isOriginAllowed(knownOrigin, `${knownSite.domain}:443`)).toBe(true);
+    expect(isOriginAllowed(knownOrigin, `${knownSite!.domain}:443`)).toBe(true);
   });
 
   it("trusts a DB-registered custom domain when siteId is supplied", () => {

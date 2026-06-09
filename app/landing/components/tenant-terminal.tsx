@@ -22,11 +22,11 @@ function randomId(): string {
 
 function generateEvent(): string {
   const tpl = eventTemplates[Math.floor(Math.random() * eventTemplates.length)];
-  const msg = tpl.msg
+  const msg = tpl!.msg
     .replace("{id}", randomId())
     .replace("{ms}", String(20 + Math.floor(Math.random() * 50)))
     .replace("{pct}", (1 + Math.random() * 8).toFixed(1));
-  return `[${tpl.site}] ${msg}`;
+  return `[${tpl!.site}] ${msg}`;
 }
 
 export function TenantTerminal() {

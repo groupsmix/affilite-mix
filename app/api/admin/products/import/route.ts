@@ -55,7 +55,7 @@ export const POST = withAuthz("products", "create", async (request, { session, s
   }
 
   const headerLine = lines[0];
-  const headers = parseCsvLine(headerLine).map((h) => h.trim().toLowerCase());
+  const headers = parseCsvLine(headerLine!).map((h) => h.trim().toLowerCase());
 
   const requiredFields = ["name", "slug"];
   for (const field of requiredFields) {
@@ -75,7 +75,7 @@ export const POST = withAuthz("products", "create", async (request, { session, s
 
     // Phase 1: Validate all rows
     for (let i = 1; i < lines.length; i++) {
-      const values = parseCsvLine(lines[i]);
+      const values = parseCsvLine(lines[i]!);
       const row: Record<string, string> = {};
       headers.forEach((h, idx) => {
         row[h] = values[idx]?.trim() ?? "";

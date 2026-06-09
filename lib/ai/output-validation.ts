@@ -151,10 +151,10 @@ export function validateGeneratedLinks(html: string): LinkValidationResult {
 
     // Skip relative links, anchors, mailto, tel
     if (
-      href.startsWith("/") ||
-      href.startsWith("#") ||
-      href.startsWith("mailto:") ||
-      href.startsWith("tel:")
+      href!.startsWith("/") ||
+      href!.startsWith("#") ||
+      href!.startsWith("mailto:") ||
+      href!.startsWith("tel:")
     ) {
       continue;
     }
@@ -162,12 +162,12 @@ export function validateGeneratedLinks(html: string): LinkValidationResult {
     // Extract domain from absolute URL
     let domain: string;
     try {
-      const url = new URL(href);
+      const url = new URL(href!);
       domain = url.hostname.toLowerCase();
     } catch {
       // fail-open: best-effort [criticality:non-critical]
       // Malformed URL — flag it
-      flaggedDomains.push(href.slice(0, 50));
+      flaggedDomains.push(href!.slice(0, 50));
       continue;
     }
 

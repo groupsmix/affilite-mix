@@ -62,7 +62,9 @@ export default defineConfig({
     // (e.g. cookie-consent) call context.clearCookies() first.
     storageState: path.join(__dirname, "e2e", ".auth", "storage-state.json"),
   },
-  projects: fullSuite ? allProjects : ciProjects,
+  projects: (fullSuite ? allProjects : ciProjects).filter(
+    (p): p is NonNullable<typeof p> => p !== undefined,
+  ),
   webServer: process.env.CI
     ? undefined
     : {

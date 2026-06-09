@@ -44,7 +44,7 @@ const CODE_LENGTH = 6;
 function generateVerificationCode(): string {
   const bytes = new Uint8Array(4);
   crypto.getRandomValues(bytes);
-  const num = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+  const num = ((bytes[0]! << 24) | (bytes[1]! << 16) | (bytes[2]! << 8) | bytes[3]!) >>> 0;
   return String(num % 10 ** CODE_LENGTH).padStart(CODE_LENGTH, "0");
 }
 
