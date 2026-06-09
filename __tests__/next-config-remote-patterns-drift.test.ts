@@ -88,8 +88,18 @@ describe("#19 next.config.ts remotePatterns drift guard", () => {
   });
 
   it("contains the G-48 follow-up marker until the Amazon hosts are removed", () => {
+    // Match the exact known Amazon hosts rather than any host that happens to
+    // end in "amazon.com" — `endsWith` would also match attacker-controlled
+    // lookalikes like `evil-amazon.com`, which is the same class of bug
+    // CodeQL flags as "incomplete URL substring sanitization". This check is
+    // a heuristic, not a security boundary (assertion #1 is the boundary),
+    // but keeping it tight removes the false-positive and is more correct.
+    const AMAZON_HOSTS = new Set([
+      "m.media-amazon.com",
+      "images-na.ssl-images-amazon.com",
+    ]);
     const hardcoded = extractHardcodedHostnames(source);
-    const stillHasAmazon = hardcoded.some((h) => h.endsWith("amazon.com"));
+    const stillHasAmazon = hardcoded.some((h) => AMAZON_HOSTS.has(h));
     if (stillHasAmazon) {
       expect(
         source.includes("G-48"),
