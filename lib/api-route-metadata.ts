@@ -5,10 +5,8 @@
  * A test (`__tests__/api-routes-metadata.test.ts`) walks the filesystem and
  * fails when a new route is added without a corresponding registry entry.
  *
- * Rendered human-readable version lives in `docs/api-route-audit.md`.
- *
- * Source of truth: this file. Keep `docs/api-route-audit.md` in sync when the
- * registry changes (the test enforces the registry; the doc is for humans).
+ * Source of truth: this file (the test enforces the registry). A rendered
+ * human-readable route-audit doc is retained privately, not in this repo.
  */
 
 type AuthRequirement =

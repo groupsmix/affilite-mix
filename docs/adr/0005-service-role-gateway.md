@@ -19,7 +19,7 @@ Gate service-role access behind `lib/server-only/service-role.ts` which exports 
 ## Rationale
 
 - RLS-only is insufficient for cron jobs, queue consumers, and webhook handlers which lack user JWTs
-- Ungated service-role is the root cause of the highest-severity finding (cross-tenant DAL paths, see `docs/deep-audit-followup.md` F-001)
+- Ungated service-role is the root cause of the highest-severity finding (cross-tenant DAL paths; tracked privately as deep-audit F-001)
 - The branded type prevents accidental misuse at the type level
 - The eslint rule creates a human review gate on every new service-role usage
 
@@ -34,4 +34,4 @@ Gate service-role access behind `lib/server-only/service-role.ts` which exports 
 - `lib/server-only/service-role.ts`
 - `lib/security/service-role-allowlist.ts`
 - `__tests__/admin-routes-no-service-role.test.ts`
-- `docs/deep-audit-followup.md` F-001
+- deep-audit F-001 (findings report retained privately)

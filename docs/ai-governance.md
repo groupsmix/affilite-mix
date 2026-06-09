@@ -89,7 +89,7 @@ AI calls — comment moderation runs through the rule-based pipeline in
 > spend-report script in the repository today. The per-tenant
 > primitives expose `getUsageSnapshot()` against `RATE_LIMIT_KV` for
 > ad-hoc inspection; long-term durable spend logs are tracked in
-> `docs/deep-audit-followup.md`.
+> the deep-audit follow-up tracker (retained privately).
 
 ## Affiliate Disclosure (#83)
 

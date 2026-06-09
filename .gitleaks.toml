@@ -6,7 +6,6 @@ paths = [
     "\\.env\\.example",
     "\\.env\\.production\\.example",
     "secrets-template\\.env",
-    "docs/npm-audit-report\\.txt",
     "__tests__/fixtures/.*",
 ]
 

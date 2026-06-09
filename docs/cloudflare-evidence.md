@@ -246,5 +246,5 @@ To produce the full audit packet:
   steps and verification scripts per setting.
 - [`docs/cloudflare-recovery.md`](./cloudflare-recovery.md) — account recovery
   and full rebuild playbook.
-- [`docs/cloudflare-audit-remediation.md`](./cloudflare-audit-remediation.md) —
-  prior audit findings and their remediation status.
+- Cloudflare audit remediation — prior audit findings and their remediation
+  status; retained privately, not published in this public repo.
