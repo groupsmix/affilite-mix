@@ -108,7 +108,13 @@ describe("safeRedirectUrl fuzz tests", () => {
   });
 
   describe("valid relative paths pass through", () => {
-    const valid = ["/admin", "/admin/content", "/login?next=/admin", "/#section", "/a/b/c?q=1#h"];
+    const valid = [
+      "/q7m-k4j9",
+      "/q7m-k4j9/content",
+      "/login?next=/q7m-k4j9",
+      "/#section",
+      "/a/b/c?q=1#h",
+    ];
 
     for (const path of valid) {
       it(`allows relative path: ${path}`, () => {

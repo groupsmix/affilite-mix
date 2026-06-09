@@ -16,7 +16,7 @@
  * malformed, or points to a disallowed origin.
  *
  * Allowed destinations:
- *   1. Relative paths (e.g. "/admin/content") — always safe.
+ *   1. Relative paths (e.g. "/q7m-k4j9/content") — always safe.
  *   2. Same-origin absolute URLs — always safe.
  *   3. URLs whose origin appears in the optional `allowedOrigins` set.
  *

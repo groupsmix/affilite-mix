@@ -72,7 +72,7 @@ Run SSRF tests in CI to verify the guard is effective:
 ```bash
 # These requests should be blocked by global_fetch_strictly_public
 curl https://<domain>/api/internal/webhook?url=http://169.254.169.254/latest/meta-data
-curl https://<domain>/api/internal/webhook?url=http://127.0.0.1:8080/admin
+curl https://<domain>/api/internal/webhook?url=http://127.0.0.1:8080/q7m-k4j9
 ```
 
 ## Future: Zero-Trust Egress

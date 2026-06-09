@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { safeRedirectUrl } from "@/lib/safe-redirect";
 
-function makeRequest(url = "https://example.com/admin") {
+function makeRequest(url = "https://example.com/q7m-k4j9") {
   return new Request(url);
 }
 
@@ -16,7 +16,7 @@ describe("safeRedirectUrl (G-46)", () => {
 
   it("allows relative paths", () => {
     const req = makeRequest();
-    expect(safeRedirectUrl("/admin/content", req)).toBe("/admin/content");
+    expect(safeRedirectUrl("/q7m-k4j9/content", req)).toBe("/q7m-k4j9/content");
     expect(safeRedirectUrl("/search?q=test", req)).toBe("/search?q=test");
   });
 
@@ -36,7 +36,7 @@ describe("safeRedirectUrl (G-46)", () => {
   });
 
   it("allows same-origin absolute URLs and strips origin", () => {
-    const req = makeRequest("https://example.com/admin");
+    const req = makeRequest("https://example.com/q7m-k4j9");
     const result = safeRedirectUrl("https://example.com/dashboard", req);
     expect(result).toBe("/dashboard");
   });
@@ -56,7 +56,7 @@ describe("safeRedirectUrl (G-46)", () => {
 
   it("uses custom fallback when provided", () => {
     const req = makeRequest();
-    expect(safeRedirectUrl("https://evil.com", req, { fallback: "/admin" })).toBe("/admin");
+    expect(safeRedirectUrl("https://evil.com", req, { fallback: "/q7m-k4j9" })).toBe("/q7m-k4j9");
   });
 
   // SEC-01 (etap-3): backslash bypass — WHATWG URL parser treats `\` as `/`
@@ -73,7 +73,7 @@ describe("safeRedirectUrl (G-46)", () => {
     const REQ_ORIGIN = "https://example.com";
 
     it("rejects single-backslash bypass /\\evil.com", () => {
-      const req = makeRequest(`${REQ_ORIGIN}/admin`);
+      const req = makeRequest(`${REQ_ORIGIN}/q7m-k4j9`);
       // The input string contains a real `/` followed by a real `\`.
       const payload = "/" + "\\" + "evil.com";
       const result = safeRedirectUrl(payload, req);
@@ -85,14 +85,14 @@ describe("safeRedirectUrl (G-46)", () => {
     });
 
     it("rejects double-backslash bypass /\\\\evil.com", () => {
-      const req = makeRequest(`${REQ_ORIGIN}/admin`);
+      const req = makeRequest(`${REQ_ORIGIN}/q7m-k4j9`);
       const payload = "/" + "\\" + "\\" + "evil.com";
       const result = safeRedirectUrl(payload, req);
       expect(new URL(result, REQ_ORIGIN).origin).toBe(REQ_ORIGIN);
     });
 
     it("normalises mixed slash+backslash payloads to same-origin path", () => {
-      const req = makeRequest("https://example.com/admin");
+      const req = makeRequest("https://example.com/q7m-k4j9");
       const payload = "/foo" + "\\" + ".." + "\\" + ".." + "\\" + "evil.com";
       const result = safeRedirectUrl(payload, req);
       // After normalising backslash -> forward slash, the URL parser
@@ -109,14 +109,14 @@ describe("safeRedirectUrl (G-46)", () => {
     });
 
     it("rejects backslash + javascript scheme attempt", () => {
-      const req = makeRequest("https://example.com/admin");
+      const req = makeRequest("https://example.com/q7m-k4j9");
       // Even with leading slash + backslash, the scheme check must hold.
       const payload = "/" + "\\" + "javascript:alert(1)";
       expect(safeRedirectUrl(payload, req)).toBe("/");
     });
 
     it("plain relative paths still work after backslash normalisation", () => {
-      const req = makeRequest("https://example.com/admin");
+      const req = makeRequest("https://example.com/q7m-k4j9");
       // A legitimate path that happens to contain a backslash in a query
       // value gets normalised but still stays same-origin.
       const result = safeRedirectUrl("/foo/bar", req);
@@ -142,7 +142,7 @@ describe("safeRedirectUrl (G-46)", () => {
   // A8-01 / A1-01: bidi strip behavioural tests
   describe("A8-01: bidi override stripping", () => {
     it.each([
-      ["U+202E RLO", "/admin/\u202Enews", "/admin/news"],
+      ["U+202E RLO", "/q7m-k4j9/\u202Enews", "/q7m-k4j9/news"],
       ["U+200E LRM", "/foo\u200Ebar", "/foobar"],
       ["U+2066 LRI", "/x\u2066y", "/xy"],
       ["U+202A LRE", "/a\u202Ab", "/ab"],
@@ -154,8 +154,8 @@ describe("safeRedirectUrl (G-46)", () => {
     // A1-01: percent-encoded bidi must also be caught
     it("strips percent-encoded U+202E (RLO)", () => {
       const req = makeRequest();
-      const result = safeRedirectUrl("/admin/%E2%80%AEnews", req);
-      expect(result).toBe("/admin/news");
+      const result = safeRedirectUrl("/q7m-k4j9/%E2%80%AEnews", req);
+      expect(result).toBe("/q7m-k4j9/news");
     });
 
     it("strips percent-encoded U+200E (LRM)", () => {

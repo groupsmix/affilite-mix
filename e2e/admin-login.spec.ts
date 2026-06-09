@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Admin Login Page", () => {
   test("should display the login form", async ({ page }) => {
-    await page.goto("/admin/login");
+    await page.goto("/q7m-k4j9/login");
 
     await expect(page.locator("h1")).toHaveText("Admin Login");
     await expect(page.locator('input[type="email"]')).toBeVisible();
@@ -11,7 +11,7 @@ test.describe("Admin Login Page", () => {
   });
 
   test("should show error for missing password", async ({ page }) => {
-    await page.goto("/admin/login");
+    await page.goto("/q7m-k4j9/login");
 
     await page.locator('input[type="email"]').fill("admin@example.com");
     await page.locator('button[type="submit"]').click();
@@ -25,7 +25,7 @@ test.describe("Admin Login Page", () => {
   });
 
   test("should show error for invalid credentials", async ({ page }) => {
-    await page.goto("/admin/login");
+    await page.goto("/q7m-k4j9/login");
     await page.waitForLoadState("networkidle");
 
     // Mock the login API to return 401 so we can test client-side error UI
@@ -45,7 +45,7 @@ test.describe("Admin Login Page", () => {
   });
 
   test("should show 'Signing in...' while submitting", async ({ page }) => {
-    await page.goto("/admin/login");
+    await page.goto("/q7m-k4j9/login");
 
     await page.locator('input[type="email"]').fill("test@example.com");
     await page.locator('input[type="password"]').fill("testpassword");
@@ -61,7 +61,7 @@ test.describe("Admin Login Page", () => {
   });
 
   test("should open forgot password modal", async ({ page }) => {
-    await page.goto("/admin/login");
+    await page.goto("/q7m-k4j9/login");
 
     await page.locator("text=Forgot your password?").click();
 
@@ -71,7 +71,7 @@ test.describe("Admin Login Page", () => {
   });
 
   test("should close forgot password modal on cancel", async ({ page }) => {
-    await page.goto("/admin/login");
+    await page.goto("/q7m-k4j9/login");
 
     await page.locator("text=Forgot your password?").click();
     await expect(page.locator("h3")).toHaveText("Reset Password");
@@ -81,7 +81,7 @@ test.describe("Admin Login Page", () => {
   });
 
   test("should submit forgot password form", async ({ page }) => {
-    await page.goto("/admin/login");
+    await page.goto("/q7m-k4j9/login");
 
     await page.locator("text=Forgot your password?").click();
 
@@ -102,7 +102,7 @@ test.describe("Admin Login Page", () => {
   });
 
   test("should redirect to dashboard on successful login", async ({ page }) => {
-    await page.goto("/admin/login");
+    await page.goto("/q7m-k4j9/login");
 
     // Mock the login API to return success with a cookie
     await page.route("/api/auth/login", async (route) => {
@@ -119,7 +119,7 @@ test.describe("Admin Login Page", () => {
     await page.locator('input[type="password"]').fill("password123");
     await page.locator('button[type="submit"]').click();
 
-    // The client-side code calls router.push("/admin") on success
-    await page.waitForURL("**/admin", { timeout: 10_000 });
+    // The client-side code calls router.push("/q7m-k4j9") on success
+    await page.waitForURL("**/q7m-k4j9", { timeout: 10_000 });
   });
 });

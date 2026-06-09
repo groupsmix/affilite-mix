@@ -47,7 +47,7 @@ describe("SEC-05: bnd claim is always verified when present", () => {
     vi.resetModules();
     const { verifyToken } = await import("@/lib/auth");
 
-    const replayRequest = new Request("https://example.com/admin", {
+    const replayRequest = new Request("https://example.com/q7m-k4j9", {
       headers: { "user-agent": "AttackerBrowser/1.0", "cf-connecting-ip": "203.0.113.42" },
     });
     // SEC-05: bnd present \u2192 must still be verified \u2192 mismatch \u2192 null

@@ -5,12 +5,12 @@ budget that burn-rate alerts (see `terraform/cloudflare/alerts.tf`) consume.
 
 ## Availability
 
-| Service                             | Target          | Measurement                                           |
-| ----------------------------------- | --------------- | ----------------------------------------------------- |
-| Public pages (SSR/ISR)              | 99.9 % monthly  | Cloudflare analytics — non-5xx / total                |
-| Admin panel                         | 99.5 % monthly  | Cloudflare analytics — non-5xx / total for `/admin/*` |
-| Click tracking (`/api/track/click`) | 99.9 % monthly  | Queue success rate + 302 success rate                 |
-| Cron jobs                           | 100 % execution | `cron_liveness` KV heartbeat — 0 missed in 24 h       |
+| Service                             | Target          | Measurement                                              |
+| ----------------------------------- | --------------- | -------------------------------------------------------- |
+| Public pages (SSR/ISR)              | 99.9 % monthly  | Cloudflare analytics — non-5xx / total                   |
+| Admin panel                         | 99.5 % monthly  | Cloudflare analytics — non-5xx / total for `/q7m-k4j9/*` |
+| Click tracking (`/api/track/click`) | 99.9 % monthly  | Queue success rate + 302 success rate                    |
+| Cron jobs                           | 100 % execution | `cron_liveness` KV heartbeat — 0 missed in 24 h          |
 
 ## Latency
 

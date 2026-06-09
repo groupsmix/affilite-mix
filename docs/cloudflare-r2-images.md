@@ -86,5 +86,5 @@ That is a **separate** R2 bucket used by `@opennextjs/cloudflare` for Next.js in
 
 - `lib/r2.ts` — presigned URL generator (lightweight S3v4 signer)
 - `app/api/admin/upload/route.ts` — upload endpoint (auth + validation)
-- `app/admin/(dashboard)/components/image-uploader.tsx` — drag-and-drop UI
+- `app/q7m-k4j9/(dashboard)/components/image-uploader.tsx` — drag-and-drop UI
 - `wrangler.jsonc` — only binds `NEXT_INC_CACHE_R2_BUCKET` (incremental cache)

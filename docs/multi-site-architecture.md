@@ -103,7 +103,7 @@ Static config is checked first (fast, no DB call). The DB UUID is resolved and i
 ## Admin Panel
 
 - **Site switcher** — dropdown in the admin sidebar; sets `nh_active_site` cookie
-- **Site management** — create/edit/deactivate sites at `/admin/sites`
+- **Site management** — create/edit/deactivate sites at `/q7m-k4j9/sites`
 - **All CRUD operations** are scoped to the active site via `adminGuard()` which reads the cookie, resolves the DB UUID, and passes it to DAL functions
 - **Super-admins** can manage all sites; regular admins see only their assigned sites
 

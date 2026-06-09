@@ -182,11 +182,11 @@ Create rules to control what gets cached at the edge:
 
 **Rule 1 — Bypass cache for API and admin routes:**
 
-| Field             | Value                                                                                              |
-| ----------------- | -------------------------------------------------------------------------------------------------- |
-| Name              | `Bypass API and Admin`                                                                             |
-| Expression        | `(starts_with(http.request.uri.path, "/api/")) or (starts_with(http.request.uri.path, "/admin/"))` |
-| Cache eligibility | **Bypass cache**                                                                                   |
+| Field             | Value                                                                                                 |
+| ----------------- | ----------------------------------------------------------------------------------------------------- |
+| Name              | `Bypass API and Admin`                                                                                |
+| Expression        | `(starts_with(http.request.uri.path, "/api/")) or (starts_with(http.request.uri.path, "/q7m-k4j9/"))` |
+| Cache eligibility | **Bypass cache**                                                                                      |
 
 **Rule 2 — Cache static assets aggressively:**
 

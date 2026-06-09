@@ -434,7 +434,7 @@ Each cron route has a dedicated per-trigger secret and falls back to `CRON_SECRE
 After rotating any secret, verify the following:
 
 - [ ] `/api/health` returns `200 OK` with `database: ok`
-- [ ] Admin login works (`/admin/login`)
+- [ ] Admin login works (`/q7m-k4j9/login`)
 - [ ] Cron jobs execute successfully (check Cloudflare Workers logs)
 - [ ] Image upload works (admin panel > upload an image)
 - [ ] Newsletter signup works (submit a test email)

@@ -146,8 +146,8 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
 
     // The reset link MUST use the tenant's own site domain so a user on
     // tenant A is never directed at tenant B (G-22).
-    expect(textBody).toContain("https://test.example.com/admin/reset-password?token=");
-    expect(htmlBody).toContain("https://test.example.com/admin/reset-password?token=");
+    expect(textBody).toContain("https://test.example.com/q7m-k4j9/reset-password?token=");
+    expect(htmlBody).toContain("https://test.example.com/q7m-k4j9/reset-password?token=");
 
     // The reset link MUST NOT fall back to the request origin or a global
     // APP_URL in production.
@@ -168,7 +168,7 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
 
     expect(res.status).toBe(200);
     const textBody = capturedResendBody!.text as string;
-    expect(textBody).toContain("https://test.example.com/admin/reset-password?token=");
+    expect(textBody).toContain("https://test.example.com/q7m-k4j9/reset-password?token=");
     // The link must be absolute, never relative.
     expect(textBody).not.toMatch(/[\s\n]\/admin\/reset-password\?/);
   });
@@ -188,7 +188,7 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
     expect(mockedCaptureException).not.toHaveBeenCalled();
     // Link still uses the tenant's site domain.
     const textBody = capturedResendBody!.text as string;
-    expect(textBody).toContain("https://test.example.com/admin/reset-password?token=");
+    expect(textBody).toContain("https://test.example.com/q7m-k4j9/reset-password?token=");
   });
 
   it("returns 200 for unknown email (enumeration protection)", async () => {

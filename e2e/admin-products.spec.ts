@@ -2,10 +2,10 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Admin Products Page", () => {
   test("should redirect unauthenticated users to login", async ({ page }) => {
-    await page.goto("/admin/products");
+    await page.goto("/q7m-k4j9/products");
 
     // Should either redirect to login or show an auth error
-    await expect(page).toHaveURL(/\/admin\/login|\/admin/);
+    await expect(page).toHaveURL(/\/admin\/login|\/q7m-k4j9/);
   });
 
   test("should display the new product form", async ({ page }) => {
@@ -20,7 +20,7 @@ test.describe("Admin Products Page", () => {
       });
     });
 
-    await page.goto("/admin/products/new");
+    await page.goto("/q7m-k4j9/products/new");
 
     // If not authenticated, we'll be redirected. Check that the form loads
     // or we're on the login page (acceptable for E2E without real DB)
@@ -29,7 +29,7 @@ test.describe("Admin Products Page", () => {
   });
 
   test("new product form should have required fields", async ({ page }) => {
-    await page.goto("/admin/products/new");
+    await page.goto("/q7m-k4j9/products/new");
     await page.waitForLoadState("networkidle");
 
     // The page may redirect to login if not authenticated
@@ -48,7 +48,7 @@ test.describe("Admin Products Page", () => {
 
   test("product form should auto-generate slug from name", async ({ page }) => {
     // Navigate and check if we can access the form
-    await page.goto("/admin/products/new");
+    await page.goto("/q7m-k4j9/products/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
@@ -71,7 +71,7 @@ test.describe("Admin Products Page", () => {
   });
 
   test("product form should show validation error on empty submit", async ({ page }) => {
-    await page.goto("/admin/products/new");
+    await page.goto("/q7m-k4j9/products/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
@@ -92,7 +92,7 @@ test.describe("Admin Products Page", () => {
   });
 
   test("product form should have status dropdown with correct options", async ({ page }) => {
-    await page.goto("/admin/products/new");
+    await page.goto("/q7m-k4j9/products/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
@@ -116,7 +116,7 @@ test.describe("Admin Products Page", () => {
   });
 
   test("product form should have currency dropdown", async ({ page }) => {
-    await page.goto("/admin/products/new");
+    await page.goto("/q7m-k4j9/products/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page

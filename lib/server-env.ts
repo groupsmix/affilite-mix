@@ -315,7 +315,7 @@ export function validateServerEnv(): {
   // production, so an unset / "true" / "1" ENABLE_TURNSTILE needs no
   // action here. This guard closes the residual case: an operator who
   // *explicitly* sets ENABLE_TURNSTILE=false (or 0) in production
-  // silently removes the CAPTCHA in front of /admin/login and other
+  // silently removes the CAPTCHA in front of /q7m-k4j9/login and other
   // protected forms. We surface that as a hard startup failure unless it
   // is consciously acknowledged via ALLOW_TURNSTILE_DISABLED_IN_PROD=1 —
   // the same explicit opt-out idiom used for
@@ -330,7 +330,7 @@ export function validateServerEnv(): {
         name: "ENABLE_TURNSTILE",
         description:
           "Turnstile is explicitly disabled in production (ENABLE_TURNSTILE=false), " +
-          "which removes bot protection from /admin/login and other protected forms. " +
+          "which removes bot protection from /q7m-k4j9/login and other protected forms. " +
           "Set ENABLE_TURNSTILE=true (recommended), or, if you deliberately run without " +
           "Turnstile, acknowledge the trade-off with ALLOW_TURNSTILE_DISABLED_IN_PROD=1.",
         ownerFile: "lib/turnstile.ts",

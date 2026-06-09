@@ -20,14 +20,14 @@ export function filterAdminNavItems(
 ): AdminNavItem[] {
   return items.filter((item) => {
     if (!monetizationType) return true;
-    if (item.href === "/admin/ads" && monetizationType === "affiliate") return false;
-    if (item.href === "/admin/affiliate-networks" && monetizationType === "ads") return false;
+    if (item.href === "/q7m-k4j9/ads" && monetizationType === "affiliate") return false;
+    if (item.href === "/q7m-k4j9/affiliate-networks" && monetizationType === "ads") return false;
     return true;
   });
 }
 
 function isItemActive(href: string, pathname: string) {
-  return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+  return href === "/q7m-k4j9" ? pathname === "/q7m-k4j9" : pathname.startsWith(href);
 }
 
 /**
@@ -138,7 +138,7 @@ export function AdminSidebar({
       >
         {!collapsed && (
           <Link
-            href="/admin"
+            href="/q7m-k4j9"
             className="truncate text-sm font-semibold tracking-tight text-foreground"
           >
             Admin

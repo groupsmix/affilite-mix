@@ -2,21 +2,21 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Admin Content Page", () => {
   test("should redirect unauthenticated users to login", async ({ page }) => {
-    await page.goto("/admin/content");
+    await page.goto("/q7m-k4j9/content");
 
     // Should either redirect to login or show an auth error
-    await expect(page).toHaveURL(/\/admin\/login|\/admin/);
+    await expect(page).toHaveURL(/\/admin\/login|\/q7m-k4j9/);
   });
 
   test("should display the new content form", async ({ page }) => {
-    await page.goto("/admin/content/new");
+    await page.goto("/q7m-k4j9/content/new");
 
     const heading = page.locator("h1");
     await expect(heading).toBeVisible({ timeout: 10_000 });
   });
 
   test("new content form should have required fields", async ({ page }) => {
-    await page.goto("/admin/content/new");
+    await page.goto("/q7m-k4j9/content/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
@@ -33,7 +33,7 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should auto-generate slug from title", async ({ page }) => {
-    await page.goto("/admin/content/new");
+    await page.goto("/q7m-k4j9/content/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
@@ -53,7 +53,7 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should have content type dropdown with correct options", async ({ page }) => {
-    await page.goto("/admin/content/new");
+    await page.goto("/q7m-k4j9/content/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
@@ -74,7 +74,7 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should have status dropdown with scheduled option", async ({ page }) => {
-    await page.goto("/admin/content/new");
+    await page.goto("/q7m-k4j9/content/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
@@ -98,7 +98,7 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should have SEO section", async ({ page }) => {
-    await page.goto("/admin/content/new");
+    await page.goto("/q7m-k4j9/content/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
@@ -123,7 +123,7 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should have scheduling section", async ({ page }) => {
-    await page.goto("/admin/content/new");
+    await page.goto("/q7m-k4j9/content/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page
@@ -140,7 +140,7 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should show validation error on empty submit", async ({ page }) => {
-    await page.goto("/admin/content/new");
+    await page.goto("/q7m-k4j9/content/new");
     await page.waitForLoadState("networkidle");
 
     const isLoginPage = await page

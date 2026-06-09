@@ -8,7 +8,7 @@ WCAG 2.2 AA target. Routes covered by `tests/a11y/*.spec.ts`:
 - /quiz
 - /checkout
 - /account
-- /admin (smoke only, requires login)
+- /q7m-k4j9 (smoke only, requires login)
 - /content/\* (3 representative articles)
 
 Keyboard regression (`tests/a11y/keyboard.spec.ts`):

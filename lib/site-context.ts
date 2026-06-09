@@ -82,7 +82,10 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
     },
 
     seo: {
-      robotsDisallow: ["/admin", "/api"],
+      // Admin UI is intentionally not advertised in robots.txt; it is
+      // edge-gated by Cloudflare Access and unauthenticated requests to the
+      // legacy /admin segment return 410 Gone via middleware.
+      robotsDisallow: ["/api"],
       sitemapStaticPages: [
         { path: "/", priority: 1.0, changeFrequency: "daily" },
         { path: "/about", priority: 0.5, changeFrequency: "monthly" },

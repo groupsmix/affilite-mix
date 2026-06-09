@@ -36,7 +36,7 @@ describe("Chaos: graceful degradation", () => {
 
   it("safeRedirectUrl never redirects to an external origin under chaos input", async () => {
     const { safeRedirectUrl } = await import("@/lib/safe-redirect");
-    const req = new Request("https://app.example.com/admin");
+    const req = new Request("https://app.example.com/q7m-k4j9");
 
     // Fuzz-like inputs that should all resolve to the fallback
     // TESTING-01 (etap-3): includes the backslash-bypass payload that

@@ -62,7 +62,7 @@ test.describe("Accessibility (axe-core)", () => {
   });
 
   test("admin login page has no a11y violations", async ({ page }) => {
-    await page.goto("/admin/login");
+    await page.goto("/q7m-k4j9/login");
     await page.waitForLoadState("networkidle");
     await expectNoViolations(page);
   });

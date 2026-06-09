@@ -879,7 +879,7 @@ export const cryptoSite: SiteDefinition = {
   },
 
   seo: {
-    robotsDisallow: ["/admin/", "/api/"],
+    robotsDisallow: ["/q7m-k4j9/", "/api/"],
     sitemapStaticPages: [
       { path: "/", priority: 1, changeFrequency: "daily" },
       { path: "/prices", priority: 0.9, changeFrequency: "hourly" },

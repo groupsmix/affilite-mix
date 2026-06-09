@@ -44,7 +44,7 @@ tenant branding continues to flow through automatically.
 ## Migration policy
 
 The migration to shadcn primitives is progressive. Existing raw-Tailwind pages
-(most of `app/admin/*`) continue to work untouched. When a file is next edited
+(most of `app/q7m-k4j9/*`) continue to work untouched. When a file is next edited
 for a real feature change, prefer swapping ad-hoc markup for the nearest
 shadcn primitive rather than duplicating styles — but a blanket rewrite is
 **not** an accepted task.

@@ -123,7 +123,7 @@ export function redirect() {
 
 /** Scenario: admin dashboard page loads */
 export function admin() {
-  const pages = ["/admin", "/admin/products", "/admin/content", "/admin/analytics"];
+  const pages = ["/q7m-k4j9", "/q7m-k4j9/products", "/q7m-k4j9/content", "/q7m-k4j9/analytics"];
   const page = pages[Math.floor(Math.random() * pages.length)];
   const res = http.get(`${BASE_URL}${page}`, {
     tags: { scenario: "admin_dashboard" },

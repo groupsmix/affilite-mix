@@ -4,8 +4,8 @@ import {
   applyUsersQuery,
   parseUsersSearchParams,
   type UsersQueryParams,
-} from "@/app/admin/(dashboard)/users/users-query";
-import type { UsersTableRow } from "@/app/admin/(dashboard)/users/users-table";
+} from "@/app/q7m-k4j9/(dashboard)/users/users-query";
+import type { UsersTableRow } from "@/app/q7m-k4j9/(dashboard)/users/users-table";
 
 function makeRow(overrides: Partial<UsersTableRow>): UsersTableRow {
   return {

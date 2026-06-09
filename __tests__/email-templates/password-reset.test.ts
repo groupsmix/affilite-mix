@@ -19,7 +19,7 @@ describe("pickEmailLocale", () => {
 
 describe("buildPasswordResetEmail", () => {
   const baseInput = {
-    resetUrl: "https://tenant-a.example.com/admin/reset-password?token=abc",
+    resetUrl: "https://tenant-a.example.com/q7m-k4j9/reset-password?token=abc",
     siteName: "Tenant A",
   };
 

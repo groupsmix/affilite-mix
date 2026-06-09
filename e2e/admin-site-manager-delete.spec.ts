@@ -14,7 +14,7 @@
  * documented dev-only fallback secret and set it as the admin session
  * cookie. Against a local `next dev` server that is the real secret, so
  * the guard lets us through. Against a production-deployed preview (CI),
- * the secret won't match and the page redirects to /admin/login — in
+ * the secret won't match and the page redirects to /q7m-k4j9/login — in
  * that case the tests skip rather than fail (consistent with the other
  * admin specs in this repo).
  */
@@ -166,7 +166,7 @@ test.describe("Admin Site Manager — delete dialog + static gate (15c.6)", () =
 
   test("delete confirmation button is gated by the site slug", async ({ page }) => {
     await mockAdminSitesApis(page, [DB_SITE]);
-    await page.goto("/admin/sites");
+    await page.goto("/q7m-k4j9/sites");
     if (await isLoginPage(page))
       test.skip(true, "Admin guard rejected the test JWT; skipping UI assertions.");
 
@@ -201,7 +201,7 @@ test.describe("Admin Site Manager — delete dialog + static gate (15c.6)", () =
 
   test("static-config sites expose a disabled delete entry with tooltip", async ({ page }) => {
     await mockAdminSitesApis(page, [STATIC_SITE]);
-    await page.goto("/admin/sites");
+    await page.goto("/q7m-k4j9/sites");
     if (await isLoginPage(page))
       test.skip(true, "Admin guard rejected the test JWT; skipping UI assertions.");
 
@@ -222,7 +222,7 @@ test.describe("Admin Site Manager — delete dialog + static gate (15c.6)", () =
 
   test("deactivated DB site surfaces an Activate toggle (no live DB)", async ({ page }) => {
     await mockAdminSitesApis(page, [DEACTIVATED_SITE]);
-    await page.goto("/admin/sites");
+    await page.goto("/q7m-k4j9/sites");
     if (await isLoginPage(page))
       test.skip(true, "Admin guard rejected the test JWT; skipping UI assertions.");
 

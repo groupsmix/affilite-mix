@@ -27,7 +27,7 @@ This statement covers the web application served at:
 - `https://arabictools.wristnerd.xyz`
 - `https://crypto.wristnerd.xyz`
 
-The admin dashboard (`/admin`) is intended for authenticated staff only and is partially exempt from public accessibility requirements, but we aim for AA conformance there as well.
+The admin dashboard (`/q7m-k4j9`) is intended for authenticated staff only and is partially exempt from public accessibility requirements, but we aim for AA conformance there as well.
 
 ---
 

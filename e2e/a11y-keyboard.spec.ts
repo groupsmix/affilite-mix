@@ -158,7 +158,7 @@ test.describe("Form error a11y", () => {
       }),
     );
 
-    const res = await page.goto("/admin/login");
+    const res = await page.goto("/q7m-k4j9/login");
     if (!res || res.status() >= 500) {
       test.skip(true, "admin login route not reachable on this build");
       return;
@@ -185,7 +185,7 @@ test.describe("Form error a11y", () => {
     }
     await submit.click();
 
-    // The error bubble in app/admin/login/page.tsx uses the shadcn `Alert`
+    // The error bubble in app/q7m-k4j9/login/page.tsx uses the shadcn `Alert`
     // component, which renders role="alert". That's the AT-visible signal.
     const alert = page.getByRole("alert");
     await expect(alert.first()).toBeVisible({ timeout: 10_000 });
