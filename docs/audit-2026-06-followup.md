@@ -4,13 +4,13 @@
 **Reviewed against `main` on:** 2026-06-09
 **Status legend:**
 
-| Symbol | Meaning |
-|--------|---------|
-| ✅ | Already addressed in code at the audit date. No action needed. |
-| 🟢 | Fixed in this branch (`fix/audit-2026-06`). |
-| 🟡 | Partially addressed; operator action required (see notes). |
-| 🟠 | Documented design choice / accepted risk. No code change. |
-| ⏭️ | Skipped — speculative or false-positive in the original audit. |
+| Symbol | Meaning                                                        |
+| ------ | -------------------------------------------------------------- |
+| ✅     | Already addressed in code at the audit date. No action needed. |
+| 🟢     | Fixed in this branch (`fix/audit-2026-06`).                    |
+| 🟡     | Partially addressed; operator action required (see notes).     |
+| 🟠     | Documented design choice / accepted risk. No code change.      |
+| ⏭️     | Skipped — speculative or false-positive in the original audit. |
 
 The audit was conducted via the GitHub web interface; the auditor explicitly
 flagged many findings as `UNVERIFIED`. Several of those finding either no
@@ -46,7 +46,7 @@ canonical origin from the resolved tenant site, not from `APP_URL`**:
 
 The remaining consumer of `process.env.APP_URL` —
 `app/api/cron/price-scrape/route.ts` — is the cron worker's own self-call URL
-(it talks to *itself*), so a single-tenant value is correct there.
+(it talks to _itself_), so a single-tenant value is correct there.
 
 **No change required.** The audit's threat scenario (a CryptoRanked user
 receiving a wristnerd.xyz reset link) is not reachable.
@@ -100,7 +100,7 @@ fill in their actual host. Production reads come from the Worker secrets
 provisioned by the deploy workflow, never from `.env.example`.
 
 Cron handlers (`lib/cron-auth.ts`) reject unauthenticated traffic, so a
-misconfigured `CRON_HOST` *cannot* result in silent execution against the
+misconfigured `CRON_HOST` _cannot_ result in silent execution against the
 wrong domain — it results in a 401, which surfaces in Sentry.
 
 ---
@@ -122,7 +122,7 @@ branch adds it as a hard pre-deploy step in `deploy.yml`:
     APP_CACHE_KV_NAMESPACE_ID: ${{ secrets.APP_CACHE_KV_NAMESPACE_ID }}
 ```
 
-A missing GitHub Actions secret now fails the deploy *before* Wrangler
+A missing GitHub Actions secret now fails the deploy _before_ Wrangler
 attempts to ship a config with literal `${VAR}` strings as KV IDs.
 
 ---
@@ -198,7 +198,7 @@ finer-grained app-level rate limit.
 
 ---
 
-### #10 — /api/internal/* excluded from middleware — ✅ ALREADY HANDLED
+### #10 — /api/internal/\* excluded from middleware — ✅ ALREADY HANDLED
 
 `lib/internal-auth.ts`:
 
@@ -298,7 +298,7 @@ knowledge cutoff (August 2025) pre-dated the 14.x line.
 None of `affilite-mix-compliance-report.md`, `affilite-mix-redteam-audit.md`,
 `audit-A31-A60.md`, `audit-gaps-report.md` exist in the working tree. The
 `.gitignore` also lists `SECURITY-AUDIT.md`. This document is fine because
-it intentionally references *no* exploitable details.
+it intentionally references _no_ exploitable details.
 
 ### #19 — Amazon CDN remote patterns — 🟡 G-48 FOLLOW-UP
 
@@ -319,7 +319,7 @@ change here without it.
 
 - Moved to `tests/load/load-test.js`.
 - Header now leads with `⚠️ DO NOT RUN AGAINST PRODUCTION WITHOUT
-  EXPLICIT AUTHORIZATION ⚠️` and an explanation of the consequences.
+EXPLICIT AUTHORIZATION ⚠️` and an explanation of the consequences.
 - `.github/workflows/ci.yml` updated to point to the new path.
 - A pre-existing bug in `.github/workflows/load-test.yml` (referenced
   the never-committed `scripts/load-test.sh`) was fixed in the same
@@ -327,7 +327,7 @@ change here without it.
 
 ### #21 — SENTRY_DSN not set in wrangler.jsonc vars — ✅ ALREADY HANDLED
 
-`lib/server-env.ts`: `SENTRY_DSN` is in `REQUIRED_SERVER_ENV` *and* hard-
+`lib/server-env.ts`: `SENTRY_DSN` is in `REQUIRED_SERVER_ENV` _and_ hard-
 required in production via `FEATURE_CONDITIONAL_ENV`. `deploy.yml`
 provisions it via `wrangler secret put` (line ~37 of the docstring +
 the secrets block). Setting a DSN as a Worker secret (not a var) is the
@@ -340,7 +340,7 @@ Enabling this flag on a codebase this large produces thousands of new
 type errors that must each be triaged individually — many are real
 runtime hazards, but a non-trivial fraction are false positives in
 guard-checked code that confuses TS's narrowing. Doing it as part of
-*this* audit pass would gate every other fix on a multi-week refactor.
+_this_ audit pass would gate every other fix on a multi-week refactor.
 
 **Recommended path:** open a tracking issue, enable on a per-directory
 basis (start with `lib/`), and chip away. Not appropriate as a single
@@ -404,13 +404,13 @@ content changes.
 
 ## Summary
 
-| Status | Count | Findings |
-|--------|-------|----------|
-| ✅ Already handled | 17 | #1 #2 #3 #4 #6 #8 #10 #11 #12 #13 #14 #15 #16 #21 #25 #26 #28 |
-| 🟢 Fixed in this branch | 2 | #5 #20 |
-| 🟡 Partially / deferred | 2 | #19 #22 |
-| 🟠 Documented design choice | 4 | #9 #24 #27 (+ #23) |
-| ⏭️ False positive | 3 | #7 #17 #18 |
+| Status                      | Count | Findings                                                      |
+| --------------------------- | ----- | ------------------------------------------------------------- |
+| ✅ Already handled          | 17    | #1 #2 #3 #4 #6 #8 #10 #11 #12 #13 #14 #15 #16 #21 #25 #26 #28 |
+| 🟢 Fixed in this branch     | 2     | #5 #20                                                        |
+| 🟡 Partially / deferred     | 2     | #19 #22                                                       |
+| 🟠 Documented design choice | 4     | #9 #24 #27 (+ #23)                                            |
+| ⏭️ False positive           | 3     | #7 #17 #18                                                    |
 
 Net code changes in this branch:
 
@@ -421,6 +421,6 @@ Net code changes in this branch:
 5. `docs/audit-2026-06-followup.md` — this document.
 
 No production code paths were altered. Every "fix" the audit demanded
-that *would* have required a runtime change was already implemented in
+that _would_ have required a runtime change was already implemented in
 the codebase before the audit started — the auditor's GitHub-only access
 prevented confirmation.
