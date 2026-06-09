@@ -1065,6 +1065,21 @@ jobs:
             echo "Inlined $binding namespace id into wrangler.jsonc"
           done
 
+      # AUDIT-2026-06 (Finding #5): final placeholder gate. The KV
+      # namespace IDs were just inlined into wrangler.jsonc by the perl
+      # substitution above. If that step silently failed (e.g. a future
+      # refactor renames a binding so the regex no longer matches),
+      # Wrangler would happily ship the literal `${RATE_LIMIT_KV_NAMESPACE_ID}`
+      # string as the namespace ID. Run the placeholder guard in
+      # `--strict` mode so any unresolved `${...}` token blocks the
+      # deploy with a useful diagnostic rather than a runtime "namespace
+      # not found" error at the edge.
+      - name: Verify wrangler placeholders fully resolved (post-inline)
+        run: |
+          node scripts/check-wrangler-placeholders.mjs --strict \
+            wrangler.jsonc \
+            wrangler.heavy-crons.jsonc
+
       # ── A10-01: Require Sentry DSN for production builds ────────────
       # Temporarily downgraded from hard-fail to warning. Re-tighten this
       # (swap ::warning:: back to ::error:: + exit 1) once a real Sentry DSN

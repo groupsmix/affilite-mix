@@ -850,7 +850,11 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update && sudo apt-get install -y k6
       - name: Run k6 load tests
-        run: k6 run load-test.js
+        # AUDIT-2026-06 (Finding #20): load test script relocated from
+        # repo root to tests/load/ so it cannot be confused with app
+        # source and so accidental `node load-test.js` from the root
+        # surfaces a clear "file not found" instead of running it.
+        run: k6 run tests/load/load-test.js
         env:
           CI: "true"
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}

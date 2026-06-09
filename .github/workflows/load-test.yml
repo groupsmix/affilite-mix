@@ -39,8 +39,15 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Run load test
-        run: bash scripts/load-test.sh
+        # AUDIT-2026-06: workflow previously referenced
+        # `scripts/load-test.sh` which has never been committed.
+        # The actual script is `scripts/load-test.mjs` and consumes
+        # SITE_URL / --duration. Without this fix every scheduled run
+        # (RISK-14) silently failed with "no such file or directory".
+        run: node scripts/load-test.mjs --duration="$DURATION_SEC"
         env:
           # RISK-14: For scheduled runs, fall back to production URL
-          TARGET_URL: ${{ inputs.target_url || 'https://wristnerd.xyz' }}
-          DURATION: ${{ inputs.duration || '15s' }}
+          SITE_URL: ${{ inputs.target_url || 'https://wristnerd.xyz' }}
+          # Strip the trailing unit so we can pass an integer second
+          # count to the node script. Default 15.
+          DURATION_SEC: ${{ inputs.duration && (inputs.duration == '30s' && '30' || (inputs.duration == '1m' && '60' || '15')) || '15' }}

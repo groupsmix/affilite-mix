@@ -73,10 +73,21 @@ for (const rel of paths) {
 
   checked++;
   const raw = readFileSync(abs, "utf8");
+  // AUDIT-2026-06: strip JSONC comments before scanning so a stray
+  // `${VAR}` token inside a comment (e.g. the docstring above
+  // `kv_namespaces` in wrangler.jsonc that explains the substitution
+  // pattern itself) does not trip the strict-mode check after a
+  // legitimate `inline_kv_id` run. Without this, --strict mode in
+  // deploy.yml would fail spuriously on every deploy because the
+  // committed wrangler.jsonc carries an explanatory comment using
+  // the literal `${VAR}` form.
+  const stripped = raw
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|\s|;|,|\}|\])\s*\/\/[^\n]*/g, "$1");
   const found = new Set();
   let m;
   PLACEHOLDER_RE.lastIndex = 0;
-  while ((m = PLACEHOLDER_RE.exec(raw)) !== null) {
+  while ((m = PLACEHOLDER_RE.exec(stripped)) !== null) {
     found.add(m[1]);
   }
 
