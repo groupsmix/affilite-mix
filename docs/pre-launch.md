@@ -80,7 +80,7 @@ stand-up.
 
 - [ ] Latest `size-limit` run within budget (see `.size-limit.js`)
 - [ ] Lighthouse CI run green against the staging URL (`lighthouserc.cjs`)
-- [ ] Load test baseline recorded via `load-test.js`; P95 latency acceptable
+- [ ] Load test baseline recorded via `tests/load/load-test.js`; P95 latency acceptable
 
 ## 9. Privacy, compliance & content
 

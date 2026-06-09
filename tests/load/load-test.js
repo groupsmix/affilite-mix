@@ -6,8 +6,8 @@
  *   - admin_dashboard: Concurrent admin dashboard users
  *   - webhook_burst: Ramping Stripe webhook traffic
  *
- * Run: k6 run --env BASE_URL=https://your-domain.com load-test.js
- * CI:  k6 run load-test.js  (auto-detects CI=true for smoke-test mode)
+ * Run: k6 run --env BASE_URL=https://your-domain.com tests/load/load-test.js
+ * CI:  k6 run tests/load/load-test.js  (auto-detects CI=true for smoke-test mode)
  * Nightly CI: fail if thresholds break.
  */
 import http from "k6/http";
