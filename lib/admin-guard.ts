@@ -200,9 +200,9 @@ export async function requireAdmin(): Promise<AdminResult> {
  * audit5-#12: the name `requireAdminSession` is intentionally similar to
  * `requireAdmin` because both verify the admin JWT, but only THIS
  * function is safe to use *before* a site is selected. A future rename
- * to `requireAdminSessionBeforeSiteSelect` is tracked in
- * `docs/audits/audit5-tech-debt-followups.md`; do NOT collapse this
- * helper into `requireAdmin` even if it looks redundant. The eslint
+ * to `requireAdminSessionBeforeSiteSelect` is tracked in the private
+ * audit/deferred-findings ledger; do NOT collapse this helper into
+ * `requireAdmin` even if it looks redundant. The eslint
  * `no-restricted-imports` rule below pins the legal call sites so an
  * over-zealous refactor cannot silently expand its surface area.
  *

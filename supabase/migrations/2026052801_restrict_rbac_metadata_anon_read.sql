@@ -2,9 +2,9 @@
 --
 -- roles, permissions, role_permissions, and integration_providers previously
 -- had `USING (true)` SELECT policies that exposed the full RBAC schema to
--- unauthenticated clients using the anon key. Verification in
--- docs/audits/AUD-06-rbac-anon-read.md confirmed that no public route
--- queries these tables — they are only used from admin-guarded routes.
+-- unauthenticated clients using the anon key. Internal audit verification
+-- confirmed that no public route queries these tables - they are only used
+-- from admin-guarded routes.
 --
 -- This migration replaces the permissive `USING (true)` policies with
 -- `TO authenticated USING (true)` so only logged-in users can read them.
