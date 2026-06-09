@@ -43,8 +43,7 @@ function extractPermissionsPolicyValues(source: string): string[] {
 
   // Shape B: `.set("Permissions-Policy", "...")` — value literal may sit on
   // the next line, so allow whitespace/newlines between args.
-  const headerSetRe =
-    /\.set\(\s*["']Permissions-Policy["']\s*,\s*["']([^"']+)["']/g;
+  const headerSetRe = /\.set\(\s*["']Permissions-Policy["']\s*,\s*["']([^"']+)["']/g;
   for (const m of source.matchAll(headerSetRe)) {
     values.push(m[1]!);
   }
