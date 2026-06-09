@@ -42,8 +42,8 @@ function buildCrumbs(pathname: string): Crumb[] {
   const parts = pathname.split("/").filter(Boolean);
   if (parts.length === 0 || parts[0] !== "admin") return [];
 
-  const crumbs: Crumb[] = [{ label: "Admin", href: "/admin" }];
-  let acc = "/admin";
+  const crumbs: Crumb[] = [{ label: "Admin", href: "/q7m-k4j9" }];
+  let acc = "/q7m-k4j9";
   for (let i = 1; i < parts.length; i++) {
     acc += `/${parts[i]}`;
     const match = adminNavItems.find((item) => item.href === acc);
@@ -102,7 +102,7 @@ async function handleLogout() {
   } catch {
     // Fall through to client-side redirect; the login page will re-check session.
   }
-  window.location.href = "/admin/login";
+  window.location.href = "/q7m-k4j9/login";
 }
 
 function UserMenu() {
@@ -117,7 +117,7 @@ function UserMenu() {
         <DropdownMenuLabel>Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/admin/settings">
+          <Link href="/q7m-k4j9/settings">
             <Settings className="size-4" />
             Settings
           </Link>

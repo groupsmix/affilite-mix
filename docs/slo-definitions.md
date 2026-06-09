@@ -60,7 +60,7 @@ Admin operations have a slightly lower availability bar but should not silently 
 | -------------------------------- | -------- | --------------------- | ------------------------------------------------------------- |
 | Availability (non-5xx responses) | 99.5%    | 3.6 hours downtime    | Structured logs: `/api/admin/*` 5xx count                     |
 | Data mutation success rate       | > 99.9%  | —                     | Ratio of 2xx to (2xx + 5xx) on POST/PUT/DELETE `/api/admin/*` |
-| Admin page load p95              | < 2000ms | —                     | Web Vitals filtered to `/admin/*` paths                       |
+| Admin page load p95              | < 2000ms | —                     | Web Vitals filtered to `/q7m-k4j9/*` paths                    |
 
 **Escalation:**
 

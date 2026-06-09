@@ -98,7 +98,7 @@ export function applySecurityHeaders(
     setApiVersionHeaders(response.headers, opts.requestedApiVersion);
   }
 
-  if (!isApiRoute && !pathname.startsWith("/admin")) {
+  if (!isApiRoute && !pathname.startsWith("/q7m-k4j9")) {
     if (!response.headers.has("Cache-Control")) {
       response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
     }

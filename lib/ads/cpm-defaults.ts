@@ -3,7 +3,7 @@ import type { AdPlacementRow, AdProvider } from "@/types/database";
 /**
  * Default CPM rates by provider (USD per 1,000 impressions).
  *
- * Relocated from `app/admin/(dashboard)/ads/page.tsx` so the values can be
+ * Relocated from `app/q7m-k4j9/(dashboard)/ads/page.tsx` so the values can be
  * reused by any module that needs to estimate ad revenue (e.g. dashboards,
  * analytics pages). Values are unchanged from the previous inline definition.
  */

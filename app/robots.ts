@@ -107,7 +107,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         userAgent: "*",
         allow: "/",
         disallow: [
-          "/admin/",
+          // Admin UI is gated by Cloudflare Access at the edge and additionally
+          // returns a non-200 status to unauthenticated clients, so it does not
+          // appear here. Listing the path would publish the routed segment.
           "/api/",
           "/r/",
           "/newsletter/confirm",

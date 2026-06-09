@@ -50,7 +50,7 @@ After every deployment, verify:
 3. **Admin login page:**
 
    ```bash
-   curl -s -o /dev/null -w "%{http_code}" https://wristnerd.site/admin/login
+   curl -s -o /dev/null -w "%{http_code}" https://wristnerd.site/q7m-k4j9/login
    ```
 
    Expected: `200`

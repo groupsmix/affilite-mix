@@ -15,9 +15,9 @@ own admin UI + cron jobs), but becomes a liability when:
 When API versioning becomes necessary, adopt **URL path versioning**:
 
 ```
-/api/v1/admin/sites
-/api/v1/admin/content
-/api/v2/admin/sites  ← breaking change
+/api/v1/q7m-k4j9/sites
+/api/v1/q7m-k4j9/content
+/api/v2/q7m-k4j9/sites  ← breaking change
 ```
 
 ### Why path versioning (not headers)

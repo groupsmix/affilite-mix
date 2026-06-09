@@ -8,7 +8,7 @@
 ### In-Scope
 
 - All public-facing routes (`app/(public)/*`, `app/api/*`)
-- Admin panel authentication and authorization (`app/admin/*`)
+- Admin panel authentication and authorization (`app/q7m-k4j9/*`)
 - Cloudflare Worker middleware (subdomain resolution, rate limiting, CSRF)
 - API endpoints: newsletter, tracking, cron, admin CRUD, AI generation
 - File upload/download flow (R2-backed)

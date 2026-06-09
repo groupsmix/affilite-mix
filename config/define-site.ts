@@ -438,7 +438,7 @@ function generateSeo(input: SiteInput, features: FeatureFlags): SiteDefinition["
   }
 
   return {
-    robotsDisallow: ["/admin/", "/api/"],
+    robotsDisallow: ["/q7m-k4j9/", "/api/"],
     sitemapStaticPages: staticPages,
   };
 }

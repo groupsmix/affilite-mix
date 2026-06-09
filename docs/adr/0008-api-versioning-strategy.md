@@ -29,7 +29,7 @@ New endpoint families introduced after this ADR must use URL-path versioning:
 
 ```
 /api/v2/track/click      ← new click tracking format
-/api/v2/admin/content     ← new content CRUD schema
+/api/v2/q7m-k4j9/content     ← new content CRUD schema
 ```
 
 ### Deprecation Policy

@@ -27,7 +27,7 @@ import {
   categoriesTableColumns,
   formatRelativeTime,
   type CategoriesTableRow,
-} from "@/app/admin/(dashboard)/categories/categories-table";
+} from "@/app/q7m-k4j9/(dashboard)/categories/categories-table";
 
 function columnId(col: ColumnDef<CategoriesTableRow>): string {
   // ColumnDef uses `id` or the string `accessorKey` as the resolved id.

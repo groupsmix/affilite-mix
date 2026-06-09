@@ -130,7 +130,7 @@ This pattern is **development-only** - middleware gates it on `NODE_ENV !== "pro
 
 ### 5. Access the admin panel
 
-Navigate to [http://localhost:3000/admin/login](http://localhost:3000/admin/login) and log in with a database-managed admin account.
+Navigate to [http://localhost:3000/q7m-k4j9/login](http://localhost:3000/q7m-k4j9/login) and log in with a database-managed admin account.
 
 ## Local Development
 
@@ -221,7 +221,7 @@ npm run test:e2e      # End-to-end tests (Playwright)
 
 > Admin UI uses shadcn/ui primitives under `components/ui/`, lucide-react icons
 > imported one-by-one (no `import * as`), and a shared `components/data-table/`
-> layer. The route-group folder under `app/admin/(dashboard)/_dev-datatable/`
+> layer. The route-group folder under `app/q7m-k4j9/(dashboard)/_dev-datatable/`
 > is a design-system sandbox and is `notFound()`-guarded in production.
 
 ## Adding a New Site

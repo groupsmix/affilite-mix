@@ -22,7 +22,11 @@ module.exports = {
       url: [
         "http://localhost:9222/",
         "http://localhost:9222/p/comparison-page",
-        "http://localhost:9222/admin",
+        // /admin was retired (returns 410 Gone); the admin UI lives
+        // behind an edge-gated non-function-hinting segment. Lighthouse
+        // tests the actual login surface to catch perf regressions on
+        // the auth path.
+        "http://localhost:9222/q7m-k4j9/login",
         "http://localhost:9222/search",
       ],
       numberOfRuns: 3,
@@ -90,10 +94,10 @@ module.exports = {
           { minScore: 0.9, aggregationMethod: "median" },
         ],
 
-        // Admin auth surfaces (`/admin` → `/admin/login`) are
-        // intentionally `noindex` and live behind a redirect; the
-        // crawlable / single-redirect audits are not meaningful gates
-        // for those routes.
+        // Admin auth surfaces (the renamed `/q7m-k4j9/login`) are
+        // intentionally `noindex` and live behind a Cloudflare Access
+        // redirect in production; the crawlable / single-redirect audits
+        // are not meaningful gates for those routes.
         "is-crawlable": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
         redirects: ["warn", { minScore: 0.9, aggregationMethod: "median" }],
 

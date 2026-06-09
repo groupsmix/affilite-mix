@@ -74,7 +74,7 @@ describe("audit5-#12 - requireAdminSession docstring + whitelist", () => {
     // Naive grep for `requireAdminSession` from the library; this
     // gives us the active set of importers. Note: the admin-dashboard
     // pages import a DIFFERENT requireAdminSession from
-    // app/admin/(dashboard)/components/admin-guard, which is a UI
+    // app/q7m-k4j9/(dashboard)/components/admin-guard, which is a UI
     // helper, so we only check imports of the library version.
     const whitelist = new Set([
       "app/api/admin/sites/active/route.ts",
@@ -135,7 +135,7 @@ describe("audit5-#16 - TRUST_PROXY_HEADERS documentation", () => {
 
 describe("audit5-#17 - admin product thumbnail eslint-disable rationale", () => {
   it("products-table.tsx has the audit5-#17 explanation comment", () => {
-    const content = read("app/admin/(dashboard)/products/products-table.tsx");
+    const content = read("app/q7m-k4j9/(dashboard)/products/products-table.tsx");
     expect(content).toContain("audit5-#17");
     expect(content).toContain("next/image overhead not worth it");
     // The disable must scope to a specific rule, not blanket-disable.

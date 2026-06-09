@@ -218,7 +218,7 @@ Expected: `{"status":"ok",...}`
 
 ### Admin Login
 
-1. Navigate to `/admin/login`
+1. Navigate to `/q7m-k4j9/login`
 2. Login with admin credentials
 3. Verify site selector loads
 

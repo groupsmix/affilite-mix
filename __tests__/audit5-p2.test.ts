@@ -116,7 +116,7 @@ describe("audit5-#25 - Lighthouse strict-console gate", () => {
 // audit5-#29 - env badge on admin login
 // ---------------------------------------------------------------------------
 describe("audit5-#29 - env badge on admin login", () => {
-  const login = readRepoFile("app/admin/login/page.tsx");
+  const login = readRepoFile("app/q7m-k4j9/login/page.tsx");
 
   it("emits a DEV badge when NODE_ENV !== production", () => {
     expect(login).toMatch(/process\.env\.NODE_ENV !== "production"/);

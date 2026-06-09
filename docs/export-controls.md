@@ -68,8 +68,8 @@ Block or challenge requests from OFAC-comprehensively-sanctioned countries using
    - **Name:** `OFAC Sanctions — Block Comprehensive`
    - **Expression:** `(ip.geoip.country in {"CU" "IR" "KP" "SY" "RU"})`
    - **Action:** Block (or Managed Challenge for RU, depending on business decision)
-3. For the admin panel (`/admin/*`), consider stricter rules:
-   - **Expression:** `(ip.geoip.country ne "US" and ip.geoip.country ne "DE" and http.request.uri.path contains "/admin")`
+3. For the admin panel (`/q7m-k4j9/*`), consider stricter rules:
+   - **Expression:** `(ip.geoip.country ne "US" and ip.geoip.country ne "DE" and http.request.uri.path contains "/q7m-k4j9")`
    - **Action:** Block
 
 ### 5b. BIS Filing Reminder (A198-F2)

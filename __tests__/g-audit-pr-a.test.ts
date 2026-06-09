@@ -238,7 +238,7 @@ describe("G-10 — post-deploy smoke in gradual workflow", () => {
   it("defines a smoke_host input", () => {
     expect(y).toMatch(/smoke_host/);
   });
-  it("curls /, /api/health, /sitemap.xml, /robots.txt, /admin/login", () => {
+  it("curls /, /api/health, /sitemap.xml, /robots.txt, /q7m-k4j9/login", () => {
     expect(y).toMatch(/\/api\/health/);
     expect(y).toMatch(/\/sitemap\.xml/);
     expect(y).toMatch(/\/robots\.txt/);

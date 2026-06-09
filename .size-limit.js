@@ -41,7 +41,7 @@ module.exports = [
   },
   {
     name: "Admin app routes",
-    path: ".next/static/chunks/app/admin/**/*.js",
+    path: ".next/static/chunks/app/q7m-k4j9/**/*.js",
     limit: "250 kB",
     running: false,
   },
@@ -53,7 +53,7 @@ module.exports = [
   },
   {
     name: "Other app routes (drift catch-all)",
-    path: ".next/static/chunks/app/!(\\(public\\)|admin)/**/*.js",
+    path: ".next/static/chunks/app/!(\\(public\\)|q7m-k4j9)/**/*.js",
     limit: "100 kB",
     running: false,
   },

@@ -198,7 +198,7 @@ Configure monitors for each production domain:
 | ---------------------- | ---------------------------------------- | ------------------------------------------ | -------- | ------------------------------ |
 | Health (authenticated) | `https://wristnerd.site/api/health`      | GET + `Authorization: Bearer $CRON_SECRET` | 60s      | 200 + `"status":"healthy"`     |
 | Homepage               | `https://wristnerd.site/`                | GET                                        | 60s      | 200                            |
-| Admin login            | `https://wristnerd.site/admin/login`     | GET                                        | 300s     | 200                            |
+| Admin login            | `https://wristnerd.site/q7m-k4j9/login`  | GET                                        | 300s     | 200                            |
 | Click tracking         | `https://wristnerd.site/api/track/click` | POST (empty)                               | 300s     | 400 (validates endpoint is up) |
 
 ### Multi-Region Checks

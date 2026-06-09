@@ -256,7 +256,50 @@ const MIDDLEWARE_TIMEOUT_MS = 5000;
 
 // F-FE-02: Wrap middleware in a try/catch to prevent a single unhandled
 // exception (e.g. from URL parsing or KV) from taking down the entire site.
+/**
+ * Legacy admin path retired in 2026-06-09 in favour of an edge-gated
+ * non-function-hinting segment. The path is kept as 410 Gone (RFC 9110 §15.5.10):
+ *
+ *   - 410 — not 404 — signals that the resource is intentionally and
+ *     permanently gone. Search engines deindex 410 faster than 404.
+ *   - The body is intentionally minimal so it provides no oracle for
+ *     scanners trying to fingerprint the application.
+ *   - Cache-Control: no-store so caches don't serve stale 410s if the
+ *     decision is ever reversed.
+ *
+ * This runs *before* the timeout/CSP composition machinery because the
+ * decision is static and we want it to be cheap. Cloudflare Access may
+ * additionally challenge this path during the transition window; once
+ * the legacy domain is removed from the Access app, the response is
+ * served directly by the Worker.
+ */
+const RETIRED_ADMIN_PATH_PREFIX = "/admin";
+
+function isRetiredAdminPath(pathname: string): boolean {
+  return (
+    pathname === RETIRED_ADMIN_PATH_PREFIX || pathname.startsWith(`${RETIRED_ADMIN_PATH_PREFIX}/`)
+  );
+}
+
+function retiredAdminResponse(): NextResponse {
+  return new NextResponse("Gone", {
+    status: 410,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store, max-age=0",
+      "X-Content-Type-Options": "nosniff",
+      "X-Robots-Tag": "noindex, nofollow",
+    },
+  });
+}
+
 export async function middleware(request: NextRequest) {
+  // Retired admin path — return 410 Gone immediately, before any
+  // timeout / DB / KV work. See `isRetiredAdminPath` above.
+  if (isRetiredAdminPath(request.nextUrl.pathname)) {
+    return retiredAdminResponse();
+  }
+
   // A98-49: AbortController lets us cancel downstream KV/DB work when the
   // timeout fires. Without this, the inner middleware continues running
   // after Promise.race resolves, multiplying load during outages.

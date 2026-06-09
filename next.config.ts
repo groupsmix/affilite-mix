@@ -76,7 +76,7 @@ const nextConfig: NextConfig = {
     {
       // FP-01: stricter Referrer-Policy on the password-reset route so the
       // reset token in the query string cannot leak via the Referer header.
-      source: "/admin/reset-password",
+      source: "/q7m-k4j9/reset-password",
       headers: [
         { key: "Referrer-Policy", value: "no-referrer" },
         { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, private" },

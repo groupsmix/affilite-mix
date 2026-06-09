@@ -47,13 +47,13 @@ This document maps every route to its rendering strategy, revalidation interval,
 | `/content/[slug]`                | SSR           | —          | —                            | Legacy content route (no revalidate)             |
 | `/feed.xml`                      | Route Handler | —          | —                            | RSS feed, generated per-request                  |
 
-## Admin Pages (`app/admin/`)
+## Admin Pages (`app/q7m-k4j9/`)
 
-| Route                   | Rendering | Cache | Notes                                                 |
-| ----------------------- | --------- | ----- | ----------------------------------------------------- |
-| `/admin/login`          | SSR       | None  | Auth page — must never be cached                      |
-| `/admin/reset-password` | SSR       | None  | Auth page                                             |
-| `/admin/(dashboard)/*`  | SSR       | None  | All dashboard pages are fully dynamic (session-gated) |
+| Route                      | Rendering | Cache | Notes                                                 |
+| -------------------------- | --------- | ----- | ----------------------------------------------------- |
+| `/q7m-k4j9/login`          | SSR       | None  | Auth page — must never be cached                      |
+| `/q7m-k4j9/reset-password` | SSR       | None  | Auth page                                             |
+| `/q7m-k4j9/(dashboard)/*`  | SSR       | None  | All dashboard pages are fully dynamic (session-gated) |
 
 ## API Routes (`app/api/`)
 
@@ -87,7 +87,7 @@ Two cache rules are configured at the Cloudflare zone level for `wristnerd.xyz`:
 
 | Rule                    | Expression                                                                             | Action                                    |
 | ----------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
-| **Bypass API & admin**  | `starts_with(uri.path, "/api/") or starts_with(uri.path, "/admin/")`                   | Cache OFF                                 |
+| **Bypass API & admin**  | `starts_with(uri.path, "/api/") or starts_with(uri.path, "/q7m-k4j9/")`                | Cache OFF                                 |
 | **Cache static assets** | `uri.path.extension in {js css png jpg jpeg gif svg ico woff woff2 ttf eot webp avif}` | Cache ON — 30 d browser TTL, 1 y edge TTL |
 
 These rules are managed via the Cloudflare API (not in the repo). To view or edit:

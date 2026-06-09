@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     // localhost host.
     // Use `||` (not `??`) so an empty-string APP_URL in a developer's
     // .env also falls through to the site-domain fallback — otherwise we
-    // would emit a relative `/admin/reset-password?...` URL in email.
+    // would emit a relative `/q7m-k4j9/reset-password?...` URL in email.
     const baseUrl =
       process.env.NODE_ENV === "production"
         ? `https://${site.domain}`
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
       // Don't expose internal errors — still return success
       return successResponse;
     }
-    const resetUrl = `${baseUrl}/admin/reset-password?token=${resetToken}`;
+    const resetUrl = `${baseUrl}/q7m-k4j9/reset-password?token=${resetToken}`;
     const resendKey = process.env.RESEND_API_KEY;
 
     if (resendKey) {

@@ -110,3 +110,6 @@ coverage/
 
 # Playwright global-setup storage state (generated at runtime)
 e2e/.auth/
+
+# Bun lockfile - project uses npm (package-lock.json)
+bun.lock
