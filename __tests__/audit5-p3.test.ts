@@ -271,26 +271,33 @@ describe("audit5-#35 — gitleaks pre-commit enforcement", () => {
   });
 });
 
-describe("audit5-#40 — README security & audit section", () => {
-  it("README links the audit-unfixed-items and tech-debt-followups docs", () => {
+describe("audit5-#40 / audit #18 — README security & audit section", () => {
+  // audit #18: per-cycle findings reports are intentionally NOT published in
+  // this public repo. README still documents the framework, but must not link
+  // into docs/audits/ (now gitignored), since those reports map our posture.
+  it("README documents the audit framework and keeps findings reports private", () => {
     const content = read("README.md");
-    expect(content).toContain("docs/audits/audit-unfixed-items.md");
-    expect(content).toContain("docs/audits/audit5-tech-debt-followups.md");
+    expect(content).toContain("10-layer audit framework");
+    expect(content).toContain("kept private");
+    expect(content).not.toContain("docs/audits/audit-unfixed-items.md");
+    expect(content).not.toContain("docs/audits/audit5-tech-debt-followups.md");
     expect(content).toContain("docs/runbooks/");
+  });
+
+  it("docs/audits/ is gitignored so findings reports are not re-committed", () => {
+    expect(read(".gitignore")).toContain("docs/audits/");
   });
 });
 
-describe("audit5 — deferred items are tracked, not silently dropped", () => {
-  it("audit5-tech-debt-followups.md exists and documents #11, #12, #20", () => {
-    const path = "docs/audits/audit5-tech-debt-followups.md";
-    expect(existsSync(join(REPO_ROOT, path))).toBe(true);
-    const content = read(path);
-    expect(content).toContain("audit5-#11");
-    expect(content).toContain("audit5-#12");
-    expect(content).toContain("audit5-#20");
-    // Each P3-deferred entry must carry an owner + acceptance criterion;
-    // otherwise this is just a TODO list, not tracked tech debt.
-    expect(content).toContain("Owner:");
-    expect(content).toContain("Acceptance criterion");
+describe("audit #18 — audit findings reports are not published in the public repo", () => {
+  // Previously asserted docs/audits/audit5-tech-debt-followups.md existed and
+  // tracked audit5-#11/#12/#20. Per audit #18 the docs/audits/ findings
+  // reports were removed from the public repo and the directory is gitignored.
+  // The deferred-item tracking is retained in private storage, not here.
+  it("docs/audits/ tracker reports are absent from the public tree", () => {
+    expect(
+      existsSync(join(REPO_ROOT, "docs/audits/audit5-tech-debt-followups.md")),
+    ).toBe(false);
+    expect(existsSync(join(REPO_ROOT, "docs/audits"))).toBe(false);
   });
 });
