@@ -29,6 +29,8 @@ import { signSiteIdFallback } from "@/lib/site-id-signer";
 import { checkBodySize, applySecurityHeaders } from "@/lib/middleware-helpers";
 import { parseOrCreateTraceContext, applyTraceHeaders, exportTraceSpan } from "@/lib/tracing";
 import { emitMetric } from "@/lib/metrics";
+// F-017: env-tunable self-reference recursion ceiling (default 2, was 3).
+import { MAX_RECURSION_DEPTH, RECURSION_DEPTH_HEADER } from "@/lib/worker-recursion";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -41,9 +43,8 @@ const CSP_HEADER = "Content-Security-Policy";
  * A98-49: Accepts an AbortSignal so the timeout wrapper can cancel
  * downstream async work (KV reads, DB lookups) when the deadline fires.
  */
-/** F-09: Maximum allowed recursion depth for self-referential subrequests. */
-const MAX_RECURSION_DEPTH = 3;
-const RECURSION_DEPTH_HEADER = "x-worker-recursion-depth";
+// F-09 / F-017: the self-reference recursion ceiling and its header now live
+// in lib/worker-recursion.ts (env-tunable, default 2) and are imported above.
 
 async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // F-09: Guard against self-referential subrequest amplification.
