@@ -25,6 +25,22 @@ const nextConfig: NextConfig = {
   // Restrict external images to known sources (R2 bucket, Supabase storage, site domains)
   images: {
     formats: ["image/avif", "image/webp"],
+    // F-006: harden the Next image optimizer while it still proxies
+    // third-party (Amazon) product images, i.e. until the R2 ingest
+    // migration (G-48) rewrites existing image_url rows.
+    //   - dangerouslyAllowSVG stays explicitly false: never optimize or
+    //     serve an SVG fetched from a remote host (SVGs can carry script).
+    //   - contentDispositionType "attachment": a direct request to
+    //     /_next/image downloads rather than renders inline, so a malicious
+    //     upstream payload cannot be content-sniffed into an active document.
+    //     (<img> rendering is unaffected — only direct navigation is.)
+    //   - qualities pinned to the single default value: bounds optimizer
+    //     cache/fetch fan-out so a crawler cannot force dozens of distinct
+    //     re-optimisations (and upstream re-fetches) of the same image via
+    //     ?q=1..100. No call site passes a custom `quality` prop.
+    dangerouslyAllowSVG: false,
+    contentDispositionType: "attachment",
+    qualities: [75],
     remotePatterns: [
       // G-04: Cloudflare R2 public bucket, pinned to the exact hostname
       // served from R2_PUBLIC_URL. Omitted when the env var is unset
