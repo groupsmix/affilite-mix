@@ -248,6 +248,12 @@
   "vars": {
     "NODE_ENV": "production",
 
+    // FALLBACK ONLY — never the primary origin source. Production request
+    // paths derive absolute URLs from the active tenant site's own domain
+    // (see forgot-password and checkout routes). APP_URL is only consumed
+    // where no request/tenant context exists (e.g. cron price-scrape
+    // fallback) and as a local-dev override. Do not reintroduce it as the
+    // canonical multi-tenant origin (phase-3 audit F3-001).
     "APP_URL": "https://wristnerd.xyz",
     "ADMIN_SESSION_STRICT": "true",
     "INTERNAL_HMAC_MIGRATION_MODE": "strict",

@@ -14,26 +14,43 @@
 
 ## 2. Dashboard-Routed Domains (A206)
 
-The following domains are currently configured via the Cloudflare Dashboard and are **not** in `terraform/cloudflare/dns.tf`:
+The following domains are configured outside Terraform (`terraform/cloudflare/dns.tf`).
+**State verified against the live Cloudflare account on 2026-06-10** — the original
+"Dashboard Worker Route" classification was inaccurate for both:
 
-| Domain             | Routing Method         | Reason Not in IaC                | Risk                                  | Action                                                  |
-| ------------------ | ---------------------- | -------------------------------- | ------------------------------------- | ------------------------------------------------------- |
-| `cryptoranked.xyz` | Dashboard Worker Route | Legacy setup before IaC adoption | Medium — config drift, no audit trail | Migrate to Terraform `cloudflare_workers_custom_domain` |
-| `compareai.site`   | Dashboard Worker Route | Legacy setup before IaC adoption | Medium — config drift, no audit trail | Migrate to Terraform `cloudflare_workers_custom_domain` |
+| Domain             | Actual State (2026-06-10)                                                                              | Risk                                  | Action                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `cryptoranked.xyz` | Workers **custom domain** already exists (service `affilite-mix`, env `production`), dashboard-created | Low — config drift, no audit trail    | `terraform import` into `external_zone_worker_domains` (no live change needed)                                 |
+| `compareai.site`   | **No worker binding at all.** Stale apex DNS record points to a dead origin → site serves **522**      | High — production outage on this host | Delete stale apex A/CNAME record, then create the Workers custom domain (apply `external_zone_worker_domains`) |
 
 ### Migration Plan
 
+> **Updated 2026-06-10:** the original plan (adding these hostnames to
+> `worker_custom_domains` and importing into
+> `cloudflare_workers_custom_domain.worker_domains[...]`) was incorrect —
+> that resource binds every hostname to `var.zone_id` (the `wristnerd.xyz`
+> zone), while `cryptoranked.xyz` and `compareai.site` are separate
+> Cloudflare zones. A dedicated resource,
+> `cloudflare_workers_custom_domain.external_zone_worker_domains`
+> (hostname → zone_id map), now exists in `terraform/cloudflare/dns.tf`.
+
 1. Use `scripts/cf-security-snapshot.sh` to dump current custom domain and DNS configuration.
-2. Import existing resources into Terraform state:
+2. Set the hostname → zone_id map in `dns.auto.tfvars`:
+   ```hcl
+   external_zone_worker_domains = {
+     "cryptoranked.xyz" = "<cryptoranked.xyz zone id>"
+     "compareai.site"   = "<compareai.site zone id>"
+   }
+   ```
+3. If a custom domain already exists for a hostname, import it so Terraform adopts rather than recreates it:
    ```bash
-   terraform import 'cloudflare_workers_custom_domain.worker_domains["cryptoranked.xyz"]' \
+   terraform import 'cloudflare_workers_custom_domain.external_zone_worker_domains["cryptoranked.xyz"]' \
      "${var.cloudflare_account_id}/<custom-domain-id>"
-   terraform import 'cloudflare_workers_custom_domain.worker_domains["compareai.site"]' \
+   terraform import 'cloudflare_workers_custom_domain.external_zone_worker_domains["compareai.site"]' \
      "${var.cloudflare_account_id}/<custom-domain-id>"
    ```
-3. Add the domains to the `worker_custom_domains` variable in `terraform.tfvars`.
-4. Run `terraform plan` to verify no unexpected changes.
-5. Apply and verify routing still works.
+4. If the dashboard config is a Worker _route_ (not a custom domain), `terraform apply` to create the custom domain, verify the hostname still serves, then delete the dashboard route.
+5. Run `terraform plan` to verify no unexpected changes. Done when the plan is clean and both hostnames still serve traffic.
 
 ### Action Items
 
