@@ -51,6 +51,7 @@ export function parseBoolEnv(name: string, fallback = false): boolean {
   // directly rather than `@/lib/logger` because this helper may be imported
   // at module-init time by other early-load modules, before the logger is
   // safe to construct.
+  // eslint-disable-next-line no-console -- FR-06: pre-logger module-init sink (see comment above)
   console.warn(
     `[env-bool] ${name} has unrecognised value ${JSON.stringify(raw)}; falling back to ${fallback}`,
   );
@@ -77,6 +78,7 @@ export function parseTriBoolEnv(name: string): boolean | null {
   if (TRUE_VALUES.has(lower)) return true;
   if (FALSE_VALUES.has(lower)) return false;
 
+  // eslint-disable-next-line no-console -- FR-06: pre-logger module-init sink (see strictEnvBool)
   console.warn(
     `[env-bool] ${name} has unrecognised value ${JSON.stringify(raw)}; treating as unset`,
   );

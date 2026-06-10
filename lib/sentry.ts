@@ -44,6 +44,7 @@ import { after } from "next/server";
 export function checkSentryConfig() {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn && process.env.NODE_ENV === "production") {
+    // eslint-disable-next-line no-console -- FR-06: observability bootstrap; logger may not be constructed yet
     console.warn(
       "[sentry] SENTRY_DSN not set — error monitoring is disabled. " +
         "Set the SENTRY_DSN environment variable to enable Sentry.",
@@ -114,6 +115,7 @@ export function captureException(error: unknown, context?: Record<string, unknow
   // SECURITY: strip CR/LF from BOTH the error and context string values
   // before logging so a user-controlled value cannot inject a fake log
   // line into Cloudflare's log stream (CodeQL js/log-injection).
+  // eslint-disable-next-line no-console -- FR-06: deliberate raw sink for CF log stream, sanitized + redacted above
   console.error("[error]", sanitizeForLog(error), redactLogContext(context));
 }
 

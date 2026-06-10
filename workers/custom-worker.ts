@@ -73,7 +73,7 @@ const worker = {
         "[scheduled] CRON_HOST is not configured -- skipping cron dispatch. " +
         "Set it with: wrangler secret put CRON_HOST (e.g., https://example.com). " +
         "Without this, scheduled jobs will be silently skipped.";
-      console.error(msg);
+      logger.error(msg);
       // SEC-06: Throw so Sentry/observability captures the misconfiguration
       // instead of silently swallowing missed cron runs.
       throw new Error(msg);
@@ -89,7 +89,7 @@ const worker = {
           "Add it to lib/cron-registry.ts so the registry, wrangler.jsonc, " +
           "and the dispatch map all stay in sync.",
       );
-      console.error(err.message);
+      logger.error(err.message);
       captureException(err);
       return;
     }
@@ -113,7 +113,7 @@ const worker = {
           `for cron "${controller.cron}" (${job.path}) -- skipping dispatch. ` +
           `Set it with: wrangler secret put ${job.secretEnvVar}`,
       );
-      console.error(err.message);
+      logger.error(err.message);
       captureException(err);
       return;
     }
@@ -139,17 +139,20 @@ const worker = {
               body,
             });
           } else {
-            console.error(
-              "[scheduled] cron=%s -- %s failed %s:",
-              controller.cron,
+            logger.error("[scheduled] cron dispatch failed", {
+              cron: controller.cron,
               path,
-              res.status,
+              status: res.status,
               body,
-            );
+            });
           }
         })
         .catch((err: unknown) => {
-          console.error("[scheduled] cron=%s -- fetch error:", controller.cron, err);
+          logger.error("[scheduled] cron dispatch fetch error", {
+            cron: controller.cron,
+            path,
+            error: err,
+          });
           captureException(err instanceof Error ? err : new Error(String(err)));
         }),
     );
@@ -203,15 +206,16 @@ const worker = {
                 batch.ackAll();
               } else {
                 const bodyText = await res.text().catch(() => "");
-                console.error(
-                  "[queue/click-tracking-dlq] DLQ persistence returned %s — retrying batch:",
-                  res.status,
-                  bodyText,
-                );
+                logger.error("[queue/click-tracking-dlq] DLQ persistence failed — retrying batch", {
+                  status: res.status,
+                  body: bodyText,
+                });
                 batch.retryAll();
               }
             } catch (err) {
-              console.error("[queue/click-tracking-dlq] failed to persist dead letters:", err);
+              logger.error("[queue/click-tracking-dlq] failed to persist dead letters", {
+                error: err,
+              });
               batch.retryAll();
             }
           })(),
@@ -220,7 +224,7 @@ const worker = {
         // R-16: Without an internal token / cron host we have no durable sink.
         // Do NOT ack — retry so messages remain in the queue until config is fixed.
         // Log the situation loudly so operators notice the misconfiguration.
-        console.error(
+        logger.error(
           "[queue/click-tracking-dlq] INTERNAL_API_TOKEN or CRON_HOST missing — " +
             "refusing to ACK DLQ messages without durable persistence. " +
             "Retrying batch. Fix configuration to prevent data loss.",
@@ -241,7 +245,7 @@ const worker = {
       typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
 
     if (typeof internalToken !== "string" || !internalToken || !cronHost) {
-      console.error(
+      logger.error(
         "[queue/click-tracking] INTERNAL_API_TOKEN or CRON_HOST missing — retrying batch",
       );
       batch.retryAll({ delaySeconds: 60 });
@@ -350,7 +354,7 @@ const worker = {
             }
           }
         } catch (err) {
-          console.error("[queue/click-tracking] batch fetch error:", err);
+          logger.error("[queue/click-tracking] batch fetch error", { error: err });
           batch.retryAll();
         }
       })(),

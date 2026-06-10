@@ -37,8 +37,11 @@ describe("OBS-CRON-01 (#588): Cron dispatch error alerting", () => {
   });
 
   it("calls captureException in the fetch error catch block", () => {
-    // The .catch block for the fetch call must call captureException
-    const catchBlock = workerSource.slice(workerSource.indexOf("fetch error:"));
+    // The .catch block for the fetch call must call captureException.
+    // FR-06: anchor updated for the structured-logger message format.
+    const anchor = workerSource.indexOf("cron dispatch fetch error");
+    expect(anchor).toBeGreaterThan(-1);
+    const catchBlock = workerSource.slice(anchor);
     const closingParen = catchBlock.indexOf("}),");
     const blockContent = catchBlock.slice(0, closingParen);
     expect(blockContent).toContain("captureException");

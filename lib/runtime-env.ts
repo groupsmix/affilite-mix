@@ -112,6 +112,7 @@ function resolveCloudflareContext(): { env: RuntimeEnv } | undefined {
         // A100-14: Log the error instead of silently swallowing it.
         // A misconfigured binding will cause confusing downstream failures
         // if this failure is invisible.
+        // eslint-disable-next-line no-console -- FR-06: module-init time, before the logger is safe to construct
         console.warn("[runtime-env] Cloudflare context pre-warm failed:", String(err));
         _cfContextFn = false;
       });
