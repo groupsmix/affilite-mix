@@ -273,6 +273,7 @@ function fireTrackingBeacon(slug: string) {
     } else {
       fetch(trackUrl, { method: "GET", keepalive: true }).catch((err) => {
         // A91-6: Log tracking failures for observability.
+        // eslint-disable-next-line no-console -- FR-06: client component, browser console is the sink
         console.warn("[gift-finder] impression tracking failed:", err);
       });
     }

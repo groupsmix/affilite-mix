@@ -37,10 +37,12 @@ export default function GlobalError({
         typeof (result as { catch: unknown }).catch === "function"
       ) {
         (result as Promise<unknown>).catch((reportingErr: unknown) => {
+          // eslint-disable-next-line no-console -- FR-06: meta-failure sink when the reporter itself fails
           console.error("[global-error] reportError rejected:", reportingErr);
         });
       }
     } catch (reportingErr: unknown) {
+      // eslint-disable-next-line no-console -- FR-06: meta-failure sink when the reporter itself fails
       console.error("[global-error] reportError threw:", reportingErr);
     }
   }, [error]);

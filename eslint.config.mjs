@@ -59,6 +59,14 @@ const eslintConfig = [
       },
     },
     rules: {
+      // FR-06 (open-items 2026-06-10): runtime code must log through
+      // lib/logger so every line in the Cloudflare log stream is one
+      // parseable JSON object. The surviving console.* sites are
+      // deliberate last-resort sinks (pre-logger module init, browser-only
+      // diagnostics, error-boundary meta-failures, the logger transport
+      // itself) and carry inline eslint-disable comments explaining why.
+      // CLI scripts are exempted wholesale in the scripts/** block below.
+      "no-console": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/await-thenable": "error",
@@ -288,6 +296,16 @@ const eslintConfig = [
     ignores: ["lib/dal/**/*.ts", "**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
     rules: {
       "no-restricted-syntax": ["error", runtimeEnvCastBan],
+    },
+  },
+  {
+    // FR-06: console IS the interface for CLI scripts (human-readable
+    // stdout/stderr), and lib/logger's three console calls are the
+    // transport that feeds the Cloudflare log stream. Exempt both from
+    // the global no-console policy above.
+    files: ["scripts/**/*.ts", "lib/logger.ts"],
+    rules: {
+      "no-console": "off",
     },
   },
 ];

@@ -36,6 +36,7 @@ export function getClientIp(request: Request): string {
   if (process.env.NODE_ENV === "production" && !_warnedMissingCfIp) {
     _warnedMissingCfIp = true;
     // Use console.warn to avoid import cycle with logger (which may import us).
+    // eslint-disable-next-line no-console -- FR-06: logger imports this module; console avoids the cycle
     console.warn(
       JSON.stringify({
         level: "warn",

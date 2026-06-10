@@ -93,6 +93,10 @@ async function postAlert(env: TailWorkerEnv, payload: CloudflareTailEvent): Prom
     });
   } catch (err) {
     // Never throw from a tail worker — Cloudflare drops the batch.
+    // FR-06: console is intentional here. This tail worker IS the structured
+    // log consumer; importing lib/logger would feed its own output back into
+    // the pipeline it ships. Plain console is the correct last-resort sink.
+    // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
     console.error("[log-shipper] alert webhook failed:", err);
   }
 }
@@ -106,6 +110,7 @@ const logShipper = {
 
     ctx.waitUntil(
       env.LOG_SINK.put(key, body).catch((err) => {
+        // eslint-disable-next-line no-console -- FR-06 documented last-resort sink (see postAlert)
         console.error("[log-shipper] R2 put failed:", err);
       }),
     );

@@ -35,6 +35,7 @@ if (process.env.NODE_ENV === "production" && !process.env.NEXT_PHASE) {
       const { listAllCronSecretEnvVars } = await import("./cron-registry");
       const missing = listAllCronSecretEnvVars().filter((name) => !process.env[name]?.trim());
       if (missing.length > 0) {
+        // eslint-disable-next-line no-console -- FR-06: module-init time, before the logger is safe to construct
         console.warn(
           `[env] F8: ${missing.length} cron secret(s) missing in production: ${missing.join(", ")}. ` +
             "Affected crons will fail to authenticate.",

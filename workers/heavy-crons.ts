@@ -46,7 +46,7 @@ const worker = {
       typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
 
     if (!cronHost) {
-      console.error(
+      logger.error(
         "[heavy-crons] CRON_HOST is not configured — skipping dispatch. " +
           "Set it with: wrangler secret put CRON_HOST",
       );
@@ -55,7 +55,7 @@ const worker = {
 
     const job = getCronJobBySchedule(controller.cron);
     if (!job) {
-      console.error(
+      logger.error(
         `[heavy-crons] Unknown cron schedule "${controller.cron}". ` +
           "Add it to lib/cron-registry.ts.",
       );
@@ -63,7 +63,7 @@ const worker = {
     }
 
     if (!job.heavy) {
-      console.warn(
+      logger.warn(
         `[heavy-crons] Schedule "${controller.cron}" (${job.name}) is NOT marked heavy. ` +
           "It should be dispatched from the main worker instead.",
       );
@@ -80,7 +80,7 @@ const worker = {
           : null;
 
     if (!cronSecret) {
-      console.error(`[heavy-crons] No secret configured for "${job.name}" — skipping dispatch.`);
+      logger.error(`[heavy-crons] No secret configured for "${job.name}" — skipping dispatch.`);
       return;
     }
 
@@ -102,11 +102,15 @@ const worker = {
               body,
             });
           } else {
-            console.error("[heavy-crons] %s failed %s:", job.name, res.status, body);
+            logger.error("[heavy-crons] dispatch failed", {
+              job: job.name,
+              status: res.status,
+              body,
+            });
           }
         })
         .catch((err: unknown) => {
-          console.error("[heavy-crons] %s fetch error:", job.name, err);
+          logger.error("[heavy-crons] dispatch fetch error", { job: job.name, error: err });
         }),
     );
   },

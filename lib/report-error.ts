@@ -13,6 +13,7 @@ import * as Sentry from "@sentry/browser";
 
 export function reportError(error: unknown, context?: Record<string, unknown>) {
   // Always log to console — visible in browser devtools + Cloudflare log stream
+  // eslint-disable-next-line no-console -- FR-06: isomorphic error sink (browser devtools + CF log stream)
   console.error("[error-boundary]", error, context ?? "");
 
   // Forward to Sentry browser SDK if initialized
