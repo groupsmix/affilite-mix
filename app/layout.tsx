@@ -129,7 +129,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             Nonced. No user input. Any contributor editing this literal MUST
             keep it free of template interpolation; if dynamic data is ever
             required, route it through `safeJsonLdString` or `sanitizeHtml`
-            and remove the eslint-disable comment below. */}
+            and remove the eslint-disable comment below.
+
+            FR-07 (open-items 2026-06-10): the empty `catch(e){}` inside the
+            literal is INTENTIONAL, not an oversight. This runs pre-hydration,
+            before any logger exists; `localStorage`/`matchMedia` can throw in
+            private browsing, sandboxed iframes, or when storage is blocked.
+            The only correct behavior is to fail open to the default theme.
+            Do not "fix" it by adding logging or re-throwing. */}
         <script
           nonce={nonce}
           // eslint-disable-next-line no-restricted-syntax -- audit-etap1 #6: hand-controlled theme-init bootstrap, no user input
