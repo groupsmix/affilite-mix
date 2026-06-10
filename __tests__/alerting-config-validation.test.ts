@@ -78,15 +78,18 @@ alert_mechanisms = {
     expect(result.errors.some((e) => e.includes("not set"))).toBe(true);
   });
 
-  it("current alerts.auto.tfvars has alerting disabled (documents the known gap)", () => {
-    // This test documents the current state: alerting is disabled.
-    // When alerting is properly configured, update this test to assert valid=true.
+  it("current alerts.auto.tfvars has alerting enabled with a destination (FR-12)", () => {
+    // FR-12 (2026-06-10): alerting was enabled after the OUT-1 incident ran
+    // ~7h unnoticed overnight. This test now locks in the configured state so
+    // a future change cannot silently disable production alerting again.
     const fs = require("node:fs");
     const path = require("node:path");
     const tfvarsPath = path.resolve(__dirname, "../terraform/cloudflare/alerts.auto.tfvars");
     const content = fs.readFileSync(tfvarsPath, "utf-8");
     const result = validateAlertingConfig(content);
-    // Current state: alerting is disabled (alerts_enabled = false)
-    expect(result.alertsEnabled).toBe(false);
+    expect(result.valid).toBe(true);
+    expect(result.alertsEnabled).toBe(true);
+    expect(result.mechanismCount).toBeGreaterThanOrEqual(1);
+    expect(result.errors).toHaveLength(0);
   });
 });
