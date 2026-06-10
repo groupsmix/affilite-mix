@@ -178,7 +178,13 @@
     { "pattern": "arabictools.wristnerd.xyz", "custom_domain": true },
     { "pattern": "crypto.wristnerd.xyz", "custom_domain": true },
     { "pattern": "cryptoranked.xyz", "custom_domain": true },
-    { "pattern": "compareai.site", "custom_domain": true },
+    // compareai.site (OUT-3) is intentionally absent for now: the zone has
+    // pre-existing externally-managed A/CNAME records, so wrangler's
+    // custom-domain provisioning fails the WHOLE deploy with API error
+    // 100117 ("Hostname already has externally managed DNS records").
+    // Re-add { "pattern": "compareai.site", "custom_domain": true } only
+    // AFTER deleting those DNS records in the Cloudflare dashboard
+    // (compareai.site zone -> DNS -> remove the A/CNAME for the apex).
     // ── To add more domains (wildcards or standalone): ──────────────
     // Option A: Cloudflare Dashboard → Workers & Pages → affilite-mix
     //           → Settings → Triggers → Add Custom Domain
