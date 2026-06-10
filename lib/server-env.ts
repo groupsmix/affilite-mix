@@ -78,8 +78,9 @@ export const REQUIRED_SERVER_ENV: readonly RequiredEnvVar[] = [
 export const RECOMMENDED_SERVER_ENV: readonly RequiredEnvVar[] = [
   {
     name: "APP_URL",
-    description: "Canonical app URL for constructing absolute URLs (e.g. password reset links)",
-    ownerFile: "app/api/auth/forgot-password/route.ts",
+    description:
+      "Fallback origin for absolute URLs where no tenant/request context exists (cron jobs, local-dev override). Production request paths always prefer the active site's own domain — never treat APP_URL as the canonical multi-tenant origin (F3-001).",
+    ownerFile: "app/api/cron/price-scrape/route.ts",
   },
   {
     name: "TOTP_ENCRYPTION_KEY",

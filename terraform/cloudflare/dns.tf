@@ -52,6 +52,35 @@ variable "worker_custom_domains" {
   ]
 }
 
+# ── A206: Worker custom domains in OTHER Cloudflare zones ───────────────────
+# `worker_custom_domains` above is bound to the primary zone (var.zone_id).
+# Apex domains like cryptoranked.xyz and compareai.site live in their own
+# Cloudflare zones, so they need an explicit hostname → zone_id mapping —
+# they can NOT be added to `worker_custom_domains` (wrong zone).
+# Both are currently Dashboard-routed (drift risk, no audit trail).
+#
+# Migration (one-time, see docs/asm-continuous-monitoring.md §2):
+#   1. Supply the map in dns.auto.tfvars:
+#        external_zone_worker_domains = {
+#          "cryptoranked.xyz" = "<cryptoranked.xyz zone id>"
+#          "compareai.site"   = "<compareai.site zone id>"
+#        }
+#   2. Enumerate any existing custom-domain IDs:
+#        curl -H "Authorization: Bearer $CF_TOKEN" \
+#          "https://api.cloudflare.com/client/v4/accounts/<account-id>/workers/domains"
+#   3. If a custom domain already exists, import so Terraform adopts it:
+#        terraform import 'cloudflare_workers_custom_domain.external_zone_worker_domains["cryptoranked.xyz"]' \
+#          "<account-id>/<custom-domain-id>"
+#   4. If the dashboard config is a Worker *route* (not a custom domain),
+#      apply to create the custom domain, verify routing, then delete the
+#      dashboard route.
+#   5. Done when `terraform plan` is clean and both hostnames still serve.
+variable "external_zone_worker_domains" {
+  type        = map(string)
+  description = "Worker custom domains living in Cloudflare zones other than var.zone_id (A206). Keys are hostnames, values are each hostname's own zone ID. Empty until migration values are supplied in tfvars."
+  default     = {}
+}
+
 variable "dns_records" {
   type = map(object({
     name    = string
@@ -214,6 +243,17 @@ resource "cloudflare_workers_custom_domain" "worker_domains" {
   hostname    = each.value
 }
 
+# A206: same Worker service, but bound to each external hostname's own zone.
+resource "cloudflare_workers_custom_domain" "external_zone_worker_domains" {
+  for_each = var.external_zone_worker_domains
+
+  account_id  = var.cloudflare_account_id
+  zone_id     = each.value
+  service     = var.worker_service_name
+  environment = var.worker_environment
+  hostname    = each.key
+}
+
 resource "cloudflare_dns_record" "records" {
   for_each = var.dns_records
 
@@ -230,6 +270,11 @@ resource "cloudflare_dns_record" "records" {
 output "worker_custom_domain_ids" {
   value       = { for k, d in cloudflare_workers_custom_domain.worker_domains : k => d.id }
   description = "Map of hostname -> Worker custom domain ID."
+}
+
+output "external_zone_worker_domain_ids" {
+  value       = { for k, d in cloudflare_workers_custom_domain.external_zone_worker_domains : k => d.id }
+  description = "Map of external-zone hostname -> Worker custom domain ID (A206)."
 }
 
 output "managed_dns_record_ids" {
