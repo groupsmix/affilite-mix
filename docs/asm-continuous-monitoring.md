@@ -18,10 +18,10 @@ The following domains are configured outside Terraform (`terraform/cloudflare/dn
 **State verified against the live Cloudflare account on 2026-06-10** — the original
 "Dashboard Worker Route" classification was inaccurate for both:
 
-| Domain             | Actual State (2026-06-10)                                                                       | Risk                                   | Action                                                                                                          |
-| ------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `cryptoranked.xyz` | Workers **custom domain** already exists (service `affilite-mix`, env `production`), dashboard-created | Low — config drift, no audit trail     | `terraform import` into `external_zone_worker_domains` (no live change needed)                                     |
-| `compareai.site`   | **No worker binding at all.** Stale apex DNS record points to a dead origin → site serves **522** | High — production outage on this host  | Delete stale apex A/CNAME record, then create the Workers custom domain (apply `external_zone_worker_domains`) |
+| Domain             | Actual State (2026-06-10)                                                                              | Risk                                  | Action                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `cryptoranked.xyz` | Workers **custom domain** already exists (service `affilite-mix`, env `production`), dashboard-created | Low — config drift, no audit trail    | `terraform import` into `external_zone_worker_domains` (no live change needed)                                 |
+| `compareai.site`   | **No worker binding at all.** Stale apex DNS record points to a dead origin → site serves **522**      | High — production outage on this host | Delete stale apex A/CNAME record, then create the Workers custom domain (apply `external_zone_worker_domains`) |
 
 ### Migration Plan
 
@@ -49,7 +49,7 @@ The following domains are configured outside Terraform (`terraform/cloudflare/dn
    terraform import 'cloudflare_workers_custom_domain.external_zone_worker_domains["compareai.site"]' \
      "${var.cloudflare_account_id}/<custom-domain-id>"
    ```
-4. If the dashboard config is a Worker *route* (not a custom domain), `terraform apply` to create the custom domain, verify the hostname still serves, then delete the dashboard route.
+4. If the dashboard config is a Worker _route_ (not a custom domain), `terraform apply` to create the custom domain, verify the hostname still serves, then delete the dashboard route.
 5. Run `terraform plan` to verify no unexpected changes. Done when the plan is clean and both hostnames still serve traffic.
 
 ### Action Items
