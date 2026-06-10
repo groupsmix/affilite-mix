@@ -301,9 +301,17 @@ const eslintConfig = [
   {
     // FR-06: console IS the interface for CLI scripts (human-readable
     // stdout/stderr), and lib/logger's three console calls are the
-    // transport that feeds the Cloudflare log stream. Exempt both from
-    // the global no-console policy above.
-    files: ["scripts/**/*.ts", "lib/logger.ts"],
+    // transport that feeds the Cloudflare log stream. Tests and e2e specs
+    // may also print diagnostics directly. Exempt all of them from the
+    // global no-console policy above.
+    files: [
+      "scripts/**/*.ts",
+      "lib/logger.ts",
+      "**/__tests__/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "e2e/**/*.ts",
+    ],
     rules: {
       "no-console": "off",
     },

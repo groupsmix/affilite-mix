@@ -206,10 +206,10 @@ const worker = {
                 batch.ackAll();
               } else {
                 const bodyText = await res.text().catch(() => "");
-                logger.error(
-                  "[queue/click-tracking-dlq] DLQ persistence failed — retrying batch",
-                  { status: res.status, body: bodyText },
-                );
+                logger.error("[queue/click-tracking-dlq] DLQ persistence failed — retrying batch", {
+                  status: res.status,
+                  body: bodyText,
+                });
                 batch.retryAll();
               }
             } catch (err) {
