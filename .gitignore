@@ -62,6 +62,8 @@ terraform/**/*.tfstate.backup
 terraform/**/.terraform/
 terraform/**/.terraform.lock.hcl
 terraform/**/terraform.tfvars
+# A206: zone-ID maps for external-zone worker domains stay local — repo is public
+terraform/**/*.auto.tfvars
 terraform/**/*.tfplan
 
 # sbom (generated at build time)

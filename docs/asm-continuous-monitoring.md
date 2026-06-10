@@ -14,12 +14,14 @@
 
 ## 2. Dashboard-Routed Domains (A206)
 
-The following domains are currently configured via the Cloudflare Dashboard and are **not** in `terraform/cloudflare/dns.tf`:
+The following domains are configured outside Terraform (`terraform/cloudflare/dns.tf`).
+**State verified against the live Cloudflare account on 2026-06-10** — the original
+"Dashboard Worker Route" classification was inaccurate for both:
 
-| Domain             | Routing Method         | Reason Not in IaC                | Risk                                  | Action                                                  |
-| ------------------ | ---------------------- | -------------------------------- | ------------------------------------- | ------------------------------------------------------- |
-| `cryptoranked.xyz` | Dashboard Worker Route | Legacy setup before IaC adoption | Medium — config drift, no audit trail | Migrate to Terraform `cloudflare_workers_custom_domain` |
-| `compareai.site`   | Dashboard Worker Route | Legacy setup before IaC adoption | Medium — config drift, no audit trail | Migrate to Terraform `cloudflare_workers_custom_domain` |
+| Domain             | Actual State (2026-06-10)                                                                       | Risk                                   | Action                                                                                                          |
+| ------------------ | ----------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `cryptoranked.xyz` | Workers **custom domain** already exists (service `affilite-mix`, env `production`), dashboard-created | Low — config drift, no audit trail     | `terraform import` into `external_zone_worker_domains` (no live change needed)                                     |
+| `compareai.site`   | **No worker binding at all.** Stale apex DNS record points to a dead origin → site serves **522** | High — production outage on this host  | Delete stale apex A/CNAME record, then create the Workers custom domain (apply `external_zone_worker_domains`) |
 
 ### Migration Plan
 
