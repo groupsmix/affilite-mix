@@ -1163,6 +1163,15 @@ jobs:
           echo "$_CRON_HOST"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST --name affilite-mix > /dev/null 2>&1
           echo "$_INTERNAL_TOKEN"     | npx --yes wrangler@${WRANGLER_VERSION} secret put INTERNAL_API_TOKEN --name affilite-mix > /dev/null 2>&1
 
+          # INCIDENT 2026-06-10: AFFILIATE_DOMAIN_ENFORCEMENT is hard-required
+          # at startup in production (lib/server-env.ts, R-01) but was only
+          # ever set manually on the Worker — it was wiped between deploys and
+          # the next cold start threw in instrumentation.ts, returning 500 for
+          # every request on every tenant for ~7 hours. Push it on every deploy
+          # so the Worker can never boot without it. Not sensitive: the only
+          # valid production value is the literal "strict".
+          echo "strict"               | npx --yes wrangler@${WRANGLER_VERSION} secret put AFFILIATE_DOMAIN_ENFORCEMENT --name affilite-mix > /dev/null 2>&1
+
           # NEW-001: Per-trigger cron secrets. One per cronJobs entry in
           # `lib/cron-registry.ts`. The registry test asserts that every
           # job's secretEnvVar appears here as a `wrangler secret put`
