@@ -24,11 +24,13 @@ export function isSupabaseConfigured(): boolean {
   return true;
 }
 
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
+
 /**
  * True when we are inside a `next build` static-generation phase.
  *
- * Next.js sets `NEXT_PHASE` to `"phase-production-build"` during
- * `next build`. We use this to suppress expected "DB not available"
+ * Next.js sets `NEXT_PHASE` to `PHASE_PRODUCTION_BUILD` ("phase-production-build")
+ * during `next build`. We use this to suppress expected "DB not available"
  * log noise at build time — the warnings are harmless but confusing in CI
  * output, so we suppress them when it is clear that no runtime DB is expected.
  *
@@ -40,9 +42,13 @@ export function isSupabaseConfigured(): boolean {
  * (site slug→UUID resolution, homepage lists, sitemap, metadata) silently
  * returned empty, which rendered all public sites as content-less shells
  * while unguarded queries kept failing with `site_id=eq.<slug>` 400s.
+ *
+ * We compare against Next's exported `PHASE_PRODUCTION_BUILD` constant
+ * rather than the string literal so that if Next ever renames the phase,
+ * we get a compile-time mismatch instead of a silent runtime regression.
  */
 function isBuildPhase(): boolean {
-  return process.env.NEXT_PHASE === "phase-production-build";
+  return process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 }
 
 /**
