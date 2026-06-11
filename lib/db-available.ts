@@ -27,13 +27,22 @@ export function isSupabaseConfigured(): boolean {
 /**
  * True when we are inside a `next build` static-generation phase.
  *
- * Next.js sets `NEXT_PHASE` to `"phase-production-build"` (or similar)
- * during `next build`.  We use this to suppress expected "DB not available"
+ * Next.js sets `NEXT_PHASE` to `"phase-production-build"` during
+ * `next build`. We use this to suppress expected "DB not available"
  * log noise at build time — the warnings are harmless but confusing in CI
  * output, so we suppress them when it is clear that no runtime DB is expected.
+ *
+ * PROD-INCIDENT (2026-06-11): this check MUST compare against the exact
+ * build-phase constant. `NEXT_PHASE` is also defined at runtime in the
+ * deployed Worker (e.g. `phase-production-server`), so the previous
+ * truthiness check (`!!process.env.NEXT_PHASE`) made `shouldSkipDbCall()`
+ * return `true` on every production request. Every guarded DAL helper
+ * (site slug→UUID resolution, homepage lists, sitemap, metadata) silently
+ * returned empty, which rendered all public sites as content-less shells
+ * while unguarded queries kept failing with `site_id=eq.<slug>` 400s.
  */
 function isBuildPhase(): boolean {
-  return !!process.env.NEXT_PHASE;
+  return process.env.NEXT_PHASE === "phase-production-build";
 }
 
 /**

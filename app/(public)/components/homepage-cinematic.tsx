@@ -219,13 +219,13 @@ export function CinematicHomepage({
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-y-8 px-4 py-10 sm:px-6 md:grid-cols-4 lg:px-8">
           {[
             {
-              value: <CountUp to={productCount || featuredProducts.length || 120} suffix="+" />,
+              value: <CountUp to={productCount ?? featuredProducts.length ?? 120} suffix="+" />,
               label: isArabic
                 ? `${site.productLabelPlural} مُقيّمة`
                 : `${site.productLabelPlural} scored`,
             },
             {
-              value: <CountUp to={reviewCount || recentContent.length || 40} suffix="+" />,
+              value: <CountUp to={reviewCount ?? recentContent.length ?? 40} suffix="+" />,
               label: isArabic ? "مراجعة خبير" : "Expert reviews",
             },
             { value: <>100%</>, label: isArabic ? "اختبار مستقل" : "Independently tested" },
