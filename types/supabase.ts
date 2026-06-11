@@ -809,6 +809,7 @@ export type Database = {
       };
       content: {
         Row: {
+          ai_generated: boolean;
           author: string | null;
           author_id: string | null;
           body: string | null;
@@ -817,6 +818,7 @@ export type Database = {
           created_at: string | null;
           excerpt: string | null;
           featured_image: string | null;
+          human_reviewed_at: string | null;
           id: string;
           meta_description: string | null;
           meta_title: string | null;
@@ -832,6 +834,7 @@ export type Database = {
           updated_at: string | null;
         };
         Insert: {
+          ai_generated?: boolean;
           author?: string | null;
           author_id?: string | null;
           body?: string | null;
@@ -840,6 +843,7 @@ export type Database = {
           created_at?: string | null;
           excerpt?: string | null;
           featured_image?: string | null;
+          human_reviewed_at?: string | null;
           id?: string;
           meta_description?: string | null;
           meta_title?: string | null;
@@ -855,6 +859,7 @@ export type Database = {
           updated_at?: string | null;
         };
         Update: {
+          ai_generated?: boolean;
           author?: string | null;
           author_id?: string | null;
           body?: string | null;
@@ -863,6 +868,7 @@ export type Database = {
           created_at?: string | null;
           excerpt?: string | null;
           featured_image?: string | null;
+          human_reviewed_at?: string | null;
           id?: string;
           meta_description?: string | null;
           meta_title?: string | null;
@@ -1660,6 +1666,7 @@ export type Database = {
           id: string;
           network: string;
           product_id: string;
+          site_id: string;
           updated_at: string;
         };
         Insert: {
@@ -1672,6 +1679,7 @@ export type Database = {
           id?: string;
           network: string;
           product_id: string;
+          site_id: string;
           updated_at?: string;
         };
         Update: {
@@ -1684,6 +1692,7 @@ export type Database = {
           id?: string;
           network?: string;
           product_id?: string;
+          site_id?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -1692,6 +1701,13 @@ export type Database = {
             columns: ["product_id"];
             isOneToOne: false;
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_epc_stats_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
             referencedColumns: ["id"];
           },
         ];
