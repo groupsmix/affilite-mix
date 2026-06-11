@@ -143,15 +143,24 @@
     "consumers": [
       {
         "queue": "click-tracking",
-        // A42/A44: Batch settings tuned for throughput + latency balance.
-        // max_batch_size=25 and max_batch_timeout=5s give ~5 req/s
-        // throughput. Adjust if queue depth backlog alerts fire.
-        "max_batch_size": 25,
+        // A42/A44 + E2-02: Batch settings tuned for throughput.
+        // max_batch_size=100 matches the Cloudflare Queues per-batch maximum
+        // and what /api/queue/clicks is already built for (F-014 caps the
+        // payload at 200 and its comments assume 100-message batches).
+        // Drain ceiling is now ~80 msg/s (4 batches x 100 msgs / 5s) vs
+        // ~10 msg/s before. DB load scales with concurrency, not message
+        // volume: each batch is ONE PostgREST batch-insert HTTP call.
+        "max_batch_size": 100,
         "max_batch_timeout": 5,
         "max_retries": 3,
-        // S9-H2: Limit concurrent batch processing to prevent Supabase
-        // connection pool exhaustion under high volume.
-        "max_concurrency": 2,
+        // S9-H2 / E2-02: concurrency raised 2 -> 4. The Supabase pool is
+        // protected by the S9-H2 circuit breaker in /api/queue/clicks
+        // (opens after 3 consecutive insert failures) plus retries + DLQ,
+        // so the hard self-throttle is no longer the only guardrail.
+        // Ratchet further only after watching the queue-depth/DLQ alerts
+        // (E2-12) under real load. Full decoupling of click ingestion from
+        // Postgres (E2-01) is tracked separately and remains the end-state.
+        "max_concurrency": 4,
         "dead_letter_queue": "click-tracking-dlq",
       },
     ],
