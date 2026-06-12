@@ -550,7 +550,7 @@ resource "cloudflare_load_balancer_pool" "static_fallback" {
 # 3. Apply Terraform to create the Access application
 # 4. Test access at https://<your-domain>/q7m-k4j9/
 
-resource "cloudflare_access_application" "admin_segment" {
+resource "cloudflare_zero_trust_access_application" "admin_segment" {
   zone_id          = var.zone_id
   name             = "Affilite-Mix Admin Segment"
   type             = "self_hosted"
@@ -566,13 +566,12 @@ resource "cloudflare_access_application" "admin_segment" {
     decision = "allow"
     include = [
       {
-        email_domain = ["*"] # Allow any authenticated email - refine for production
+        email_domain = { domain = "*" } # Allow any authenticated email - refine for production
       }
     ]
     require = [
       {
-        email        = ["*"] # Require email authentication
-        email_domain = ["*"]
+        email = { email = "*" } # Require email authentication
       }
     ]
   }]
@@ -591,33 +590,6 @@ resource "cloudflare_access_application" "admin_segment" {
     precondition {
       condition     = var.access_audience != null
       error_message = "access_audience must be set to enable Cloudflare Access protection. Set the variable in tfvars or disable Access by removing this resource."
-    }
-  }
-}
-
-resource "cloudflare_access_policy" "admin_segment_policy" {
-  application_id = cloudflare_access_application.admin_segment.id
-  zone_id        = var.zone_id
-  name           = "Admin Segment Access Policy"
-  precedence     = 1
-  decision       = "allow"
-
-  include = [
-    {
-      email = ["*"] # Allow any authenticated user - refine for production
-    }
-  ]
-
-  require = [
-    {
-      email = ["*"] # Require authentication
-    }
-  ]
-
-  lifecycle {
-    precondition {
-      condition     = var.access_audience != null
-      error_message = "access_audience must be set to enable Cloudflare Access protection."
     }
   }
 }

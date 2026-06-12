@@ -590,8 +590,16 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/affilite_mix_test
         run: |
           # F-14: Apply all migrations to a fresh database
-          supabase db reset --db-url "$DATABASE_URL" || true
-          supabase db push --db-url "$DATABASE_URL"
+          # Local Postgres container has no TLS; append sslmode=disable.
+          # supabase db reset prompts for confirmation; pipe 'y' for CI.
+          DB_URL="${DATABASE_URL}"
+          if [[ "$DB_URL" != *"?"* ]]; then
+            DB_URL="${DB_URL}?sslmode=disable"
+          else
+            DB_URL="${DB_URL}&sslmode=disable"
+          fi
+          printf 'y\n' | supabase db reset --db-url "$DB_URL" || true
+          supabase db push --db-url "$DB_URL"
 
       - name: Verify migrations applied
         env:
@@ -928,6 +936,26 @@ jobs:
           JWT_SECRET: ci-test-secret
           INTERNAL_API_TOKEN: ci-test-internal-token
           CRON_SECRET: ci-test-cron-secret
+          SUPABASE_JWT_SECRET: ci-test-supabase-jwt-secret
+          APP_URL: http://localhost:3000
+          SENTRY_DSN: https://placeholder@placeholder.ingest.sentry.io/0
+          AFFILIATE_DOMAIN_ENFORCEMENT: strict
+          TOTP_ENCRYPTION_KEY: ci-test-totp-encryption-key-0123456789ab
+          INTERNAL_HMAC_MIGRATION_MODE: strict
+          CLICK_CACHE_HMAC_KEY: ci-test-click-cache-hmac-key
+          GDPR_HASH_SECRET: ci-test-gdpr-hash-secret
+          CRON_PUBLISH_SECRET: ci-test-cron-publish
+          CRON_STRIPE_SYNC_SECRET: ci-test-cron-stripe-sync
+          CRON_AI_SECRET: ci-test-cron-ai
+          CRON_SITEMAP_SECRET: ci-test-cron-sitemap
+          CRON_RETENTION_SECRET: ci-test-cron-retention
+          CRON_COMMISSION_SECRET: ci-test-cron-commission
+          CRON_EPC_SECRET: ci-test-cron-epc
+          CRON_PRICE_SECRET: ci-test-cron-price
+          CRON_DEALS_SECRET: ci-test-cron-deals
+          CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
+          CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
+          CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
           STRIPE_WEBHOOK_SECRET: whsec_ci_test_placeholder
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
       - name: Wait for server to be ready
@@ -983,6 +1011,26 @@ jobs:
           JWT_SECRET: ci-test-secret
           INTERNAL_API_TOKEN: ci-test-internal-token
           CRON_SECRET: ci-test-cron-secret
+          SUPABASE_JWT_SECRET: ci-test-supabase-jwt-secret
+          APP_URL: http://localhost:3000
+          SENTRY_DSN: https://placeholder@placeholder.ingest.sentry.io/0
+          AFFILIATE_DOMAIN_ENFORCEMENT: strict
+          TOTP_ENCRYPTION_KEY: ci-test-totp-encryption-key-0123456789ab
+          INTERNAL_HMAC_MIGRATION_MODE: strict
+          CLICK_CACHE_HMAC_KEY: ci-test-click-cache-hmac-key
+          GDPR_HASH_SECRET: ci-test-gdpr-hash-secret
+          CRON_PUBLISH_SECRET: ci-test-cron-publish
+          CRON_STRIPE_SYNC_SECRET: ci-test-cron-stripe-sync
+          CRON_AI_SECRET: ci-test-cron-ai
+          CRON_SITEMAP_SECRET: ci-test-cron-sitemap
+          CRON_RETENTION_SECRET: ci-test-cron-retention
+          CRON_COMMISSION_SECRET: ci-test-cron-commission
+          CRON_EPC_SECRET: ci-test-cron-epc
+          CRON_PRICE_SECRET: ci-test-cron-price
+          CRON_DEALS_SECRET: ci-test-cron-deals
+          CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
+          CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
+          CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
       - name: Wait for server to be ready
         run: npx wait-on http://localhost:3000 --timeout 60000
       - name: Install k6

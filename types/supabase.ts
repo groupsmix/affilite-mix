@@ -811,12 +811,14 @@ export type Database = {
         Row: {
           author: string | null;
           author_id: string | null;
+          ai_generated: boolean;
           body: string | null;
           body_previous: string | null;
           category_id: string | null;
           created_at: string | null;
           excerpt: string | null;
           featured_image: string | null;
+          human_reviewed_at: string | null;
           id: string;
           meta_description: string | null;
           meta_title: string | null;
@@ -834,12 +836,14 @@ export type Database = {
         Insert: {
           author?: string | null;
           author_id?: string | null;
+          ai_generated?: boolean;
           body?: string | null;
           body_previous?: string | null;
           category_id?: string | null;
           created_at?: string | null;
           excerpt?: string | null;
           featured_image?: string | null;
+          human_reviewed_at?: string | null;
           id?: string;
           meta_description?: string | null;
           meta_title?: string | null;
@@ -857,12 +861,14 @@ export type Database = {
         Update: {
           author?: string | null;
           author_id?: string | null;
+          ai_generated?: boolean;
           body?: string | null;
           body_previous?: string | null;
           category_id?: string | null;
           created_at?: string | null;
           excerpt?: string | null;
           featured_image?: string | null;
+          human_reviewed_at?: string | null;
           id?: string;
           meta_description?: string | null;
           meta_title?: string | null;
@@ -1660,6 +1666,7 @@ export type Database = {
           id: string;
           network: string;
           product_id: string;
+          site_id: string;
           updated_at: string;
         };
         Insert: {
@@ -1672,6 +1679,7 @@ export type Database = {
           id?: string;
           network: string;
           product_id: string;
+          site_id: string;
           updated_at?: string;
         };
         Update: {
@@ -1684,6 +1692,7 @@ export type Database = {
           id?: string;
           network?: string;
           product_id?: string;
+          site_id?: string;
           updated_at?: string;
         };
         Relationships: [

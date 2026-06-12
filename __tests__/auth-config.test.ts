@@ -12,7 +12,13 @@ import { NextRequest } from "next/server";
 
 // ── Snapshot & restore env across tests ───────────────────────
 
-const ENV_KEYS = ["NODE_ENV", "NEXT_PHASE", "INTERNAL_API_TOKEN", "INTERNAL_API_TOKEN_INTERNAL", "JWT_SECRET"] as const;
+const ENV_KEYS = [
+  "NODE_ENV",
+  "NEXT_PHASE",
+  "INTERNAL_API_TOKEN",
+  "INTERNAL_API_TOKEN_INTERNAL",
+  "JWT_SECRET",
+] as const;
 
 function snapshotEnv(): Record<string, string | undefined> {
   const env = process.env as Record<string, string | undefined>;
