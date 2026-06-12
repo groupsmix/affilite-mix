@@ -194,6 +194,16 @@ export const cronJobs: readonly CronJob[] = [
     alertOnFailure: false,
     description: "SOC 2 CC6.1 — weekly admin-user access recertification.",
   },
+  {
+    name: "homepage-synthetic-check",
+    schedule: "*/10 * * * *",
+    path: "/api/cron/homepage-synthetic-check",
+    method: "POST",
+    secretEnvVar: "CRON_HOMEPAGE_SYNTHETIC_SECRET",
+    csrfExempt: true,
+    alertOnFailure: true,
+    description: "Synthetic check: fail loudly when homepage renders empty while DB has published content.",
+  },
 ] as const;
 
 const cronJobByPath = new Map<string, CronJob>(cronJobs.map((j) => [j.path, j]));

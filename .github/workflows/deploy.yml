@@ -141,6 +141,35 @@ jobs:
       - name: Security audit (deploy gate)
         run: npm audit --omit=dev --audit-level=high
 
+      # F-01: Validate Cloudflare alert mechanisms are configured
+      - name: Validate alert mechanisms (F-01)
+        run: |
+          set -euo pipefail
+          echo "=== Validating Cloudflare alert mechanisms ==="
+          TFVARS="terraform/cloudflare/alerts.auto.tfvars"
+          TFVARS_EXAMPLE="terraform/cloudflare/alerts.tfvars.example"
+          
+          # Check if a real tfvars file exists
+          if [ ! -f "$TFVARS" ]; then
+            echo "::warning::F-01: $TFVARS not found. Alert mechanisms may not be configured."
+            echo "::warning::Copy $TFVARS_EXAMPLE to $TFVARS and configure at least one destination."
+            echo "::warning::Run scripts/fire-test-alert.sh quarterly to verify end-to-end delivery."
+            exit 0
+          fi
+
+          # Check if at least one mechanism is configured
+          if grep -q 'email = \[\]' "$TFVARS" && \
+             grep -q 'pagerduty = \[\]' "$TFVARS" && \
+             grep -q 'webhooks = \[\]' "$TFVARS"; then
+            echo "::error::F-01: No alert mechanisms configured in $TFVARS"
+            echo "::error::At least one of email, pagerduty, or webhooks must have a destination ID."
+            echo "::error::See $TFVARS_EXAMPLE for examples."
+            exit 1
+          fi
+
+          echo "✓ Alert mechanisms are configured"
+          echo "Run scripts/fire-test-alert.sh quarterly to verify end-to-end delivery."
+
       # ── Validate Cloudflare Worker bindings (PRIORITY 0) ───────────
       # F-007: Production deploy must hard-fail if required Cloudflare
       # bindings are missing. Without these, the Worker will not start.

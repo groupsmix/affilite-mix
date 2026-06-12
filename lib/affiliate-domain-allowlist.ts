@@ -8,8 +8,11 @@
  *
  * The allow-list is sourced from:
  *   1. AFFILIATE_ALLOWED_DOMAINS env var (comma-separated, production override)
- *   2. The `affiliate_networks` table (column: `tracking_domain`)
- *   3. A hardcoded fallback of common affiliate network domains
+ *   2. A hardcoded fallback of common affiliate network domains
+ *
+ * F-16: In strict mode, the allow-list fails closed - any domain not
+ * explicitly allowed is rejected. This prevents an attacker who can
+ * store an affiliate URL in the DB from redirecting to unsanctioned domains.
  *
  * During the transition period, validation is "warn-only" — invalid domains
  * are logged but not rejected. Set AFFILIATE_DOMAIN_ENFORCEMENT=strict to
@@ -18,6 +21,7 @@
  */
 
 import { logger } from "@/lib/logger";
+import { emitMetric } from "@/lib/metrics";
 
 /**
  * Hardcoded fallback domains for well-known affiliate networks.
@@ -219,6 +223,8 @@ export function validateAffiliateDomain(url: string): DomainValidationResult {
   const reason = `Domain "${hostname}" (registrable: "${registrable}") is not on the affiliate allow-list`;
 
   if (enforcement === "strict") {
+    // F-16: Emit metric for strict mode rejections to monitor potential attacks
+    emitMetric("affiliate_domain_rejection_total", 1, { enforcement: "strict" });
     return { allowed: false, domain: hostname, reason };
   }
 
@@ -228,6 +234,8 @@ export function validateAffiliateDomain(url: string): DomainValidationResult {
     registrable,
     enforcement,
   });
+  // F-16: Emit metric for warn mode to monitor configuration drift
+  emitMetric("affiliate_domain_warn_total", 1, { enforcement: "warn" });
   return { allowed: true, domain: hostname, reason };
 }
 

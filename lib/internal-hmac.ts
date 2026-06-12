@@ -24,6 +24,7 @@
 
 import { logger } from "@/lib/logger";
 import { getAppCacheKV } from "@/lib/runtime-env";
+import { emitMetric } from "@/lib/metrics";
 
 /** Maximum clock skew tolerance in milliseconds (60 seconds).
  * SEC-08: Tightened from 5 min to 60s. Internal calls are low-latency
@@ -78,6 +79,8 @@ function getNonceKV(): {
   } catch {
     // fail-open: best-effort [criticality:defence-in-depth]
     // Not available (local dev, CI)
+    // 24-hour quick wins: Emit fail-open metric
+    emitMetric("fail_open_total", 1, { fail_open_location: "internal-hmac-kv-get" });
   }
   return null;
 }
@@ -91,6 +94,8 @@ async function isNonceSeenInKV(nonce: string): Promise<boolean> {
     return val !== null;
   } catch {
     // fail-open: best-effort [criticality:defence-in-depth]
+    // 24-hour quick wins: Emit fail-open metric
+    emitMetric("fail_open_total", 1, { fail_open_location: "internal-hmac-kv-check" });
     return false;
   }
 }
@@ -104,6 +109,8 @@ async function recordNonceInKV(nonce: string): Promise<void> {
   } catch {
     // fail-open: best-effort [criticality:defence-in-depth]
     // Best-effort — in-memory map is still the primary guard
+    // 24-hour quick wins: Emit fail-open metric
+    emitMetric("fail_open_total", 1, { fail_open_location: "internal-hmac-kv-put" });
   }
 }
 

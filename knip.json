@@ -7,7 +7,6 @@
     "tests/load/load-test.js",
     "open-next.config.ts",
     "scripts/check-db-types.mjs",
-    "scripts/load-test.mjs",
     "types/supabase.ts",
     "workers/custom-worker.ts",
     "workers/heavy-crons.ts",

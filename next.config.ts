@@ -85,7 +85,7 @@ const nextConfig: NextConfig = {
     // audit-etap1 #20: belt-and-suspenders CSP fallback for paths that are
     // EXPLICITLY EXCLUDED from the middleware matcher. The matcher in
     // `middleware.ts` excludes (`_next/static`, `_next/image`, `favicon.ico`,
-    // `fonts/`, `api/internal/`). For those paths, no per-request nonced CSP
+    // `api/internal/`). For those paths, no per-request nonced CSP
     // is set. They are opaque binary or internal-only — `default-src 'none'`
     // is the safest fallback because the browser will refuse to execute or
     // fetch anything from those responses anyway. Source patterns intentionally
@@ -99,7 +99,6 @@ const nextConfig: NextConfig = {
       "/_next/image",
       "/_next/image/:path*",
       "/favicon.ico",
-      "/fonts/:path*",
       "/api/internal/:path*",
     ].map((source) => ({
       source,

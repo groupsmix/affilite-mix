@@ -46,6 +46,8 @@ export type AuthenticatedRouteHandler = (
     siteId: string;
     /** Server-derived active site slug (from the validated cookie). */
     siteSlug: string;
+    /** AbortSignal for timeout propagation (F-11) */
+    signal?: AbortSignal;
   },
 ) => Promise<NextResponse> | NextResponse;
 
@@ -59,6 +61,8 @@ export type AuthenticatedDynamicRouteHandler = (
     siteSlug: string;
     /** Resolved dynamic route params (e.g. `{ id: "abc" }`). */
     params: Record<string, string>;
+    /** AbortSignal for timeout propagation (F-11) */
+    signal?: AbortSignal;
   },
 ) => Promise<NextResponse> | NextResponse;
 
@@ -78,11 +82,14 @@ export function withAuthz(
     if (auth.error) return auth.error;
     const { session, dbSiteId, siteSlug } = auth;
 
-    if (!session.userId) {
+    if (!session?.userId) {
       return apiError(401, "Unauthorized");
     }
 
-    const allowed = await hasPermission(session.userId, dbSiteId, feature, action);
+    // F-11: Extract signal from request for timeout propagation
+    const signal = request.signal;
+
+    const allowed = await hasPermission(session.userId, dbSiteId, feature, action, undefined, signal);
     if (!allowed) {
       return apiError(403, "Forbidden");
     }
@@ -91,6 +98,7 @@ export function withAuthz(
       session,
       siteId: dbSiteId,
       siteSlug,
+      signal,
     });
     return res;
   };
@@ -116,11 +124,14 @@ export function withAuthzDynamic(
     if (auth.error) return auth.error;
     const { session, dbSiteId, siteSlug } = auth;
 
-    if (!session.userId) {
+    if (!session?.userId) {
       return apiError(401, "Unauthorized");
     }
 
-    const allowed = await hasPermission(session.userId, dbSiteId, feature, action);
+    // F-11: Extract signal from request for timeout propagation
+    const signal = request.signal;
+
+    const allowed = await hasPermission(session.userId, dbSiteId, feature, action, undefined, signal);
     if (!allowed) {
       return apiError(403, "Forbidden");
     }
@@ -131,6 +142,7 @@ export function withAuthzDynamic(
       siteId: dbSiteId,
       siteSlug,
       params: resolvedParams,
+      signal,
     });
   };
 }
@@ -237,6 +249,11 @@ export async function authorizeResource(
     recoveryTimeoutMs: parseAuthzEnvInt("AUTHZ_CIRCUIT_BREAKER_RECOVERY_MS", 30_000),
   });
 
+  // F-11: Create AbortSignal for timeout (5s default)
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  const signal = controller.signal;
+
   let data: { site_id: string } | null = null;
   try {
     data = await cb.execute(async () => {
@@ -244,16 +261,27 @@ export async function authorizeResource(
       const result = await untypedFrom(sb, table)
         .select("site_id")
         .eq("id", opts.resourceId)
+        .abortSignal(signal)
         .maybeSingle();
       if (result.error) throw result.error;
       return result.data as { site_id: string } | null;
     });
-  } catch {
+  } catch (err) {
+    clearTimeout(timeout);
+    // F-11: Log if error was due to abort (timeout)
+    if (signal.aborted) {
+      // eslint-disable-next-line no-console -- timeout diagnostic
+      console.error("[F-11] authorizeResource query aborted due to timeout", {
+        resourceType: opts.resourceType,
+        resourceId: opts.resourceId,
+      });
+    }
     // fail-closed: lookup error → deny access [criticality:security-critical]
     // Don't differentiate "row missing" from "lookup error" to the caller —
     // both must look the same so cross-tenant ids cannot be probed.
     return { ok: false, status: 404, reason: "Resource not found" };
   }
+  clearTimeout(timeout);
 
   const realSiteId = (data as { site_id: string } | null)?.site_id;
   if (!realSiteId) {
@@ -268,7 +296,7 @@ export async function authorizeResource(
     };
   }
 
-  const allowed = await hasPermission(opts.session.userId, realSiteId, opts.feature, opts.action);
+  const allowed = await hasPermission(opts.session.userId, realSiteId, opts.feature, opts.action, undefined, signal);
   if (!allowed) {
     return { ok: false, status: 403, reason: "Forbidden" };
   }

@@ -54,9 +54,11 @@ export function register() {
     }
   }
 
-  // ETAP1-13: Refuse to start production with ALLOW_LOCALHOST_FALLBACK_IN_PROD
+  // F-05: Refuse to start production with ALLOW_LOCALHOST_FALLBACK_IN_PROD
   // enabled on a non-localhost host. Prevents CI defaults from leaking into
   // real deployments via copy-paste of the CI env block.
+  // Uses proper URL parsing instead of substring matching to prevent bypass
+  // via strings like "localhost-fake.example.com".
   if (
     process.env.NODE_ENV === "production" &&
     !isBuild &&
@@ -64,8 +66,25 @@ export function register() {
     process.env.CI_LIGHTHOUSE_BUILD !== "1"
   ) {
     const appUrl = process.env.APP_URL ?? "";
-    const isLocalhost =
-      appUrl.includes("localhost") || appUrl.includes("127.0.0.1") || appUrl === "";
+    let isLocalhost = false;
+    if (appUrl === "") {
+      isLocalhost = true;
+    } else {
+      try {
+        const parsed = new URL(appUrl);
+        const hostname = parsed.hostname.toLowerCase();
+        // Check for exact localhost or 127.0.0.1 match
+        isLocalhost =
+          hostname === "localhost" ||
+          hostname === "127.0.0.1" ||
+          hostname === "[::1]" ||
+          hostname.startsWith("127.") ||
+          hostname.startsWith("0:0:0:0:0:0:0:1");
+      } catch {
+        // Invalid URL - treat as non-localhost for safety
+        isLocalhost = false;
+      }
+    }
     if (!isLocalhost) {
       throw new Error(
         `ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 is set but APP_URL (${appUrl}) resolves to a ` +

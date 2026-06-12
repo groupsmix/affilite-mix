@@ -23,6 +23,7 @@
  */
 
 import { getAppCacheKV } from "@/lib/runtime-env";
+import { emitMetric } from "@/lib/metrics";
 
 export interface CronLockHandle {
   /** Returns true if the lock was acquired, false if already held. */
@@ -51,6 +52,8 @@ export function cronLock(jobName: string, ttlSeconds = 600): CronLockHandle {
         return true;
       } catch {
         // fail-open: best-effort [criticality:non-critical]
+        // 24-hour quick wins: Emit fail-open metric
+        emitMetric("fail_open_total", 1, { fail_open_location: "cron-lock-acquire" });
         return true; // KV error = fail open (allow the run)
       }
     },
@@ -62,6 +65,8 @@ export function cronLock(jobName: string, ttlSeconds = 600): CronLockHandle {
       } catch {
         // fail-open: best-effort [criticality:non-critical]
         // Best-effort; TTL will clean up
+        // 24-hour quick wins: Emit fail-open metric
+        emitMetric("fail_open_total", 1, { fail_open_location: "cron-lock-release" });
       }
     },
   };

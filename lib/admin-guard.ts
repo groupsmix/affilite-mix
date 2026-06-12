@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getSiteById } from "@/config/sites";
 import { getAdminSiteMembership } from "@/lib/dal/admin-site-memberships";
 import { getAppCacheKV } from "@/lib/runtime-env";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 type AdminResult =
   | { error: NextResponse; session: null; dbSiteId: null; siteSlug: null }
@@ -22,37 +23,47 @@ const ADMIN_RATE_LIMIT = {
 };
 
 /**
- * G-45: Build the canonical 401 response for admin routes.
+ * G-45: Build the canonical auth error response for admin routes.
  *
- * Both unauthenticated and unauthorised callers receive the same opaque
- * `Unauthorized` body and `WWW-Authenticate: Bearer` challenge so an
- * unauthenticated probe cannot distinguish:
- *   - a route that does not exist                  (404)
- *   - a route that requires a different role       (was 403)
- *   - a route the caller has no membership for     (was 403)
- *   - a route the caller is simply not signed into (401)
+ * F-21: Returns 401 for authentication failures (no session) and 403 for
+ * authorization failures (wrong role/permissions). Both use the same opaque
+ * `Unauthorized` body to prevent enumeration, but different status codes for
+ * compliance reporting (SOC 2, PCI). Audit logs distinguish authn vs authz.
  *
- * Using a single status + body removes the route-existence side channel.
+ * Status codes:
+ *   - 401: Not authenticated (no session)
+ *   - 403: Authenticated but not authorized (wrong role/permissions)
  */
-export function unauthorizedResponse(): NextResponse {
+export function unauthorizedResponse(status: 401 | 403 = 401): NextResponse {
   return NextResponse.json(
     { error: "Unauthorized" },
-    { status: 401, headers: { "WWW-Authenticate": "Bearer" } },
+    { status, headers: { "WWW-Authenticate": "Bearer" } },
   );
 }
 
 /**
  * Assert that the authenticated session has the required role.
- * Returns a 401 NextResponse (with `WWW-Authenticate: Bearer`) if the role
- * is insufficient, or null if OK. See `unauthorizedResponse` for why we
- * return 401 here rather than 403.
+ * Returns a 403 NextResponse (with `WWW-Authenticate: Bearer`) if the role
+ * is insufficient, or null if OK. F-21: 403 for authorization failures,
+ * 401 for authentication failures. Same opaque body prevents enumeration.
  */
 export function assertRole(
   session: AdminPayload,
   requiredRole: "admin" | "super_admin",
 ): NextResponse | null {
   if (requiredRole === "super_admin" && session.role !== "super_admin") {
-    return unauthorizedResponse();
+    // F-21: Emit audit-log entry to distinguish authz failure (role insufficient)
+    // from authn failure (no session). Returns 403 for compliance reporting.
+    void recordAuditEvent({
+      action: "admin_role_check_failed",
+      details: {
+        requiredRole,
+        actualRole: session.role,
+        userId: session.userId,
+        email: session.email,
+      },
+    });
+    return unauthorizedResponse(403);
   }
   return null;
 }
@@ -67,6 +78,7 @@ export function assertRole(
  * - Verifies admin_site_memberships for non-super_admin users
  */
 export async function requireAdmin(): Promise<AdminResult> {
+  // F-21: This function now logs authn failures (no session) vs authz failures (wrong role)
   const session = await getAdminSession();
   if (!session) {
     return {
