@@ -27,7 +27,7 @@
  */
 
 import { execSync } from "child_process";
-import { readFileSync, readdirSync, mkdirSync, renameSync, existsSync } from "fs";
+import { readdirSync, mkdirSync, renameSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -85,15 +85,19 @@ function checkPrerequisites() {
 
 function takeSchemaDump() {
   log("Taking schema-only dump of current database...");
-  
+
   const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL;
-  // Pass DB URL via environment variable to avoid exposing it in process lists
-  const command = `pg_dump "$DATABASE_URL" --schema-only --no-owner --no-acl --format=plain`;
-  
+
+  // CodeQL: indirect command injection — pass the DB URL via an explicit
+  // environment variable rather than interpolating it into the shell command.
+  // pg_dump reads $PG_DUMP_DB_URL through the spawned shell; the parent
+  // environment is otherwise inherited untouched.
+  const command = `pg_dump "$PG_DUMP_DB_URL" --schema-only --no-owner --no-acl --format=plain`;
+
   try {
     const dump = execSync(command, {
       encoding: "utf-8",
-      env: { ...process.env, DATABASE_URL: dbUrl }
+      env: { ...process.env, PG_DUMP_DB_URL: dbUrl },
     });
     
     // Add header comment to baseline file

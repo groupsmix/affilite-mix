@@ -45,7 +45,11 @@ export async function POST(request: NextRequest) {
       .from("sites")
       .select("id, domain, slug")
       .eq("is_active", true)
-      // Service role client bypasses RLS by design for system-wide monitoring
+      // AUDIT-APPROVED [F-API-01 / homepage-synthetic-check]: cross-site
+      // monitoring cron — iterates every active site to detect empty
+      // homepages, so no per-request site_id is available. Route is gated
+      // by CRON_HOMEPAGE_SYNTHETIC_SECRET via verifyCronAuth() above.
+      .unsafeNoSiteFilter();
 
     if (sitesError) {
       captureException(sitesError, {

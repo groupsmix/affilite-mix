@@ -13,7 +13,7 @@
  */
 
 import { cronJobs } from "./cron-registry";
-import * as Sentry from "@sentry/nextjs";
+import * as Sentry from "@sentry/cloudflare";
 
 export interface RequiredEnvVar {
   /** Environment variable name. */
@@ -356,11 +356,11 @@ export function validateServerEnv(): {
           "Turnstile bot protection is DISABLED. This is a high-severity security risk. " +
           "Set ALLOW_TURNSTILE_DISABLED_TIMESTAMP to the current ISO timestamp to enable the 24-hour auto-disable timer. " +
           "After 24 hours, the flag will be ignored and Turnstile will be re-enabled automatically.",
+        );
         // F-12: Send high-severity Sentry event for production security degradation
         Sentry.captureMessage(
           "ALLOW_TURNSTILE_DISABLED_IN_PROD=1 is set in production - Turnstile bot protection is DISABLED",
           "error",
-        );
         );
       } else {
         // Check if 24 hours have elapsed

@@ -37,12 +37,8 @@ async function verifyRLSPolicies(
     },
   });
 
-  // Query all RLS policies
-  const { data: policies, error } = await supabase.rpc("get_all_rls_policies", {
-    // This RPC would need to be created, or we use a direct query
-  });
-
-  // For now, use the pg_policies view directly
+  // Use the pg_policies view directly. (A `get_all_rls_policies` RPC could
+  // be introduced later if Supabase tightens read access to pg_catalog.)
   const { data: pgPolicies, error: pgError } = await supabase
     .from("pg_policies")
     .select("*")
@@ -82,7 +78,7 @@ async function verifyRLSPolicies(
       policyname: policy.policyname,
       qual: policy.qual,
       with_check: policy.with_check,
-      has_site_id_filter,
+      has_site_id_filter: hasSiteIdFilter,
       classification,
     };
   });

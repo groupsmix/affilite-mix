@@ -20,9 +20,6 @@
  * Exits with code 0 if validation passes, 1 if validation fails.
  */
 
-import fs from 'fs';
-import path from 'path';
-
 function parseEnvVar(varName, defaultValue = []) {
   const value = process.env[varName];
   if (!value) return defaultValue;
