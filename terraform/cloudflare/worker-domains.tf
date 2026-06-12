@@ -17,33 +17,33 @@
 
 # Worker custom domain for wristnerd.xyz (apex)
 resource "cloudflare_workers_custom_domain" "wristnerd_xyz" {
-  account_id = var.cloudflare_account_id
-  hostname   = "wristnerd.xyz"
-  service    = "affilite-mix"
+  account_id  = var.cloudflare_account_id
+  hostname    = "wristnerd.xyz"
+  service     = "affilite-mix"
   environment = "production"
 }
 
 # Worker custom domain for arabictools.wristnerd.xyz (subdomain)
 resource "cloudflare_workers_custom_domain" "arabictools_wristnerd_xyz" {
-  account_id = var.cloudflare_account_id
-  hostname   = "arabictools.wristnerd.xyz"
-  service    = "affilite-mix"
+  account_id  = var.cloudflare_account_id
+  hostname    = "arabictools.wristnerd.xyz"
+  service     = "affilite-mix"
   environment = "production"
 }
 
 # Worker custom domain for crypto.wristnerd.xyz (subdomain)
 resource "cloudflare_workers_custom_domain" "crypto_wristnerd_xyz" {
-  account_id = var.cloudflare_account_id
-  hostname   = "crypto.wristnerd.xyz"
-  service    = "affilite-mix"
+  account_id  = var.cloudflare_account_id
+  hostname    = "crypto.wristnerd.xyz"
+  service     = "affilite-mix"
   environment = "production"
 }
 
 # Worker custom domain for cryptoranked.xyz (standalone domain)
 resource "cloudflare_workers_custom_domain" "cryptoranked_xyz" {
-  account_id = var.cloudflare_account_id
-  hostname   = "cryptoranked.xyz"
-  service    = "affilite-mix"
+  account_id  = var.cloudflare_account_id
+  hostname    = "cryptoranked.xyz"
+  service     = "affilite-mix"
   environment = "production"
 }
 

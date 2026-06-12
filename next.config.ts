@@ -99,6 +99,7 @@ const nextConfig: NextConfig = {
       "/_next/image",
       "/_next/image/:path*",
       "/favicon.ico",
+      "/fonts/:path*",
       "/api/internal/:path*",
     ].map((source) => ({
       source,

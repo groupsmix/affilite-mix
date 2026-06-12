@@ -36,6 +36,7 @@ env:
   CRON_DEALS_SECRET: ci-test-cron-deals
   CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
   CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
+  CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
   TURNSTILE_SECRET_KEY: ""
   NEXT_PUBLIC_DEFAULT_SITE: ai-compared
@@ -577,10 +578,12 @@ jobs:
         run: npm ci
 
       - name: Install Supabase CLI
-        run: |
-          wget -qO- https://github.com/supabase/supabase/releases/latest/download/supabase-linux-x86_64.tar.gz | tar xz
-          sudo mv supabase /usr/local/bin/
-          supabase --version
+        # F-011: pin the Supabase CLI version so a breaking upstream
+        # release cannot change migration behaviour without a deliberate
+        # code change. Bump deliberately via Renovate / Dependabot.
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v1
+        with:
+          version: 2.45.5
 
       - name: Run migrations up
         env:

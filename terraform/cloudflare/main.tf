@@ -562,16 +562,16 @@ resource "cloudflare_access_application" "admin_segment" {
 
   # F-08: Require authentication for all admin routes
   policies = [{
-    name        = "Require Authentication"
-    decision    = "allow"
-    include     = [
+    name     = "Require Authentication"
+    decision = "allow"
+    include = [
       {
         email_domain = ["*"] # Allow any authenticated email - refine for production
       }
     ]
     require = [
       {
-        email       = ["*"] # Require email authentication
+        email        = ["*"] # Require email authentication
         email_domain = ["*"]
       }
     ]
