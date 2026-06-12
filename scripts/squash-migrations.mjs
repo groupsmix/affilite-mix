@@ -87,10 +87,14 @@ function takeSchemaDump() {
   log("Taking schema-only dump of current database...");
   
   const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL;
-  const command = `pg_dump "${dbUrl}" --schema-only --no-owner --no-acl --format=plain`;
+  // Pass DB URL via environment variable to avoid exposing it in process lists
+  const command = `pg_dump "$DATABASE_URL" --schema-only --no-owner --no-acl --format=plain`;
   
   try {
-    const dump = execSync(command, { encoding: "utf-8" });
+    const dump = execSync(command, {
+      encoding: "utf-8",
+      env: { ...process.env, DATABASE_URL: dbUrl }
+    });
     
     // Add header comment to baseline file
     const header = `-- F-06 / ADR-0013: Baseline Migration

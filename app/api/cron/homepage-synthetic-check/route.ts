@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       .from("sites")
       .select("id, domain, slug")
       .eq("is_active", true)
-      .unsafeNoSiteFilter();
+      // Service role client bypasses RLS by design for system-wide monitoring
 
     if (sitesError) {
       captureException(sitesError, {
