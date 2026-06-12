@@ -1,3 +1,28 @@
+
+# F-012: Cron liveness alerting
+#
+# The cron liveness system (lib/cron-liveness.ts) emits structured
+# `cron_liveness_miss` logs when a cron job misses its expected window.
+# These logs are picked up by Logpush → Sentry alerting, which pages
+# on-call via the P2 Slack incidents channel (docs/alerting-runbook.md).
+#
+# Cloudflare's notification policy system does not support custom log
+# pattern matching or metric-based alerts (e.g., "cron-last-success-age > 2x"),
+# so cron liveness relies on the logging pipeline for end-to-end observability.
+#
+# Alert configuration (implemented via Sentry/Logpush):
+# - Log pattern: cron_liveness_miss structured logs
+# - Threshold: Any occurrence triggers P2 alert
+# - Notification: Sentry → Slack #incidents
+# - Documentation: docs/cron-liveness.md, docs/alerting-runbook.md
+#
+# Expected cadence and thresholds:
+# - publish (5 min): alert after 20 min of no success
+# - stripe-sync (24 h): alert after 48h 10min of no success
+# - data-retention (24 h): alert after 48h 10min of no success
+# - commission-ingest (24 h): alert after 48h 10min of no success
+# - epc-recompute (24 h): alert after 48h 10min of no success
+# - price-scrape (24 h): alert after 48h 10min of no success
 ###############################################################################
 # SLO burn-rate alerting.
 #
@@ -217,3 +242,33 @@ output "queue_backlog_alert_policy_id" {
   value       = cloudflare_notification_policy.queue_backlog_alert.id
   description = "A42: ID of the queue backlog burn-rate alert policy."
 }
+
+# F-25: Privileged client usage alert - detects anomalous usage patterns
+#
+# The privileged_client_usage_total metric is emitted via lib/metrics.ts
+# with a caller dimension (see lib/server-only/service-role.ts).
+# This metric is sent to Cloudflare Analytics Engine and Logpush.
+#
+# Alert configuration (to be implemented in Grafana/Datadog via Logpush):
+# - Metric: privileged_client_usage_total
+# - Aggregation: sum by caller over 5m window
+# - Threshold: Alert if any caller usage exceeds expected baseline
+# - Notification: Send to same alert mechanisms as other critical alerts
+#
+# Expected callers (from docs/privileged-client-inventory.md):
+# - lib/supabase-server.ts (legacy gateway)
+# - lib/authz.ts (authorization helpers)
+# - app/api/queue/clicks/route.ts (queue consumer)
+# - app/api/cron/*/route.ts (cron jobs)
+# - lib/admin-guard.ts (admin session binding)
+# - lib/click-queue.ts (click queue worker)
+# - app/api/auth/login/route.ts (login route)
+# - lib/auth.ts (authentication)
+# - lib/dal/stripe-events.ts (Stripe webhook)
+# - app/api/admin/sites/route.ts (admin sites routes)
+#
+# Anomalous usage indicators:
+# - New caller not in the service-role allowlist (lib/security/service-role-allowlist.ts)
+# - Sudden spike in usage from a known caller
+# - Usage from unexpected geographic location (if caller includes location data)
+

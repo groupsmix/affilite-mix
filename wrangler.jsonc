@@ -166,42 +166,28 @@
     ],
   },
   // ═════════════════════════════════════════════════════════════════
-  // DOMAIN ROUTING - Dashboard Managed
+  // DOMAIN ROUTING - Infrastructure-as-Code (Terraform)
   // ═════════════════════════════════════════════════════════════════
   //
-  // ADD/REMOVE DOMAINS WITHOUT CODE CHANGES:
-  // 1. Go to Cloudflare Dashboard → Workers & Pages → affilite-mix
-  // 2. Settings → Triggers → Add Custom Domain
-  // 3. Enter your domain (e.g., "cryptoranked.xyz" or "crypto.wristnerd.xyz")
-  // 4. Set DNS record (A or CNAME) pointing to the worker
-  // 5. Update the domain in your Supabase sites table
+  // E2-05: Domain routing is now managed via Terraform instead of wrangler.jsonc.
+  // See terraform/cloudflare/worker-domains.tf for the custom domain definitions.
   //
-  // ROUTES EXPLAINED:
-  // - "*.wristnerd.xyz" catches ALL subdomains (arabictools, crypto, etc.)
-  // - Add standalone domains (cryptoranked.xyz) via Dashboard → Custom Domains
-  // - The middleware resolves domain → site_id via DB lookup
+  // ADD/REMOVE DOMAINS:
+  // 1. Edit terraform/cloudflare/worker-domains.tf
+  // 2. Run `terraform apply` in terraform/cloudflare/
+  // 3. Update the domain in your Supabase sites table
   //
-  "routes": [
-    // ── Custom Domains (auto-provision DNS, no wildcards allowed) ──
-    { "pattern": "wristnerd.xyz", "custom_domain": true },
-    { "pattern": "arabictools.wristnerd.xyz", "custom_domain": true },
-    { "pattern": "crypto.wristnerd.xyz", "custom_domain": true },
-    { "pattern": "cryptoranked.xyz", "custom_domain": true },
-    // compareai.site (OUT-3) is intentionally absent for now: the zone has
-    // pre-existing externally-managed A/CNAME records, so wrangler's
-    // custom-domain provisioning fails the WHOLE deploy with API error
-    // 100117 ("Hostname already has externally managed DNS records").
-    // Re-add { "pattern": "compareai.site", "custom_domain": true } only
-    // AFTER deleting those DNS records in the Cloudflare dashboard
-    // (compareai.site zone -> DNS -> remove the A/CNAME for the apex).
-    // ── To add more domains (wildcards or standalone): ──────────────
-    // Option A: Cloudflare Dashboard → Workers & Pages → affilite-mix
-    //           → Settings → Triggers → Add Custom Domain
-    // Option B: Add a Worker Route for wildcards:
-    //           → Settings → Triggers → Add Route → *.wristnerd.xyz/*
-    // Option C: Add another { "pattern": "newdomain.xyz", "custom_domain": true } here
-    // The middleware resolves any domain → site_id via DB lookup
-  ],
+  // DOMAINS MANAGED:
+  // - wristnerd.xyz (apex)
+  // - arabictools.wristnerd.xyz (subdomain)
+  // - crypto.wristnerd.xyz (subdomain)
+  // - cryptoranked.xyz (standalone)
+  //
+  // EXCLUDED:
+  // - compareai.site: externally-managed DNS records (see externally-managed-domains.tf)
+  //
+  // The middleware resolves any domain → site_id via DB lookup.
+  //
   // Cron triggers — publish scheduled content, AI generation, and sitemap refresh
   //
   // A43: CRON SAFETY REQUIREMENTS:
@@ -255,6 +241,7 @@
       "0 * * * *", // A43: Expire deals (hourly)
       "*/15 * * * *", // Click reconcile (every 15 min)
       "0 8 * * 1", // Access review (Mon 08:00 UTC, SOC 2 CC6.1)
+      "*/10 * * * *", // Homepage synthetic check (every 10 min)
     ],
   },
   // FIX-02 (F-018): NODE_ENV must be "production" so the app rejects dev fallback
@@ -305,6 +292,96 @@
     // the configured long-term storage backend (R2 / Axiom / etc.).
     { "service": "affilite-mix-log-shipper" },
   ],
+  // F-03: Staging environment configuration
+  //
+  // Staging provides a production-like environment for testing changes
+  // before deploying to production. It has separate infrastructure to
+  // prevent test data from contaminating production.
+  //
+  // SETUP INSTRUCTIONS:
+  // 1. Create staging-specific resources:
+  //    - KV namespaces: npx wrangler kv:namespace create RATE_LIMIT_KV_STAGING
+  //    - KV namespaces: npx wrangler kv:namespace create APP_CACHE_KV_STAGING
+  //    - R2 bucket: npx wrangler r2 bucket create next-inc-cache-staging
+  //    - Queues: npx wrangler queues create click-tracking-staging
+  //    - Queues: npx wrangler queues create click-tracking-dlq-staging
+  // 2. Set environment variables for staging:
+  //    export RATE_LIMIT_KV_NAMESPACE_ID_STAGING="<id from step 1>"
+  //    export APP_CACHE_KV_NAMESPACE_ID_STAGING="<id from step 1>"
+  // 3. Deploy to staging: npx wrangler deploy --env staging
+  //
+  // DEPLOYMENT TO STAGING:
+  //   npx opennextjs-cloudflare build && npx opennextjs-cloudflare deploy --env staging
+  //
+  // STAGING VS PRODUCTION:
+  // - Separate KV namespaces, R2 buckets, and queues
+  // - Separate Supabase project (recommended) or separate schema
+  // - Separate Stripe test mode keys
+  // - Staging-specific domains (e.g., staging.wristnerd.xyz)
+  "env": {
+    "staging": {
+      "vars": {
+        "NODE_ENV": "production",
+        "APP_URL": "https://staging.wristnerd.xyz",
+        "ADMIN_SESSION_STRICT": "true",
+        "INTERNAL_HMAC_MIGRATION_MODE": "strict",
+        // Staging-specific environment variables
+        "NEXT_PUBLIC_SUPABASE_URL": "${STAGING_SUPABASE_URL}",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "${STAGING_SUPABASE_ANON_KEY}",
+        "STAGING_ENVIRONMENT": "true",
+      },
+      "kv_namespaces": [
+        {
+          "binding": "RATE_LIMIT_KV",
+          "id": "${RATE_LIMIT_KV_NAMESPACE_ID_STAGING}",
+        },
+        {
+          "binding": "APP_CACHE_KV",
+          "id": "${APP_CACHE_KV_NAMESPACE_ID_STAGING}",
+        },
+      ],
+      "r2_buckets": [
+        {
+          "binding": "NEXT_INC_CACHE_R2_BUCKET",
+          "bucket_name": "next-inc-cache-staging",
+        },
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "CLICK_QUEUE",
+            "queue": "click-tracking-staging",
+          },
+        ],
+        "consumers": [
+          {
+            "queue": "click-tracking-staging",
+            "max_batch_size": 100,
+            "max_batch_timeout": 5,
+            "max_retries": 3,
+            "max_concurrency": 2, // Lower concurrency for staging
+            "dead_letter_queue": "click-tracking-dlq-staging",
+          },
+        ],
+      },
+      "routes": [
+        // Staging-specific routes
+        { "pattern": "staging.wristnerd.xyz", "custom_domain": true },
+      ],
+      // Staging cron triggers (less frequent than production)
+      "triggers": {
+        "crons": [
+          "*/30 * * * *", // Publish scheduled content (every 30 min in staging)
+          "0 2 * * *", // Stripe sync (daily 2 AM UTC)
+          "0 4 * * *", // Sitemap refresh (daily 4 AM UTC)
+          "0 6 * * *", // Data retention (daily 6 AM UTC)
+          "0 8 * * *", // EPC recompute (daily 8 AM UTC)
+          "0 */2 * * *", // Expire deals (every 2 hours in staging)
+          "*/30 * * * *", // Click reconcile (every 30 min)
+        ],
+      },
+    },
+  },
 }
 // BLIND SPOT FIX: Production Bindings & Secrets Truth
 // ---------------------------------------------------

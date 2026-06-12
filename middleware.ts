@@ -417,6 +417,6 @@ export const config = {
      *   internal auth; removing internal-token checks would create
      *   an unprotected surface.
      */
-    "/((?!_next/static|_next/image|favicon.ico|fonts/|api/internal/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/internal/).*)",
   ],
 };

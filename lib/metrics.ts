@@ -36,6 +36,10 @@ const ALLOWED_TAG_KEYS = new Set([
   "table_name",
   "job_name",
   "error_type",
+  // F-25: Add caller dimension for privileged client usage tracking
+  "caller",
+  // 24-hour quick wins: Add fail-open metrics
+  "fail_open_location",
 ]);
 
 export function emitMetric(name: string, value: number, tags: Record<string, string> = {}): void {

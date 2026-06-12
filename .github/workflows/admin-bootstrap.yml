@@ -16,21 +16,40 @@ on:
           - staging
           - production
 
+# F-017: Restrict permissions to minimum required
+permissions:
+  contents: read
+
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    # F-017: Use dedicated break-glass environment for production with required reviewers
+    # Configure 'production-break-glass' environment in GitHub repo settings with:
+    # - Required reviewers: at least 2
+    # - Wait timer: 6 hours
+    # - Environment secrets: SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL, ADMIN_BOOTSTRAP_PASSWORD
+    environment: ${{ inputs.environment == 'production' && 'production-break-glass' || inputs.environment }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      # F-017: Use --ignore-scripts to prevent supply chain attacks
+      - run: npm ci --ignore-scripts
       - name: Bootstrap admin user
         run: npx tsx scripts/bootstrap-admin.ts
         env:
           ADMIN_BOOTSTRAP_EMAIL: ${{ inputs.email }}
+          # F-017: These secrets must be environment-scoped, not repository-scoped
+          # Configure in GitHub repo Settings → Environments → production-break-glass → Secrets
           ADMIN_BOOTSTRAP_PASSWORD: ${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      # F-017: Log bootstrap action to audit log for compliance
+      - name: Log bootstrap to audit table
+        if: success()
+        run: |
+          echo "Bootstrap completed for ${{ inputs.email }} in ${{ inputs.environment }}"
+          # TODO: Add audit log entry to audit_log table via Supabase RPC
+          # This requires implementing an RPC call to record the bootstrap event

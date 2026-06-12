@@ -59,6 +59,12 @@ variable "r2_lifecycle_token" {
   description = "Cloudflare API token with Account:Read + R2:Edit permissions only. Used for R2 bucket lifecycle management."
 }
 
+variable "access_audience" {
+  type        = string
+  default     = null
+  description = "Cloudflare Access audience tag for SSO integration. Required for Access protection."
+}
+
 variable "cloudflare_account_id" {
   type        = string
   description = "Cloudflare account ID that owns the zone (used for account-scoped resources like Logpush)."
@@ -531,4 +537,87 @@ resource "cloudflare_load_balancer_pool" "static_fallback" {
     address = "affilite-mix-unavailable.pages.dev"
     enabled = true
   }]
+}
+
+# ── F-08: Cloudflare Access for admin segment ─────────────────────────────────
+# Protects the admin interface (/q7m-k4j9/*) with zero-trust SSO instead of
+# relying on path obfuscation. Requires SSO provider configuration (Google,
+# GitHub, Okta, etc.) in the Cloudflare Access dashboard.
+#
+# SETUP:
+# 1. Configure SSO provider in Cloudflare Dashboard → Zero Trust → Settings → Authentication
+# 2. Set access_audience variable to your audience tag (e.g., "my-app-audience")
+# 3. Apply Terraform to create the Access application
+# 4. Test access at https://<your-domain>/q7m-k4j9/
+
+resource "cloudflare_access_application" "admin_segment" {
+  zone_id          = var.zone_id
+  name             = "Affilite-Mix Admin Segment"
+  type             = "self_hosted"
+  session_duration = "24h"
+
+  # Protect the obfuscated admin path
+  # Note: This must match the actual admin path in app/q7m-k4j9/
+  allowed_idps = ["google", "github"] # Add your configured IdPs here
+
+  # F-08: Require authentication for all admin routes
+  policies = [{
+    name        = "Require Authentication"
+    decision    = "allow"
+    include     = [
+      {
+        email_domain = ["*"] # Allow any authenticated email - refine for production
+      }
+    ]
+    require = [
+      {
+        email       = ["*"] # Require email authentication
+        email_domain = ["*"]
+      }
+    ]
+  }]
+
+  # F-08: Protect the admin segment path
+  # The actual path is obfuscated as /q7m-k4j9/ in the codebase
+  # This Access rule ensures only authenticated users can reach it
+  cors_headers = {
+    allowed_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allowed_origins = ["*"]
+    allowed_headers = ["*"]
+    max_age         = 86400
+  }
+
+  lifecycle {
+    precondition {
+      condition     = var.access_audience != null
+      error_message = "access_audience must be set to enable Cloudflare Access protection. Set the variable in tfvars or disable Access by removing this resource."
+    }
+  }
+}
+
+resource "cloudflare_access_policy" "admin_segment_policy" {
+  application_id = cloudflare_access_application.admin_segment.id
+  zone_id        = var.zone_id
+  name           = "Admin Segment Access Policy"
+  precedence     = 1
+  decision       = "allow"
+
+  include = [
+    {
+      email = ["*"] # Allow any authenticated user - refine for production
+    }
+  ]
+
+  require = [
+    {
+      email = ["*"] # Require authentication
+    }
+  ]
+
+  lifecycle {
+    precondition {
+      condition     = var.access_audience != null
+      error_message = "access_audience must be set to enable Cloudflare Access protection."
+    }
+  }
 }

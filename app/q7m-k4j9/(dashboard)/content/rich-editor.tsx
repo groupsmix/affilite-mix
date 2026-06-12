@@ -7,7 +7,7 @@ import Image from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
 import Youtube from "@tiptap/extension-youtube";
 import { useEffect, useState, useRef } from "react";
-import { isSafeUrl } from "@/lib/sanitize-html";
+import { isSafeUrl, sanitizeHtml } from "@/lib/sanitize-html";
 
 /**
  * Only http(s) URLs are permitted inside the editor for images and videos.
@@ -322,7 +322,16 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
     ],
     content: value,
     onUpdate: ({ editor: e }) => {
-      onChange(e.getHTML());
+      // F-23: Assert TipTap output passes sanitize-html before rendering
+      const rawHtml = e.getHTML();
+      try {
+        const sanitizedHtml = sanitizeHtml(rawHtml);
+        onChange(sanitizedHtml);
+      } catch (err) {
+        // If sanitization fails (e.g., input too long), reject the change
+        console.error("TipTap output sanitization failed:", err);
+        // Don't update onChange - the editor will revert to the last valid state
+      }
     },
     editorProps: {
       attributes: {

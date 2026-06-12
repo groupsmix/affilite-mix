@@ -9,6 +9,7 @@
  */
 
 import { getAppCacheKV } from "@/lib/runtime-env";
+import { emitMetric } from "@/lib/metrics";
 import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 
@@ -57,6 +58,8 @@ export async function checkSuspiciousLogin(params: SuspiciousLoginCheck): Promis
   } catch (err) {
     // fail-open: best-effort [criticality:non-critical]
     captureException(err, { tag: "suspicious-login:check" });
+    // 24-hour quick wins: Emit fail-open metric
+    emitMetric("fail_open_total", 1, { fail_open_location: "suspicious-login-alert" });
   }
 }
 

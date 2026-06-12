@@ -6,8 +6,8 @@
 
 This document describes security controls that live **outside the codebase** but are
 critical to the overall security posture. The code-side controls (RLS, CSP, audit logs,
-rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md) and
-[`docs/soc2-controls-mapping.md`](soc2-controls-mapping.md).
+rate limiting, etc.) are documented in [`threat-model.md`](threat-model.md) and
+[`soc2-controls-mapping.md`](soc2-controls-mapping.md).
 
 ---
 
@@ -27,7 +27,7 @@ rate limiting, etc.) are documented in [`docs/threat-model.md`](threat-model.md)
 - [ ] Enable mandatory 2FA for all Cloudflare account members
 - [ ] Use scoped API tokens (not Global API Key) for all automation
 - [ ] CI/CD (`CLOUDFLARE_API_TOKEN`) must be a scoped token with `Workers Scripts:Edit` only
-- [ ] Rotate API tokens quarterly (see [`docs/secrets-rotation-runbook.md`](secrets-rotation-runbook.md))
+- [ ] Rotate API tokens quarterly (see [`secrets-rotation-runbook.md`](secrets-rotation-runbook.md))
 - [ ] Review account audit log monthly for unexpected role changes
 - [ ] Disable Global API Key if not required
 - [ ] Configure IP-based conditional access on the Cloudflare dashboard (A179-F4)
@@ -127,10 +127,10 @@ When a developer laptop compromise is suspected:
 
 1. **Immediately** revoke the developer's GitHub org membership
 2. **Immediately** revoke the developer's Cloudflare account access
-3. **Rotate** all secrets the developer had access to (see [`docs/secrets-rotation-runbook.md`](secrets-rotation-runbook.md))
+3. **Rotate** all secrets the developer had access to (see [`secrets-rotation-runbook.md`](secrets-rotation-runbook.md))
 4. **Review** GitHub audit log for the developer's recent actions
 5. **Review** Cloudflare audit log for any Worker deployments or secret changes
-6. **Follow** the full incident response playbook in [`docs/incident-response.md`](incident-response.md)
+6. **Follow** the full incident response playbook in [`incident-response.md`](incident-response.md)
 
 ---
 

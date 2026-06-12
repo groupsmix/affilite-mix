@@ -13,6 +13,7 @@
  */
 
 import { cronJobs } from "./cron-registry";
+import * as Sentry from "@sentry/nextjs";
 
 export interface RequiredEnvVar {
   /** Environment variable name. */
@@ -322,10 +323,15 @@ export function validateServerEnv(): {
   // the same explicit opt-out idiom used for
   // CRON_ALLOW_SHARED_FALLBACK_IN_PROD. Disabling a security control in
   // production should take two keys, not one.
+  //
+  // F-12: Add auto-disable timer and high-severity logging for
+  // ALLOW_TURNSTILE_DISABLED_IN_PROD. The flag auto-expires after 24
+  // hours to prevent indefinite security degradation.
   if (process.env.NODE_ENV === "production") {
     const turnstileFlag = process.env.ENABLE_TURNSTILE;
     const explicitlyDisabled = turnstileFlag === "false" || turnstileFlag === "0";
     const acknowledged = process.env.ALLOW_TURNSTILE_DISABLED_IN_PROD === "1";
+
     if (explicitlyDisabled && !acknowledged && !seenNames.has("ENABLE_TURNSTILE")) {
       missing.push({
         name: "ENABLE_TURNSTILE",
@@ -337,6 +343,60 @@ export function validateServerEnv(): {
         ownerFile: "lib/turnstile.ts",
       });
       seenNames.add("ENABLE_TURNSTILE");
+    }
+
+    // F-12: Auto-disable timer for ALLOW_TURNSTILE_DISABLED_IN_PROD
+    if (acknowledged) {
+      const timestamp = process.env.ALLOW_TURNSTILE_DISABLED_TIMESTAMP;
+      if (!timestamp) {
+        // First time setting the flag - log high-severity warning and set timestamp
+        // eslint-disable-next-line no-console -- high-severity security warning
+        console.error(
+          "[SECURITY] ALLOW_TURNSTILE_DISABLED_IN_PROD=1 is set in production. " +
+          "Turnstile bot protection is DISABLED. This is a high-severity security risk. " +
+          "Set ALLOW_TURNSTILE_DISABLED_TIMESTAMP to the current ISO timestamp to enable the 24-hour auto-disable timer. " +
+          "After 24 hours, the flag will be ignored and Turnstile will be re-enabled automatically.",
+        // F-12: Send high-severity Sentry event for production security degradation
+        Sentry.captureMessage(
+          "ALLOW_TURNSTILE_DISABLED_IN_PROD=1 is set in production - Turnstile bot protection is DISABLED",
+          "error",
+        );
+        );
+      } else {
+        // Check if 24 hours have elapsed
+        const disabledTime = new Date(timestamp).getTime();
+        const now = Date.now();
+        const hoursElapsed = (now - disabledTime) / (1000 * 60 * 60);
+        if (hoursElapsed > 24) {
+          // Auto-disable the flag - treat as if not acknowledged
+          // eslint-disable-next-line no-console -- high-severity security warning
+          console.error(
+            "[SECURITY] ALLOW_TURNSTILE_DISABLED_IN_PROD has expired after 24 hours. " +
+            "Turnstile bot protection is being re-enabled automatically. " +
+            "Remove ALLOW_TURNSTILE_DISABLED_IN_PROD and ALLOW_TURNSTILE_DISABLED_TIMESTAMP from your environment.",
+          );
+          // Treat as not acknowledged to force Turnstile back on
+          const acknowledgedExpired = false;
+          if (explicitlyDisabled && !acknowledgedExpired && !seenNames.has("ENABLE_TURNSTILE")) {
+            missing.push({
+              name: "ENABLE_TURNSTILE",
+              description:
+                "ALLOW_TURNSTILE_DISABLED_IN_PROD has expired after 24 hours. " +
+                "Turnstile bot protection is being re-enabled. Set ENABLE_TURNSTILE=true to restore bot protection.",
+              ownerFile: "lib/turnstile.ts",
+            });
+            seenNames.add("ENABLE_TURNSTILE");
+          }
+        } else {
+          // Still within 24-hour window - log high-severity warning
+          // eslint-disable-next-line no-console -- high-severity security warning
+          console.error(
+            `[SECURITY] ALLOW_TURNSTILE_DISABLED_IN_PROD=1 is active (${Math.round(hoursElapsed)} hours elapsed). ` +
+            "Turnstile bot protection is DISABLED. This flag will auto-expire in " +
+            `${Math.round(24 - hoursElapsed)} hours. Remove the flag and re-enable Turnstile as soon as possible.`,
+          );
+        }
+      }
     }
   }
 

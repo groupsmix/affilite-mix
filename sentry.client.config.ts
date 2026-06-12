@@ -58,6 +58,10 @@ function initSentry() {
 
   Sentry.init({
     dsn: SENTRY_DSN,
+    // F-10: Route exceptions at 100% - sampleRate defaults to 1.0 (100%)
+    // Explicitly set to ensure all errors are captured
+    sampleRate: 1.0,
+    // F-10: Keep traces at 10% for performance monitoring cost control
     tracesSampleRate: 0.1,
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 0.1,

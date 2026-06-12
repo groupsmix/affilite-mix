@@ -5,14 +5,16 @@
  * Each caller category (click-queue consumer, cron jobs, internal routes)
  * gets its own env var so that a leaked token has the minimum blast radius.
  *
- * Backward compatibility: if the purpose-specific token is unset, the
- * legacy INTERNAL_API_TOKEN is used as a fallback.
+ * F-18: Legacy INTERNAL_API_TOKEN fallback removed in production.
+ * Per-purpose tokens are now required in production to enforce blast-radius
+ * reduction. The legacy fallback negates the security benefit of per-purpose
+ * tokens by allowing a leaked legacy token to access the entire internal surface.
  *
  * Policy:
  *  - Production runtime (NODE_ENV=production and not a Next.js build phase):
- *    require a non-empty token. Throws if missing or if the
- *    value matches the documented public dev fallback, so the app fails
- *    fast instead of accepting a known-public token on internal routes.
+ *    require per-purpose tokens. Throws if missing or if the value matches
+ *    the documented public dev fallback. Legacy INTERNAL_API_TOKEN is NOT
+ *    accepted as a fallback in production.
  *  - Build phases (NEXT_PHASE set): return the dev fallback so `next build`
  *    can complete without runtime secrets.
  *  - Development / test: return the documented dev-only fallback so the app
@@ -63,8 +65,11 @@ function validateToken(value: string, isProd: boolean, isBuild: boolean, purpose
 
 /**
  * Returns the configured internal API token for a specific purpose.
- * Falls back to the legacy INTERNAL_API_TOKEN when the purpose-specific
- * variable is not set.
+ *
+ * F-18: In production, only the purpose-specific token is accepted.
+ * The legacy INTERNAL_API_TOKEN fallback is removed in production to
+ * enforce blast-radius reduction. In non-production environments, the
+ * legacy fallback is still accepted for backward compatibility.
  */
 export function getInternalTokenFor(purpose: InternalTokenPurpose): string {
   const envName = PURPOSE_ENV_MAP[purpose];
@@ -73,7 +78,13 @@ export function getInternalTokenFor(purpose: InternalTokenPurpose): string {
   const isBuild = !!process.env.NEXT_PHASE;
   const isProd = process.env.NODE_ENV === "production";
 
-  // Prefer purpose-specific token; fall back to legacy monolithic token.
+  // F-18: In production, require purpose-specific token only
+  if (isProd && !isBuild) {
+    const value = purposeValue?.trim() || "";
+    return validateToken(value, isProd, isBuild, envName);
+  }
+
+  // Non-production: fall back to legacy token for backward compatibility
   const value = purposeValue?.trim() || fallbackValue?.trim() || "";
   return validateToken(value, isProd, isBuild, envName);
 }

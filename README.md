@@ -43,7 +43,7 @@ Each "site" (e.g. Arabic Tools, Crypto Tools) shares the same codebase but has i
 
 ### Prerequisites
 
-- Node.js (see `.nvmrc` for exact version; `>=22.13.0` minimum)
+- Node.js (see `.nvmrc` for exact version; `>=22.22.2` minimum)
 - npm
 - A Supabase project (free tier works)
 

@@ -12,6 +12,10 @@ export interface AuditEvent {
   entity_id: string;
   details?: Record<string, unknown>;
   ip?: string;
+  // F-21: Distinguish authentication vs authorization failures for security analysis
+  // authn: User identity verification failed (wrong password, invalid token, etc.)
+  // authz: User is authenticated but lacks permission for the requested action
+  failure_type?: "authn" | "authz";
 }
 
 // A8-005: Schema-based audit redaction allowlist.
@@ -220,6 +224,8 @@ export async function recordAuditEvent(
     entity_id: event.entity_id,
     details: redactedDetails,
     ip: event.ip ?? null,
+    // F-21: Include failure_type to distinguish authn vs authz failures
+    failure_type: event.failure_type ?? null,
   };
 
   const sb = await getClient();

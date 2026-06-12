@@ -25,6 +25,38 @@
  * Usage in cron:
  *   import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
  *   myDalFn(siteId, { getClient: getPrivilegedSupabaseClient });
+ *
+ * F-11: AbortSignal Support (Future Implementation)
+ *
+ * Current state: DAL calls do not honour AbortSignal. When a request
+ * is cancelled (e.g., user navigates away, timeout), the underlying
+ * Supabase HTTP request continues to execute, wasting resources and
+ * potentially causing race conditions.
+ *
+ * Required changes:
+ * 1. Update DalClientGetter to accept optional AbortSignal parameter
+ * 2. Pass signal to Supabase client fetch options
+ * 3. Emit post-timeout metric when AbortSignal triggers
+ * 4. Update all DAL functions to accept and forward signal parameter
+ *
+ * Example implementation:
+ *   export type DalClientGetter = (signal?: AbortSignal) => Promise<DalClient> | DalClient;
+ *
+ *   export const defaultDalClientGetter: DalClientGetter = (signal?: AbortSignal) => {
+ *     const client = getTenantClient();
+ *     if (signal) {
+ *       // Configure client to honour the signal
+ *       // This requires modifying the Supabase client initialization
+ *     }
+ *     return client;
+ *   };
+ *
+ * Post-timeout metric:
+ *   When AbortSignal.aborted is true, emit:
+ *   emitMetric("dal_post_timeout_total", 1, { operation: "table_name" });
+ *
+ * This is tracked as a future improvement due to the scope of changes
+ * required across all DAL functions.
  */
 
 import { getTenantClient } from "@/lib/supabase-server";
