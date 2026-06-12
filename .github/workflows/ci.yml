@@ -48,7 +48,6 @@ jobs:
     permissions:
       contents: read
 
-
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
@@ -65,7 +64,7 @@ jobs:
       - name: Env-var documentation guard (G-13)
         run: bash scripts/check-env-docs.sh
       - run: npm run lint
-      - name: F-22: Lint worker code explicitly
+      - name: "F-22: Lint worker code explicitly"
         run: npm run lint:worker
       - run: npm test
       - name: Vitest coverage threshold (G-37)

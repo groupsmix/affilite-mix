@@ -6,29 +6,29 @@
 
 ## Project Details
 
-| Property | Value |
-| -------- | ----- |
-| **Project Ref** | `odgtwjkzwciohhhqdtti` |
-| **Region** | `eu-central-1` (Frankfurt, Germany) |
-| **Data Residency** | EU (GDPR Adequacy) |
-| **DPA Status** | Executed via Enterprise contract (see `docs/vendor-dpas.md`) |
+| Property           | Value                                                        |
+| ------------------ | ------------------------------------------------------------ |
+| **Project Ref**    | `odgtwjkzwciohhhqdtti`                                       |
+| **Region**         | `eu-central-1` (Frankfurt, Germany)                          |
+| **Data Residency** | EU (GDPR Adequacy)                                           |
+| **DPA Status**     | Executed via Enterprise contract (see `docs/vendor-dpas.md`) |
 
 ## Connection Pooler Configuration
 
-| Setting | Value | Source |
-| -------- | ----- | ------ |
-| **Enabled** | Yes | `supabase/config.toml` |
-| **Mode** | Transaction | `supabase/config.toml` |
-| **Port** | 6543 | `supabase/config.toml` |
-| **Default Pool Size** | 20 | `supabase/config.toml` |
-| **Max Client Connections** | 500 | `supabase/config.toml` |
+| Setting                    | Value       | Source                 |
+| -------------------------- | ----------- | ---------------------- |
+| **Enabled**                | Yes         | `supabase/config.toml` |
+| **Mode**                   | Transaction | `supabase/config.toml` |
+| **Port**                   | 6543        | `supabase/config.toml` |
+| **Default Pool Size**      | 20          | `supabase/config.toml` |
+| **Max Client Connections** | 500         | `supabase/config.toml` |
 
 ## Database Configuration
 
-| Setting | Value | Source |
-| -------- | ----- | ------ |
-| **Major Version** | 15 | `supabase/config.toml` |
-| **Port** | 54322 (local), 6543 (pooler) | `supabase/config.toml` |
+| Setting           | Value                        | Source                 |
+| ----------------- | ---------------------------- | ---------------------- |
+| **Major Version** | 15                           | `supabase/config.toml` |
+| **Port**          | 54322 (local), 6543 (pooler) | `supabase/config.toml` |
 
 ## Blind Spots (Information Not Available in Codebase)
 

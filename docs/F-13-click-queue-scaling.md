@@ -3,7 +3,9 @@
 ## Status: Partial Implementation - Configuration Documented
 
 ## Finding
+
 F-13 — Click queue at `max_concurrency: 2` and no pgbouncer
+
 - Severity: **Medium** · Confidence: **High** · Domain: Performance
 - Evidence: wrangler.jsonc shows max_concurrency: 4 (already increased from 2), but audit originally reported 2
 - Remediation: Increase click queue concurrency and add pgbouncer for connection pooling
@@ -13,6 +15,7 @@ F-13 — Click queue at `max_concurrency: 2` and no pgbouncer
 ### Queue Configuration (wrangler.jsonc)
 
 **Production:**
+
 - `max_concurrency: 4` (line 163)
 - `max_batch_size: 100`
 - `max_batch_timeout: 5`
@@ -20,12 +23,14 @@ F-13 — Click queue at `max_concurrency: 2` and no pgbouncer
 - Drain ceiling: ~80 msg/s (4 batches × 100 msgs / 5s)
 
 **Staging:**
+
 - `max_concurrency: 2` (line 376)
 - Same batch settings as production
 
 ### Current Connection Pooling
 
 The application uses Supabase connection pooler:
+
 - `SUPABASE_DB_URL` - Direct connection (for migrations)
 - `SUPABASE_DB_POOLER_URL` - Session pooler (for runtime)
 
@@ -37,12 +42,14 @@ The application uses Supabase connection pooler:
 **Recommended:** `max_concurrency: 8` (production)
 
 **Rationale:**
+
 - Current 4 concurrency limits throughput to ~80 msg/s
 - Supabase free tier pooler supports ~50 connections
 - Circuit breaker protects against pool exhaustion
 - DLQ provides backpressure
 
 **Implementation:**
+
 ```jsonc
 // wrangler.jsonc - production consumer
 "consumers": [
@@ -62,6 +69,7 @@ The application uses Supabase connection pooler:
 Supabase provides built-in connection pooling, but pgbouncer can add an additional layer of optimization:
 
 **Benefits:**
+
 - Better connection reuse across isolates
 - Reduced latency for rapid connection establishment
 - Protection against connection storms
@@ -70,12 +78,14 @@ Supabase provides built-in connection pooling, but pgbouncer can add an addition
 **Options:**
 
 **Option A: Use Supabase Built-in Pooler (Recommended)**
+
 - Already available via `SUPABASE_DB_POOLER_URL`
 - No additional infrastructure needed
 - Managed by Supabase
 - Already in use (check .env.example)
 
 **Option B: Self-Managed PgBouncer (Advanced)**
+
 - Requires additional Worker or external service
 - More control over configuration
 - Adds operational complexity
@@ -86,6 +96,7 @@ Supabase provides built-in connection pooling, but pgbouncer can add an addition
 The audit mentions: "there is **no** corresponding global concurrency cap on outbound AI calls, only the daily $ ceiling"
 
 **Current State:**
+
 - AI calls use circuit breaker per provider
 - No global concurrency limit across all providers
 - Daily cost ceiling exists but no rate limit
@@ -95,7 +106,7 @@ Add global concurrency limiter in lib/ai/providers.ts
 
 ```typescript
 // lib/ai/global-ai-concurrency.ts
-import { Semaphore } from 'async-mutex';
+import { Semaphore } from "async-mutex";
 
 const GLOBAL_AI_CONCURRENCY = 10; // Max concurrent AI calls across all providers
 const aiSemaphore = new Semaphore(GLOBAL_AI_CONCURRENCY);
@@ -108,6 +119,7 @@ export async function withAiConcurrency<T>(fn: () => Promise<T>): Promise<T> {
 ### 4. Monitoring and Alerting
 
 **Metrics to Add:**
+
 - `click_queue_consumer_lag_ms` - Time from queue to DB
 - `click_queue_batch_size_avg` - Average batch size
 - `click_queue_error_rate` - Failed batches
@@ -115,6 +127,7 @@ export async function withAiConcurrency<T>(fn: () => Promise<T>): Promise<T> {
 - `supabase_pool_wait_time_ms` - Time waiting for connection
 
 **Alerts to Configure:**
+
 - Queue depth > 1000 messages
 - Consumer lag > 30 seconds
 - Pool exhaustion (connection wait time > 1s)
@@ -139,6 +152,7 @@ export async function withAiConcurrency<T>(fn: () => Promise<T>): Promise<T> {
 4. Tune pooler settings if needed (max connections, timeout)
 
 **Supabase Pooler Settings:**
+
 - Transaction mode (recommended for OLTP)
 - Session mode (if needed for prepared statements)
 - Max connections: 50 (free tier limit)
@@ -156,6 +170,7 @@ export async function withAiConcurrency<T>(fn: () => Promise<T>): Promise<T> {
 ### Phase 4: Advanced PgBouncer (Optional, High Complexity)
 
 Only if Supabase pooler proves insufficient:
+
 1. Deploy pgbouncer as separate service
 2. Configure connection pooling
 3. Update connection strings
@@ -170,18 +185,19 @@ Use Cloudflare Workers to simulate click traffic:
 ```typescript
 // Load test script
 for (let i = 0; i < 1000; i++) {
-  fetch('https://wristnerd.xyz/api/track/click', {
-    method: 'POST',
+  fetch("https://wristnerd.xyz/api/track/click", {
+    method: "POST",
     body: JSON.stringify({
-      trackingKey: 'test-key',
-      productUrl: 'https://example.com',
+      trackingKey: "test-key",
+      productUrl: "https://example.com",
     }),
   });
-  await new Promise(r => setTimeout(r, 10));
+  await new Promise((r) => setTimeout(r, 10));
 }
 ```
 
 **Metrics to Monitor:**
+
 - Queue depth growth rate
 - Consumer throughput (msg/s)
 - Database connection pool utilization
@@ -191,6 +207,7 @@ for (let i = 0; i < 1000; i++) {
 ### Rollback Criteria
 
 Roll back if:
+
 - Queue depth grows unbounded (>10,000 messages)
 - DB connection pool exhaustion errors increase
 - Consumer error rate > 5%

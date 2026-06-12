@@ -89,7 +89,14 @@ export function withAuthz(
     // F-11: Extract signal from request for timeout propagation
     const signal = request.signal;
 
-    const allowed = await hasPermission(session.userId, dbSiteId, feature, action, undefined, signal);
+    const allowed = await hasPermission(
+      session.userId,
+      dbSiteId,
+      feature,
+      action,
+      undefined,
+      signal,
+    );
     if (!allowed) {
       return apiError(403, "Forbidden");
     }
@@ -131,7 +138,14 @@ export function withAuthzDynamic(
     // F-11: Extract signal from request for timeout propagation
     const signal = request.signal;
 
-    const allowed = await hasPermission(session.userId, dbSiteId, feature, action, undefined, signal);
+    const allowed = await hasPermission(
+      session.userId,
+      dbSiteId,
+      feature,
+      action,
+      undefined,
+      signal,
+    );
     if (!allowed) {
       return apiError(403, "Forbidden");
     }
@@ -296,7 +310,14 @@ export async function authorizeResource(
     };
   }
 
-  const allowed = await hasPermission(opts.session.userId, realSiteId, opts.feature, opts.action, undefined, signal);
+  const allowed = await hasPermission(
+    opts.session.userId,
+    realSiteId,
+    opts.feature,
+    opts.action,
+    undefined,
+    signal,
+  );
   if (!allowed) {
     return { ok: false, status: 403, reason: "Forbidden" };
   }

@@ -13,37 +13,37 @@ The affilite-mix platform currently uses a single Supabase project for all data 
 
 ### Project Information
 
-- [ ] **Project ID:** _________ (from Supabase Dashboard → Settings → General)
-- [ ] **Project Name:** _________ (from Supabase Dashboard)
-- [ ] **Organization:** _________ (from Supabase Dashboard)
-- [ ] **Database Version:** _________ (from Supabase Dashboard → Settings → Database)
+- [ ] **Project ID:** \***\*\_\*\*** (from Supabase Dashboard → Settings → General)
+- [ ] **Project Name:** \***\*\_\*\*** (from Supabase Dashboard)
+- [ ] **Organization:** \***\*\_\*\*** (from Supabase Dashboard)
+- [ ] **Database Version:** \***\*\_\*\*** (from Supabase Dashboard → Settings → Database)
 
 ### Region Configuration (E2-06)
 
-- [ ] **Region:** _________ (from Supabase Dashboard → Settings → General)
+- [ ] **Region:** \***\*\_\*\*** (from Supabase Dashboard → Settings → General)
   - Options: us-east-1, us-west-1, eu-west-1, eu-central-1, ap-southeast-1, ap-northeast-1, etc.
-- [ ] **Region Decision Rationale:** _________ (document why this region was chosen)
-- [ ] **Data Residency Requirements:** _________ (EU/GDPR, US-specific, etc.)
+- [ ] **Region Decision Rationale:** \***\*\_\*\*** (document why this region was chosen)
+- [ ] **Data Residency Requirements:** \***\*\_\*\*** (EU/GDPR, US-specific, etc.)
 - [ ] **Multi-Region Replication:** [ ] Enabled [ ] Disabled
 - [ ] **Regional Isolation Needed:** [ ] Yes [ ] No (based on compliance requirements)
 
 ### Pricing Tier (E2-01)
 
-- [ ] **Current Plan:** _________ (Free / Pro / Enterprise)
-- [ ] **Monthly Cost:** _________ USD
-- [ ] **Compute Instance:** _________ (e.g., 2-CPU, 4-CPU, 8-CPU)
-- [ ] **Memory:** _________ GB
-- [ ] **Disk Storage:** _________ GB
-- [ ] **Database Size:** _________ GB (actual usage)
+- [ ] **Current Plan:** \***\*\_\*\*** (Free / Pro / Enterprise)
+- [ ] **Monthly Cost:** \***\*\_\*\*** USD
+- [ ] **Compute Instance:** \***\*\_\*\*** (e.g., 2-CPU, 4-CPU, 8-CPU)
+- [ ] **Memory:** \***\*\_\*\*** GB
+- [ ] **Disk Storage:** \***\*\_\*\*** GB
+- [ ] **Database Size:** \***\*\_\*\*** GB (actual usage)
 - [ ] **Connection Pooling:** [ ] Session Mode [ ] Transaction Mode
 
 ### Connection Pooling Configuration (E2-01)
 
 - [ ] **Pooler Enabled:** [ ] Yes [ ] No
-- [ ] **Pooler Mode:** _________ (Transaction / Session)
-- [ ] **Pool Size:** _________ (default varies by tier)
-- [ ] **Max Client Connections:** _________
-- [ ] **Current Connection Usage:** _________ % (from Supabase Dashboard)
+- [ ] **Pooler Mode:** \***\*\_\*\*** (Transaction / Session)
+- [ ] **Pool Size:** \***\*\_\*\*** (default varies by tier)
+- [ ] **Max Client Connections:** \***\*\_\*\***
+- [ ] **Current Connection Usage:** \***\*\_\*\*** % (from Supabase Dashboard)
 - [ ] **Connection Pool Exhaustion Events:** [ ] Yes [ ] No (check logs)
 
 ## Remediation Options
@@ -63,7 +63,7 @@ The affilite-mix platform currently uses a single Supabase project for all data 
 ## Next Steps
 
 1. Verify current Supabase configuration (Region, Tier, Pooler)
-2. Document current performance metrics  
+2. Document current performance metrics
 3. Identify primary bottleneck
 4. Choose and implement remediation approach
 5. Run load tests to validate improvements

@@ -6,11 +6,11 @@
 
 ## Backup Sources
 
-| Store | Data Type | Backup Method |
-| ----- | --------- | ------------ |
-| **Supabase Postgres** | All persistent business objects (sites, admin_users, content, products, comments, wrist_shots, click events, newsletter subscribers, stripe customers) | Daily automatic + PITR |
-| **Cloudflare R2** | Uploaded images and binary attachments (wrist-shot images, page hero images, OG-card assets) | Versioning + lifecycle rules |
-| **Stripe** | Customer / subscription data | Source of truth at Stripe; mirrored in `stripe_*` tables |
+| Store                 | Data Type                                                                                                                                              | Backup Method                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| **Supabase Postgres** | All persistent business objects (sites, admin_users, content, products, comments, wrist_shots, click events, newsletter subscribers, stripe customers) | Daily automatic + PITR                                   |
+| **Cloudflare R2**     | Uploaded images and binary attachments (wrist-shot images, page hero images, OG-card assets)                                                           | Versioning + lifecycle rules                             |
+| **Stripe**            | Customer / subscription data                                                                                                                           | Source of truth at Stripe; mirrored in `stripe_*` tables |
 
 **Note:** Cloudflare KV is a cache (rate-limit counters, HIBP prefix cache, sitemap last-good) and is not in scope for backup retention.
 
@@ -18,13 +18,13 @@
 
 ## Supabase Backup Configuration
 
-| Setting | Value | Source |
-| ------- | ----- | ------ |
-| **Daily Snapshots** | Enabled | Supabase Dashboard |
-| **Snapshot Frequency** | Daily | Supabase Dashboard |
-| **Snapshot Retention** | 30 days | `docs/runbooks/db-backup-retention.md` |
-| **PITR Window** | 7 days | `docs/runbooks/db-backup-retention.md` |
-| **Region Replication** | Managed by Supabase | Supabase Dashboard |
+| Setting                | Value               | Source                                 |
+| ---------------------- | ------------------- | -------------------------------------- |
+| **Daily Snapshots**    | Enabled             | Supabase Dashboard                     |
+| **Snapshot Frequency** | Daily               | Supabase Dashboard                     |
+| **Snapshot Retention** | 30 days             | `docs/runbooks/db-backup-retention.md` |
+| **PITR Window**        | 7 days              | `docs/runbooks/db-backup-retention.md` |
+| **Region Replication** | Managed by Supabase | Supabase Dashboard                     |
 
 **Blind Spot:** Exact PITR retention period (e.g., 7 days, 14 days, 30 days) is not documented in codebase - must verify in Supabase Dashboard.
 
@@ -32,23 +32,23 @@
 
 ## R2 Backup Configuration
 
-| Setting | Value | Source |
-| ------- | ----- | ------ |
-| **Versioning** | Enabled | Cloudflare Dashboard |
-| **Lifecycle Rule** | Keep 30 days of overwritten versions | `docs/runbooks/db-backup-retention.md` |
-| **Retention Window** | 30 days | `docs/runbooks/db-backup-retention.md` |
-| **Cross-Region** | Multi-region by default | R2 is multi-region by default |
+| Setting              | Value                                | Source                                 |
+| -------------------- | ------------------------------------ | -------------------------------------- |
+| **Versioning**       | Enabled                              | Cloudflare Dashboard                   |
+| **Lifecycle Rule**   | Keep 30 days of overwritten versions | `docs/runbooks/db-backup-retention.md` |
+| **Retention Window** | 30 days                              | `docs/runbooks/db-backup-retention.md` |
+| **Cross-Region**     | Multi-region by default              | R2 is multi-region by default          |
 
 ---
 
 ## Recovery Objectives (RPO/RTO)
 
-| Class of Incident | Target RPO | Target RTO |
-| ----------------- | ---------- | ---------- |
-| Single-tenant accidental delete | <24h (last daily) or <5min (PITR) | <30min |
-| Schema-level corruption | <24h | <2h |
-| Total Supabase loss (region down) | <24h | <8h (re-point to new project, restore latest snapshot) |
-| R2 bucket overwrite / accidental delete | <30d (versioning) | <1h per affected object |
+| Class of Incident                       | Target RPO                        | Target RTO                                             |
+| --------------------------------------- | --------------------------------- | ------------------------------------------------------ |
+| Single-tenant accidental delete         | <24h (last daily) or <5min (PITR) | <30min                                                 |
+| Schema-level corruption                 | <24h                              | <2h                                                    |
+| Total Supabase loss (region down)       | <24h                              | <8h (re-point to new project, restore latest snapshot) |
+| R2 bucket overwrite / accidental delete | <30d (versioning)                 | <1h per affected object                                |
 
 ---
 
@@ -58,9 +58,9 @@
 
 **Last Successful Drill:** **TBD pre-launch** - No drills have been performed yet
 
-| Date | Drilled By | Snapshot Age | Restore Time | Pass/Fail | Notes |
-| ---- | ---------- | ------------ | ------------ | --------- | ----- |
-| TBD pre-launch | SRE lead | 12h | TBD | TBD | Initial baseline; document deviations from target RTO above |
+| Date           | Drilled By | Snapshot Age | Restore Time | Pass/Fail | Notes                                                       |
+| -------------- | ---------- | ------------ | ------------ | --------- | ----------------------------------------------------------- |
+| TBD pre-launch | SRE lead   | 12h          | TBD          | TBD       | Initial baseline; document deviations from target RTO above |
 
 **Status:** ⚠️ **No drills performed yet** - This is a pre-launch gap that must be addressed before production launch.
 

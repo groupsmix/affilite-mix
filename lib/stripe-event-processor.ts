@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { applyStripeEventAtomic, type StripeEventOp } from "@/lib/dal/stripe-events";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 /** A91-2: Typed error wrapper preserving the original cause. */
 class ProcessorError extends Error {
@@ -324,10 +325,8 @@ function resolveTierFromPriceId(priceId: string): "insider" | "pro" {
     `Unknown Stripe price ID: ${priceId}. Update STRIPE_PRICE_ID_INSIDER or STRIPE_PRICE_ID_PRO env vars.`,
   );
   logger.error(error.message, { priceId });
-  // Capture to Sentry for alerting
-  if (typeof Sentry !== "undefined") {
-    Sentry.captureException(error, { tags: { priceId } });
-  }
+  // Capture to Sentry for alerting (no-op when SENTRY_DSN is unset).
+  captureException(error, { tags: { priceId } });
   // Default to "insider" as a safe fallback, but the error is logged and alerted
   throw error;
 }

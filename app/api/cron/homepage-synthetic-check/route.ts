@@ -40,15 +40,16 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    // Fetch all active sites
+    // Fetch all active sites.
+    // AUDIT-APPROVED [F-API-01 / homepage-synthetic-check]: cross-site
+    // monitoring cron — iterates every active site to detect empty
+    // homepages, so no per-request site_id is available. Route is gated
+    // by CRON_HOMEPAGE_SYNTHETIC_SECRET via verifyCronAuth() above.
     const { data: sites, error: sitesError } = await sb
+      // eslint-disable-next-line no-restricted-syntax -- privileged cron context, see audit comment above
       .from("sites")
       .select("id, domain, slug")
       .eq("is_active", true)
-      // AUDIT-APPROVED [F-API-01 / homepage-synthetic-check]: cross-site
-      // monitoring cron — iterates every active site to detect empty
-      // homepages, so no per-request site_id is available. Route is gated
-      // by CRON_HOMEPAGE_SYNTHETIC_SECRET via verifyCronAuth() above.
       .unsafeNoSiteFilter();
 
     if (sitesError) {
@@ -71,8 +72,11 @@ export async function POST(request: NextRequest) {
       const siteId = site.id;
       const domain = site.domain;
 
-      // Check if site has published content
+      // Check if site has published content. Site-scoped via .eq("site_id"),
+      // so no .unsafeNoSiteFilter() is needed; raw .from() is acceptable
+      // inside this privileged cron route.
       const { data: publishedContent, error: contentError } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- privileged cron context; site-scoped via site_id
         .from("content")
         .select("id")
         .eq("site_id", siteId)
@@ -92,10 +96,12 @@ export async function POST(request: NextRequest) {
       if (hasPublishedContent) {
         results.sites_with_published_content = (results.sites_with_published_content as number) + 1;
 
-        // Check if homepage would render empty by checking for featured content
-        // This is a simplified check - in production you might want to actually
-        // fetch the rendered homepage or check cache state
+        // Check if homepage would render empty by checking for featured content.
+        // This is a simplified check — in production you might want to actually
+        // fetch the rendered homepage or check cache state. Site-scoped via
+        // .eq("site_id"); raw .from() is acceptable inside this privileged cron.
         const { data: featuredContent, error: featuredError } = await sb
+          // eslint-disable-next-line no-restricted-syntax -- privileged cron context; site-scoped via site_id
           .from("content")
           .select("id")
           .eq("site_id", siteId)
@@ -127,7 +133,8 @@ export async function POST(request: NextRequest) {
           (results.issues as Array<{ site_id: string; domain: string; reason: string }>).push({
             site_id: siteId,
             domain: domain,
-            reason: "Published content exists but no featured content found - homepage may render empty",
+            reason:
+              "Published content exists but no featured content found - homepage may render empty",
           });
 
           // Log a warning
@@ -139,18 +146,15 @@ export async function POST(request: NextRequest) {
 
           // If this is a critical issue, capture it in Sentry
           // Adjust the threshold based on your tolerance
-          captureException(
-            new Error(`Homepage may render empty for site ${domain} (${siteId})`),
-            {
-              context: "[api/cron/homepage-synthetic-check] Homepage rendering issue detected",
-              extra: {
-                site_id: siteId,
-                domain: domain,
-                published_content_count: publishedContent.length,
-              },
-              level: "warning",
+          captureException(new Error(`Homepage may render empty for site ${domain} (${siteId})`), {
+            context: "[api/cron/homepage-synthetic-check] Homepage rendering issue detected",
+            extra: {
+              site_id: siteId,
+              domain: domain,
+              published_content_count: publishedContent.length,
             },
-          );
+            level: "warning",
+          });
         }
       }
     }

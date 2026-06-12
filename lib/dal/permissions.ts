@@ -193,7 +193,7 @@ async function getGlobalRole(
     .abortSignal(signal)
     .single();
   if (error) throw error;
-  return ((data as AdminRoleLookup | null)?.role) ?? null;
+  return (data as AdminRoleLookup | null)?.role ?? null;
 }
 
 // F-11: Removed cache to support AbortSignal propagation
@@ -237,7 +237,9 @@ export async function hasPermission(
   if (globalRole === "super_admin" || globalRole === "owner") return true;
 
   // 2. Check site-scoped role — also primary read for authz consistency
-  const userSiteRole = await authzPrimaryRead(() => getUserSiteRole(userId, siteId, getClient, signal));
+  const userSiteRole = await authzPrimaryRead(() =>
+    getUserSiteRole(userId, siteId, getClient, signal),
+  );
   if (!userSiteRole) {
     // No site-scoped role assigned: deny access.
     return false;

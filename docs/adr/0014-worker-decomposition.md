@@ -7,6 +7,7 @@
 ## Problem
 
 The current architecture has a single Cloudflare Worker (`affilite-mix`) handling:
+
 - All public routes (SSR/ISR/SSG)
 - All admin routes
 - All API routes
@@ -29,6 +30,7 @@ The current architecture has a single Cloudflare Worker (`affilite-mix`) handlin
 ### Phase 1: Extract Webhook Worker (Immediate)
 
 Create `affilite-mix-webhooks` Worker to handle:
+
 - Stripe webhooks (`/api/membership/webhook`)
 - Other third-party webhooks if added later
 
@@ -37,6 +39,7 @@ Create `affilite-mix-webhooks` Worker to handle:
 ### Phase 2: Extract Queue Worker (Next)
 
 Create `affilite-mix-queue` Worker to handle:
+
 - Click-tracking queue consumer
 - DLQ consumer
 - Other async processing queues
@@ -69,6 +72,7 @@ The worker will forward requests to the main app via HTTP (similar to heavy-cron
 ## DAL Sharing Strategy
 
 Options:
+
 1. **Vendored DAL**: Copy shared DAL code to both workers
 2. **Private NPM Package**: Extract DAL to private package
 3. **HTTP Forwarding**: Workers forward to main app (heavy-crons pattern)
@@ -119,6 +123,7 @@ Options:
 ## Rollback Plan
 
 If issues occur:
+
 1. Revert to single-worker architecture
 2. Update DNS/routing to point to main worker
 3. Monitor for any data loss (queue backlog, missed webhooks)

@@ -353,9 +353,9 @@ export function validateServerEnv(): {
         // eslint-disable-next-line no-console -- high-severity security warning
         console.error(
           "[SECURITY] ALLOW_TURNSTILE_DISABLED_IN_PROD=1 is set in production. " +
-          "Turnstile bot protection is DISABLED. This is a high-severity security risk. " +
-          "Set ALLOW_TURNSTILE_DISABLED_TIMESTAMP to the current ISO timestamp to enable the 24-hour auto-disable timer. " +
-          "After 24 hours, the flag will be ignored and Turnstile will be re-enabled automatically.",
+            "Turnstile bot protection is DISABLED. This is a high-severity security risk. " +
+            "Set ALLOW_TURNSTILE_DISABLED_TIMESTAMP to the current ISO timestamp to enable the 24-hour auto-disable timer. " +
+            "After 24 hours, the flag will be ignored and Turnstile will be re-enabled automatically.",
         );
         // F-12: Send high-severity Sentry event for production security degradation
         Sentry.captureMessage(
@@ -372,8 +372,8 @@ export function validateServerEnv(): {
           // eslint-disable-next-line no-console -- high-severity security warning
           console.error(
             "[SECURITY] ALLOW_TURNSTILE_DISABLED_IN_PROD has expired after 24 hours. " +
-            "Turnstile bot protection is being re-enabled automatically. " +
-            "Remove ALLOW_TURNSTILE_DISABLED_IN_PROD and ALLOW_TURNSTILE_DISABLED_TIMESTAMP from your environment.",
+              "Turnstile bot protection is being re-enabled automatically. " +
+              "Remove ALLOW_TURNSTILE_DISABLED_IN_PROD and ALLOW_TURNSTILE_DISABLED_TIMESTAMP from your environment.",
           );
           // Treat as not acknowledged to force Turnstile back on
           const acknowledgedExpired = false;
@@ -392,8 +392,8 @@ export function validateServerEnv(): {
           // eslint-disable-next-line no-console -- high-severity security warning
           console.error(
             `[SECURITY] ALLOW_TURNSTILE_DISABLED_IN_PROD=1 is active (${Math.round(hoursElapsed)} hours elapsed). ` +
-            "Turnstile bot protection is DISABLED. This flag will auto-expire in " +
-            `${Math.round(24 - hoursElapsed)} hours. Remove the flag and re-enable Turnstile as soon as possible.`,
+              "Turnstile bot protection is DISABLED. This flag will auto-expire in " +
+              `${Math.round(24 - hoursElapsed)} hours. Remove the flag and re-enable Turnstile as soon as possible.`,
           );
         }
       }

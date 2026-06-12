@@ -55,7 +55,16 @@ export function assertRole(
     // F-21: Emit audit-log entry to distinguish authz failure (role insufficient)
     // from authn failure (no session). Returns 403 for compliance reporting.
     void recordAuditEvent({
+      // No request-scope site context at the role-check boundary — use the
+      // sentinel "_global" used by other cross-site audit emitters
+      // (cf. lib/stripe-event-processor.ts).
+      site_id: "_global",
+      actor: session.email ?? session.userId ?? "unknown",
+      actor_user_id: session.userId,
       action: "admin_role_check_failed",
+      entity_type: "admin_user",
+      entity_id: session.userId ?? "unknown",
+      failure_type: "authz",
       details: {
         requiredRole,
         actualRole: session.role,

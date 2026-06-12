@@ -328,7 +328,10 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
         const sanitizedHtml = sanitizeHtml(rawHtml);
         onChange(sanitizedHtml);
       } catch (err) {
-        // If sanitization fails (e.g., input too long), reject the change
+        // If sanitization fails (e.g., input too long), reject the change.
+        // Client-side editor surface — browser console is the appropriate sink
+        // here; the structured server logger is not reachable from the client.
+        // eslint-disable-next-line no-console -- client-side editor failure surfacing
         console.error("TipTap output sanitization failed:", err);
         // Don't update onChange - the editor will revert to the last valid state
       }

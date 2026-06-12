@@ -7,6 +7,7 @@
 ## 0. Quick Start (15 Minutes)
 
 ### Prerequisites
+
 - Node.js 20+ (check `.nvmrc`)
 - psql (PostgreSQL client tools)
 - Supabase CLI
@@ -79,6 +80,7 @@ npm run lint
 ### High-Level Architecture
 
 This is a **multi-tenant affiliate platform** built on:
+
 - **Next.js 15 (App Router)** - Frontend and API routes
 - **Supabase Postgres** - Single tenant data store with RLS
 - **Cloudflare Workers** - Edge computing platform (via OpenNext)
@@ -88,6 +90,7 @@ This is a **multi-tenant affiliate platform** built on:
 ### Key Architectural Decisions (ADRs)
 
 **Critical ADRs to understand first:**
+
 - `ADR-0001-cloudflare-workers-opennext.md` - Why Workers + OpenNext
 - `ADR-0002-bcrypt-pbkdf2-transparent-upgrade.md` - Password hashing strategy
 - `ADR-0012-infrastructure-as-code.md` - Terraform approach
@@ -104,14 +107,15 @@ The system uses **three separate Workers**:
 ### Data Flow
 
 ```
-User Request → Cloudflare Worker (WAF/Bot Protection) → 
-Middleware (Auth/CSP/Rate Limit) → Next.js App Router → 
+User Request → Cloudflare Worker (WAF/Bot Protection) →
+Middleware (Auth/CSP/Rate Limit) → Next.js App Router →
 API Routes → DAL (Data Access Layer) → Supabase (RLS-defended)
 ```
 
 ### Security Model
 
 **Multi-tenant isolation via:**
+
 - Row-Level Security (RLS) in Supabase
 - `site_id` derived from server-validated cookie (never query/body)
 - `withAuthz` / `authorizeResource` guards on all admin routes
@@ -141,7 +145,8 @@ API Routes → DAL (Data Access Layer) → Supabase (RLS-defended)
 ### 4. `wrangler.jsonc` - Worker Configuration
 
 **Why important**: Defines all Workers, bindings, routes, secrets
-**Key sections**: 
+**Key sections**:
+
 - `kv_namespaces` - Rate limiting and app cache
 - `queues` - Click tracking queue
 - `triggers` - Cron schedules
@@ -156,18 +161,21 @@ API Routes → DAL (Data Access Layer) → Supabase (RLS-defended)
 ## 3. Understanding the Tech Stack
 
 ### Frontend
+
 - **Next.js 15** with App Router (not Pages)
 - **Tailwind CSS** for styling
 - **React** with server components preferred
 - **TipTap** for rich text editing (admin only)
 
 ### Backend
+
 - **Supabase** (Postgres + PostgREST + Auth + Storage)
 - **Cloudflare Workers** (Edge computing)
 - **Durable Objects** - Rate limiting and caching
 - **Queues** - Async processing
 
 ### Security
+
 - **JWT** for session tokens (with rotation support)
 - **HMAC** for internal API authentication
 - **Timing-safe comparisons** for CSRF protection
@@ -311,7 +319,7 @@ npm run test:coverage
 
 - **docs/runbooks/**: Operational procedures for common incidents
 - **docs/dr/**: Disaster recovery procedures
-- **docs/ai-***: AI governance and safety documentation
+- **docs/ai-\***: AI governance and safety documentation
 
 ## 9. Getting Help
 
@@ -353,6 +361,7 @@ npm run test:coverage
 ---
 
 **Remember**: This is a complex, security-sensitive system. When in doubt:
+
 1. Read the relevant ADR
 2. Check security docs
 3. Ask questions before making changes

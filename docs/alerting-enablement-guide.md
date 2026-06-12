@@ -8,22 +8,25 @@
 The affilite-mix platform has comprehensive alerting infrastructure defined in Terraform (`terraform/cloudflare/alerts.tf`), including:
 
 - Worker 5xx burn rate alerts
-- Worker CPU time alerts  
+- Worker CPU time alerts
 - Billing/usage alerts
 - **Queue backlog alerts** (addresses E2-12)
 
 However, the alerts are currently disabled because:
+
 1. No notification destinations are configured
 2. The `alerts_enabled` flag is set to `false`
 
 ## Current State
 
 **Infrastructure:** ✅ Complete
+
 - Terraform resources defined for all alert types
 - Queue backlog alerts already implemented (E2-12)
 - Lifecycle preconditions prevent enabling without destinations
 
 **Configuration:** ❌ Missing
+
 - `terraform/cloudflare/alerts.auto.tfvars` does not exist
 - No email, PagerDuty, or webhook destinations configured
 - `alerts_enabled = false`
@@ -37,7 +40,7 @@ However, the alerts are currently disabled because:
    - Go to: Notifications → Destinations
 
 2. **Create at least one destination**
-   
+
    **Option A: Email (Quick Start)**
    - Click "Create" → "Email"
    - Add your on-call email address
@@ -56,20 +59,22 @@ However, the alerts are currently disabled because:
 ### Step 2: Configure Terraform Variables
 
 1. **Copy the example file:**
+
    ```bash
    cp terraform/cloudflare/alerts.tfvars.example terraform/cloudflare/alerts.auto.tfvars
    ```
 
 2. **Edit `terraform/cloudflare/alerts.auto.tfvars`:**
-   
+
    Uncomment and configure at least one destination:
+
    ```hcl
    alert_mechanisms = {
      # Example for email:
      email = [
        { id = "your-destination-id-from-step-1" }
      ]
-     
+
      pagerduty = []
      webhooks = []
    }
@@ -83,11 +88,13 @@ However, the alerts are currently disabled because:
 ### Step 3: Apply Terraform Changes
 
 1. **Navigate to Terraform directory:**
+
    ```bash
    cd terraform/cloudflare
    ```
 
 2. **Initialize and apply:**
+
    ```bash
    terraform init
    terraform plan
@@ -99,6 +106,7 @@ However, the alerts are currently disabled because:
 ### Step 4: Verify Alert Delivery
 
 1. **Fire a test alert:**
+
    ```bash
    ./scripts/fire-test-alert.sh
    ```
@@ -163,7 +171,7 @@ However, the alerts are currently disabled because:
    - Indicates consumer lag or failure
    - Alert type: `http_alert_edge_error`
 
-**Note:** E2-12 also requested DLQ-rate and Stripe-webhook-failure alerts. 
+**Note:** E2-12 also requested DLQ-rate and Stripe-webhook-failure alerts.
 
 1. **DLQ-rate alerts:** Can be added as additional notification policies in `terraform/cloudflare/alerts.tf` following the same pattern as the existing queue backlog alert.
 
@@ -172,12 +180,12 @@ However, the alerts are currently disabled because:
    - Cron heartbeat missed alert
    - Stripe webhook failure alerts
    - AI cost threshold alerts
-   
+
    These are currently commented out and would require:
    - Adding the Sentry Terraform provider
    - Configuring Sentry auth tokens
    - Converting pseudo-code to actual Terraform resources
-   
+
    Consider implementing Sentry-based alerts for more granular monitoring as a follow-up to E2-12.
 
 ## Troubleshooting
@@ -193,6 +201,7 @@ However, the alerts are currently disabled because:
 **Cause:** Destination ID is incorrect or destination is misconfigured.
 
 **Solution:**
+
 1. Verify destination ID in Cloudflare Dashboard
 2. Check destination configuration (email address, webhook URL, etc.)
 3. Check Cloudflare Dashboard → Notifications → History for delivery failures
@@ -202,6 +211,7 @@ However, the alerts are currently disabled because:
 **Cause:** Queue depth hasn't exceeded threshold, or queue consumer isn't emitting metrics.
 
 **Solution:**
+
 1. Check actual queue depth in Cloudflare Dashboard
 2. Verify queue consumer is running and healthy
 3. Lower `queue_backlog_alert_threshold` temporarily for testing

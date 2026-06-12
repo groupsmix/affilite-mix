@@ -5,7 +5,10 @@
  * disabled or no notification destinations are wired.
  */
 import { describe, it, expect } from "vitest";
-import { validateAlertingConfig } from "../scripts/validate-alerting-config";
+// The script exports `validateAlertingConfigFromTfvars`; this test was
+// written against the historical `validateAlertingConfig` name. Alias here
+// so the regression coverage stays intact without renaming every call site.
+import { validateAlertingConfigFromTfvars as validateAlertingConfig } from "../scripts/validate-alerting-config";
 
 describe("validateAlertingConfig (#586)", () => {
   it("flags alerts_enabled = false as invalid", () => {
@@ -20,7 +23,7 @@ alert_mechanisms = {
     expect(result.valid).toBe(false);
     expect(result.alertsEnabled).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors.some((e) => e.includes("alerts_enabled = false"))).toBe(true);
+    expect(result.errors.some((e: string) => e.includes("alerts_enabled = false"))).toBe(true);
   });
 
   it("flags empty mechanisms as invalid even when enabled", () => {
@@ -35,7 +38,7 @@ alert_mechanisms = {
     expect(result.valid).toBe(false);
     expect(result.alertsEnabled).toBe(true);
     expect(result.mechanismCount).toBe(0);
-    expect(result.errors.some((e) => e.includes("zero destinations"))).toBe(true);
+    expect(result.errors.some((e: string) => e.includes("zero destinations"))).toBe(true);
   });
 
   it("passes when alerting is enabled with at least one destination", () => {
@@ -75,7 +78,7 @@ alert_mechanisms = {
 }`;
     const result = validateAlertingConfig(tfvars);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("not set"))).toBe(true);
+    expect(result.errors.some((e: string) => e.includes("not set"))).toBe(true);
   });
 
   it("current alerts.auto.tfvars has alerting enabled with a destination (FR-12)", () => {
