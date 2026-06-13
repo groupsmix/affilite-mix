@@ -587,24 +587,54 @@ jobs:
 
       - name: Run migrations up
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/affilite_mix_test
-          # F-14: Local Postgres container has no TLS. PGSSLMODE=disable is the
-          # standard libpq / pgx env var to bypass TLS negotiation. The CLI v2
-          # does not reliably honour sslmode= in the URL, so we set both.
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/affilite_mix_test?sslmode=disable
           PGSSLMODE: disable
         run: |
-          # F-14: Apply all migrations to a fresh database
-          # Local Postgres container has no TLS; append sslmode=disable.
-          # supabase db reset prompts for confirmation; pipe 'y' for CI.
-          DB_URL="${DATABASE_URL}?sslmode=disable"
-          # db reset wipes the DB and applies every migration in one pass.
-          # Do NOT also run db push — it would re-apply the same migrations
-          # and fail with "duplicate key" errors on schema_migrations_pkey.
-          printf 'y\n' | supabase db reset --db-url "$DB_URL"
+          # F-14: Apply all up-migrations to a fresh database using psql directly.
+          #
+          # WHY NOT supabase db reset/push:
+          # Supabase CLI v2.45.5 scans supabase/migrations/ and picks up ALL .sql
+          # files — including *-down.sql files. Both 00000_baseline_repair.sql and
+          # 00000_baseline_repair-down.sql resolve to the same version key (00000)
+          # in supabase_migrations.schema_migrations, so CLI fails with:
+          #   ERROR: duplicate key value violates unique constraint
+          #   "schema_migrations_pkey" — Key (version)=(00000) already exists.
+          #
+          # Using psql lets us apply only the canonical up-migrations in order,
+          # bypassing the CLI's migration-tracking entirely. For CI purposes
+          # (verifying the SQL is valid on a fresh Postgres schema) this is correct.
+
+          DB_URL="${DATABASE_URL}"
+
+          # Bootstrap: the auth schema stub Supabase provides on hosted instances.
+          # auth.role() is referenced in RLS policies; it must exist for CREATE POLICY
+          # to parse correctly, but it is never actually invoked during DDL.
+          psql "$DB_URL" <<'SQL'
+            CREATE SCHEMA IF NOT EXISTS auth;
+            CREATE OR REPLACE FUNCTION auth.role()
+              RETURNS text LANGUAGE sql STABLE
+              AS $$ SELECT COALESCE(
+                   NULLIF(current_setting('request.jwt.claims', true), '')::jsonb->>'role',
+                   current_user
+                 ) $$;
+            CREATE OR REPLACE FUNCTION auth.uid()
+              RETURNS uuid LANGUAGE sql STABLE
+              AS $$ SELECT (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb->>'sub')::uuid $$;
+            CREATE OR REPLACE FUNCTION auth.jwt()
+              RETURNS jsonb LANGUAGE sql STABLE
+              AS $$ SELECT NULLIF(current_setting('request.jwt.claims', true), '')::jsonb $$;
+          SQL
+
+          # Apply only up-migrations in lexicographic order, skipping down files.
+          find supabase/migrations -maxdepth 1 -name '*.sql' \
+            ! -name '*-down.sql' | sort | while read -r f; do
+            echo "Applying $f ..."
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
 
       - name: Verify migrations applied
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/affilite_mix_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/affilite_mix_test?sslmode=disable
           PGSSLMODE: disable
         run: |
           # Verify the schema is not empty
@@ -960,11 +990,19 @@ jobs:
           CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
           STRIPE_WEBHOOK_SECRET: whsec_ci_test_placeholder
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
+          # E2E-LOCALHOST: middleware's localhost bypass is disabled in
+          # NODE_ENV=production (next start always forces production mode).
+          # Without this flag, every request to localhost gets rewritten to
+          # the /not-found page — meaning Playwright sees pages without
+          # <title>, without html[lang], without navigation or skip links,
+          # and all a11y/keyboard tests fail. APP_URL=http://localhost:3000
+          # satisfies the F-05 guard that refuses to boot with this flag on
+          # a public host.
+          ALLOW_LOCALHOST_FALLBACK_IN_PROD: "1"
       - name: Wait for server to be ready
         # Use TCP check — verifies the port is bound without making an HTTP
-        # request. HTTP checks fail because `next start` runs in production
-        # mode; the middleware rejects localhost as an unknown domain and
-        # returns a non-2xx, causing wait-on to retry until timeout.
+        # request. Avoiding HTTP because the first request may be slow to
+        # initialize and cause a brief non-2xx before settling.
         run: npx wait-on tcp:localhost:3000 --timeout 60000
       - name: Cache Playwright browsers
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
