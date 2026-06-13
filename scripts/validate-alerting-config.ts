@@ -41,14 +41,14 @@ function parseEnvVar(varName: string): any {
 
 function countIds(obj: any): number {
   if (!Array.isArray(obj)) return 0;
-  return obj.filter(item => item && typeof item === 'object' && item.id).length;
+  return obj.filter((item) => item && typeof item === "object" && item.id).length;
 }
 
 export function validateAlertingConfigFromEnv(): AlertingValidation {
   const errors: string[] = [];
-  
+
   const alertsEnabledStr = process.env.TF_VAR_alerts_enabled;
-  const alertsEnabled = alertsEnabledStr !== 'false';
+  const alertsEnabled = alertsEnabledStr !== "false";
 
   if (!alertsEnabledStr) {
     errors.push("TF_VAR_alerts_enabled is not set");
@@ -59,9 +59,9 @@ export function validateAlertingConfigFromEnv(): AlertingValidation {
     );
   }
 
-  const emailDests = parseEnvVar('TF_VAR_alert_mechanisms_email') || [];
-  const pagerdutyDests = parseEnvVar('TF_VAR_alert_mechanisms_pagerduty') || [];
-  const webhookDests = parseEnvVar('TF_VAR_alert_mechanisms_webhooks') || [];
+  const emailDests = parseEnvVar("TF_VAR_alert_mechanisms_email") || [];
+  const pagerdutyDests = parseEnvVar("TF_VAR_alert_mechanisms_pagerduty") || [];
+  const webhookDests = parseEnvVar("TF_VAR_alert_mechanisms_webhooks") || [];
 
   const emailCount = countIds(emailDests);
   const pagerdutyCount = countIds(pagerdutyDests);
@@ -134,10 +134,10 @@ if (require.main === module) {
   let configSource = "";
 
   // First try environment variables (preferred for CI/CD)
-  const hasEnvVars = 
-    process.env.TF_VAR_alerts_enabled || 
-    process.env.TF_VAR_alert_mechanisms_email || 
-    process.env.TF_VAR_alert_mechanisms_pagerduty || 
+  const hasEnvVars =
+    process.env.TF_VAR_alerts_enabled ||
+    process.env.TF_VAR_alert_mechanisms_email ||
+    process.env.TF_VAR_alert_mechanisms_pagerduty ||
     process.env.TF_VAR_alert_mechanisms_webhooks;
 
   if (hasEnvVars) {
@@ -152,8 +152,12 @@ if (require.main === module) {
       console.error(`[validate-alerting] No environment variables set either`);
       console.error(`[validate-alerting] ❌ Production alerting is NOT configured`);
       console.error(``);
-      console.error(`To fix: Set TF_VAR_alerts_enabled and at least one TF_VAR_alert_mechanisms_* variable`);
-      console.error(`  Or create terraform/cloudflare/alerts.auto.tfvars with your destination IDs`);
+      console.error(
+        `To fix: Set TF_VAR_alerts_enabled and at least one TF_VAR_alert_mechanisms_* variable`,
+      );
+      console.error(
+        `  Or create terraform/cloudflare/alerts.auto.tfvars with your destination IDs`,
+      );
       console.error(`  See terraform/cloudflare/alerts.tfvars.example for the expected format`);
       process.exit(1);
     }

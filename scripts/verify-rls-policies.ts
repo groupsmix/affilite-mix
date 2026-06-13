@@ -37,12 +37,8 @@ async function verifyRLSPolicies(
     },
   });
 
-  // Query all RLS policies
-  const { data: policies, error } = await supabase.rpc("get_all_rls_policies", {
-    // This RPC would need to be created, or we use a direct query
-  });
-
-  // For now, use the pg_policies view directly
+  // Use the pg_policies view directly. (A `get_all_rls_policies` RPC could
+  // be introduced later if Supabase tightens read access to pg_catalog.)
   const { data: pgPolicies, error: pgError } = await supabase
     .from("pg_policies")
     .select("*")
@@ -82,7 +78,7 @@ async function verifyRLSPolicies(
       policyname: policy.policyname,
       qual: policy.qual,
       with_check: policy.with_check,
-      has_site_id_filter,
+      has_site_id_filter: hasSiteIdFilter,
       classification,
     };
   });
@@ -111,12 +107,15 @@ async function main() {
     console.log(`Found ${policies.length} RLS policies\n`);
 
     // Group by table
-    const byTable = policies.reduce((acc, policy) => {
-      const key = `${policy.schemaname}.${policy.tablename}`;
-      if (!acc[key]) acc[key] = [];
-      acc[key]!.push(policy);
-      return acc;
-    }, {} as Record<string, PolicyInfo[]>);
+    const byTable = policies.reduce(
+      (acc, policy) => {
+        const key = `${policy.schemaname}.${policy.tablename}`;
+        if (!acc[key]) acc[key] = [];
+        acc[key]!.push(policy);
+        return acc;
+      },
+      {} as Record<string, PolicyInfo[]>,
+    );
 
     // Print findings
     let passthroughCount = 0;
@@ -132,10 +131,14 @@ async function main() {
         console.log(`     Classification: ${policy.classification}`);
         console.log(`     Has site_id filter: ${policy.has_site_id_filter ? "Yes" : "No"}`);
         if (policy.qual) {
-          console.log(`     USING: ${policy.qual.substring(0, 100)}${policy.qual.length > 100 ? "..." : ""}`);
+          console.log(
+            `     USING: ${policy.qual.substring(0, 100)}${policy.qual.length > 100 ? "..." : ""}`,
+          );
         }
         if (policy.with_check) {
-          console.log(`     WITH CHECK: ${policy.with_check.substring(0, 100)}${policy.with_check.length > 100 ? "..." : ""}`);
+          console.log(
+            `     WITH CHECK: ${policy.with_check.substring(0, 100)}${policy.with_check.length > 100 ? "..." : ""}`,
+          );
         }
         console.log();
 
@@ -171,7 +174,13 @@ async function main() {
     console.log("=".repeat(80));
     console.log("JSON Evidence (copy for audit report)");
     console.log("=".repeat(80));
-    console.log(JSON.stringify({ policies, summary: { total: policies.length, passthroughCount, tenantFilteredCount } }, null, 2));
+    console.log(
+      JSON.stringify(
+        { policies, summary: { total: policies.length, passthroughCount, tenantFilteredCount } },
+        null,
+        2,
+      ),
+    );
   } catch (error) {
     console.error("Verification failed:", error);
     process.exit(1);
@@ -259,7 +268,16 @@ if (process.env.MOCK_RLS_VERIFICATION === "true") {
   console.log("   Tenant isolation relies entirely on application-layer guards (F-002).");
   console.log();
   console.log("JSON Evidence:");
-  console.log(JSON.stringify({ policies: mockPolicies, summary: { total: mockPolicies.length, passthroughCount, tenantFilteredCount: 0 } }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        policies: mockPolicies,
+        summary: { total: mockPolicies.length, passthroughCount, tenantFilteredCount: 0 },
+      },
+      null,
+      2,
+    ),
+  );
 } else {
-  main();
+  void main();
 }

@@ -17,10 +17,10 @@
 # Externally-managed domains with their reasons for exclusion
 locals {
   externally_managed_domains = {
-    compareai.site = {
-      reason = "Pre-existing externally-managed A/CNAME records in Cloudflare DNS"
-      constraint = "API error 100117: Hostname already has externally managed DNS records"
-      remediation = "Delete A/CNAME records in Cloudflare Dashboard (compareai.site zone -> DNS) before adding to wrangler.jsonc"
+    "compareai.site" = {
+      reason        = "Pre-existing externally-managed A/CNAME records in Cloudflare DNS"
+      constraint    = "API error 100117: Hostname already has externally managed DNS records"
+      remediation   = "Delete A/CNAME records in Cloudflare Dashboard (compareai.site zone -> DNS) before adding to wrangler.jsonc"
       last_reviewed = "2026-06-11"
     }
   }
@@ -29,5 +29,5 @@ locals {
 # Output for CI validation
 output "externally_managed_domains_list" {
   description = "List of domains intentionally managed outside wrangler.jsonc"
-  value = keys(locals.externally_managed_domains)
+  value       = keys(local.externally_managed_domains)
 }

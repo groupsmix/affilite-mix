@@ -1,9 +1,11 @@
 # F-011 Evidence: RLS Policy State
 
 ## Finding
-**F-011:** RLS policies as documented are "service-role passthrough" — *not* actual tenant filters
+
+**F-011:** RLS policies as documented are "service-role passthrough" — _not_ actual tenant filters
 
 ## Severity
+
 **Priority:** P2 **Effort:** L (treated as P0 until evidence is provided)
 
 ## Current State Evidence
@@ -11,6 +13,7 @@
 ### Source: `supabase/migrations/00003_rls_defense_in_depth.sql`
 
 All tenant table policies use the pattern:
+
 ```sql
 CREATE POLICY "service_full_access_<table>"
   ON <table> FOR ALL
@@ -19,18 +22,19 @@ CREATE POLICY "service_full_access_<table>"
 
 ### Policy Inventory
 
-| Table | Policy | USING Expression | WITH CHECK | Has site_id Filter | Classification |
-|-------|--------|-----------------|-----------|-------------------|----------------|
-| categories | service_full_access_categories | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No | service-role-passthrough |
-| products | service_full_access_products | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No | service-role-passthrough |
-| content | service_full_access_content | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No | service-role-passthrough |
-| content_products | service_full_access_content_products | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No | service-role-passthrough |
-| affiliate_clicks | service_full_access_clicks | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No | service-role-passthrough |
-| newsletter_subscribers | service_full_access_newsletter | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No | service-role-passthrough |
-| scheduled_jobs | service_full_access_scheduled_jobs | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No | service-role-passthrough |
-| audit_log | service_full_access_audit_log | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No | service-role-passthrough |
+| Table                  | Policy                               | USING Expression               | WITH CHECK                     | Has site_id Filter | Classification           |
+| ---------------------- | ------------------------------------ | ------------------------------ | ------------------------------ | ------------------ | ------------------------ |
+| categories             | service_full_access_categories       | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No                 | service-role-passthrough |
+| products               | service_full_access_products         | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No                 | service-role-passthrough |
+| content                | service_full_access_content          | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No                 | service-role-passthrough |
+| content_products       | service_full_access_content_products | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No                 | service-role-passthrough |
+| affiliate_clicks       | service_full_access_clicks           | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No                 | service-role-passthrough |
+| newsletter_subscribers | service_full_access_newsletter       | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No                 | service-role-passthrough |
+| scheduled_jobs         | service_full_access_scheduled_jobs   | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No                 | service-role-passthrough |
+| audit_log              | service_full_access_audit_log        | `auth.role() = 'service_role'` | `auth.role() = 'service_role'` | No                 | service-role-passthrough |
 
 ### Summary
+
 - **Total policies:** 8
 - **Service-role passthrough:** 8 (100%)
 - **Tenant-filtered:** 0 (0%)
@@ -38,15 +42,18 @@ CREATE POLICY "service_full_access_<table>"
 ## Conclusion
 
 ### Evidence for F-011: ✅ CONFIRMED
+
 **RLS is NOT defense-in-depth today.**
 
 The audit finding is **accurate**:
+
 1. All tenant table policies are service-role passthrough
 2. No policy includes `site_id` filtering via `current_setting()` or JWT claims
 3. No policy enforces tenant isolation at the database level
 4. Tenant isolation relies entirely on application-layer guards (F-002)
 
 ### Current Defense Layers
+
 1. **Application Layer:** ✅ Robust tenant isolation via:
    - `getPrivilegedSupabaseClient()` proxy guard in `lib/server-only/service-role.ts`
    - Runtime check that `.eq('site_id', ...)` was called before service-role queries
@@ -60,6 +67,7 @@ The audit finding is **accurate**:
 ### Risk Assessment
 
 **Scenario:** A PR adds a new admin route that reads `req.body.site_id` and calls `.eq('site_id', body.site_id)`:
+
 1. ✅ Application proxy guard: **SATISFIED** (passes because `.eq('site_id', ...)` was called)
 2. ✅ Authorization check: **PASSES** (same user-supplied value)
 3. ❌ Database RLS: **NO PROTECTION** (service-role can access any site_id)
@@ -70,6 +78,7 @@ The audit finding is **accurate**:
 The audit recommends implementing true defense-in-depth:
 
 1. **Add Database-Level Tenant Filtering:**
+
    ```sql
    CREATE POLICY "tenant_isolated_<table>"
      ON <table> FOR ALL
@@ -93,18 +102,21 @@ The audit recommends implementing true defense-in-depth:
 ## Decision Required
 
 ### Option A: Implement Full Defense-in-Depth (Recommended for SOC2)
+
 - **Pros:** True belt-and-suspenders security, audit-impressive
 - **Cons:** Large effort (L), requires architectural changes
 - **Timeline:** 2-3 weeks development + testing
 - **Priority:** P2 (can be done post-launch)
 
 ### Option B: Accept App-Layer Only (Launch Decision)
+
 - **Pros:** Can launch immediately, app-layer is already robust
 - **Cons:** Single point of failure (app-layer guard), won't impress SOC2 auditors
 - **Timeline:** No changes needed
 - **Priority:** Accept as documented risk
 
 ### Option C: Hybrid (Immediate Risk Reduction)
+
 - **Pros:** Quick win, reduces risk while planning full solution
 - **Cons:** Still not true defense-in-depth
 - **Timeline:** 2-3 days
@@ -117,18 +129,22 @@ The audit recommends implementing true defense-in-depth:
 ## Recommendation
 
 **For immediate launch:** Accept Option B with documented risk
+
 - App-layer tenant isolation is robust and well-tested
 - `unsafeNoSiteFilter()` usage is tracked (10 call sites)
 - F-002 remediation (in progress) will further harden this
 
 **For post-launch:** Implement Option C (Hybrid)
+
 - Quick wins to reduce risk without architectural changes
 - Buys time for Option A planning
 
 **For SOC2 readiness:** Implement Option A (Full Defense-in-Depth)
+
 - Required for strong SOC2 Type II evidence
 - Timeline: Q3 2026
 
 ## Status
+
 **F-011:** ✅ **EVIDENCE COLLECTED** - RLS is service-role passthrough, not tenant-filtered
 **Decision:** Treat as accepted risk for launch, document remediation path

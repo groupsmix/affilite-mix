@@ -3,7 +3,9 @@
 ## Status: Implementation Plan - Requires Cloudflare Configuration
 
 ## Finding
+
 F-08 — Admin segment uses path obfuscation instead of edge gating
+
 - Severity: **Medium** · Confidence: **High** · Domain: Security
 - Evidence: Admin routes at `/q7m-k4j9/admin/**` use obfuscated path
 - Remediation: Add Cloudflare Access for edge-gated admin segment
@@ -11,12 +13,14 @@ F-08 — Admin segment uses path obfuscation instead of edge gating
 ## Current State
 
 ### Path Obfuscation
+
 - Admin routes are at: `/q7m-k4j9/admin/**`
 - Path is obfuscated but not truly secret
 - Relies on "security by obscurity"
 - No additional protection at the edge
 
 ### Current Authentication
+
 - JWT-based authentication via admin session
 - Cookie-based session management
 - Rate limiting per admin user
@@ -27,6 +31,7 @@ F-08 — Admin segment uses path obfuscation instead of edge gating
 ### What is Cloudflare Access?
 
 Cloudflare Access (Zero Trust) provides:
+
 - Identity-aware access control at the edge
 - Integration with identity providers (Okta, Azure AD, Google, etc.)
 - Short-lived access tokens
@@ -74,6 +79,7 @@ Cloudflare Access (Zero Trust) provides:
 #### 1. Create Access Application
 
 In Cloudflare Dashboard:
+
 1. Navigate to Zero Trust → Access → Applications
 2. Click "Add an application"
 3. Configure:
@@ -81,40 +87,46 @@ In Cloudflare Dashboard:
    - **Session Duration**: 8 hours (recommended)
    - **Type**: Self-hosted
    - **URL**: https://wristnerd.xyz
-   - **Path**: /q7m-k4j9/admin/*
+   - **Path**: /q7m-k4j9/admin/\*
 
 #### 2. Configure Identity Provider
 
 Choose one or more identity providers:
 
 **Option A: Email Pin (Simplest for Small Teams)**
+
 - Email-based one-time pin
 - No external IdP required
 - Good for small teams (<10 users)
 
 **Option B: Google OAuth**
+
 - Google Workspace integration
 - Existing Google accounts
 - MFA via Google 2FA
 
 **Option C: Okta / Azure AD (Enterprise)**
+
 - SAML integration
 - Corporate SSO
 - Advanced MFA policies
 
 **Option D: One-Time Pin (Temporary)**
+
 - For initial setup
 - Upgrade to IdP later
 
 #### 3. Access Policies
 
 **Default Policy (Allow)**
+
 - Email domain: `@yourdomain.com` (or specific emails)
 - MFA: Required
 - Device posture: Managed devices (optional)
 - Geographic: All locations (or restrict regions)
 
 **Additional Policies**
+
 - IT Support (no MFA for emergencies): IP allowlist + short duration
 - Contractors: Time-limited access + approval required
 
@@ -127,10 +139,10 @@ However, consider adding Access context logging:
 ```typescript
 // middleware.ts or admin guard
 // Log CF-Access headers for audit trail
-const cfAccessEmail = request.headers.get('cf-access-user-identity');
-const cfAccessAuth = request.headers.get('cf-access-authenticated-user');
+const cfAccessEmail = request.headers.get("cf-access-user-identity");
+const cfAccessAuth = request.headers.get("cf-access-authenticated-user");
 if (cfAccessEmail) {
-  logger.info('Cloudflare Access authentication', {
+  logger.info("Cloudflare Access authentication", {
     email: cfAccessEmail,
     path: request.nextUrl.pathname,
   });
@@ -176,11 +188,13 @@ Update wrangler.jsonc to document Access usage:
 ### Phase 4: Migration from Path Obfuscation
 
 **Option A: Keep Both (Defense in Depth - Recommended)**
+
 - Maintain path obfuscation `/q7m-k4j9/admin/**`
 - Add Cloudflare Access on top
 - Benefits: Two layers of security, no disruption to users
 
 **Option B: Remove Path Obfuscation**
+
 - Change admin routes to `/admin/**`
 - Rely solely on Cloudflare Access
 - Benefits: Cleaner URLs, easier development
@@ -214,6 +228,7 @@ Check Cloudflare Access logs in Dashboard → Zero Trust → Access → Logs.
 ## Security Benefits
 
 ### Current (Path Obfuscation Only)
+
 - ❌ Path can be discovered via logs, network traffic
 - ❌ No identity verification at edge
 - ❌ No MFA requirement
@@ -222,6 +237,7 @@ Check Cloudflare Access logs in Dashboard → Zero Trust → Access → Logs.
 - ❌ No centralized audit logging
 
 ### After Cloudflare Access
+
 - ✅ Identity verification at edge (before Worker)
 - ✅ MFA enforcement
 - ✅ Device posture checks (optional)
@@ -244,6 +260,7 @@ Check Cloudflare Access logs in Dashboard → Zero Trust → Access → Logs.
 ### User Experience
 
 **Login Flow:**
+
 1. User navigates to `/q7m-k4j9/admin/**`
 2. Cloudflare Access redirects to IdP login page
 3. User authenticates with IdP + MFA
@@ -252,6 +269,7 @@ Check Cloudflare Access logs in Dashboard → Zero Trust → Access → Logs.
 6. Worker validates existing JWT session (layer 2)
 
 **Session Management:**
+
 - Access tokens: 8 hours (configurable)
 - App JWT sessions: Configurable (currently via cookie)
 - Both layers enforce security
@@ -265,6 +283,7 @@ Check Cloudflare Access logs in Dashboard → Zero Trust → Access → Logs.
 ### Rollback Plan
 
 If Cloudflare Access causes issues:
+
 1. Remove Access policy (temporarily allow all)
 2. App-level JWT authentication still protects admin routes
 3. Path obfuscation still provides some protection
@@ -273,6 +292,7 @@ If Cloudflare Access causes issues:
 ## Implementation Steps
 
 ### Step 1: Cloudflare Dashboard Setup (30 minutes)
+
 - [ ] Create Access application
 - [ ] Configure identity provider
 - [ ] Set up MFA policy
@@ -280,18 +300,21 @@ If Cloudflare Access causes issues:
 - [ ] Test login flow
 
 ### Step 2: Policy Configuration (15 minutes)
+
 - [ ] Configure default allow policy
 - [ ] Set session duration (8 hours recommended)
 - [ ] Add geo restrictions if needed
 - [ ] Configure device posture if using enterprise features
 
 ### Step 3: Documentation Updates (15 minutes)
+
 - [ ] Update wrangler.jsonc header comments
 - [ ] Document in docs/security.md
 - [ ] Update runbooks with Access troubleshooting
 - [ ] Add to onboarding documentation
 
 ### Step 4: Testing (30 minutes)
+
 - [ ] Test successful login
 - [ ] Test unauthorized access blocked
 - [ ] Test MFA flow
@@ -299,6 +322,7 @@ If Cloudflare Access causes issues:
 - [ ] Test audit logging
 
 ### Step 5: Monitoring Setup (15 minutes)
+
 - [ ] Configure Cloudflare Access alerts
 - [ ] Set up logging to SIEM (if applicable)
 - [ ] Create runbook for access issues
@@ -310,18 +334,22 @@ Total Estimated Time: ~2 hours
 ### Common Issues
 
 **Issue: Access loops between IdP and application**
+
 - Cause: Callback URL misconfiguration
 - Fix: Verify callback URL in Access application settings
 
 **Issue: Valid users blocked**
+
 - Cause: Email domain policy too restrictive
 - Fix: Add user email or domain to allowlist
 
 **Issue: MFA not prompting**
+
 - Cause: IdP doesn't enforce MFA
 - Fix: Configure MFA in IdP, not in Cloudflare Access
 
 **Issue: Workers unreachable after enabling Access**
+
 - Cause: Access policy blocking Worker API calls
 - Fix: Add Worker IP ranges to Access allowlist
 

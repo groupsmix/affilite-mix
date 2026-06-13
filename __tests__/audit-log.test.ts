@@ -44,6 +44,7 @@ describe("recordAuditEvent", () => {
       entity_id: "content-456",
       details: {},
       ip: null,
+      failure_type: null,
     });
   });
 
@@ -71,6 +72,7 @@ describe("recordAuditEvent", () => {
       entity_id: "product-789",
       details: { field: "name", oldValue: "Old", newValue: "New" },
       ip: "192.168.1.1",
+      failure_type: null,
     });
   });
 

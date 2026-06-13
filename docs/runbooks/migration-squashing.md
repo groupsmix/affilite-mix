@@ -40,6 +40,7 @@ node scripts/squash-migrations.mjs
 ```
 
 This will:
+
 - Take a schema-only dump of current database
 - Save as `supabase/migrations/00000_baseline.sql`
 - Archive existing migrations to `supabase/migrations/_archive/`
@@ -109,6 +110,7 @@ If issues occur:
 ## Monitoring
 
 Watch for:
+
 - Increased error rates in application logs
 - Slow database queries
 - Failed migrations

@@ -8,14 +8,15 @@
 
 The platform has **5 sites** configured in `config/sites/index.ts`:
 
-| Site ID | Name | Domain | Aliases | Status |
-| ------- | ---- | ------ | ------- | ------ |
-| `ai-compared` | AI Compared | `compareai.site` | `ai.localhost` | Configured |
+| Site ID        | Name         | Domain                      | Aliases            | Status     |
+| -------------- | ------------ | --------------------------- | ------------------ | ---------- |
+| `ai-compared`  | AI Compared  | `compareai.site`            | `ai.localhost`     | Configured |
 | `arabic-tools` | Arabic Tools | `arabictools.wristnerd.xyz` | `arabic.localhost` | Configured |
-| `crypto-tools` | CryptoRanked | `cryptoranked.xyz` | `crypto.localhost` | Configured |
-| `watch-tools` | WristNerd | `wristnerd.xyz` | `watch.localhost` | Configured |
+| `crypto-tools` | CryptoRanked | `cryptoranked.xyz`          | `crypto.localhost` | Configured |
+| `watch-tools`  | WristNerd    | `wristnerd.xyz`             | `watch.localhost`  | Configured |
 
 **Note:** The audit document mentions "4 tenants" but the codebase contains 5 configured sites. This discrepancy may indicate:
+
 - One site is not yet live in production
 - One site is a development/staging tenant
 - The audit document is outdated
@@ -26,17 +27,17 @@ The platform has **5 sites** configured in `config/sites/index.ts`:
 
 ### 1. AI Compared (`ai-compared`)
 
-| Property | Value |
-| -------- | ----- |
-| **Domain** | `compareai.site` |
-| **Niche** | AI Tools & Software Reviews |
-| **Description** | In-depth reviews and comparisons of AI tools, platforms, and software |
-| **Language** | English (default) |
-| **Direction** | LTR |
-| **Features** | blog, newsletter, rssFeed, search, scheduling, comparisons, deals, cookieConsent |
-| **Homepage Template** | minimal |
-| **Fonts** | modern |
-| **Colors** | Primary: #2E1065, Accent: #8B5CF6 |
+| Property              | Value                                                                            |
+| --------------------- | -------------------------------------------------------------------------------- |
+| **Domain**            | `compareai.site`                                                                 |
+| **Niche**             | AI Tools & Software Reviews                                                      |
+| **Description**       | In-depth reviews and comparisons of AI tools, platforms, and software            |
+| **Language**          | English (default)                                                                |
+| **Direction**         | LTR                                                                              |
+| **Features**          | blog, newsletter, rssFeed, search, scheduling, comparisons, deals, cookieConsent |
+| **Homepage Template** | minimal                                                                          |
+| **Fonts**             | modern                                                                           |
+| **Colors**            | Primary: #2E1065, Accent: #8B5CF6                                                |
 
 **IaC Status:** ⚠️ **Externally-managed** - `compareai.site` is excluded from Terraform IaC due to externally-managed DNS records (see `terraform/cloudflare/externally-managed-domains.tf`)
 
@@ -44,17 +45,17 @@ The platform has **5 sites** configured in `config/sites/index.ts`:
 
 ### 2. Arabic Tools (`arabic-tools`)
 
-| Property | Value |
-| -------- | ----- |
-| **Domain** | `arabictools.wristnerd.xyz` |
-| **Niche** | Arabic Product Reviews |
-| **Description** | مراجعات وأدوات عربية لمقارنة المنتجات والخدمات التقنية |
-| **Language** | Arabic (`ar`) |
-| **Direction** | RTL |
-| **Features** | blog, newsletter, rssFeed, search, scheduling, comparisons |
+| Property          | Value                                                              |
+| ----------------- | ------------------------------------------------------------------ |
+| **Domain**        | `arabictools.wristnerd.xyz`                                        |
+| **Niche**         | Arabic Product Reviews                                             |
+| **Description**   | مراجعات وأدوات عربية لمقارنة المنتجات والخدمات التقنية             |
+| **Language**      | Arabic (`ar`)                                                      |
+| **Direction**     | RTL                                                                |
+| **Features**      | blog, newsletter, rssFeed, search, scheduling, comparisons         |
 | **Content Types** | article (مقال), review (مراجعة), comparison (مقارنة), guide (دليل) |
-| **Product Label** | منتج (singular), منتجات (plural) |
-| **Colors** | Primary: #1E293B, Accent: #10B981 |
+| **Product Label** | منتج (singular), منتجات (plural)                                   |
+| **Colors**        | Primary: #1E293B, Accent: #10B981                                  |
 
 **IaC Status:** ✅ **IaC-managed** - Domain is managed via Terraform (`terraform/cloudflare/worker-domains.tf`)
 
@@ -62,17 +63,17 @@ The platform has **5 sites** configured in `config/sites/index.ts`:
 
 ### 3. CryptoRanked (`crypto-tools`)
 
-| Property | Value |
-| -------- | ----- |
-| **Domain** | `cryptoranked.xyz` |
-| **Niche** | Crypto Exchanges & Wallet Reviews |
-| **Description** | Compare crypto exchanges, wallets, and DeFi tools — honest reviews and affiliate deals |
-| **Language** | English (default) |
-| **Direction** | LTR |
-| **Features** | blog, newsletter, rssFeed, search, scheduling, comparisons, deals |
-| **Homepage Template** | standard (default) |
-| **Fonts** | modern |
-| **Colors** | Primary: #0F172A, Accent: #F59E0B |
+| Property              | Value                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| **Domain**            | `cryptoranked.xyz`                                                                     |
+| **Niche**             | Crypto Exchanges & Wallet Reviews                                                      |
+| **Description**       | Compare crypto exchanges, wallets, and DeFi tools — honest reviews and affiliate deals |
+| **Language**          | English (default)                                                                      |
+| **Direction**         | LTR                                                                                    |
+| **Features**          | blog, newsletter, rssFeed, search, scheduling, comparisons, deals                      |
+| **Homepage Template** | standard (default)                                                                     |
+| **Fonts**             | modern                                                                                 |
+| **Colors**            | Primary: #0F172A, Accent: #F59E0B                                                      |
 
 **IaC Status:** ✅ **IaC-managed** - Domain is managed via Terraform (`terraform/cloudflare/worker-domains.tf`)
 
@@ -80,18 +81,18 @@ The platform has **5 sites** configured in `config/sites/index.ts`:
 
 ### 4. WristNerd (`watch-tools`)
 
-| Property | Value |
-| -------- | ----- |
-| **Domain** | `wristnerd.xyz` |
-| **Niche** | Watch Gift Guides & Reviews |
-| **Description** | Expert watch gift guides and reviews — honest ratings and a proprietary Gift-Worthiness Score |
-| **Language** | English (default) |
-| **Direction** | LTR |
-| **Features** | blog, brandSpotlights, comparisons, cookieConsent, deals, giftFinder, newsletter, rssFeed, search, scheduling |
-| **Homepage Template** | cinematic |
-| **Fonts** | classic |
-| **Product Label** | Watch (singular), Watches (plural) |
-| **Colors** | Primary: #1B2A4A, Accent: #8B6914, Accent Light: #C9A96E |
+| Property              | Value                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Domain**            | `wristnerd.xyz`                                                                                               |
+| **Niche**             | Watch Gift Guides & Reviews                                                                                   |
+| **Description**       | Expert watch gift guides and reviews — honest ratings and a proprietary Gift-Worthiness Score                 |
+| **Language**          | English (default)                                                                                             |
+| **Direction**         | LTR                                                                                                           |
+| **Features**          | blog, brandSpotlights, comparisons, cookieConsent, deals, giftFinder, newsletter, rssFeed, search, scheduling |
+| **Homepage Template** | cinematic                                                                                                     |
+| **Fonts**             | classic                                                                                                       |
+| **Product Label**     | Watch (singular), Watches (plural)                                                                            |
+| **Colors**            | Primary: #1B2A4A, Accent: #8B6914, Accent Light: #C9A96E                                                      |
 
 **IaC Status:** ✅ **IaC-managed** - Domain is managed via Terraform (`terraform/cloudflare/worker-domains.tf`)
 
@@ -104,6 +105,7 @@ The platform has **5 sites** configured in `config/sites/index.ts`:
 ### Verification Steps
 
 1. **Check DNS resolution** for each domain:
+
    ```bash
    dig compareai.site
    dig arabictools.wristnerd.xyz
@@ -112,6 +114,7 @@ The platform has **5 sites** configured in `config/sites/index.ts`:
    ```
 
 2. **Check HTTP response** for each domain:
+
    ```bash
    curl -I https://compareai.site
    curl -I https://arabictools.wristnerd.xyz
@@ -135,6 +138,7 @@ The platform has **5 sites** configured in `config/sites/index.ts`:
 **Issue:** The audit document mentions "4 tenants" but the codebase contains 5 configured sites.
 
 **Possible Explanations:**
+
 1. **AI Compared (`compareai.site`)** may be a development/staging tenant not yet live in production
 2. **One site may be inactive** in the database (`is_active = false`)
 3. **The audit document is outdated** and doesn't reflect the current tenant count

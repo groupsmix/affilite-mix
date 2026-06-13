@@ -29,7 +29,7 @@ const EXCLUSION_LIST = join(__dirname, "..", "terraform/cloudflare/externally-ma
 function parseWranglerDomains(config) {
   const domains = [];
   const routes = config.routes || [];
-  
+
   for (const route of routes) {
     if (route.custom_domain && route.pattern) {
       // Extract domain from pattern (remove wildcards)
@@ -37,32 +37,38 @@ function parseWranglerDomains(config) {
       domains.push(domain);
     }
   }
-  
+
   return domains;
 }
 
 function parseExclusionList(tfContent) {
   const domains = [];
-  
+
   // Parse the externally_managed_domains local block
   const match = tfContent.match(/externally_managed_domains\s*=\s*\{([^}]+)\}/s);
   if (!match) return domains;
-  
+
   // Extract domain names from the block
   const domainMatches = tfContent.matchAll(/(\w+(?:\.\w+)+)\s*=/g);
   for (const match of domainMatches) {
     const domain = match[1].replace(/\s*=$/, "");
-    if (domain && !domain.includes("reason") && !domain.includes("constraint") && !domain.includes("remediation") && !domain.includes("last_reviewed")) {
+    if (
+      domain &&
+      !domain.includes("reason") &&
+      !domain.includes("constraint") &&
+      !domain.includes("remediation") &&
+      !domain.includes("last_reviewed")
+    ) {
       domains.push(domain);
     }
   }
-  
+
   return domains;
 }
 
 function main() {
   console.log("=== F-19: Externally-Managed Domains Validation ===");
-  
+
   // Read wrangler.jsonc
   let wranglerContent;
   try {
@@ -71,7 +77,7 @@ function main() {
     console.error(`Error reading ${WRANGLER_CONFIG}: ${err.message}`);
     process.exit(1);
   }
-  
+
   // Read exclusion list
   let exclusionContent;
   try {
@@ -80,27 +86,27 @@ function main() {
     console.error(`Error reading ${EXCLUSION_LIST}: ${err.message}`);
     process.exit(1);
   }
-  
+
   // Parse wrangler.jsonc (remove JSONC comments)
   const wranglerJson = JSON.parse(
-    wranglerContent.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
+    wranglerContent.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, ""),
   );
-  
+
   const wranglerDomains = parseWranglerDomains(wranglerJson);
   const exclusionDomains = parseExclusionList(exclusionContent);
-  
+
   console.log(`Domains in wrangler.jsonc: ${wranglerDomains.length}`);
   console.log(`Domains in exclusion list: ${exclusionDomains.length}`);
-  
+
   const allDocumentedDomains = new Set([...wranglerDomains, ...exclusionDomains]);
-  
+
   console.log(`\nAll documented domains: ${allDocumentedDomains.size}`);
   console.log("Documented domains:", Array.from(allDocumentedDomains).sort().join(", "));
-  
+
   console.log("\n✓ All externally-managed domains are documented in IaC");
   console.log("Note: This script validates documentation completeness.");
   console.log("Actual Cloudflare Dashboard verification should be done manually during audits.");
-  
+
   process.exit(0);
 }
 

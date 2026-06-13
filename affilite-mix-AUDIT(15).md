@@ -14,17 +14,17 @@ This is one of the most aggressively over-engineered solo/small-team Next.js pro
 The brutally honest read:
 
 - **The hard parts are mostly right.** Auth (JWT + binding cookie + activity cookie + revocation), CSRF (timing-safe), CSP (per-request nonces, strict-dynamic, no script `unsafe-inline`), SSRF guard (IPv4 + IPv6-mapped + cloud metadata blocked, DNS timeout), Stripe webhook (raw Web Crypto HMAC + replay tolerance + atomic event apply + DLQ), tenant scoping via `withAuthz` + `authorizeResource`, fail-open vs fail-closed policy per route, per-trigger cron secrets, internal HMAC, JWT key rotation window with hard 24h enforcement — these are not amateur. They are the kind of controls a 30-person SaaS aspires to and rarely ships.
-- **The architecture is a one-Worker monolith on a serverless edge.** A single Cloudflare Worker fronts every public route, every admin route, every API route, every cron, every webhook, every queue consumer, with Supabase as the single tenant data store. Blast radius of *any* worker incident is the entire product.
+- **The architecture is a one-Worker monolith on a serverless edge.** A single Cloudflare Worker fronts every public route, every admin route, every API route, every cron, every webhook, every queue consumer, with Supabase as the single tenant data store. Blast radius of _any_ worker incident is the entire product.
 - **The complexity is the risk.** 253 migrations on a single Postgres, ~70 distinct env vars referenced from code, two Worker bundles, multi-domain custom-domain routing managed half in code / half in Cloudflare Dashboard, fail-open/closed policies per route, multiple fallback paths. Most of these are individually correct; together they are extremely hard to operate, hard to onboard onto, and very easy to misconfigure into a silent failure mode. A two-person team will not keep this state coherent indefinitely.
 - **There is a large operability/observability gap behind the docs.** The repo has Sentry + Workers observability + tail-consumer log shipper + Terraform Cloudflare alerts, but alerts default to a list of mechanisms that's empty until an operator wires destinations (`var.alert_mechanisms` defaults to empty). Several "implemented" controls in `docs/iso27001-annex-a.md` reduce to "log line in Sentry"; live SLO/error-budget telemetry isn't visible in repo.
 - **A real production deployment depends on ~25 Worker secrets and ~12 GitHub Actions secrets being present and correctly named.** Many are documented in three places (wrangler.jsonc footer, `.env.example`, `.dev.vars.example`, `deploy.yml` header). They will drift. CI uses `placeholder` values and `ALLOW_LOCALHOST_FALLBACK_IN_PROD=1`, which is necessary for CI but a foot-gun.
-- **The single biggest acquisition-due-diligence flag is bus factor + complexity, not security.** A new engineer onboarded to this repo cannot make a backend change confidently for weeks. The security posture is *better* than the architectural posture.
+- **The single biggest acquisition-due-diligence flag is bus factor + complexity, not security.** A new engineer onboarded to this repo cannot make a backend change confidently for weeks. The security posture is _better_ than the architectural posture.
 
 If I had to pick the **five things to fix first**:
 
 1. **Wire alert destinations** in `terraform/cloudflare/alerts.tf` (`alert_mechanisms`) and Sentry — or remove the Terraform variable's "implemented" claim from the ISO doc. Untested alerting at this scale is operationally pretending.
 2. **Adopt environments and a real staging deploy** (`deploy.yml` does "validate" but there's no separate `affilite-mix-staging` Worker name / Supabase project / R2 bucket in the repo). Today you ship straight to prod after CI.
-3. **Lock down `ALLOW_LOCALHOST_FALLBACK_IN_PROD`** at the IaC level (`wrangler secret put` should refuse it for prod) — the `instrumentation.ts` runtime guard is good but it is the *only* gate.
+3. **Lock down `ALLOW_LOCALHOST_FALLBACK_IN_PROD`** at the IaC level (`wrangler secret put` should refuse it for prod) — the `instrumentation.ts` runtime guard is good but it is the _only_ gate.
 4. **Squash the migration history**. 253 forward + down migrations on one Postgres is a meta-risk; a fresh-clone restore for DR is brittle. There's already an ADR (0013) for this — execute it.
 5. **Decompose the Worker.** Public read path, admin/API write path, webhooks, queue consumer, and crons should not all live in one Worker behind one set of compatibility flags and one set of secrets. The heavy-crons separation (`wrangler.heavy-crons.jsonc`) is the right pattern; extend it.
 
@@ -97,6 +97,7 @@ If I had to pick the **five things to fix first**:
 ```
 
 Trust boundaries:
+
 - Browser ↔ Worker: TLS, per-request nonced CSP, `__Host-` cookies, CSRF (double-submit + same-site=strict).
 - Worker ↔ Internal API: HMAC + per-purpose internal tokens (`internal-auth.ts`, `internal-hmac.ts`), strict mode.
 - Worker ↔ Supabase: scoped clients — `getPrivilegedSupabaseClient` (service-role; gateway) vs `getTenantClient` (signed JWT, RLS-evaluated). ESLint forbids direct `getServiceClient` imports from non-gateway paths.
@@ -110,26 +111,26 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 
 ## 2. Confirmed Stack
 
-| Layer | What's actually in repo |
-|---|---|
-| Runtime | Cloudflare Workers, `compatibility_date: 2026-03-17`, flags `nodejs_compat`, `global_fetch_strictly_public`. `workers_dev: false` (good). |
-| Framework | Next.js `~15.5.18`, React `^19.2.7`, App Router. |
-| Adapter | `@opennextjs/cloudflare ^1.19.11`, R2 incremental cache, DO sharded tag-cache, DO queue. |
-| Language | TypeScript `~5.8`, `tsc --noEmit` enforced (`typecheck:all` covers both Next and Worker tsconfigs). |
-| Lint | ESLint 9 flat-config + custom rules (banning `process.env as Record<...>` casts, banning `.unsafeNoSiteFilter()` outside the DAL). |
-| DB | Supabase / Postgres. 253 migration files in `supabase/migrations/` with paired `-down.sql`. RLS turned on across ≥54 migrations. |
-| Auth | Custom: `lib/auth.ts` (`jose` JWT, `bcryptjs`, dummy-hash timing equalization, binding cookie, activity cookie, key rotation). TOTP via `otpauth` + `lib/totp-encryption.ts`. HIBP k-anonymity check via KV-cached prefix lists. |
-| AuthZ | RBAC via `config/rbac/roles.json` + `lib/dal/permissions.ts` + `withAuthz` / `withAuthzDynamic` / `authorizeResource`. Server-derived `siteId` only — never from query/body. |
-| Storage | R2 (`cloudflare-r2-images.md`), Supabase Storage (image fallback). |
-| Cache | R2 (ISR), KV (`APP_CACHE_KV` general / `RATE_LIMIT_KV` counters), DO sharded tag-cache, DO queue. |
-| Payments | Stripe (`stripe ^22.2.0`), Web Crypto HMAC verification, atomic event apply, DLQ, retry. |
-| Email | Resend. Newsletter double-opt-in (migration 00004), signed unsubscribe tokens (`lib/newsletter-token.ts`). |
-| Captcha | Cloudflare Turnstile. |
-| Observability | Sentry (browser+cloudflare), Workers observability, tail consumer to `affilite-mix-log-shipper`. OTEL block referenced but disabled. |
-| IaC | Terraform for Cloudflare (alerts, DNS, queues, R2, Sentry alerts) + GitHub (branch protection). |
-| CI/CD | 14 workflows: ci, deploy, deploy-gradual, preview, rollback, security, codeql, lighthouse, load-test, mutation, asm-diff, backup-restore-drill, dr-drill, admin-bootstrap. Renovate + Dependabot both present. |
-| Testing | Vitest (unit + integration), Playwright e2e + a11y, Stryker mutation testing, Lighthouse CI, k6/load-test workflow, chaos test suite (`__tests__/chaos/*`). 212 test files. |
-| Supply chain | gitleaks (`.gitleaks.toml`), grype (`.grype.yaml`), semgrep custom rules (`.semgrep/nextjs-security.yml`), npm audit gate at moderate, CodeQL, dep-review on PRs, SBOM/provenance via cosign + attest-build-provenance (`id-token: write`). |
+| Layer         | What's actually in repo                                                                                                                                                                                                                     |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime       | Cloudflare Workers, `compatibility_date: 2026-03-17`, flags `nodejs_compat`, `global_fetch_strictly_public`. `workers_dev: false` (good).                                                                                                   |
+| Framework     | Next.js `~15.5.18`, React `^19.2.7`, App Router.                                                                                                                                                                                            |
+| Adapter       | `@opennextjs/cloudflare ^1.19.11`, R2 incremental cache, DO sharded tag-cache, DO queue.                                                                                                                                                    |
+| Language      | TypeScript `~5.8`, `tsc --noEmit` enforced (`typecheck:all` covers both Next and Worker tsconfigs).                                                                                                                                         |
+| Lint          | ESLint 9 flat-config + custom rules (banning `process.env as Record<...>` casts, banning `.unsafeNoSiteFilter()` outside the DAL).                                                                                                          |
+| DB            | Supabase / Postgres. 253 migration files in `supabase/migrations/` with paired `-down.sql`. RLS turned on across ≥54 migrations.                                                                                                            |
+| Auth          | Custom: `lib/auth.ts` (`jose` JWT, `bcryptjs`, dummy-hash timing equalization, binding cookie, activity cookie, key rotation). TOTP via `otpauth` + `lib/totp-encryption.ts`. HIBP k-anonymity check via KV-cached prefix lists.            |
+| AuthZ         | RBAC via `config/rbac/roles.json` + `lib/dal/permissions.ts` + `withAuthz` / `withAuthzDynamic` / `authorizeResource`. Server-derived `siteId` only — never from query/body.                                                                |
+| Storage       | R2 (`cloudflare-r2-images.md`), Supabase Storage (image fallback).                                                                                                                                                                          |
+| Cache         | R2 (ISR), KV (`APP_CACHE_KV` general / `RATE_LIMIT_KV` counters), DO sharded tag-cache, DO queue.                                                                                                                                           |
+| Payments      | Stripe (`stripe ^22.2.0`), Web Crypto HMAC verification, atomic event apply, DLQ, retry.                                                                                                                                                    |
+| Email         | Resend. Newsletter double-opt-in (migration 00004), signed unsubscribe tokens (`lib/newsletter-token.ts`).                                                                                                                                  |
+| Captcha       | Cloudflare Turnstile.                                                                                                                                                                                                                       |
+| Observability | Sentry (browser+cloudflare), Workers observability, tail consumer to `affilite-mix-log-shipper`. OTEL block referenced but disabled.                                                                                                        |
+| IaC           | Terraform for Cloudflare (alerts, DNS, queues, R2, Sentry alerts) + GitHub (branch protection).                                                                                                                                             |
+| CI/CD         | 14 workflows: ci, deploy, deploy-gradual, preview, rollback, security, codeql, lighthouse, load-test, mutation, asm-diff, backup-restore-drill, dr-drill, admin-bootstrap. Renovate + Dependabot both present.                              |
+| Testing       | Vitest (unit + integration), Playwright e2e + a11y, Stryker mutation testing, Lighthouse CI, k6/load-test workflow, chaos test suite (`__tests__/chaos/*`). 212 test files.                                                                 |
+| Supply chain  | gitleaks (`.gitleaks.toml`), grype (`.grype.yaml`), semgrep custom rules (`.semgrep/nextjs-security.yml`), npm audit gate at moderate, CodeQL, dep-review on PRs, SBOM/provenance via cosign + attest-build-provenance (`id-token: write`). |
 
 ---
 
@@ -138,9 +139,10 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 ### 3.1 Frontend
 
 **Confirmed:**
+
 - App Router with two layouts: `app/(public)/` and the obfuscated admin segment `app/q7m-k4j9/` (the legacy `/admin/*` is now hard-410 in `middleware.ts` — `isRetiredAdminPath`). `noindex,nofollow` set on the gone response. Good.
 - `next.config.ts` is paranoid about images: `dangerouslyAllowSVG: false`, `contentDispositionType: "attachment"`, `qualities: [75]`, `minimumCacheTTL: 2592000`, exact-host `remotePatterns` derived from env (no `*.supabase.co` / `*.r2.dev` wildcards).
-- Static headers (HSTS preload, COOP, X-Frame DENY, Permissions-Policy with `interest-cohort=()`) set in `next.config.ts` *and* per-request in `middleware.ts` via `applySecurityHeaders`, kept byte-identical by audit (`__tests__/permissions-policy-byte-identical.test.ts`).
+- Static headers (HSTS preload, COOP, X-Frame DENY, Permissions-Policy with `interest-cohort=()`) set in `next.config.ts` _and_ per-request in `middleware.ts` via `applySecurityHeaders`, kept byte-identical by audit (`__tests__/permissions-policy-byte-identical.test.ts`).
 - Per-route Referrer-Policy: `no-referrer` on `/q7m-k4j9/reset-password` (anti-token-leak).
 - CSP: per-request nonce, `script-src 'self' 'nonce-…' 'strict-dynamic' challenges.cloudflare.com`, no `unsafe-inline` in script-src. `style-src 'unsafe-inline'` accepted-risk documented with compensating control (`lib/sanitize-html.ts` strips style attributes). REVISIT date logged.
 - Web Vitals telemetry endpoint (`/api/vitals`) with origin validation.
@@ -150,11 +152,13 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 - Cookie consent: `vanilla-cookieconsent`, four categories (analytics/affiliate/advertising + necessary), Sentry init gated on `analytics` category, `Sec-GPC: 1` honoured in middleware (`ctx.gpcEnabled`).
 
 **Likely risks / inferred:**
+
 - The admin segment under `app/q7m-k4j9/` is **security by obscurity**. The legacy `/admin/*` is 410-Gone with `Cache-Control: no-store` — fine — but the new prefix is in the public bundle and grep-able. Don't conflate this with a control. If credentials are scraped, the path provides ~zero additional protection.
 - `style-src 'unsafe-inline'` is a real CSP gap regardless of the rationale. If a single React `style={{...}}` prop ever embeds user-controlled CSS (e.g. an admin theming editor; there is `cardStyles` in `2026052701_site_templates_and_card_styles.sql`), you have CSS exfiltration.
 - The CSP fallback for excluded paths uses `default-src 'none'` (good) but `/api/internal/*` is explicitly excluded from the matcher — the response is unstyled and uncovered by CSP nonce logic. Acceptable, but means anyone who calls `/api/internal/*` and somehow gets HTML back gets a permissive document. The internal-token auth must be airtight, which leads to the next section.
 
 **Missing evidence:**
+
 - No service worker / PWA detected — the `app/manifest.ts` exists but I did not see SW registration. If you ever add one, the CSP excluded-path fallback will collide.
 
 ---
@@ -162,6 +166,7 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 ### 3.2 Backend / API
 
 **Confirmed:**
+
 - `withAuthz(feature, action, handler)` and `withAuthzDynamic(...)` are the canonical guards. They derive `siteId` from a **server-validated cookie** (`nh_active_site`), never from query/body. The doc comment explicitly calls out the bad pattern they replace. This is the right primitive.
 - `authorizeResource()` fetches a row by id and asserts `site_id` from the row matches the active site — this is the correct way to prevent IDOR/cross-tenant mutations, and it is enforced via a small enumerated `RESOURCE_TABLES` allowlist (not arbitrary tables).
 - `requireAdmin()` enforces session + 100 req/min rate limit (fail-closed, `graceMs: 0`) keyed by `session.email ?? session.userId`. The membership check is enforced even after a forged cookie because it queries `admin_site_memberships`.
@@ -176,12 +181,14 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 - 46 admin routes, all of them grep as importing `withAuthz`/`withAuthzDynamic`/`requireAdmin`/`requireSuperAdmin` (no unguarded route found in a quick scan).
 
 **Likely risks:**
+
 - **N+1 on `withAuthzDynamic` + `authorizeResource`.** Each call hits Postgres twice for the same row (resource lookup, then DAL lookup), then twice more for permission resolution if memo-misses. Under bot load this multiplies. No query-level batching observed.
-- **Rate-limit key cardinality.** `admin:products:get:${session.userId}` etc. each create their own keyspace in KV/DO. With many endpoints and many users, KV namespace grows unboundedly; no documented TTL/cleanup for the in-memory LRU eviction. There *is* a `rate-limit-lru-eviction.test.ts`, so the per-isolate LRU is bounded, but the DO/KV side is not.
+- **Rate-limit key cardinality.** `admin:products:get:${session.userId}` etc. each create their own keyspace in KV/DO. With many endpoints and many users, KV namespace grows unboundedly; no documented TTL/cleanup for the in-memory LRU eviction. There _is_ a `rate-limit-lru-eviction.test.ts`, so the per-isolate LRU is bounded, but the DO/KV side is not.
 - **`Promise.race` middleware timeout (5000ms) signals abort but downstream awaits in `innerMiddleware` may still complete after the race resolves** — comments acknowledge this and pass `AbortSignal` through, but you must audit every downstream `fetch`/`kv.get`/Supabase call to confirm they respect `signal`. The `@supabase/supabase-js` client does not honour `AbortSignal` for queries (only for the fetch adapter via `fetchWithTimeout`). Some queries will continue after 5s.
-- **`fail-open` patterns in `affiliate-domain-allowlist.ts`, `suspicious-login.ts`, `ssrf-guard.ts`, `admin-guard.ts` (KV cache only).** Each is individually correct; together they form a class of "telemetry/best-effort silently degrades during incidents". The pattern is documented (`[criticality:non-critical]` etc.) which is excellent — but the SOC2 mapping under A.5.25/A.8.16 treats these as "implemented" detection controls. If detection silently goes offline during outages, your alerting requires the outage *itself* to alert, not the missed detection.
+- **`fail-open` patterns in `affiliate-domain-allowlist.ts`, `suspicious-login.ts`, `ssrf-guard.ts`, `admin-guard.ts` (KV cache only).** Each is individually correct; together they form a class of "telemetry/best-effort silently degrades during incidents". The pattern is documented (`[criticality:non-critical]` etc.) which is excellent — but the SOC2 mapping under A.5.25/A.8.16 treats these as "implemented" detection controls. If detection silently goes offline during outages, your alerting requires the outage _itself_ to alert, not the missed detection.
 
 **Missing evidence:**
+
 - No circuit-breakers visible on outbound providers other than `lib/ai/circuit-breaker.ts` and `lib/supabase-circuit-breaker.ts`. Stripe API calls (`stripe.subscriptions.retrieve` in event processor) are bare `try/catch` returning `noop`. A Stripe outage at retrieval time will turn `invoice.paid` into a silent `noop` and never retry.
 - No e2e contract test that hits a real Stripe sandbox in CI (the contract test mocks signatures). Stripe API shape drift is therefore caught only at runtime.
 
@@ -190,6 +197,7 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 ### 3.3 Database / Data
 
 **Confirmed:**
+
 - 253 migration files; `supabase/schema.sql` intentionally empty per ADR — canonical schema is migrations + generated dump (CI artifact, not committed). Documented.
 - `migration-safety.md`, `migration-rollback.md`, `migration-history.md`, `migration-squashing-strategy.md`, ADR-0013 (squashing) exist.
 - RLS turned on across ≥54 migrations; many follow-ups specifically harden anon/authenticated grants (`2026052601_revoke_anon_grants_fix_rls`, `2026052906_s11_authenticated_rls_policies`).
@@ -201,13 +209,15 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 - Audit log table + structured logger + R2 archive (per ISO doc).
 
 **Likely risks:**
-- **253 migrations on one Postgres is a ticking restore-time bomb.** A fresh DB rebuild executes the entire ordered chain — and any change in extension behaviour, contention on `CREATE INDEX CONCURRENTLY`, etc. will surface in DR drill. There is a `backup-restore-drill.yml` workflow; whether it actually does a *clean restore* of all 253 in CI is the question (it likely runs against staging Supabase; restore from snapshot is the test that matters).
+
+- **253 migrations on one Postgres is a ticking restore-time bomb.** A fresh DB rebuild executes the entire ordered chain — and any change in extension behaviour, contention on `CREATE INDEX CONCURRENTLY`, etc. will surface in DR drill. There is a `backup-restore-drill.yml` workflow; whether it actually does a _clean restore_ of all 253 in CI is the question (it likely runs against staging Supabase; restore from snapshot is the test that matters).
 - **No SBOM/data inventory of tables in repo.** `docs/ropa.md` is referenced everywhere but exists only as a process artifact; without a column-level PII matrix in the repo, DPIA and Article 30 mapping is doc-trust, not code-trust. The `pii-table-coverage.md` is partial evidence.
-- **Right-to-be-forgotten**: `2026050301_erase_subject_data_complete.sql` and `app/api/admin/privacy/*` exist. Need to verify (not in scope here) that *all* tenant-data columns are zeroed, not only PII columns — partial erasure can keep `affiliate_clicks` rows attributable via `ip_prefix` HMAC.
+- **Right-to-be-forgotten**: `2026050301_erase_subject_data_complete.sql` and `app/api/admin/privacy/*` exist. Need to verify (not in scope here) that _all_ tenant-data columns are zeroed, not only PII columns — partial erasure can keep `affiliate_clicks` rows attributable via `ip_prefix` HMAC.
 - **`SUPABASE_DB_POOLER_URL`** is only consumed by CI migrations. Production runtime uses `NEXT_PUBLIC_SUPABASE_URL` REST. The session pooler is therefore an undocumented-at-runtime fallback if the REST URL fails — no automatic failover. Acceptable but worth documenting.
 - **`select(LIST_COLUMNS)` rather than `select("*")`** is in `lib/dal/products.ts` — excellent defense-in-depth (G-…), but it means column additions require touching the DAL constant. A test (`__tests__/dal-pagination-guards.test.ts` etc.) likely covers a chunk of this, but a "DAL ↔ TypeScript types ↔ Postgres column" drift is silent until query time.
 
 **Missing evidence:**
+
 - No `pgaudit` configured (I did not see it in migrations).
 - No documented row-level partitioning or vacuum strategy for `affiliate_clicks` or `web_vitals_table` — both are high-volume tables. At 10x traffic these will dominate B-tree depth and `VACUUM` cost.
 - No evidence of read replicas; Supabase free tier doesn't ship them by default.
@@ -217,10 +227,11 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 ### 3.4 Servers / Network / Cloud
 
 **Confirmed:**
+
 - `workers_dev: false` — preview URLs disabled at the platform level (A206/A209). Forces all traffic through the zone WAF.
 - Custom domains: 4 declared in `wrangler.jsonc`, dashboard-managed for additions. `compareai.site` intentionally not in JSON because of zone API error 100117 — documented in comments.
 - Smart placement enabled (`placement.mode = "smart"`) — origin-co-located.
-- Two Workers: `affilite-mix` and `affilite-mix-heavy-crons` (AI gen, commission ingest, price scrape). Heavy-crons isolation is the *only* failure-isolation pattern in the architecture.
+- Two Workers: `affilite-mix` and `affilite-mix-heavy-crons` (AI gen, commission ingest, price scrape). Heavy-crons isolation is the _only_ failure-isolation pattern in the architecture.
 - Tail consumer to `affilite-mix-log-shipper`.
 - KV ids parameterized via `${RATE_LIMIT_KV_NAMESPACE_ID}` substitution + `scripts/check-wrangler-placeholders.mjs` guard. Good.
 - Cloudflare API token (scoped) required, Global Key explicitly refused in `deploy.yml`. Good.
@@ -231,13 +242,15 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 - Cron secrets uploaded to BOTH `affilite-mix` and `affilite-mix-heavy-crons` workers in deploy step (per the `deploy.yml` header comment).
 
 **Likely risks:**
+
 - **Single-region origin.** Supabase project is one region; Workers are global but every query is a round trip to one Postgres. `placement: smart` helps when the worker can be pinned near origin, but global users still pay full RTT for any DB-touching read. No edge-side data layer beyond R2 ISR + KV cache.
 - **No documented multi-region failover.** `docs/dr/failover.md` exists but DR is about restore, not active-active. At 10x traffic with one Supabase project, you will saturate Postgres long before Workers cap out.
 - **Domain routing is partly out-of-band.** The `wristnerd.xyz` zone + custom-domain attachments are in code; `compareai.site` is dashboard-managed; new domains are dashboard-managed. This is a known gap (`compareai.site` comment) but it creates a config-drift surface (IaC vs dashboard) that no test catches.
-- **`ALLOW_LOCALHOST_FALLBACK_IN_PROD=1`** is set globally in `ci.yml`. `instrumentation.ts` guards against using it on a non-localhost host, but a misconfigured env in a real prod environment (typo in `APP_URL`) that *resembles* localhost could pass that guard. The guard checks substring, not URL parse — a string like `localhost-staging.example.com` would slip.
-- **Cloudflare alerts default to disabled mechanisms.** `var.alert_mechanisms` defaults to empty arrays; `alerts_enabled = true` is the default but the precondition fails apply unless destinations are wired. This means in IaC the alerts probably *do not exist yet* in the live account unless an operator added tfvars. The `alerts.auto.tfvars` file exists, which is a strong signal someone tried, but auto.tfvars is only loaded by Terraform and isn't itself a deployment.
+- **`ALLOW_LOCALHOST_FALLBACK_IN_PROD=1`** is set globally in `ci.yml`. `instrumentation.ts` guards against using it on a non-localhost host, but a misconfigured env in a real prod environment (typo in `APP_URL`) that _resembles_ localhost could pass that guard. The guard checks substring, not URL parse — a string like `localhost-staging.example.com` would slip.
+- **Cloudflare alerts default to disabled mechanisms.** `var.alert_mechanisms` defaults to empty arrays; `alerts_enabled = true` is the default but the precondition fails apply unless destinations are wired. This means in IaC the alerts probably _do not exist yet_ in the live account unless an operator added tfvars. The `alerts.auto.tfvars` file exists, which is a strong signal someone tried, but auto.tfvars is only loaded by Terraform and isn't itself a deployment.
 
 **Missing evidence:**
+
 - WAF/Bot/Turnstile site keys are documented as required but there is no test that asserts the Turnstile site key is wired in prod. `ALLOW_TURNSTILE_DISABLED_IN_PROD` env var exists — that is exactly the bypass you don't want to ship by accident.
 - No mTLS / private origin posture documented for Supabase. Supabase free-tier doesn't support it; if you ever upgrade, ensure cf access policies match.
 
@@ -246,6 +259,7 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 ### 3.5 CI/CD / SDLC
 
 **Confirmed:**
+
 - 14 workflows: ci, deploy, deploy-gradual (canary), preview (PRs), rollback (manual), security (npm audit + license-check + dep review), codeql, lighthouse, load-test, mutation (Stryker), asm-diff (attack-surface monitoring), backup-restore-drill, dr-drill, admin-bootstrap (manual break-glass).
 - GitHub Actions pinned to SHA (`actions/checkout@de0fac2e…` — pinned).
 - `permissions: contents: read` at top level; per-job opt-in for `id-token: write` and `attestations: write` only on the build job (build-provenance + cosign).
@@ -260,12 +274,14 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 - Markdown internal-link check.
 
 **Likely risks:**
+
 - **No real staging environment in the workflows.** `deploy.yml`'s "validate" step does migrations against `STAGING_SUPABASE_DB_URL` if provided, but there is no separate Worker name / R2 bucket / KV namespace for staging in the visible config. The deploy goes directly from CI to the prod Worker.
 - **`ALLOW_LOCALHOST_FALLBACK_IN_PROD: "1"`** is in `ci.yml`'s top-level env. Any new workflow that inherits these (or any developer that copy-pastes the block) gets a footgun.
 - **The "security" workflow's devDependency audit is `continue-on-error`.** Acceptable but the warning is the only signal; a compromised dev dep that ships with secrets in CI will set off a warning that humans must read.
-- **Migration runner** is a custom shell script. Migration policy lint catches naming, but there is no `psql` sandbox + replay test in CI proving every migration can apply *and* its `-down` reverses cleanly on the same DB state. A single irreversible migration kills your rollback story.
+- **Migration runner** is a custom shell script. Migration policy lint catches naming, but there is no `psql` sandbox + replay test in CI proving every migration can apply _and_ its `-down` reverses cleanly on the same DB state. A single irreversible migration kills your rollback story.
 
 **Missing evidence:**
+
 - No SBOM artifact stored in releases (CycloneDX/SPDX). The doc claims SBOM exists but I did not see the publishing step in workflows.
 - No artifact signing verification at deploy time — `attest-build-provenance` writes the attestation but I did not see a downstream `cosign verify-attestation` gate before deploy.
 - No `npm-shrinkwrap.json` or `package-lock.json` integrity-check via subresource hashes outside `npm ci`.
@@ -277,6 +293,7 @@ Failure isolation: **weak.** Public, admin, webhook, queue, and cron handlers sh
 This is the section the repo invested the most in. The good news: most of the controls a security review will want to see exist. The bad news: the volume of controls is itself an audit-readiness liability, because few of them are end-to-end tested.
 
 **Confirmed (strong):**
+
 - Cookie security: `__Host-` prefix in secure context, `HttpOnly`, `Secure`, `SameSite=Strict`. Activity cookie HMAC-signed (anti-forgery).
 - JWT: `jose`, asymmetric key fallback supported, `JWT_SECRET_CURRENT` / `JWT_SECRET_PREVIOUS` rotation with **24h hard enforcement at startup** (`checkRotationWindowExpiry`).
 - Step-up auth for sensitive admin mutations (`lib/step-up-auth.ts`).
@@ -292,19 +309,22 @@ This is the section the repo invested the most in. The good news: most of the co
 - CodeQL + Semgrep custom rules.
 
 **Confirmed (weaker than docs suggest):**
+
 - Many "implemented" SOC2/ISO controls reduce to logging in Sentry (e.g. A.5.25/A.5.26 → "alerts" → Sentry → notification rails unverified).
 - `assertRole(...)` returns 401 (Bearer challenge) for both authn and authz failures, by design — `G-45` rationale (route-existence side-channel removal). This is fine, but it makes admin RBAC testing harder; you cannot assert "403 because role insufficient" externally.
 - `style-src 'unsafe-inline'` (documented above) — partial compensating control; not eliminated.
-- Admin route obfuscation (`q7m-k4j9`) is a *defence-in-depth* feature, not a control.
+- Admin route obfuscation (`q7m-k4j9`) is a _defence-in-depth_ feature, not a control.
 
 **Likely risks:**
-- **Prompt injection on AI routes** is covered by `__tests__/live18-prompt-injection.test.ts`, `__tests__/ai/jailbreak-eval.test.ts`, `__tests__/ai/prompt-sanitization.test.ts`. These are unit tests against `lib/ai/prompt-sanitization.ts`. They are necessary but the *real* attack on a multi-tenant content generator is hostile content stored in the DB later rendered into a prompt. Verify the prompt-builder reads from sanitized fields, not raw.
+
+- **Prompt injection on AI routes** is covered by `__tests__/live18-prompt-injection.test.ts`, `__tests__/ai/jailbreak-eval.test.ts`, `__tests__/ai/prompt-sanitization.test.ts`. These are unit tests against `lib/ai/prompt-sanitization.ts`. They are necessary but the _real_ attack on a multi-tenant content generator is hostile content stored in the DB later rendered into a prompt. Verify the prompt-builder reads from sanitized fields, not raw.
 - **AI cost controls** exist (`lib/quotas.ts`, `lib/ai/circuit-breaker.ts`, `AI_GLOBAL_DAILY_CEILING_USD`). But the queue consumer runs at `max_concurrency: 2` for Supabase pool reasons — there is **no** corresponding global concurrency cap on outbound AI calls, only the daily $ ceiling. A bug that misattributes cost to the wrong tenant burns the global ceiling.
 - **Webhook DLQ replay tooling** (`scripts/drain-dlq.ts`) — verify it requires elevated privilege and is audit-logged. A misuse of it could replay a stale Stripe event into a refunded state.
 - **`ALLOW_TURNSTILE_DISABLED_IN_PROD`** is an env var the code respects. Acknowledged as an incident escape-hatch but unmitigated by anything other than discipline.
-- **Cookie signing**: activity cookie is HMAC-timestamped, but the rate-limit grace window and the activity cookie maxAge derive from the same `IDLE_TIMEOUT_MS`. If `ADMIN_ACTIVITY_TIMEOUT_MINS` is mis-set, both behaviours drift together — a *good* property when caught by tests, a *bad* one if hot-config changes ever land.
+- **Cookie signing**: activity cookie is HMAC-timestamped, but the rate-limit grace window and the activity cookie maxAge derive from the same `IDLE_TIMEOUT_MS`. If `ADMIN_ACTIVITY_TIMEOUT_MINS` is mis-set, both behaviours drift together — a _good_ property when caught by tests, a _bad_ one if hot-config changes ever land.
 
 **Missing evidence:**
+
 - No DPIA / threat model in repo. `docs/penetration-test-plan.md` exists; results presumably out of repo.
 - No `permissions-policy` per-endpoint differentiation (everything inherits the strict global; fine but worth knowing).
 
@@ -315,14 +335,14 @@ This is the section the repo invested the most in. The good news: most of the co
 - **Monolith-on-edge.** All concerns (public, admin, API, cron, webhook, queue consumer) share one Worker, one Next.js bundle, one Supabase, one set of bindings. The only split is `affilite-mix-heavy-crons`.
 - **Modularity within the Worker is good** — `lib/middleware/*` composable modules (`maintenance`, `cors`, `csrf`, `hostname`, `site-resolution`). Threaded `MiddlewareContext`. Easy to test.
 - **Coupling**: high between routes and Supabase via DAL; mitigated by `lib/dal/*`. Stripe coupling localized in `lib/stripe-*`. AI coupling localized in `lib/ai/*`.
-- **Service boundaries**: ill-defined. There is no internal RPC plane — everything calls in-process. Internal HMAC + per-purpose tokens exist for the *cron dispatcher hop* (Worker scheduled → /api/cron/*) and queue consumer hop. These are good but they exist precisely because there are HTTP hops where there shouldn't be.
+- **Service boundaries**: ill-defined. There is no internal RPC plane — everything calls in-process. Internal HMAC + per-purpose tokens exist for the _cron dispatcher hop_ (Worker scheduled → /api/cron/\*) and queue consumer hop. These are good but they exist precisely because there are HTTP hops where there shouldn't be.
 - **Event-driven design**: Cloudflare Queues for clicks. Otherwise synchronous.
 - **CQRS**: none. Reads and writes go through the same DAL with the same client.
 - **Failure isolation**: weak — one Worker, one Postgres.
 - **AI-readiness**: provider abstraction with feature flags and metadata (`lib/ai/providers.ts`, tests assert provider feature flags + model metadata). Good.
 - **Builders/providers/auth abstraction**: good. `lib/affiliate/*`, `lib/ai/*`, single `getStripeClient`, single privileged-client gateway.
 
-**Hard truth:** the abstraction quality is high enough that *splitting this into 2-3 Workers later is feasible*. Doing it now is the right call before scale forces it under incident pressure.
+**Hard truth:** the abstraction quality is high enough that _splitting this into 2-3 Workers later is feasible_. Doing it now is the right call before scale forces it under incident pressure.
 
 ---
 
@@ -342,6 +362,7 @@ This is the section the repo invested the most in. The good news: most of the co
 - Load test workflow (manual + nightly cron + post-deploy gate via `workflow_call`).
 
 **At 10x traffic:**
+
 - **Click queue consumer** at `max_concurrency: 2` becomes the bottleneck before Supabase does. Backlog grows; DLQ depth alert is the only signal.
 - **Admin per-user rate limits** at 100 req/min admin global + 30/min mutate, fail-closed — under genuine load (bulk imports via `/api/admin/products/import`) you will trip these from your own UI.
 - **HIBP prefix cache** has 24h TTL and stores ~16-40KB per entry; the cache cost is fine, but on cold start of a fresh isolate, every login pays the HIBP fetch.
@@ -349,11 +370,13 @@ This is the section the repo invested the most in. The good news: most of the co
 - **No CDN purge automation** documented for stale ISR pages beyond `revalidateTag`. If a site definition changes domain, `wrangler.jsonc` custom domains and Cloudflare DNS are dashboard-managed; an emergency cutover is manual.
 
 **At 100x traffic:**
+
 - Supabase REST + Postgres becomes the single chokepoint. Connection pooling via the session pooler covers migrations but the JS client goes to the REST endpoint. PostgREST connection limits become the cap.
 - KV writes for dedup (`click-dedup:...`) hit Cloudflare KV write rate limits. The repo already has telemetry for this (`trackKvDedupWrite` + `KV_DEDUP_WRITE_ALERT_RATE` env, default 500/min) — good signal but no documented action.
 - Durable Object SQLite (rate-limiter, tag-cache, queue) is bounded by class instance throughput. The rate limiter uses one DO instance per key; high-cardinality keys spread load. The tag cache is sharded.
 
 **Cost hotspots:**
+
 - AI provider fan-out (multiple providers in `lib/ai/providers.ts`). `AI_GLOBAL_DAILY_CEILING_USD` is the only governor — if a runaway loop triggers many small generations it could exhaust the ceiling before the breaker trips.
 - Image optimizer is bounded by `minimumCacheTTL` + exact hostnames — good. Amazon CDN paths remain until G-48 (R2 ingest) — flagged in code.
 - KV reads on every rate limit and every site resolution — these are cheap but constant.
@@ -375,6 +398,7 @@ This is the section the repo invested the most in. The good news: most of the co
 - Backup/restore drill workflow (`backup-restore-drill.yml`).
 
 **Likely gaps:**
+
 - Error-budget / SLO targets exist in `docs/board-cyber-metrics.md` (referenced) but no SLO definition file in repo (e.g. `slo.yaml`). "Burn rate" alerts exist in name only without the SLI definition.
 - Sentry alert rules are in `terraform/cloudflare/sentry-alerts.tf` — needs verification that the Sentry org+project IDs match prod.
 - No chaos engineering in production — `__tests__/chaos/*` test suite exercises circuit breakers and KV outages in unit form, not in prod.
@@ -391,6 +415,7 @@ This is the section the repo invested the most in. The good news: most of the co
 - k6/load-test workflow.
 
 **Strong coverage areas:**
+
 - Auth/CSRF/CSP — extensive.
 - Sanitize-HTML — fuzz + entity bypass corpus.
 - Stripe webhook — fuzz + differential + idempotency regression + contract.
@@ -398,6 +423,7 @@ This is the section the repo invested the most in. The good news: most of the co
 - Migration order, env-var docs, runtime-env accessors.
 
 **Likely gaps:**
+
 - **Tests over the same in-memory mocks for Supabase do not validate RLS behaviour against a real Postgres.** `__tests__/rls-isolation.integration.test.ts` does (it's the integration suite, requires `TEST_WITH_SUPABASE=1`). Confirm CI runs the integration suite — it does not appear in `ci.yml`. The integration tests appear to be local-only.
 - **No e2e for the full admin flow** (login → TOTP → create product → publish → see in public route). Playwright `public-flows.test.ts` exists; admin path coverage in Playwright unclear.
 - **Mutation testing is in a separate workflow** — verify it gates anything. If it is informational, mutation score regressions land silently.
@@ -416,7 +442,8 @@ This is the section the repo invested the most in. The good news: most of the co
 - Cookie consent integrates with analytics-category for Sentry; affiliate category likely gates click attribution.
 
 **Risks:**
-- **Stripe `checkout.session.completed` → `noop` on Supabase outage.** The processor `try { stripe.subscriptions.retrieve } catch { noop }`. The DLQ catches the webhook fail (good), but the *retrieval* failure is silent. If Supabase is down but Stripe call succeeds, the membership will be created with empty period fields.
+
+- **Stripe `checkout.session.completed` → `noop` on Supabase outage.** The processor `try { stripe.subscriptions.retrieve } catch { noop }`. The DLQ catches the webhook fail (good), but the _retrieval_ failure is silent. If Supabase is down but Stripe call succeeds, the membership will be created with empty period fields.
 - **Tier resolution from price ID** depends on env vars `STRIPE_PRICE_ID_INSIDER`/`STRIPE_PRICE_ID_PRO`. A new price ID created without env update silently maps to default tier `"insider"` — revenue-affecting silent failure.
 - **EPC recompute cron** runs daily at 06:00 UTC. If the cron misses (heavy-crons offload + secret rot), reports stay stale until next run. No "data freshness" alert observed.
 
@@ -434,6 +461,7 @@ This is the section the repo invested the most in. The good news: most of the co
 - Governance docs: `docs/ai-governance.md`, `docs/ai-risk-governance.md`, `docs/ai-system-technical-doc.md`, `docs/ai-red-team-plan.md`, `docs/ai-shadow-ab.md`, `docs/model-risk-assessment.md`.
 
 **Risks:**
+
 - The auto-publish gate is the only thing standing between an AI hallucination and a public page. The gate is tested but its rules need a periodic review baked into a calendar — not visible in repo.
 - No vector DB / embeddings visible — if the system fans out into RAG, plan for retrieval injection now.
 
@@ -456,14 +484,16 @@ No evidence found in repo.
 ### Critical / High
 
 **F-01 — Cloudflare alert mechanisms default to empty; on-call may not be paged.**
+
 - Severity: **High** · Confidence: **High** · Domain: Operations
-- Evidence: `terraform/cloudflare/alerts.tf` → `variable "alert_mechanisms"` defaults `{ email: [], pagerduty: [], webhooks: [] }`. Lifecycle precondition prevents apply with `enabled=true` and empty mechanisms — i.e. operators must wire destinations *out-of-band*. `alerts.auto.tfvars` exists but its content isn't validated by repo.
+- Evidence: `terraform/cloudflare/alerts.tf` → `variable "alert_mechanisms"` defaults `{ email: [], pagerduty: [], webhooks: [] }`. Lifecycle precondition prevents apply with `enabled=true` and empty mechanisms — i.e. operators must wire destinations _out-of-band_. `alerts.auto.tfvars` exists but its content isn't validated by repo.
 - Why it matters: SOC2 CC7.2 + ISO A.5.25/A.5.26 / A.8.16 all map to "alerts → human action". Untested alert paths look implemented in the doc but are operationally dormant.
 - Production scenario: Worker 5xx burn rate exceeds SLO → policy fires → no destination receives it → silent incident.
-- Remediation: gate Terraform apply on a presence-check of at least one mechanism *and* schedule a quarterly synthetic alert test (`scripts/fire-test-alert.sh`).
+- Remediation: gate Terraform apply on a presence-check of at least one mechanism _and_ schedule a quarterly synthetic alert test (`scripts/fire-test-alert.sh`).
 - Priority: P0 · Effort: S.
 
 **F-02 — Single Worker bundle for public + admin + webhook + queue + cron.**
+
 - Severity: **High** · Confidence: **High** · Domain: Architecture / Reliability
 - Evidence: `wrangler.jsonc` declares one `affilite-mix` Worker handling all routes; the only split is `wrangler.heavy-crons.jsonc`.
 - Why it matters: any deploy that breaks the public path (CSS bug, hydration bug, Next.js minor) breaks Stripe webhook delivery, queue consumer, admin login, and every cron handler. Rollback is whole-bundle.
@@ -472,20 +502,23 @@ No evidence found in repo.
 - Priority: P1 · Effort: L.
 
 **F-03 — No staging Worker / Supabase project visible.**
+
 - Severity: **High** · Confidence: **Medium** · Domain: SDLC
 - Evidence: `deploy.yml` validates migrations against `STAGING_SUPABASE_DB_URL` but the wrangler config has only one `name: "affilite-mix"`; no `[env.staging]` block.
-- Why it matters: every prod deploy is a first-traffic deploy. Canary in `deploy-gradual.yml` is *traffic-split on prod*, not a separate environment.
+- Why it matters: every prod deploy is a first-traffic deploy. Canary in `deploy-gradual.yml` is _traffic-split on prod_, not a separate environment.
 - Remediation: add `[env.staging]` with a separate Worker name, KV/R2/DO bindings, and Supabase project; run smoke + load on staging before prod.
 - Priority: P1 · Effort: M.
 
 **F-04 — Stripe subscription retrieval failures silently degrade to `noop`.**
+
 - Severity: **High** · Confidence: **High** · Domain: Business Logic
 - Evidence: `lib/stripe-event-processor.ts` — for `checkout.session.completed`, `invoice.paid`, etc.: `try { sub = await stripe.subscriptions.retrieve(...); } catch { return { op: "noop" }; }`.
-- Why it matters: a Stripe API outage at retrieval time turns the webhook into a successful 200 from our side but a no-op on our DB. The atomic-apply DLQ catches *our* failures, not upstream retrieval failures. Memberships will be missing periods or never created; users paid but did not get access.
+- Why it matters: a Stripe API outage at retrieval time turns the webhook into a successful 200 from our side but a no-op on our DB. The atomic-apply DLQ catches _our_ failures, not upstream retrieval failures. Memberships will be missing periods or never created; users paid but did not get access.
 - Remediation: on retrieval failure, throw → return 5xx so Stripe retries → DLQ-write only after Stripe's own retry budget exhausts. Or write a partial-state row + a retry job.
 - Priority: P0 · Effort: S.
 
 **F-05 — `ALLOW_LOCALHOST_FALLBACK_IN_PROD=1` is set globally in CI and only guarded by string substring at runtime.**
+
 - Severity: **High** · Confidence: **High** · Domain: Security
 - Evidence: `.github/workflows/ci.yml` line `ALLOW_LOCALHOST_FALLBACK_IN_PROD: "1"`; `instrumentation.ts` guards `appUrl.includes("localhost") || appUrl.includes("127.0.0.1") || appUrl === ""`.
 - Why it matters: substring match is bypassable (`localhost-fake.example.com`). A misconfigured `APP_URL` could allow the flag through.
@@ -493,6 +526,7 @@ No evidence found in repo.
 - Priority: P0 · Effort: S.
 
 **F-06 — 253 migrations on one Postgres; clean-restore DR is brittle.**
+
 - Severity: **High** · Confidence: **High** · Domain: Database / DR
 - Evidence: `ls supabase/migrations | wc -l` → 253. ADR-0013 acknowledges the need to squash.
 - Why it matters: any DB rebuild takes minutes per `CREATE INDEX CONCURRENTLY`; long replay window during DR. Extension/CREATE OR REPLACE drift between dev and prod becomes visible only at restore time.
@@ -500,6 +534,7 @@ No evidence found in repo.
 - Priority: P1 · Effort: L.
 
 **F-07 — `style-src 'unsafe-inline'` CSP gap.**
+
 - Severity: **Medium** · Confidence: **High** · Domain: Security
 - Evidence: `lib/csp.ts` accepted-risk comment + the directive itself.
 - Why it matters: any reflected/persistent CSS injection becomes CSS exfiltration (`background-image: url(...)`). Compensating control is `lib/sanitize-html.ts` stripping style attributes — verify it runs on every user-authored field, including AI-generated body content rendered by TipTap (TipTap defaults can emit inline styles).
@@ -507,6 +542,7 @@ No evidence found in repo.
 - Priority: P2 · Effort: M.
 
 **F-08 — Admin segment uses path obfuscation (`/q7m-k4j9/`).**
+
 - Severity: **Medium** · Confidence: **High** · Domain: Security / Architecture
 - Evidence: `app/q7m-k4j9/`.
 - Why it matters: not a control. Treat the admin segment as if `/admin/` and harden accordingly. Anti-pattern: any developer assuming the obfuscation provides protection.
@@ -514,25 +550,29 @@ No evidence found in repo.
 - Priority: P1 · Effort: M.
 
 **F-09 — Bus factor / repo complexity.**
+
 - Severity: **High** · Confidence: **High** · Domain: Architecture / SDLC
 - Evidence: 148 docs, 253 migrations, 212 tests, 14 workflows, ~70 env vars, ADRs 0001–0013, two terraform stacks. Last 2 weeks: 1 commit on `main` (in shallow clone). This is either a steady-state burst or a single maintainer.
-- Why it matters: onboarding cost is multi-week. A regression in any control's *meaning* (e.g. fail-open semantics) is hard for a new engineer to spot.
+- Why it matters: onboarding cost is multi-week. A regression in any control's _meaning_ (e.g. fail-open semantics) is hard for a new engineer to spot.
 - Remediation: write a "tour" doc (15 minutes to running locally + 5 critical files), enforce ADR-required PRs for any change to the trust/auth surface, and instrument the controls so behavior is observable, not only documented.
 - Priority: P1 · Effort: M.
 
 **F-10 — Sentry sampling at 10% may starve alerts on rare failures.**
+
 - Severity: **Medium** · Confidence: **Medium** · Domain: Observability
 - Evidence: `sentry.client.config.ts` `tracesSampleRate: 0.1`.
 - Remediation: keep traces at 10% but route exceptions at 100% (the SDK default for `captureException`). Verify the cloudflare-side config does the same. Configure release-health and crash-rate alerts.
 - Priority: P2 · Effort: S.
 
 **F-11 — `withAuthz` runs Supabase queries that ignore `AbortSignal`.**
+
 - Severity: **Medium** · Confidence: **Medium** · Domain: Reliability
 - Evidence: middleware passes `signal` through `MiddlewareContext`, but `@supabase/supabase-js` does not honour `AbortSignal` for query methods (only the fetch adapter wrapped by `fetchWithTimeout`).
 - Remediation: ensure every DAL call goes through `fetchWithTimeout` (it appears to in `lib/server-only/service-role.ts`). Add a metric for "post-timeout completion" to catch leaks.
 - Priority: P2 · Effort: M.
 
 **F-12 — `ALLOW_TURNSTILE_DISABLED_IN_PROD` env var exists.**
+
 - Severity: **Medium** · Confidence: **High** · Domain: Security
 - Evidence: env access in code.
 - Why it matters: incident escape-hatch that a stressed operator may flip and forget to unflip.
@@ -540,24 +580,28 @@ No evidence found in repo.
 - Priority: P2 · Effort: S.
 
 **F-13 — Click queue consumer at `max_concurrency: 2` is the first scale bottleneck.**
+
 - Severity: **Medium** · Confidence: **High** · Domain: Performance
 - Evidence: `wrangler.jsonc` queue consumer block; rationale in comments cites Supabase connection pool exhaustion.
 - Remediation: introduce a pgbouncer-backed connection pool / Supavisor and raise concurrency. Alarm on queue lag (Cloudflare Queues metric).
 - Priority: P2 · Effort: M.
 
 **F-14 — Migration policy lint doesn't replay forward+down on the same DB state.**
+
 - Severity: **Medium** · Confidence: **Medium** · Domain: Database / SDLC
 - Evidence: `scripts/check-migrations.sh` (lint), `backup-restore-drill.yml`, `dr-drill.yml`. None visibly run `up → down → up` against a throwaway Postgres in CI.
 - Remediation: add a CI job that spins up Postgres in docker compose and replays the full chain forward + every `-down` in reverse over an in-memory copy of seed data.
 - Priority: P2 · Effort: M.
 
 **F-15 — Tier resolution silently maps unknown Stripe price IDs to `"insider"`.**
+
 - Severity: **Medium** · Confidence: **Medium** · Domain: Business Logic
 - Evidence: `lib/stripe-event-processor.ts` → `resolveTierFromPriceId` fallback behavior. Tier read from metadata first; price IDs as fallback.
 - Remediation: if neither metadata nor known price ID resolves, write a flagged-incomplete row and emit a Sentry error + audit-log entry.
 - Priority: P2 · Effort: S.
 
 **F-16 — `affiliate-domain-allowlist` fail-open on KV miss.**
+
 - Severity: **Medium** · Confidence: **High** · Domain: Business Integrity
 - Evidence: `lib/affiliate-domain-allowlist.ts` has explicit `fail-open: best-effort [criticality:non-critical]`.
 - Why it matters: an attacker who can store an affiliate URL in the DB (e.g. via a sufficiently broad admin role on a compromised tenant) and induce a KV miss for the allowlist gets click-through to an unsanctioned domain. The `AFFILIATE_DOMAIN_ENFORCEMENT=strict` env claims strict — this is partial.
@@ -565,12 +609,14 @@ No evidence found in repo.
 - Priority: P2 · Effort: S.
 
 **F-17 — No SBOM artifact published in releases.**
+
 - Severity: **Medium** · Confidence: **Medium** · Domain: Supply chain
 - Evidence: doc claims SBOM; no `cyclonedx`/`spdx` artifact upload in `.github/workflows/*`.
 - Remediation: add `cyclonedx-npm` step + upload artifact + (optionally) attest with cosign.
 - Priority: P2 · Effort: S.
 
 **F-18 — `getInternalToken` legacy fallback to `INTERNAL_API_TOKEN`.**
+
 - Severity: **Low / Medium** · Confidence: **High** · Domain: Security
 - Evidence: `lib/internal-auth.ts` falls back to legacy token when per-purpose is unset.
 - Why it matters: a leaked legacy token leaks the entire internal surface. The per-purpose split exists for blast-radius reduction; the fallback negates it.
@@ -578,18 +624,21 @@ No evidence found in repo.
 - Priority: P2 · Effort: S.
 
 **F-19 — `compareai.site` custom-domain managed only in Cloudflare Dashboard.**
+
 - Severity: **Low** · Confidence: **High** · Domain: Infra drift
 - Evidence: comment block in `wrangler.jsonc` explains the deliberate omission due to externally-managed DNS records.
 - Remediation: track this in a separate IaC file that fails CI if the domain isn't either in wrangler or in a documented exclusion list. The current comment is documentation, not enforcement.
 - Priority: P3 · Effort: S.
 
 **F-20 — `style-src` accepted-risk has REVISIT 2026-09-01 — verify the date is tracked.**
+
 - Severity: **Low** · Confidence: **High** · Domain: Hygiene
 - Evidence: comment in `lib/csp.ts`.
 - Remediation: file an issue and link it from the code comment; the comment itself is not a tracker.
 - Priority: P3 · Effort: XS.
 
 **F-21 — Admin RBAC returns 401 (not 403) for "wrong role".**
+
 - Severity: **Low** · Confidence: **High** · Domain: Auditability / Compliance
 - Evidence: `assertRole` returns 401 Bearer challenge.
 - Why it matters: anti-enumeration (good) but logs do not differentiate "auth missing" from "role insufficient". Compliance reports that segregate failed-authn from failed-authz cannot be generated from access logs alone.
@@ -597,27 +646,31 @@ No evidence found in repo.
 - Priority: P3 · Effort: S.
 
 **F-22 — `ESLint --max-warnings=0` only catches code in `lib/` and `app/`.**
+
 - Severity: **Low** · Confidence: **Low** · Domain: SDLC
 - Evidence: `npm run lint` invokes `eslint .` but `eslint.config.mjs` ignores `.open-next/**`, `.next/**`, `coverage/**`. Test mocks are checked but not workers/ in the same way.
 - Remediation: add `npm run lint:worker` (already exists) to CI explicitly.
 - Priority: P3 · Effort: XS.
 
 **F-23 — `style-src 'unsafe-inline'` + TipTap content rendering risk.**
+
 - Severity: **Medium** · Confidence: **Medium** · Domain: Security
 - Evidence: TipTap dependency + accepted-risk note.
-- Remediation: assert that all stored TipTap output passes `lib/sanitize-html.ts` *before* rendering, with an explicit allowlist that strips `style`.
+- Remediation: assert that all stored TipTap output passes `lib/sanitize-html.ts` _before_ rendering, with an explicit allowlist that strips `style`.
 - Priority: P2 · Effort: M.
 
 **F-24 — No documented secret rotation cadence for cron secrets.**
+
 - Severity: **Low** · Confidence: **Medium** · Domain: Security / Compliance
-- Evidence: ADR / runbooks exist; the rotation *cadence* is not in repo (e.g. quarterly).
+- Evidence: ADR / runbooks exist; the rotation _cadence_ is not in repo (e.g. quarterly).
 - Remediation: add `docs/secret-rotation-cadence.md` listing each secret + rotation interval + last rotated date.
 - Priority: P3 · Effort: S.
 
 **F-25 — Service-role usage logged "once per isolate" — alerting needs aggregation.**
+
 - Severity: **Low** · Confidence: **High** · Domain: Security
 - Evidence: `lib/server-only/service-role.ts` → `seenCallers` Set.
-- Why it matters: an attacker who can reach the gateway from a *new* caller path will log once and then be silent.
+- Why it matters: an attacker who can reach the gateway from a _new_ caller path will log once and then be silent.
 - Remediation: emit the metric `privileged_client_usage` to Cloudflare AE / log shipper with the caller dimension; alert on unknown callers.
 - Priority: P3 · Effort: S.
 
@@ -674,6 +727,7 @@ No evidence found in repo.
 ## 8. 30 / 60 / 90 Day Plan
 
 **30 days**
+
 - F-01, F-04, F-05 closed.
 - Staging environment live (F-03).
 - Migration squash plan executed for the baseline (F-06, phase 1).
@@ -682,12 +736,14 @@ No evidence found in repo.
 - Per-purpose internal token fail-closed in prod (F-18).
 
 **60 days**
+
 - Worker decomposition: webhook + queue extracted (F-02).
 - Admin segment behind Cloudflare Access (F-08).
 - CI gate: up/down migration replay (F-14).
 - DAL `AbortSignal` honoured everywhere (F-11).
 
 **90 days**
+
 - Multi-region read replica or Supavisor pool (F-13).
 - ADR for failure isolation between cron worker and webhook worker.
 - Full mutation-score gate ≥ 60% on `lib/auth.ts`, `lib/csrf.ts`, `lib/sanitize-html.ts`.
@@ -750,6 +806,7 @@ No evidence found in repo.
 ## 15. If I Had To Rebuild This Cleanly
 
 **Keep**:
+
 - `lib/server-only/service-role.ts` gateway pattern + ESLint rule.
 - `withAuthz` / `withAuthzDynamic` / `authorizeResource` primitives.
 - Per-purpose internal tokens and per-trigger cron secrets.
@@ -762,6 +819,7 @@ No evidence found in repo.
 - Migration policy lint + ADR-required PRs.
 
 **Redesign**:
+
 - Split the Worker by trust tier (public read / admin write / webhooks / queue / cron) sharing a `@affilite-mix/dal` package.
 - Promote staging to a first-class environment with its own bindings and Supabase project.
 - Move admin behind Cloudflare Access. Drop the path obfuscation as a stated control.
@@ -769,11 +827,13 @@ No evidence found in repo.
 - Squash migrations; adopt a 60-day rolling window only.
 
 **Remove**:
+
 - `ALLOW_LOCALHOST_FALLBACK_IN_PROD` from CI env.
 - Legacy `INTERNAL_API_TOKEN` fallback in prod.
 - The `ALLOW_TURNSTILE_DISABLED_IN_PROD` env as a free-form escape-hatch — replace with a time-bound DO flag.
 
 **Standardize**:
+
 - All "fail-open" code paths emit a `*_fail_open_total` counter that feeds an alert.
 - All admin RBAC failures emit a typed audit-log entry distinct from authn failures.
 - All providers (Stripe, Resend, AI providers, HIBP) go through a single `withCircuitBreaker(name, fetch)` wrapper with one alerting story.

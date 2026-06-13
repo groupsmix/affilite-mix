@@ -68,6 +68,12 @@ env:
   CRON_DEALS_SECRET: ci-test-cron-deals
   CRON_CLICK_RECONCILE_SECRET: ci-test-cron-click-reconcile
   CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
+  # CR-02: the homepage-synthetic-check cron (lib/cron-registry.ts) makes this
+  # per-trigger secret hard-required at boot in production. `next start` runs
+  # under NODE_ENV=production, so omitting it makes the instrumentation hook
+  # throw "MISSING REQUIRED ENVIRONMENT VARIABLES" and every Lighthouse
+  # navigation hits a process-crash 500 before any page can render.
+  CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
 
 jobs:
   lighthouse:

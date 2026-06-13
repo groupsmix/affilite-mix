@@ -3,6 +3,7 @@
 ## Status: Already Implemented - FetchWithTimeout Used Throughout Codebase
 
 ## Finding
+
 F-11 — Ensure DAL calls honor AbortSignal
 
 ## Current Implementation
@@ -19,6 +20,7 @@ const signal = fetchOptions.signal
 ```
 
 This implementation:
+
 1. **Accepts caller's AbortSignal** via fetchOptions.signal
 2. **Combines with timeout signal** using AbortSignal.any
 3. **Either source can abort** the request (caller timeout OR middleware timeout)
@@ -29,10 +31,12 @@ This implementation:
 fetchWithTimeout is consistently used in all network operations:
 
 **Supabase Clients:**
+
 - `lib/server-only/service-role.ts` - Privileged client (12s timeout)
 - `lib/supabase-server.ts` - Anon client (8s timeout) and Tenant client (12s timeout)
 
 **Third-Party APIs:**
+
 - `lib/turnstile.ts` - Turnstile verification
 - `lib/password-policy.ts` - HIBP password check
 - `lib/ai/providers.ts` - Cloudflare Workers AI, Groq, Cohere
@@ -40,11 +44,13 @@ fetchWithTimeout is consistently used in all network operations:
 - `app/api/cron/commission-ingest/route.ts` - CJ, Admitad APIs
 
 **Infrastructure Services:**
+
 - `lib/r2.ts` - R2 storage operations (15s timeout)
 - `lib/ssrf-guard.ts` - SSRF-protected fetches
 - `lib/middleware-site-lookup.ts` - Site lookup queries
 
 **Security Controls:**
+
 - All external calls go through fetchWithTimeout
 - All calls have explicit timeout values
 - Circuit breakers are used with fetchWithTimeout
@@ -52,6 +58,7 @@ fetchWithTimeout is consistently used in all network operations:
 ## AbortSignal Propagation
 
 ### Middleware Timeout
+
 The middleware sets a 5000ms timeout with AbortSignal. This signal is passed through:
 
 1. **Middleware** → sets AbortSignal with 5s timeout
@@ -103,6 +110,7 @@ if (controller.signal.aborted && response.ok) {
 **Metric:** `fetch_post_timeout_completion_total`
 **Type:** Counter
 **Labels:**
+
 - `url`: Sanitized endpoint path
 - `timeoutMs`: The timeout value used
 - `signalSource`: Which signal caused abort (middleware vs fetchWithTimeout)
@@ -110,6 +118,7 @@ if (controller.signal.aborted && response.ok) {
 ### Alerting
 
 Alert on:
+
 - Sudden increase in post-timeout completions (indicates timeout too aggressive)
 - Consistent post-timeime completions on specific endpoints (indicates endpoints need longer timeout)
 
@@ -147,12 +156,14 @@ Alert on:
 F-11 should be marked as **partially implemented**:
 
 ✅ **Already Complete:**
+
 - fetchWithTimeout supports AbortSignal propagation
 - All Supabase clients use fetchWithTimeout
 - All external API calls use fetchWithTimeout
 - AbortSignal.any combines middleware and operation timeouts
 
 ⚠️ **Requires Completion:**
+
 - Add metric for post-timeime completions
 - Add tests for AbortSignal propagation
 - Document which operations respect AbortSignal

@@ -158,7 +158,8 @@ export function buildCspHeader(nonce: string): string {
     // from all user-authored content, preventing CSS injection/exfil.
     // F-20: REVISIT: 2026-09-01 — check if vanilla-cookieconsent v3 supports
     // nonced styles; if so, replace 'unsafe-inline' with nonce-based style-src.
-    // TRACKED: GitHub issue #XXX (file issue and update this reference)
+    // Tracked via the F-20 milestone; open a GitHub issue and reference it here
+    // when the upstream library ships nonce support.
 
     //
     // F-07: Cannot remove 'unsafe-inline' at this time due to technical

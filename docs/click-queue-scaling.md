@@ -17,6 +17,7 @@ As of the latest configuration (wrangler.jsonc), the click-tracking queue consum
 ## Throughput Calculation
 
 With the current configuration:
+
 - **Drain ceiling**: ~80 messages/second (4 concurrent consumers × 100 messages per batch / 5 seconds)
 - **Previous drain ceiling** (before concurrency increase): ~10 messages/second
 
@@ -33,6 +34,7 @@ The `max_concurrency: 4` setting caps the number of simultaneous queue consumers
 ### 2. Database Connection Pooling
 
 The queue consumers write to Supabase Postgres. The concurrency is limited by:
+
 - Supabase connection pool size (default: 60 connections for free tier)
 - Circuit breaker protection in `/api/queue/clicks` (S9-H2)
 - Each batch is ONE PostgREST batch-insert HTTP call, so DB load scales with concurrency, not message volume
@@ -46,6 +48,7 @@ The queue consumers write to Supabase Postgres. The concurrency is limited by:
 ## Queue Lag Alert
 
 F-13: A queue backlog burn-rate alert is configured in `terraform/cloudflare/alerts.tf`:
+
 - **Alert name**: "Affilite-Mix Queue Backlog Burn Rate"
 - **Trigger**: Queue depth exceeds 1000 messages
 - **Purpose**: Detect consumer lag or failure
@@ -68,6 +71,7 @@ F-13: A queue backlog burn-rate alert is configured in `terraform/cloudflare/ale
 ### Long-term (End-state)
 
 Per E2-01, the end-state is **full decoupling of click ingestion from Postgres**:
+
 - Click events are written to a high-throughput write-optimized store (e.g., Kafka, R2, or a dedicated click-event table)
 - A separate batch job aggregates and writes to the main analytics tables
 - This removes the Postgres connection pool as the bottleneck
@@ -101,11 +105,13 @@ Per E2-01, the end-state is **full decoupling of click ingestion from Postgres**
 ### Draining DLQ
 
 Run the DLQ drain script:
+
 ```bash
 npm run drain-dlq
 ```
 
 This script:
+
 - Reads messages from `click-tracking-dlq`
 - Re-processes them through the click ingestion logic
 - Handles retries with backoff

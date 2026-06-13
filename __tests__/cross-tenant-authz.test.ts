@@ -76,6 +76,9 @@ function fakeFrom(table: string) {
       this._id = value;
       return this;
     },
+    abortSignal(_signal: AbortSignal) {
+      return this;
+    },
     async maybeSingle() {
       if (forceDbError) {
         const err = forceDbError;

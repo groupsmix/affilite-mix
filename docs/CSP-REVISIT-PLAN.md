@@ -7,14 +7,17 @@
 **Severity**: **Low/Medium** · Confidence: **High** · Domain: Security
 
 ### Current State
+
 The CSP policy currently allows `style-src 'unsafe-inline'` to support inline styles in the application. This is an accepted security risk with documented justification.
 
 ### Why It's Currently Allowed
+
 - The application uses certain libraries or frameworks that require inline styles
 - Removing `unsafe-inline` would require significant refactoring
 - The risk is mitigated by other security controls (sanitization, CSP nonces for scripts)
 
 ### Revisit Plan for 2026-09-01
+
 By September 1, 2026, revisit this decision with the following goals:
 
 1. **Audit all inline style usage**
@@ -41,13 +44,16 @@ By September 1, 2026, revisit this decision with the following goals:
    - Maintain same security level for scripts
 
 ### Related ADRs
+
 - Create ADR for CSP inline style migration strategy
 - Document trade-offs of different CSP enforcement levels
 
 ### Assigned Owner
+
 - [ ] Security team member to be assigned
 
 ### Dependencies
+
 - Next.js/React framework updates
 - Third-party library CSP support
 - Development team bandwidth for refactoring
@@ -66,6 +72,7 @@ By September 1, 2026, revisit this decision with the following goals:
 **Recommended**: Cloudflare Access for edge-gated admin segment
 
 **Revisit Considerations**:
+
 - Evaluate Cloudflare Access implementation complexity
 - Assess impact on admin user experience (additional auth)
 - Compare cost/benefit of edge gating vs current approach
@@ -79,6 +86,7 @@ By September 1, 2026, revisit this decision with the following goals:
 
 **Current State**: `fetchWithTimeout` is implemented but not verified across all DAL calls
 **Revisit Plan**:
+
 - Audit all DAL calls to verify AbortSignal support
 - Add tests for timeout behavior
 - Document which DAL paths support cancellation
@@ -92,6 +100,7 @@ By September 1, 2026, revisit this decision with the following goals:
 
 **Current State**: Queue consumer runs at `max_concurrency: 2` for Supabase pool reasons
 **Revisit Plan**:
+
 - Evaluate if pgbouncer is still needed or if Supabase has improved
 - Test increasing concurrency in staging
 - Monitor database connection pool performance
@@ -101,24 +110,27 @@ By September 1, 2026, revisit this decision with the following goals:
 
 ## Revisits Schedule
 
-| Item | Revisit Date | Priority | Owner | Status |
-|------|--------------|----------|-------|--------|
-| CSP unsafe-inline removal | 2026-09-01 | P1 | TBD | Scheduled |
-| Admin Cloudflare Access | 2026-06-30 | P2 | TBD | Pending |
-| DAL AbortSignal verification | 2026-07-15 | P2 | TBD | Pending |
-| Click queue concurrency | 2026-08-01 | P2 | TBD | Pending |
+| Item                         | Revisit Date | Priority | Owner | Status    |
+| ---------------------------- | ------------ | -------- | ----- | --------- |
+| CSP unsafe-inline removal    | 2026-09-01   | P1       | TBD   | Scheduled |
+| Admin Cloudflare Access      | 2026-06-30   | P2       | TBD   | Pending   |
+| DAL AbortSignal verification | 2026-07-15   | P2       | TBD   | Pending   |
+| Click queue concurrency      | 2026-08-01   | P2       | TBD   | Pending   |
 
 ---
 
 ## Review Process
 
 ### Monthly Review
+
 - Track progress on all revisit items
 - Update priorities based on changing risk landscape
 - Block out time for implementation in sprint planning
 
 ### Pre-Revisit Checklist
+
 Before the revisit date:
+
 1. [ ] Research current state of technology/library support
 2. [ ] Estimate implementation effort
 3. [ ] Identify potential risks of implementation
@@ -126,6 +138,7 @@ Before the revisit date:
 5. [ ] Schedule maintenance window if needed
 
 ### Post-Implementation
+
 1. [ ] Monitor for regressions
 2. [ ] Update security documentation
 3. [ ] Close out associated audit findings

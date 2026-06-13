@@ -202,7 +202,8 @@ export const cronJobs: readonly CronJob[] = [
     secretEnvVar: "CRON_HOMEPAGE_SYNTHETIC_SECRET",
     csrfExempt: true,
     alertOnFailure: true,
-    description: "Synthetic check: fail loudly when homepage renders empty while DB has published content.",
+    description:
+      "Synthetic check: fail loudly when homepage renders empty while DB has published content.",
   },
 ] as const;
 

@@ -6,24 +6,28 @@
 ## Current State Assessment
 
 **HEAD (Current Files):** ✅ Clean
+
 - `docs/audits/` directory does not exist in current HEAD
 - Sensitive audit reports have been removed from current files
 - Gitignore patterns block `docs/audits/` and related patterns
 
 **Git History:** ❌ Contaminated
+
 - Pre-removal commits still contain sensitive audit reports in git history
 - Files removed in PR #789 are still accessible via `git log` and `git checkout`
 - Historical commits contain security methodology, prior weaknesses, and sensitive findings
 
 **Operational Audit Docs:** ✅ Correctly Public
 These files are intentionally public and should remain:
+
 - `docs/audit-log-review-runbook.md` - Operational runbook
-- `docs/pr-audit-requirements.md` - Development process doc  
+- `docs/pr-audit-requirements.md` - Development process doc
 - `docs/api-route-audit.md` - API security audit checklist
 
 ## Security Risk
 
 **Why This Matters:**
+
 1. **Information Disclosure:** Git history is publicly accessible in the GitHub repository
 2. **Attacker Recon:** Historical audit reports reveal security posture, methodology, and prior weaknesses
 3. **Compliance:** Weakens "we don't leak security internals" claims in security reviews
@@ -32,12 +36,14 @@ These files are intentionally public and should remain:
 ## Remediation Overview
 
 The remediation requires:
+
 1. **Git History Cleanup:** Remove sensitive files from all historical commits
 2. **Force Push:** Rewrite public git history (requires coordination)
 3. **Secret Rotation:** Rotate any secrets exposed in historical reports
 4. **Private Storage:** Establish private repository for sensitive audit reports
 
 **⚠️ CRITICAL:** This operation rewrites git history and requires:
+
 - Git repository admin access
 - Coordination with all collaborators
 - Force push permissions
@@ -62,7 +68,7 @@ git remote remove origin
 # Option A: git-filter-repo (recommended)
 pip install git-filter-repo
 
-# Option B: BFG Repo-Cleaner  
+# Option B: BFG Repo-Cleaner
 # Download from: https://rtyley.github.io/bfg-repo-cleaner/
 ```
 
@@ -117,6 +123,7 @@ git push origin --force --tags
 ### Step 5: Collaborator Re-clone
 
 All collaborators must re-clone:
+
 ```bash
 mv affilite-mix affilite-mix-old
 git clone <your-repo-url> affilite-mix
