@@ -597,8 +597,10 @@ jobs:
           # Local Postgres container has no TLS; append sslmode=disable.
           # supabase db reset prompts for confirmation; pipe 'y' for CI.
           DB_URL="${DATABASE_URL}?sslmode=disable"
-          printf 'y\n' | supabase db reset --db-url "$DB_URL" || true
-          supabase db push --db-url "$DB_URL"
+          # db reset wipes the DB and applies every migration in one pass.
+          # Do NOT also run db push — it would re-apply the same migrations
+          # and fail with "duplicate key" errors on schema_migrations_pkey.
+          printf 'y\n' | supabase db reset --db-url "$DB_URL"
 
       - name: Verify migrations applied
         env:
@@ -959,10 +961,11 @@ jobs:
           STRIPE_WEBHOOK_SECRET: whsec_ci_test_placeholder
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
       - name: Wait for server to be ready
-        # Use /api/health — returns 200 without auth and without DB.
-        # The root URL triggers SSR which hits the placeholder Supabase URL
-        # and returns a non-2xx, causing wait-on to retry until timeout.
-        run: npx wait-on http://localhost:3000/api/health --timeout 60000
+        # Use TCP check — verifies the port is bound without making an HTTP
+        # request. HTTP checks fail because `next start` runs in production
+        # mode; the middleware rejects localhost as an unknown domain and
+        # returns a non-2xx, causing wait-on to retry until timeout.
+        run: npx wait-on tcp:localhost:3000 --timeout 60000
       - name: Cache Playwright browsers
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: playwright-cache
@@ -1035,10 +1038,11 @@ jobs:
           CRON_ACCESS_REVIEW_SECRET: ci-test-cron-access-review
           CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
       - name: Wait for server to be ready
-        # Use /api/health — returns 200 without auth and without DB.
-        # The root URL triggers SSR which hits the placeholder Supabase URL
-        # and returns a non-2xx, causing wait-on to retry until timeout.
-        run: npx wait-on http://localhost:3000/api/health --timeout 60000
+        # Use TCP check — verifies the port is bound without making an HTTP
+        # request. HTTP checks fail because `next start` runs in production
+        # mode; the middleware rejects localhost as an unknown domain and
+        # returns a non-2xx, causing wait-on to retry until timeout.
+        run: npx wait-on tcp:localhost:3000 --timeout 60000
       - name: Install k6
         run: |
           curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
