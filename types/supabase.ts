@@ -809,7 +809,6 @@ export type Database = {
       };
       content: {
         Row: {
-          ai_generated: boolean;
           author: string | null;
           author_id: string | null;
           ai_generated: boolean;
@@ -835,7 +834,6 @@ export type Database = {
           updated_at: string | null;
         };
         Insert: {
-          ai_generated?: boolean;
           author?: string | null;
           author_id?: string | null;
           ai_generated?: boolean;
@@ -861,7 +859,6 @@ export type Database = {
           updated_at?: string | null;
         };
         Update: {
-          ai_generated?: boolean;
           author?: string | null;
           author_id?: string | null;
           ai_generated?: boolean;
