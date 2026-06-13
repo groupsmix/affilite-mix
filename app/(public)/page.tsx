@@ -3,11 +3,33 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getRecentContent, countPublishedContent } from "@/lib/dal/content";
 import { listFeaturedProducts, countProducts } from "@/lib/dal/products";
 import { listCategoriesWithProductCount } from "@/lib/dal/categories";
+import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
 import dynamic from "next/dynamic";
 import { ContentCard } from "./components/content-card";
 import { ProductCard } from "./components/product-card";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./components/json-ld";
 import Link from "next/link";
+
+/**
+ * PROD-INCIDENT-2026-06-11 follow-up: surface failures in the homepage's
+ * fan-out queries instead of swallowing them with `.catch(() => [])`.
+ *
+ * The original `.catch(() => fallback)` shape hid a 12-day full-content
+ * outage on all four public sites because every query failed identically
+ * and the page rendered the "No content yet" empty state silently. Each
+ * branch now logs structured context AND ships the error to Sentry with
+ * a `homepage-fanout` tag so a synthetic check can fire when the homepage
+ * renders empty while the DB reports published content.
+ */
+function reportHomepageFanoutError(query: string, siteId: string, err: unknown): void {
+  logger.error("[homepage] fan-out query failed; rendering fallback", {
+    query,
+    siteId,
+    err: err instanceof Error ? { name: err.name, message: err.message } : err,
+  });
+  captureException(err, { tags: { area: "homepage-fanout", query }, siteId });
+}
 
 const CinematicHomepage = dynamic(() =>
   import("./components/homepage-cinematic").then((m) => m.CinematicHomepage),
@@ -53,11 +75,26 @@ export default async function HomePage() {
   const site = await getCurrentSite();
   const [recentContent, featuredProducts, categories, productCount, reviewCount] =
     await Promise.all([
-      getRecentContent(site.id, 6).catch(() => []),
-      listFeaturedProducts(site.id, 6).catch(() => []),
-      listCategoriesWithProductCount(site.id).catch(() => []),
-      countProducts({ siteId: site.id, status: "active" }).catch(() => 0),
-      countPublishedContent(site.id, "review").catch(() => 0),
+      getRecentContent(site.id, 6).catch((err) => {
+        reportHomepageFanoutError("getRecentContent", site.id, err);
+        return [];
+      }),
+      listFeaturedProducts(site.id, 6).catch((err) => {
+        reportHomepageFanoutError("listFeaturedProducts", site.id, err);
+        return [];
+      }),
+      listCategoriesWithProductCount(site.id).catch((err) => {
+        reportHomepageFanoutError("listCategoriesWithProductCount", site.id, err);
+        return [];
+      }),
+      countProducts({ siteId: site.id, status: "active" }).catch((err) => {
+        reportHomepageFanoutError("countProducts", site.id, err);
+        return 0;
+      }),
+      countPublishedContent(site.id, "review").catch((err) => {
+        reportHomepageFanoutError("countPublishedContent", site.id, err);
+        return 0;
+      }),
     ]);
 
   // Render homepage based on template preset
