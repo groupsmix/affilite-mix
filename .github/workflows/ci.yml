@@ -602,7 +602,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Use the repo-pinned Node version (.nvmrc → 22.22.2) like every
+          # other CI job. package.json engines require >=22.22.2 and the
+          # Wrangler dry-run step below needs Node >=22, so hardcoding "20"
+          # here broke the F-035 check.
+          node-version-file: .nvmrc
           cache: "npm"
 
       - name: Install dependencies
