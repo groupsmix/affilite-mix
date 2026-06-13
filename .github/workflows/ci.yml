@@ -653,6 +653,28 @@ jobs:
             );
             ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;
 
+            -- scheduled_jobs table: used in 00068_enforce_scheduled_jobs_rls.sql
+            -- but only created in 00071_create_scheduled_jobs.sql (out of order).
+            -- Migration 00071 itself documents this gap: "Earlier migrations
+            -- (00003, 00020, 00024, 00068) reference the scheduled_jobs table
+            -- for RLS policies and indexes, but no migration in the chain
+            -- actually creates it." FK to sites omitted — sites is created by
+            -- 00001, which runs after this bootstrap block.
+            CREATE TABLE IF NOT EXISTS public.scheduled_jobs (
+              id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+              site_id       uuid        NOT NULL,
+              job_type      text        NOT NULL,
+              target_id     uuid        NOT NULL,
+              scheduled_for timestamptz NOT NULL,
+              status        text        NOT NULL DEFAULT 'pending',
+              payload       jsonb       DEFAULT '{}',
+              executed_at   timestamptz,
+              error         text,
+              created_at    timestamptz DEFAULT now(),
+              updated_at    timestamptz DEFAULT now()
+            );
+            ALTER TABLE public.scheduled_jobs ENABLE ROW LEVEL SECURITY;
+
             -- audit_events table: indexed by 2026052302_security_audit_hardening.sql
             -- but never created in any migration (it pre-dates the migration chain
             -- on production). CREATE INDEX fails on a non-existent table even with
