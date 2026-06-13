@@ -515,12 +515,12 @@ jobs:
       attestations: write
     steps:
       - name: Download SBOM artifact
-        uses: actions/download-artifact@fa0a91bfe410ad5b6c698921b9e5a8f7a59df54c # v7.0.1
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: sbom
 
       - name: Download BUILD_ID artifact
-        uses: actions/download-artifact@fa0a91bfe410ad5b6c698921b9e5a8f7a59df54c # v7.0.1
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: build-id
 
