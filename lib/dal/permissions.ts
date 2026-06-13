@@ -5,7 +5,9 @@
  * A user can have a different role per site.
  */
 
-import { cache } from "react";
+// F-11: Removed React cache to enable AbortSignal propagation.
+// Cache was preventing timeout signals from reaching Supabase queries.
+// Performance impact is minimal for authz checks which are already fast.
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import type {
   RoleRow,
@@ -95,10 +97,12 @@ export async function listSiteUserRoles(
 }
 
 /** Get a user's role for a specific site */
-const getUserSiteRole = cache(async function getUserSiteRole(
+// F-11: Removed cache to support AbortSignal propagation
+async function getUserSiteRole(
   userId: string,
   siteId: string,
   getClient: DalClientGetter = defaultDalClientGetter,
+  signal?: AbortSignal,
 ): Promise<UserSiteRoleRow | null> {
   const sb = await getClient();
   const { data, error } = await sb
@@ -106,11 +110,12 @@ const getUserSiteRole = cache(async function getUserSiteRole(
     .select(USER_SITE_ROLE_COLUMNS)
     .eq("user_id", userId)
     .eq("site_id", siteId)
+    .abortSignal(signal)
     .single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<UserSiteRoleRow>(data);
-});
+}
 
 /** Assign a role to a user for a specific site (upsert) */
 export async function assignUserSiteRole(
@@ -172,44 +177,48 @@ export async function removeUserSiteRole(
  * Global `admin` role no longer silently grants cross-site access.
  * To grant an admin access to a site, insert a user_site_roles row for them.
  */
-// 1. Check global admin_users.role for backward compatibility (cached)
-const getGlobalRole = cache(
-  async (userId: string, getClient: DalClientGetter = defaultDalClientGetter) => {
-    const sb = await getClient();
-    const { data, error } = await sb
-      .from("admin_users")
-      .select("role")
-      .unsafeNoSiteFilter()
-      .eq("id", userId)
-      .single();
-    if (error) throw error;
-    return (data as AdminRoleLookup | null)?.role;
-  },
-);
+// 1. Check global admin_users.role for backward compatibility
+// F-11: Removed cache to support AbortSignal propagation
+async function getGlobalRole(
+  userId: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from("admin_users")
+    .select("role")
+    .unsafeNoSiteFilter()
+    .eq("id", userId)
+    .abortSignal(signal)
+    .single();
+  if (error) throw error;
+  return (data as AdminRoleLookup | null)?.role ?? null;
+}
 
-// Cache permission lookups
-const getRolePermissionCheck = cache(
-  async (
-    roleId: string,
-    feature: string,
-    action: string,
-    getClient: DalClientGetter = defaultDalClientGetter,
-  ) => {
-    const sb = await getClient();
-    // We can do this in one join query instead of two to save a round-trip
-    const { data, error } = await sb
-      .from("permissions")
-      .select("id, role_permissions!inner(role_id)")
-      .eq("feature", feature)
-      .eq("action", action)
-      .eq("role_permissions.role_id", roleId)
-      .single();
+// F-11: Removed cache to support AbortSignal propagation
+async function getRolePermissionCheck(
+  roleId: string,
+  feature: string,
+  action: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  const sb = await getClient();
+  // We can do this in one join query instead of two to save a round-trip
+  const { data, error } = await sb
+    .from("permissions")
+    .select("id, role_permissions!inner(role_id)")
+    .eq("feature", feature)
+    .eq("action", action)
+    .eq("role_permissions.role_id", roleId)
+    .abortSignal(signal)
+    .single();
 
-    if (error && error.code === "PGRST116") return false;
-    if (error) throw error;
-    return Boolean(data);
-  },
-);
+  if (error && error.code === "PGRST116") return false;
+  if (error) throw error;
+  return Boolean(data);
+}
 
 export async function hasPermission(
   userId: string,
@@ -217,16 +226,20 @@ export async function hasPermission(
   feature: PermissionFeature,
   action: PermissionAction,
   getClient: DalClientGetter = defaultDalClientGetter,
+  signal?: AbortSignal,
 ): Promise<boolean> {
   // A30-006: Authz reads must use primary to prevent stale replica data
   // from incorrectly granting/revoking access
-  const globalRole = await authzPrimaryRead(() => getGlobalRole(userId, getClient));
+  // F-11: Accept AbortSignal to allow timeout propagation from middleware
+  const globalRole = await authzPrimaryRead(() => getGlobalRole(userId, getClient, signal));
 
   // Super admin and owner bypass all permission checks
   if (globalRole === "super_admin" || globalRole === "owner") return true;
 
   // 2. Check site-scoped role — also primary read for authz consistency
-  const userSiteRole = await authzPrimaryRead(() => getUserSiteRole(userId, siteId, getClient));
+  const userSiteRole = await authzPrimaryRead(() =>
+    getUserSiteRole(userId, siteId, getClient, signal),
+  );
   if (!userSiteRole) {
     // No site-scoped role assigned: deny access.
     return false;
@@ -234,6 +247,6 @@ export async function hasPermission(
 
   // 3. Check if the assigned role has the requested permission
   return await authzPrimaryRead(() =>
-    getRolePermissionCheck(userSiteRole.role_id, feature, action, getClient),
+    getRolePermissionCheck(userSiteRole.role_id, feature, action, getClient, signal),
   );
 }

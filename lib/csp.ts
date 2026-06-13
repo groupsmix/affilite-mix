@@ -156,8 +156,17 @@ export function buildCspHeader(nonce: string): string {
     // security posture adopted by most production CSPs.
     // COMPENSATING CONTROL: lib/sanitize-html.ts strips style attributes
     // from all user-authored content, preventing CSS injection/exfil.
-    // REVISIT: 2026-09-01 — check if vanilla-cookieconsent v3 supports
+    // F-20: REVISIT: 2026-09-01 — check if vanilla-cookieconsent v3 supports
     // nonced styles; if so, replace 'unsafe-inline' with nonce-based style-src.
+    // Tracked via the F-20 milestone; open a GitHub issue and reference it here
+    // when the upstream library ships nonce support.
+
+    //
+    // F-07: Cannot remove 'unsafe-inline' at this time due to technical
+    // limitations with vanilla-cookieconsent and React hydration. The
+    // compensating control (sanitize-html.ts) mitigates the XSS risk by
+    // stripping style attributes from user content. This is tracked for
+    // future resolution in F-20.
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     `img-src ${imgSources.join(" ")}`,

@@ -39,7 +39,8 @@
 #   - Per-trigger cron secrets — REQUIRED in production (NEW-001):
 #       CRON_PUBLISH_SECRET, CRON_STRIPE_SYNC_SECRET, CRON_AI_SECRET,
 #       CRON_SITEMAP_SECRET, CRON_RETENTION_SECRET, CRON_COMMISSION_SECRET,
-#       CRON_EPC_SECRET, CRON_PRICE_SECRET, CRON_DEALS_SECRET
+#       CRON_EPC_SECRET, CRON_PRICE_SECRET, CRON_DEALS_SECRET,
+#       CRON_HOMEPAGE_SYNTHETIC_SECRET
 #     (single source of truth: `lib/cron-registry.ts -> cronJobs`).
 #     `verifyCronAuth` rejects requests in production when only the
 #     shared CRON_SECRET fallback is configured, so the deploy below
@@ -140,6 +141,35 @@ jobs:
       # last CI run was on a different day.
       - name: Security audit (deploy gate)
         run: npm audit --omit=dev --audit-level=high
+
+      # F-01: Validate Cloudflare alert mechanisms are configured
+      - name: Validate alert mechanisms (F-01)
+        run: |
+          set -euo pipefail
+          echo "=== Validating Cloudflare alert mechanisms ==="
+          TFVARS="terraform/cloudflare/alerts.auto.tfvars"
+          TFVARS_EXAMPLE="terraform/cloudflare/alerts.tfvars.example"
+          
+          # Check if a real tfvars file exists
+          if [ ! -f "$TFVARS" ]; then
+            echo "::warning::F-01: $TFVARS not found. Alert mechanisms may not be configured."
+            echo "::warning::Copy $TFVARS_EXAMPLE to $TFVARS and configure at least one destination."
+            echo "::warning::Run scripts/fire-test-alert.sh quarterly to verify end-to-end delivery."
+            exit 0
+          fi
+
+          # Check if at least one mechanism is configured
+          if grep -q 'email = \[\]' "$TFVARS" && \
+             grep -q 'pagerduty = \[\]' "$TFVARS" && \
+             grep -q 'webhooks = \[\]' "$TFVARS"; then
+            echo "::error::F-01: No alert mechanisms configured in $TFVARS"
+            echo "::error::At least one of email, pagerduty, or webhooks must have a destination ID."
+            echo "::error::See $TFVARS_EXAMPLE for examples."
+            exit 1
+          fi
+
+          echo "✓ Alert mechanisms are configured"
+          echo "Run scripts/fire-test-alert.sh quarterly to verify end-to-end delivery."
 
       # ── Validate Cloudflare Worker bindings (PRIORITY 0) ───────────
       # F-007: Production deploy must hard-fail if required Cloudflare
@@ -256,6 +286,7 @@ jobs:
           _CRON_DEALS_SECRET: ${{ secrets.CRON_DEALS_SECRET }}
           _CRON_CLICK_RECONCILE_SECRET: ${{ secrets.CRON_CLICK_RECONCILE_SECRET }}
           _CRON_ACCESS_REVIEW_SECRET: ${{ secrets.CRON_ACCESS_REVIEW_SECRET }}
+          _CRON_HOMEPAGE_SYNTHETIC_SECRET: ${{ secrets.CRON_HOMEPAGE_SYNTHETIC_SECRET }}
         run: |
           set -euo pipefail
           MISSING=""
@@ -283,6 +314,7 @@ jobs:
             _CRON_DEALS_SECRET
             _CRON_CLICK_RECONCILE_SECRET
             _CRON_ACCESS_REVIEW_SECRET
+            _CRON_HOMEPAGE_SYNTHETIC_SECRET
           )
 
           # Map env var names to their user-facing secret names
@@ -308,6 +340,7 @@ jobs:
             [_CRON_DEALS_SECRET]=CRON_DEALS_SECRET
             [_CRON_CLICK_RECONCILE_SECRET]=CRON_CLICK_RECONCILE_SECRET
             [_CRON_ACCESS_REVIEW_SECRET]=CRON_ACCESS_REVIEW_SECRET
+            [_CRON_HOMEPAGE_SYNTHETIC_SECRET]=CRON_HOMEPAGE_SYNTHETIC_SECRET
           )
 
           for key in "${REQUIRED[@]}"; do
@@ -1147,6 +1180,7 @@ jobs:
           [ -z "$_CRON_DEALS" ]         && MISSING="$MISSING CRON_DEALS_SECRET"
           [ -z "$_CRON_CLICK_RECONCILE" ] && MISSING="$MISSING CRON_CLICK_RECONCILE_SECRET"
           [ -z "$_CRON_ACCESS_REVIEW" ]   && MISSING="$MISSING CRON_ACCESS_REVIEW_SECRET"
+          [ -z "$_CRON_HOMEPAGE_SYNTHETIC" ] && MISSING="$MISSING CRON_HOMEPAGE_SYNTHETIC_SECRET"
 
           if [ -n "$MISSING" ]; then
             echo "::error::Required secrets are missing:$MISSING"
@@ -1188,6 +1222,7 @@ jobs:
           echo "$_CRON_DEALS"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_DEALS_SECRET --name affilite-mix > /dev/null 2>&1
           echo "$_CRON_CLICK_RECONCILE" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_CLICK_RECONCILE_SECRET --name affilite-mix > /dev/null 2>&1
           echo "$_CRON_ACCESS_REVIEW" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_ACCESS_REVIEW_SECRET --name affilite-mix > /dev/null 2>&1
+          echo "$_CRON_HOMEPAGE_SYNTHETIC" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOMEPAGE_SYNTHETIC_SECRET --name affilite-mix > /dev/null 2>&1
 
           echo "Setting optional Worker secrets (skipped if not configured)..."
           [ -n "$_RESEND_KEY" ]       && echo "$_RESEND_KEY"       | npx --yes wrangler@${WRANGLER_VERSION} secret put RESEND_API_KEY --name affilite-mix > /dev/null 2>&1       || true
@@ -1267,6 +1302,7 @@ jobs:
           _CRON_DEALS: ${{ secrets.CRON_DEALS_SECRET }}
           _CRON_CLICK_RECONCILE: ${{ secrets.CRON_CLICK_RECONCILE_SECRET }}
           _CRON_ACCESS_REVIEW: ${{ secrets.CRON_ACCESS_REVIEW_SECRET }}
+          _CRON_HOMEPAGE_SYNTHETIC: ${{ secrets.CRON_HOMEPAGE_SYNTHETIC_SECRET }}
           _R2_ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
           _R2_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -1390,6 +1426,7 @@ jobs:
           _CRON_DEALS: ${{ secrets.CRON_DEALS_SECRET }}
           _CRON_CLICK_RECONCILE: ${{ secrets.CRON_CLICK_RECONCILE_SECRET }}
           _CRON_ACCESS_REVIEW: ${{ secrets.CRON_ACCESS_REVIEW_SECRET }}
+          _CRON_HOMEPAGE_SYNTHETIC: ${{ secrets.CRON_HOMEPAGE_SYNTHETIC_SECRET }}
         run: |
           set -euo pipefail
 
@@ -1410,6 +1447,7 @@ jobs:
           echo "$_CRON_DEALS"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_DEALS_SECRET       --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
           echo "$_CRON_CLICK_RECONCILE" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_CLICK_RECONCILE_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
           echo "$_CRON_ACCESS_REVIEW"  | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_ACCESS_REVIEW_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_HOMEPAGE_SYNTHETIC" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOMEPAGE_SYNTHETIC_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
 
           echo "heavy-crons worker secrets configured"
 

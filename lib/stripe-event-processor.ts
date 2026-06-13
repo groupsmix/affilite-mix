@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { applyStripeEventAtomic, type StripeEventOp } from "@/lib/dal/stripe-events";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { captureException } from "@/lib/sentry";
 
 /** A91-2: Typed error wrapper preserving the original cause. */
 class ProcessorError extends Error {
@@ -121,6 +122,10 @@ async function buildStripeEventPayload(
         return { op: "noop" };
       }
 
+      // F-04: Fail loud on Stripe API retrieval failures so Stripe retries
+      // the webhook. Only after Stripe's retry budget exhausts does the
+      // event go to DLQ. Silent noop would create memberships with missing
+      // period fields and users would pay without getting access.
       let sub;
       try {
         sub = await stripe.subscriptions.retrieve(subscriptionId);
@@ -130,7 +135,8 @@ async function buildStripeEventPayload(
           { cause: err },
         );
         logger.error(wrapped.message, { subscriptionId, cause: String(err) });
-        return { op: "noop" };
+        // Throw to trigger 5xx response → Stripe retry → DLQ after retry budget
+        throw wrapped;
       }
       return {
         op: "create_membership",
@@ -148,6 +154,7 @@ async function buildStripeEventPayload(
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
+      // F-04: Fail loud on Stripe API retrieval failures
       let sub;
       try {
         sub = await stripe.subscriptions.retrieve(subscriptionId);
@@ -156,7 +163,7 @@ async function buildStripeEventPayload(
           cause: err,
         });
         logger.error(wrapped.message, { subscriptionId, cause: String(err) });
-        return { op: "noop" };
+        throw wrapped;
       }
       return {
         op: "renew_membership",
@@ -203,6 +210,7 @@ async function buildStripeEventPayload(
 
       const invoiceId = getChargeInvoiceId(charge);
       if (!invoiceId) return { op: "noop" };
+      // F-04: Fail loud on Stripe API retrieval failures
       let invoice;
       try {
         invoice = await stripe.invoices.retrieve(invoiceId);
@@ -211,7 +219,7 @@ async function buildStripeEventPayload(
           cause: err,
         });
         logger.error(wrapped.message, { invoiceId, cause: String(err) });
-        return { op: "noop" };
+        throw wrapped;
       }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
@@ -243,6 +251,7 @@ async function buildStripeEventPayload(
       });
 
       if (!dispute.charge || typeof dispute.charge !== "string") return { op: "noop" };
+      // F-04: Fail loud on Stripe API retrieval failures
       let charge;
       try {
         charge = await stripe.charges.retrieve(dispute.charge);
@@ -251,10 +260,11 @@ async function buildStripeEventPayload(
           cause: err,
         });
         logger.error(wrapped.message, { chargeId: dispute.charge, cause: String(err) });
-        return { op: "noop" };
+        throw wrapped;
       }
       const invoiceId = getChargeInvoiceId(charge);
       if (!invoiceId) return { op: "noop" };
+      // F-04: Fail loud on Stripe API retrieval failures
       let invoice;
       try {
         invoice = await stripe.invoices.retrieve(invoiceId);
@@ -263,7 +273,7 @@ async function buildStripeEventPayload(
           cause: err,
         });
         logger.error(wrapped.message, { invoiceId, cause: String(err) });
-        return { op: "noop" };
+        throw wrapped;
       }
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
@@ -302,13 +312,23 @@ async function buildStripeEventPayload(
   }
 }
 
-function resolveTierFromPriceId(priceId: string): "insider" | "pro" | undefined {
+function resolveTierFromPriceId(priceId: string): "insider" | "pro" {
   const tiers: Array<"insider" | "pro"> = ["insider", "pro"];
   for (const tier of tiers) {
     const envKey = `STRIPE_PRICE_ID_${tier.toUpperCase()}`;
     if (process.env[envKey] === priceId) return tier;
   }
-  return undefined;
+  // F-15: Fail loud on unknown price IDs instead of silently mapping to undefined
+  // This prevents revenue-affecting silent failures where users pay but get
+  // the wrong tier. Emit a Sentry error and audit log entry.
+  const error = new Error(
+    `Unknown Stripe price ID: ${priceId}. Update STRIPE_PRICE_ID_INSIDER or STRIPE_PRICE_ID_PRO env vars.`,
+  );
+  logger.error(error.message, { priceId });
+  // Capture to Sentry for alerting (no-op when SENTRY_DSN is unset).
+  captureException(error, { tags: { priceId } });
+  // Default to "insider" as a safe fallback, but the error is logged and alerted
+  throw error;
 }
 
 function logStripeSideEffect(

@@ -19,7 +19,8 @@ if (
   throw new Error(
     "[env] ALLOW_LOCALHOST_FALLBACK_IN_PROD=1 is set in a production runtime. " +
       "This flag is only for CI/Lighthouse runs. Remove it from the production " +
-      "environment to prevent localhost tenant-resolution bypass.",
+      "environment to prevent localhost tenant-resolution bypass. " +
+      "To reproduce CI behavior locally, set GITHUB_ACTIONS=true.",
   );
 }
 

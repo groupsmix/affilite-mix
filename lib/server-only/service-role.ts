@@ -21,6 +21,7 @@ import type { Database } from "@/types/supabase";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { logger } from "@/lib/logger";
 import { getCircuitBreaker, CircuitOpenError } from "@/lib/ai/circuit-breaker";
+import { emitMetric } from "@/lib/metrics";
 
 // FIX-04 (F-001, F-011): Branded type for the privileged client.
 // Callers receive a PrivilegedSupabaseClient instead of a plain
@@ -37,6 +38,9 @@ export type PrivilegedSupabaseClient = SupabaseClient<Database> & {
  * FIX-04: Audit log for privileged client usage. Each call site is
  * logged once per isolate so operators can verify that only approved
  * callers are using the service-role key.
+ *
+ * F-25: Emit a structured metric with caller dimension for alerting
+ * on anomalous privileged client usage patterns.
  */
 const seenCallers = new Set<string>();
 function logPrivilegedUsage(caller: string): void {
@@ -46,6 +50,8 @@ function logPrivilegedUsage(caller: string): void {
       metric: "privileged_client_usage",
       caller,
     });
+    // F-25: Emit structured metric with caller dimension for alerting
+    emitMetric("privileged_client_usage_total", 1, { caller });
   }
 }
 

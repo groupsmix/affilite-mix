@@ -1,6 +1,6 @@
 # ADR-0013: Migration Squashing Strategy
 
-**Status**: Proposed
+**Status**: Approved
 **Date**: 2026-05-26
 **Context**: etap-1 #6, etap-2 R-008, etap-3 #14 — 208+ migration files
 

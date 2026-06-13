@@ -107,7 +107,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_events_entity ON audit_events(entity_type, 
 -- ============================================================================
 -- Additional: Indexes for admin_site_memberships
 -- ============================================================================
-CREATE INDEX IF NOT EXISTS idx_admin_site_memberships_user ON admin_site_memberships(user_id);
+-- Migration-replay fix: admin_site_memberships has no `user_id` column — the
+-- foreign key to admin_users is `admin_user_id` (see 00036). Referencing
+-- user_id makes CREATE INDEX abort with "column user_id does not exist".
+CREATE INDEX IF NOT EXISTS idx_admin_site_memberships_user ON admin_site_memberships(admin_user_id);
 CREATE INDEX IF NOT EXISTS idx_admin_site_memberships_site ON admin_site_memberships(site_id);
 
 -- ============================================================================

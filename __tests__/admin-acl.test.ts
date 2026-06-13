@@ -23,6 +23,7 @@ vi.mock("next/headers", () => ({
       return value !== undefined ? { value } : undefined;
     },
   }),
+  headers: async () => new Headers(),
 }));
 
 // Mock auth — control session per test
@@ -192,8 +193,8 @@ describe("Admin ACL — requireSuperAdmin()", () => {
     const result = await requireSuperAdmin();
 
     expect(result.error).not.toBeNull();
-    // G-45: insufficient role returns the same 401 + Bearer as unauth.
-    expect(result.error!.status).toBe(401);
+    // F-21: authz failure (role insufficient) now returns 403 for compliance reporting.
+    expect(result.error!.status).toBe(403);
     expect(result.error!.headers.get("WWW-Authenticate")).toBe("Bearer");
   });
 
@@ -219,11 +220,11 @@ describe("Admin ACL — assertRole()", () => {
     expect(result).toBeNull();
   });
 
-  it("returns 401 + Bearer when admin tries to assert super_admin (G-45)", async () => {
+  it("returns 403 + Bearer when admin tries to assert super_admin (F-21)", async () => {
     const { assertRole } = await import("@/lib/admin-guard");
     const result = assertRole({ email: "a@b.com", userId: "u1", role: "admin" }, "super_admin");
     expect(result).not.toBeNull();
-    expect(result!.status).toBe(401);
+    expect(result!.status).toBe(403);
     expect(result!.headers.get("WWW-Authenticate")).toBe("Bearer");
   });
 

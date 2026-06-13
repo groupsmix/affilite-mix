@@ -12,7 +12,13 @@ import { NextRequest } from "next/server";
 
 // ── Snapshot & restore env across tests ───────────────────────
 
-const ENV_KEYS = ["NODE_ENV", "NEXT_PHASE", "INTERNAL_API_TOKEN", "JWT_SECRET"] as const;
+const ENV_KEYS = [
+  "NODE_ENV",
+  "NEXT_PHASE",
+  "INTERNAL_API_TOKEN",
+  "INTERNAL_API_TOKEN_INTERNAL",
+  "JWT_SECRET",
+] as const;
 
 function snapshotEnv(): Record<string, string | undefined> {
   const env = process.env as Record<string, string | undefined>;
@@ -45,30 +51,32 @@ describe("internal-auth config guard", () => {
     vi.resetModules();
   });
 
-  it("throws in production when INTERNAL_API_TOKEN is missing", async () => {
+  it("throws in production when INTERNAL_API_TOKEN_INTERNAL is missing", async () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.NEXT_PHASE;
     delete process.env.INTERNAL_API_TOKEN;
+    delete process.env.INTERNAL_API_TOKEN_INTERNAL;
 
     const mod = await import("@/lib/internal-auth");
     expect(() => mod.getInternalToken()).toThrow(/INTERNAL_API_TOKEN_INTERNAL is required/);
     vi.unstubAllEnvs();
   });
 
-  it("throws in production when INTERNAL_API_TOKEN equals the documented dev fallback", async () => {
+  it("throws in production when INTERNAL_API_TOKEN_INTERNAL equals the documented dev fallback", async () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.NEXT_PHASE;
     const mod = await import("@/lib/internal-auth");
-    process.env.INTERNAL_API_TOKEN = mod.DEV_FALLBACK_INTERNAL_TOKEN;
+    process.env.INTERNAL_API_TOKEN_INTERNAL = mod.DEV_FALLBACK_INTERNAL_TOKEN;
 
     expect(() => mod.getInternalToken()).toThrow(/public dev fallback/);
     vi.unstubAllEnvs();
   });
 
-  it("throws in production when INTERNAL_API_TOKEN is empty/whitespace", async () => {
+  it("throws in production when INTERNAL_API_TOKEN_INTERNAL is empty/whitespace", async () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.NEXT_PHASE;
     process.env.INTERNAL_API_TOKEN = "   ";
+    delete process.env.INTERNAL_API_TOKEN_INTERNAL;
 
     const mod = await import("@/lib/internal-auth");
     expect(() => mod.getInternalToken()).toThrow(/INTERNAL_API_TOKEN_INTERNAL is required/);
@@ -78,7 +86,7 @@ describe("internal-auth config guard", () => {
   it("returns the configured token in production when a real value is set", async () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.NEXT_PHASE;
-    process.env.INTERNAL_API_TOKEN = "prod-real-secret-abc123";
+    process.env.INTERNAL_API_TOKEN_INTERNAL = "prod-real-secret-abc123";
 
     const mod = await import("@/lib/internal-auth");
     expect(mod.getInternalToken()).toBe("prod-real-secret-abc123");
@@ -89,6 +97,7 @@ describe("internal-auth config guard", () => {
     vi.stubEnv("NODE_ENV", "development");
     delete process.env.NEXT_PHASE;
     delete process.env.INTERNAL_API_TOKEN;
+    delete process.env.INTERNAL_API_TOKEN_INTERNAL;
 
     const mod = await import("@/lib/internal-auth");
     expect(mod.getInternalToken()).toBe(mod.DEV_FALLBACK_INTERNAL_TOKEN);
@@ -190,10 +199,11 @@ describe("/api/internal/resolve-site auth misconfiguration", () => {
     vi.resetModules();
   });
 
-  it("returns 500 in production when INTERNAL_API_TOKEN is missing", async () => {
+  it("returns 500 in production when INTERNAL_API_TOKEN_INTERNAL is missing", async () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.NEXT_PHASE;
     delete process.env.INTERNAL_API_TOKEN;
+    delete process.env.INTERNAL_API_TOKEN_INTERNAL;
 
     const { GET } = await import("@/app/api/internal/resolve-site/route");
     const { DEV_FALLBACK_INTERNAL_TOKEN, INTERNAL_HEADER } = await import("@/lib/internal-auth");
@@ -205,11 +215,11 @@ describe("/api/internal/resolve-site auth misconfiguration", () => {
     vi.unstubAllEnvs();
   });
 
-  it("returns 500 in production when INTERNAL_API_TOKEN is the dev fallback", async () => {
+  it("returns 500 in production when INTERNAL_API_TOKEN_INTERNAL is the dev fallback", async () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.NEXT_PHASE;
     const { DEV_FALLBACK_INTERNAL_TOKEN, INTERNAL_HEADER } = await import("@/lib/internal-auth");
-    process.env.INTERNAL_API_TOKEN = DEV_FALLBACK_INTERNAL_TOKEN;
+    process.env.INTERNAL_API_TOKEN_INTERNAL = DEV_FALLBACK_INTERNAL_TOKEN;
 
     const { GET } = await import("@/app/api/internal/resolve-site/route");
     const req = new NextRequest("https://example.com/api/internal/resolve-site?domain=x.com", {
@@ -224,7 +234,7 @@ describe("/api/internal/resolve-site auth misconfiguration", () => {
   it("rejects requests sending the dev fallback token when a real token is configured", async () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.NEXT_PHASE;
-    process.env.INTERNAL_API_TOKEN = "prod-real-secret-abc123";
+    process.env.INTERNAL_API_TOKEN_INTERNAL = "prod-real-secret-abc123";
 
     const { GET } = await import("@/app/api/internal/resolve-site/route");
     const { DEV_FALLBACK_INTERNAL_TOKEN, INTERNAL_HEADER } = await import("@/lib/internal-auth");

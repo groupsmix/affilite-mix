@@ -1,0 +1,54 @@
+# Cloudflare Alert Notification Destinations
+#
+# E2-03: This file configures the notification destinations for Cloudflare alerts.
+# IMPORTANT: Copy this file to alerts.auto.tfvars (ignored by git) and fill in your actual destination IDs.
+# The Terraform lifecycle precondition in alerts.tf will fail apply if
+# alerts_enabled = true and no mechanisms are configured.
+#
+# E2-03 REMEDIATION STEPS:
+# 1. Copy this file: cp terraform/cloudflare/alerts.tfvars.example terraform/cloudflare/alerts.auto.tfvars
+# 2. Go to Cloudflare Dashboard → Notifications → Destinations
+# 3. Create at least one destination (Email, PagerDuty, or Webhook)
+# 4. Copy the destination ID and update the alert_mechanisms section below
+# 5. Set alerts_enabled = true
+# 6. Run: cd terraform/cloudflare && terraform apply
+# 7. Verify with: ./scripts/fire-test-alert.sh
+#
+# DESTINATION IDs:
+# To find your notification destination IDs:
+# 1. Go to Cloudflare Dashboard → Notifications → Destinations
+# 2. Click on your email/webhook/PagerDuty destination
+# 3. Copy the ID from the URL or details panel
+#
+# At least one destination type must be configured for alerts to function.
+# Run scripts/fire-test-alert.sh quarterly to verify end-to-end delivery.
+
+# E2-03: Configure at least one notification destination (required for alerts_enabled = true)
+alert_mechanisms = {
+  # Email destinations (optional)
+  # email = [
+  #   { id = "your-email-destination-id" }
+  # ]
+  email = []
+
+  # PagerDuty destinations (optional)
+  # pagerduty = [
+  #   { id = "your-pagerduty-integration-id" }
+  # ]
+  pagerduty = []
+
+  # Webhook destinations (optional)
+  # webhooks = [
+  #   { id = "your-webhook-id" }
+  # ]
+  webhooks = []
+}
+
+# Enable/disable alerts
+# E2-03: Set to true after configuring at least one destination above
+# Currently false because no destinations are configured (this is the E2-03 issue)
+alerts_enabled = false
+
+# Optional: Customize alert thresholds
+billing_alert_threshold_usd = 100
+queue_backlog_alert_threshold = 1000

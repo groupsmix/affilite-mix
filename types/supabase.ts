@@ -812,6 +812,7 @@ export type Database = {
           ai_generated: boolean;
           author: string | null;
           author_id: string | null;
+          ai_generated: boolean;
           body: string | null;
           body_previous: string | null;
           category_id: string | null;
@@ -837,6 +838,7 @@ export type Database = {
           ai_generated?: boolean;
           author?: string | null;
           author_id?: string | null;
+          ai_generated?: boolean;
           body?: string | null;
           body_previous?: string | null;
           category_id?: string | null;
@@ -862,6 +864,7 @@ export type Database = {
           ai_generated?: boolean;
           author?: string | null;
           author_id?: string | null;
+          ai_generated?: boolean;
           body?: string | null;
           body_previous?: string | null;
           category_id?: string | null;

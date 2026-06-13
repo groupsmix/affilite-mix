@@ -5,6 +5,15 @@
 -- statements. This rewrite collapses every write into one transaction and
 -- returns row counts so the caller can attach them to the audit_log entry.
 
+-- Migration-replay fix: the original RPC (2026050101_erase_subject_data.sql)
+-- declared `returns void`. Postgres refuses to change a function's return
+-- type via CREATE OR REPLACE, so applying this migration on top of the
+-- earlier one fails with "cannot change return type of existing function".
+-- Drop the void-returning version first (signature is unchanged: text, uuid,
+-- text) before recreating it with the jsonb return type. The REVOKE/GRANT at
+-- the end re-establishes the privileges dropped along with the function.
+drop function if exists public.erase_subject_data(text, uuid, text);
+
 create or replace function public.erase_subject_data(
   p_email text,
   p_site_id uuid,
