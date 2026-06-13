@@ -606,10 +606,33 @@ jobs:
 
           DB_URL="${DATABASE_URL}"
 
-          # Bootstrap: the auth schema stub Supabase provides on hosted instances.
-          # auth.role() is referenced in RLS policies; it must exist for CREATE POLICY
-          # to parse correctly, but it is never actually invoked during DDL.
+          # Bootstrap: replicate the Supabase platform environment that migrations
+          # assume on a hosted instance.
+          #
+          # 1. Roles: Supabase pre-creates anon / authenticated / service_role on
+          #    every project. Plain postgres:15 has none of these; GRANT TO anon
+          #    in CREATE POLICY fails with "role does not exist".
+          #
+          # 2. auth schema + functions: auth.role() / auth.uid() / auth.jwt() are
+          #    referenced in RLS USING / WITH CHECK clauses. They must exist for
+          #    CREATE POLICY DDL to parse even though they are never called during
+          #    migration execution.
           psql "$DB_URL" <<'SQL'
+            -- Supabase platform roles
+            DO $$ BEGIN
+              CREATE ROLE anon          NOLOGIN NOINHERIT;
+              EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+            DO $$ BEGIN
+              CREATE ROLE authenticated NOLOGIN NOINHERIT;
+              EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+            DO $$ BEGIN
+              CREATE ROLE service_role  NOLOGIN NOINHERIT BYPASSRLS;
+              EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+
+            -- auth schema stubs
             CREATE SCHEMA IF NOT EXISTS auth;
             CREATE OR REPLACE FUNCTION auth.role()
               RETURNS text LANGUAGE sql STABLE
@@ -990,6 +1013,12 @@ jobs:
           CRON_HOMEPAGE_SYNTHETIC_SECRET: ci-test-cron-homepage-synthetic
           STRIPE_WEBHOOK_SECRET: whsec_ci_test_placeholder
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
+          # F-18: production mode requires purpose-specific tokens; the legacy
+          # INTERNAL_API_TOKEN fallback is not accepted. The revalidate route
+          # calls getInternalTokenFor("internal") which looks for this var.
+          INTERNAL_API_TOKEN_INTERNAL: ci-test-internal-token-internal
+          INTERNAL_API_TOKEN_CRON: ci-test-internal-token-cron
+          INTERNAL_API_TOKEN_CLICK_QUEUE: ci-test-internal-token-click-queue
           # E2E-LOCALHOST: middleware's localhost bypass is disabled in
           # NODE_ENV=production (next start always forces production mode).
           # Without this flag, every request to localhost gets rewritten to
