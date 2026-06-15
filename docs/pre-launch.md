@@ -17,8 +17,8 @@ stand-up.
 
 ## Remediation log
 
-| Date       | PR / Commit | Owner | What changed |
-| ---------- | ----------- | ----- | ------------ |
+| Date       | PR / Commit | Owner      | What changed                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------- | ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-06-15 | TBD         | @assistant | Fixed `WILDCARD_PARENT_DOMAINS` default in `.env.example`; moved cookie-consent banner to root layout so it loads on first visit for ALL routes (public + admin); defaulted `cookieConsent` to `true` for DB-only sites; added step-by-step compareai.site DNS remediation to Terraform; identified missing `CRON_HOMEPAGE_SYNTHETIC_SECRET` GitHub Actions secret as the current deploy blocker. |
 
 ## Sign-off record
