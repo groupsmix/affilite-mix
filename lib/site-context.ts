@@ -72,7 +72,7 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
       giftFinder: features.giftFinder ?? false,
       scheduling: features.scheduling ?? true,
       blog: features.blog ? { source: "database" as const } : undefined,
-      cookieConsent: features.cookieConsent ?? false,
+      cookieConsent: features.cookieConsent ?? true,
     },
 
     pages: {

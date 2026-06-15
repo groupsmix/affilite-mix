@@ -6,7 +6,6 @@ import { SiteHeader } from "./components/site-header";
 import { SiteFooter } from "./components/site-footer";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig, LayoutVariant } from "./components/theme-provider";
-import CookieConsentCmp from "./components/cookie-consent-cmp";
 import { Toaster } from "sonner";
 import { logger } from "@/lib/logger";
 
@@ -109,9 +108,6 @@ export default async function PublicLayout({ children }: { children: React.React
         >
           {site.language === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
         </a>
-        {site.features.cookieConsent && (
-          <CookieConsentCmp language={site.language} siteId={site.id} />
-        )}
         <SiteHeader site={site} dbNavItems={dbNavItems} />
         <main id="main-content" className="flex-1">
           {children}
