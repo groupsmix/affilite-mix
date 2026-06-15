@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 
 /**
  * audit5-p3 assertions
@@ -103,7 +103,7 @@ describe("audit5-#12 - requireAdminSession docstring + whitelist", () => {
     ]);
 
     const importers = walkFiles(join(REPO_ROOT, "app"))
-      .map((fullPath) => fullPath.replace(`${REPO_ROOT}\\`, "").replaceAll("\\", "/"))
+      .map((fullPath) => relative(REPO_ROOT, fullPath).split(sep).join("/"))
       .filter((relativePath) => read(relativePath).includes('from "@/lib/admin-guard"'));
 
     for (const importer of importers) {
