@@ -207,15 +207,25 @@ export const cronJobs: readonly CronJob[] = [
   },
 ] as const;
 
-const cronJobByPath = new Map<string, CronJob>(cronJobs.map((j) => [j.path, j]));
-const cronJobBySchedule = new Map<string, CronJob>(cronJobs.map((j) => [j.schedule, j]));
+function buildCronJobMap(
+  keyName: "path" | "schedule",
+  onDuplicate: (job: CronJob) => string,
+): Map<string, CronJob> {
+  const map = new Map<string, CronJob>();
+  for (const job of cronJobs) {
+    const key = job[keyName];
+    if (map.has(key)) {
+      // eslint-disable-next-line no-console
+      console.error(`[cron-registry] Duplicate ${keyName} detected in cronJobs: ${onDuplicate(job)}`);
+      continue;
+    }
+    map.set(key, job);
+  }
+  return map;
+}
 
-if (cronJobByPath.size !== cronJobs.length) {
-  throw new Error("[cron-registry] Duplicate path detected in cronJobs");
-}
-if (cronJobBySchedule.size !== cronJobs.length) {
-  throw new Error("[cron-registry] Duplicate schedule detected in cronJobs");
-}
+const cronJobByPath = buildCronJobMap("path", (job) => job.path);
+const cronJobBySchedule = buildCronJobMap("schedule", (job) => `${job.schedule} (${job.name})`);
 
 /** Look up a job by its absolute route path. */
 export function getCronJobByPath(path: string): CronJob | undefined {

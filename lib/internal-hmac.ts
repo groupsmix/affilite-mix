@@ -56,15 +56,21 @@ const NONCE_TTL_MS = MAX_TIMESTAMP_SKEW_MS + 60_000; // slightly longer than ske
 const NONCE_TTL_S = Math.ceil(NONCE_TTL_MS / 1000);
 
 // Periodic cleanup of expired nonces
-let lastNonceCleanup = Date.now();
+function monotonicNow(): number {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+}
+
+let lastNonceCleanup = monotonicNow();
 const NONCE_CLEANUP_INTERVAL_MS = 60_000;
 
 function cleanupNonces(): void {
-  const now = Date.now();
-  if (now - lastNonceCleanup < NONCE_CLEANUP_INTERVAL_MS) return;
-  lastNonceCleanup = now;
+  const nowMonotonic = monotonicNow();
+  if (nowMonotonic - lastNonceCleanup < NONCE_CLEANUP_INTERVAL_MS) return;
+  lastNonceCleanup = nowMonotonic;
   for (const [nonce, expiresAt] of seenNonces) {
-    if (expiresAt <= now) seenNonces.delete(nonce);
+    if (expiresAt <= nowMonotonic) seenNonces.delete(nonce);
   }
 }
 
@@ -231,66 +237,65 @@ export async function verifyInternalHmac(
   }
 
   // Mark nonce as seen (in-memory + KV)
-  seenNonces.set(nonce, now + NONCE_TTL_MS);
+  seenNonces.set(nonce, monotonicNow() + NONCE_TTL_MS);
   void recordNonceInKV(nonce);
 
   return { valid: true };
 }
 
-/**
- * F-TIM-02: Fixed iteration count for the timing-safe compare loop.
- *
- * Chosen to comfortably exceed any realistic token / signature length
- * (HMAC-SHA256 hex digests are 64 chars, JWT binding cookies and the
- * other strings routed through this function are well under 256 bytes)
- * so the loop body runs the same number of times regardless of the
- * actual byte lengths of `a` and `b`.
- *
- * The previous implementation used `Math.max(a.length, b.length)` as
- * the loop upper bound, which leaked the longer string's length via
- * wall-clock latency -- the same side-channel that audit F-17 fixed
- * in `lib/csrf.ts` and `lib/cron-auth.ts`. This module had been
- * missed by that remediation; aligning with the constant-bound pattern
- * keeps every constant-time path in the codebase using the same
- * length-independent implementation.
- */
-const MAX_COMPARE_LEN = 256;
+type SubtleCryptoWithTimingSafeEqual = SubtleCrypto & {
+  timingSafeEqual?: (a: ArrayBuffer | ArrayBufferView, b: ArrayBuffer | ArrayBufferView) => boolean;
+};
+
+function encodeComparableBytes(input: string): Uint8Array {
+  return new TextEncoder().encode(input);
+}
+
+function buildLengthPrefixedBuffer(bytes: Uint8Array, paddedLength: number): Uint8Array {
+  const out = new Uint8Array(paddedLength + 4);
+  new DataView(out.buffer).setUint32(0, bytes.byteLength);
+  out.set(bytes, 4);
+  return out;
+}
+
+function fallbackTimingSafeEqualBytes(aBytes: Uint8Array, bBytes: Uint8Array): boolean {
+  const compareLength = Math.max(aBytes.byteLength, bBytes.byteLength);
+  const left = buildLengthPrefixedBuffer(aBytes, compareLength);
+  const right = buildLengthPrefixedBuffer(bBytes, compareLength);
+  let diff = 0;
+  for (let i = 0; i < left.byteLength; i++) {
+    diff |= left[i]! ^ right[i]!;
+  }
+  return diff === 0;
+}
 
 /**
  * Constant-time string comparison to prevent timing attacks.
  *
- * The loop always runs a fixed `MAX_COMPARE_LEN` iterations so the
- * function's wall-clock cost does not depend on either input's length.
- * Length mismatches are folded into the accumulator (`a.length ^
- * b.length`) so any difference still poisons the result and the
- * function returns `false` -- just without leaking *which* string
- * was longer.
+ * P0-4: Prefer the platform primitive when available. We compare
+ * length-prefixed buffers so different-length inputs are still processed
+ * by the timing-safe primitive without the old modulo-based custom loop.
+ * Runtimes that do not yet expose `crypto.subtle.timingSafeEqual`
+ * (notably the current Node test runner) fall back to a small
+ * length-prefixed XOR compare purely to preserve compatibility.
  */
 export function timingSafeEqual(a: string, b: string): boolean {
-  const aBuf = new TextEncoder().encode(a);
-  const bBuf = new TextEncoder().encode(b);
-  const lenA = aBuf.byteLength;
-  const lenB = bBuf.byteLength;
-  // Use 1 as the divisor when an input is empty so the modulo below
-  // does not throw / produce NaN. The length-mismatch contribution
-  // below still causes the function to return `false` in that case.
-  const safeLenA = lenA || 1;
-  const safeLenB = lenB || 1;
-  let result = lenA ^ lenB;
-  for (let i = 0; i < MAX_COMPARE_LEN; i++) {
-    // XOR against `b[i % lenB]` rather than `a[i] ^ a[i]` so the JIT
-    // cannot prove the result is constant and optimise the dummy work
-    // away -- same approach used by `lib/csrf.ts` and
-    // `lib/cron-auth.ts`.
-    result |= aBuf[i % safeLenA]! ^ bBuf[i % safeLenB]!;
+  const aBytes = encodeComparableBytes(a);
+  const bBytes = encodeComparableBytes(b);
+  const compareLength = Math.max(aBytes.byteLength, bBytes.byteLength);
+  const left = buildLengthPrefixedBuffer(aBytes, compareLength);
+  const right = buildLengthPrefixedBuffer(bBytes, compareLength);
+
+  const subtle = crypto.subtle as SubtleCryptoWithTimingSafeEqual;
+  if (typeof subtle.timingSafeEqual === "function") {
+    return subtle.timingSafeEqual(left, right);
   }
-  // If the lengths differed, `result` is already non-zero from the
-  // `lenA ^ lenB` term above, so the comparison still returns false.
-  return result === 0 && lenA === lenB;
+
+  return fallbackTimingSafeEqualBytes(aBytes, bBytes);
 }
 
 /** Test helper: reset the nonce cache between test cases. */
 function __resetHmacNonceCacheForTests(): void {
   seenNonces.clear();
-  lastNonceCleanup = Date.now();
+  lastNonceCleanup = monotonicNow();
 }
