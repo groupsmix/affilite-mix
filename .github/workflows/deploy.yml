@@ -898,6 +898,25 @@ jobs:
           echo "Checking R2 bucket..."
           npx --yes wrangler@${WRANGLER_VERSION} r2 bucket create next-inc-cache 2>&1 || echo "Bucket may already exist, continuing..."
 
+      # ── Create Queues if not exists (A44 / F-028) ────────────────────
+      # Cloudflare Queues are not auto-created by wrangler deploy.
+      # The click-tracking queue and its DLQ must exist before the
+      # Worker can bind to them. `wrangler queues create` is idempotent
+      # (returns 409 if the queue already exists), so we tolerate
+      # non-zero exits to keep reruns safe.
+      - name: Create Queues (if not exists)
+        run: |
+          set -euo pipefail
+          echo "Checking Cloudflare Queues..."
+
+          for q in click-tracking click-tracking-dlq; do
+            echo "Creating queue $q (or skipping if already exists)..."
+            npx --yes wrangler@${WRANGLER_VERSION} queues create "$q" 2>&1 \
+              || echo "Queue $q may already exist, continuing..."
+          done
+
+          echo "Queue provisioning complete"
+
       # ── N-003 / Audit R-008: deploy the Tail Worker before the main Worker ──
       #
       # The log-shipper Tail Worker must already exist in the account
