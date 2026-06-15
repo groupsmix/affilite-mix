@@ -40,9 +40,9 @@ stand-up.
 
 ## 3. Database & Supabase
 
-- [ ] All migrations in `supabase/migrations/` applied to production (`_migrations_applied` reflects current HEAD)
-- [ ] Row Level Security enabled on every tenant-scoped table (verified via `scripts/db-audit.sh`)
-- [ ] Connection pooling URL (pgbouncer) in use, not the direct DB URL
+- [x] All migrations in `supabase/migrations/` applied to production (`_migrations_applied` reflects current HEAD) — verified 2026-06-15: ledger HEAD = `2026053001_s1_audit_missing_indexes.sql`, zero gaps against all 126 up-migrations. Note: the canonical apply path is the `deploy.yml` `_migrations_applied` ledger (which skips `-down.sql` files), **not** `supabase db push` / `schema_migrations` — do not use `supabase db push` to gauge prod migration state, it reports false "pending" because it counts the rollback files.
+- [x] Row Level Security enabled on every tenant-scoped table (verified via `scripts/db-audit.sh`) — verified 2026-06-15: all four invariants (anon grants, anon policies, permissive `FOR ALL USING(true)`, RLS-disabled tables) returned empty against production.
+- [x] Connection pooling URL (pgbouncer) in use, not the direct DB URL — verified 2026-06-15: `SUPABASE_DB_POOLER_URL` secret present; `deploy.yml` and `ci.yml` migration steps prefer it (`DB_URL="${_DB_POOLER_URL:-$_DB_URL}"`) and hard-fail on an IPv6-only direct host.
 - [ ] Nightly backups confirmed in the Supabase dashboard; point-in-time recovery window acceptable
 - [ ] Service-role key is **only** used in server-side code paths (see `__tests__/admin-routes-no-service-role.test.ts`)
 
