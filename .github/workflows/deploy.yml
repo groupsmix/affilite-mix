@@ -1708,7 +1708,7 @@ jobs:
           ')
           LIVE=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/bindings" \
-            | jq -r '(.result // [])[] | select(type == "object") | (.name // .binding // empty)' | sort -u)
+            | jq -r '(.result // [])[] | .name? // .binding? // empty' | sort -u)
           MISSING=$(comm -23 <(echo "$DECL") <(echo "$LIVE"))
           if [ -n "$MISSING" ]; then
             echo "::error::Bindings declared in wrangler.jsonc but missing from live Worker:"
