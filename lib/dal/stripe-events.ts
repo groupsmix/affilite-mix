@@ -92,6 +92,7 @@ export async function applyStripeEventAtomic(
       p_event_type: eventType,
       p_event_data: payload as unknown as import("@/types/supabase").Json,
     })
+    // SAFE: Stripe idempotency + membership RPC is platform-wide and not tenant-filterable.
     .unsafeNoSiteFilter();
 
   if (error) throw error;
@@ -117,6 +118,7 @@ export async function getRecentStripeEventIds(
   const { data, error } = await sb
     .from(TABLE)
     .select("stripe_event_id")
+    // SAFE: replay-dedup checks read the global Stripe event ledger across all tenants.
     .unsafeNoSiteFilter()
     .gte("received_at", since.toISOString());
 

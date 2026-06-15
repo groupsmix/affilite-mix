@@ -255,11 +255,17 @@ describe("re-audit lock — N-003 log-shipper wiring is gated on LOG_SHIPPER_ENA
   });
 
   it("both shipper steps are gated on the LOG_SHIPPER_ENABLED repo variable", () => {
-    const shipperBlock = deploy.match(
-      /Deploy log-shipper Tail Worker[\s\S]*?Wire tail_consumers in wrangler\.jsonc[\s\S]*?inject-tail-consumers\.mjs[\s\S]*?\n\n/,
+    const deployShipperIdx = deploy.indexOf("Deploy log-shipper Tail Worker");
+    const wireTailIdx = deploy.indexOf("Wire tail_consumers in wrangler.jsonc");
+    const nextStepIdx = deploy.indexOf("- name:", wireTailIdx + 1);
+
+    expect(deployShipperIdx, "shipper deploy step missing in deploy.yml").toBeGreaterThan(-1);
+    expect(wireTailIdx, "tail consumer wiring step missing in deploy.yml").toBeGreaterThan(
+      deployShipperIdx,
     );
-    expect(shipperBlock, "shipper steps missing in deploy.yml").not.toBeNull();
-    const gates = shipperBlock![0].match(/if:\s*vars\.LOG_SHIPPER_ENABLED\s*==\s*'true'/g) ?? [];
+
+    const shipperBlock = deploy.slice(deployShipperIdx, nextStepIdx > -1 ? nextStepIdx : undefined);
+    const gates = shipperBlock.match(/if:\s*vars\.LOG_SHIPPER_ENABLED\s*==\s*'true'/g) ?? [];
     expect(gates.length).toBeGreaterThanOrEqual(2);
   });
 });

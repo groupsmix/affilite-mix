@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { readFileSync, existsSync, writeFileSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import {
@@ -205,15 +205,18 @@ describe("audit5-#27 — wrangler placeholder guard", () => {
 
   beforeEach(() => {
     // Create a tmp dir we control.
-    execFileSync("mkdir", ["-p", fixtureDir]);
+    mkdirSync(fixtureDir, { recursive: true });
   });
   afterEach(() => {
-    execFileSync("rm", ["-rf", fixtureDir]);
+    rmSync(fixtureDir, { recursive: true, force: true });
   });
 
   function runCheck(args: string[], cwd: string): { exit: number; stderr: string } {
     try {
-      execFileSync("node", [scriptPath, ...args], { cwd, stdio: ["ignore", "pipe", "pipe"] });
+      execFileSync(process.execPath, [scriptPath, ...args], {
+        cwd,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
       return { exit: 0, stderr: "" };
     } catch (err) {
       const e = err as { status: number | null; stderr?: Buffer | string };

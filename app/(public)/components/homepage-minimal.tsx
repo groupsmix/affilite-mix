@@ -29,10 +29,16 @@ export function MinimalHomepage({
       <JsonLd data={organizationJsonLd(site)} />
       <JsonLd data={webSiteJsonLd(site)} />
 
-      {/* Hero — clean, centered */}
+      {/*
+        Hero — clean, centered.
+        bg-gray-900 is a dark base so the light hero text always meets WCAG AA
+        contrast even if the inline brand-colour style is ever dropped (e.g. a
+        CSP that blocks style attributes). The inline style layers the per-site
+        brand colour on top when allowed.
+      */}
       <section
-        className="relative overflow-hidden py-24 text-center md:py-32 lg:py-40"
-        style={{ backgroundColor: site.theme.primaryColor }}
+        className="relative overflow-hidden bg-gray-900 py-24 text-center md:py-32 lg:py-40"
+        style={{ backgroundColor: site.theme.primaryColor || "#1f2937" }}
       >
         <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <h1

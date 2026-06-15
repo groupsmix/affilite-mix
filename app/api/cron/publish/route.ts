@@ -87,6 +87,20 @@ export async function POST(request: NextRequest) {
       worker_now: workerNow,
     });
   }
+  if (clockSkewMs > 5 * 60_000) {
+    captureException(new Error("cron.publish excessive clock skew"), {
+      context: "[api/cron/publish] excessive worker/database clock skew",
+      route: "/api/cron/publish",
+      extra: { clockSkewMs, dbNow, workerNow },
+    });
+    return NextResponse.json(
+      {
+        error:
+          "Worker/database clock skew exceeds the safe publish threshold. Refusing to publish until clocks recover.",
+      },
+      { status: 503 },
+    );
+  }
   const results: Record<string, unknown> = {};
 
   // 1. Publish scheduled content (only explicitly scheduled items with publish_at <= now)

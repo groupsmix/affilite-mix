@@ -167,7 +167,17 @@ export function buildCspHeader(nonce: string): string {
     // compensating control (sanitize-html.ts) mitigates the XSS risk by
     // stripping style attributes from user content. This is tracked for
     // future resolution in F-20.
-    "style-src 'self' 'unsafe-inline'",
+    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
+    // A11Y-CONTRAST-2026-06-15: style-src above carries a nonce, so CSP
+    // Level-3 browsers (Chromium) IGNORE its 'unsafe-inline' — which silently
+    // blocks inline `style` *attributes* (e.g. the per-site theming
+    // `style={{ backgroundColor: site.theme.primaryColor }}` on hero
+    // sections). With the background dropped, hero text rendered on the white
+    // page body and failed WCAG AA contrast (axe). style-src-attr has no
+    // nonce, so 'unsafe-inline' is honoured here and inline style attributes
+    // (and dynamic element.style writes) work again. Nonce protection on
+    // <style> elements via style-src is unaffected.
+    "style-src-attr 'unsafe-inline'",
     "font-src 'self'",
     `img-src ${imgSources.join(" ")}`,
     `connect-src ${connectSources.join(" ")}`,

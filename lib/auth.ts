@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify, errors as joseErrors } from "jose";
 import { cookies, headers } from "next/headers";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
-import { verifyPassword, hashPassword } from "@/lib/password";
+import { verifyPassword, hashPassword, BCRYPT_ROUNDS } from "@/lib/password";
 import { logger } from "@/lib/logger";
 import { getJwtSecret, getJwtSecretPrevious, getJwtKid } from "@/lib/jwt-secret";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
@@ -73,28 +73,9 @@ const JWT_MAX_FUTURE_SKEW_S = 30;
  * always matches.
  */
 function buildDummyHashPrefix(): string {
-  // Import bcrypt at runtime to read the configured cost factor
-  const rounds = process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 10;
-  // SEC-HIGH-02: In production, refuse any cost below 10. A leaked staging
-  // .env that lowered BCRYPT_ROUNDS=4 (~16x faster than cost-10) would
-  // collapse the timing-equalization cost AND, if `lib/password.ts` ever
-  // adopted the env override, the live hashing cost — making brute-force
-  // practical. Cost-31 is also unreasonable (~17 minutes per hash) and is
-  // an availability hazard.
-  const PROD_MIN_ROUNDS = 10;
-  const isProd = process.env.NODE_ENV === "production";
-  if (!Number.isFinite(rounds) || rounds < 4 || rounds > 31) {
-    return "$2b$10$";
-  }
-  if (isProd && rounds < PROD_MIN_ROUNDS) {
-    logger.error("BCRYPT_ROUNDS below production minimum (10) — refusing to use the env value", {
-      configured: rounds,
-      enforced: PROD_MIN_ROUNDS,
-    });
-    return "$2b$10$";
-  }
-  // bcrypt encodes cost as a zero-padded 2-digit decimal between $2b$ and $
-  return `$2b$${String(rounds).padStart(2, "0")}$`;
+  // P0-5: Reuse the exact cost factor from lib/password.ts so timing
+  // equalization cannot drift from the live bcrypt workload.
+  return `$2b$${String(BCRYPT_ROUNDS).padStart(2, "0")}$`;
 }
 
 // A6-006: Hash suffix — a known-random fragment that is never a valid password.
@@ -219,6 +200,34 @@ function getPreviousSecretKey(): Uint8Array | null {
   return prev ? new TextEncoder().encode(prev) : null;
 }
 
+function decodeBase64UrlUtf8(segment: string): string | null {
+  try {
+    const padded = segment
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(segment.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function getUnverifiedTokenIat(token: string): number | null {
+  const segments = token.split(".");
+  if (segments.length !== 3) return null;
+  const payloadJson = decodeBase64UrlUtf8(segments[1]!);
+  if (!payloadJson) return null;
+
+  try {
+    const payload = JSON.parse(payloadJson) as { iat?: unknown };
+    return typeof payload.iat === "number" ? payload.iat : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface AdminPayload {
   email?: string;
   userId?: string;
@@ -308,6 +317,9 @@ export async function createToken(payload: AdminPayload, request?: Request): Pro
   }
 
   const claims: AdminPayload = { ...payload };
+  if (typeof claims.session_start !== "number") {
+    claims.session_start = Math.floor(Date.now() / 1000);
+  }
   if (binding) claims.bnd = binding;
 
   const jti = crypto.randomUUID();
@@ -339,6 +351,22 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
     algorithms: ["HS256"] as string[],
   };
 
+  // P0-6 / SEC-04: Reject obviously future-dated tokens before any
+  // signature verification, including the previous-key rotation path.
+  const unverifiedIat = getUnverifiedTokenIat(token);
+  if (typeof unverifiedIat === "number") {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const futureSkew = unverifiedIat - nowSec;
+    if (futureSkew > JWT_MAX_FUTURE_SKEW_S) {
+      logger.warn("JWT rejected: issued-at too far in the future (clock skew?)", {
+        futureSkewSec: futureSkew,
+        iat: unverifiedIat,
+        nowSec,
+      });
+      return null;
+    }
+  }
+
   let payload: Record<string, unknown> | null = null;
 
   // F-AUTH-03: Try the current key first, then fall back to the previous key
@@ -364,24 +392,6 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   }
 
   if (!payload) return null;
-
-  // SEC-04 (etap-3): Reject tokens issued too far in the future (wrong edge
-  // clock). Previously this check ran only on the current-key verification
-  // branch — a previous-key fallback could let a wrong-clock token slip
-  // through the rotation grace window. Run the check after both branches.
-  const iat = payload.iat;
-  if (typeof iat === "number") {
-    const nowSec = Math.floor(Date.now() / 1000);
-    const futureSkew = iat - nowSec;
-    if (futureSkew > JWT_MAX_FUTURE_SKEW_S) {
-      logger.warn("JWT rejected: issued-at too far in the future (clock skew?)", {
-        futureSkewSec: futureSkew,
-        iat,
-        nowSec,
-      });
-      return null;
-    }
-  }
 
   // A100-1 / A98-8: Absolute session lifetime enforcement.
   // Prevents indefinite sessions via repeated refresh. The `session_start`

@@ -23,6 +23,10 @@ describe("Site cache invalidation (S9-C3 / #607)", () => {
     expect(source).toMatch(/site-domain:/);
   });
 
+  it("deletes site-domain-miss: negative-cache keys during invalidation", () => {
+    expect(source).toMatch(/site-domain-miss:/);
+  });
+
   it("invalidateSiteCache accepts domain parameters", () => {
     expect(source).toMatch(/invalidateSiteCache\(.*oldDomain.*newDomain/s);
   });
@@ -31,5 +35,19 @@ describe("Site cache invalidation (S9-C3 / #607)", () => {
     const updateBlock = source.slice(source.indexOf("export async function updateSite"));
     expect(updateBlock).toMatch(/oldDomain/);
     expect(updateBlock).toMatch(/getSiteRowById/);
+  });
+
+  it("createSite invalidates the newly registered domain explicitly", () => {
+    const createBlock = source.slice(
+      source.indexOf("export async function createSite"),
+      source.indexOf("export async function updateSite"),
+    );
+    expect(createBlock).toMatch(/invalidateSiteCache\(undefined,\s*input\.domain\)/);
+  });
+
+  it("deleteSite captures the existing domain before invalidation", () => {
+    const deleteBlock = source.slice(source.indexOf("export async function deleteSite"));
+    expect(deleteBlock).toMatch(/const existing = await getSiteRowById/);
+    expect(deleteBlock).toMatch(/invalidateSiteCache\(existing\?\.domain/);
   });
 });

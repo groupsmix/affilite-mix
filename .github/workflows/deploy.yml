@@ -1466,6 +1466,8 @@ jobs:
     permissions:
       contents: read
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - name: Post-deploy health gate
         run: |
           set -euo pipefail
@@ -1527,6 +1529,81 @@ jobs:
 
           echo "Deployment healthy"
 
+      # F-19 / compareai.site follow-up: one hostname with stale or conflicting
+      # DNS must not fail the entire deploy after the Worker itself is healthy.
+      # Probe every statically configured site host and surface failures as a
+      # warning-only summary so operators can fix the affected domain without
+      # blocking the rest of the fleet.
+      - name: Per-site hostname reachability audit (warning-only)
+        run: |
+          set -euo pipefail
+
+          node <<'EOF'
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const { execFileSync } = require("node:child_process");
+
+          const sitesDir = path.join(process.cwd(), "config", "sites");
+          const files = fs.readdirSync(sitesDir).filter((name) => name.endsWith(".ts") && name !== "index.ts");
+          const domains = [];
+
+          for (const file of files) {
+            const source = fs.readFileSync(path.join(sitesDir, file), "utf8");
+            const match = source.match(/\bdomain:\s*"([^"]+)"/);
+            if (match) domains.push(match[1]);
+          }
+
+          const uniqueDomains = [...new Set(domains)].sort();
+          if (uniqueDomains.length === 0) {
+            console.log("::warning::No site domains discovered from config/sites; skipping hostname audit.");
+            process.exit(0);
+          }
+
+          const failures = [];
+          for (const domain of uniqueDomains) {
+            try {
+              const httpCode = execFileSync(
+                "curl",
+                [
+                  "-sS",
+                  "-L",
+                  "-o",
+                  "/dev/null",
+                  "-w",
+                  "%{http_code}",
+                  "--max-time",
+                  "20",
+                  `https://${domain}/`,
+                ],
+                { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+              ).trim();
+
+              console.log(`${domain} -> HTTP ${httpCode}`);
+              if (!/^2\d\d$|^3\d\d$/.test(httpCode)) {
+                failures.push({ domain, detail: `HTTP ${httpCode}` });
+              }
+            } catch (error) {
+              const detail = error && typeof error.message === "string" ? error.message.split("\n")[0] : "curl failed";
+              console.log(`${domain} -> ${detail}`);
+              failures.push({ domain, detail });
+            }
+          }
+
+          if (failures.length === 0) {
+            console.log("All configured site hostnames responded successfully.");
+            process.exit(0);
+          }
+
+          console.log(`::warning::${failures.length} configured site host(s) failed reachability audit; deployment remains green for healthy domains.`);
+          const lines = [
+            "### Warning: per-site hostname audit failures",
+            "",
+            "The Worker deployed successfully, but one or more configured site domains did not respond cleanly:",
+            ...failures.map(({ domain, detail }) => `- ${domain}: ${detail}`),
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
+          EOF
+
       # A-021: Post-deploy RLS policy drift check.
       # Compares the current pg_policies against a known baseline and
       # alerts if any critical tenant-isolation policies are missing.
@@ -1585,16 +1662,20 @@ jobs:
       # against what `wrangler.jsonc` declares, so a hand-rolled
       # `wrangler` invocation that bypasses CI cannot silently leave
       # production in a different state from the checked-in config.
+      #
+      # P1-3 / F-005: this binding gate is BLOCKING because security-critical
+      # routes (login/admin/checkout) rely on RATE_LIMITER_DO or RATE_LIMIT_KV.
+      # A green deploy with missing live bindings silently downgrades rate
+      # limiting to per-isolate memory or immediate fail-closed behaviour.
       - name: Runtime drift — Worker bindings
-        continue-on-error: true
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
-            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID missing — skipping binding drift check"
-            exit 0
+            echo "::error::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required for the live Worker binding drift gate"
+            exit 1
           fi
           WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
             | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')

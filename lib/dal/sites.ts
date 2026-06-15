@@ -39,7 +39,7 @@ export const listSites = unstable_cache(
     return assertRows<SiteRow>(data);
   },
   ["all-sites"],
-  { revalidate: 60, tags: ["sites"] },
+  { revalidate: 10, tags: ["sites"] },
 );
 
 /** Get a single site by its database UUID */
@@ -53,6 +53,7 @@ export async function getSiteRowById(
   const { data, error } = await sb
     .from(TABLE)
     .select(ALL_COLUMNS)
+    // SAFE: `sites` is the global tenant registry and cannot be site-scoped by id beforehand.
     .unsafeNoSiteFilter()
     .eq("id", id)
     .single();
@@ -72,6 +73,7 @@ export async function getSiteRowBySlugWithClient(
   const { data, error } = await sb
     .from(TABLE)
     .select(ALL_COLUMNS)
+    // SAFE: resolving a site by slug queries the global tenant registry.
     .unsafeNoSiteFilter()
     .eq("slug", slug)
     .single();
@@ -86,7 +88,7 @@ const _getSiteRowBySlugCached = unstable_cache(
     return getSiteRowBySlugWithClient(slug, getTenantClient);
   },
   ["site-by-slug"],
-  { revalidate: 60, tags: ["sites"] },
+  { revalidate: 10, tags: ["sites"] },
 );
 
 // S9-H2: Wrap with singleflight so concurrent cache-miss requests for the
@@ -110,7 +112,7 @@ const _getSiteRowByDomainCached = unstable_cache(
     return rowOrNull<SiteRow>(data);
   },
   ["site-by-domain"],
-  { revalidate: 60, tags: ["sites"] },
+  { revalidate: 10, tags: ["sites"] },
 );
 
 // S9-H2: Wrap with singleflight so concurrent cache-miss requests for the
@@ -155,7 +157,12 @@ function invalidateSiteCache(oldDomain?: string, newDomain?: string): void {
         }
       }
 
-      await Promise.allSettled([...domainsToDelete].map((d) => kv.delete(`site-domain:${d}`)));
+      await Promise.allSettled(
+        [...domainsToDelete].flatMap((domain) => [
+          kv.delete(`site-domain:${domain}`),
+          kv.delete(`site-domain-miss:${domain}`),
+        ]),
+      );
     } catch (e) {
       logger.warn("[sites] KV cache invalidation failed", {
         error: e instanceof Error ? e.message : String(e),
@@ -219,10 +226,16 @@ export async function createSite(
   if (input.homepage_template !== undefined) row.homepage_template = input.homepage_template;
   if (input.product_card_style !== undefined) row.product_card_style = input.product_card_style;
 
-  const { data, error } = await sb.from(TABLE).insert(row).select().unsafeNoSiteFilter().single();
+  const { data, error } = await sb
+    .from(TABLE)
+    .insert(row)
+    .select()
+    // SAFE: creating a tenant writes the global `sites` registry itself.
+    .unsafeNoSiteFilter()
+    .single();
 
   if (error) throw error;
-  invalidateSiteCache();
+  invalidateSiteCache(undefined, input.domain);
   return assertRow<SiteRow>(data, "Site");
 }
 
@@ -257,6 +270,7 @@ export async function updateSite(
   const { data, error } = await sb
     .from(TABLE)
     .update(updates)
+    // SAFE: updating a tenant definition targets the global `sites` registry.
     .unsafeNoSiteFilter()
     .eq("id", id)
     .select()
@@ -285,7 +299,13 @@ export async function deleteSite(
     );
   }
   const sb = await getClient();
-  const { error } = await sb.from(TABLE).delete().unsafeNoSiteFilter().eq("id", id);
+  const existing = await getSiteRowById(id, getClient);
+  const { error } = await sb
+    .from(TABLE)
+    .delete()
+    // SAFE: hard-deleting a tenant is an explicit global control-plane operation.
+    .unsafeNoSiteFilter()
+    .eq("id", id);
   if (error) throw error;
-  invalidateSiteCache();
+  invalidateSiteCache(existing?.domain ?? undefined);
 }

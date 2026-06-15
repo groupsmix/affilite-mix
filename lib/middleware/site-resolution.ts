@@ -58,6 +58,24 @@ export type SiteResolution =
       traceId: string;
     };
 
+function originMatchesVerifiedSite(
+  request: NextRequest,
+  verifiedSite: VerifiedSiteRef | null,
+): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin || !verifiedSite) return true;
+
+  try {
+    const originHost = new URL(origin).hostname.toLowerCase();
+    const allowedHosts = new Set(
+      [verifiedSite.domain, ...(verifiedSite.aliases ?? [])].map((host) => host.toLowerCase()),
+    );
+    return allowedHosts.has(originHost);
+  } catch {
+    return false;
+  }
+}
+
 export async function resolveSite(
   request: NextRequest,
   hostname: string,
@@ -309,6 +327,25 @@ export async function resolveSite(
 
   if (!siteId) {
     return { type: "response", response: nicheNotFoundResponse(request) };
+  }
+
+  if (!originMatchesVerifiedSite(request, verifiedSite)) {
+    logger.warn("[middleware] request origin does not match resolved site domain", {
+      origin: request.headers.get("origin"),
+      hostname,
+      siteId,
+      verified_domain: verifiedSite?.domain,
+    });
+    return {
+      type: "response",
+      response: new NextResponse("Forbidden", {
+        status: 403,
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+          Pragma: "no-cache",
+        },
+      }),
+    };
   }
 
   return { type: "resolved", siteId, verifiedSite, traceId };

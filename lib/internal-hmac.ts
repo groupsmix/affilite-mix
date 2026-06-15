@@ -8,7 +8,7 @@
  *   3. A timestamp within the last 5 minutes
  *
  * The HMAC key is derived from the existing INTERNAL_API_TOKEN (or
- * purpose-specific token) so no new secrets are required — the token
+ * purpose-specific token) so no new secrets are required ΓÇö the token
  * that was previously sent as a Bearer credential is now used as the
  * signing key instead.
  *
@@ -28,11 +28,11 @@ import { emitMetric } from "@/lib/metrics";
 
 /** Maximum clock skew tolerance in milliseconds (60 seconds).
  * SEC-08: Tightened from 5 min to 60s. Internal calls are low-latency
- * (Worker → Worker on the same edge), so a 60s window is ample while
+ * (Worker ΓåÆ Worker on the same edge), so a 60s window is ample while
  * significantly reducing the replay attack window. */
 const MAX_TIMESTAMP_SKEW_MS = 60 * 1000;
 
-/** A28-005: Maximum acceptable future skew — requests "from the future"
+/** A28-005: Maximum acceptable future skew ΓÇö requests "from the future"
  * are rejected more aggressively than past skew (which could be benign
  * slow delivery). */
 const MAX_FUTURE_SKEW_MS = 60_000; // 1 minute
@@ -114,7 +114,7 @@ async function recordNonceInKV(nonce: string): Promise<void> {
     await kv.put(`hmac-nonce\x1F${nonce}`, "1", { expirationTtl: NONCE_TTL_S });
   } catch {
     // fail-open: best-effort [criticality:defence-in-depth]
-    // Best-effort — in-memory map is still the primary guard.
+    // Best-effort ΓÇö in-memory map is still the primary guard.
     // Emit telemetry so KV availability is observable. [criticality:telemetry]
     emitMetric("fail_open_total", 1, { fail_open_location: "internal-hmac-kv-put" });
   }

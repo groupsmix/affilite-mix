@@ -70,6 +70,21 @@ describe("resolveSite (F-007)", () => {
     }
   });
 
+  it("rejects requests whose Origin host does not match the resolved site", async () => {
+    getMiddlewareSiteRowByDomain.mockResolvedValue({ slug: "acme", is_active: true });
+    const request = new NextRequest("https://shop.acme.com/p", {
+      headers: {
+        host: "shop.acme.com",
+        origin: "https://evil.example.com",
+        "cf-connecting-ip": "203.0.113.7",
+      },
+    });
+
+    const r = await resolveSite(request, "shop.acme.com");
+    expect(r.type).toBe("response");
+    if (r.type === "response") expect(r.response.status).toBe(403);
+  });
+
   it("404s (rewrite) for an unknown host with no DB row", async () => {
     const r = await resolveSite(req(), "unknown.example.com");
     expect(r.type).toBe("response");

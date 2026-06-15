@@ -67,4 +67,18 @@ describe("/api/csp-report payload cap", () => {
     expect(src).toMatch(/checkRateLimit\(`csp-report:\$\{ip\}`/);
     expect(src).toMatch(/maxRequests:\s*60[\s\S]*windowMs:\s*60_000/);
   });
+
+  it("validates Content-Type before parsing the body", async () => {
+    const { promises: fs } = await import("node:fs");
+    const path = await import("node:path");
+    src = await fs.readFile(
+      path.resolve(__dirname, "..", "app", "api", "csp-report", "route.ts"),
+      "utf8",
+    );
+    expect(src).toMatch(/content-type/i);
+    expect(src).toMatch(/application\/csp-report/);
+    expect(src).toMatch(/application\/json/);
+    expect(src).toMatch(/application\/reports\+json/);
+    expect(src).toMatch(/415/);
+  });
 });

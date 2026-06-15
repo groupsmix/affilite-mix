@@ -11,6 +11,7 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { runAfterResponse } from "@/lib/wait-until";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
+import { isHttpsUrl } from "@/lib/validation";
 
 /** 60 outbound redirects per minute per IP */
 const REDIRECT_RATE_LIMIT = { maxRequests: 60, windowMs: 60 * 1000 };
@@ -64,7 +65,7 @@ export async function GET(
     let urlObj: URL;
     try {
       urlObj = new URL(destinationUrl);
-      if (urlObj.protocol !== "https:" && urlObj.protocol !== "http:") {
+      if (!isHttpsUrl(destinationUrl)) {
         logger.error("[r/shortcode] rejected redirect: invalid scheme", {
           siteId,
           shortcode,

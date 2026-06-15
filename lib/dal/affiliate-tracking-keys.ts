@@ -18,6 +18,7 @@ export async function resolveSiteByTrackingKey(
   const { data, error } = await sb
     .from(TABLE)
     .select("site_id")
+    // SAFE: this lookup discovers tenant identity from a global network key before site_id is known.
     .unsafeNoSiteFilter()
     .eq("network", network)
     .eq("tracking_key", trackingKey)

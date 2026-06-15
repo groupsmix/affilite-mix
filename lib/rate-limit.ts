@@ -362,6 +362,10 @@ let kvLastAlertedAt = 0;
 const KV_ALERT_INTERVAL_MS = 60_000;
 /** Epoch ms at which KV first became unavailable in this isolate; null when KV is healthy. */
 let kvUnavailableSince: number | null = null;
+/** Count of recent outages used to shrink grace windows during rapid KV flapping. */
+let kvRecentOutageCount = 0;
+/** Epoch ms when KV last recovered successfully. */
+let kvLastRecoveredAt: number | null = null;
 
 /**
  * Grace window during which the limiter falls back to per-isolate memory
@@ -369,6 +373,7 @@ let kvUnavailableSince: number | null = null;
  * limiter fails closed. Overridable via RATE_LIMIT_KV_GRACE_MS for ops drills.
  */
 const DEFAULT_KV_GRACE_MS = 60_000;
+const KV_OUTAGE_BACKOFF_RESET_MS = DEFAULT_KV_GRACE_MS * 5;
 
 function getKvGraceMs(): number {
   const raw = process.env.RATE_LIMIT_KV_GRACE_MS;
@@ -382,11 +387,20 @@ export function __resetRateLimitKvStateForTests(): void {
   kvFallbackWarned = false;
   kvLastAlertedAt = 0;
   kvUnavailableSince = null;
+  kvRecentOutageCount = 0;
+  kvLastRecoveredAt = null;
 }
 
 function markKvAvailable(): void {
   kvLastAlertedAt = 0;
   kvUnavailableSince = null;
+  kvLastRecoveredAt = Date.now();
+}
+
+function getEffectiveGraceMs(config: RateLimitConfig): number {
+  const baseGraceMs = config.graceMs ?? getKvGraceMs();
+  const divisor = 2 ** Math.max(kvRecentOutageCount - 1, 0);
+  return Math.max(Math.floor(baseGraceMs / divisor), 1_000);
 }
 
 /**
@@ -455,28 +469,35 @@ function handleKvUnavailable(
   }
 
   if (kvUnavailableSince === null) {
+    if (kvLastRecoveredAt === null || now - kvLastRecoveredAt >= KV_OUTAGE_BACKOFF_RESET_MS) {
+      kvRecentOutageCount = 1;
+    } else {
+      kvRecentOutageCount += 1;
+    }
     kvUnavailableSince = now;
   }
+
+  const graceMs = getEffectiveGraceMs(config);
 
   if (isProduction && shouldAlert) {
     kvLastAlertedAt = now;
     const msg =
       `[rate-limit] WARNING: KV unavailable (${reason}). ` +
-      `Falling back to per-isolate memory for up to ${getKvGraceMs()}ms; ` +
+      `Falling back to per-isolate memory for up to ${graceMs}ms; ` +
       "after the grace window elapses requests will fail CLOSED. " +
       "Configure the KV binding in wrangler.jsonc to restore distributed rate limiting.";
     logger.error(msg, {
       metric: "rate_limit_kv_failopen",
       reason,
-      grace_ms: getKvGraceMs(),
+      grace_ms: graceMs,
+      recent_outage_count: String(kvRecentOutageCount),
     });
     captureException(err ?? new Error(msg), {
       context: "rate-limit.kv-unavailable-fail-open",
-      extra: { reason, graceMs: getKvGraceMs() },
+      extra: { reason, graceMs, recentOutageCount: kvRecentOutageCount },
     });
   }
 
-  const graceMs = config.graceMs ?? getKvGraceMs();
   if (isProduction && now - kvUnavailableSince >= graceMs) {
     // Grace expired: fail closed. Use the smaller of (graceMs, configured window)
     // for retryAfter so clients back off but eventually retry.

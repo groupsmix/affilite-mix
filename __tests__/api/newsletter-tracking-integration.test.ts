@@ -42,12 +42,12 @@ vi.mock("@/lib/site-context", () => ({
 
 // Mock DAL modules for click tracking
 const mockGetProductBySlug = vi.fn();
-const mockRecordClick = vi.fn();
+const mockPublishClick = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/dal/products", () => ({
   getProductBySlug: (...args: unknown[]) => mockGetProductBySlug(...args),
 }));
-vi.mock("@/lib/dal/affiliate-clicks", () => ({
-  recordClick: (...args: unknown[]) => mockRecordClick(...args),
+vi.mock("@/lib/click-queue", () => ({
+  publishClick: (...args: unknown[]) => mockPublishClick(...args),
 }));
 vi.mock("@/lib/dal/site-resolver", () => ({
   resolveDbSiteId: vi.fn().mockResolvedValue("site-uuid-123"),
@@ -276,14 +276,13 @@ describe("GET /api/track/click (integration)", () => {
     expect(res.headers.get("Location")).toBe("https://amazon.com/dp/test");
 
     // Should record the click
-    expect(mockRecordClick).toHaveBeenCalledWith(
+    expect(mockPublishClick).toHaveBeenCalledWith(
       expect.objectContaining({
         site_id: "site-uuid-123",
         product_name: "Test Product",
         affiliate_url: "https://amazon.com/dp/test",
         content_slug: "review-page",
       }),
-      expect.any(Function),
     );
   });
 
@@ -317,6 +316,68 @@ describe("GET /api/track/click (integration)", () => {
     const res = await GET(req);
 
     expect(res.status).toBe(404);
+  });
+
+  it("returns 400 when the stored affiliate URL is not HTTPS", async () => {
+    mockGetProductBySlug.mockResolvedValue({
+      id: "prod-3",
+      name: "Insecure Link Product",
+      slug: "insecure-link",
+      affiliate_url: "http://amazon.com/insecure",
+    });
+
+    const { GET } = await import("@/app/api/track/click/route");
+    const req = makeClickRequest({ p: "insecure-link" });
+    const res = await GET(req);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/invalid affiliate url scheme/i);
+  });
+
+  it("returns 400 when the stored affiliate URL domain is off the allow-list", async () => {
+    mockGetProductBySlug.mockResolvedValue({
+      id: "prod-4",
+      name: "Offlist Link Product",
+      slug: "offlist-link",
+      affiliate_url: "https://evil.example/phish",
+    });
+
+    const { GET } = await import("@/app/api/track/click/route");
+    const req = makeClickRequest({ p: "offlist-link" });
+    const res = await GET(req);
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/not allowed/i);
+  });
+
+  it("ignores any querystring url parameter and redirects only to the stored affiliate URL", async () => {
+    mockGetProductBySlug.mockResolvedValue({
+      id: "prod-5",
+      name: "Stored Link Product",
+      slug: "stored-link",
+      affiliate_url: "https://amazon.com/dp/stored",
+    });
+
+    const { GET } = await import("@/app/api/track/click/route");
+    const req = makeClickRequest(
+      {
+        p: "stored-link",
+        t: "review-page",
+        url: "https://evil.example/override",
+      },
+      { "sec-fetch-site": "none", "sec-fetch-dest": "document" },
+    );
+    const res = await GET(req);
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe("https://amazon.com/dp/stored");
+    expect(mockPublishClick).toHaveBeenCalledWith(
+      expect.objectContaining({
+        affiliate_url: "https://amazon.com/dp/stored",
+      }),
+    );
   });
 });
 

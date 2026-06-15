@@ -6,17 +6,17 @@
  * here. Five different surfaces all derive their behaviour from this
  * registry instead of carrying their own copy:
  *
- *   1. wrangler.jsonc                 — `triggers.crons` schedule list
- *   2. workers/custom-worker.ts       — schedule -> path dispatch table
- *   3. app/api/cron/<name>/route.ts   — verifyCronAuth secretEnvVars
- *   4. middleware.ts                  — CSRF exempt prefix
- *   5. .env.example                   — documented per-trigger secrets
+ *   1. wrangler.jsonc                 ΓÇö `triggers.crons` schedule list
+ *   2. workers/custom-worker.ts       ΓÇö schedule -> path dispatch table
+ *   3. app/api/cron/<name>/route.ts   ΓÇö verifyCronAuth secretEnvVars
+ *   4. middleware.ts                  ΓÇö CSRF exempt prefix
+ *   5. .env.example                   ΓÇö documented per-trigger secrets
  *
  * Drift between any of those surfaces was the largest preventable cron
  * risk surfaced in the production-readiness audit (P0 #2). The
  * `__tests__/cron-registry.test.ts` suite asserts that wrangler,
  * .env.example, the routes, and the middleware all stay in sync with
- * this list — a missing or extra entry fails CI before deploy.
+ * this list ΓÇö a missing or extra entry fails CI before deploy.
  *
  * Adding a new cron job:
  *   1. Append a `CronJob` entry below.
@@ -192,7 +192,7 @@ export const cronJobs: readonly CronJob[] = [
     secretEnvVar: "CRON_ACCESS_REVIEW_SECRET",
     csrfExempt: true,
     alertOnFailure: false,
-    description: "SOC 2 CC6.1 — weekly admin-user access recertification.",
+    description: "SOC 2 CC6.1 ΓÇö weekly admin-user access recertification.",
   },
   {
     name: "homepage-synthetic-check",
@@ -246,7 +246,7 @@ export function getCronJobBySchedule(schedule: string): CronJob | undefined {
  * deployments that have only configured the shared secret continue
  * to work.
  *
- * Throws if `path` is not registered — wiring up a cron route that
+ * Throws if `path` is not registered ΓÇö wiring up a cron route that
  * isn't in the registry is always a bug.
  */
 export function getSecretEnvVarsForCronPath(path: string): readonly string[] {
