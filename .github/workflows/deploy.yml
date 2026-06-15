@@ -1676,17 +1676,23 @@ jobs:
           fi
           WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
             | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
+          # NOTE: use postfix `[].binding` (tight precedence) rather than
+          # `[] | .binding`. Inside a `[ a, b, ... ]` constructor jq binds
+          # `|` looser than `,`, so `[] | .binding` leaks the pipe across the
+          # commas and applies `.binding` to the previous array's name
+          # strings ("Cannot index string with \"binding\""). Postfix form
+          # keeps each extraction self-contained.
           DECL=$(echo "$WRANGLER_JSON" | jq -r '
             [
-              (.kv_namespaces // [])[] | .binding,
-              (.r2_buckets // [])[] | .binding,
-              (.queues.producers // [])[] | .binding,
-              (.durable_objects.bindings // [])[] | .name
-            ] | sort | unique | .[]
+              (.kv_namespaces // [])[].binding,
+              (.r2_buckets // [])[].binding,
+              (.queues.producers // [])[].binding,
+              (.durable_objects.bindings // [])[].name
+            ] | map(select(. != null and . != "")) | sort | unique | .[]
           ')
           LIVE=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/bindings" \
-            | jq -r '(.result // [])[] | try .name catch empty // try .binding catch empty | select(length > 0)' | sort -u)
+            | jq -r '(.result // [])[] | (.name // .binding // empty) | select(type == "string" and length > 0)' | sort -u)
           MISSING=$(comm -23 <(echo "$DECL") <(echo "$LIVE"))
           if [ -n "$MISSING" ]; then
             echo "::error::Bindings declared in wrangler.jsonc but missing from live Worker:"
