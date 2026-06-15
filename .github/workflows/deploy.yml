@@ -1717,7 +1717,12 @@ jobs:
             # The API must report success AND return a non-empty result before
             # we trust the comparison. Anything else is treated as a flaky read.
             if [ -n "$RESP" ] && [ "$(echo "$RESP" | jq -r '.success // false')" = "true" ]; then
-              LIVE=$(echo "$RESP" | jq -r '(.result // [])[] | .name? // .binding? // empty' | sort -u)
+              # Filter to object-typed elements BEFORE indexing. The previous
+              # expression `.name? // .binding?` crashed with
+              # "Cannot index string with string" (jq exit 5) whenever the
+              # bindings array contained a non-object element, hard-failing an
+              # otherwise-healthy deploy. `objects` makes the extraction total.
+              LIVE=$(echo "$RESP" | jq -r '(.result // [])[] | objects | (.name // .binding) // empty' | sort -u)
               if [ -n "$LIVE" ]; then GOOD_READ=1; break; fi
             fi
             echo "Bindings read attempt $attempt did not return a trusted result — retrying after backoff..."
