@@ -81,9 +81,26 @@ for (const rel of paths) {
   // deploy.yml would fail spuriously on every deploy because the
   // committed wrangler.jsonc carries an explanatory comment using
   // the literal `${VAR}` form.
-  const stripped = raw
+  let stripped = raw
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|\s|;|,|\}|\])\s*\/\/[^\n]*/g, "$1");
+
+  // A205: Strip top-level `env` blocks (e.g., env.staging, env.preview).
+  // These contain environment-specific placeholders that are only
+  // substituted in their respective deploy pipelines and should not
+  // fail the production placeholder check.
+  // We use a simple stack-based brace counter to handle nested objects.
+  const envMatch = /"env"\s*:\s*\{/.exec(stripped);
+  if (envMatch) {
+    let depth = 1;
+    let i = envMatch.index + envMatch[0].length;
+    while (i < stripped.length && depth > 0) {
+      if (stripped[i] === "{") depth++;
+      else if (stripped[i] === "}") depth--;
+      i++;
+    }
+    stripped = stripped.slice(0, envMatch.index) + stripped.slice(i);
+  }
   const found = new Set();
   let m;
   PLACEHOLDER_RE.lastIndex = 0;

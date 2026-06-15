@@ -7,6 +7,7 @@ import { shouldSkipDbCall } from "@/lib/db-available";
 import { NONCE_HEADER } from "@/lib/csp";
 import { WebVitals } from "./web-vitals";
 import { logger } from "@/lib/logger";
+import CookieConsentCmp from "./(public)/components/cookie-consent-cmp";
 import "./globals.css";
 
 /*
@@ -147,6 +148,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <WebVitals />
+        {site.features.cookieConsent && (
+          <CookieConsentCmp language={site.language} siteId={site.id} />
+        )}
         {children}
       </body>
     </html>

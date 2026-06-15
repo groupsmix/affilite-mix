@@ -20,8 +20,19 @@ locals {
     "compareai.site" = {
       reason        = "Pre-existing externally-managed A/CNAME records in Cloudflare DNS"
       constraint    = "API error 100117: Hostname already has externally managed DNS records"
-      remediation   = "Delete A/CNAME records in Cloudflare Dashboard (compareai.site zone -> DNS) before adding to wrangler.jsonc"
-      last_reviewed = "2026-06-11"
+      remediation   = <<-EOT
+        1. Log in to Cloudflare Dashboard → compareai.site zone → DNS
+        2. Delete ALL A/CNAME records at the apex and any subdomains
+        3. Add to dns.auto.tfvars:
+           external_zone_worker_domains = {
+             "compareai.site" = "<compareai.site zone ID>"
+           }
+        4. Import existing custom domain if present:
+           terraform import 'cloudflare_workers_custom_domain.external_zone_worker_domains["compareai.site"]' "<account-id>/<custom-domain-id>"
+        5. Run terraform plan && terraform apply
+        6. Verify: curl -H "Host: compareai.site" https://wristnerd.xyz/ returns 200
+      EOT
+      last_reviewed = "2026-06-15"
     }
   }
 }
