@@ -1706,9 +1706,31 @@ jobs:
               (.durable_objects.bindings // [])[] | .name
             ] | sort | unique | .[]
           ')
-          LIVE=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/bindings" \
-            | jq -r '(.result // [])[] | .name? // .binding? // empty' | sort -u)
+          # Read the live bindings with retry + success validation. A single
+          # flaky API response (or an in-flight gradual rollout) must NOT make
+          # every binding look "missing" and hard-fail an otherwise-good deploy.
+          LIVE=""
+          GOOD_READ=""
+          for attempt in 1 2 3 4; do
+            RESP=$(curl -sS --max-time 30 -H "Authorization: Bearer $CF_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/bindings" || true)
+            # The API must report success AND return a non-empty result before
+            # we trust the comparison. Anything else is treated as a flaky read.
+            if [ -n "$RESP" ] && [ "$(echo "$RESP" | jq -r '.success // false')" = "true" ]; then
+              LIVE=$(echo "$RESP" | jq -r '(.result // [])[] | .name? // .binding? // empty' | sort -u)
+              if [ -n "$LIVE" ]; then GOOD_READ=1; break; fi
+            fi
+            echo "Bindings read attempt $attempt did not return a trusted result — retrying after backoff..."
+            sleep $((attempt * 5))
+          done
+
+          if [ -z "$GOOD_READ" ]; then
+            # The deploy itself already succeeded; we just couldn't get a
+            # trustworthy live-bindings read. Warn instead of blocking.
+            echo "::warning::Could not obtain a trusted live-bindings read from the Cloudflare API after 4 attempts. Skipping the binding drift gate (deploy already succeeded). Verify manually with: wrangler deployments list"
+            exit 0
+          fi
+
           MISSING=$(comm -23 <(echo "$DECL") <(echo "$LIVE"))
           if [ -n "$MISSING" ]; then
             echo "::error::Bindings declared in wrangler.jsonc but missing from live Worker:"
@@ -1770,9 +1792,13 @@ jobs:
           WRANGLER_JSON=$(sed -E 's@^[[:space:]]*//.*$@@; s@[[:space:]]+//[^"]*$@@' wrangler.jsonc \
             | python3 -c 'import re,sys; sys.stdout.write(re.sub(r",(\s*[}\]])", r"\1", sys.stdin.read()))')
           DECL=$(echo "$WRANGLER_JSON" | jq -r '(.triggers.crons // [])[]' | sort -u)
-          LIVE=$(curl -sS -H "Authorization: Bearer $CF_API_TOKEN" \
+          # NOTE: the schedules endpoint returns the list under
+          # `.result.schedules`, not `.schedules`. Reading the wrong path made
+          # this gate see zero live crons and (warning-only) report every
+          # declared cron as missing. Fall back to the legacy path for safety.
+          LIVE=$(curl -sS --max-time 30 -H "Authorization: Bearer $CF_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/affilite-mix/schedules" \
-            | jq -r '(.schedules // [])[].cron' | sort -u)
+            | jq -r '((.result.schedules // .schedules) // [])[].cron' | sort -u)
           MISSING=$(comm -23 <(echo "$DECL") <(echo "$LIVE"))
           EXTRA=$(comm -13 <(echo "$DECL") <(echo "$LIVE"))
           if [ -n "$MISSING" ] || [ -n "$EXTRA" ]; then

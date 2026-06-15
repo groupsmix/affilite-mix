@@ -13,6 +13,11 @@
   "main": "workers/heavy-crons.ts",
   "compatibility_date": "2026-03-17",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Security: this is a cron-only dispatcher with no public routes. Disable
+  // the *.workers.dev hostname so it is not reachable as an unauthenticated,
+  // WAF-bypassing endpoint — matching the main worker's `workers_dev: false`
+  // posture (A206/A209).
+  "workers_dev": false,
   "triggers": {
     "crons": ["0 2 * * *", "0 5 * * *", "0 7 * * *"],
   },
