@@ -1420,53 +1420,31 @@ jobs:
           fi
 
 
-      # NEW-001: The heavy-crons dispatcher worker reads the per-trigger
-      # secret env vars (and CRON_HOST + CRON_SECRET as a fallback) at
-      # cron-trigger time to authenticate its outbound POST to the main
-      # worker. Without these uploaded to `affilite-mix-heavy-crons`, the
-      # dispatcher falls through to "No secret configured — skipping
-      # dispatch" and the heavy crons (ai-generate / commission-ingest /
-      # price-scrape) silently never run. We push the full per-trigger
-      # set (not just the heavy ones) so the surface stays symmetric with
-      # the main worker and a future re-flagging of `heavy: true` on a
-      # job does not require a separate deploy change.
+      # NEW-001 / least-privilege: the heavy-crons dispatcher only fires
+      # jobs flagged `heavy: true` in lib/cron-registry.ts — currently
+      # ai-generate (02:00), commission-ingest (05:00) and price-scrape
+      # (07:00). At trigger time it reads CRON_HOST plus the per-trigger
+      # secret for the job that fired, so it needs only those four secrets.
+      # We intentionally do NOT push the main worker's other cron secrets
+      # here: heavy-crons never reads them, and keeping them off this
+      # worker minimises blast radius if it is ever compromised. If a new
+      # job is later flagged `heavy: true`, add its per-trigger secret
+      # below in the same change that sets the flag.
       - name: Set heavy-crons Worker secrets
         env:
-          _CRON_SECRET: ${{ secrets.CRON_SECRET }}
           _CRON_HOST: ${{ secrets.CRON_HOST }}
-          _CRON_PUBLISH: ${{ secrets.CRON_PUBLISH_SECRET }}
-          _CRON_STRIPE: ${{ secrets.CRON_STRIPE_SYNC_SECRET }}
           _CRON_AI: ${{ secrets.CRON_AI_SECRET }}
-          _CRON_SITEMAP: ${{ secrets.CRON_SITEMAP_SECRET }}
-          _CRON_RETENTION: ${{ secrets.CRON_RETENTION_SECRET }}
           _CRON_COMMISSION: ${{ secrets.CRON_COMMISSION_SECRET }}
-          _CRON_EPC: ${{ secrets.CRON_EPC_SECRET }}
           _CRON_PRICE: ${{ secrets.CRON_PRICE_SECRET }}
-          _CRON_DEALS: ${{ secrets.CRON_DEALS_SECRET }}
-          _CRON_CLICK_RECONCILE: ${{ secrets.CRON_CLICK_RECONCILE_SECRET }}
-          _CRON_ACCESS_REVIEW: ${{ secrets.CRON_ACCESS_REVIEW_SECRET }}
-          _CRON_HOMEPAGE_SYNTHETIC: ${{ secrets.CRON_HOMEPAGE_SYNTHETIC_SECRET }}
         run: |
           set -euo pipefail
 
-          # Required for the dispatcher to know where to POST and to
-          # auth via fallback if a per-trigger secret is somehow unset.
-          echo "$_CRON_HOST"           | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST           --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_SECRET"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SECRET         --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-
-          echo "Setting per-trigger cron secrets on heavy-crons worker (NEW-001)..."
-          echo "$_CRON_PUBLISH"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PUBLISH_SECRET     --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_STRIPE"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_STRIPE_SYNC_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_AI"             | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AI_SECRET          --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_SITEMAP"        | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_SITEMAP_SECRET     --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_RETENTION"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_RETENTION_SECRET   --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_COMMISSION"     | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_COMMISSION_SECRET  --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_EPC"            | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_EPC_SECRET         --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_PRICE"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PRICE_SECRET       --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_DEALS"          | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_DEALS_SECRET       --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_CLICK_RECONCILE" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_CLICK_RECONCILE_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_ACCESS_REVIEW"  | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_ACCESS_REVIEW_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
-          echo "$_CRON_HOMEPAGE_SYNTHETIC" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOMEPAGE_SYNTHETIC_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          # CRON_HOST tells the dispatcher where to POST; the three
+          # per-trigger secrets authenticate the heavy jobs it dispatches.
+          echo "$_CRON_HOST"       | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_HOST              --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_AI"         | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_AI_SECRET         --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_COMMISSION" | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_COMMISSION_SECRET --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
+          echo "$_CRON_PRICE"      | npx --yes wrangler@${WRANGLER_VERSION} secret put CRON_PRICE_SECRET      --config wrangler.heavy-crons.jsonc --name affilite-mix-heavy-crons > /dev/null 2>&1
 
           echo "heavy-crons worker secrets configured"
 
