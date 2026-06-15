@@ -361,11 +361,14 @@ describe("GET /api/track/click (integration)", () => {
     });
 
     const { GET } = await import("@/app/api/track/click/route");
-    const req = makeClickRequest({
-      p: "stored-link",
-      t: "review-page",
-      url: "https://evil.example/override",
-    }, { "sec-fetch-site": "none", "sec-fetch-dest": "document" });
+    const req = makeClickRequest(
+      {
+        p: "stored-link",
+        t: "review-page",
+        url: "https://evil.example/override",
+      },
+      { "sec-fetch-site": "none", "sec-fetch-dest": "document" },
+    );
     const res = await GET(req);
 
     expect(res.status).toBe(302);

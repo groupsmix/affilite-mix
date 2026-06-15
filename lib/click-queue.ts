@@ -90,7 +90,11 @@ async function sendWithRetry(
   throw lastError instanceof Error ? lastError : new Error("click queue send failed");
 }
 
-async function alertClickTotalLoss(input: RecordClickInput, reason: string, err?: unknown): Promise<void> {
+async function alertClickTotalLoss(
+  input: RecordClickInput,
+  reason: string,
+  err?: unknown,
+): Promise<void> {
   emitMetric("click_queue_total_loss", 1, {
     error_type: reason,
     site_id: input.site_id,

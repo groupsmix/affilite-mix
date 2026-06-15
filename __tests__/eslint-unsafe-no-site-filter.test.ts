@@ -89,7 +89,8 @@ describe("F-ARCH-03 (#611): unsafeNoSiteFilter ESLint guard", () => {
           previousNonEmpty -= 1;
         }
 
-        const hasSafeComment = previousNonEmpty >= 0 && lines[previousNonEmpty]?.includes("// SAFE:");
+        const hasSafeComment =
+          previousNonEmpty >= 0 && lines[previousNonEmpty]?.includes("// SAFE:");
         if (!hasSafeComment) {
           violations.push(`${rel}:${i + 1}`);
         }

@@ -264,10 +264,7 @@ describe("re-audit lock — N-003 log-shipper wiring is gated on LOG_SHIPPER_ENA
       deployShipperIdx,
     );
 
-    const shipperBlock = deploy.slice(
-      deployShipperIdx,
-      nextStepIdx > -1 ? nextStepIdx : undefined,
-    );
+    const shipperBlock = deploy.slice(deployShipperIdx, nextStepIdx > -1 ? nextStepIdx : undefined);
     const gates = shipperBlock.match(/if:\s*vars\.LOG_SHIPPER_ENABLED\s*==\s*'true'/g) ?? [];
     expect(gates.length).toBeGreaterThanOrEqual(2);
   });

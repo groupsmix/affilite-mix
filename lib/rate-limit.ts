@@ -469,10 +469,7 @@ function handleKvUnavailable(
   }
 
   if (kvUnavailableSince === null) {
-    if (
-      kvLastRecoveredAt === null ||
-      now - kvLastRecoveredAt >= KV_OUTAGE_BACKOFF_RESET_MS
-    ) {
+    if (kvLastRecoveredAt === null || now - kvLastRecoveredAt >= KV_OUTAGE_BACKOFF_RESET_MS) {
       kvRecentOutageCount = 1;
     } else {
       kvRecentOutageCount += 1;

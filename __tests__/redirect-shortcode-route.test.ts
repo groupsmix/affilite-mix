@@ -69,7 +69,9 @@ describe("GET /r/[shortcode]", () => {
       affiliate_url: "http://amazon.com/insecure",
     });
 
-    const res = await GET(makeRequest(), { params: Promise.resolve({ shortcode: "test-product" }) });
+    const res = await GET(makeRequest(), {
+      params: Promise.resolve({ shortcode: "test-product" }),
+    });
 
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -83,7 +85,9 @@ describe("GET /r/[shortcode]", () => {
       affiliate_url: "https://evil.example/phish",
     });
 
-    const res = await GET(makeRequest(), { params: Promise.resolve({ shortcode: "test-product" }) });
+    const res = await GET(makeRequest(), {
+      params: Promise.resolve({ shortcode: "test-product" }),
+    });
 
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -97,7 +101,9 @@ describe("GET /r/[shortcode]", () => {
       affiliate_url: "https://amazon.com/dp/allowed",
     });
 
-    const res = await GET(makeRequest(), { params: Promise.resolve({ shortcode: "test-product" }) });
+    const res = await GET(makeRequest(), {
+      params: Promise.resolve({ shortcode: "test-product" }),
+    });
 
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe("https://amazon.com/dp/allowed");

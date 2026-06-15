@@ -36,9 +36,7 @@ export async function POST(request: NextRequest) {
   }
 
   const contentType = (request.headers.get("content-type") ?? "").toLowerCase();
-  if (
-    !ALLOWED_CSP_REPORT_CONTENT_TYPES.some((allowed) => contentType.startsWith(allowed))
-  ) {
+  if (!ALLOWED_CSP_REPORT_CONTENT_TYPES.some((allowed) => contentType.startsWith(allowed))) {
     return new NextResponse(null, { status: 415 });
   }
 

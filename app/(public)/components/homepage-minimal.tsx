@@ -32,7 +32,7 @@ export function MinimalHomepage({
       {/* Hero — clean, centered */}
       <section
         className="relative overflow-hidden py-24 text-center md:py-32 lg:py-40"
-        style={{ backgroundColor: site.theme.primaryColor }}
+        style={{ backgroundColor: site.theme.primaryColor || "#1f2937" }}
       >
         <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <h1

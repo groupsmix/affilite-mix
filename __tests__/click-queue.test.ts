@@ -193,7 +193,8 @@ describe("F-028 click-queue producer", () => {
     );
     expect(
       (captureException as ReturnType<typeof vi.fn>).mock.calls.some(
-        ([, ctx]) => (ctx as { context?: string } | undefined)?.context === "click-queue.total-loss",
+        ([, ctx]) =>
+          (ctx as { context?: string } | undefined)?.context === "click-queue.total-loss",
       ),
     ).toBe(true);
   });

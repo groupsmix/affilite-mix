@@ -101,7 +101,10 @@ describe("Migration skip override controls", () => {
   it("deploy.yml keeps the migration ledger gate as a blocking step", () => {
     const deploy = readFile(".github/workflows/deploy.yml");
     const ledgerStart = deploy.indexOf("Migration ledger gate (G-MD-01)");
-    const ledgerEnd = deploy.indexOf("# ═══════════════════════════════════════════════════════════════════", ledgerStart);
+    const ledgerEnd = deploy.indexOf(
+      "# ═══════════════════════════════════════════════════════════════════",
+      ledgerStart,
+    );
     const ledgerBlock = deploy.slice(ledgerStart, ledgerEnd);
 
     expect(ledgerBlock).toContain("bash scripts/check-migration-ledger.sh");
@@ -118,7 +121,7 @@ describe("Migration skip override controls", () => {
     expect(security).toContain("SKIP_DB_MIGRATIONS_EXPIRES");
     expect(security).toContain("FOUND_VARS");
     expect(security).toContain('if [ "${#FOUND_VARS[@]}" -gt 0 ]; then');
-    expect(security).toContain('exit 1');
+    expect(security).toContain("exit 1");
   });
 });
 

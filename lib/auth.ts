@@ -202,7 +202,10 @@ function getPreviousSecretKey(): Uint8Array | null {
 
 function decodeBase64UrlUtf8(segment: string): string | null {
   try {
-    const padded = segment.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(segment.length / 4) * 4, "=");
+    const padded = segment
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(segment.length / 4) * 4, "=");
     const binary = atob(padded);
     const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
     return new TextDecoder().decode(bytes);

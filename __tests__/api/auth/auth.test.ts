@@ -312,9 +312,11 @@ describe("auth source guards", () => {
   const authSource = readFileSync(resolve("lib/auth.ts"), "utf8");
 
   it("reuses BCRYPT_ROUNDS from lib/password.ts for dummy-hash timing equalization", () => {
-    expect(authSource).toContain('import { verifyPassword, hashPassword, BCRYPT_ROUNDS } from "@/lib/password"');
+    expect(authSource).toContain(
+      'import { verifyPassword, hashPassword, BCRYPT_ROUNDS } from "@/lib/password"',
+    );
     expect(authSource).not.toContain("process.env.BCRYPT_ROUNDS");
-    expect(authSource).toContain("String(BCRYPT_ROUNDS).padStart(2, \"0\")");
+    expect(authSource).toContain('String(BCRYPT_ROUNDS).padStart(2, "0")');
   });
 
   it("checks unverified iat before the first jwtVerify call", () => {
