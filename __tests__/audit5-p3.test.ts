@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 
 /**
  * audit5-p3 assertions
@@ -19,6 +19,25 @@ const REPO_ROOT = join(__dirname, "..");
 
 function read(relativePath: string): string {
   return readFileSync(join(REPO_ROOT, relativePath), "utf8");
+}
+
+function walkFiles(dir: string): string[] {
+  const entries = readdirSync(dir);
+  const results: string[] = [];
+
+  for (const entry of entries) {
+    const fullPath = join(dir, entry);
+    const stats = statSync(fullPath);
+    if (stats.isDirectory()) {
+      results.push(...walkFiles(fullPath));
+      continue;
+    }
+    if (entry.endsWith(".ts") || entry.endsWith(".tsx")) {
+      results.push(fullPath);
+    }
+  }
+
+  return results;
 }
 
 describe("audit5-#10 - community route observability", () => {
@@ -83,15 +102,9 @@ describe("audit5-#12 - requireAdminSession docstring + whitelist", () => {
       "app/api/admin/sites/stats/route.ts",
     ]);
 
-    const { execSync } = require("node:child_process");
-    const grep = execSync(
-      `grep -rln "from \\"@/lib/admin-guard\\"" --include='*.ts' --include='*.tsx' app/`,
-      { cwd: REPO_ROOT, encoding: "utf8" },
-    );
-    const importers = grep
-      .split("\n")
-      .filter(Boolean)
-      .map((p: string) => p.replace(/^\.\//, ""));
+    const importers = walkFiles(join(REPO_ROOT, "app"))
+      .map((fullPath) => relative(REPO_ROOT, fullPath).split(sep).join("/"))
+      .filter((relativePath) => read(relativePath).includes('from "@/lib/admin-guard"'));
 
     for (const importer of importers) {
       const content = read(importer);

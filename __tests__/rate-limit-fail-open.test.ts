@@ -159,6 +159,44 @@ describe("F-3 KV unavailability", () => {
     expect(alerts).toHaveLength(2); // One from before, one from now
   });
 
+  it("shrinks the grace window during rapid KV flapping", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.useFakeTimers();
+    const t0 = Date.UTC(2025, 0, 1, 0, 0, 0);
+    vi.setSystemTime(t0);
+
+    const { checkRateLimit } = await loadModule();
+
+    const firstOutage = await checkRateLimit("ip:flap-1", CONFIG);
+    expect(firstOutage.allowed).toBe(true);
+
+    const store = new Map<string, string>();
+    vi.stubGlobal("RATE_LIMIT_KV", {
+      get: vi.fn(async (k: string) => {
+        const value = store.get(k);
+        return value ? JSON.parse(value) : null;
+      }),
+      put: vi.fn(async (k: string, v: string) => {
+        store.set(k, v);
+      }),
+    });
+
+    const recovered = await checkRateLimit("ip:flap-1", CONFIG);
+    expect(recovered.allowed).toBe(true);
+
+    // Recover only briefly, then flap again. The second outage should get a
+    // shorter grace window than the first.
+    vi.setSystemTime(t0 + 1_000);
+    vi.unstubAllGlobals();
+
+    const secondOutage = await checkRateLimit("ip:flap-2", CONFIG);
+    expect(secondOutage.allowed).toBe(true);
+
+    vi.setSystemTime(t0 + Math.floor(GRACE_MS / 2) + 1_500);
+    const afterShortenedGrace = await checkRateLimit("ip:flap-3", CONFIG);
+    expect(afterShortenedGrace.allowed).toBe(false);
+  });
+
   it("falls back to in-memory in non-production indefinitely", async () => {
     vi.stubEnv("NODE_ENV", "development");
 

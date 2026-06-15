@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -201,6 +203,35 @@ describe("verifyToken revoked-token handling (A88-2)", () => {
 // ── A100-1 / A98-8: Absolute session lifetime enforcement ──────
 
 describe("verifyToken absolute session lifetime (A100-1)", () => {
+  it("createToken sets session_start when the caller omits it", async () => {
+    const { createToken, verifyToken } = await import("@/lib/auth");
+
+    const token = await createToken({
+      email: "admin@test.com",
+      userId: "user-1",
+      role: "admin" as const,
+    });
+    const decoded = await verifyToken(token);
+
+    expect(decoded).not.toBeNull();
+    expect(typeof decoded?.session_start).toBe("number");
+  });
+
+  it("createToken preserves an existing session_start on refresh", async () => {
+    const { createToken, verifyToken } = await import("@/lib/auth");
+
+    const originalSessionStart = Math.floor(Date.now() / 1000) - 600;
+    const token = await createToken({
+      email: "admin@test.com",
+      userId: "user-1",
+      role: "admin" as const,
+      session_start: originalSessionStart,
+    });
+    const decoded = await verifyToken(token);
+
+    expect(decoded?.session_start).toBe(originalSessionStart);
+  });
+
   it("accepts a token whose session_start is within the 24h regular admin cap", async () => {
     const { createToken, verifyToken } = await import("@/lib/auth");
 
@@ -262,7 +293,7 @@ describe("verifyToken absolute session lifetime (A100-1)", () => {
     expect(decoded).not.toBeNull();
   });
 
-  it("accepts a legacy token without session_start (backward compat)", async () => {
+  it("still accepts tokens minted without an explicit session_start input", async () => {
     const { createToken, verifyToken } = await import("@/lib/auth");
 
     const payload = {
@@ -273,5 +304,26 @@ describe("verifyToken absolute session lifetime (A100-1)", () => {
     const token = await createToken(payload);
     const decoded = await verifyToken(token);
     expect(decoded).not.toBeNull();
+    expect(typeof decoded?.session_start).toBe("number");
+  });
+});
+
+describe("auth source guards", () => {
+  const authSource = readFileSync(resolve("lib/auth.ts"), "utf8");
+
+  it("reuses BCRYPT_ROUNDS from lib/password.ts for dummy-hash timing equalization", () => {
+    expect(authSource).toContain(
+      'import { verifyPassword, hashPassword, BCRYPT_ROUNDS } from "@/lib/password"',
+    );
+    expect(authSource).not.toContain("process.env.BCRYPT_ROUNDS");
+    expect(authSource).toContain('String(BCRYPT_ROUNDS).padStart(2, "0")');
+  });
+
+  it("checks unverified iat before the first jwtVerify call", () => {
+    const iatCheckIndex = authSource.indexOf("const unverifiedIat = getUnverifiedTokenIat(token);");
+    const firstVerifyIndex = authSource.indexOf("jwtVerify(token, getSecretKey(), jwtOpts)");
+
+    expect(iatCheckIndex).toBeGreaterThan(-1);
+    expect(firstVerifyIndex).toBeGreaterThan(iatCheckIndex);
   });
 });

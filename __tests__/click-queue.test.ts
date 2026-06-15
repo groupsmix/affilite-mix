@@ -8,6 +8,20 @@ vi.mock("@/lib/sentry", () => ({
   captureException: vi.fn(),
 }));
 
+vi.mock("@/lib/metrics", () => ({
+  emitMetric: vi.fn(),
+}));
+
+vi.mock("@/lib/server-only/service-role", () => ({
+  getPrivilegedSupabaseClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      insert: vi.fn(() => ({
+        unsafeNoSiteFilter: vi.fn().mockResolvedValue(undefined),
+      })),
+    })),
+  })),
+}));
+
 describe("F-028 click-queue producer", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -16,7 +30,9 @@ describe("F-028 click-queue producer", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("falls back to recordClick when CLICK_QUEUE is not bound", async () => {
@@ -102,6 +118,7 @@ describe("F-028 click-queue producer", () => {
   });
 
   it("falls through to direct write when queue send throws", async () => {
+    vi.useFakeTimers();
     vi.stubGlobal("CLICK_QUEUE", {
       send: vi.fn().mockRejectedValue(new Error("queue down")),
       sendBatch: vi.fn(),
@@ -111,12 +128,74 @@ describe("F-028 click-queue producer", () => {
     const { recordClick } = await import("@/lib/dal/affiliate-clicks");
 
     // resetModules above gives us a fresh mock; assert this call produced one hit.
-    await publishClick({
+    const publishPromise = publishClick({
       site_id: "site-1",
       product_name: "Widget",
       affiliate_url: "https://example.com/aff",
     });
+    await vi.runAllTimersAsync();
+    await publishPromise;
 
     expect(recordClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries queue send with backoff before falling back in non-production", async () => {
+    vi.useFakeTimers();
+    const send = vi.fn().mockRejectedValue(new Error("queue down"));
+    vi.stubGlobal("CLICK_QUEUE", {
+      send,
+      sendBatch: vi.fn(),
+    });
+
+    const { publishClick } = await import("@/lib/click-queue");
+    const { recordClick } = await import("@/lib/dal/affiliate-clicks");
+
+    const publishPromise = publishClick({
+      site_id: "site-1",
+      product_name: "Widget",
+      affiliate_url: "https://example.com/aff",
+    });
+    await vi.runAllTimersAsync();
+    await publishPromise;
+
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(recordClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("alerts and skips direct write in production after total queue loss", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("NODE_ENV", "production");
+    const send = vi.fn().mockRejectedValue(new Error("queue down"));
+    vi.stubGlobal("CLICK_QUEUE", {
+      send,
+      sendBatch: vi.fn(),
+    });
+
+    const { publishClick } = await import("@/lib/click-queue");
+    const { recordClick } = await import("@/lib/dal/affiliate-clicks");
+    const { captureException } = await import("@/lib/sentry");
+    const { emitMetric } = await import("@/lib/metrics");
+
+    const publishPromise = publishClick({
+      site_id: "site-1",
+      product_name: "Widget",
+      affiliate_url: "https://example.com/aff",
+    });
+    await vi.runAllTimersAsync();
+    await publishPromise;
+
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(recordClick).not.toHaveBeenCalled();
+    expect(emitMetric).toHaveBeenCalledWith(
+      "click_queue_total_loss",
+      1,
+      expect.objectContaining({ site_id: "site-1", error_type: "queue_send_failed" }),
+    );
+    expect(
+      (captureException as ReturnType<typeof vi.fn>).mock.calls.some(
+        ([, ctx]) =>
+          (ctx as { context?: string } | undefined)?.context === "click-queue.total-loss",
+      ),
+    ).toBe(true);
   });
 });

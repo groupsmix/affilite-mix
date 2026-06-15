@@ -44,10 +44,16 @@ describe("buildCspHeader", () => {
     expect(header).toContain(`script-src 'self' 'nonce-${nonce}'`);
   });
 
-  it("allows unsafe-inline in style-src (nonce removed — see lib/csp.ts rationale)", () => {
-    expect(header).toContain("style-src 'self' 'unsafe-inline'");
-    // Nonce is NOT used for style-src; see csp.ts comment for why.
-    expect(header).not.toMatch(/style-src[^;]*nonce/);
+  it("keeps unsafe-inline in style-src while adding the nonce as defence-in-depth", () => {
+    expect(header).toContain(`style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`);
+  });
+
+  it("allows inline style attributes via style-src-attr (nonce on style-src otherwise disables them in CSP L3)", () => {
+    // Without this, Chromium ignores 'unsafe-inline' on the nonced style-src
+    // and blocks inline `style` attributes, breaking per-site theme colours
+    // (and failing homepage WCAG contrast). style-src-attr has no nonce, so
+    // 'unsafe-inline' is honoured for style attributes.
+    expect(header).toContain("style-src-attr 'unsafe-inline'");
   });
 
   it("keeps 'strict-dynamic' on script-src", () => {

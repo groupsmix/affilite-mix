@@ -22,7 +22,7 @@ describe("audit5-#6 - CSP style-src accepted risk is documented inline", () => {
   it("keeps script-src nonce-locked while documenting the style-src exception", () => {
     expect(csp).toContain("'strict-dynamic'");
     expect(csp).toContain("ACCEPTED-RISK");
-    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    expect(csp).toContain("style-src 'self' 'nonce-${nonce}' 'unsafe-inline'");
     expect(csp).toContain("COMPENSATING CONTROL");
     expect(csp).toContain("REVISIT: 2026-09-01");
   });

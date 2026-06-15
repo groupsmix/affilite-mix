@@ -70,8 +70,58 @@ describe("Risk-9: Cloudflare binding validation", () => {
     expect(deploy).toContain("Missing required Cloudflare bindings");
   });
 
+  it("blocks deploys when live Worker bindings cannot be verified", () => {
+    const deploy = readFile(".github/workflows/deploy.yml");
+    const driftBlockStart = deploy.indexOf("Runtime drift — Worker bindings");
+    const driftBlockEnd = deploy.indexOf("Runtime drift — Worker secrets");
+    const driftBlock = deploy.slice(driftBlockStart, driftBlockEnd);
+
+    expect(driftBlock).not.toContain("continue-on-error: true");
+    expect(driftBlock).toContain("required for the live Worker binding drift gate");
+    expect(driftBlock).toContain("exit 1");
+  });
+
   it("wrangler binding drift test exists", () => {
     expect(fileExists("__tests__/wrangler-binding-drift.test.ts")).toBe(true);
+  });
+});
+
+describe("Migration skip override controls", () => {
+  it("deploy.yml requires ticket, expiry, and future-dated approval for SKIP_DB_MIGRATIONS", () => {
+    const deploy = readFile(".github/workflows/deploy.yml");
+
+    expect(deploy).toContain("- name: Check skip flag");
+    expect(deploy).toContain("SKIP_DB_MIGRATIONS=true requires SKIP_DB_MIGRATIONS_TICKET");
+    expect(deploy).toContain("SKIP_DB_MIGRATIONS=true requires SKIP_DB_MIGRATIONS_EXPIRES");
+    expect(deploy).toContain("date -d");
+    expect(deploy).toContain("SKIP_DB_MIGRATIONS has expired");
+    expect(deploy).toContain('echo "skip=true" >> "$GITHUB_OUTPUT"');
+  });
+
+  it("deploy.yml keeps the migration ledger gate as a blocking step", () => {
+    const deploy = readFile(".github/workflows/deploy.yml");
+    const ledgerStart = deploy.indexOf("Migration ledger gate (G-MD-01)");
+    const ledgerEnd = deploy.indexOf(
+      "# ═══════════════════════════════════════════════════════════════════",
+      ledgerStart,
+    );
+    const ledgerBlock = deploy.slice(ledgerStart, ledgerEnd);
+
+    expect(ledgerBlock).toContain("bash scripts/check-migration-ledger.sh");
+    expect(ledgerBlock).not.toContain("continue-on-error: true");
+  });
+
+  it("security.yml schedules a nightly check for all migration-skip Actions variables", () => {
+    const security = readFile(".github/workflows/security.yml");
+
+    expect(security).toContain('cron: "15 2 * * *"');
+    expect(security).toContain("migration-skip-override-absent");
+    expect(security).toContain("SKIP_DB_MIGRATIONS");
+    expect(security).toContain("SKIP_DB_MIGRATIONS_TICKET");
+    expect(security).toContain("SKIP_DB_MIGRATIONS_EXPIRES");
+    expect(security).toContain("FOUND_VARS");
+    expect(security).toContain('if [ "${#FOUND_VARS[@]}" -gt 0 ]; then');
+    expect(security).toContain("exit 1");
   });
 });
 

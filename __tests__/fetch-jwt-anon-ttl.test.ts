@@ -59,22 +59,30 @@ describe("supabase-server tenant JWT replay window", () => {
   });
 });
 
-describe("supabase-server anon client TTL mirrors privileged client", () => {
+describe("supabase-server anon client is never cached (P1-7)", () => {
   const src = readFileSync(join(repoRoot, "lib/supabase-server.ts"), "utf8");
 
-  it("tracks anon-client created-at and cached URL/key", () => {
-    expect(src).toMatch(/_anonClientCreatedAt/);
-    expect(src).toMatch(/_anonCachedUrl/);
-    expect(src).toMatch(/_anonCachedKey/);
+  // P1-7 superseded the earlier "mirror the privileged client's TTL cache"
+  // contract: the anon client must NOT be memoised across requests, because
+  // even with persistSession=false a shared singleton risks cross-request
+  // state bleed through future header/fetch-wrapper/library internals. These
+  // assertions pin the no-cache behaviour so a future refactor can't quietly
+  // reintroduce a shared anon client.
+  it("documents the P1-7 no-cache rationale", () => {
+    expect(src).toMatch(/P1-7[\s\S]*?(Do not cache|not cache)/i);
   });
 
-  it("declares ANON_CLIENT_TTL_MS", () => {
-    expect(src).toMatch(/ANON_CLIENT_TTL_MS\s*=\s*[^;]+;/);
+  it("does not declare anon-client cache state", () => {
+    expect(src).not.toMatch(/_anonClientCreatedAt/);
+    expect(src).not.toMatch(/ANON_CLIENT_TTL_MS/);
   });
 
-  it("getAnonClient checks isExpired and envChanged before returning cached client", () => {
-    const fnBody = src.slice(src.indexOf("export function getAnonClient"));
-    expect(fnBody).toMatch(/isExpired/);
-    expect(fnBody).toMatch(/envChanged/);
+  it("getAnonClient constructs a fresh client and returns it directly", () => {
+    const start = src.indexOf("export function getAnonClient");
+    const fnBody = src.slice(start, src.indexOf("\n}", start));
+    // No memoised hand-back of a previously built client.
+    expect(fnBody).not.toMatch(/return\s+_anon\w*Client/);
+    // It builds a new client inline on every call.
+    expect(fnBody).toMatch(/return createClient<Database>\(/);
   });
 });

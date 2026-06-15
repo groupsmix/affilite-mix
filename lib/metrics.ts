@@ -42,7 +42,14 @@ const ALLOWED_TAG_KEYS = new Set([
   "fail_open_location",
 ]);
 
+const PROMETHEUS_METRIC_NAME_RE = /^[a-zA-Z_:][a-zA-Z0-9_:]*$/;
+
 export function emitMetric(name: string, value: number, tags: Record<string, string> = {}): void {
+  if (!PROMETHEUS_METRIC_NAME_RE.test(name)) {
+    logger.warn("Rejected invalid metric name", { metric: name });
+    return;
+  }
+
   const sanitized: Record<string, string> = {};
   for (const [key, val] of Object.entries(tags)) {
     if (ALLOWED_TAG_KEYS.has(key)) {

@@ -32,6 +32,7 @@ export async function getAdminSiteMembership(
   const { data, error } = await (
     sb.from(TABLE).select(LIST_COLUMNS) as unknown as CrossTenantBuilder
   )
+    // SAFE: admin-to-site membership rows are global authz metadata, not tenant content.
     .unsafeNoSiteFilter()
     .eq("admin_user_id", adminUserId)
     .eq("site_id", siteId)
@@ -52,6 +53,7 @@ export async function listAdminSiteMemberships(
   const { data, error } = await (
     sb.from(TABLE).select(LIST_COLUMNS) as unknown as CrossTenantBuilder
   )
+    // SAFE: listing an admin's memberships necessarily spans every site they can access.
     .unsafeNoSiteFilter()
     .eq("admin_user_id", adminUserId)
     .order("created_at", { ascending: true });

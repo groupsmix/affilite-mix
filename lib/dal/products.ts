@@ -199,8 +199,12 @@ export async function getProductById(
   return rowOrNull<ProductRow>(data);
 }
 
-export async function getProductBySlug(siteId: string, slug: string): Promise<ProductRow | null> {
-  const sb = getAnonClient();
+export async function getProductBySlug(
+  siteId: string,
+  slug: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<ProductRow | null> {
+  const sb = await getClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)

@@ -20,7 +20,7 @@
 
 import bcrypt from "bcryptjs";
 
-const BCRYPT_ROUNDS = 10;
+export const BCRYPT_ROUNDS = 10;
 
 // ── Legacy PBKDF2 helpers (read-only, for migrating existing hashes) ────
 

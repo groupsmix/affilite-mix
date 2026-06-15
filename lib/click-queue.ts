@@ -14,6 +14,7 @@ import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { randomUUID } from "node:crypto";
 import { getClickQueue as getRuntimeClickQueue, readGlobalBinding } from "@/lib/runtime-env";
+import { emitMetric } from "@/lib/metrics";
 
 // The privileged Supabase client wraps every PostgREST builder in a Proxy
 // (see `lib/server-only/service-role.ts`) that exposes a runtime-only
@@ -50,6 +51,65 @@ interface ClickQueueMessage extends RecordClickInput {
   ts: number;
 }
 
+const CLICK_QUEUE_MAX_ATTEMPTS = 3;
+const CLICK_QUEUE_BASE_BACKOFF_MS = 100;
+
+function isProductionWorkerRuntime(): boolean {
+  return (
+    process.env.NODE_ENV === "production" ||
+    (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers")
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function sendWithRetry(
+  queue: CloudflareQueue<ClickQueueMessage>,
+  payload: ClickQueueMessage,
+): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= CLICK_QUEUE_MAX_ATTEMPTS; attempt++) {
+    try {
+      await queue.send(payload);
+      return;
+    } catch (err) {
+      lastError = err;
+      captureException(err, {
+        context: "click-queue.send",
+        extra: { attempt, maxAttempts: CLICK_QUEUE_MAX_ATTEMPTS },
+      });
+      if (attempt < CLICK_QUEUE_MAX_ATTEMPTS) {
+        await sleep(CLICK_QUEUE_BASE_BACKOFF_MS * 2 ** (attempt - 1));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("click queue send failed");
+}
+
+async function alertClickTotalLoss(
+  input: RecordClickInput,
+  reason: string,
+  err?: unknown,
+): Promise<void> {
+  emitMetric("click_queue_total_loss", 1, {
+    error_type: reason,
+    site_id: input.site_id,
+  });
+  logger.error("[click-queue] Click could not be queued after retries; persisted to DLQ", {
+    reason,
+    site_id: input.site_id,
+    product_name: input.product_name,
+  });
+  captureException(err ?? new Error(reason), {
+    context: "click-queue.total-loss",
+    extra: { site_id: input.site_id, reason },
+  });
+}
+
 function getClickQueue(): CloudflareQueue<ClickQueueMessage> | undefined {
   // Check globalThis first so tests can inject a mock via vi.stubGlobal;
   // fall back to the runtime-env typed accessor in production. The accessor
@@ -83,29 +143,24 @@ export async function publishClick(input: RecordClickInput): Promise<void> {
 
   if (queue) {
     try {
-      await queue.send(payload);
+      await sendWithRetry(queue, payload);
       return;
     } catch (err) {
-      captureException(err, { context: "click-queue.send" });
       // Do not fall through to direct write in production to prevent slamming Supabase;
       // instead log to click_failures for reconciliation.
-      if (
-        process.env.NODE_ENV === "production" ||
-        (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers")
-      ) {
-        void logClickFailure(enriched, "queue.send failed");
+      if (isProductionWorkerRuntime()) {
+        await logClickFailure(enriched, "queue.send failed after retries");
+        await alertClickTotalLoss(enriched, "queue_send_failed", err);
         return;
       }
     }
   } else {
-    if (
-      process.env.NODE_ENV === "production" ||
-      (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers")
-    ) {
+    if (isProductionWorkerRuntime()) {
       logger.error(
         "[click-queue] Queue binding missing in production. Logging click failure for reconciliation.",
       );
-      void logClickFailure(enriched, "CLICK_QUEUE binding missing");
+      await logClickFailure(enriched, "CLICK_QUEUE binding missing");
+      await alertClickTotalLoss(enriched, "queue_binding_missing");
       return;
     }
   }

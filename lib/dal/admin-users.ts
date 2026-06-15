@@ -3,6 +3,8 @@ import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { clampPagination } from "./pagination-guard";
 import { logger } from "@/lib/logger";
+import { captureException } from "@/lib/sentry";
+import { emitMetric } from "@/lib/metrics";
 
 export interface AdminUserRow {
   id: string;
@@ -45,6 +47,7 @@ export async function getAdminUserByEmail(
   const { data, error } = await sb
     .from(TABLE)
     .select(ALL_COLUMNS)
+    // SAFE: `admin_users` stores global dashboard identities, not tenant rows.
     .unsafeNoSiteFilter()
     .eq("email", email.toLowerCase())
     .eq("is_active", true)
@@ -65,6 +68,7 @@ export async function getAdminUserById(
     .select(
       "id, email, name, role, is_active, totp_enabled, totp_verified_at, created_at, updated_at",
     )
+    // SAFE: `admin_users` is global auth state shared across all sites.
     .unsafeNoSiteFilter()
     .eq("id", id)
     .single();
@@ -86,6 +90,7 @@ export async function listAdminUsers(
     .select(
       "id, email, name, role, is_active, totp_enabled, totp_verified_at, created_at, updated_at",
     )
+    // SAFE: listing dashboard operators intentionally spans all tenants.
     .unsafeNoSiteFilter()
     .order("created_at", { ascending: true });
 
@@ -120,6 +125,7 @@ export async function createAdminUser(
       role: input.role ?? "admin",
     })
     .select()
+    // SAFE: creating an admin account writes to the global `admin_users` table.
     .unsafeNoSiteFilter()
     .single();
 
@@ -153,6 +159,7 @@ export async function updateAdminUser(
   const { data, error } = await sb
     .from(TABLE)
     .update(input as Record<string, unknown>)
+    // SAFE: updating admin credentials/lockout state targets the global admin table.
     .unsafeNoSiteFilter()
     .eq("id", id)
     .select()
@@ -183,6 +190,7 @@ export async function incrementLoginFailedAttempts(
       lockout_threshold: lockoutThreshold,
       lockout_duration_ms: lockoutDurationMs,
     })
+    // SAFE: lockout RPC is keyed by global admin user id, not tenant scope.
     .unsafeNoSiteFilter();
 
   if (!error && data) {
@@ -198,6 +206,13 @@ export async function incrementLoginFailedAttempts(
       userId: id,
       code: error.code,
       message: error.message,
+    });
+    captureException(error, {
+      context: "admin-users.increment-login-failed-attempts-rpc",
+      extra: { userId: id, code: error.code },
+    });
+    emitMetric("admin_auth_rpc_failure_total", 1, {
+      method: "increment_login_failed_attempts",
     });
     throw error;
   }
@@ -226,6 +241,7 @@ export async function incrementTotpFailedAttempts(
       lockout_threshold: lockoutThreshold,
       lockout_duration_ms: lockoutDurationMs,
     })
+    // SAFE: TOTP lockout RPC mutates global admin auth state, not site data.
     .unsafeNoSiteFilter();
 
   if (!error && data) {
@@ -242,6 +258,13 @@ export async function incrementTotpFailedAttempts(
       code: error.code,
       message: error.message,
     });
+    captureException(error, {
+      context: "admin-users.increment-totp-failed-attempts-rpc",
+      extra: { userId: id, code: error.code },
+    });
+    emitMetric("admin_auth_rpc_failure_total", 1, {
+      method: "increment_totp_failed_attempts",
+    });
     throw error;
   }
 
@@ -255,7 +278,12 @@ export async function deleteAdminUser(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<void> {
   const sb = await getClient();
-  const { error } = await sb.from(TABLE).delete().unsafeNoSiteFilter().eq("id", id);
+  const { error } = await sb
+    .from(TABLE)
+    .delete()
+    // SAFE: deleting an admin account is a global control-plane action.
+    .unsafeNoSiteFilter()
+    .eq("id", id);
   if (error) throw error;
 }
 
@@ -272,6 +300,7 @@ export async function hasAnotherActiveSuperAdmin(
   const { count, error } = await sb
     .from(TABLE)
     .select("id", { count: "exact", head: true })
+    // SAFE: super-admin quorum is evaluated across the global admin roster.
     .unsafeNoSiteFilter()
     .eq("role", "super_admin")
     .eq("is_active", true)

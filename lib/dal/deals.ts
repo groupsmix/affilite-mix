@@ -68,6 +68,7 @@ export async function expireDeals(
   const { data, error } = await sb
     .from(TABLE)
     .update({ is_active: false, updated_at: now })
+    // SAFE: expiry cron intentionally sweeps deals across every tenant in one batch.
     .unsafeNoSiteFilter()
     .eq("is_active", true)
     .lt("expires_at", now)

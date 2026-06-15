@@ -19,6 +19,11 @@ const CSP_REPORT_RATE_LIMIT = { maxRequests: 60, windowMs: 60_000 };
  * attacker from forcing an arbitrary-size JSON parse.
  */
 const CSP_REPORT_MAX_BYTES = 8 * 1024;
+const ALLOWED_CSP_REPORT_CONTENT_TYPES = [
+  "application/csp-report",
+  "application/json",
+  "application/reports+json",
+];
 
 export async function POST(request: NextRequest) {
   // F-06: Per-IP rate limit — documented in csrf-exempt-registry as
@@ -28,6 +33,11 @@ export async function POST(request: NextRequest) {
   const rl = await checkRateLimit(`csp-report:${ip}`, CSP_REPORT_RATE_LIMIT);
   if (!rl.allowed) {
     return new NextResponse(null, { status: 429 });
+  }
+
+  const contentType = (request.headers.get("content-type") ?? "").toLowerCase();
+  if (!ALLOWED_CSP_REPORT_CONTENT_TYPES.some((allowed) => contentType.startsWith(allowed))) {
+    return new NextResponse(null, { status: 415 });
   }
 
   // PR-F P2-C: enforce payload cap. The Content-Length header is a

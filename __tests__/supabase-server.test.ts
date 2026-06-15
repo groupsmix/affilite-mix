@@ -67,4 +67,16 @@ describe("supabase-server factories", () => {
     expect(getPrivilegedSupabaseClient()).toBeDefined();
     expect(getAnonClient()).toBeDefined();
   });
+
+  it("getAnonClient returns a fresh client per call", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "dev-anon");
+
+    const { getAnonClient } = await import("@/lib/supabase-server");
+    const first = getAnonClient();
+    const second = getAnonClient();
+
+    expect(first).not.toBe(second);
+  });
 });
