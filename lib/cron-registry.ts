@@ -216,7 +216,9 @@ function buildCronJobMap(
     const key = job[keyName];
     if (map.has(key)) {
       // eslint-disable-next-line no-console
-      console.error(`[cron-registry] Duplicate ${keyName} detected in cronJobs: ${onDuplicate(job)}`);
+      console.error(
+        `[cron-registry] Duplicate ${keyName} detected in cronJobs: ${onDuplicate(job)}`,
+      );
       continue;
     }
     map.set(key, job);

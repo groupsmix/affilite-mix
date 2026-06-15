@@ -13,6 +13,7 @@ Your project is **NOT launch-ready** yet. There are **3 critical blockers** that
 ### Overall Assessment
 
 **Positive findings:**
+
 - Extremely comprehensive security architecture (CSRF, CSP, rate limiting, RBAC)
 - Extensive documentation (148 markdown files covering security, operations, compliance)
 - Robust CI/CD pipeline with 14 workflows
@@ -21,6 +22,7 @@ Your project is **NOT launch-ready** yet. There are **3 critical blockers** that
 - Well-designed multi-tenant architecture
 
 **Critical concerns:**
+
 - **Build broken**: TypeScript compilation fails
 - **Lint broken**: ESLint errors present
 - **Tests broken**: Cannot run tests due to PowerShell issue
@@ -47,6 +49,7 @@ lib/internal-hmac.ts(247,53): error TS2552: Cannot find name 'AllowSharedBufferS
 **Root cause:** The type `AllowSharedBufferSource` doesn't exist in the TypeScript DOM types. This should be `BufferSource` or `ArrayBuffer | ArrayBufferView`.
 
 **Fix required:**
+
 ```typescript
 // In lib/internal-hmac.ts line 247
 // Change from:
@@ -68,6 +71,7 @@ lib/cron-registry.ts:218:7  error  Unexpected console statement  no-console
 **Root cause:** Using `console.error` in production code violates ESLint rules.
 
 **Fix required:**
+
 - Replace `console.error` with proper logging utility (Sentry or structured logger)
 - OR add `// eslint-disable-next-line no-console` if intentional
 
@@ -81,12 +85,14 @@ lib/cron-registry.ts:218:7  error  Unexpected console statement  no-console
 
 **Fix required:**
 Update `package.json` scripts for Windows compatibility:
+
 ```json
 "test": "vitest run",
 "test:coverage": "vitest run --coverage",
 ```
 
 Then set NODE_OPTIONS separately if needed, or use cross-env:
+
 ```json
 "test": "cross-env NODE_OPTIONS='--no-warnings=ExperimentalWarning' vitest run"
 ```
@@ -104,6 +110,7 @@ Then set NODE_OPTIONS separately if needed, or use cross-env:
 Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approximately **25+ production secrets**. Critical missing items include:
 
 **Required for core functionality:**
+
 - `JWT_SECRET` - Admin authentication will fail
 - `SUPABASE_JWT_SECRET` - RLS authentication will fail
 - `INTERNAL_API_TOKEN` - Internal service communication will fail
@@ -112,14 +119,17 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 - `CLICK_CACHE_HMAC_KEY` - Click tracking integrity compromised
 
 **Required for security:**
+
 - `TURNSTILE_SECRET_KEY` + `NEXT_PUBLIC_TURNSTILE_SITE_KEY` - No bot protection
 - `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` - No error monitoring
 
 **Required for production features:**
+
 - `RESEND_API_KEY` - Email won't work (password resets, newsletters)
 - `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` - Payments won't work
 
 **Action required:**
+
 1. Generate all secrets using secure random generators
 2. Set via `wrangler secret put <NAME>` for each secret
 3. Document which secrets are set in a secure location
@@ -132,16 +142,19 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 **Severity:** HIGH
 
 **Current state:**
+
 - `deploy.yml` does validation but deploys straight to production
 - `STAGING_SUPABASE_DB_URL` is optional
 - No `affilite-mix-staging` Worker name exists
 
 **Risks:**
+
 - Database migration failures will happen in production
 - Breaking changes will immediately affect users
 - No rollback testing in realistic environment
 
 **Action required:**
+
 1. Create separate staging Cloudflare Worker
 2. Create separate staging Supabase project
 3. Set up GitHub Actions workflow for staging deploys
@@ -154,11 +167,13 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 **Severity:** HIGH
 
 **Current state:**
+
 - Terraform alerts exist but `var.alert_mechanisms` defaults to empty
 - Sentry DSN required but not configured
 - No evidence of PagerDuty/OpsGenie integration
 
 **Critical missing alerts:**
+
 - Authentication failures
 - Cron job failures
 - Database connection failures
@@ -167,6 +182,7 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 - Payment webhook failures
 
 **Action required:**
+
 1. Configure Sentry project and set DSN
 2. Set up alert destinations (email/Slack/PagerDuty)
 3. Wire destinations in Terraform `alert_mechanisms` variable
@@ -179,17 +195,20 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 **Severity:** HIGH
 
 **Current state:**
+
 - 253 migration files on single Postgres
 - Fresh DB restore must replay entire chain
 - Migration squashing strategy (ADR-0013) exists but not executed
 
 **Risks:**
+
 - DR restore takes hours instead of minutes
 - Any migration failure blocks entire restore
 - Version conflicts between extension versions
 - Manual intervention required for recovery
 
 **Action required:**
+
 1. Execute migration squashing per ADR-0013
 2. Test fresh database restore in staging
 3. Document restore time requirements
@@ -202,6 +221,7 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 **Severity:** HIGH
 
 **Required but not verified:**
+
 - `RATE_LIMIT_KV` namespace (distributed rate limiting will fail)
 - `APP_CACHE_KV` namespace (caching will fail)
 - `NEXT_INC_CACHE_R2_BUCKET` (ISR caching will fail)
@@ -209,6 +229,7 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 - `CLICK_QUEUE` + DLQ (click tracking will fail)
 
 **Action required:**
+
 1. Create all KV namespaces via `wrangler kv:namespace create`
 2. Create all R2 buckets
 3. Set environment variables for namespace IDs
@@ -236,6 +257,7 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 ### 11. Operational Complexity
 
 **Bus factor risk:**
+
 - 70+ environment variables to manage
 - 3 separate configuration files (wrangler.jsonc, .env, .dev.vars)
 - Configuration drift between IaC and Dashboard
@@ -248,6 +270,7 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 ## ✅ STRENGTHS & GOOD PRACTICES
 
 ### Security Architecture
+
 - ✅ JWT with binding cookies and activity tracking
 - ✅ CSRF double-submit with timing-safe compare
 - ✅ CSP with per-request nonces
@@ -260,6 +283,7 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 - ✅ Suspicious login detection
 
 ### Infrastructure
+
 - ✅ RLS policies on database
 - ✅ Workers deployed behind Cloudflare WAF
 - ✅ HSTS with preload
@@ -269,6 +293,7 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 - ✅ Queue-based click tracking with DLQ
 
 ### CI/CD & Testing
+
 - ✅ 14 GitHub workflows
 - ✅ 212 test files
 - ✅ Mutation testing with Stryker
@@ -279,6 +304,7 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 - ✅ SBOM generation
 
 ### Documentation
+
 - ✅ 148 markdown documentation files
 - ✅ Architecture Decision Records (ADRs)
 - ✅ Runbooks for operations
@@ -293,6 +319,7 @@ Based on `.env.example` and `docs/CLOUDFLARE.md`, you need to configure approxim
 Use this as your go/no-go gate. Every item must be checked before launch.
 
 ### Phase 1: Fix Critical Blockers (DO NOW)
+
 - [ ] Fix TypeScript compilation error in `lib/internal-hmac.ts`
 - [ ] Fix ESLint error in `lib/cron-registry.ts`
 - [ ] Fix test runner to work on Windows/PowerShell
@@ -302,6 +329,7 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 - [ ] Run `npm run build` - must exit 0
 
 ### Phase 2: Infrastructure Setup (BEFORE FIRST DEPLOY)
+
 - [ ] Create all Cloudflare KV namespaces
 - [ ] Create all R2 buckets
 - [ ] Create Durable Objects
@@ -312,6 +340,7 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 - [ ] Run binding validation script
 
 ### Phase 3: Security Configuration (BEFORE PUBLIC ACCESS)
+
 - [ ] Generate and set `JWT_SECRET` (64-byte hex)
 - [ ] Generate and set `INTERNAL_API_TOKEN` (64-byte hex)
 - [ ] Generate and set all 12 per-trigger cron secrets
@@ -325,6 +354,7 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 - [ ] Verify rate limiting works
 
 ### Phase 4: Observability (BEFORE HANDLING TRAFFIC)
+
 - [ ] Configure Sentry project and set both DSNs
 - [ ] Test Sentry error capture
 - [ ] Configure alert destinations (email/Slack/PagerDuty)
@@ -335,6 +365,7 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 - [ ] Set up SLO dashboards
 
 ### Phase 5: Database & Staging (BEFORE PRODUCTION DATA)
+
 - [ ] Create staging Supabase project
 - [ ] Apply all migrations to staging
 - [ ] Test fresh database restore in staging
@@ -345,6 +376,7 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 - [ ] Test full staging deploy workflow
 
 ### Phase 6: Operational Readiness (BEFORE GO-LIVE)
+
 - [ ] Complete DR drill (within last 90 days)
 - [ ] Test rollback procedure
 - [ ] Verify break-glass access works
@@ -358,6 +390,7 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 - [ ] Complete accessibility audit
 
 ### Phase 7: Compliance & Legal (BEFORE ACCEPTING USERS)
+
 - [ ] Privacy policy published
 - [ ] Terms of service published
 - [ ] Cookie consent banner working
@@ -372,14 +405,18 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 ## 🎯 RECOMMENDED ACTION PLAN
 
 ### Week 1: Fix Blockers
+
 **Goal:** Get the build working
+
 1. Fix TypeScript type error (30 minutes)
 2. Fix ESLint error (30 minutes)
 3. Fix test runner (1 hour)
 4. Verify all linting and tests pass
 
 ### Week 2: Infrastructure Setup
+
 **Goal:** Create and configure all cloud resources
+
 1. Create Cloudflare KV namespaces (2 hours)
 2. Create R2 buckets (1 hour)
 3. Generate and set all secrets (4 hours)
@@ -387,7 +424,9 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 5. Test basic deployment to production Worker
 
 ### Week 3: Staging Environment
+
 **Goal:** Safe testing environment
+
 1. Create staging Supabase project (2 hours)
 2. Create staging Worker (2 hours)
 3. Set up staging deploy workflow (4 hours)
@@ -395,7 +434,9 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 5. Test full app in staging
 
 ### Week 4: Observability & Alerts
+
 **Goal:** Catch failures before users do
+
 1. Configure Sentry (2 hours)
 2. Set up alert destinations (2 hours)
 3. Wire critical alerts (4 hours)
@@ -403,7 +444,9 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 5. Create monitoring dashboards
 
 ### Week 5: Testing & Validation
+
 **Goal:** Confidence in the system
+
 1. Run full test suite (2 hours)
 2. E2E testing in staging (4 hours)
 3. Load testing (4 hours)
@@ -411,7 +454,9 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 5. Accessibility audit (2 hours)
 
 ### Week 6: Soft Launch Preparation
+
 **Goal:** Limited user validation
+
 1. DR drill (4 hours)
 2. Runbook validation (2 hours)
 3. On-call setup (2 hours)
@@ -419,7 +464,9 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 5. Soft launch to limited users
 
 ### Week 7+: Monitor & Iterate
+
 **Goal:** Prove stability before scale
+
 1. Monitor for 2 weeks
 2. Fix any issues found
 3. Optimize performance
@@ -430,6 +477,7 @@ Use this as your go/no-go gate. Every item must be checked before launch.
 ## 💡 ARCHITECTURAL RECOMMENDATIONS
 
 ### For Launch
+
 These are **optional** improvements that would reduce risk but aren't blockers:
 
 1. **Simplify migration history** - Execute ADR-0013 squashing plan
@@ -439,6 +487,7 @@ These are **optional** improvements that would reduce risk but aren't blockers:
 5. **Create runbook for common incidents** - Faster MTTR
 
 ### For Scale (Post-Launch)
+
 These become critical as you grow:
 
 1. **Multi-region database** - Add read replicas
@@ -471,6 +520,7 @@ From the comprehensive audit document (`affilite-mix-AUDIT(15).md`):
 ## 📊 COMPLEXITY METRICS
 
 **Code:**
+
 - 253 database migrations
 - 212 test files
 - 148 documentation files
@@ -479,6 +529,7 @@ From the comprehensive audit document (`affilite-mix-AUDIT(15).md`):
 - 46 admin routes
 
 **Infrastructure:**
+
 - 2 Workers (main + heavy-crons)
 - 2 KV namespaces
 - 1 R2 bucket
@@ -488,6 +539,7 @@ From the comprehensive audit document (`affilite-mix-AUDIT(15).md`):
 - 25+ secrets
 
 **Team Fit:**
+
 - Current: Likely 1-2 developers
 - Recommended for this complexity: 5-8 engineers + 1 SRE
 
@@ -502,14 +554,16 @@ You have built an **extremely sophisticated platform** with excellent security p
 **Estimated time to launch-ready:** 4-6 weeks of focused work
 
 **Priority order:**
+
 1. Fix build/lint/test failures (Week 1)
-2. Set up infrastructure and secrets (Week 2)  
+2. Set up infrastructure and secrets (Week 2)
 3. Create staging environment (Week 3)
 4. Wire observability (Week 4)
 5. Test everything (Week 5)
 6. Soft launch (Week 6+)
 
 **Key risk:** The project's complexity exceeds typical 1-2 person team capacity. Consider either:
+
 - Simplifying the architecture before launch
 - Expanding the team before taking on production operational burden
 - Focusing on a single site (not multi-tenant) for initial launch
@@ -519,6 +573,7 @@ You have built an **extremely sophisticated platform** with excellent security p
 ---
 
 **Next Steps:**
+
 1. Fix the 3 critical blockers today
 2. Review this document with your team
 3. Create GitHub issues for each checklist item
