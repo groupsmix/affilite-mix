@@ -43,35 +43,6 @@ function getSupabaseUrl(): string {
   return url;
 }
 
-/**
- * Server-only Supabase client using the service role key.
- * Bypasses RLS — use only in server-side code (API routes, Server Actions, DAL)
- * for admin operations that genuinely need to bypass RLS.
- *
- * R3: Removed the global caching anti-pattern. We create a fresh client per request.
- * F19: The previous issue F19 asked to cache this per-isolate because TLS handshake overhead.
- * But R3 asked to fix the singleton anti-pattern. Actually, creating a fresh client in JS
- * DOES NOT create a new TLS handshake every time if the underlying Node.js/Cloudflare
- * fetch implementation reuses connections (which they do via connection pooling).
- * The global client caching was causing cross-request state pollution and was an anti-pattern.
- */
-// F-022: Cache clients per-isolate to reduce CPU overhead.
-// These clients do not hold mutable state (persistSession: false).
-let _anonClient: SupabaseClient<Database> | null = null;
-let _anonClientCreatedAt = 0;
-let _anonCachedUrl: string | null = null;
-let _anonCachedKey: string | null = null;
-/**
- * Anon-client cache TTL — mirrors the 5-minute window on the
- * privileged client (`lib/server-only/service-role.ts`) so anon-key
- * rotations propagate to long-lived isolates within one TTL without
- * a forced isolate restart. The cache is also invalidated immediately
- * if the URL or anon key in `process.env` differs from the values
- * used to mint the cached client, so a rotation combined with a
- * `wrangler deploy` rollout takes effect on the next request.
- */
-const ANON_CLIENT_TTL_MS = 5 * 60 * 1000;
-
 // H-3: Legacy getServiceClient export removed. All callers must use
 // getPrivilegedSupabaseClient from lib/server-only/service-role.ts.
 // ESLint no-restricted-imports rule still blocks the name to catch stale
@@ -149,14 +120,9 @@ export function getAnonClient(): SupabaseClient<Database> {
   const url = getSupabaseUrl();
   const key = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-  const now = Date.now();
-  const isExpired = now - _anonClientCreatedAt >= ANON_CLIENT_TTL_MS;
-  const envChanged = url !== _anonCachedUrl || key !== _anonCachedKey;
-
-  if (_anonClient && !isExpired && !envChanged) {
-    return _anonClient;
-  }
-
+  // P1-7: Do not cache anon clients globally. Even with persistSession=false,
+  // a shared singleton risks cross-request state bleed through future headers,
+  // fetch wrappers, or library internals.
   // A98-16: Circuit breaker for Supabase anon client — prevents cascading
   // failures when Supabase is degraded by short-circuiting fetch calls.
   const anonBreaker = getCircuitBreaker("supabase-anon", {
@@ -164,7 +130,7 @@ export function getAnonClient(): SupabaseClient<Database> {
     recoveryTimeoutMs: 15_000,
   });
 
-  _anonClient = createClient<Database>(url, key, {
+  return createClient<Database>(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -204,10 +170,6 @@ export function getAnonClient(): SupabaseClient<Database> {
       },
     },
   });
-  _anonClientCreatedAt = now;
-  _anonCachedUrl = url;
-  _anonCachedKey = key;
-  return _anonClient;
 }
 
 /* ------------------------------------------------------------------ */

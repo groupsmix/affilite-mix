@@ -4,6 +4,8 @@ import { setApiVersionHeaders } from "@/lib/api-version";
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const STREAMING_ALLOWLIST = new Set(["/api/admin/upload"]);
+const STATIC_ASSET_PATH_RE =
+  /^(?:\/_next\/static\/|\/(?:favicon\.ico|robots\.txt|sitemap\.xml)|.*\.(?:css|js|mjs|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|map))$/i;
 
 /**
  * Reject excessively large request bodies early to prevent Worker CPU
@@ -93,12 +95,17 @@ export function applySecurityHeaders(
   }
 
   const isApiRoute = pathname.startsWith("/api/");
+  const isStaticAsset = STATIC_ASSET_PATH_RE.test(pathname);
 
   if (isApiRoute) {
     setApiVersionHeaders(response.headers, opts.requestedApiVersion);
   }
 
-  if (!isApiRoute && !pathname.startsWith("/q7m-k4j9")) {
+  if (isStaticAsset) {
+    if (!response.headers.has("Cache-Control")) {
+      response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    }
+  } else if (!isApiRoute && !pathname.startsWith("/q7m-k4j9")) {
     if (!response.headers.has("Cache-Control")) {
       response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
     }

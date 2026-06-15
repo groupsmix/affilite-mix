@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 
 function walkRouteFiles(dir: string): string[] {
   const results: string[] = [];
@@ -42,7 +42,7 @@ describe("F-SEC-01: admin routes must not use service-role client", () => {
   });
 
   for (const route of routes) {
-    const relativePath = route.replace(process.cwd() + "/", "");
+    const relativePath = relative(process.cwd(), route).replaceAll("\\", "/");
     if (SERVICE_ROLE_ALLOWLIST.has(relativePath)) continue;
     it(`${relativePath} does not import server-only/service-role`, () => {
       const content = readFileSync(route, "utf-8");

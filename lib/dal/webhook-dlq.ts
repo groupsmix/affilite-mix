@@ -129,6 +129,7 @@ export async function writeToDlq(entry: DlqEntry): Promise<void> {
       },
       { onConflict: "event_id" },
     )
+    // SAFE: webhook DLQ stores platform-level Stripe events with no tenant context.
     .unsafeNoSiteFilter();
   if (error) {
     logger.error("Failed to write webhook event to DLQ table", {
@@ -167,6 +168,7 @@ export async function listDlqEntries(
   const { data, error } = await sb
     .from("webhook_dlq")
     .select("id, event_id, event_type, error_message, attempts, status, created_at, resolved_at")
+    // SAFE: DLQ review is a cross-tenant operator workflow over the global queue table.
     .unsafeNoSiteFilter()
     .eq("status", status)
     .order("created_at", { ascending: false })
@@ -184,6 +186,7 @@ export async function resolveDlqEntry(eventId: string): Promise<void> {
   const { error } = await sb
     .from("webhook_dlq")
     .update({ status: "resolved", resolved_at: new Date().toISOString() })
+    // SAFE: resolving DLQ entries mutates the platform-level webhook backlog.
     .unsafeNoSiteFilter()
     .eq("event_id", eventId);
   if (error) {

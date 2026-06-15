@@ -21,15 +21,60 @@ on:
   pull_request:
     branches: [main]
   schedule:
+    # Nightly 02:15 UTC — asserts temporary production bypasses were removed.
+    - cron: "15 2 * * *"
     # Every Monday 06:00 UTC — catches advisories published over the weekend.
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
   pull-requests: read
 
 jobs:
+  migration-skip-override-absent:
+    name: Migration skip override absent
+    # A89/A98-68 / PR #812 follow-up: this bypass must not linger in repo
+    # Actions variables after an incident. Nightly failure is the alert.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert SKIP_DB_MIGRATIONS is unset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          FOUND_VARS=()
+          for VAR_NAME in \
+            SKIP_DB_MIGRATIONS \
+            SKIP_DB_MIGRATIONS_TICKET \
+            SKIP_DB_MIGRATIONS_EXPIRES; do
+            if gh api "repos/${GITHUB_REPOSITORY}/actions/variables/${VAR_NAME}" >/tmp/"${VAR_NAME}".json 2>/dev/null; then
+              FOUND_VARS+=("${VAR_NAME}")
+            fi
+          done
+
+          if [ "${#FOUND_VARS[@]}" -gt 0 ]; then
+            echo "::error::Temporary migration-skip Actions variables are still present."
+            echo "::error::Delete SKIP_DB_MIGRATIONS, SKIP_DB_MIGRATIONS_TICKET, and SKIP_DB_MIGRATIONS_EXPIRES after production migrations are confirmed applied."
+            {
+              echo "### SKIP_DB_MIGRATIONS override still present"
+              echo ""
+              echo "Temporary migration-skip repo variables still exist and must be removed:"
+              for VAR_NAME in "${FOUND_VARS[@]}"; do
+                echo "- \`${VAR_NAME}\`"
+              done
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            for VAR_NAME in "${FOUND_VARS[@]}"; do
+              cat /tmp/"${VAR_NAME}".json
+            done
+            exit 1
+          fi
+
+          echo "Temporary migration-skip Actions variables are not configured."
+
   audit:
     name: npm audit (high / critical)
     runs-on: ubuntu-latest

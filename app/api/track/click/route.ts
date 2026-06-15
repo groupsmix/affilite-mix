@@ -15,6 +15,7 @@ import { getAppCacheKV } from "@/lib/runtime-env";
 import { getOrDeriveHmacKey } from "@/lib/hmac-key";
 import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
 import { verifyToken } from "@/lib/auth";
+import { isHttpsUrl } from "@/lib/validation";
 
 /**
  * A158: Compute a privacy-preserving click fingerprint for 24-hour dedup.
@@ -281,11 +282,10 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     }
 
     const destinationUrl = cachedData.url;
-    const allowedSchemes = ["http:", "https:"];
     let urlObj: URL;
     try {
       urlObj = new URL(destinationUrl);
-      if (!allowedSchemes.includes(urlObj.protocol)) {
+      if (!isHttpsUrl(destinationUrl)) {
         return apiError(400, "Invalid affiliate URL scheme");
       }
     } catch {

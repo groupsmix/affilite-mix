@@ -112,7 +112,7 @@ function isUrl(v: unknown): v is string {
 }
 
 /** Validate that a URL uses the https:// scheme (prevents javascript:, data:, etc.) */
-function isHttpsUrl(v: unknown): v is string {
+export function isHttpsUrl(v: unknown): v is string {
   if (!isString(v)) return false;
   try {
     const url = new URL(v);

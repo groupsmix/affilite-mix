@@ -188,6 +188,7 @@ async function getGlobalRole(
   const { data, error } = await sb
     .from("admin_users")
     .select("role")
+    // SAFE: `admin_users.role` is global control-plane state used before tenant authz.
     .unsafeNoSiteFilter()
     .eq("id", userId)
     .abortSignal(signal)

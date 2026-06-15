@@ -167,7 +167,7 @@ export function buildCspHeader(nonce: string): string {
     // compensating control (sanitize-html.ts) mitigates the XSS risk by
     // stripping style attributes from user content. This is tracked for
     // future resolution in F-20.
-    "style-src 'self' 'unsafe-inline'",
+    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
     "font-src 'self'",
     `img-src ${imgSources.join(" ")}`,
     `connect-src ${connectSources.join(" ")}`,

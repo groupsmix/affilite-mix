@@ -38,6 +38,10 @@ vi.mock("@/lib/auth", () => ({
   AdminPayload: {},
 }));
 
+vi.mock("@/lib/active-site", () => ({
+  getActiveSiteSlug: async () => mockCookieStore.get("nh_active_site") ?? null,
+}));
+
 // Mock rate limiter — always allow
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: async () => ({ allowed: true, remaining: 99, retryAfterMs: 0 }),
@@ -58,6 +62,22 @@ vi.mock("@/lib/dal/site-resolver", () => ({
     if (!id) throw new Error(`Site not found in database for slug: ${slug}`);
     return id;
   },
+}));
+
+vi.mock("@/lib/dal/sites", () => ({
+  getSiteRowBySlugWithClient: async () => null,
+}));
+
+vi.mock("@/lib/server-only/service-role", () => ({
+  getPrivilegedSupabaseClient: vi.fn(),
+}));
+
+vi.mock("@/lib/runtime-env", () => ({
+  getAppCacheKV: () => undefined,
+}));
+
+vi.mock("@/lib/audit-log", () => ({
+  recordAuditEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock membership DAL — control per test
