@@ -600,7 +600,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           # Use the repo-pinned Node version (.nvmrc → 22.22.2) like every
           # other CI job. package.json engines require >=22.22.2 and the
