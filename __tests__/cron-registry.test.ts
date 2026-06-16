@@ -271,14 +271,20 @@ describe("cron-registry — deploy.yml secret upload coverage (NEW-001)", () => 
     }
   });
 
-  it("uploads every per-trigger secret to the affilite-mix-heavy-crons worker", () => {
-    // The heavy-crons dispatcher reads job.secretEnvVar from its own
-    // env, so missing secrets there silently skip dispatch — the
-    // heavy crons (ai-generate / commission-ingest / price-scrape)
-    // never run at all. We push the full set to keep parity with the
-    // main worker so re-flagging `heavy: true` on a job is a
-    // registry-only change.
-    for (const job of cronJobs) {
+  it("uploads CRON_HOST and every heavy-job per-trigger secret to the affilite-mix-heavy-crons worker", () => {
+    // Least-privilege (deploy commit 9242162): the heavy-crons dispatcher
+    // only fires jobs flagged `heavy: true` in the registry — currently
+    // ai-generate, commission-ingest and price-scrape. At trigger time it
+    // reads CRON_HOST plus the per-trigger secret for the job that fired,
+    // so deploy.yml uploads exactly CRON_HOST + the heavy-job secrets, not
+    // the main worker's full set. This guard keeps the heavy-crons secret
+    // list in lock-step with the `heavy` flags in cron-registry.ts.
+    expect(deployYml).toMatch(
+      /wrangler@\$\{WRANGLER_VERSION\} secret put CRON_HOST\b[^\n]*--name "?affilite-mix-heavy-crons"?/,
+    );
+    const heavyJobs = cronJobs.filter((job) => job.heavy);
+    expect(heavyJobs.length).toBeGreaterThan(0);
+    for (const job of heavyJobs) {
       const re = new RegExp(
         `wrangler@\\$\\{WRANGLER_VERSION\\} secret put ${job.secretEnvVar}\\b[^\\n]*--name "?affilite-mix-heavy-crons"?`,
       );
@@ -286,16 +292,16 @@ describe("cron-registry — deploy.yml secret upload coverage (NEW-001)", () => 
     }
   });
 
-  it("uploads CRON_HOST and the shared CRON_SECRET fallback to heavy-crons", () => {
-    // The heavy-crons worker needs CRON_HOST to know where to POST
-    // and the shared CRON_SECRET as a fallback if a per-trigger
-    // secret is somehow unset.
-    expect(deployYml).toMatch(
-      /wrangler@\$\{WRANGLER_VERSION\} secret put CRON_HOST\b[^\n]*--name "?affilite-mix-heavy-crons"?/,
-    );
-    expect(deployYml).toMatch(
-      /wrangler@\$\{WRANGLER_VERSION\} secret put CRON_SECRET\b[^\n]*--name "?affilite-mix-heavy-crons"?/,
-    );
+  it("does not push non-heavy per-trigger secrets to the heavy-crons worker (least-privilege)", () => {
+    // Minimise blast radius: secrets for jobs that never run on heavy-crons
+    // must not be uploaded to it. If a job is later flagged `heavy: true`,
+    // add its secret to the heavy-crons deploy step in the same change.
+    for (const job of cronJobs.filter((job) => !job.heavy)) {
+      const re = new RegExp(
+        `secret put ${job.secretEnvVar}\\b[^\\n]*--name "?affilite-mix-heavy-crons"?`,
+      );
+      expect(deployYml).not.toMatch(re);
+    }
   });
 });
 
