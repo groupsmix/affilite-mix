@@ -1910,7 +1910,7 @@ jobs:
           ROLLBACK_FAILED=0
           for migration in $RECENT_MIGRATIONS; do
             # Derive the down-migration filename
-            down_file="supabase/migrations/${migration%.sql}-down.sql"
+            down_file="supabase/migrations-down/${migration%.sql}-down.sql"
             if [ ! -f "$down_file" ]; then
               echo "::error::Down-migration not found: $down_file"
               ROLLBACK_FAILED=1

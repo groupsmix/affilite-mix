@@ -18,6 +18,12 @@
 set -euo pipefail
 
 MIGRATIONS_DIR="${1:-supabase/migrations}"
+# Down-migrations live in a sibling directory so the Supabase CLI / branching
+# preview scanner (which globs supabase/migrations/*.sql and keys
+# schema_migrations on the filename prefix) never sees them — otherwise
+# NNNNN_x.sql and NNNNN_x-down.sql collide on the same version key. See the
+# "Run migrations up" step in .github/workflows/ci.yml for the same rationale.
+DOWN_DIR="${2:-supabase/migrations-down}"
 
 if [ ! -d "$MIGRATIONS_DIR" ]; then
   echo "check-migration-replay: directory not found: $MIGRATIONS_DIR" >&2
@@ -54,11 +60,11 @@ while IFS= read -r -d '' file; do
 
   checked_migrations=$((checked_migrations + 1))
 
-  # Determine the expected down-migration filename
+  # Determine the expected down-migration filename in the sibling DOWN_DIR.
   # Common patterns:
-  #   20240101000000_create_users.sql -> 20240101000000_create_users-down.sql
-  #   00001_initial_schema.sql -> 00001_initial_schema-down.sql
-  down_file="${file%.sql}-down.sql"
+  #   supabase/migrations/00001_initial_schema.sql
+  #     -> supabase/migrations-down/00001_initial_schema-down.sql
+  down_file="$DOWN_DIR/$(basename "${file%.sql}")-down.sql"
   
   if [ ! -f "$down_file" ]; then
     missing_downs+=("$base")

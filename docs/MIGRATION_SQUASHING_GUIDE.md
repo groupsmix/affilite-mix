@@ -58,7 +58,7 @@ mkdir -p supabase/migrations/archive
 ```bash
 # Move all migrations except the new baseline to archive
 mv supabase/migrations/0000*.sql supabase/migrations/archive/
-mv supabase/migrations/0000*-down.sql supabase/migrations/archive/
+mv supabase/migrations-down/0000*-down.sql supabase/migrations-down/archive/
 ```
 
 ### 2.3 Verify Archive

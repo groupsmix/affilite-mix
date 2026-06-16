@@ -135,7 +135,8 @@ fresh environment.
 
 ## Rollback Playbook (audit R-5 + #46)
 
-Each forward migration ships with a paired `*-down.sql` whenever a
+Each forward migration ships with a paired `*-down.sql` (stored in the sibling
+`supabase/migrations-down/` directory, **not** beside the up-migration) whenever a
 data-destructive or policy-changing operation is involved. To revert
 the latest applied migration safely:
 
@@ -145,7 +146,7 @@ the latest applied migration safely:
 supabase db dump --linked --file rollback-$(date +%Y%m%d-%H%M).sql
 
 # 2. Apply the down file.
-psql "$SUPABASE_DB_URL" -f supabase/migrations/<NN>_<name>-down.sql
+psql "$SUPABASE_DB_URL" -f supabase/migrations-down/<NN>_<name>-down.sql
 
 # 3. Re-run the schema-drift script so types and snapshot match.
 bash scripts/check-schema-drift.sh

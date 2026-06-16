@@ -41,6 +41,7 @@ explaining why rollback is unsafe.
 
 ## Down-Migration Requirements
 
-Every up-migration **must** have a corresponding `-down.sql` file. The CI script
+Every up-migration **must** have a corresponding `-down.sql` file in the sibling
+`supabase/migrations-down/` directory. The CI script
 `scripts/check-migrations.sh` enforces this. Down-migrations are exempt from the
 RLS and security-definer checks since they intentionally restore prior state.

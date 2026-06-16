@@ -23,10 +23,10 @@ psql "$SUPABASE_DB_URL" -c "SELECT * FROM supabase_migrations.schema_migrations 
 
 ### 2. Review the Rollback Script
 
-Every migration in `supabase/migrations/` has a corresponding `-down.sql` file. Review it before applying:
+Every migration in `supabase/migrations/` has a corresponding `-down.sql` file in the sibling `supabase/migrations-down/` directory. Review it before applying:
 
 ```bash
-cat supabase/migrations/00094_fts_index_alignment-down.sql
+cat supabase/migrations-down/00094_fts_index_alignment-down.sql
 ```
 
 Verify the rollback script:
@@ -39,7 +39,7 @@ Verify the rollback script:
 
 ```bash
 # Apply the down migration
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/NNNNN_name-down.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/migrations-down/NNNNN_name-down.sql
 ```
 
 ### 4. Remove the Migration Record
