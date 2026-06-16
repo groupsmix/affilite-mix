@@ -287,11 +287,12 @@
   //   2. Verify the shipper is receiving events in the CF dashboard
   //   3. The deploy workflow auto-injects this entry on main pushes
   //
-  "tail_consumers": [
-    // A40: Durable observability sink — log-shipper worker forwards to
-    // the configured long-term storage backend (R2 / Axiom / etc.).
-    { "service": "affilite-mix-log-shipper" },
-  ],
+  // A40: Durable observability sink — log-shipper worker forwards to the
+  // configured long-term storage backend (R2 / Axiom / etc.). Opt-out by
+  // default ([]) so deploys succeed even when the shipper is not yet
+  // provisioned; the deploy workflow injects the shipper service via
+  // scripts/inject-tail-consumers.mjs when LOG_SHIPPER_ENABLED=true.
+  "tail_consumers": [],
   // F-03: Staging environment configuration
   //
   // Staging provides a production-like environment for testing changes
