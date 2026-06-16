@@ -37,6 +37,11 @@
 set -euo pipefail
 
 MIGRATIONS_DIR="${1:-supabase/migrations}"
+# Down-migrations live in a sibling directory (supabase/migrations-down/) so the
+# Supabase CLI / branching preview scanner never picks them up as forward
+# migrations — NNNNN_x.sql and NNNNN_x-down.sql would otherwise collide on the
+# same schema_migrations version key.
+DOWN_DIR="${2:-supabase/migrations-down}"
 
 if [ ! -d "$MIGRATIONS_DIR" ]; then
   echo "check-migrations: directory not found: $MIGRATIONS_DIR" >&2
@@ -198,9 +203,9 @@ while IFS= read -r -d '' file; do
   case "$base" in
     *-down.sql) continue ;;
   esac
-  down_file="${file%.sql}-down.sql"
+  down_file="$DOWN_DIR/$(basename "${file%.sql}")-down.sql"
   if [ ! -f "$down_file" ]; then
-    echo "::error file=$file::Up-migration has no matching -down.sql rollback file." >&2
+    echo "::error file=$file::Up-migration has no matching rollback file at $down_file." >&2
     missing_down=$((missing_down + 1))
   fi
 done < <(find "$MIGRATIONS_DIR" -type f -name '*.sql' -print0 | sort -z)

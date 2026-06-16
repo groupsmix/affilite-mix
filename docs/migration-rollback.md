@@ -39,12 +39,12 @@ Migration failed in production?
 SELECT * FROM _migrations_applied ORDER BY applied_at DESC LIMIT 5;
 
 # 2. Locate the down file
-ls supabase/migrations/NNNNN_*-down.sql
+ls supabase/migrations-down/NNNNN_*-down.sql
 
 # 3. Run the down migration inside a transaction
 psql "$DATABASE_URL" <<'SQL'
 BEGIN;
-\i supabase/migrations/NNNNN_description-down.sql
+\i supabase/migrations-down/NNNNN_description-down.sql
 DELETE FROM _migrations_applied WHERE migration_name = 'NNNNN_description';
 COMMIT;
 SQL

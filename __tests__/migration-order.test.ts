@@ -26,13 +26,17 @@ describe("supabase migration filenames", () => {
   it("every forward migration has a paired down file when its name suggests a destructive change", () => {
     // Convenience guard: anything whose name contains 'drop', 'remove',
     // 'harden', 'tenant_isolation', or 'rls' should ship a -down.sql.
+    // Down files live in the sibling supabase/migrations-down/ directory so the
+    // Supabase branching preview scanner never collides on duplicate version
+    // prefixes (NNNNN_x.sql vs NNNNN_x-down.sql).
     const dir = join(process.cwd(), "supabase", "migrations");
-    const all = readdirSync(dir).filter((f) => f.endsWith(".sql"));
-    const forward = all.filter((f) => !f.endsWith("-down.sql"));
+    const downDir = join(process.cwd(), "supabase", "migrations-down");
+    const forward = readdirSync(dir).filter((f) => f.endsWith(".sql") && !f.endsWith("-down.sql"));
+    const downFiles = new Set(readdirSync(downDir).filter((f) => f.endsWith("-down.sql")));
     const dangerous = forward.filter((f) => /(drop|remove|harden|tenant_isolation|rls)/i.test(f));
     const missing = dangerous.filter((f) => {
       const expected = f.replace(/\.sql$/, "-down.sql");
-      return !all.includes(expected);
+      return !downFiles.has(expected);
     });
     expect(missing, `Migrations missing a down counterpart: ${JSON.stringify(missing)}`).toEqual(
       [],

@@ -193,7 +193,7 @@ API Routes → DAL (Data Access Layer) → Supabase (RLS-defended)
 ### Add Database Migration
 
 1. Create file: `supabase/migrations/20260611XXXX_description.sql`
-2. Create corresponding `-down.sql` for rollback
+2. Create corresponding `-down.sql` in `supabase/migrations-down/` for rollback
 3. Test migration locally: `npm run db:migrate`
 4. Run `scripts/check-migrations.sh` for policy compliance
 

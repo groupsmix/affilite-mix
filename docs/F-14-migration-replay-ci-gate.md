@@ -32,7 +32,7 @@ Add the following step to `.github/workflows/ci.yml` after line 64 (after the ex
 
 **Checks Performed:**
 
-1. **Missing down-migrations**: For each `*.sql` file, expects a corresponding `*-down.sql` file
+1. **Missing down-migrations**: For each `*.sql` file, expects a corresponding `*-down.sql` file in `supabase/migrations-down/`
 2. **Empty down-migrations**: Warns if down-migration files are empty or contain only comments
 3. **Naming convention**: Validates filenames match pattern `TIMESTAMP_description.sql` or `NUMBER_description.sql`
 

@@ -68,7 +68,7 @@ Run `npm run smoke` (defined in `package.json`) which hits:
 | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Cloudflare Pages    | Pages → Deployments → previous successful → "Promote to production".                                             |
 | Cloudflare Workers  | `npx wrangler rollback`.                                                                                         |
-| Supabase migrations | Run the matching `*-down.sql` from `supabase/migrations/`. See `supabase/migrations/README.md` for the playbook. |
+| Supabase migrations | Run the matching `*-down.sql` from `supabase/migrations-down/`. See `supabase/migrations/README.md` for the playbook. |
 | Cloudflare KV / R2  | Restore from snapshot per `docs/BACKUP-POLICY.md`.                                                               |
 
 ## Coordination
