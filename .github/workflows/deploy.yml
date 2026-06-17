@@ -10,45 +10,75 @@
 #
 # SETUP REQUIRED (one-time):
 # Go to GitHub repo → Settings → Secrets and variables → Actions
-# Add these secrets (see docs/CLOUDFLARE.md for full inventory):
 #
-# ── Build-time (used by Next.js bundler + wrangler CLI) ──
-#   - CLOUDFLARE_API_TOKEN (scoped token — see docs/cloudflare-production.md)
-#     REQUIRED. CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL (Global Key) is NOT
-#     supported by this workflow — the Global Key grants full account access
-#     and must not be used. Create a scoped API token instead.
-#   - CLOUDFLARE_ACCOUNT_ID
-#   - NEXT_PUBLIC_SUPABASE_URL
-#   - NEXT_PUBLIC_SUPABASE_ANON_KEY
-#   - SUPABASE_DB_URL (for DB migrations only — must be IPv4-reachable;
-#     GitHub-hosted runners are IPv4-only and the direct Supabase host
-#     `db.<ref>.supabase.co` is IPv6-only on the free tier. Use the
-#     Session pooler URL instead: aws-0-<region>.pooler.supabase.com:5432).
-#   - SUPABASE_DB_POOLER_URL (optional override; if set, used for migrations
-#     in preference to SUPABASE_DB_URL. Lets teams keep the direct URL for
-#     other tooling while giving CI an IPv4-reachable pooler URL.)
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  IMPORTANT: Two separate tabs — Secrets vs Variables            ║
+# ║                                                                  ║
+# ║  SECRETS tab  → sensitive keys (tokens, passwords, API keys)    ║
+# ║  VARIABLES tab → non-sensitive config (URLs, IDs, flags)        ║
+# ║                                                                  ║
+# ║  Putting a value in the wrong tab = empty value at runtime,     ║
+# ║  which silently skips it or fails the validate step.            ║
+# ╚══════════════════════════════════════════════════════════════════╝
 #
-# ── Runtime Worker secrets (set via `wrangler secret put`) ──
+# ── SECRETS tab (Settings → Secrets and variables → Actions → Secrets) ──
+#
+#   Build / wrangler CLI:
+#   - CLOUDFLARE_API_TOKEN  (scoped token — see docs/cloudflare-production.md)
+#     REQUIRED. Do NOT use CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL (Global Key) —
+#     the Global Key grants full account access. Create a scoped token instead.
+#   - SUPABASE_DB_URL        (migrations; use IPv4 Session pooler URL on free tier)
+#   - SUPABASE_DB_POOLER_URL (optional; preferred over SUPABASE_DB_URL for CI)
+#
+#   Runtime Worker secrets (pushed via `wrangler secret put`):
 #   - SUPABASE_SERVICE_ROLE_KEY
-#   - JWT_SECRET (generate: openssl rand -hex 64)
-#   - CRON_SECRET (generate: openssl rand -hex 32) — shared fallback, dev/staging only
-#   - CRON_HOST (e.g. https://wristnerd.xyz)
-#   - INTERNAL_API_TOKEN (generate: openssl rand -hex 64)
-#   - RESEND_API_KEY, SENTRY_DSN, TURNSTILE_SECRET_KEY (optional)
-#   - Stripe: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID_INSIDER, STRIPE_PRICE_ID_PRO (optional — required for paid memberships)
+#   - SUPABASE_JWT_SECRET
+#   - JWT_SECRET              (generate: openssl rand -hex 64)
+#   - CRON_SECRET             (generate: openssl rand -hex 32) — shared fallback
+#   - INTERNAL_API_TOKEN      (generate: openssl rand -hex 64)
+#   - TURNSTILE_SECRET_KEY
+#   - RESEND_API_KEY          (optional)
+#   - Stripe (optional — required for paid memberships):
+#       STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+#       STRIPE_PRICE_ID_INSIDER, STRIPE_PRICE_ID_PRO
 #   - Per-trigger cron secrets — REQUIRED in production (NEW-001):
 #       CRON_PUBLISH_SECRET, CRON_STRIPE_SYNC_SECRET, CRON_AI_SECRET,
 #       CRON_SITEMAP_SECRET, CRON_RETENTION_SECRET, CRON_COMMISSION_SECRET,
 #       CRON_EPC_SECRET, CRON_PRICE_SECRET, CRON_DEALS_SECRET,
+#       CRON_CLICK_RECONCILE_SECRET, CRON_ACCESS_REVIEW_SECRET,
 #       CRON_HOMEPAGE_SYNTHETIC_SECRET
-#     (single source of truth: `lib/cron-registry.ts -> cronJobs`).
-#     `verifyCronAuth` rejects requests in production when only the
-#     shared CRON_SECRET fallback is configured, so the deploy below
-#     uploads every per-trigger secret to BOTH `affilite-mix` and
-#     `affilite-mix-heavy-crons` workers.
-#   - AI keys: CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COHERE_API_KEY (optional)
-#   - Affiliate: CJ_API_KEY, CJ_PUBLISHER_ID, PARTNERSTACK_API_KEY, ADMITAD_API_KEY, ADMITAD_PUBLISHER_ID (optional)
-#   - R2: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL (optional)
+#     (single source of truth: `lib/cron-registry.ts -> cronJobs`)
+#   - AI keys (optional):
+#       CLOUDFLARE_AI_API_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COHERE_API_KEY
+#   - Affiliate (optional):
+#       CJ_API_KEY, CJ_PUBLISHER_ID, PARTNERSTACK_API_KEY,
+#       ADMITAD_API_KEY, ADMITAD_PUBLISHER_ID
+#   - R2 credentials (optional):
+#       R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+#   - Misc (optional):
+#       SLACK_DEPLOY_WEBHOOK_URL, E2E_BASE_URL,
+#       STAGING_SUPABASE_URL, STAGING_SUPABASE_ANON_KEY, STAGING_SUPABASE_DB_URL
+#
+# ── VARIABLES tab (Settings → Secrets and variables → Actions → Variables) ──
+#
+#   Required:
+#   - CLOUDFLARE_ACCOUNT_ID
+#   - NEXT_PUBLIC_SUPABASE_URL
+#   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+#   - CRON_HOST               (e.g. https://wristnerd.xyz)
+#
+#   Optional:
+#   - NEXT_PUBLIC_TURNSTILE_SITE_KEY
+#   - NEXT_PUBLIC_SENTRY_DSN
+#   - NEXT_PUBLIC_DEFAULT_SITE
+#   - SENTRY_DSN
+#   - R2_ACCOUNT_ID, R2_BUCKET_NAME, R2_PUBLIC_URL
+#   - R2_PRIVATE_BUCKET, R2_PUBLIC_BUCKET
+#   - LOG_SHIPPER_ENABLED     (set to 'true' once log-shipper worker is deployed)
+#   - GRADUAL_ROLLOUT_ENABLED (set to 'true' for canary deploys; requires Workers Paid)
+#   - SKIP_ALERTING_CHECK     (set to 'true' to bypass alerting config check)
+#   - SKIP_LOG_SHIPPER_CHECK  (set to 'true' to bypass log-shipper enforcement)
+#   - SKIP_DB_MIGRATIONS, SKIP_STAGING_SMOKE (break-glass overrides)
 #
 # ── Admin bootstrap ──
 #   Admin user creation has been moved to a separate break-glass workflow:
@@ -350,12 +380,17 @@ jobs:
           done
 
           if [ -n "$MISSING" ]; then
-            echo "::error::Missing required secrets:$MISSING"
-            echo "Add them in GitHub → Settings → Secrets and variables → Actions"
+            echo "::error::Missing required secrets/variables:$MISSING"
+            echo "::error::Add them in GitHub → Settings → Secrets and variables → Actions"
+            echo "::error::NOTE — check which TAB each item belongs in:"
+            echo "::error::  VARIABLES tab (non-sensitive): CLOUDFLARE_ACCOUNT_ID, NEXT_PUBLIC_SUPABASE_URL,"
+            echo "::error::    NEXT_PUBLIC_SUPABASE_ANON_KEY, CRON_HOST"
+            echo "::error::  SECRETS tab (sensitive): everything else listed above"
+            echo "::error::Putting a value in the wrong tab results in an empty value and this error."
             exit 1
           fi
 
-          echo "All required secrets are present"
+          echo "All required secrets/variables are present"
 
       # ── RISK-OBS-01 (#586) + A40-03: Validate production alerting config ──
       # A40-03: Upgraded from warning to error for production deploys.
@@ -949,6 +984,19 @@ jobs:
           OVERRIDE="${{ vars.LOG_SHIPPER_REQUIRED_OVERRIDE }}"
           OVERRIDE_TICKET="${{ vars.LOG_SHIPPER_OVERRIDE_TICKET }}"
           OVERRIDE_EXPIRES="${{ vars.LOG_SHIPPER_OVERRIDE_EXPIRES }}"
+          SKIP_CHECK="${{ vars.SKIP_LOG_SHIPPER_CHECK }}"
+
+          # SKIP_LOG_SHIPPER_CHECK=true is a simple bypass for projects that
+          # have not yet provisioned the log-shipper worker. Unlike
+          # LOG_SHIPPER_REQUIRED_OVERRIDE, it does not require a ticket or
+          # expiry — it is intended for early-stage / non-production setups.
+          # Set SKIP_LOG_SHIPPER_CHECK=false (or remove it) once you are ready
+          # to enforce durable observability.
+          if [ "$SKIP_CHECK" = "true" ]; then
+            echo "::warning::SKIP_LOG_SHIPPER_CHECK=true — skipping log-shipper enforcement (F-009)."
+            echo "::warning::To enable durable observability: deploy workers/log-shipper and set LOG_SHIPPER_ENABLED=true."
+            exit 0
+          fi
 
           if [ "$ENABLED" != "true" ] && [ "$OVERRIDE" != "true" ]; then
             echo "::error::F-009: production deploy requires LOG_SHIPPER_ENABLED=true." >&2
@@ -957,6 +1005,8 @@ jobs:
             echo "::error::override, set LOG_SHIPPER_REQUIRED_OVERRIDE=true along with:" >&2
             echo "::error::  LOG_SHIPPER_OVERRIDE_TICKET=<incident/change ticket URL>" >&2
             echo "::error::  LOG_SHIPPER_OVERRIDE_EXPIRES=<ISO8601 UTC datetime>" >&2
+            echo "::error::Or set SKIP_LOG_SHIPPER_CHECK=true (Variables tab) to bypass" >&2
+            echo "::error::enforcement for projects not yet using the log-shipper." >&2
             exit 1
           fi
 
