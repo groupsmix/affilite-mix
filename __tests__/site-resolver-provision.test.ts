@@ -15,6 +15,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { SiteRow } from "@/types/database";
 
 const mocks = vi.hoisted(() => ({
+  getSiteRowBySlug: vi.fn(),
   getSiteRowBySlugWithClient: vi.fn(),
   upsertConfigSite: vi.fn(),
   getSiteById: vi.fn(),
@@ -25,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/dal/sites", () => ({
+  getSiteRowBySlug: mocks.getSiteRowBySlug,
   getSiteRowBySlugWithClient: mocks.getSiteRowBySlugWithClient,
   upsertConfigSite: mocks.upsertConfigSite,
 }));
@@ -52,6 +54,7 @@ async function importResolver() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.shouldSkipDbCall.mockReturnValue(false);
+  mocks.getSiteRowBySlug.mockResolvedValue(null);
   mocks.getSiteRowBySlugWithClient.mockResolvedValue(null);
   mocks.getSiteById.mockReturnValue(undefined);
   mocks.toSiteRow.mockReturnValue({ slug: "crypto-tools" });
@@ -73,13 +76,18 @@ describe("site-resolver auto-provisioning", () => {
     expect(mocks.upsertConfigSite).toHaveBeenCalledTimes(1);
   });
 
-  it("resolves the active site with the privileged (service-role) client", async () => {
-    mocks.getSiteRowBySlugWithClient.mockResolvedValueOnce(dbRow);
+  it("reads the public path via the cached tenant client, never the privileged client", async () => {
+    // The public read path (app/layout.tsx, app/manifest.ts, app/apple-icon.tsx)
+    // runs on every render. It must resolve through the unstable_cache-backed
+    // getSiteRowBySlug — using the uncached privileged client here adds a
+    // Supabase round-trip to TTFB on every page and regresses the Lighthouse
+    // document-latency / LCP budget.
+    mocks.getSiteRowBySlug.mockResolvedValueOnce(dbRow);
     const { resolveDbSiteBySlug } = await importResolver();
-    await resolveDbSiteBySlug("crypto-tools");
-    const clientGetter = mocks.getSiteRowBySlugWithClient.mock.calls[0]![1] as () => unknown;
-    clientGetter();
-    expect(mocks.getPrivilegedSupabaseClient).toHaveBeenCalled();
+    await expect(resolveDbSiteBySlug("crypto-tools")).resolves.toBe(dbRow);
+    expect(mocks.getSiteRowBySlug).toHaveBeenCalledWith("crypto-tools");
+    expect(mocks.getSiteRowBySlugWithClient).not.toHaveBeenCalled();
+    expect(mocks.getPrivilegedSupabaseClient).not.toHaveBeenCalled();
   });
 
   it("throws for an unknown slug that is not a static-config site", async () => {
@@ -97,7 +105,7 @@ describe("site-resolver auto-provisioning", () => {
 
   it("resolveDbSiteBySlug never provisions even for a known static-config site", async () => {
     // DB returns null (site not seeded yet)
-    mocks.getSiteRowBySlugWithClient.mockResolvedValueOnce(null);
+    mocks.getSiteRowBySlug.mockResolvedValueOnce(null);
     mocks.getSiteById.mockReturnValue({ id: "crypto-tools" });
     const { resolveDbSiteBySlug } = await importResolver();
     // Should return null gracefully — NOT provision
@@ -121,6 +129,7 @@ describe("site-resolver auto-provisioning", () => {
     mocks.shouldSkipDbCall.mockReturnValue(true);
     const { resolveDbSiteBySlug } = await importResolver();
     await expect(resolveDbSiteBySlug("crypto-tools")).resolves.toBeNull();
+    expect(mocks.getSiteRowBySlug).not.toHaveBeenCalled();
     expect(mocks.getSiteRowBySlugWithClient).not.toHaveBeenCalled();
   });
 });

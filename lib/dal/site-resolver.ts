@@ -1,4 +1,4 @@
-import { getSiteRowBySlugWithClient, upsertConfigSite } from "@/lib/dal/sites";
+import { getSiteRowBySlug, getSiteRowBySlugWithClient, upsertConfigSite } from "@/lib/dal/sites";
 // Privileged gateway: resolving (and lazily provisioning) the active site is a
 // control-plane read/write against the global `sites` registry, which RLS
 // restricts to service_role for writes. This mirrors how requireAdmin() in
@@ -106,7 +106,13 @@ export async function resolveDbSiteId(slug: string): Promise<string> {
  */
 export async function resolveDbSiteBySlug(slug: string): Promise<SiteRow | null> {
   if (shouldSkipDbCall()) return null;
-  // Privileged read so public layouts get the same enriched row as admin pages,
-  // without triggering the provisioning side-effect that is admin-only.
-  return getSiteRowBySlugWithClient(slug, privileged);
+  // Cached, tenant-client read via getSiteRowBySlug (unstable_cache, revalidate
+  // 10s). This runs on EVERY public render — app/layout.tsx, app/manifest.ts,
+  // app/apple-icon.tsx all call it — so it must stay on the cached path and must
+  // NOT use the uncached privileged client: an un-deduplicated Supabase
+  // round-trip per render inflates TTFB on every page (in CI the call hits the
+  // placeholder Supabase URL) and regresses the Lighthouse document-latency /
+  // LCP budget. Provisioning is admin-only and lives in resolveDbSiteId ->
+  // resolveDbSiteRow, which keeps using the privileged client above.
+  return getSiteRowBySlug(slug);
 }
