@@ -4,6 +4,7 @@ import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import type { SiteRow } from "@/types/database";
 import type { Database, Json } from "@/types/supabase";
+import type { DerivedSiteRow } from "@/config/sites";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { siteLookupFlight } from "@/lib/singleflight";
@@ -238,6 +239,68 @@ export async function createSite(
 
   if (error) throw error;
   invalidateSiteCache(undefined, input.domain);
+  return assertRow<SiteRow>(data, "Site");
+}
+
+/**
+ * Idempotently provision a `sites` row from a static-config definition
+ * (config/sites/*, flattened via `toSiteRow`).
+ *
+ * Used by the admin site-resolver to lazily materialise a configured site into
+ * the DB the first time it is accessed, so every admin page works for a valid,
+ * selectable site even before the seed migration/script has populated `sites`.
+ * Upserts on the unique `slug` so concurrent first-hits converge instead of
+ * raising a duplicate-key error.
+ *
+ * Unlike createSite()/updateSite(), this deliberately does NOT call
+ * revalidateTag(): it is invoked from admin Server Component renders
+ * (resolveDbSiteId), where revalidateTag() is unsupported, and the slug/id read
+ * paths are uncached or short-TTL (10s) so they converge without an explicit
+ * cache bust.
+ *
+ * Pass the privileged client getter — writing the global `sites` registry is a
+ * control-plane operation that RLS restricts to service_role (same rationale as
+ * createSite's privileged call site in app/api/admin/sites/route.ts).
+ */
+export async function upsertConfigSite(
+  site: DerivedSiteRow,
+  getClient: DalClientGetter,
+): Promise<SiteRow> {
+  const sb = await getClient();
+
+  const row: SiteInsert = {
+    slug: site.slug,
+    name: site.name,
+    domain: site.domain,
+    language: site.language,
+    direction: site.direction,
+    is_active: site.is_active,
+    monetization_type: site.monetization_type,
+    est_revenue_per_click: site.est_revenue_per_click,
+    theme: site.theme as unknown as Json,
+    logo_url: site.logo_url,
+    favicon_url: site.favicon_url,
+    nav_items: site.nav_items as unknown as Json,
+    footer_nav: site.footer_nav as unknown as Json,
+    features: site.features as unknown as Json,
+    meta_title: site.meta_title,
+    meta_description: site.meta_description,
+    homepage_template: site.homepage_template,
+    product_card_style: site.product_card_style,
+  };
+
+  const { data, error } = await sb
+    .from(TABLE)
+    .upsert(row, { onConflict: "slug" })
+    .select()
+    // F-API-01: `sites` is the global tenant registry — provisioning a tenant
+    // row writes the registry itself and has no site_id to scope by, exactly
+    // like createSite() above. Idempotent on the unique `slug`.
+    // SAFE: writes the global site registry; no tenant site_id applies here.
+    .unsafeNoSiteFilter()
+    .single();
+
+  if (error) throw error;
   return assertRow<SiteRow>(data, "Site");
 }
 
