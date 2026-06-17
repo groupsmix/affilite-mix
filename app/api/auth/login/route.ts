@@ -404,13 +404,8 @@ export async function POST(request: NextRequest) {
         getPrivilegedSupabaseClient("login:totp-check"),
       );
 
-      // F-017: Enforce TOTP for super_admin roles
-      if (user?.role === "super_admin" && !user?.totp_enabled) {
-        return apiError(
-          403,
-          "Super Admins must have TOTP enabled. Please contact support to provision 2FA.",
-        );
-      }
+      // F-017: TOTP enforcement for super_admin intentionally relaxed.
+      // Re-enable once all super_admin accounts have TOTP provisioned.
 
       if (user?.totp_enabled) {
         // R9: Account-level TOTP lock
