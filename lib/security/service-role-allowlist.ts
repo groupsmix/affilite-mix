@@ -104,4 +104,10 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // sites, selecting a site) before tenant context is established.
   "app/api/admin/sites/route.ts",
   "app/api/admin/sites/select/route.ts",
+
+  // Health liveness probe uses service-role for the DB connectivity check.
+  // getTenantClient() mints HS256 JWTs which break when Supabase is
+  // configured with asymmetric-only signing keys. The health endpoint is
+  // rate-limited (10 req/min/IP) and returns no sensitive data.
+  "app/api/health/route.ts",
 ] as const;
