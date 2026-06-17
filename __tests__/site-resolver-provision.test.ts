@@ -77,7 +77,7 @@ describe("site-resolver auto-provisioning", () => {
     mocks.getSiteRowBySlugWithClient.mockResolvedValueOnce(dbRow);
     const { resolveDbSiteBySlug } = await importResolver();
     await resolveDbSiteBySlug("crypto-tools");
-    const clientGetter = mocks.getSiteRowBySlugWithClient.mock.calls[0][1] as () => unknown;
+    const clientGetter = mocks.getSiteRowBySlugWithClient.mock.calls[0]![1] as () => unknown;
     clientGetter();
     expect(mocks.getPrivilegedSupabaseClient).toHaveBeenCalled();
   });
