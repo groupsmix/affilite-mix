@@ -54,8 +54,7 @@ export async function GET(request: NextRequest) {
   const dbStart = Date.now();
   try {
     const supabase = getPrivilegedSupabaseClient("health-check");
-    // eslint-disable-next-line no-restricted-syntax -- Audited: privileged client used intentionally for read-only liveness probe
-    // unsafeNoSiteFilter: global liveness probe — no tenant scope needed
+    // eslint-disable-next-line no-restricted-syntax -- Audited: health liveness probe; privileged client + unsafeNoSiteFilter + raw .from() all intentional (global DB ping, no tenant scope)
     const { error } = await supabase.from("sites").select("id").unsafeNoSiteFilter().limit(1);
     const latencyMs = Date.now() - dbStart;
 
