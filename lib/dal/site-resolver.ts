@@ -81,6 +81,8 @@ export async function resolveDbSiteRow(slug: string): Promise<SiteRow | null> {
  * been seeded yet, so the admin dashboard never hard-crashes on a valid,
  * selectable site. Throws only when the slug is neither in the DB nor a known
  * static site (or the DB is unavailable) — callers treat that as "pick a site".
+ *
+ * NOTE: this is the only public export that triggers provisioning. Admin-only.
  */
 export async function resolveDbSiteId(slug: string): Promise<string> {
   const row = await resolveDbSiteRow(slug);
@@ -91,10 +93,20 @@ export async function resolveDbSiteId(slug: string): Promise<string> {
 }
 
 /**
- * Resolves a slug to a full SiteRow from the database, auto-provisioning a
- * known static-config site if needed. Returns null only for unknown slugs (or
- * when the DB is unavailable).
+ * Resolves a slug to a full SiteRow from the database.
+ *
+ * READ-ONLY — does not auto-provision. Used by public page layouts
+ * (app/layout.tsx, app/manifest.ts, app/apple-icon.tsx) and any other
+ * non-admin caller that only needs DB metadata as a best-effort enrichment.
+ * Returns null gracefully when the row does not exist (e.g. before the seed
+ * migration has run) so callers can fall back to static config.
+ *
+ * Admin paths that need the DB UUID (and the guarantee that the row exists)
+ * must use `resolveDbSiteId`, which calls `resolveDbSiteRow` and provisions.
  */
 export async function resolveDbSiteBySlug(slug: string): Promise<SiteRow | null> {
-  return resolveDbSiteRow(slug);
+  if (shouldSkipDbCall()) return null;
+  // Privileged read so public layouts get the same enriched row as admin pages,
+  // without triggering the provisioning side-effect that is admin-only.
+  return getSiteRowBySlugWithClient(slug, privileged);
 }
