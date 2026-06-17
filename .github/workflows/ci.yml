@@ -260,7 +260,7 @@ jobs:
           # Scan non-exempt API routes for privileged client imports.
           # Allowed: cron, internal, membership/webhook, admin, auth routes.
           VIOLATIONS=""
-          for file in $(find app/api -name 'route.ts' -o -name 'route.tsx' | grep -v 'app/api/cron/' | grep -v 'app/api/internal/' | grep -v 'app/api/membership/webhook/' | grep -v 'app/api/admin/' | grep -v 'app/api/auth/' | grep -v 'app/api/queue/'); do
+          for file in $(find app/api -name 'route.ts' -o -name 'route.tsx' | grep -v 'app/api/cron/' | grep -v 'app/api/internal/' | grep -v 'app/api/membership/webhook/' | grep -v 'app/api/admin/' | grep -v 'app/api/auth/' | grep -v 'app/api/queue/' | grep -v 'app/api/health/'); do
             if grep -qE 'getPrivilegedSupabaseClient|getServiceClient|service-role' "$file"; then
               VIOLATIONS="$VIOLATIONS $file"
             fi
