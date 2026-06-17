@@ -1277,6 +1277,8 @@ jobs:
           [ -n "$_R2_SECRET" ]        && echo "$_R2_SECRET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_SECRET_ACCESS_KEY --name affilite-mix > /dev/null 2>&1   || true
           [ -n "$_R2_BUCKET" ]        && echo "$_R2_BUCKET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_BUCKET_NAME --name affilite-mix > /dev/null 2>&1         || true
           [ -n "$_R2_URL" ]           && echo "$_R2_URL"           | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_PUBLIC_URL --name affilite-mix > /dev/null 2>&1          || true
+          [ -n "$_R2_PRIVATE_BUCKET" ] && echo "$_R2_PRIVATE_BUCKET" | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_PRIVATE_BUCKET --name affilite-mix > /dev/null 2>&1 || true
+          [ -n "$_R2_PUBLIC_BUCKET" ]  && echo "$_R2_PUBLIC_BUCKET"  | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_PUBLIC_BUCKET --name affilite-mix > /dev/null 2>&1 || true
 
           echo "Worker secrets configured"
         env:
@@ -1327,6 +1329,8 @@ jobs:
           _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           _R2_BUCKET: ${{ vars.R2_BUCKET_NAME }}
           _R2_URL: ${{ vars.R2_PUBLIC_URL }}
+          _R2_PRIVATE_BUCKET: ${{ vars.R2_PRIVATE_BUCKET }}
+          _R2_PUBLIC_BUCKET: ${{ vars.R2_PUBLIC_BUCKET }}
 
       # ── Deploy to Cloudflare (after secrets are synced) ────────────────
       #
