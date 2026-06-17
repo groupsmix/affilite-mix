@@ -161,6 +161,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // FIX: pass privileged client so the INSERT bypasses RLS on the `sites`
+    // table. The default getTenantClient() has no INSERT/UPDATE/DELETE policy
+    // for authenticated users — only service_role may write to `sites`.
+    const createPrivileged = () => getPrivilegedSupabaseClient("admin-sites-create");
     const site = await createSite({
       slug,
       name,
@@ -193,7 +197,7 @@ export async function POST(request: NextRequest) {
         | "compact"
         | "detailed"
         | undefined,
-    });
+    }, createPrivileged);
     void recordAuditEvent({
       site_id: site.id,
       actor: session.email ?? "admin",
@@ -284,7 +288,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const site = await updateSite(id, updates);
+    // FIX: privileged client required — same RLS reason as createSite above.
+    const updatePrivileged = () => getPrivilegedSupabaseClient("admin-sites-update");
+    const site = await updateSite(id, updates, updatePrivileged);
     void recordAuditEvent({
       site_id: id,
       actor: session.email ?? "admin",
@@ -320,7 +326,9 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await deleteSite(id);
+    // FIX: privileged client required — same RLS reason as createSite above.
+    const deletePrivileged = () => getPrivilegedSupabaseClient("admin-sites-delete");
+    await deleteSite(id, deletePrivileged);
     // S0-FP-002: await audit for destructive actions so the trail is durable.
     await recordAuditEvent({
       site_id: id,
