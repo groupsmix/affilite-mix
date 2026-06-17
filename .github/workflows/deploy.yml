@@ -94,18 +94,18 @@ env:
   # Server-side secrets (JWT, cron, AI, affiliate, etc.) are set as
   # Worker secrets in the "Set Worker secrets" step below so they are
   # readable at runtime and rotatable without a rebuild.
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
-  NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+  NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+  NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
   # Required at build time by lib/site-context.ts#getCurrentSite: static
   # prerendering of public pages has no request headers, so the build must
   # know which site's metadata/layout to render for paths outside the
   # dynamic routes. Must be a valid slug from config/sites/ or the DB.
-  NEXT_PUBLIC_DEFAULT_SITE: ${{ secrets.NEXT_PUBLIC_DEFAULT_SITE }}
+  NEXT_PUBLIC_DEFAULT_SITE: ${{ vars.NEXT_PUBLIC_DEFAULT_SITE }}
   SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════
@@ -257,17 +257,17 @@ jobs:
       # ── Validate required Cloudflare Worker secrets ────────────────
       - name: Validate required Cloudflare Worker secrets
         env:
-          _NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          _NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          _NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          _NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           _SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           _SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
           _CRON_SECRET: ${{ secrets.CRON_SECRET }}
           _JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          _SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          _CRON_HOST: ${{ secrets.CRON_HOST }}
+          _SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          _CRON_HOST: ${{ vars.CRON_HOST }}
           _INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
           _CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          _CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          _CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           # NEW-001: Per-trigger cron secrets. Required in production —
           # `verifyCronAuth` rejects the shared CRON_SECRET fallback
           # unless CRON_ALLOW_SHARED_FALLBACK_IN_PROD=1 is set, and
@@ -572,13 +572,13 @@ jobs:
           # back to the production NEXT_PUBLIC_* (which are public anyway)
           # if staging isn't configured yet, so this step does not block
           # repos that haven't provisioned staging infra.
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
-          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
-          NEXT_PUBLIC_DEFAULT_SITE: ${{ secrets.NEXT_PUBLIC_DEFAULT_SITE }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL || vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY || vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_DEFAULT_SITE: ${{ vars.NEXT_PUBLIC_DEFAULT_SITE }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           PREVIEW_WORKER_NAME: affilite-mix-staging-smoke
         run: |
           set -euo pipefail
@@ -1277,6 +1277,8 @@ jobs:
           [ -n "$_R2_SECRET" ]        && echo "$_R2_SECRET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_SECRET_ACCESS_KEY --name affilite-mix > /dev/null 2>&1   || true
           [ -n "$_R2_BUCKET" ]        && echo "$_R2_BUCKET"        | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_BUCKET_NAME --name affilite-mix > /dev/null 2>&1         || true
           [ -n "$_R2_URL" ]           && echo "$_R2_URL"           | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_PUBLIC_URL --name affilite-mix > /dev/null 2>&1          || true
+          [ -n "$_R2_PRIVATE_BUCKET" ] && echo "$_R2_PRIVATE_BUCKET" | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_PRIVATE_BUCKET --name affilite-mix > /dev/null 2>&1 || true
+          [ -n "$_R2_PUBLIC_BUCKET" ]  && echo "$_R2_PUBLIC_BUCKET"  | npx --yes wrangler@${WRANGLER_VERSION} secret put R2_PUBLIC_BUCKET --name affilite-mix > /dev/null 2>&1 || true
 
           echo "Worker secrets configured"
         env:
@@ -1284,14 +1286,14 @@ jobs:
           _JWT_SECRET: ${{ secrets.JWT_SECRET }}
           _SB_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           _SB_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
-          _SB_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          _SB_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          _SB_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          _SB_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           _RESEND_KEY: ${{ secrets.RESEND_API_KEY }}
-          _SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          _SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           _INTERNAL_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
-          _CRON_HOST: ${{ secrets.CRON_HOST }}
+          _CRON_HOST: ${{ vars.CRON_HOST }}
           _TURNSTILE_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
-          _TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          _TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
           _NL_FROM: ${{ secrets.NEWSLETTER_FROM_EMAIL }}
           _CF_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_API_TOKEN }}
           _GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -1322,11 +1324,13 @@ jobs:
           _CRON_CLICK_RECONCILE: ${{ secrets.CRON_CLICK_RECONCILE_SECRET }}
           _CRON_ACCESS_REVIEW: ${{ secrets.CRON_ACCESS_REVIEW_SECRET }}
           _CRON_HOMEPAGE_SYNTHETIC: ${{ secrets.CRON_HOMEPAGE_SYNTHETIC_SECRET }}
-          _R2_ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
+          _R2_ACCOUNT: ${{ vars.R2_ACCOUNT_ID }}
           _R2_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           _R2_SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          _R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
-          _R2_URL: ${{ secrets.R2_PUBLIC_URL }}
+          _R2_BUCKET: ${{ vars.R2_BUCKET_NAME }}
+          _R2_URL: ${{ vars.R2_PUBLIC_URL }}
+          _R2_PRIVATE_BUCKET: ${{ vars.R2_PRIVATE_BUCKET }}
+          _R2_PUBLIC_BUCKET: ${{ vars.R2_PUBLIC_BUCKET }}
 
       # ── Deploy to Cloudflare (after secrets are synced) ────────────────
       #
@@ -1349,7 +1353,7 @@ jobs:
         id: cloudflare-deploy
         env:
           GRADUAL_ROLLOUT_ENABLED: ${{ vars.GRADUAL_ROLLOUT_ENABLED }}
-          CRON_HOST: ${{ secrets.CRON_HOST }}
+          CRON_HOST: ${{ vars.CRON_HOST }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
@@ -1432,7 +1436,7 @@ jobs:
       # below in the same change that sets the flag.
       - name: Set heavy-crons Worker secrets
         env:
-          _CRON_HOST: ${{ secrets.CRON_HOST }}
+          _CRON_HOST: ${{ vars.CRON_HOST }}
           _CRON_AI: ${{ secrets.CRON_AI_SECRET }}
           _CRON_COMMISSION: ${{ secrets.CRON_COMMISSION_SECRET }}
           _CRON_PRICE: ${{ secrets.CRON_PRICE_SECRET }}
@@ -1468,7 +1472,7 @@ jobs:
       - name: Post-deploy health gate
         run: |
           set -euo pipefail
-          CRON_HOST="${{ secrets.CRON_HOST }}"
+          CRON_HOST="${{ vars.CRON_HOST }}"
           CRON_SECRET="${{ secrets.CRON_SECRET }}"
 
           if [ -z "$CRON_HOST" ] || [ -z "$CRON_SECRET" ]; then
@@ -1646,7 +1650,7 @@ jobs:
           echo "Deployment complete!"
           echo "Testing site reachability..."
           sleep 5
-          CRON_HOST="${{ secrets.CRON_HOST }}"
+          CRON_HOST="${{ vars.CRON_HOST }}"
           if [ -n "$CRON_HOST" ]; then
             curl -s -o /dev/null -w "HTTP %{http_code}" --max-time 10 "$CRON_HOST/" || echo "Site may need DNS propagation"
           else
@@ -1667,7 +1671,7 @@ jobs:
       - name: Runtime drift — Worker bindings
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
@@ -1734,7 +1738,7 @@ jobs:
         continue-on-error: true
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
@@ -1773,7 +1777,7 @@ jobs:
         continue-on-error: true
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           if [ -z "${CF_API_TOKEN:-}" ] || [ -z "${CF_ACCOUNT_ID:-}" ]; then
