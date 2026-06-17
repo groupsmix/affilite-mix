@@ -165,39 +165,42 @@ export async function POST(request: NextRequest) {
     // table. The default getTenantClient() has no INSERT/UPDATE/DELETE policy
     // for authenticated users — only service_role may write to `sites`.
     const createPrivileged = () => getPrivilegedSupabaseClient("admin-sites-create");
-    const site = await createSite({
-      slug,
-      name,
-      domain,
-      language: body.language as string | undefined,
-      direction: body.direction as "ltr" | "rtl" | undefined,
-      is_active: body.is_active as boolean | undefined,
-      monetization_type: body.monetization_type as "affiliate" | "ads" | "both" | undefined,
-      est_revenue_per_click: body.est_revenue_per_click as number | undefined,
-      ad_config: body.ad_config as Record<string, unknown> | undefined,
-      theme: body.theme as Record<string, unknown> | undefined,
-      logo_url: body.logo_url as string | null | undefined,
-      favicon_url: body.favicon_url as string | null | undefined,
-      nav_items: body.nav_items as { label: string; href: string; icon?: string }[] | undefined,
-      footer_nav: body.footer_nav as { label: string; href: string; icon?: string }[] | undefined,
-      features: body.features as Record<string, boolean> | undefined,
-      meta_title: body.meta_title as string | null | undefined,
-      meta_description: body.meta_description as string | null | undefined,
-      og_image_url: body.og_image_url as string | null | undefined,
-      social_links: body.social_links as Record<string, string> | undefined,
-      homepage_template: body.homepage_template as
-        | "standard"
-        | "cinematic"
-        | "minimal"
-        | "editorial"
-        | "top10"
-        | undefined,
-      product_card_style: body.product_card_style as
-        | "standard"
-        | "compact"
-        | "detailed"
-        | undefined,
-    }, createPrivileged);
+    const site = await createSite(
+      {
+        slug,
+        name,
+        domain,
+        language: body.language as string | undefined,
+        direction: body.direction as "ltr" | "rtl" | undefined,
+        is_active: body.is_active as boolean | undefined,
+        monetization_type: body.monetization_type as "affiliate" | "ads" | "both" | undefined,
+        est_revenue_per_click: body.est_revenue_per_click as number | undefined,
+        ad_config: body.ad_config as Record<string, unknown> | undefined,
+        theme: body.theme as Record<string, unknown> | undefined,
+        logo_url: body.logo_url as string | null | undefined,
+        favicon_url: body.favicon_url as string | null | undefined,
+        nav_items: body.nav_items as { label: string; href: string; icon?: string }[] | undefined,
+        footer_nav: body.footer_nav as { label: string; href: string; icon?: string }[] | undefined,
+        features: body.features as Record<string, boolean> | undefined,
+        meta_title: body.meta_title as string | null | undefined,
+        meta_description: body.meta_description as string | null | undefined,
+        og_image_url: body.og_image_url as string | null | undefined,
+        social_links: body.social_links as Record<string, string> | undefined,
+        homepage_template: body.homepage_template as
+          | "standard"
+          | "cinematic"
+          | "minimal"
+          | "editorial"
+          | "top10"
+          | undefined,
+        product_card_style: body.product_card_style as
+          | "standard"
+          | "compact"
+          | "detailed"
+          | undefined,
+      },
+      createPrivileged,
+    );
     void recordAuditEvent({
       site_id: site.id,
       actor: session.email ?? "admin",
