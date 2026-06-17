@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requireAdminSession, assertRole } from "@/lib/admin-guard";
+import { requireAdminSession, assertRole } from "@/lib/admin-guard";
 import { allSites } from "@/config/sites";
 import { listSites, createSite, updateSite, deleteSite } from "@/lib/dal/sites";
 import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
@@ -109,7 +109,10 @@ export async function GET() {
 
 /** POST /api/admin/sites — create a new site (super_admin only) */
 export async function POST(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  // Use requireAdminSession() (no site context) — same reason as GET above:
+  // site management endpoints must be callable when no site cookie is set,
+  // e.g. when creating the very first site or after clearing the active site.
+  const { error, session } = await requireAdminSession();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -225,7 +228,8 @@ export async function POST(request: NextRequest) {
 
 /** PATCH /api/admin/sites — update an existing site (super_admin only) */
 export async function PATCH(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  // Use requireAdminSession() — site management does not need an active site cookie.
+  const { error, session } = await requireAdminSession();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -311,7 +315,8 @@ export async function PATCH(request: NextRequest) {
 
 /** DELETE /api/admin/sites — delete a site (super_admin only) */
 export async function DELETE(request: NextRequest) {
-  const { error, session } = await requireAdmin();
+  // Use requireAdminSession() — site management does not need an active site cookie.
+  const { error, session } = await requireAdminSession();
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
