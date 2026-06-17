@@ -91,6 +91,18 @@ describe("site-resolver auto-provisioning", () => {
   it("returns null (no crash) from resolveDbSiteBySlug for an unknown slug", async () => {
     const { resolveDbSiteBySlug } = await importResolver();
     await expect(resolveDbSiteBySlug("ghost-site")).resolves.toBeNull();
+    // resolveDbSiteBySlug is read-only — must never provision
+    expect(mocks.upsertConfigSite).not.toHaveBeenCalled();
+  });
+
+  it("resolveDbSiteBySlug never provisions even for a known static-config site", async () => {
+    // DB returns null (site not seeded yet)
+    mocks.getSiteRowBySlugWithClient.mockResolvedValueOnce(null);
+    mocks.getSiteById.mockReturnValue({ id: "crypto-tools" });
+    const { resolveDbSiteBySlug } = await importResolver();
+    // Should return null gracefully — NOT provision
+    await expect(resolveDbSiteBySlug("crypto-tools")).resolves.toBeNull();
+    expect(mocks.upsertConfigSite).not.toHaveBeenCalled();
   });
 
   it("recovers from a concurrent-provision unique conflict by re-reading", async () => {
