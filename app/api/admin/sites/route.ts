@@ -52,7 +52,9 @@ export async function GET() {
       created_at: string;
     }[] = [];
     try {
-      const rows = await listSites();
+      // Pass privileged client — listSites uses getTenantClient() by default
+      // which mints HS256 JWTs that fail with asymmetric Supabase JWT keys.
+      const rows = await listSites(() => getPrivilegedSupabaseClient("admin-sites-list"));
       dbSites = rows.map((r) => ({
         id: r.slug,
         slug: r.slug,

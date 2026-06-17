@@ -26,13 +26,15 @@ const ALL_COLUMNS =
 
 /** List all sites (cached) */
 export const listSites = unstable_cache(
-  async (): Promise<SiteRow[]> => {
+  async (getClient: DalClientGetter = defaultDalClientGetter): Promise<SiteRow[]> => {
     if (shouldSkipDbCall()) return [];
 
-    const sb = await getTenantClient();
+    const sb = await getClient();
     const { data, error } = await sb
       .from(TABLE)
       .select(LIST_COLUMNS)
+      // SAFE: listing the global site registry — no tenant scope applies here.
+      .unsafeNoSiteFilter()
       .order("created_at", { ascending: true });
 
     if (error) throw error;
