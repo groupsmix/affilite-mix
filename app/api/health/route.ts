@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTenantClient } from "@/lib/supabase-server";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyCronAuth } from "@/lib/cron-auth";
@@ -45,11 +45,15 @@ export async function GET(request: NextRequest) {
     { status: "ok" | "warn" | "error"; latencyMs?: number; error?: string }
   > = {};
 
-  // Check Supabase connectivity
+  // Check Supabase connectivity using the service-role client.
+  // getTenantClient() mints a custom HS256 JWT which requires a symmetric
+  // SUPABASE_JWT_SECRET — this breaks when Supabase is configured with
+  // asymmetric-only signing keys. The health probe only needs a liveness
+  // check, so the privileged (service-role) client is correct here.
   const dbStart = Date.now();
   try {
-    const supabase = await getTenantClient();
-    // eslint-disable-next-line no-restricted-syntax -- Audited: health check uses privileged client (read-only liveness probe)
+    const supabase = getPrivilegedSupabaseClient("health-check");
+    // eslint-disable-next-line no-restricted-syntax -- Audited: privileged client used intentionally for read-only liveness probe
     const { error } = await supabase.from("sites").select("id").limit(1);
     const latencyMs = Date.now() - dbStart;
 
