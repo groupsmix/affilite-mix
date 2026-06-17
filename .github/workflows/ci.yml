@@ -519,16 +519,17 @@ jobs:
           # .rpc() calls (+6 opt-outs for cross-tenant/user-scoped RPCs),
           # then 73 → 74: health liveness probe (getTenantClient() breaks
           # with asymmetric-only Supabase JWT keys; global DB ping has no
-          # tenant scope), then 74 → 75: upsertConfigSite() in lib/dal/sites.ts
+          # then 74 → 75 → 77: upsertConfigSite() in lib/dal/sites.ts
           # provisions a `sites` registry row from static config (global
           # control-plane write, no site_id to scope by — same rationale as
-          # createSite()).
+          # createSite()); +2 because the grep also counts the documentation
+          # reference in lib/dal/site-resolver.ts.
           # Every new opt-out is annotated with an `F-API-01` or `NEW-03`
           # audit-ticket comment in lib/ or app/ documenting why the
           # site_id filter does not apply (global/cross-tenant tables,
           # lookup queries that *resolve* site_id, or cross-tenant
           # rollups). The cron-proxy-guard test asserts each chain.
-          BASELINE=75
+          BASELINE=77
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
