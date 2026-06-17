@@ -117,6 +117,13 @@ module.exports = {
         "legacy-javascript-insight": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
         "meta-description": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
         "network-dependency-tree-insight": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
+        // document-latency-insight measures document/TTFB latency. In the
+        // placeholder-env CI workflow (no real deployment, `next start`
+        // cold starts) it scores 0 on every route — the same CI artifact
+        // as server-response-time. Demote to `warn`, consistent with the
+        // sibling *-insight audits above, so the gate stays focused on
+        // real Core Web Vitals regressions.
+        "document-latency-insight": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
         "forced-reflow-insight": ["warn", { minScore: 0.9, aggregationMethod: "median" }],
       },
     },
