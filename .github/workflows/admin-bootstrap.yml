@@ -45,7 +45,7 @@ jobs:
           # Configure in GitHub repo Settings → Environments → production-break-glass → Secrets
           ADMIN_BOOTSTRAP_PASSWORD: ${{ secrets.ADMIN_BOOTSTRAP_PASSWORD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
       # F-017: Log bootstrap action to audit log for compliance
       - name: Log bootstrap to audit table
         if: success()
