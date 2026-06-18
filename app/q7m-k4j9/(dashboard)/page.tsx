@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { getDailyClicks } from "@/lib/dal/affiliate-clicks";
 import { getDashboardStats } from "@/lib/dal/dashboard-stats";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 
 import { PageHeader } from "@/components/admin/page-header";
 
@@ -43,7 +43,7 @@ export default async function AdminDashboard() {
     redirect("/q7m-k4j9/sites");
   }
 
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const dbSiteId = await resolveDbSiteIdOrProvision(session.activeSiteSlug);
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();

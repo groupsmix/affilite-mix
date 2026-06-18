@@ -1,6 +1,6 @@
 import { requireAdminSession } from "../components/admin-guard";
 import { listCategories, getCategoryUsageCountsBatch } from "@/lib/dal/categories";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -42,7 +42,7 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
 
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) redirect("/q7m-k4j9/sites");
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const dbSiteId = await resolveDbSiteIdOrProvision(session.activeSiteSlug);
 
   const q = (sp.q ?? "").trim();
   const taxonomyFilter = parseCsv(sp["f.taxonomy_type"]).filter((v): v is TaxonomyValue =>

@@ -1,5 +1,5 @@
 import { requireAdminSession } from "../components/admin-guard";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 import { listAdPlacements } from "@/lib/dal/ad-placements";
 import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
 import { redirect } from "next/navigation";
@@ -16,7 +16,7 @@ export default async function AdsPage() {
     redirect("/q7m-k4j9/sites");
   }
 
-  const siteId = await resolveDbSiteId(session.activeSiteSlug);
+  const siteId = await resolveDbSiteIdOrProvision(session.activeSiteSlug);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
   const [placements, impressionStats] = await Promise.all([

@@ -30,7 +30,7 @@ import {
 import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
 
 import { listProductsByNames } from "@/lib/dal/products";
-import { resolveDbSiteBySlug, resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteBySlug, resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 import { getSiteById } from "@/config/sites";
 
 import { requireAdminSession } from "../components/admin-guard";
@@ -89,7 +89,7 @@ export default async function AnalyticsPage({
 
   const isSuperAdmin = session.role === "super_admin";
   const dbSite = await resolveDbSiteBySlug(activeSiteSlug);
-  const siteId = dbSite?.id ?? (await resolveDbSiteId(activeSiteSlug));
+  const siteId = dbSite?.id ?? (await resolveDbSiteIdOrProvision(activeSiteSlug));
   const siteConfig = getSiteById(activeSiteSlug);
 
   const sp = await searchParams;

@@ -1,12 +1,12 @@
 import { requireAdminSession } from "../../components/admin-guard";
 import { listCategories } from "@/lib/dal/categories";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 import { ProductForm } from "../product-form";
 
 export default async function NewProductPage() {
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) return null;
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const dbSiteId = await resolveDbSiteIdOrProvision(session.activeSiteSlug);
   const categories = await listCategories(dbSiteId);
 
   return (

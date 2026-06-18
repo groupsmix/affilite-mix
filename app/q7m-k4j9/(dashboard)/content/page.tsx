@@ -1,6 +1,6 @@
 import { requireAdminSession } from "../components/admin-guard";
 import { listContent, countContent, type ContentSortColumn } from "@/lib/dal/content";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -72,7 +72,7 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
 
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) redirect("/q7m-k4j9/sites");
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const dbSiteId = await resolveDbSiteIdOrProvision(session.activeSiteSlug);
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
   const types = parseCsvEnum(sp["f.type"], TYPE_VALUES);

@@ -6,7 +6,7 @@ import {
   type ProductSortColumn,
 } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -80,7 +80,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) redirect("/q7m-k4j9/sites");
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const dbSiteId = await resolveDbSiteIdOrProvision(session.activeSiteSlug);
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
   const categoryIds = parseCsvString(sp["f.category_id"]);

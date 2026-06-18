@@ -1,11 +1,16 @@
 import { getSiteRowBySlug, getSiteRowBySlugWithClient, upsertConfigSite } from "@/lib/dal/sites";
-// Privileged gateway: resolving (and lazily provisioning) the active site is a
-// control-plane read/write against the global `sites` registry, which RLS
-// restricts to service_role for writes. This mirrors how requireAdmin() in
-// lib/admin-guard.ts resolves the active site for /api/admin/* routes — it also
-// reads `sites` with the privileged client. site-resolver.ts is therefore on
-// the SERVICE_ROLE_IMPORT_ALLOWLIST. It is only reached from authenticated
-// admin Server Components that have already passed getAdminSession().
+// Privileged gateway: lazily provisioning the active site is a control-plane
+// read/write against the global `sites` registry, which RLS restricts to
+// service_role for writes. The privileged client is confined to
+// resolveDbSiteRow() / resolveDbSiteIdOrProvision() and is reached ONLY from
+// trusted, gated control-plane callers: admin Server Components and
+// requireAdmin() (getAdminSession-gated), the /api/admin/sites/select route,
+// and the CRON_SECRET-gated ai-generate cron. Public / unauthenticated request
+// paths (track, community, quiz, newsletter, data-export, r/[shortcode], the
+// shared site-context resolver, layouts/manifest/icons) use the read-only
+// resolveDbSiteId() / resolveDbSiteBySlug(), which go through the RLS-enforced
+// tenant client and NEVER touch the privileged client. site-resolver.ts is on
+// the SERVICE_ROLE_IMPORT_ALLOWLIST for this (provisioning) reason.
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { getSiteById, toSiteRow } from "@/config/sites";
 import { shouldSkipDbCall } from "@/lib/db-available";
@@ -75,16 +80,42 @@ export async function resolveDbSiteRow(slug: string): Promise<SiteRow | null> {
 }
 
 /**
- * Resolves a site slug (e.g. "crypto-tools") to its database UUID.
+ * Resolves a site slug (e.g. "crypto-tools") to its database UUID, READ-ONLY.
  *
- * Auto-provisions a `sites` row for a known static-config site that has not
- * been seeded yet, so the admin dashboard never hard-crashes on a valid,
- * selectable site. Throws only when the slug is neither in the DB nor a known
- * static site (or the DB is unavailable) — callers treat that as "pick a site".
+ * Uses the cached tenant client (RLS-enforced) via resolveDbSiteBySlug and does
+ * NOT provision, and therefore never touches the privileged service-role
+ * client. This is the safe resolver for public / unauthenticated callers
+ * (track/click, community, quiz, newsletter, data-export, r/[shortcode]) and
+ * for the shared site-context resolver. Throws "Site not found in database for
+ * slug: ..." when the row does not exist, which is exactly how this function
+ * behaved before provisioning was introduced, so existing callers' error
+ * handling (try/catch, fail-open) is unchanged.
  *
- * NOTE: this is the only public export that triggers provisioning. Admin-only.
+ * Admin / trusted callers that must guarantee the row exists (and may create it
+ * from static config) use resolveDbSiteIdOrProvision instead.
  */
 export async function resolveDbSiteId(slug: string): Promise<string> {
+  const row = await resolveDbSiteBySlug(slug);
+  if (!row) {
+    throw new Error(`Site not found in database for slug: ${slug}`);
+  }
+  return row.id;
+}
+
+/**
+ * Resolves a slug to its database UUID, auto-provisioning a `sites` row from
+ * static config when a known, selectable site has not been seeded yet, so the
+ * admin dashboard never hard-crashes on a valid, selectable site.
+ *
+ * PRIVILEGED: goes through resolveDbSiteRow, which uses the service-role client
+ * (bypasses RLS). Restricted to trusted, gated control-plane callers only:
+ * getAdminSession-gated admin Server Components, requireAdmin() in
+ * lib/admin-guard.ts, the /api/admin/sites/select route, and the CRON_SECRET-
+ * gated ai-generate cron. Public / unauthenticated routes MUST use the
+ * read-only resolveDbSiteId. Throws only when the slug is neither in the DB nor
+ * a known static site (or the DB is unavailable).
+ */
+export async function resolveDbSiteIdOrProvision(slug: string): Promise<string> {
   const row = await resolveDbSiteRow(slug);
   if (!row) {
     throw new Error(`Site not found in database for slug: ${slug}`);

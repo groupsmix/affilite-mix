@@ -1,5 +1,5 @@
 import { requireAdminSession } from "../components/admin-guard";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 import {
   listAuditLogs,
   countAuditLogs,
@@ -15,7 +15,7 @@ import { AuditLogTable, type AuditLogTableRow } from "./audit-log-table";
  * The audit-log page is intentionally scoped to the caller's *active* site.
  *
  * - `requireAdminSession` + `redirect("/q7m-k4j9")` block non-super_admin users.
- * - `resolveDbSiteId(session.activeSiteSlug)` pins the query to one tenant.
+ * - `resolveDbSiteIdOrProvision(session.activeSiteSlug)` pins the query to one tenant.
  * - `lib/dal/audit-log` only exposes site-scoped helpers (enforced by the
  *   `dal-site-scoping` test suite).
  *
@@ -101,7 +101,7 @@ export default async function AuditLogPage({
     redirect("/q7m-k4j9");
   }
 
-  const siteId = await resolveDbSiteId(session.activeSiteSlug);
+  const siteId = await resolveDbSiteIdOrProvision(session.activeSiteSlug);
 
   const actions = parseCsvString(sp["f.action"]);
   const entityTypes = parseCsvString(sp["f.entity_type"]);

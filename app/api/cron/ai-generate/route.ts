@@ -3,7 +3,7 @@ import { generateContent } from "@/lib/ai/content-generator";
 import { createAIDraft } from "@/lib/dal/ai-drafts";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { allSites } from "@/config/sites";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
       let dbSiteId: string;
       try {
-        dbSiteId = await resolveDbSiteId(site!.id);
+        dbSiteId = await resolveDbSiteIdOrProvision(site!.id);
       } catch {
         siteResult.errors.push("Could not resolve DB site ID");
         results.push(siteResult);

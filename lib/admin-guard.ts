@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSession, AdminPayload } from "@/lib/auth";
 import { getActiveSiteSlug } from "@/lib/active-site";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { resolveDbSiteIdOrProvision } from "@/lib/dal/site-resolver";
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -187,7 +187,7 @@ export async function requireAdmin(): Promise<AdminResult> {
         siteSlug: null,
       };
     }
-    dbSiteId = await resolveDbSiteId(siteSlug);
+    dbSiteId = await resolveDbSiteIdOrProvision(siteSlug);
   }
 
   // Enforce membership: non-super_admin users must have a membership row
