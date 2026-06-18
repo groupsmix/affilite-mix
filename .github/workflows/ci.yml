@@ -1177,10 +1177,16 @@ jobs:
         # returns a non-2xx, causing wait-on to retry until timeout.
         run: npx wait-on tcp:localhost:3000 --timeout 60000
       - name: Install k6
+        # Use direct binary download instead of apt repo — the GPG key fetch
+        # + apt-get update can hang indefinitely on flaky GitHub runners.
+        # Pin to a specific version for reproducibility.
         run: |
-          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update && sudo apt-get install -y k6
+          K6_VERSION="v0.54.0"
+          curl --max-time 60 -fsSL "https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-linux-amd64.tar.gz" \
+            -o /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-${K6_VERSION}-linux-amd64/k6 /usr/local/bin/k6
+          k6 version
       - name: Run k6 load tests
         # AUDIT-2026-06 (Finding #20): load test script relocated from
         # repo root to tests/load/ so it cannot be confused with app

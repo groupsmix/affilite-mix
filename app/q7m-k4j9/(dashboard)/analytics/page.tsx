@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+// redirect removed — no-site case now renders an inline empty state
 
 import { PageHeader } from "@/components/admin/page-header";
 import { KpiCard } from "../components/dashboard/kpi-card";
@@ -84,7 +84,20 @@ export default async function AnalyticsPage({
   const activeSiteSlug = session.activeSiteSlug ?? "";
 
   if (!activeSiteSlug) {
-    redirect("/q7m-k4j9/sites");
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+        <h2 className="text-xl font-semibold">No site selected</h2>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          Select an active site on the Sites page to view analytics.
+        </p>
+        <Link
+          href="/q7m-k4j9/sites"
+          className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+        >
+          Go to Sites
+        </Link>
+      </div>
+    );
   }
 
   const isSuperAdmin = session.role === "super_admin";

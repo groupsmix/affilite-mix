@@ -31,6 +31,9 @@ function walkRouteFiles(dir: string): string[] {
 const SERVICE_ROLE_ALLOWLIST = new Set([
   "app/api/admin/sites/route.ts",
   "app/api/admin/sites/select/route.ts",
+  // Stats endpoint must list ALL sites before tenant context is established;
+  // getTenantClient() mints HS256 JWTs that fail on asymmetric Supabase keys.
+  "app/api/admin/sites/stats/route.ts",
 ]);
 
 describe("F-SEC-01: admin routes must not use service-role client", () => {
