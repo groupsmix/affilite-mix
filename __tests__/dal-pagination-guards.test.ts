@@ -86,6 +86,17 @@ vi.mock("@/lib/supabase-server", () => ({
   },
 }));
 
+// admin_users DAL helpers default to the privileged client (the table is
+// service-role-only). Route that getter to the same recording client so the
+// pagination assertions below capture the .limit()/.range() chain.
+vi.mock("@/lib/server-only/service-role", () => ({
+  getPrivilegedSupabaseClient: () => {
+    const { client, recorder } = createSupabaseRecorder();
+    sharedState.current = recorder;
+    return client;
+  },
+}));
+
 vi.mock("next/cache", () => ({
   revalidateTag: vi.fn(),
   unstable_cache: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,

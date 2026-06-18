@@ -1,10 +1,28 @@
 // DESIGN: No site_id filtering — admin users are global accounts; membership scoping is handled by the authz layer.
+//
+// CLIENT DEFAULT: `admin_users` RLS grants access to service_role only
+// (migrations 00002 / 00040 "admin_users_service_all"), so the tenant client
+// cannot read or write this table — a tenant-client call returns zero rows or
+// is denied outright, which previously crashed admin Server Components. Every
+// helper below therefore defaults to the privileged client via
+// `defaultAdminUsersClient`. Request-scoped callers may still pass an explicit
+// client (e.g. lib/auth.ts passes a labelled privileged client for the login
+// path). This module is on the SERVICE_ROLE_IMPORT_ALLOWLIST
+// (lib/security/service-role-allowlist.ts).
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
-import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { type DalClientGetter } from "./dal-client";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { clampPagination } from "./pagination-guard";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import { emitMetric } from "@/lib/metrics";
+
+/**
+ * Default client getter for admin_users operations — the privileged gateway.
+ * See the CLIENT DEFAULT note above for why the tenant client cannot be used.
+ */
+const defaultAdminUsersClient: DalClientGetter = () =>
+  getPrivilegedSupabaseClient("admin-users");
 
 export interface AdminUserRow {
   id: string;
@@ -41,7 +59,7 @@ const ALL_COLUMNS =
 /** Find an active admin user by email (for login) */
 export async function getAdminUserByEmail(
   email: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAdminUsersClient,
 ): Promise<AdminUserRow | null> {
   const sb = await getClient();
   const { data, error } = await sb
@@ -60,7 +78,7 @@ export async function getAdminUserByEmail(
 /** Find an admin user by ID (excludes password_hash for safety) */
 export async function getAdminUserById(
   id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAdminUsersClient,
 ): Promise<AdminUserPublic | null> {
   const sb = await getClient();
   const { data, error } = await sb
@@ -80,7 +98,7 @@ export async function getAdminUserById(
 /** List all admin users (excludes password_hash for safety) */
 export async function listAdminUsers(
   opts: { limit?: number; offset?: number } = {},
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAdminUsersClient,
 ): Promise<AdminUserPublic[]> {
   const sb = await getClient();
   const { limit, offset } = clampPagination(opts);
@@ -113,7 +131,7 @@ export async function createAdminUser(
     name: string;
     role?: "admin" | "super_admin";
   },
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAdminUsersClient,
 ): Promise<AdminUserRow> {
   const sb = await getClient();
   const { data, error } = await sb
@@ -152,7 +170,7 @@ export async function updateAdminUser(
       | "login_locked_until"
     >
   >,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAdminUsersClient,
 ): Promise<AdminUserRow> {
   const sb = await getClient();
 
@@ -178,7 +196,7 @@ export async function incrementLoginFailedAttempts(
   id: string,
   lockoutThreshold: number = 10,
   lockoutDurationMs: number = 60 * 60 * 1000,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAdminUsersClient,
 ): Promise<{ attempts: number; locked: boolean }> {
   const sb = await getClient();
 
@@ -230,7 +248,7 @@ export async function incrementTotpFailedAttempts(
   id: string,
   lockoutThreshold: number = 10,
   lockoutDurationMs: number = 60 * 60 * 1000,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAdminUsersClient,
 ): Promise<{ attempts: number; locked: boolean }> {
   const sb = await getClient();
 
@@ -275,7 +293,7 @@ export async function incrementTotpFailedAttempts(
 /** Delete an admin user */
 export async function deleteAdminUser(
   id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAdminUsersClient,
 ): Promise<void> {
   const sb = await getClient();
   const { error } = await sb
@@ -294,7 +312,7 @@ export async function deleteAdminUser(
  */
 export async function hasAnotherActiveSuperAdmin(
   excludingId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAdminUsersClient,
 ): Promise<boolean> {
   const sb = await getClient();
   const { count, error } = await sb
