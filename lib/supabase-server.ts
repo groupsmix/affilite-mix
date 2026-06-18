@@ -16,6 +16,91 @@ import { getCircuitBreaker, CircuitOpenError } from "@/lib/ai/circuit-breaker";
 // Callers should import directly from @/lib/site-id-signer.
 import { signSiteIdFallback } from "@/lib/site-id-signer";
 
+/**
+ * F-API-01 companion shim for the RLS-enforced clients.
+ *
+ * The privileged service-role client (`lib/server-only/service-role.ts`) wraps
+ * every `.from()` / `.rpc()` chain in a Proxy that REQUIRES either an
+ * `.eq('site_id', …)` filter or an explicit `.unsafeNoSiteFilter()` opt-out
+ * before a query may be awaited. DAL helpers that operate on GLOBAL tables
+ * (`admin_users`, `sites`, …) therefore call that opt-out marker on
+ * whatever client they are handed.
+ *
+ * The tenant / anon clients enforce isolation through RLS, not that Proxy, so
+ * they never carried that opt-out method. A DAL call that reached for it on
+ * one of these clients threw `TypeError: … is not a function`,
+ * which surfaced as a Server Component crash (the admin dashboard "Admin Error"
+ * boundary on Settings / Users / platform tabs) and broke `getSiteRowBySlug`
+ * on the public layouts.
+ *
+ * This shim adds that opt-out as a NO-OP pass-through on the
+ * tenant / anon clients so those global-table DAL helpers work uniformly across
+ * every client. It changes nothing else: each builder method is forwarded
+ * untouched, `await query` still resolves to the PostgREST `{ data, error }`
+ * result, and tenant isolation continues to be enforced by RLS exactly as
+ * before.
+ */
+function wrapRlsBuilderWithNoopOptOut(builder: unknown): unknown {
+  if (builder === null || typeof builder !== "object") return builder;
+  return new Proxy(builder as Record<string | symbol, unknown>, {
+    get(target, prop) {
+      // No-op opt-out: RLS (not the F-API-01 Proxy) is the isolation
+      // boundary for these clients, so the marker simply passes through.
+      if (prop === "unsafeNoSiteFilter") {
+        return () => wrapRlsBuilderWithNoopOptOut(target);
+      }
+      // Preserve thenable semantics so `await query` resolves to the
+      // PostgREST `{ data, error }` result rather than a wrapped Proxy.
+      if (prop === "then") {
+        const orig = (target as { then?: unknown }).then;
+        if (typeof orig !== "function") return orig;
+        return (resolve: unknown, reject: unknown) =>
+          (orig as (...a: unknown[]) => unknown).call(target, resolve, reject);
+      }
+      const value = (target as Record<string | symbol, unknown>)[prop];
+      if (typeof value === "function") {
+        // Keep the chain wrapped so the opt-out stays available after
+        // `.select()` / `.eq()` / `.order()` / … .
+        return (...args: unknown[]) =>
+          wrapRlsBuilderWithNoopOptOut((value as (...a: unknown[]) => unknown).apply(target, args));
+      }
+      return value;
+    },
+  });
+}
+
+/**
+ * Wrap a tenant / anon Supabase client so its `.from()` / `.rpc()` chains expose
+ * the no-op opt-out marker (see `wrapRlsBuilderWithNoopOptOut`).
+ * Every other property is forwarded to the underlying client unchanged.
+ */
+function withNoopSiteFilterOptOut<T extends SupabaseClient<Database>>(client: T): T {
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      if (prop === "from") {
+        return (table: string) =>
+          wrapRlsBuilderWithNoopOptOut(
+            (target as unknown as { from: (t: string) => unknown }).from(table),
+          );
+      }
+      if (prop === "rpc") {
+        return (...args: unknown[]) =>
+          wrapRlsBuilderWithNoopOptOut(
+            (target as unknown as { rpc: (...a: unknown[]) => unknown }).rpc(...args),
+          );
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  }) as T;
+}
+
+/**
+ * Test-only handle for the no-op opt-out shim so unit tests can assert the
+ * behaviour against a fake builder without constructing a real client.
+ * Production code must not import this.
+ */
+export const __withNoopSiteFilterOptOutForTests = withNoopSiteFilterOptOut;
+
 /** A7-005: Verify the HMAC signature on the x-site-id fallback header. */
 async function verifySiteIdSignature(siteId: string, signature: string | null): Promise<boolean> {
   // If no signature is present, reject the fallback in production.
@@ -108,7 +193,7 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
     }
   }
 
-  return getAuthenticatedClient(siteId, userId, "authenticated");
+  return withNoopSiteFilterOptOut(await getAuthenticatedClient(siteId, userId, "authenticated"));
 }
 
 /**
@@ -130,7 +215,7 @@ export function getAnonClient(): SupabaseClient<Database> {
     recoveryTimeoutMs: 15_000,
   });
 
-  return createClient<Database>(url, key, {
+  const anonClient = createClient<Database>(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -170,6 +255,8 @@ export function getAnonClient(): SupabaseClient<Database> {
       },
     },
   });
+
+  return withNoopSiteFilterOptOut(anonClient);
 }
 
 /* ------------------------------------------------------------------ */

@@ -91,6 +91,15 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // getAdminSession() — see lib/dal/site-resolver.ts for the full rationale.
   "lib/dal/site-resolver.ts",
 
+  // Admin user reads/writes (Settings + Users tabs and /api/admin/users) target
+  // the global `admin_users` table, whose RLS grants access to service_role only
+  // (migrations 00002 / 00040 "admin_users_service_all"). The tenant client
+  // returns zero rows / is denied on this table, so every admin-users DAL helper
+  // defaults to the privileged client. Reached only from requireAdminSession() /
+  // requireAdmin()-gated callers (and the rate-limited, signature-checked login
+  // path, which also passes the privileged client explicitly via lib/auth.ts).
+  "lib/dal/admin-users.ts",
+
   // LIVE-10 / F-024: applyStripeEventAtomic calls the
   // apply_stripe_membership_event RPC, which is GRANTed only to
   // service_role. The Stripe webhook delivers events with no

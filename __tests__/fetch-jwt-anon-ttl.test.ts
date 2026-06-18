@@ -77,12 +77,17 @@ describe("supabase-server anon client is never cached (P1-7)", () => {
     expect(src).not.toMatch(/ANON_CLIENT_TTL_MS/);
   });
 
-  it("getAnonClient constructs a fresh client and returns it directly", () => {
+  it("getAnonClient builds a fresh client inline on every call (never a cached one)", () => {
     const start = src.indexOf("export function getAnonClient");
     const fnBody = src.slice(start, src.indexOf("\n}", start));
     // No memoised hand-back of a previously built client.
     expect(fnBody).not.toMatch(/return\s+_anon\w*Client/);
-    // It builds a new client inline on every call.
-    expect(fnBody).toMatch(/return createClient<Database>\(/);
+    // It builds a new client inline on every call ...
+    expect(fnBody).toMatch(/createClient<Database>\(/);
+    // ... and returns that freshly built client — either directly or wrapped in
+    // the no-op site-filter opt-out shim (withNoopSiteFilterOptOut), which only
+    // adds the .unsafeNoSiteFilter() pass-through for RLS clients and caches
+    // nothing. The cache guard above still pins the no-memoisation contract.
+    expect(fnBody).toMatch(/return\s+(createClient<Database>\(|withNoopSiteFilterOptOut\()/);
   });
 });
