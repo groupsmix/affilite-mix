@@ -630,28 +630,40 @@ export function SiteManager() {
   }, []);
 
   const handleSetActive = useCallback(
-    async (site: SiteInfo) => {
+    async (site: SiteInfo): Promise<boolean> => {
       setSelectingId(site.id);
 
-      const res = await fetchWithCsrf("/api/admin/sites/select", {
-        method: "POST",
+      try {
+        const res = await fetchWithCsrf("/api/admin/sites/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ siteId: site.id }),
+        });
 
-        headers: { "Content-Type": "application/json" },
+        if (res.ok) {
+          setActiveSiteId(site.id);
+          // Refresh so topbar tenant badge (Task 9) picks up the new active site.
+          router.refresh();
+          return true;
+        }
 
-        body: JSON.stringify({ siteId: site.id }),
-      });
-
-      if (res.ok) {
-        setActiveSiteId(site.id);
-
-        // Refresh so topbar tenant badge (Task 9) picks up the new active site.
-
-        router.refresh();
+        // Surface the failure instead of silently leaving the tenant unset —
+        // otherwise the dashboard tabs bounce back here with no explanation.
+        let message = "Couldn’t switch the active site. Please try again.";
+        try {
+          const data = (await res.json()) as { error?: string };
+          if (typeof data.error === "string" && data.error.length > 0) {
+            message = data.error;
+          }
+        } catch {
+          // Non-JSON error body — keep the default message.
+        }
+        toast.error(message);
+        return false;
+      } finally {
+        setSelectingId(null);
       }
-
-      setSelectingId(null);
     },
-
     [router],
   );
 
@@ -698,20 +710,18 @@ export function SiteManager() {
   }, [deleteTarget, loadSites, loadStats]);
 
   const handleViewAnalytics = useCallback(
-    (site: SiteInfo) => {
-      // If a different site is targeted, set it active first so the
-
-      // analytics dashboard (which reads from the active-site cookie)
-
-      // lands on the correct tenant.
-
+    async (site: SiteInfo) => {
+      // If a different site is targeted, set it active and WAIT for the
+      // active-site cookie to be written before navigating. Firing this
+      // without awaiting raced the navigation: analytics loaded before the
+      // cookie was set and bounced straight back to /sites.
       if (site.id !== activeSiteId) {
-        void handleSetActive(site);
+        const ok = await handleSetActive(site);
+        if (!ok) return;
       }
 
       router.push("/q7m-k4j9/analytics");
     },
-
     [activeSiteId, handleSetActive, router],
   );
 
@@ -733,7 +743,9 @@ export function SiteManager() {
         }}
         onEdit={setEditStubSite}
         onDelete={setDeleteTarget}
-        onViewAnalytics={handleViewAnalytics}
+        onViewAnalytics={(site) => {
+          void handleViewAnalytics(site);
+        }}
       />
     ));
   }, [
