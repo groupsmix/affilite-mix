@@ -21,8 +21,7 @@ import { emitMetric } from "@/lib/metrics";
  * Default client getter for admin_users operations — the privileged gateway.
  * See the CLIENT DEFAULT note above for why the tenant client cannot be used.
  */
-const defaultAdminUsersClient: DalClientGetter = () =>
-  getPrivilegedSupabaseClient("admin-users");
+const defaultAdminUsersClient: DalClientGetter = () => getPrivilegedSupabaseClient("admin-users");
 
 export interface AdminUserRow {
   id: string;

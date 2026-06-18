@@ -25,9 +25,34 @@ vi.mock("next/headers", () => ({
   cookies: () => ({ get: () => undefined }),
 }));
 
+/**
+ * Minimal PostgREST-style chain builder: every method returns the builder so
+ * `.from().select().eq()…` stays fluent. `unsafeNoSiteFilter` is intentionally
+ * NOT declared — the real RLS clients lack it and the shim adds it at runtime,
+ * so callers reach it through the index signature (typed `unknown`, matching
+ * the shim's dynamic shape) and assert it explicitly.
+ */
+interface FakeBuilder {
+  select: (...args: unknown[]) => FakeBuilder;
+  eq: (...args: unknown[]) => FakeBuilder;
+  in: (...args: unknown[]) => FakeBuilder;
+  match: (...args: unknown[]) => FakeBuilder;
+  order: (...args: unknown[]) => FakeBuilder;
+  range: (...args: unknown[]) => FakeBuilder;
+  limit: (...args: unknown[]) => FakeBuilder;
+  single: (...args: unknown[]) => FakeBuilder;
+  maybeSingle: (...args: unknown[]) => FakeBuilder;
+  insert: (...args: unknown[]) => FakeBuilder;
+  update: (...args: unknown[]) => FakeBuilder;
+  delete: (...args: unknown[]) => FakeBuilder;
+  upsert: (...args: unknown[]) => FakeBuilder;
+  then: (resolve: (value: unknown) => unknown) => unknown;
+  [key: string]: unknown;
+}
+
 interface FakeClient {
-  from: (table: string) => Record<string, unknown>;
-  rpc: (fn: string, args?: unknown) => Record<string, unknown>;
+  from: (table: string) => FakeBuilder;
+  rpc: (fn: string, args?: unknown) => FakeBuilder;
   auth: { getUser: () => string };
 }
 
@@ -65,8 +90,8 @@ function makeFakeClient(): { client: FakeClient; calls: string[] } {
   builder.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
 
   const client: FakeClient = {
-    from: (_table: string) => builder as unknown as Record<string, unknown>,
-    rpc: (_fn: string, _args?: unknown) => builder as unknown as Record<string, unknown>,
+    from: (_table: string) => builder as unknown as FakeBuilder,
+    rpc: (_fn: string, _args?: unknown) => builder as unknown as FakeBuilder,
     auth: { getUser: () => "real-auth" },
   };
   return { client, calls };

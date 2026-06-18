@@ -62,9 +62,7 @@ function wrapRlsBuilderWithNoopOptOut(builder: unknown): unknown {
         // Keep the chain wrapped so the opt-out stays available after
         // `.select()` / `.eq()` / `.order()` / … .
         return (...args: unknown[]) =>
-          wrapRlsBuilderWithNoopOptOut(
-            (value as (...a: unknown[]) => unknown).apply(target, args),
-          );
+          wrapRlsBuilderWithNoopOptOut((value as (...a: unknown[]) => unknown).apply(target, args));
       }
       return value;
     },
@@ -195,9 +193,7 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
     }
   }
 
-  return withNoopSiteFilterOptOut(
-    await getAuthenticatedClient(siteId, userId, "authenticated"),
-  );
+  return withNoopSiteFilterOptOut(await getAuthenticatedClient(siteId, userId, "authenticated"));
 }
 
 /**
