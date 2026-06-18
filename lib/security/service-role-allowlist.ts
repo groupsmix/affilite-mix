@@ -83,6 +83,14 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // Tenant-scoped routes always pass `getTenantClient` instead.
   "lib/dal/dal-client.ts",
 
+  // Admin site-resolver: resolving (and lazily provisioning) the active
+  // site is a control-plane read/write against the global `sites` registry,
+  // which RLS restricts to service_role for writes. Mirrors requireAdmin()'s
+  // privileged slug→UUID lookup in lib/admin-guard.ts. Reached only from
+  // authenticated admin Server Components that have already passed
+  // getAdminSession() — see lib/dal/site-resolver.ts for the full rationale.
+  "lib/dal/site-resolver.ts",
+
   // LIVE-10 / F-024: applyStripeEventAtomic calls the
   // apply_stripe_membership_event RPC, which is GRANTed only to
   // service_role. The Stripe webhook delivers events with no
