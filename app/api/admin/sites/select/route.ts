@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession, unauthorizedResponse } from "@/lib/admin-guard";
 import { getSiteById } from "@/config/sites";
+import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { parseJsonBody } from "@/lib/api-error";
@@ -29,8 +30,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "siteId is required" }, { status: 400 });
   }
 
-  const site = getSiteById(siteId);
-  if (!site) {
+  // Resolve the target from static config OR the DB registry. Sites created
+  // via the admin panel are DB-only and absent from getSiteById(), so fall
+  // back to the sites table using the privileged client (the tenant client
+  // mints HS256 JWTs that fail on asymmetric Supabase signing keys). Without
+  // this fallback, selecting a DB-only site 404s and the active-site cookie
+  // is never set, so every dashboard tab bounces back to /sites.
+  const staticSite = getSiteById(siteId);
+  let activeSlug: string | null = null;
+  let activeName: string | null = null;
+
+  if (staticSite) {
+    activeSlug = staticSite.id;
+    activeName = staticSite.name;
+  } else {
+    const dbSite = await getSiteRowBySlugWithClient(siteId, () =>
+      getPrivilegedSupabaseClient("admin-sites-select"),
+    );
+    if (dbSite) {
+      activeSlug = dbSite.slug;
+      activeName = dbSite.name;
+    }
+  }
+
+  if (!activeSlug) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
 
@@ -39,7 +62,7 @@ export async function POST(request: NextRequest) {
   // G-45: standardised 401 + Bearer challenge instead of 403 so a probe
   // cannot enumerate which sites the caller is or isn't a member of.
   if (session.role !== "super_admin" && session.userId) {
-    const dbSiteId = await resolveDbSiteId(siteId);
+    const dbSiteId = await resolveDbSiteId(activeSlug);
     // admin_site_memberships table requires service_role (RLS restricted)
     const privilegedGetter = () => getPrivilegedSupabaseClient("admin-sites-select");
     const membership = await getAdminSiteMembership(session.userId, dbSiteId, privilegedGetter);
@@ -48,19 +71,19 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.json({ ok: true, site: { id: site.id, name: site.name } });
+  const response = NextResponse.json({ ok: true, site: { id: activeSlug, name: activeName } });
 
   // FIX-34 (F-017): Audit log for site context switch
   void recordAuditEvent({
-    site_id: siteId,
+    site_id: activeSlug,
     actor: session.email ?? session.userId ?? "admin",
     action: "select_site",
     entity_type: "site",
-    entity_id: siteId,
-    details: { siteName: site.name },
+    entity_id: activeSlug,
+    details: { siteName: activeName },
   });
 
-  response.cookies.set(ACTIVE_SITE_COOKIE, site.id, {
+  response.cookies.set(ACTIVE_SITE_COOKIE, activeSlug, {
     httpOnly: true,
     secure: IS_SECURE_COOKIE,
     sameSite: "strict",
