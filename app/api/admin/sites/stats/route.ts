@@ -3,6 +3,7 @@ import { requireAdminSession } from "@/lib/admin-guard";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { listSites } from "@/lib/dal/sites";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { countContent } from "@/lib/dal/content";
 import { countProducts } from "@/lib/dal/products";
 import { getClickCount } from "@/lib/dal/affiliate-clicks";
@@ -49,7 +50,9 @@ export async function GET(request: NextRequest) {
   const sinceIso = since.toISOString();
 
   try {
-    const rows = await listSites();
+    // Use the privileged client to avoid HS256/asymmetric-key JWT failures —
+    // the same issue caught in app/api/admin/sites/route.ts (GET handler).
+    const rows = await listSites(() => getPrivilegedSupabaseClient("admin-sites-stats"));
 
     const entries = await Promise.all(
       rows.map(async (row) => {
