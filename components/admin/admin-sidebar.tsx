@@ -17,7 +17,12 @@ export type AdminMonetizationType = "affiliate" | "ads" | "both" | null | undefi
 export function filterAdminNavItems(
   items: AdminNavItem[],
   monetizationType: AdminMonetizationType,
+  isSuperAdmin = false,
 ): AdminNavItem[] {
+  // Super admins manage the entire platform and always see every section,
+  // regardless of the active tenant's monetization model. The monetization
+  // filter below only declutters the nav for tenant-scoped (non-super) roles.
+  if (isSuperAdmin) return items;
   return items.filter((item) => {
     if (!monetizationType) return true;
     if (item.href === "/q7m-k4j9/ads" && monetizationType === "affiliate") return false;
@@ -35,17 +40,19 @@ function isItemActive(href: string, pathname: string) {
  */
 export function AdminSidebarNav({
   monetizationType,
+  isSuperAdmin = false,
   collapsed = false,
   onNavigate,
   className,
 }: {
   monetizationType: AdminMonetizationType;
+  isSuperAdmin?: boolean;
   collapsed?: boolean;
   onNavigate?: () => void;
   className?: string;
 }) {
   const pathname = usePathname();
-  const items = filterAdminNavItems(adminNavItems, monetizationType);
+  const items = filterAdminNavItems(adminNavItems, monetizationType, isSuperAdmin);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -114,11 +121,13 @@ export function AdminSidebar({
   collapsed,
   onToggleCollapsed,
   monetizationType,
+  isSuperAdmin = false,
   className,
 }: {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   monetizationType: AdminMonetizationType;
+  isSuperAdmin?: boolean;
   className?: string;
 }) {
   return (
@@ -158,7 +167,11 @@ export function AdminSidebar({
       </div>
 
       <ScrollArea className="flex-1">
-        <AdminSidebarNav monetizationType={monetizationType} collapsed={collapsed} />
+        <AdminSidebarNav
+          monetizationType={monetizationType}
+          isSuperAdmin={isSuperAdmin}
+          collapsed={collapsed}
+        />
       </ScrollArea>
 
       <Separator />
