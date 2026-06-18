@@ -122,6 +122,15 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   "app/api/admin/sites/route.ts",
   "app/api/admin/sites/select/route.ts",
 
+  // Site stats endpoint lists ALL sites via listSites() to batch-fetch
+  // per-site counts (products, content, clicks). Like the sites list
+  // route above, getTenantClient() mints HS256 JWTs that fail against
+  // asymmetric Supabase signing keys, so the privileged client is
+  // required. The route is gated by requireAdminSession() and operates
+  // before any tenant context is established (stats must be visible
+  // before a site is set as active).
+  "app/api/admin/sites/stats/route.ts",
+
   // Health liveness probe uses service-role for the DB connectivity check.
   // getTenantClient() mints HS256 JWTs which break when Supabase is
   // configured with asymmetric-only signing keys. The health endpoint is
