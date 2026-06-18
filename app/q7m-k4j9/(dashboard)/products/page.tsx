@@ -7,7 +7,7 @@ import {
 } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { redirect } from "next/navigation";
+// redirect removed — no-site guard uses inline empty state
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -79,7 +79,22 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const sp = await searchParams;
 
   const session = await requireAdminSession();
-  if (!session.activeSiteSlug) redirect("/q7m-k4j9/sites");
+  if (!session.activeSiteSlug) {
+      return (
+      <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+        <h2 className="text-xl font-semibold">No site selected</h2>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          Select an active site on the Sites page to use this section.
+        </p>
+        <a
+          href="/q7m-k4j9/sites"
+          className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+        >
+          Go to Sites
+        </a>
+      </div>
+    );
+  }
   const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
