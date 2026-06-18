@@ -11,6 +11,12 @@
 // (lib/security/service-role-allowlist.ts).
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { type DalClientGetter } from "./dal-client";
+// admin_users RLS grants service_role only (migrations 00002 / 00040), so the
+// tenant client cannot read this table; this module is on the
+// SERVICE_ROLE_IMPORT_ALLOWLIST (lib/security/service-role-allowlist.ts) and is
+// reached only from requireAdminSession()/requireAdmin()-gated callers (and the
+// rate-limited login path). See the CLIENT DEFAULT note in the file header.
+// nosemgrep: service-role-import
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { clampPagination } from "./pagination-guard";
 import { logger } from "@/lib/logger";
