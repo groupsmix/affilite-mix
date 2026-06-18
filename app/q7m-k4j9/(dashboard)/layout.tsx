@@ -101,7 +101,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const isSuperAdmin = session.role === "super_admin";
 
   return (
-    <div dir={active.direction} lang={active.lang} style={active.cssVars}>
+    {/* Admin chrome stays LTR regardless of the managed site's direction.
+        Flipping the whole sidebar/topbar to RTL when an Arabic site is active
+        is disorienting for the operator and is not what `active.direction`
+        (a property of the PUBLIC site) should control. The site's theme colors
+        (cssVars) still apply; only the layout direction is pinned. */}
+    <div dir="ltr" lang={active.lang} style={active.cssVars}>
       <a
         href="#admin-main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"
