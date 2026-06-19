@@ -9,9 +9,22 @@ export const aiComparedSite = defineSite({
   description:
     "In-depth reviews and comparisons of AI tools, platforms, and software — find the best AI for your workflow.",
 
-  colors: { primary: "#2E1065", accent: "#8B5CF6", accentText: "#6D28D9" },
+  // Trust-first palette (replaces the old purple #2E1065 / #8B5CF6 "AI hype"
+  // scheme). Cool ink brand color + Trust Cobalt as the signal. Blue reads as
+  // stable, secure, and impartial — the right tone for an independent review
+  // authority. Verified-green winner accents live in the compare homepage.
+  //   primary    = ink canvas for dark sections (cool charcoal, not pure black)
+  //   accent     = Trust Cobalt (buttons, links, active states) — WCAG AA on white text
+  //   accentText = deep cobalt, AA-safe as link text on white (7.4:1)
+  //   accentLight= brighter cobalt for large/decorative use on dark surfaces
+  colors: {
+    primary: "#0B1120",
+    accent: "#2D6BF0",
+    accentText: "#1B49C7",
+    accentLight: "#3B82F6",
+  },
   fonts: "modern",
-  homepage: "minimal",
+  homepage: "compare",
 
   features: [
     "blog",
@@ -32,6 +45,7 @@ export const aiComparedSite = defineSite({
     { title: "Reviews", href: "/review" },
     { title: "Comparisons", href: "/comparison" },
     { title: "Guides", href: "/guide" },
+    { title: "Deals", href: "/deals" },
   ],
 
   footerNav: {

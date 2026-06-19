@@ -79,7 +79,7 @@ export interface SiteDefinition {
   };
 
   /** Homepage template preset. Defaults to "standard". */
-  homepageTemplate?: "standard" | "cinematic" | "minimal" | "editorial" | "top10";
+  homepageTemplate?: "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
 
   /** Product card display variant. Defaults to "standard". */
   productCardStyle?: "standard" | "compact" | "detailed";
