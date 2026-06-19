@@ -4,6 +4,7 @@ import { listPublishedContent } from "@/lib/dal/content";
 import { listCategories } from "@/lib/dal/categories";
 import { listPublishedPages } from "@/lib/dal/pages";
 import { shouldSkipDbCall } from "@/lib/db-available";
+import { canonicalizeVsSlug } from "@/lib/vs-slug";
 import { logger } from "@/lib/logger";
 import { captureException, captureMessage } from "@/lib/sentry";
 
@@ -207,12 +208,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         listPublishedPages(site.id),
       ]);
 
-      const contentEntries: MetadataRoute.Sitemap = content.map((item) => ({
-        url: `${baseUrl}/${item.type}/${item.slug}`,
-        lastModified: item.updated_at ? new Date(item.updated_at) : new Date(),
-        changeFrequency: "weekly" as const,
-        priority: 0.7,
-      }));
+      // CA-302: emit comparison slugs in canonical (alphabetical) order and
+      // collapse duplicates (the same comparison stored both ways), so the
+      // sitemap never advertises two URLs for one page. canonicalizeVsSlug is
+      // a no-op for non-comparison slugs.
+      const seenContentUrls = new Set<string>();
+      const contentEntries: MetadataRoute.Sitemap = [];
+      for (const item of content) {
+        const slug = item.type === "comparison" ? canonicalizeVsSlug(item.slug) : item.slug;
+        const url = `${baseUrl}/${item.type}/${slug}`;
+        if (seenContentUrls.has(url)) continue;
+        seenContentUrls.add(url);
+        contentEntries.push({
+          url,
+          lastModified: item.updated_at ? new Date(item.updated_at) : new Date(),
+          changeFrequency: "weekly" as const,
+          priority: 0.7,
+        });
+      }
 
       const categoryEntries: MetadataRoute.Sitemap = categories.map((cat) => ({
         url: `${baseUrl}/category/${cat.slug}`,

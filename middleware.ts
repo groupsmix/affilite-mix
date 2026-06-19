@@ -9,6 +9,8 @@ import {
   nicheNotFoundResponse,
 } from "@/lib/middleware/hostname";
 import { resolveSite } from "@/lib/middleware/site-resolution";
+// CA-302: canonical "X-vs-Y" comparison slug ordering.
+import { canonicalComparisonPath } from "@/lib/vs-slug";
 // F-007: CORS preflight + CSRF concerns extracted to independently-tested
 // modules and composed here, replacing the previous inline duplicates.
 import { withCorsPreflight } from "@/lib/middleware/cors";
@@ -163,6 +165,24 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
     }
     url.pathname = pathname.replace(/\/+$/, "");
     return NextResponse.redirect(url, 308);
+  }
+
+  // ── Canonical comparison slug (CA-302) ─────────────────
+  // "X-vs-Y" comparisons can be written either way round; the alphabetically
+  // ordered form is canonical and the reverse 301s to it, so the two
+  // orderings never compete as duplicate content. Pure string work (no DB),
+  // and the hostname is forced to the verified domain — same anti-reflection
+  // discipline as the trailing-slash redirect above.
+  if (!pathname.startsWith("/api/")) {
+    const canonicalPath = canonicalComparisonPath(pathname);
+    if (canonicalPath) {
+      const url = request.nextUrl.clone();
+      if (verifiedSite?.domain) {
+        url.hostname = verifiedSite.domain;
+      }
+      url.pathname = canonicalPath;
+      return NextResponse.redirect(url, 301);
+    }
   }
 
   // ── CSRF protection for state-changing API routes ─────
