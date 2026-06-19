@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface FeatureFlag {
@@ -45,9 +45,18 @@ export function FeatureFlagsManager() {
     setLoading(false);
   }, [selectedSiteId]);
 
+  // M4: tracks the in-flight target site so a response that arrives after the
+  // user switched sites is discarded instead of rendering under the wrong site.
+  const activeSiteIdRef = useRef<string>("");
+
   const loadFlags = useCallback(async () => {
     if (!selectedSiteId) return;
-    const res = await fetch(`/api/admin/feature-flags?site_id=${selectedSiteId}`);
+    const requestedSiteId = selectedSiteId;
+    const res = await fetch(
+      `/api/admin/feature-flags?site_id=${encodeURIComponent(requestedSiteId)}`,
+    );
+    // M4: drop a stale response if the active site changed while in flight.
+    if (requestedSiteId !== activeSiteIdRef.current) return;
     if (res.ok) {
       const data = await res.json();
       setFlags(data.flags);
@@ -59,6 +68,7 @@ export function FeatureFlagsManager() {
   }, [loadSites]);
 
   useEffect(() => {
+    activeSiteIdRef.current = selectedSiteId;
     if (selectedSiteId) {
       void loadFlags();
     }
@@ -118,7 +128,8 @@ export function FeatureFlagsManager() {
   async function deleteFlag(flagKey: string) {
     setSaving(flagKey);
     const res = await fetchWithCsrf(
-      `/api/admin/feature-flags?site_id=${selectedSiteId}&flag_key=${flagKey}`,
+      // L5: encode both query params.
+      `/api/admin/feature-flags?site_id=${encodeURIComponent(selectedSiteId)}&flag_key=${encodeURIComponent(flagKey)}`,
       { method: "DELETE" },
     );
 

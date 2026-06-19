@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
@@ -67,6 +67,14 @@ export function PageManager() {
   const [error, setError] = useState<string | null>(null);
 
   const [confirmDeletePage, setConfirmDeletePage] = useState<PageInfo | null>(null);
+
+  // M5: serialize reorder PUTs. The ref is the actual lock (synchronous, so two
+  // clicks in the same tick can't both pass) while the state drives the disabled
+  // UI. Without this, rapid up/down clicks fire racing PUTs whose conflicting
+  // sort_order arrays can land out of order and corrupt the saved ordering.
+  const reorderingRef = useRef(false);
+
+  const [reordering, setReordering] = useState(false);
 
   const loadPages = useCallback(async () => {
     try {
@@ -196,11 +204,18 @@ export function PageManager() {
   async function handleMoveUp(index: number) {
     if (index === 0) return;
 
+    // M5: ignore clicks while a reorder PUT is in flight.
+    if (reorderingRef.current) return;
+
     const newPages = [...pages];
 
     [newPages[index - 1], newPages[index]] = [newPages[index]!, newPages[index - 1]!];
 
     const reordered = newPages.map((p, i) => ({ id: p.id, sort_order: i }));
+
+    reorderingRef.current = true;
+
+    setReordering(true);
 
     setPages(newPages);
 
@@ -219,17 +234,28 @@ export function PageManager() {
       // silent — reload to reset
 
       await loadPages();
+    } finally {
+      reorderingRef.current = false;
+
+      setReordering(false);
     }
   }
 
   async function handleMoveDown(index: number) {
     if (index >= pages.length - 1) return;
 
+    // M5: ignore clicks while a reorder PUT is in flight.
+    if (reorderingRef.current) return;
+
     const newPages = [...pages];
 
     [newPages[index], newPages[index + 1]] = [newPages[index + 1]!, newPages[index]!];
 
     const reordered = newPages.map((p, i) => ({ id: p.id, sort_order: i }));
+
+    reorderingRef.current = true;
+
+    setReordering(true);
 
     setPages(newPages);
 
@@ -246,6 +272,10 @@ export function PageManager() {
     } catch {
       // fail-open: best-effort
       await loadPages();
+    } finally {
+      reorderingRef.current = false;
+
+      setReordering(false);
     }
   }
 
@@ -433,7 +463,7 @@ export function PageManager() {
                     onClick={() => {
                       void handleMoveUp(index);
                     }}
-                    disabled={index === 0}
+                    disabled={index === 0 || reordering}
                     className="text-gray-500 hover:text-gray-600 disabled:opacity-30"
                     title="Move up"
                   >
@@ -456,7 +486,7 @@ export function PageManager() {
                     onClick={() => {
                       void handleMoveDown(index);
                     }}
-                    disabled={index >= pages.length - 1}
+                    disabled={index >= pages.length - 1 || reordering}
                     className="text-gray-500 hover:text-gray-600 disabled:opacity-30"
                     title="Move down"
                   >

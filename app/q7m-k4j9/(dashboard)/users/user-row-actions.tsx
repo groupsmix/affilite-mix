@@ -42,7 +42,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { fetchWithCsrf } from "@/lib/fetch-csrf";
+// F-030: these flows hit step-up-gated /api/admin/users (PATCH/DELETE). Routing
+// through fetchWithStepUp transparently prompts for re-verification on a step-up
+// 403 and retries, instead of surfacing an opaque "Step-up required" error.
+import { fetchWithStepUp } from "@/lib/step-up-client";
 
 import type { UsersTableRow } from "./users-table";
 
@@ -153,7 +156,7 @@ function EditUserDialog({ user, open, onOpenChange }: BaseDialogProps) {
     setError("");
 
     try {
-      const res = await fetchWithCsrf("/api/admin/users", {
+      const res = await fetchWithStepUp("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: user.id, name, role }),
@@ -254,7 +257,7 @@ function ToggleActiveDialog({ user, open, onOpenChange }: BaseDialogProps) {
   async function handleConfirm() {
     setSaving(true);
     try {
-      const res = await fetchWithCsrf("/api/admin/users", {
+      const res = await fetchWithStepUp("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: user.id, is_active: nextActive }),
@@ -333,7 +336,7 @@ function ResetPasswordDialog({ user, open, onOpenChange }: BaseDialogProps) {
 
     setSaving(true);
     try {
-      const res = await fetchWithCsrf("/api/admin/users", {
+      const res = await fetchWithStepUp("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: user.id, password }),
@@ -433,7 +436,7 @@ function DeleteUserDialog({ user, open, onOpenChange }: BaseDialogProps) {
   async function handleConfirm() {
     setDeleting(true);
     try {
-      const res = await fetchWithCsrf(`/api/admin/users?id=${user.id}`, { method: "DELETE" });
+      const res = await fetchWithStepUp(`/api/admin/users?id=${user.id}`, { method: "DELETE" });
       if (res.ok) {
         toast.success("User deleted");
         onOpenChange(false);

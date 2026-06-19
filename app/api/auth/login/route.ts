@@ -505,6 +505,14 @@ export async function POST(request: NextRequest) {
     // absolute session lifetime can be enforced across refreshes.
     authResult.session_start = Math.floor(Date.now() / 1000);
 
+    // F-030 (step-up): full authentication has just completed here — password,
+    // plus TOTP when 2FA is enabled. Stamp the step-up timestamp (milliseconds)
+    // so step-up-gated destructive operations are permitted within the step-up
+    // window immediately after login. createToken carries this forward on
+    // refresh but never renews it, so it expires relative to login; once it
+    // lapses, POST /api/auth/step-up re-mints it after re-verification.
+    authResult.step_up_at = Date.now();
+
     // F-035: bind the token to the originating user-agent + IP /24.
     const token = await createToken(authResult, request);
 

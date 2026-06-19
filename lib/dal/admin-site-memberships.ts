@@ -1,5 +1,10 @@
 import { assertRows, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+// M2: the "all memberships" read below spans every tenant, so it needs the
+// service-role client (the per-tenant client is emptied/blocked by RLS on this
+// service-role-only table) — exactly like lib/dal/admin-users.
+// nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 
 interface CrossTenantBuilder {
   unsafeNoSiteFilter(): CrossTenantBuilder;
@@ -67,11 +72,24 @@ export async function listAdminSiteMemberships(
  * corresponding site slug. Used by the admin users table to render the
  * "Sites access" column without issuing one query per user.
  */
+const WITH_SLUG_COLUMNS = "admin_user_id, site_id, sites!inner(slug)" as const;
+
+/** M2: cross-tenant read → service-role client (mirrors lib/dal/admin-users). */
+const listAllMembershipsClient: DalClientGetter = () =>
+  getPrivilegedSupabaseClient("admin-site-memberships:list-all");
+
 export async function listAllAdminSiteMembershipsWithSlugs(
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = listAllMembershipsClient,
 ): Promise<Array<{ admin_user_id: string; site_id: string; site_slug: string }>> {
   const sb = await getClient();
-  const { data, error } = await sb.from(TABLE).select("admin_user_id, site_id, sites!inner(slug)");
+  // M2: this query intentionally returns every admin's memberships across all
+  // sites for the (super_admin-only) users table. Without the service-role
+  // client RLS empties it; without the opt-out the tenant Proxy rejects it.
+  const { data, error } = await (
+    sb.from(TABLE).select(WITH_SLUG_COLUMNS) as unknown as CrossTenantBuilder
+  )
+    // SAFE: cross-tenant by design — the only caller is the super_admin Users page.
+    .unsafeNoSiteFilter();
 
   if (error) throw error;
   const rows = (data ?? []) as Array<{

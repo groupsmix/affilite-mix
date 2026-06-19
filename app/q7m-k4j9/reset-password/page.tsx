@@ -27,6 +27,8 @@ import { Input } from "@/components/ui/input";
 
 import { Label } from "@/components/ui/label";
 
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
+
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
 
@@ -85,23 +87,31 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
 
-    const res = await fetch("/api/auth/reset-password", {
-      method: "POST",
+    // H2: route through fetchWithCsrf so the required x-csrf-token header is
+    // attached. /api/auth/reset-password is NOT in the CSRF-exempt registry, so
+    // a bare fetch() (no header) was rejected by the middleware with 403 and the
+    // reset could never complete. fetchWithCsrf also retries once on a stale
+    // token. The try/finally guarantees the button never stays disabled after a
+    // network error.
+    try {
+      const res = await fetchWithCsrf("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
 
-      headers: { "Content-Type": "application/json" },
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
 
-      body: JSON.stringify({ token, password }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setSuccess(true);
-    } else {
-      setError(data.error ?? "Failed to reset password");
+      if (res.ok) {
+        setSuccess(true);
+      } else {
+        setError(data.error ?? "Failed to reset password");
+      }
+    } catch {
+      setError("Network error — please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   if (!token) {

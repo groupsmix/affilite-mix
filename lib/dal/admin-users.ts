@@ -332,3 +332,27 @@ export async function hasAnotherActiveSuperAdmin(
   if (error) throw error;
   return (count ?? 0) > 0;
 }
+
+/**
+ * M3: Batch-resolve admin user ids by email. Used by the audit-log page to map
+ * email-shaped actors → admin user ids for the Actor column links. Emails are
+ * matched case-insensitively by the caller (which lowercases before calling).
+ * Lives here because `admin_users` reads belong on the privileged client owned
+ * by this DAL — keeping audit-log.ts free of a direct service-role import.
+ */
+export async function getAdminUserIdsByEmails(
+  emails: readonly string[],
+  getClient: DalClientGetter = defaultAdminUsersClient,
+): Promise<Array<{ id: string; email: string }>> {
+  if (emails.length === 0) return [];
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("id, email")
+    // SAFE: admin_users is global auth state shared across all sites.
+    .unsafeNoSiteFilter()
+    .in("email", emails as string[]);
+
+  if (error) throw error;
+  return assertRows<{ id: string; email: string }>(data ?? []);
+}

@@ -6,6 +6,7 @@ import { getSiteById } from "@/config/sites";
 import { getSiteRowBySlug } from "@/lib/dal/sites";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { TokenRefresh } from "@/app/q7m-k4j9/(dashboard)/components/token-refresh";
+import { StepUpDialog } from "@/lib/step-up-client";
 import { Toaster } from "sonner";
 
 interface ResolvedActiveSite {
@@ -115,6 +116,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         {active.lang === "ar" ? "انتقل إلى المحتوى الرئيسي" : "Skip to main content"}
       </a>
       <TokenRefresh />
+      {/* F-030: re-auth prompt for step-up-gated destructive operations. */}
+      <StepUpDialog />
       <Toaster position="top-right" richColors closeButton containerAriaLabel="Notifications" />
       <AdminShell
         siteName={active.name}

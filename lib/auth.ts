@@ -246,6 +246,18 @@ export interface AdminPayload {
    * be enforced regardless of how many times the token is refreshed.
    */
   session_start?: number;
+  /**
+   * F-030 (step-up): Unix epoch in **milliseconds** of the most recent
+   * password/TOTP re-verification. Minted at login (after 2FA when enabled) and
+   * refreshed by `POST /api/auth/step-up`. `createToken` carries it forward
+   * unchanged on token refresh, so the step-up window expires relative to the
+   * verification itself — a background refresh does NOT renew it. Read by
+   * `requireStepUpAuth` to gate destructive operations.
+   *
+   * Note: milliseconds, unlike `session_start` (seconds), because
+   * `requireStepUpAuth` compares it against `Date.now()` directly.
+   */
+  step_up_at?: number;
 }
 
 /**

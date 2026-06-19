@@ -47,7 +47,9 @@ export function TopProductsTable() {
         </thead>
         <tbody className="divide-y divide-border">
           {data.map((product, i) => (
-            <tr key={product.product_name} className="hover:bg-muted/50">
+            // L4: rank index is part of the key — product_name alone collides
+            // when two products share a name, which drops rows from the render.
+            <tr key={`${i}-${product.product_name}`} className="hover:bg-muted/50">
               <td className="py-2.5 pe-4 tabular-nums text-muted-foreground">{i + 1}</td>
               <td className="py-2.5 pe-4 font-medium">{product.product_name}</td>
               <td className="py-2.5 pe-4 text-right tabular-nums">

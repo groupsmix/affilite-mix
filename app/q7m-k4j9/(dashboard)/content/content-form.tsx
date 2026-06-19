@@ -229,59 +229,67 @@ export function ContentForm({
       og_image: ogImage || null,
     };
 
-    const res = isEdit
-      ? await fetchWithCsrf("/api/admin/content", {
-          method: "PATCH",
+    // M1/H4: wrap in try/catch/finally so a network error can never leave the
+    // form permanently disabled, and check the product-link PUT result instead
+    // of firing-and-forgetting (which silently lost links while still reporting
+    // success).
+    try {
+      const res = isEdit
+        ? await fetchWithCsrf("/api/admin/content", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: content?.id, ...payload }),
+          })
+        : await fetchWithCsrf("/api/admin/content", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        const msg = data.error ?? "Failed to save";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      const saved = (await res.json().catch(() => ({}))) as { id?: string };
+      const contentId = saved.id ?? content?.id;
+
+      // M1: the content row is saved at this point. The product-link PUT can
+      // still fail on its own — check its result so a failure surfaces clearly
+      // and keeps the user on the page to retry, rather than dropping the links
+      // silently while showing a success toast.
+      let linksSaved = true;
+      if (contentId) {
+        const linkRes = await fetchWithCsrf("/api/admin/content-products", {
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
-
-          body: JSON.stringify({ id: content?.id, ...payload }),
-        })
-      : await fetchWithCsrf("/api/admin/content", {
-          method: "POST",
-
-          headers: { "Content-Type": "application/json" },
-
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ content_id: contentId, links }),
         });
+        linksSaved = linkRes.ok;
+      }
 
-    if (!res.ok) {
-      const data = await res.json();
+      if (!linksSaved) {
+        const msg =
+          "Content was saved, but its linked products could not be updated. Please try saving again to retry the product links.";
+        setError(msg);
+        toast.warning(msg);
+        return;
+      }
 
-      const msg = data.error ?? "Failed to save";
-
+      toast.success(isEdit ? "Content updated" : "Content created");
+      isDirtyRef.current = false;
+      router.push("/q7m-k4j9/content");
+      router.refresh();
+    } catch {
+      const msg = "Network error — please check your connection and try again.";
       setError(msg);
-
       toast.error(msg);
-
+    } finally {
       setSaving(false);
-
-      return;
     }
-
-    const saved = await res.json();
-
-    const contentId = saved.id ?? content?.id;
-
-    // Save product links
-
-    if (contentId) {
-      await fetchWithCsrf("/api/admin/content-products", {
-        method: "PUT",
-
-        headers: { "Content-Type": "application/json" },
-
-        body: JSON.stringify({ content_id: contentId, links }),
-      });
-    }
-
-    toast.success(isEdit ? "Content updated" : "Content created");
-
-    isDirtyRef.current = false;
-
-    router.push("/q7m-k4j9/content");
-
-    router.refresh();
   }
 
   return (

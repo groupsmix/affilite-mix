@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface RoleInfo {
   id: string;
@@ -45,9 +45,18 @@ export function PermissionsManager() {
     setLoading(false);
   }, [selectedSiteId]);
 
+  // M4: tracks the in-flight target site so a response that arrives after the
+  // user switched sites is discarded instead of rendering under the wrong site.
+  const activeSiteIdRef = useRef<string>("");
+
   const loadPermissions = useCallback(async () => {
     if (!selectedSiteId) return;
-    const res = await fetch(`/api/admin/permissions?site_id=${selectedSiteId}`);
+    const requestedSiteId = selectedSiteId;
+    const res = await fetch(
+      `/api/admin/permissions?site_id=${encodeURIComponent(requestedSiteId)}`,
+    );
+    // M4: drop a stale response if the active site changed while in flight.
+    if (requestedSiteId !== activeSiteIdRef.current) return;
     if (res.ok) {
       const data = await res.json();
       setRoles(data.roles);
@@ -60,6 +69,7 @@ export function PermissionsManager() {
   }, [loadSites]);
 
   useEffect(() => {
+    activeSiteIdRef.current = selectedSiteId;
     if (selectedSiteId) {
       void loadPermissions();
     }

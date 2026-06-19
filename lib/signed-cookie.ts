@@ -1,8 +1,14 @@
 /**
- * F-AUTHZ-01: Signed cookie utility for nh_active_site cookie integrity.
+ * F-AUTHZ-01: Signed cookie utility (HMAC-SHA256, format: base64(value.signature)).
  *
- * Signs cookie values with HMAC-SHA256 using the JWT secret so tampering
- * is detected on read. Format: base64(value.signature).
+ * L1 — STATUS: currently unused by application code. Despite the original
+ * "nh_active_site cookie integrity" framing, the active-site cookie is NOT
+ * signed with this helper. Its integrity is instead enforced server-side by the
+ * membership re-check in `getTenantClient()` (lib/supabase-server.ts): a tampered
+ * slug only resolves to a tenant the user can actually access, so forging it
+ * grants nothing. This module is retained because its HMAC sign/verify behaviour
+ * is still exercised by the test suite (and may back a future signed cookie), but
+ * do NOT assume any cookie is protected by it without wiring it in explicitly.
  */
 
 // A6-03: use purpose-derived HMAC sub-key instead of the raw JWT secret

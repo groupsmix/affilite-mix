@@ -20,6 +20,7 @@
 
 import { NextResponse } from "next/server";
 import type { AdminPayload } from "@/lib/auth";
+import { STEP_UP_REQUIRED_HEADER_NAME } from "@/lib/step-up-shared";
 
 /** How long a step-up verification remains valid (15 minutes). */
 const STEP_UP_WINDOW_MS = 15 * 60 * 1000;
@@ -29,6 +30,16 @@ const STEP_UP_WINDOW_MS = 15 * 60 * 1000;
  * Set after a successful password or TOTP verification.
  */
 const STEP_UP_CLAIM = "step_up_at" as const;
+
+/**
+ * Response header set on every step-up 403 so clients can distinguish a
+ * "re-authentication required" rejection from a CSRF / authorization 403.
+ * `fetchWithStepUp` keys off this to launch the step-up prompt, and
+ * `fetchWithCsrf` keys off it to skip its (here-irrelevant) token-refresh retry.
+ * The header NAME lives in the dependency-free `step-up-shared` module so the
+ * client can import it without pulling this server-only file into its bundle.
+ */
+const STEP_UP_REQUIRED_HEADER = { [STEP_UP_REQUIRED_HEADER_NAME]: "1" } as const;
 
 /**
  * FR-004: The session may carry an optional `step_up_at` claim, minted after a
@@ -61,7 +72,10 @@ export function requireStepUpAuth(
         reason:
           "This operation requires recent password or 2FA verification. Please re-authenticate.",
       },
-      { status: 403 },
+      // F-030: tag step-up failures so the client (fetchWithStepUp) can tell a
+      // re-auth-required 403 apart from a CSRF / authz 403 and trigger the
+      // step-up prompt instead of a misleading token-refresh retry.
+      { status: 403, headers: STEP_UP_REQUIRED_HEADER },
     );
   }
 
@@ -72,7 +86,7 @@ export function requireStepUpAuth(
         error: "Step-up authentication expired",
         reason: `Step-up verification was ${Math.round(elapsed / 60000)}min ago — maximum is ${Math.round(windowMs / 60000)}min. Please re-authenticate.`,
       },
-      { status: 403 },
+      { status: 403, headers: STEP_UP_REQUIRED_HEADER },
     );
   }
 

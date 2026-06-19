@@ -136,4 +136,13 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // configured with asymmetric-only signing keys. The health endpoint is
   // rate-limited (10 req/min/IP) and returns no sensitive data.
   "app/api/health/route.ts",
+
+  // M2: listAllAdminSiteMembershipsWithSlugs() reads admin_site_memberships
+  // across ALL sites to render the super_admin Users page "Sites access"
+  // column. RLS grants this table to service_role only (migrations 00036 /
+  // 00040 / 00067), so the tenant client returns zero rows. Reached only from
+  // the requireAdminSession()-gated Users page. Mirrors lib/dal/admin-users.ts.
+  // (M3 audit-log actor resolution deliberately does NOT import the gateway —
+  // it delegates to lib/dal/admin-users.ts, which already owns admin_users.)
+  "lib/dal/admin-site-memberships.ts",
 ] as const;
