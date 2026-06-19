@@ -43,6 +43,9 @@ const EditorialHomepage = dynamic(() =>
 const Top10Homepage = dynamic(() =>
   import("./components/homepage-top10").then((m) => m.Top10Homepage),
 );
+const CompareHomepage = dynamic(() =>
+  import("./components/homepage-compare").then((m) => m.CompareHomepage),
+);
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getCurrentSite();
@@ -123,6 +126,10 @@ export default async function HomePage() {
 
   if (template === "top10") {
     return <Top10Homepage {...homepageProps} />;
+  }
+
+  if (template === "compare") {
+    return <CompareHomepage {...homepageProps} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";
