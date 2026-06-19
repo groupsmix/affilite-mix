@@ -535,7 +535,15 @@ jobs:
           # site_id filter does not apply (global/cross-tenant tables,
           # lookup queries that *resolve* site_id, or cross-tenant
           # rollups). The cron-proxy-guard test asserts each chain.
-          BASELINE=79
+          # then 79 -> 81 (M2 audit fix): lib/dal/admin-site-memberships.ts adds
+          # listAllAdminSiteMembershipsWithSlugs(), which reads
+          # admin_site_memberships across ALL sites (a service_role-only table;
+          # migrations 00036 / 00040 / 00067) to render the super_admin Users
+          # page "Sites access" column. Reached only from the
+          # requireAdminSession()-gated Users page and mirrors
+          # lib/dal/admin-users.ts. +2 = the .unsafeNoSiteFilter() call plus its
+          # audited doc reference.
+          BASELINE=81
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."

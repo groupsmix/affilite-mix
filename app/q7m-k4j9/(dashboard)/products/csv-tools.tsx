@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback } from "react";
 
+import { toast } from "sonner";
+
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface CsvRow {
@@ -122,25 +124,35 @@ export function CsvTools() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleExport() {
-    const res = await fetch("/api/admin/products/export");
+    // L3: surface export failures instead of returning silently — previously a
+    // non-OK response or a network error produced no feedback at all.
+    try {
+      const res = await fetch("/api/admin/products/export");
 
-    if (!res.ok) return;
+      if (!res.ok) {
+        toast.error("Failed to export products. Please try again.");
 
-    const blob = await res.blob();
+        return;
+      }
 
-    const url = URL.createObjectURL(blob);
+      const blob = await res.blob();
 
-    const a = document.createElement("a");
+      const url = URL.createObjectURL(blob);
 
-    a.href = url;
+      const a = document.createElement("a");
 
-    a.download =
-      res.headers.get("Content-Disposition")?.split("filename=")[1]?.replace(/"/g, "") ??
-      "products.csv";
+      a.href = url;
 
-    a.click();
+      a.download =
+        res.headers.get("Content-Disposition")?.split("filename=")[1]?.replace(/"/g, "") ??
+        "products.csv";
 
-    URL.revokeObjectURL(url);
+      a.click();
+
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Network error during export. Please check your connection and try again.");
+    }
   }
 
   const handleFileSelect = useCallback(async () => {
@@ -254,17 +266,35 @@ export function CsvTools() {
 
     formData.append("file", preview.file);
 
-    const res = await fetchWithCsrf("/api/admin/products/import", {
-      method: "POST",
+    // L3: wrap the import POST so a network error surfaces a clear message and
+    // never leaves the UI stuck in the "Importing..." state. The finally block
+    // resets the transient state regardless of how the request resolves.
+    try {
+      const res = await fetchWithCsrf("/api/admin/products/import", {
+        method: "POST",
 
-      body: formData,
-    });
+        body: formData,
+      });
 
-    const data = await res.json();
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        [key: string]: unknown;
+      };
 
-    if (res.ok) {
-      setResult(data);
-    } else {
+      if (res.ok) {
+        setResult(data as unknown as ImportResult);
+      } else {
+        setResult({
+          created: 0,
+
+          errors: 1,
+
+          total: 0,
+
+          results: [{ row: 0, name: "", status: "error", error: data.error ?? "Import failed" }],
+        });
+      }
+    } catch {
       setResult({
         created: 0,
 
@@ -272,17 +302,24 @@ export function CsvTools() {
 
         total: 0,
 
-        results: [{ row: 0, name: "", status: "error", error: data.error }],
+        results: [
+          {
+            row: 0,
+            name: "",
+            status: "error",
+            error: "Network error during import. Please check your connection and try again.",
+          },
+        ],
       });
+    } finally {
+      setImporting(false);
+
+      setProgress(null);
+
+      setPreview(null);
+
+      if (fileRef.current) fileRef.current.value = "";
     }
-
-    setImporting(false);
-
-    setProgress(null);
-
-    setPreview(null);
-
-    if (fileRef.current) fileRef.current.value = "";
   }
 
   function cancelPreview() {

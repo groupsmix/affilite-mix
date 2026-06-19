@@ -9,6 +9,7 @@
  */
 
 import { CSRF_HEADER } from "@/lib/csrf";
+import { STEP_UP_REQUIRED_HEADER_NAME } from "@/lib/step-up-shared";
 import { toast } from "sonner";
 
 let csrfToken: string | null = null;
@@ -55,7 +56,10 @@ export async function fetchWithCsrf(url: string, opts: RequestInit = {}): Promis
   headers.set(CSRF_HEADER, token);
   const response = await fetch(url, { ...opts, headers });
 
-  if (response.status === 403) {
+  // A step-up 403 ("re-authentication required") is not a stale-CSRF-token
+  // problem — skip the token-refresh retry and the misleading toast here so
+  // fetchWithStepUp can prompt for re-verification instead.
+  if (response.status === 403 && !response.headers.get(STEP_UP_REQUIRED_HEADER_NAME)) {
     clearCsrfToken();
     const freshToken = await fetchCsrfToken();
     const retryHeaders = new Headers(opts.headers);

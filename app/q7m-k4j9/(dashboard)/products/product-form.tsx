@@ -145,41 +145,40 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       cons,
     };
 
-    const res = isEdit
-      ? await fetchWithCsrf("/api/admin/products", {
-          method: "PATCH",
+    // H4: wrap the request in try/catch/finally. Previously a network error
+    // threw before `setSaving(false)` ran, leaving the form disabled forever
+    // with no recovery short of a full reload (which discards everything typed).
+    try {
+      const res = isEdit
+        ? await fetchWithCsrf("/api/admin/products", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: product.id, ...payload }),
+          })
+        : await fetchWithCsrf("/api/admin/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
-          headers: { "Content-Type": "application/json" },
-
-          body: JSON.stringify({ id: product.id, ...payload }),
-        })
-      : await fetchWithCsrf("/api/admin/products", {
-          method: "POST",
-
-          headers: { "Content-Type": "application/json" },
-
-          body: JSON.stringify(payload),
-        });
-
-    if (res.ok) {
-      toast.success(isEdit ? "Product updated" : "Product created");
-
-      isDirtyRef.current = false;
-
-      router.push("/q7m-k4j9/products");
-
-      router.refresh();
-    } else {
-      const data = await res.json();
-
-      const msg = data.error ?? "Failed to save";
-
+      if (res.ok) {
+        toast.success(isEdit ? "Product updated" : "Product created");
+        isDirtyRef.current = false;
+        router.push("/q7m-k4j9/products");
+        router.refresh();
+      } else {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        const msg = data.error ?? "Failed to save";
+        setError(msg);
+        toast.error(msg);
+      }
+    } catch {
+      const msg = "Network error — please check your connection and try again.";
       setError(msg);
-
       toast.error(msg);
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   }
 
   return (

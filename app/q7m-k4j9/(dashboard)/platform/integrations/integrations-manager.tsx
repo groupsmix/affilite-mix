@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface IntegrationInfo {
@@ -55,9 +55,19 @@ export function IntegrationsManager() {
     setLoading(false);
   }, [selectedSiteId]);
 
+  // M4: tracks the in-flight target site so a response that arrives after the
+  // user switched sites is discarded instead of rendering under the wrong site.
+  const activeSiteIdRef = useRef<string>("");
+
   const loadIntegrations = useCallback(async () => {
     if (!selectedSiteId) return;
-    const res = await fetch(`/api/admin/integrations?site_id=${selectedSiteId}`);
+    const requestedSiteId = selectedSiteId;
+    // L5: encode the site id in the query string.
+    const res = await fetch(
+      `/api/admin/integrations?site_id=${encodeURIComponent(requestedSiteId)}`,
+    );
+    // M4: drop a stale response if the active site changed while in flight.
+    if (requestedSiteId !== activeSiteIdRef.current) return;
     if (res.ok) {
       const data = await res.json();
       setIntegrations(data.integrations);
@@ -69,6 +79,7 @@ export function IntegrationsManager() {
   }, [loadSites]);
 
   useEffect(() => {
+    activeSiteIdRef.current = selectedSiteId;
     if (selectedSiteId) {
       void loadIntegrations();
     }

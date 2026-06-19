@@ -18,6 +18,9 @@ import {
 import { toast } from "sonner";
 
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+// F-030: site deletion is step-up-gated — use fetchWithStepUp so a step-up 403
+// prompts for re-verification and retries, rather than failing opaquely.
+import { fetchWithStepUp } from "@/lib/step-up-client";
 
 import { cn } from "@/lib/utils";
 
@@ -675,7 +678,7 @@ export function SiteManager() {
     setDeleting(true);
 
     try {
-      const res = await fetchWithCsrf(`/api/admin/sites/${targetId}`, {
+      const res = await fetchWithStepUp(`/api/admin/sites/${targetId}`, {
         method: "DELETE",
       });
 

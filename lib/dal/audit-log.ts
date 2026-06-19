@@ -2,6 +2,10 @@ import { escapeLike, stripPostgrestMeta } from "./search-utils";
 import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { clampPagination } from "./pagination-guard";
+// M3: actor→id resolution reads the global admin_users table. Rather than add a
+// second service-role importer, delegate to the canonical admin-users DAL, which
+// already owns admin_users reads on the privileged client (and is allow-listed).
+import { getAdminUserIdsByEmails } from "./admin-users";
 
 /**
  * Audit-log reads are intentionally scoped to a single `site_id`.
@@ -199,7 +203,7 @@ export async function getDistinctEntityTypes(
  */
 export async function resolveActorsToAdminUserIds(
   actors: readonly string[],
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient?: DalClientGetter,
 ): Promise<Record<string, string>> {
   const emails = Array.from(
     new Set(
@@ -208,11 +212,9 @@ export async function resolveActorsToAdminUserIds(
   );
   if (emails.length === 0) return {};
 
-  const sb = await getClient();
-  const { data, error } = await sb.from("admin_users").select("id, email").in("email", emails);
-  if (error) throw error;
-
-  const rows = assertRows<{ id: string; email: string }>(data ?? []);
+  // M3: the actual admin_users read lives in the admin-users DAL (privileged
+  // client by default). Passing `undefined` lets that helper apply its default.
+  const rows = await getAdminUserIdsByEmails(emails, getClient);
   const byEmail = new Map<string, string>();
   for (const r of rows) {
     byEmail.set(r.email.toLowerCase(), r.id);

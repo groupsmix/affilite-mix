@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface ModuleInfo {
@@ -52,9 +52,16 @@ export function ModulesManager() {
     setLoading(false);
   }, [selectedSiteId]);
 
+  // M4: tracks the in-flight target site so a response that arrives after the
+  // user switched sites is discarded instead of rendering under the wrong site.
+  const activeSiteIdRef = useRef<string>("");
+
   const loadModules = useCallback(async () => {
     if (!selectedSiteId) return;
-    const res = await fetch(`/api/admin/modules?site_id=${selectedSiteId}`);
+    const requestedSiteId = selectedSiteId;
+    const res = await fetch(`/api/admin/modules?site_id=${encodeURIComponent(requestedSiteId)}`);
+    // M4: drop a stale response if the active site changed while in flight.
+    if (requestedSiteId !== activeSiteIdRef.current) return;
     if (res.ok) {
       const data = await res.json();
       setModules(data.modules);
@@ -66,6 +73,7 @@ export function ModulesManager() {
   }, [loadSites]);
 
   useEffect(() => {
+    activeSiteIdRef.current = selectedSiteId;
     if (selectedSiteId) {
       void loadModules();
     }

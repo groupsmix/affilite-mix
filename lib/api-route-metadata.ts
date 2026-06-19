@@ -547,6 +547,22 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     sensitiveFields: [],
   },
   {
+    // F-030: step-up re-authentication. Re-verifies the current admin's
+    // password (+ TOTP when 2FA is enabled) and re-mints the session cookie
+    // with a fresh `step_up_at` claim so step-up-gated destructive operations
+    // (site delete, user role change, user delete) can proceed.
+    path: "/api/auth/step-up",
+    methods: ["POST"],
+    auth: "admin",
+    adminRequired: true,
+    scope: "global",
+    rateLimit: true,
+    csrf: true,
+    requestSchema: "{ password: string; totp_token?: string }",
+    responseSchema: "{ ok: true } + re-minted session cookie",
+    sensitiveFields: ["password", "totp_token"],
+  },
+  {
     path: "/api/auth/reset-password",
     methods: ["POST"],
     auth: "token",

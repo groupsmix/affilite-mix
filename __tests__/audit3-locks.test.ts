@@ -171,7 +171,11 @@ describe("Audit-3 regression locks", () => {
       const count = mod.SERVICE_ROLE_IMPORT_ALLOWLIST.length;
       // Baseline: current allowlist size. If this increases, the PR must
       // justify the new call site with an audited-service-role comment.
-      expect(count).toBeLessThanOrEqual(30);
+      // Bumped 30 -> 31 on merging main into this branch: main added
+      // lib/dal/price-alerts.ts and this PR added lib/dal/admin-site-memberships.ts
+      // — two independently audited service-role importers (see the
+      // audited-service-role comments beside each entry in the allowlist).
+      expect(count).toBeLessThanOrEqual(31);
     });
   });
 
