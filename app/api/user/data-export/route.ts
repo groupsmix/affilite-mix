@@ -11,6 +11,8 @@ import { getAppCacheKV } from "@/lib/runtime-env";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { getCurrentSite } from "@/lib/site-context";
+// L1-FIX: constant-time compare for the verification code to remove timing leak
+import { timingSafeEqual } from "@/lib/internal-hmac";
 
 /**
  * SEC-01 (étap-3 RISK-01): GDPR Art. 20 data portability endpoint.
@@ -297,7 +299,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  if (!storedCode || storedCode !== code) {
+  if (!storedCode || !timingSafeEqual(storedCode, code)) {
     return NextResponse.json({ error: "Invalid or expired verification code." }, { status: 403 });
   }
 

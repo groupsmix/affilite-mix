@@ -7,7 +7,7 @@ import { logger } from "@/lib/logger";
 import { getJwtSecret, getJwtSecretPrevious, getJwtKid } from "@/lib/jwt-secret";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
-import { isTokenRevoked } from "@/lib/jwt-revocation";
+import { isTokenRevoked, getUserSessionInvalidBefore } from "@/lib/jwt-revocation";
 // RISK-05 (étap-3): In-memory revocation check for immediate effect
 import { isTokenRevokedImmediate } from "@/lib/jwt-revocation-strong";
 import { timingSafeEqual } from "@/lib/internal-hmac";
@@ -446,6 +446,30 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
     ) {
       logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
       return null;
+    }
+  }
+
+  // SEC-FIX (High-5): Per-user session floor. A password reset sets a cutoff so
+  // EVERY token issued before it is rejected — covering other devices and the
+  // email-link reset path (which has no cookie jti to revoke). Shares the same
+  // default-on flag as jti revocation. The jti check above already fails closed
+  // on KV outage, so this read fails open (null) to avoid double-blocking.
+  if (strictRevocation) {
+    const uid = typeof payload.userId === "string" ? payload.userId : null;
+    const tokenStart =
+      typeof payload.session_start === "number"
+        ? payload.session_start
+        : typeof payload.iat === "number"
+          ? payload.iat
+          : null;
+    if (uid && tokenStart !== null) {
+      const invalidBefore = await getUserSessionInvalidBefore(uid);
+      if (invalidBefore !== null && tokenStart < invalidBefore) {
+        logger.warn("Token rejected: user sessions invalidated (password reset / forced logout)", {
+          userId: uid,
+        });
+        return null;
+      }
     }
   }
 

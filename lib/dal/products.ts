@@ -36,8 +36,6 @@ export interface ListProductsOptions {
   sortDirection?: "asc" | "desc";
   limit?: number;
   offset?: number;
-  /** Opaque cursor for keyset pagination (preferred over offset for deep pages). */
-  cursor?: string | null;
 }
 
 export type CountProductsOptions = Omit<

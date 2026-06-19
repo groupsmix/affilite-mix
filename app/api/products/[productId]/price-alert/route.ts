@@ -17,6 +17,7 @@ import { normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
 // The DAL functions already scope by site_id + product_id, so tenant isolation
 // is preserved at the application layer.
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { captureException } from "@/lib/sentry";
 
 /**
  * POST /api/products/:productId/price-alert
@@ -121,8 +122,11 @@ export async function POST(
     );
 
     return NextResponse.json({ message: "Price alert created", alert }, { status: 201 });
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
+  } catch (err) {
+    // M8-FIX: previously a silent `catch {}` — which hid the systemic RLS
+    // failure as a generic 500. Now that inserts work via the privileged
+    // client, log any residual failure so the feature can't break unnoticed.
+    captureException(err, { context: "[api/products/price-alert] POST failed" });
     return NextResponse.json({ error: "Failed to create price alert" }, { status: 500 });
   }
 }
@@ -171,7 +175,8 @@ export async function DELETE(
     const siteId = await resolveDbSiteId(siteSlug);
     await deactivatePriceAlertScoped(body.alert_id, siteId, getPrivilegedSupabaseClient);
     return NextResponse.json({ message: "Alert deactivated" });
-  } catch {
+  } catch (err) {
+    captureException(err, { context: "[api/products/price-alert] DELETE failed" });
     return NextResponse.json({ error: "Failed to deactivate alert" }, { status: 500 });
   }
 }
