@@ -152,18 +152,6 @@ function sanitizeStatValue(n: unknown): number | undefined {
   return n;
 }
 
-function sanitizeStats(raw: Record<string, SiteStats>): Record<string, SiteStats> {
-  const out: Record<string, SiteStats> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    out[key] = {
-      activeProducts: sanitizeStatValue(value.activeProducts) ?? 0,
-      publishedContent: sanitizeStatValue(value.publishedContent) ?? 0,
-      clicks: sanitizeStatValue(value.clicks) ?? 0,
-    };
-  }
-  return out;
-}
-
 function formatNumber(n: number | undefined): string {
   if (n === undefined || !Number.isFinite(n)) return "—";
 
