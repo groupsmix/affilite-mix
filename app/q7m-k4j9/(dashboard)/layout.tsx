@@ -101,7 +101,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const isSuperAdmin = session.role === "super_admin";
 
   return (
-    <div dir={active.direction} lang={active.lang} style={active.cssVars}>
+    // The admin shell is an English LTR application surface. It must NOT inherit
+    // the active *content* site's writing direction — otherwise selecting an RTL
+    // tenant (e.g. an Arabic site) mirrors the entire admin chrome (sidebar jumps
+    // to the right, layout reverses) and desyncs visual vs. DOM order of controls.
+    // Direction is intentionally pinned to LTR here; per-field RTL for editing
+    // localized content should be handled at the input level (e.g. dir="auto").
+    <div dir="ltr" lang={active.lang} style={active.cssVars}>
       <a
         href="#admin-main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-white focus:p-4 focus:text-gray-900 focus:shadow-md"

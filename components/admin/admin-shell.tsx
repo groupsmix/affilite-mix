@@ -76,6 +76,7 @@ export function AdminShell({
         collapsed={collapsed}
         onToggleCollapsed={handleToggleCollapsed}
         monetizationType={monetizationType}
+        isSuperAdmin={isSuperAdmin}
       />
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -86,6 +87,7 @@ export function AdminShell({
           </SheetHeader>
           <AdminSidebarNav
             monetizationType={monetizationType}
+            isSuperAdmin={isSuperAdmin}
             onNavigate={() => setMobileOpen(false)}
           />
         </SheetContent>
