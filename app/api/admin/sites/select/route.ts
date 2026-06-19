@@ -62,10 +62,30 @@ export async function POST(request: NextRequest) {
   // G-45: standardised 401 + Bearer challenge instead of 403 so a probe
   // cannot enumerate which sites the caller is or isn't a member of.
   if (session.role !== "super_admin" && session.userId) {
-    const dbSiteId = await resolveDbSiteId(activeSlug);
+    let dbSiteId: string;
+    try {
+      dbSiteId = await resolveDbSiteId(activeSlug);
+    } catch {
+      // Site not yet provisioned in DB (e.g. DB unavailable or config site
+      // that has never been selected by a super_admin). Return a clear error
+      // rather than crashing the route with an unhandled rejection — the
+      // client's finally block will show a toast instead of going silent.
+      return NextResponse.json(
+        { error: "Site is not available. A super admin must activate it first." },
+        { status: 503 },
+      );
+    }
     // admin_site_memberships table requires service_role (RLS restricted)
     const privilegedGetter = () => getPrivilegedSupabaseClient("admin-sites-select");
-    const membership = await getAdminSiteMembership(session.userId, dbSiteId, privilegedGetter);
+    let membership;
+    try {
+      membership = await getAdminSiteMembership(session.userId, dbSiteId, privilegedGetter);
+    } catch {
+      return NextResponse.json(
+        { error: "Could not verify site access. Please try again." },
+        { status: 503 },
+      );
+    }
     if (!membership) {
       return unauthorizedResponse();
     }
