@@ -515,7 +515,7 @@ function SiteCardSkeleton() {
 
 /* ------------------------------------------------------------------ */
 
-export function SiteManager() {
+export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
   const router = useRouter();
 
   const [sites, setSites] = useState<SiteInfo[]>([]);
@@ -551,6 +551,15 @@ export function SiteManager() {
   useEffect(() => {
     setConfirmInput("");
   }, [deleteOpen]);
+
+  // Show an explanatory toast when the user was redirected here because a
+  // dashboard page requires an active site. Runs once on mount if the flag
+  // is set (passed from the server page which reads ?needsSite=1).
+  useEffect(() => {
+    if (needsSite) {
+      toast.info("Select a site below to access the dashboard.");
+    }
+  }, [needsSite]);
 
   const loadSites = useCallback(async () => {
     const res = await fetch("/api/admin/sites");
@@ -615,21 +624,29 @@ export function SiteManager() {
 
     setTogglingId(site.id);
 
-    const dbId = site.db_id ?? site.id;
+    try {
+      const dbId = site.db_id ?? site.id;
 
-    const res = await fetchWithCsrf("/api/admin/sites", {
-      method: "PATCH",
+      const res = await fetchWithCsrf("/api/admin/sites", {
+        method: "PATCH",
 
-      headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
 
-      body: JSON.stringify({ id: dbId, is_active: next }),
-    });
+        body: JSON.stringify({ id: dbId, is_active: next }),
+      });
 
-    if (res.ok) {
-      setSites((prev) => prev.map((s) => (s.id === site.id ? { ...s, is_active: next } : s)));
+      if (res.ok) {
+        setSites((prev) => prev.map((s) => (s.id === site.id ? { ...s, is_active: next } : s)));
+      } else {
+        toast.error("Failed to update site status. Please try again.");
+      }
+    } catch {
+      // fetchWithCsrf can throw on network errors. Without this catch,
+      // togglingId is never reset and the Switch stays permanently disabled.
+      toast.error("Failed to update site status. Check your connection and try again.");
+    } finally {
+      setTogglingId(null);
     }
-
-    setTogglingId(null);
   }, []);
 
   const handleSetActive = useCallback(
@@ -645,14 +662,15 @@ export function SiteManager() {
 
         if (res.ok) {
           setActiveSiteId(site.id);
-          // Refresh so topbar tenant badge (Task 9) picks up the new active site.
+          toast.success(`Now editing ${site.name}. Dashboard features are unlocked.`);
+          // Refresh so topbar tenant badge picks up the new active site.
           router.refresh();
           return true;
         }
 
         // Surface the failure instead of silently leaving the tenant unset —
         // otherwise the dashboard tabs bounce back here with no explanation.
-        let message = "Couldn’t switch the active site. Please try again.";
+        let message = "Couldn't switch the active site. Please try again.";
         try {
           const data = (await res.json()) as { error?: string };
           if (typeof data.error === "string" && data.error.length > 0) {
@@ -662,6 +680,13 @@ export function SiteManager() {
           // Non-JSON error body — keep the default message.
         }
         toast.error(message);
+        return false;
+      } catch {
+        // fetchWithCsrf can throw on network errors or CSRF token fetch failure.
+        // Without this catch the error is silently swallowed and the button
+        // appears to do nothing — the finally still resets the spinner but the
+        // user gets zero feedback.
+        toast.error("Couldn't switch the active site. Check your connection and try again.");
         return false;
       } finally {
         setSelectingId(null);

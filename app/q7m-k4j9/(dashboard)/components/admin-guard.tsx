@@ -31,3 +31,24 @@ export async function requireAdminSession() {
 
   return { ...session, activeSiteSlug, activeSiteName };
 }
+
+/**
+ * Like requireAdminSession, but also redirects to the site-picker with an
+ * explanatory flag (?needsSite=1) when no active site has been selected.
+ *
+ * Use this on every dashboard page that requires a site context (analytics,
+ * products, ads, content, etc.).  The SiteManager reads the flag and shows
+ * a toast explaining why the user was redirected.
+ *
+ * NOTE: the individual `if (!session.activeSiteSlug) redirect(...)` guards in
+ * existing pages are left in place for now so this helper can be adopted
+ * incrementally — they remain a safe no-op fallback.
+ */
+export async function requireAdminSessionWithSite() {
+  const session = await requireAdminSession();
+  if (!session.activeSiteSlug) {
+    redirect("/q7m-k4j9/sites?needsSite=1");
+  }
+  // Narrow: activeSiteSlug is non-null past this point.
+  return session as typeof session & { activeSiteSlug: string };
+}

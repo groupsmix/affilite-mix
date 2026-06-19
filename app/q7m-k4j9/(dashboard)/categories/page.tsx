@@ -1,7 +1,6 @@
-import { requireAdminSession } from "../components/admin-guard";
+import { requireAdminSessionWithSite } from "../components/admin-guard";
 import { listCategories, getCategoryUsageCountsBatch } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -40,8 +39,7 @@ function parseCsv(raw: string | undefined): string[] {
 export default async function CategoriesPage({ searchParams }: CategoriesPageProps) {
   const sp = await searchParams;
 
-  const session = await requireAdminSession();
-  if (!session.activeSiteSlug) redirect("/q7m-k4j9/sites");
+  const session = await requireAdminSessionWithSite();
   const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
 
   const q = (sp.q ?? "").trim();

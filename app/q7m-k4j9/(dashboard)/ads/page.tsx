@@ -1,8 +1,7 @@
-import { requireAdminSession } from "../components/admin-guard";
+import { requireAdminSessionWithSite } from "../components/admin-guard";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { listAdPlacements } from "@/lib/dal/ad-placements";
 import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
-import { redirect } from "next/navigation";
 import { KpiCard } from "../components/dashboard/kpi-card";
 import { DEFAULT_CPM, resolveCpm } from "@/lib/ads/cpm-defaults";
 
@@ -10,11 +9,7 @@ import { ADS_TABLE_PAGE_SIZE, AdsTable, type AdsTableRow } from "./ads-table";
 import { NewAdPlacementDialog } from "./new-ad-placement-dialog";
 
 export default async function AdsPage() {
-  const session = await requireAdminSession();
-
-  if (!session.activeSiteSlug) {
-    redirect("/q7m-k4j9/sites");
-  }
+  const session = await requireAdminSessionWithSite();
 
   const siteId = await resolveDbSiteId(session.activeSiteSlug);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];

@@ -1,4 +1,4 @@
-import { requireAdminSession } from "../components/admin-guard";
+import { requireAdminSessionWithSite } from "../components/admin-guard";
 import {
   listProducts,
   countProducts,
@@ -7,7 +7,6 @@ import {
 } from "@/lib/dal/products";
 import { listCategories } from "@/lib/dal/categories";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -78,8 +77,7 @@ function parseCsvEnum<T extends string>(raw: string | undefined, allowed: Set<T>
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const sp = await searchParams;
 
-  const session = await requireAdminSession();
-  if (!session.activeSiteSlug) redirect("/q7m-k4j9/sites");
+  const session = await requireAdminSessionWithSite();
   const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);

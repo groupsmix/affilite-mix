@@ -1,4 +1,4 @@
-import { requireAdminSession } from "../components/admin-guard";
+import { requireAdminSessionWithSite } from "../components/admin-guard";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import {
   listAuditLogs,
@@ -91,11 +91,7 @@ export default async function AuditLogPage({
     redirect(`/q7m-k4j9/audit-log?${params.toString()}`);
   }
 
-  const session = await requireAdminSession();
-
-  if (!session.activeSiteSlug) {
-    redirect("/q7m-k4j9/sites");
-  }
+  const session = await requireAdminSessionWithSite();
 
   if (session.role !== "super_admin") {
     redirect("/q7m-k4j9");
