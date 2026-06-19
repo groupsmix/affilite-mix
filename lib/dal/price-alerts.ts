@@ -1,5 +1,18 @@
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
-import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { type DalClientGetter } from "./dal-client";
+import { getProductById } from "./products";
+// price_alerts ships with a service_role-only RLS policy by schema design
+// (migrations 00046/00055/00078) — the public anon-insert path was deliberately
+// removed in 00034. There is therefore no authenticated/anon policy that a
+// request-scoped tenant client could satisfy, so EVERY caller of this DAL must
+// use the privileged client. We encapsulate that choice here, in the audited
+// data layer, rather than leaking it into route handlers. Cross-tenant access
+// is enforced explicitly by the site_id predicates below and by
+// productBelongsToSite(), not by RLS.
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+
+/** Default client for all price_alerts access: privileged (RLS is service_role-only). */
+const priceAlertClient: DalClientGetter = getPrivilegedSupabaseClient;
 
 export interface PriceAlertRow {
   id: string;
@@ -29,7 +42,7 @@ export async function createPriceAlert(
     target_price: number;
     currency?: string;
   },
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = priceAlertClient,
 ): Promise<PriceAlertRow> {
   const sb = await getClient();
 
@@ -38,21 +51,41 @@ export async function createPriceAlert(
   return assertRow<PriceAlertRow>(data, "PriceAlert");
 }
 
-/** Get a user's alert for a product */
+/**
+ * Verify a product exists and belongs to the given site.
+ * Used by the public price-alert endpoint to prevent a visitor on Site A from
+ * subscribing to alerts on Site B's products. Uses the privileged client (see
+ * file header) and validates the site relationship explicitly.
+ */
+export async function productBelongsToSite(productId: string, siteId: string): Promise<boolean> {
+  const product = await getProductById(siteId, productId, priceAlertClient);
+  return product !== null;
+}
+
+/** Get a user's alert for a product, scoped to a site */
 export async function getPriceAlert(
   productId: string,
   email: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  siteId?: string,
+  getClient: DalClientGetter = priceAlertClient,
 ): Promise<PriceAlertRow | null> {
   const sb = await getClient();
 
-  const { data, error } = await sb
+  // H2-FIX: Add site_id scoping to prevent cross-tenant alert visibility.
+  // Without this, a productId from Site A could match an alert from Site B
+  // exposing that tenant's target_price, currency, and site_id.
+  let query = sb
     .from(TABLE)
     .select(ALL_COLUMNS)
     .eq("product_id", productId)
     .eq("email", email)
-    .eq("is_active", true)
-    .maybeSingle();
+    .eq("is_active", true);
+
+  if (siteId) {
+    query = query.eq("site_id", siteId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) throw error;
   return rowOrNull<PriceAlertRow>(data);
@@ -62,7 +95,7 @@ export async function getPriceAlert(
 export async function findTriggeredAlerts(
   productId: string,
   currentPrice: number,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = priceAlertClient,
 ): Promise<PriceAlertRow[]> {
   const sb = await getClient();
 
@@ -80,7 +113,7 @@ export async function findTriggeredAlerts(
 /** Mark an alert as triggered */
 export async function markAlertTriggered(
   id: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = priceAlertClient,
 ): Promise<void> {
   const sb = await getClient();
 
@@ -96,7 +129,7 @@ export async function markAlertTriggered(
 export async function deactivatePriceAlertScoped(
   id: string,
   siteId: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = priceAlertClient,
 ): Promise<void> {
   const sb = await getClient();
 

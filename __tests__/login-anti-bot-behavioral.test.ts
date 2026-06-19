@@ -42,6 +42,8 @@ vi.mock("@/lib/sentry", () => ({
 }));
 vi.mock("@/lib/totp", () => ({
   verifyTotpToken: vi.fn(),
+  needsSha256Reenrollment: vi.fn().mockReturnValue(false),
+  isSha1TotpPastDeadline: vi.fn().mockReturnValue(false),
 }));
 vi.mock("@/lib/totp-encryption", () => ({
   decryptTotpSecret: vi.fn(),

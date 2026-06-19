@@ -28,7 +28,7 @@ import {
   incrementTotpFailedAttempts,
 } from "@/lib/dal/admin-users";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
-import { verifyTotpToken, needsSha256Reenrollment } from "@/lib/totp";
+import { verifyTotpToken, needsSha256Reenrollment, isSha1TotpPastDeadline } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -437,6 +437,22 @@ export async function POST(request: NextRequest) {
           return apiError(429, "Too many 2FA attempts. Please try again later.", undefined, {
             "Retry-After": String(Math.ceil(totpRl.retryAfterMs / 1000)),
             ...rateLimitHeaders(totpLimit, totpRl),
+          });
+        }
+
+        // M3-FIX: Detect SHA-1 TOTP past hard-deprecation deadline BEFORE attempting
+        // verification. The previous code would call verifyTotpToken, get `false`
+        // (since the decrypted secret is SHA-1 after deadline), and return the generic
+        // "Invalid 2FA token" error. The user has no idea they need to re-enroll —
+        // they're just locked out. Return a distinct error code so the UI can
+        // redirect them to re-enroll with SHA-256.
+        if (
+          user.totp_secret &&
+          needsSha256Reenrollment(user.totp_secret) &&
+          isSha1TotpPastDeadline()
+        ) {
+          return apiError(403, "Two-factor authentication re-enrollment required", {
+            code: "TOTP_REENROLL_REQUIRED",
           });
         }
 

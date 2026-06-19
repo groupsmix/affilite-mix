@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { hashPassword, verifyPassword } from "@/lib/password";
@@ -178,13 +178,26 @@ describe("verifyToken revoked-token handling (A88-2)", () => {
     vi.resetModules();
   });
 
+  // Revocation is now CHECKED by default (verifyToken tri-state). Without this
+  // cleanup, the doMock of @/lib/jwt-revocation below leaks into later describe
+  // blocks, where verifyToken would then call the mocked isTokenRevoked (→ true)
+  // and reject every token. Unmock + reset so subsequent blocks get the real module.
+  afterEach(() => {
+    vi.doUnmock("@/lib/jwt-revocation");
+    vi.resetModules();
+    delete process.env.ADMIN_SESSION_TOKEN_REVOCATION_STRICT;
+  });
+
   it("rejects a revoked token when revocation check is enabled", async () => {
     // Enable strict revocation
     process.env.ADMIN_SESSION_TOKEN_REVOCATION_STRICT = "true";
 
-    // Mock isTokenRevoked to return true
+    // Mock isTokenRevoked to return true (and keep the per-user floor a no-op).
     vi.doMock("@/lib/jwt-revocation", () => ({
       isTokenRevoked: vi.fn().mockResolvedValue(true),
+      getUserSessionInvalidBefore: vi.fn().mockResolvedValue(null),
+      revokeToken: vi.fn().mockResolvedValue(undefined),
+      revokeUserSessions: vi.fn().mockResolvedValue(undefined),
     }));
 
     const { createToken, verifyToken } = await import("@/lib/auth");
@@ -194,9 +207,6 @@ describe("verifyToken revoked-token handling (A88-2)", () => {
 
     const decoded = await verifyToken(token);
     expect(decoded).toBeNull();
-
-    // Cleanup
-    delete process.env.ADMIN_SESSION_TOKEN_REVOCATION_STRICT;
   });
 });
 

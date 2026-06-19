@@ -36,7 +36,11 @@ vi.mock("@/lib/dal/admin-users", () => ({
   incrementLoginFailedAttempts: vi.fn().mockResolvedValue({ attempts: 1, locked: false }),
   incrementTotpFailedAttempts: vi.fn().mockResolvedValue({ attempts: 1, locked: false }),
 }));
-vi.mock("@/lib/totp", () => ({ verifyTotpToken: vi.fn().mockReturnValue(true) }));
+vi.mock("@/lib/totp", () => ({
+  verifyTotpToken: vi.fn().mockReturnValue(true),
+  needsSha256Reenrollment: vi.fn().mockReturnValue(false),
+  isSha1TotpPastDeadline: vi.fn().mockReturnValue(false),
+}));
 vi.mock("@/lib/totp-encryption", () => ({
   decryptTotpSecret: vi.fn().mockResolvedValue("decrypted-secret"),
 }));

@@ -7,7 +7,7 @@ import { logger } from "@/lib/logger";
 import { getJwtSecret, getJwtSecretPrevious, getJwtKid } from "@/lib/jwt-secret";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { computeRequestBinding, verifyRequestBinding } from "@/lib/jwt-binding";
-import { isTokenRevoked } from "@/lib/jwt-revocation";
+import { isTokenRevoked, getUserSessionInvalidBefore } from "@/lib/jwt-revocation";
 // RISK-05 (étap-3): In-memory revocation check for immediate effect
 import { isTokenRevokedImmediate } from "@/lib/jwt-revocation-strong";
 import { timingSafeEqual } from "@/lib/internal-hmac";
@@ -258,6 +258,13 @@ export interface AdminPayload {
    * `requireStepUpAuth` compares it against `Date.now()` directly.
    */
   step_up_at?: number;
+  /**
+   * FIX: JWT ID carried through to AdminPayload so callers (e.g. refresh
+   * route) can revoke the old token without re-reading/re-decoding the
+   * cookie. The JTI is always set at createToken() via .setJti(); expose
+   * it here so TypeScript callers can access it without unsafe casts.
+   */
+  jti?: string;
 }
 
 /**
@@ -433,21 +440,62 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   // ADMIN_SESSION_STRICT no longer disables three independent defences;
   // operators can still individually toggle a control if one infra dependency
   // (e.g. KV availability for revocation) is genuinely unhealthy.
-  const strictRevocation = isAdminControlEnabled("ADMIN_SESSION_TOKEN_REVOCATION_STRICT");
-  if (strictRevocation && payload.jti) {
+  //
+  // SEC-FIX: Revocation is now DEFAULT-ON. The previous `isAdminControlEnabled`
+  // call defaulted to false when ADMIN_SESSION_STRICT was unset, meaning
+  // revokeToken() at logout/password-change had zero effect in default deploys.
+  // SEC-FIX tri-state: ADMIN_SESSION_TOKEN_REVOCATION_STRICT controls revocation:
+  //   unset  → revocation CHECKED, fail-OPEN on KV outage (safe default; closes
+  //            the logout/password-reset gap without risking a lockout DoS).
+  //   "true" → revocation CHECKED, fail-CLOSED on KV outage (strict — a leaked
+  //            token cannot be replayed even during a KV outage).
+  //   "false"→ revocation NOT checked (emergency escape hatch).
+  const revocationFlag = parseTriBoolEnv("ADMIN_SESSION_TOKEN_REVOCATION_STRICT");
+  const revocationChecked = revocationFlag !== false;
+  const revocationFailClosed = revocationFlag === true;
+  if (revocationChecked && payload.jti) {
     // RISK-05 (étap-3): Check in-memory blocklist first for immediate effect
     // (covers same-isolate revocation within milliseconds), then fall back to
     // KV for cross-isolate propagation (~60s eventual consistency).
     if (
       isTokenRevokedImmediate(payload.jti as string) ||
-      (await isTokenRevoked(payload.jti as string))
+      (await isTokenRevoked(payload.jti as string, { failClosed: revocationFailClosed }))
     ) {
       logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
       return null;
     }
   }
 
+  // SEC-FIX (High-5): Per-user session floor. A password reset sets a cutoff so
+  // EVERY token issued before it is rejected — covering other devices and the
+  // email-link reset path (which has no cookie jti to revoke). Shares the same
+  // default-on control as jti revocation. getUserSessionInvalidBefore fails open
+  // (returns null) on KV outage, so this never causes a lockout.
+  if (revocationChecked) {
+    const uid = typeof payload.userId === "string" ? payload.userId : null;
+    const tokenStart =
+      typeof payload.session_start === "number"
+        ? payload.session_start
+        : typeof payload.iat === "number"
+          ? payload.iat
+          : null;
+    if (uid && tokenStart !== null) {
+      const invalidBefore = await getUserSessionInvalidBefore(uid);
+      if (invalidBefore !== null && tokenStart < invalidBefore) {
+        logger.warn("Token rejected: user sessions invalidated (password reset / forced logout)", {
+          userId: uid,
+        });
+        return null;
+      }
+    }
+  }
+
   const adminPayload = payload as unknown as AdminPayload;
+  // FIX: Copy jti from the raw JWT payload to AdminPayload so callers
+  // (e.g. the refresh route) can revoke the old token without unsafe casts.
+  if (typeof payload.jti === "string" && !adminPayload.jti) {
+    adminPayload.jti = payload.jti as string;
+  }
 
   // P0-1 / SEC-CRIT-04 / SEC-05 (etap-3): Binding enforcement gated independently.
   //
