@@ -10,6 +10,15 @@ import { ContentCard } from "./components/content-card";
 import { ProductCard } from "./components/product-card";
 import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./components/json-ld";
 import Link from "next/link";
+// Statically imported (NOT next/dynamic) so this Server Component renders in
+// the initial SSR HTML. Lazy-loading the homepage template deferred its render
+// past first paint; with the sticky-footer flex layout (main is flex-1) the
+// footer rode up to the viewport bottom, then dropped by the full template
+// height once the chunk resolved. On the tall compare homepage that is a ~0.15
+// CLS, over the Lighthouse 0.1 gate. Server components ship no client JS, so a
+// static import keeps the client bundle identical while painting the page at
+// its final height.
+import { CompareHomepage } from "./components/homepage-compare";
 
 /**
  * PROD-INCIDENT-2026-06-11 follow-up: surface failures in the homepage's
@@ -42,9 +51,6 @@ const EditorialHomepage = dynamic(() =>
 );
 const Top10Homepage = dynamic(() =>
   import("./components/homepage-top10").then((m) => m.Top10Homepage),
-);
-const CompareHomepage = dynamic(() =>
-  import("./components/homepage-compare").then((m) => m.CompareHomepage),
 );
 
 export async function generateMetadata(): Promise<Metadata> {
