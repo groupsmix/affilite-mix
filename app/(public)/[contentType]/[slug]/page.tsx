@@ -20,9 +20,7 @@ const StickyCtaBar = dynamic(() =>
 const ReadingProgress = dynamic(() =>
   import("../../components/reading-progress").then((m) => m.ReadingProgress),
 );
-const HeroProductCta = dynamic(() =>
-  import("../../components/hero-product-cta").then((m) => m.HeroProductCta),
-);
+const VerdictBox = dynamic(() => import("../../components/verdict-box").then((m) => m.VerdictBox));
 import { ProsCons } from "../../components/pros-cons";
 import {
   JsonLd,
@@ -175,6 +173,14 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
   const comparisonProducts = [...vsLeft, ...vsRight];
   const isComparison = content.type === "comparison" || comparisonProducts.length >= 2;
 
+  // Verdict: rank the compared tools by score so we can declare a winner.
+  // Tools without a score sink to the bottom; ties keep input (vs-left) order.
+  const rankedComparison = [...comparisonProducts].sort(
+    (a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity),
+  );
+  const comparisonWinner = rankedComparison[0];
+  const comparisonRunnerUp = rankedComparison[1];
+
   const contentSchema = isReview
     ? reviewJsonLd(site, content, heroProduct)
     : articleJsonLd(site, content);
@@ -245,10 +251,36 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
         </aside>
       )}
 
-      {/* Hero product (for reviews) — uses consent-aware tracking */}
-      {isReview && heroProduct && <HeroProductCta product={heroProduct} language={site.language} />}
+      {/* Verdict (reviews) — bottom-line-up-front: score, price, CTA.
+          Supersedes the former HeroProductCta with an explicit verdict line. */}
+      {isReview && heroProduct && (
+        <VerdictBox
+          product={heroProduct}
+          language={site.language}
+          variant="review"
+          verdict={content.excerpt || heroProduct.description}
+          priority
+        />
+      )}
 
-      {/* Comparison table */}
+      {/* Verdict (comparisons) — declare the winner above the spec table so the
+          page answers "who wins" before any scrolling. */}
+      {isComparison && comparisonWinner && (
+        <VerdictBox
+          product={comparisonWinner}
+          language={site.language}
+          variant="comparison"
+          verdict={comparisonWinner.description}
+          runnerUp={
+            comparisonRunnerUp
+              ? { name: comparisonRunnerUp.name, score: comparisonRunnerUp.score }
+              : null
+          }
+          totalCompared={comparisonProducts.length}
+        />
+      )}
+
+      {/* Comparison table — full side-by-side detail */}
       {isComparison && comparisonProducts.length >= 2 && (
         <ComparisonTable products={comparisonProducts} />
       )}
