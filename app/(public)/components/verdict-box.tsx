@@ -15,10 +15,35 @@ interface VerdictBoxProps {
   verdict?: string | null;
   /** Comparison only: runner-up, for the score-delta methodology line. */
   runnerUp?: { name: string; score: number | null } | null;
+  /**
+   * Comparison only: the full runner-up product. When present, the box renders
+   * a dual "Pick A if… / Pick B if…" decision with a second tracked CTA for the
+   * runner-up — turning a single-winner verdict into a genuine two-way choice.
+   */
+  runnerUpProduct?: ProductRow | null;
   /** Comparison only: how many tools were compared (trust signal). */
   totalCompared?: number;
+  /** Pre-formatted "last verified" date (freshness/trust signal). */
+  lastVerified?: string | null;
   /** Mark the image as the LCP candidate (review hero). */
   priority?: boolean;
+}
+
+/**
+ * The "Pick X if…" reason for a tool: prefer its strongest pro, else fall back
+ * to the first sentence of its description. Grounded in existing product data —
+ * no hallucinated copy.
+ */
+function pickReason(product: ProductRow): string {
+  const topPro = product.pros
+    ? product.pros
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)[0]
+    : undefined;
+  if (topPro) return topPro;
+  const desc = (product.description || "").trim();
+  return desc.split(/(?<=[.!?])\s/)[0] || desc;
 }
 
 /** Trust-palette score tier. 0–10 scale, matches the platform score field. */
@@ -48,7 +73,9 @@ export function VerdictBox({
   variant,
   verdict,
   runnerUp,
+  runnerUpProduct,
   totalCompared,
+  lastVerified,
   priority = false,
 }: VerdictBoxProps) {
   const { accepted: hasConsent } = useCookieConsent();
@@ -59,6 +86,18 @@ export function VerdictBox({
   const ctaUrl = product.affiliate_url
     ? getTrackingUrl(product.slug, trackingType, product.affiliate_url, hasConsent)
     : null;
+
+  // Second tracked CTA for the runner-up. Same "comparison" tracking type — the
+  // product slug (p=…) is what attributes the click, so EPC stays correct.
+  const runnerUpCtaUrl =
+    isComparison && runnerUpProduct?.affiliate_url
+      ? getTrackingUrl(
+          runnerUpProduct.slug,
+          "comparison",
+          runnerUpProduct.affiliate_url,
+          hasConsent,
+        )
+      : null;
 
   const tier = product.score !== null ? scoreTier(product.score) : null;
 
@@ -186,6 +225,45 @@ export function VerdictBox({
           </div>
         </div>
 
+        {/* Two-way decision — "Pick A if… / Pick B if…" with a second tracked
+            CTA for the runner-up, so the page offers a real choice instead of a
+            single winner. */}
+        {isComparison && runnerUpProduct && (
+          <div className="mt-5 grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2">
+            <div>
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                {isAr ? `اختر ${product.name} إن كنت تريد` : `Pick ${product.name} if`}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-600">{pickReason(product)}</p>
+            </div>
+            <div className="sm:border-l sm:border-gray-100 sm:pl-4">
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                {isAr
+                  ? `اختر ${runnerUpProduct.name} إن كنت تريد`
+                  : `Pick ${runnerUpProduct.name} if`}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                {pickReason(runnerUpProduct)}
+              </p>
+              {runnerUpCtaUrl && (
+                <a
+                  href={runnerUpCtaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-lg border px-4 text-sm font-semibold transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  style={{
+                    borderColor: "var(--color-accent, #2D6BF0)",
+                    color: "var(--color-accent-text, var(--color-accent))",
+                  }}
+                >
+                  {runnerUpProduct.cta_text ||
+                    (isAr ? `جرّب ${runnerUpProduct.name}` : `Try ${runnerUpProduct.name}`)}
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Comparison methodology line — reinforces independence */}
         {isComparison && (totalCompared || runnerUp) && (
           <p className="mt-4 border-t border-gray-100 pt-3 font-mono text-xs text-gray-500">
@@ -203,6 +281,21 @@ export function VerdictBox({
                 <span className="tabular-nums">{runnerUp.score.toFixed(1)}</span>
               </span>
             )}
+          </p>
+        )}
+
+        {/* Freshness stamp — a visible "last verified" date builds trust and
+            is what LLM answer engines prefer to cite. */}
+        {lastVerified && (
+          <p className="mt-4 flex items-center gap-1.5 font-mono text-[11px] text-gray-400">
+            <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .27.144.518.378.651l3 1.714a.75.75 0 00.744-1.302l-2.622-1.498V5z"
+                clipRule="evenodd"
+              />
+            </svg>
+            {isAr ? `آخر تحقّق: ${lastVerified}` : `Last verified ${lastVerified}`}
           </p>
         )}
       </div>

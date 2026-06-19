@@ -190,6 +190,16 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";
 
+  // Freshness signal for the verdict box. Until ai_tools.last_verified_at exists
+  // (backlog CA-201/CA-502), updated_at is the best available "last verified" date.
+  const lastVerifiedLabel = content.updated_at
+    ? new Date(content.updated_at).toLocaleDateString(locale, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+
   return (
     <article className="mx-auto max-w-4xl px-4 py-8">
       <JsonLd data={breadcrumbs} />
@@ -259,6 +269,7 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
           language={site.language}
           variant="review"
           verdict={content.excerpt || heroProduct.description}
+          lastVerified={lastVerifiedLabel}
           priority
         />
       )}
@@ -276,7 +287,9 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
               ? { name: comparisonRunnerUp.name, score: comparisonRunnerUp.score }
               : null
           }
+          runnerUpProduct={comparisonRunnerUp ?? null}
           totalCompared={comparisonProducts.length}
+          lastVerified={lastVerifiedLabel}
         />
       )}
 
