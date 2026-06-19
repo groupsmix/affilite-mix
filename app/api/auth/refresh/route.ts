@@ -3,8 +3,8 @@ import {
   getAdminSession,
   createToken,
   COOKIE_NAME,
-  touchAdminActivity,
   getAdminBindingCookie,
+  touchAdminActivity,
 } from "@/lib/auth";
 import { computeRequestBinding } from "@/lib/jwt-binding";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
@@ -16,6 +16,8 @@ import {
   MAX_SESSION_AGE_REGULAR_SECONDS,
   MAX_SESSION_AGE_ADMIN_SECONDS,
 } from "@/lib/auth-constants";
+// FIX: Revoke old token on refresh so prior JTI is invalidated immediately.
+import { revokeTokenStrong } from "@/lib/jwt-revocation-strong";
 
 /** 10 refresh requests per minute per session */
 const REFRESH_RATE_LIMIT = {
@@ -70,6 +72,19 @@ export async function POST(request: NextRequest) {
     // more full window before expiry).
     if (!session.session_start) {
       session.session_start = Math.floor(Date.now() / 1000);
+    }
+
+    // FIX: Revoke the old token's JTI before issuing a new one.
+    // Without this, both the old and new tokens are simultaneously valid
+    // for up to 4 hours, undermining the entire session security model.
+    // Best-effort: a revocation failure should not block the refresh itself,
+    // but we log it so the anomaly is observable.
+    if (session.jti) {
+      try {
+        await revokeTokenStrong(session.jti);
+      } catch (revokeErr) {
+        captureException(revokeErr, { context: "[api/auth/refresh] old-token revocation failed" });
+      }
     }
 
     // P0-1: Pass the request so the refreshed token includes the bnd claim.

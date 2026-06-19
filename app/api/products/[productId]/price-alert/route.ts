@@ -8,9 +8,11 @@ import {
   createPriceAlert,
   getPriceAlert,
   deactivatePriceAlertScoped,
+  productBelongsToSite,
 } from "@/lib/dal/price-alerts";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
+import { captureException } from "@/lib/sentry";
 
 /**
  * POST /api/products/:productId/price-alert
@@ -86,8 +88,17 @@ export async function POST(
     const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
     const siteId = await resolveDbSiteId(siteSlug);
 
-    // Check if already subscribed
-    const existing = await getPriceAlert(productId, email);
+    // L1-FIX: Validate productId belongs to this site before creating alert.
+    // Without this, an attacker from Site A can subscribe alerts on Site B's products.
+    // Client selection (privileged, since price_alerts is service_role-only) is
+    // encapsulated in the DAL — see lib/dal/price-alerts.ts header.
+    const productExists = await productBelongsToSite(productId, siteId);
+    if (!productExists) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    // Check if already subscribed (scoped to this site).
+    const existing = await getPriceAlert(productId, email, siteId);
     if (existing) {
       return NextResponse.json({
         message: "You already have an active price alert for this product",
@@ -104,8 +115,11 @@ export async function POST(
     });
 
     return NextResponse.json({ message: "Price alert created", alert }, { status: 201 });
-  } catch {
-    // fail-open: best-effort [criticality:non-critical]
+  } catch (err) {
+    // M8-FIX: previously a silent `catch {}` — which hid the systemic RLS
+    // failure as a generic 500. Now that inserts work via the privileged
+    // client, log any residual failure so the feature can't break unnoticed.
+    captureException(err, { context: "[api/products/price-alert] POST failed" });
     return NextResponse.json({ error: "Failed to create price alert" }, { status: 500 });
   }
 }
@@ -154,7 +168,8 @@ export async function DELETE(
     const siteId = await resolveDbSiteId(siteSlug);
     await deactivatePriceAlertScoped(body.alert_id, siteId);
     return NextResponse.json({ message: "Alert deactivated" });
-  } catch {
+  } catch (err) {
+    captureException(err, { context: "[api/products/price-alert] DELETE failed" });
     return NextResponse.json({ error: "Failed to deactivate alert" }, { status: 500 });
   }
 }

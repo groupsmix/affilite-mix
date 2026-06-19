@@ -76,6 +76,41 @@ function buildKey(): string {
 
 async function postAlert(env: TailWorkerEnv, payload: CloudflareTailEvent): Promise<void> {
   if (!env.ALERT_WEBHOOK_URL) return;
+  // M2-FIX: SSRF guard — reject non-HTTPS URLs and private/metadata IP ranges
+  // before fetching. The full lib/ssrf-guard.ts is not importable here, so we
+  // apply a minimal allowlist: HTTPS only, and block well-known internal ranges.
+  const url = env.ALERT_WEBHOOK_URL;
+  if (!/^https:\/\//i.test(url)) {
+    // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
+    console.error("[log-shipper] ALERT_WEBHOOK_URL rejected: must be https://", url.slice(0, 40));
+    return;
+  }
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    // Block localhost, RFC-1918, link-local, and cloud metadata endpoints
+    const blockedPatterns = [
+      /^localhost$/,
+      /^127\./,
+      /^10\./,
+      /^172\.(1[6-9]|2\d|3[01])\./,
+      /^192\.168\./,
+      /^169\.254\./,
+      /^::1$/,
+      /^fd/,
+      /^metadata\.google/,
+      /^169\.254\.169\.254$/,
+    ];
+    if (blockedPatterns.some((re) => re.test(host))) {
+      // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
+      console.error("[log-shipper] ALERT_WEBHOOK_URL rejected: blocked host", host);
+      return;
+    }
+  } catch {
+    // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
+    console.error("[log-shipper] ALERT_WEBHOOK_URL is not a valid URL");
+    return;
+  }
   try {
     await fetch(env.ALERT_WEBHOOK_URL, {
       method: "POST",

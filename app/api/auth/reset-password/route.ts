@@ -9,6 +9,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
 // RISK-05 (étap-3): Use strong revocation for immediate in-isolate effect
 import { revokeTokenStrong } from "@/lib/jwt-revocation-strong";
+// High-5 FIX: revoke every session for the user (all devices + email-link path)
+import { revokeUserSessions } from "@/lib/jwt-revocation";
 // A100-4: Safe JWT claim decoding (replaces unsafe JSON.parse(atob()))
 import { decodeJwtClaims } from "@/lib/decode-jwt-claims";
 import { COOKIE_NAME } from "@/lib/auth";
@@ -126,15 +128,23 @@ export async function POST(request: Request) {
     // Invalidate any existing session the user might have
     try {
       const cookieStore = await cookies();
-      const token = cookieStore.get(COOKIE_NAME)?.value;
-      if (token) {
+      // FIX: renamed from `token` to `cookieToken` to avoid shadowing the
+      // outer `token` (the password-reset token from the request body).
+      const cookieToken = cookieStore.get(COOKIE_NAME)?.value;
+      if (cookieToken) {
         // A100-4: jose.decodeJwt() validates 3-part token structure and returns a typed
         // JWTPayload — no __proto__/constructor keys can leak into the result.
-        const claims = decodeJwtClaims(token);
+        const claims = decodeJwtClaims(cookieToken);
         if (claims?.jti && typeof claims.jti === "string") {
           await revokeTokenStrong(claims.jti);
         }
       }
+      // SEC-FIX (High-5): Revoke ALL of the user's sessions, not just the
+      // current cookie. revokeTokenStrong above only kills the requesting
+      // browser's token (and nothing at all on the email-link path, which has
+      // no admin cookie). This sets a per-user floor so every existing session
+      // — other devices, the email-link case — is invalidated immediately.
+      await revokeUserSessions(user.id);
     } catch (e) {
       captureException(e, {
         context: "[api/auth/reset-password] Failed to decode JWT for revocation",
