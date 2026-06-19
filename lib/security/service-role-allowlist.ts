@@ -100,6 +100,16 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // path, which also passes the privileged client explicitly via lib/auth.ts).
   "lib/dal/admin-users.ts",
 
+  // price_alerts has a service_role-only RLS policy by schema design
+  // (migrations 00046/00055/00078; the public anon-insert path was removed
+  // in 00034). No authenticated/anon policy exists, so a tenant-scoped client
+  // is always denied on this table. Every price-alerts DAL helper therefore
+  // defaults to the privileged client. Public callers (the rate-limited +
+  // Turnstile-gated price-alert subscription route) reach it only after
+  // explicit app-layer site scoping (site_id predicates + productBelongsToSite),
+  // so cross-tenant access is prevented without relying on RLS.
+  "lib/dal/price-alerts.ts",
+
   // LIVE-10 / F-024: applyStripeEventAtomic calls the
   // apply_stripe_membership_event RPC, which is GRANTed only to
   // service_role. The Stripe webhook delivers events with no

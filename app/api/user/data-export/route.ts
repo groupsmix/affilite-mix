@@ -120,7 +120,10 @@ export async function POST(request: NextRequest) {
   });
   if (!emailRl.allowed) {
     // Return 200 to prevent email enumeration (same as normal success path)
-    logger.warn("Data export rate limit hit for email hash", { email_hash: emailHash, site_id: dbSiteId });
+    logger.warn("Data export rate limit hit for email hash", {
+      email_hash: emailHash,
+      site_id: dbSiteId,
+    });
     return NextResponse.json({
       message:
         "If this email has data on this site, a verification code has been sent. " +

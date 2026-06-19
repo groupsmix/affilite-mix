@@ -9,18 +9,30 @@ const REVOKED_TTL_SECONDS = REVOKED_JWT_TTL_SECONDS;
 
 /**
  * Check if a JWT ID (jti) is present in the blocklist.
- * Fails closed (blocks token) if KV is unavailable in production, to prevent
- * compromised tokens from being used during outages.
+ *
+ * KV-outage behaviour is controlled by `failClosed`:
+ *   - failClosed=false (default): on KV unavailability, fail OPEN (return
+ *     false / not-revoked). Revocation is now checked by default (see
+ *     verifyToken), and failing closed on every KV blip would lock every
+ *     admin out — a worse outage than the gap revocation closes. The
+ *     attacker's window during a KV outage is bounded by the 4h token TTL.
+ *   - failClosed=true (operator sets ADMIN_SESSION_TOKEN_REVOCATION_STRICT
+ *     =true): on KV unavailability in production, fail CLOSED (block the
+ *     token) so a compromised token cannot be replayed during an outage.
  */
-export async function isTokenRevoked(jti: string): Promise<boolean> {
+export async function isTokenRevoked(
+  jti: string,
+  opts?: { failClosed?: boolean },
+): Promise<boolean> {
+  const failClosed = opts?.failClosed ?? false;
   const isProduction =
     process.env.NODE_ENV === "production" ||
     (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers");
   try {
     const kv = getKVNamespace();
     if (!kv) {
-      if (isProduction) {
-        logger.error("KV unavailable, failing closed for JWT revocation check", { jti });
+      if (isProduction && failClosed) {
+        logger.error("KV unavailable, failing closed for JWT revocation check (strict)", { jti });
         return true;
       }
       return false;
@@ -30,7 +42,7 @@ export async function isTokenRevoked(jti: string): Promise<boolean> {
     return value !== null;
   } catch (err) {
     logger.error("Failed to check token revocation status", { jti, error: String(err) });
-    return isProduction; // Fail closed in prod, open in dev
+    return isProduction && failClosed; // Fail closed only when strict mode is enabled
   }
 }
 

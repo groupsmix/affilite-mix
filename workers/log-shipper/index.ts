@@ -81,6 +81,7 @@ async function postAlert(env: TailWorkerEnv, payload: CloudflareTailEvent): Prom
   // apply a minimal allowlist: HTTPS only, and block well-known internal ranges.
   const url = env.ALERT_WEBHOOK_URL;
   if (!/^https:\/\//i.test(url)) {
+    // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
     console.error("[log-shipper] ALERT_WEBHOOK_URL rejected: must be https://", url.slice(0, 40));
     return;
   }
@@ -101,10 +102,12 @@ async function postAlert(env: TailWorkerEnv, payload: CloudflareTailEvent): Prom
       /^169\.254\.169\.254$/,
     ];
     if (blockedPatterns.some((re) => re.test(host))) {
+      // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
       console.error("[log-shipper] ALERT_WEBHOOK_URL rejected: blocked host", host);
       return;
     }
   } catch {
+    // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
     console.error("[log-shipper] ALERT_WEBHOOK_URL is not a valid URL");
     return;
   }

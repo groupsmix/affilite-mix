@@ -432,17 +432,22 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   // SEC-FIX: Revocation is now DEFAULT-ON. The previous `isAdminControlEnabled`
   // call defaulted to false when ADMIN_SESSION_STRICT was unset, meaning
   // revokeToken() at logout/password-change had zero effect in default deploys.
-  // Operators can explicitly disable via ADMIN_SESSION_TOKEN_REVOCATION_STRICT=false
-  // as an emergency escape hatch (e.g. sustained KV outage), but the safe
-  // default is always to check revocation.
-  const strictRevocation = parseTriBoolEnv("ADMIN_SESSION_TOKEN_REVOCATION_STRICT") !== false;
-  if (strictRevocation && payload.jti) {
+  // SEC-FIX tri-state: ADMIN_SESSION_TOKEN_REVOCATION_STRICT controls revocation:
+  //   unset  → revocation CHECKED, fail-OPEN on KV outage (safe default; closes
+  //            the logout/password-reset gap without risking a lockout DoS).
+  //   "true" → revocation CHECKED, fail-CLOSED on KV outage (strict — a leaked
+  //            token cannot be replayed even during a KV outage).
+  //   "false"→ revocation NOT checked (emergency escape hatch).
+  const revocationFlag = parseTriBoolEnv("ADMIN_SESSION_TOKEN_REVOCATION_STRICT");
+  const revocationChecked = revocationFlag !== false;
+  const revocationFailClosed = revocationFlag === true;
+  if (revocationChecked && payload.jti) {
     // RISK-05 (étap-3): Check in-memory blocklist first for immediate effect
     // (covers same-isolate revocation within milliseconds), then fall back to
     // KV for cross-isolate propagation (~60s eventual consistency).
     if (
       isTokenRevokedImmediate(payload.jti as string) ||
-      (await isTokenRevoked(payload.jti as string))
+      (await isTokenRevoked(payload.jti as string, { failClosed: revocationFailClosed }))
     ) {
       logger.warn("Token rejected: explicitly revoked", { jti: payload.jti });
       return null;
@@ -452,9 +457,9 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   // SEC-FIX (High-5): Per-user session floor. A password reset sets a cutoff so
   // EVERY token issued before it is rejected — covering other devices and the
   // email-link reset path (which has no cookie jti to revoke). Shares the same
-  // default-on flag as jti revocation. The jti check above already fails closed
-  // on KV outage, so this read fails open (null) to avoid double-blocking.
-  if (strictRevocation) {
+  // default-on control as jti revocation. getUserSessionInvalidBefore fails open
+  // (returns null) on KV outage, so this never causes a lockout.
+  if (revocationChecked) {
     const uid = typeof payload.userId === "string" ? payload.userId : null;
     const tokenStart =
       typeof payload.session_start === "number"
