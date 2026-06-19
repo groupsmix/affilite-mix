@@ -4,6 +4,7 @@ import { parseJsonBody } from "@/lib/api-error";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getSiteIdFromHeader } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
+import { getProductById } from "@/lib/dal/products";
 import {
   createPriceAlert,
   getPriceAlert,
@@ -11,6 +12,11 @@ import {
 } from "@/lib/dal/price-alerts";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { normalizeEmail, hashEmailForRateLimit } from "@/lib/validate-email";
+// FIX: price_alerts RLS only permits service_role writes. The public endpoint
+// must use the privileged client so inserts/reads are not blocked by RLS.
+// The DAL functions already scope by site_id + product_id, so tenant isolation
+// is preserved at the application layer.
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 
 /**
  * POST /api/products/:productId/price-alert
@@ -86,8 +92,15 @@ export async function POST(
     const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
     const siteId = await resolveDbSiteId(siteSlug);
 
-    // Check if already subscribed
-    const existing = await getPriceAlert(productId, email);
+    // L1-FIX: Validate productId belongs to this site before creating alert.
+    // Without this, an attacker from Site A can subscribe alerts on Site B's products.
+    const product = await getProductById(siteId, productId, getPrivilegedSupabaseClient);
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    // Check if already subscribed — use privileged client + site scope to bypass RLS
+    const existing = await getPriceAlert(productId, email, getPrivilegedSupabaseClient, siteId);
     if (existing) {
       return NextResponse.json({
         message: "You already have an active price alert for this product",
@@ -95,13 +108,17 @@ export async function POST(
       });
     }
 
-    const alert = await createPriceAlert({
-      product_id: productId,
-      site_id: siteId,
-      email,
-      target_price,
-      currency: currency || "USD",
-    });
+    // Use privileged client to bypass RLS (price_alerts is service_role only)
+    const alert = await createPriceAlert(
+      {
+        product_id: productId,
+        site_id: siteId,
+        email,
+        target_price,
+        currency: currency || "USD",
+      },
+      getPrivilegedSupabaseClient,
+    );
 
     return NextResponse.json({ message: "Price alert created", alert }, { status: 201 });
   } catch {
@@ -152,7 +169,7 @@ export async function DELETE(
     // F-10: Scope delete by site_id to prevent cross-tenant IDOR
     const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
     const siteId = await resolveDbSiteId(siteSlug);
-    await deactivatePriceAlertScoped(body.alert_id, siteId);
+    await deactivatePriceAlertScoped(body.alert_id, siteId, getPrivilegedSupabaseClient);
     return NextResponse.json({ message: "Alert deactivated" });
   } catch {
     return NextResponse.json({ error: "Failed to deactivate alert" }, { status: 500 });

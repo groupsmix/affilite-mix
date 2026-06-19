@@ -9,6 +9,8 @@ import { isValidEmail, sanitizeEmailInput, hashEmailForRateLimit } from "@/lib/v
 import { getAppCacheKV } from "@/lib/runtime-env";
 // A47-02: Turnstile CAPTCHA on GET to prevent automated email enumeration
 import { verifyTurnstile } from "@/lib/turnstile";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
+import { getCurrentSite } from "@/lib/site-context";
 
 /**
  * SEC-01 (étap-3 RISK-01): GDPR Art. 20 data portability endpoint.
@@ -42,10 +44,19 @@ const CODE_TTL_SECONDS = 600; // 10 minutes
 const CODE_LENGTH = 6;
 
 function generateVerificationCode(): string {
+  // L2-FIX: Use rejection sampling to eliminate modulo bias.
+  // 2^32 % 10^6 = 967296, so codes 000000–967295 are ~0.023% more likely
+  // than 967296–999999 with naive modulo. Rejection sampling discards
+  // values in the biased tail [floor(2^32/10^6)*10^6, 2^32) and retries.
+  const MAX = 10 ** CODE_LENGTH; // 1_000_000
+  const LIMIT = Math.floor(0x100000000 / MAX) * MAX; // 4_294_000_000
   const bytes = new Uint8Array(4);
-  crypto.getRandomValues(bytes);
-  const num = ((bytes[0]! << 24) | (bytes[1]! << 16) | (bytes[2]! << 8) | bytes[3]!) >>> 0;
-  return String(num % 10 ** CODE_LENGTH).padStart(CODE_LENGTH, "0");
+  let num: number;
+  do {
+    crypto.getRandomValues(bytes);
+    num = ((bytes[0]! << 24) | (bytes[1]! << 16) | (bytes[2]! << 8) | bytes[3]!) >>> 0;
+  } while (num >= LIMIT);
+  return String(num % MAX).padStart(CODE_LENGTH, "0");
 }
 
 function exportCodeKey(emailHash: string, siteId: string): string {
@@ -95,6 +106,26 @@ export async function POST(request: NextRequest) {
   }
 
   const emailHash = await hashEmailForRateLimit(email);
+
+  // H3-FIX: Add per-email rate limit to prevent IP-rotation brute-force.
+  // The existing IP rate limit (3 req / 15 min) is bypassable via residential proxies.
+  // A 6-digit code has 10^6 possibilities; with only IP-based limits an attacker
+  // can guess it in ~100 min with ~3000 rotating IPs. Per-email limit plugs this gap.
+  const emailRl = await checkRateLimit(`data-export-email:${emailHash}:${dbSiteId}`, {
+    maxRequests: 3,
+    windowMs: 60 * 60 * 1000, // 3 requests per hour per email+site
+    failPolicy: "closed" as const,
+  });
+  if (!emailRl.allowed) {
+    // Return 200 to prevent email enumeration (same as normal success path)
+    logger.warn("Data export rate limit hit for email hash", { email_hash: emailHash, site_id: dbSiteId });
+    return NextResponse.json({
+      message:
+        "If this email has data on this site, a verification code has been sent. " +
+        "Use it with GET /api/user/data-export?email=...&code=... within 10 minutes.",
+    });
+  }
+
   const code = generateVerificationCode();
   const kvKey = exportCodeKey(emailHash, dbSiteId);
 
@@ -107,11 +138,80 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // In a full implementation, this would send the code via email using Resend.
-  // For now, the code is stored in KV and must be retrieved via the email
-  // delivery mechanism. The response is intentionally identical regardless
-  // of whether the email exists — preventing enumeration.
-  logger.info("Data export verification code requested", {
+  // FIX: Actually send the verification code via Resend.
+  // The previous implementation stored the code in KV but never emailed it,
+  // making the entire data-export feature non-functional.
+  const resendKey = process.env.RESEND_API_KEY;
+  const isProd = process.env.NODE_ENV === "production";
+
+  if (resendKey) {
+    try {
+      let site: { name: string; domain: string } = { name: "Our Site", domain: "example.com" };
+      try {
+        const s = await getCurrentSite();
+        site = { name: s.name, domain: s.domain };
+      } catch {
+        // fail-open: use defaults if site context unavailable
+      }
+      const safeSiteName = site.name.replace(/[\r\n\0]/g, " ").slice(0, 120);
+      const safeDomain = site.domain.replace(/[\r\n\0]/g, "").toLowerCase();
+      const fromEmail = `noreply@${safeDomain}`;
+
+      const emailHtml = `
+        <p>You requested a copy of your data from ${safeSiteName}.</p>
+        <p>Your verification code is: <strong>${code}</strong></p>
+        <p>This code expires in 10 minutes. Use it at:<br>
+        <code>GET /api/user/data-export?email=${encodeURIComponent(email)}&code=${code}</code></p>
+        <p>If you did not request this, you can ignore this email.</p>
+      `;
+      const emailText = `Your data export verification code for ${safeSiteName}: ${code}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, ignore this email.`;
+
+      const res = await fetchWithTimeout("https://api.resend.com/emails", {
+        method: "POST",
+        timeoutMs: 10_000,
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [email],
+          subject: `Your data export verification code — ${safeSiteName}`,
+          html: emailHtml,
+          text: emailText,
+        }),
+      });
+
+      if (!res.ok) {
+        await res.text().catch(() => "");
+        captureException(new Error(`Resend returned ${res.status} for data-export code`), {
+          context: "[api/user/data-export] email send failed",
+        });
+        if (isProd) {
+          return NextResponse.json(
+            { error: "Could not send verification email. Please try again later." },
+            { status: 503, headers: { "Retry-After": "30" } },
+          );
+        }
+      }
+    } catch (emailErr) {
+      captureException(emailErr, { context: "[api/user/data-export] email send threw" });
+      if (isProd) {
+        return NextResponse.json(
+          { error: "Could not send verification email. Please try again later." },
+          { status: 503, headers: { "Retry-After": "30" } },
+        );
+      }
+    }
+  } else if (isProd) {
+    logger.error("[data-export] RESEND_API_KEY missing in production — cannot send code");
+    return NextResponse.json(
+      { error: "Data export is temporarily unavailable. Please try again later." },
+      { status: 503 },
+    );
+  }
+
+  logger.info("Data export verification code sent", {
     email_hash: emailHash,
     site_id: dbSiteId,
   });

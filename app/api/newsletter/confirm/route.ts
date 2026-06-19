@@ -5,7 +5,7 @@ import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
-import { hashNewsletterToken } from "@/lib/newsletter-token";
+import { hashNewsletterToken, isTokenWithinExpiry } from "@/lib/newsletter-token";
 
 /** 10 confirm requests per minute per IP.
  * SEC-16: failPolicy "closed" — confirmation tokens are bearer secrets;
@@ -46,10 +46,11 @@ export async function GET(request: NextRequest) {
     const tokenHash = await hashNewsletterToken(token);
 
     // Find the subscriber by hashed confirmation token, scoped to the current site
+    // FIX: select created_at so we can enforce token expiry below
     const { data: subscriber, error: fetchError } = await sb
       // eslint-disable-next-line no-restricted-syntax -- Audited: getTenantClient() is already site-scoped via RLS
       .from("newsletter_subscribers")
-      .select("id, status, confirmed_at")
+      .select("id, status, confirmed_at, created_at")
       .eq("site_id", siteId)
       .eq("confirmation_token", tokenHash)
       .single();
@@ -63,6 +64,15 @@ export async function GET(request: NextRequest) {
 
     if (subscriber.status === "active" && subscriber.confirmed_at) {
       return NextResponse.redirect(new URL("/newsletter/confirmed", request.url));
+    }
+
+    // FIX: Enforce token expiry. isTokenWithinExpiry() is called on the
+    // unsubscribe route but was omitted here — confirmation tokens were
+    // valid indefinitely, allowing old emails to activate subscriptions months later.
+    if (!isTokenWithinExpiry(subscriber.created_at)) {
+      return NextResponse.redirect(
+        new URL("/newsletter/confirmed?error=expired_token", request.url),
+      );
     }
 
     // Activate the subscription

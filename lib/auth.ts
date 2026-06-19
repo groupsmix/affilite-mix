@@ -246,6 +246,13 @@ export interface AdminPayload {
    * be enforced regardless of how many times the token is refreshed.
    */
   session_start?: number;
+  /**
+   * FIX: JWT ID carried through to AdminPayload so callers (e.g. refresh
+   * route) can revoke the old token without re-reading/re-decoding the
+   * cookie. The JTI is always set at createToken() via .setJti(); expose
+   * it here so TypeScript callers can access it without unsafe casts.
+   */
+  jti?: string;
 }
 
 /**
@@ -421,7 +428,14 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   // ADMIN_SESSION_STRICT no longer disables three independent defences;
   // operators can still individually toggle a control if one infra dependency
   // (e.g. KV availability for revocation) is genuinely unhealthy.
-  const strictRevocation = isAdminControlEnabled("ADMIN_SESSION_TOKEN_REVOCATION_STRICT");
+  //
+  // SEC-FIX: Revocation is now DEFAULT-ON. The previous `isAdminControlEnabled`
+  // call defaulted to false when ADMIN_SESSION_STRICT was unset, meaning
+  // revokeToken() at logout/password-change had zero effect in default deploys.
+  // Operators can explicitly disable via ADMIN_SESSION_TOKEN_REVOCATION_STRICT=false
+  // as an emergency escape hatch (e.g. sustained KV outage), but the safe
+  // default is always to check revocation.
+  const strictRevocation = parseTriBoolEnv("ADMIN_SESSION_TOKEN_REVOCATION_STRICT") !== false;
   if (strictRevocation && payload.jti) {
     // RISK-05 (étap-3): Check in-memory blocklist first for immediate effect
     // (covers same-isolate revocation within milliseconds), then fall back to
@@ -436,6 +450,11 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   }
 
   const adminPayload = payload as unknown as AdminPayload;
+  // FIX: Copy jti from the raw JWT payload to AdminPayload so callers
+  // (e.g. the refresh route) can revoke the old token without unsafe casts.
+  if (typeof payload.jti === "string" && !adminPayload.jti) {
+    adminPayload.jti = payload.jti as string;
+  }
 
   // P0-1 / SEC-CRIT-04 / SEC-05 (etap-3): Binding enforcement gated independently.
   //

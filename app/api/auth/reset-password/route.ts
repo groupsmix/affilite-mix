@@ -126,11 +126,13 @@ export async function POST(request: Request) {
     // Invalidate any existing session the user might have
     try {
       const cookieStore = await cookies();
-      const token = cookieStore.get(COOKIE_NAME)?.value;
-      if (token) {
+      // FIX: renamed from `token` to `cookieToken` to avoid shadowing the
+      // outer `token` (the password-reset token from the request body).
+      const cookieToken = cookieStore.get(COOKIE_NAME)?.value;
+      if (cookieToken) {
         // A100-4: jose.decodeJwt() validates 3-part token structure and returns a typed
         // JWTPayload — no __proto__/constructor keys can leak into the result.
-        const claims = decodeJwtClaims(token);
+        const claims = decodeJwtClaims(cookieToken);
         if (claims?.jti && typeof claims.jti === "string") {
           await revokeTokenStrong(claims.jti);
         }

@@ -38,21 +38,30 @@ export async function createPriceAlert(
   return assertRow<PriceAlertRow>(data, "PriceAlert");
 }
 
-/** Get a user's alert for a product */
+/** Get a user's alert for a product, scoped to a site */
 export async function getPriceAlert(
   productId: string,
   email: string,
   getClient: DalClientGetter = defaultDalClientGetter,
+  siteId?: string,
 ): Promise<PriceAlertRow | null> {
   const sb = await getClient();
 
-  const { data, error } = await sb
+  // H2-FIX: Add site_id scoping to prevent cross-tenant alert visibility.
+  // Without this, a productId from Site A could match an alert from Site B
+  // exposing that tenant's target_price, currency, and site_id.
+  let query = sb
     .from(TABLE)
     .select(ALL_COLUMNS)
     .eq("product_id", productId)
     .eq("email", email)
-    .eq("is_active", true)
-    .maybeSingle();
+    .eq("is_active", true);
+
+  if (siteId) {
+    query = query.eq("site_id", siteId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) throw error;
   return rowOrNull<PriceAlertRow>(data);
