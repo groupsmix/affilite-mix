@@ -19,10 +19,6 @@ export interface SiteStatsResponse {
   stats: Record<string, SiteStats>;
 }
 
-function finiteStat(value: number): number {
-  return Number.isFinite(value) ? value : 0;
-}
-
 /**
  * GET /api/admin/sites/stats — batch per-site stats for the Site Manager grid.
  *
