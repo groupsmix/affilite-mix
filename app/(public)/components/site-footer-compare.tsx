@@ -47,15 +47,13 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
             <div className="flex items-baseline gap-0.5 text-2xl font-extrabold tracking-tight select-none">
               <span className="text-white">{part1}</span>
               {part2 && (
-                <span style={{ color: "var(--color-accent-light, #3B82F6)" }}>
-                  &nbsp;{part2}
-                </span>
+                <span style={{ color: "var(--color-accent-light, #3B82F6)" }}>&nbsp;{part2}</span>
               )}
             </div>
             <p className="mt-1 max-w-sm text-sm text-gray-400">{site.brand.description}</p>
           </div>
           {/* Trust tagline */}
-          <p className="text-xs italic text-gray-600">
+          <p className="text-xs italic text-gray-400">
             Independent reviews. No sponsored rankings.
           </p>
         </div>
@@ -65,7 +63,7 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
           {/* Config nav sections */}
           {Object.entries(site.footerNav).map(([section, items]) => (
             <div key={section}>
-              <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
+              <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400">
                 {section}
               </h4>
               <ul className="space-y-2">
@@ -97,7 +95,7 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
           {/* DB-injected nav section */}
           {dbFooterNav && dbFooterNav.length > 0 && (
             <div>
-              <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
+              <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400">
                 Pages
               </h4>
               <ul className="space-y-2">
@@ -135,23 +133,23 @@ export function SiteFooterCompare({ site, hideNewsletter, dbFooterNav }: SiteFoo
         )}
 
         {/* Bottom bar */}
-        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 py-6 text-xs text-gray-600">
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 py-6 text-xs text-gray-400">
           <span>
             &copy; {year} {site.name}. All rights reserved.
           </span>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Link href="/privacy" className="transition-colors hover:text-gray-400">
+            <Link href="/privacy" className="transition-colors hover:text-white">
               Privacy Policy
             </Link>
-            <Link href="/terms" className="transition-colors hover:text-gray-400">
+            <Link href="/terms" className="transition-colors hover:text-white">
               Terms
             </Link>
-            <Link href="/affiliate-disclosure" className="transition-colors hover:text-gray-400">
+            <Link href="/affiliate-disclosure" className="transition-colors hover:text-white">
               Affiliate Disclosure
             </Link>
             <CookieSettingsButton
               label="Cookie Settings"
-              className="transition-colors hover:text-gray-400"
+              className="text-gray-400 transition-colors hover:text-white"
             />
           </div>
         </div>

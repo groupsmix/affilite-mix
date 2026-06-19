@@ -42,7 +42,10 @@ export function SiteHeaderCompare({ site, dbNavItems }: SiteHeaderCompareProps) 
     "/";
 
   return (
-    <header className="sticky top-0 z-40" style={{ backgroundColor: "var(--color-primary, #0B1120)" }}>
+    <header
+      className="sticky top-0 z-40"
+      style={{ backgroundColor: "var(--color-primary, #0B1120)" }}
+    >
       {/* Cobalt accent stripe at the top */}
       <div
         className="h-0.5 w-full"
@@ -114,12 +117,7 @@ export function SiteHeaderCompare({ site, dbNavItems }: SiteHeaderCompareProps) 
 
           {/* Mobile hamburger */}
           <div className="md:hidden">
-            <MobileMenu
-              nav={nav}
-              searchLabel="Search"
-              direction={site.direction}
-              dark
-            />
+            <MobileMenu nav={nav} searchLabel="Search" direction={site.direction} dark />
           </div>
         </div>
       </div>
@@ -127,7 +125,10 @@ export function SiteHeaderCompare({ site, dbNavItems }: SiteHeaderCompareProps) 
       {/* Bottom border — subtle glow instead of a hard line */}
       <div
         className="h-px w-full"
-        style={{ background: "linear-gradient(90deg, transparent, var(--color-accent, #2D6BF0)33, transparent)" }}
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, var(--color-accent, #2D6BF0)33, transparent)",
+        }}
         aria-hidden="true"
       />
     </header>

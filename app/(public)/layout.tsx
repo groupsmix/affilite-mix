@@ -90,9 +90,7 @@ export default async function PublicLayout({ children }: { children: React.React
   // Merge: DB theme overrides config theme.
   // layoutVariant priority: DB → site config → "standard"
   const resolvedLayoutVariant: LayoutVariant =
-    (dbTheme.layoutVariant as LayoutVariant | undefined) ??
-    site.layoutVariant ??
-    "standard";
+    (dbTheme.layoutVariant as LayoutVariant | undefined) ?? site.layoutVariant ?? "standard";
 
   const themeConfig: Partial<SiteThemeConfig> = {
     primaryColor: site.theme.primaryColor,

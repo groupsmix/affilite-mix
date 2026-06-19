@@ -1,4 +1,10 @@
-import type { SiteDefinition, FeatureFlags, ContentTypeConfig, NavItem, LayoutVariant } from "./site-definition";
+import type {
+  SiteDefinition,
+  FeatureFlags,
+  ContentTypeConfig,
+  NavItem,
+  LayoutVariant,
+} from "./site-definition";
 
 /* ------------------------------------------------------------------ */
 /*  Font presets                                                       */

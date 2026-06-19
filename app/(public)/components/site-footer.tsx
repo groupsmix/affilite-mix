@@ -17,10 +17,17 @@ interface SiteFooterProps {
   layoutVariant?: LayoutVariant;
 }
 
-export function SiteFooter({ site, hideNewsletter, dbFooterNav, layoutVariant = "standard" }: SiteFooterProps) {
+export function SiteFooter({
+  site,
+  hideNewsletter,
+  dbFooterNav,
+  layoutVariant = "standard",
+}: SiteFooterProps) {
   // Dispatch to per-variant footer implementations.
   if (layoutVariant === "compare") {
-    return <SiteFooterCompare site={site} hideNewsletter={hideNewsletter} dbFooterNav={dbFooterNav} />;
+    return (
+      <SiteFooterCompare site={site} hideNewsletter={hideNewsletter} dbFooterNav={dbFooterNav} />
+    );
   }
   // "magazine", "minimal", "directory" — fall through to standard until implemented.
 

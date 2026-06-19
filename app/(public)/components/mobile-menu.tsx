@@ -141,7 +141,9 @@ export function MobileMenu({
             type="button"
             onClick={closeMenu}
             className={`rounded-md p-2 ${
-              dark ? "text-gray-400 hover:bg-white/10 hover:text-white" : "text-gray-600 hover:bg-gray-100"
+              dark
+                ? "text-gray-400 hover:bg-white/10 hover:text-white"
+                : "text-gray-600 hover:bg-gray-100"
             }`}
             aria-label="Close menu"
           >
