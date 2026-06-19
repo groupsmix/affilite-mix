@@ -1,4 +1,10 @@
-import type { SiteDefinition, FeatureFlags, ContentTypeConfig, NavItem } from "./site-definition";
+import type {
+  SiteDefinition,
+  FeatureFlags,
+  ContentTypeConfig,
+  NavItem,
+  LayoutVariant,
+} from "./site-definition";
 
 /* ------------------------------------------------------------------ */
 /*  Font presets                                                       */
@@ -143,6 +149,12 @@ export interface SiteInput {
   fonts?: FontPreset | { heading: string; body: string };
   /** Homepage layout preset. Defaults to "standard" */
   homepage?: HomepagePreset;
+  /**
+   * Chrome variant — controls header + footer design.
+   * Defaults to "standard". When set to "compare" the site gets the dark
+   * navy header with CTA button and dark branded footer.
+   */
+  layout?: LayoutVariant;
   /** Product card display style. Defaults to "standard" */
   productCardStyle?: ProductCardStylePreset;
   /** Feature list (shorthand). Defaults to common features. */
@@ -263,6 +275,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
     direction,
     locale,
     homepageTemplate: homepage,
+    layoutVariant: input.layout ?? "standard",
     productCardStyle,
 
     brand: {

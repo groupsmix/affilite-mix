@@ -1,16 +1,31 @@
-import type { SiteDefinition, NavItem } from "@/config/site-definition";
+import type { SiteDefinition, NavItem, LayoutVariant } from "@/config/site-definition";
 import Link from "next/link";
 import { MobileMenu } from "./mobile-menu";
 import { ActiveNavLinks } from "./active-nav-links";
 import { DarkModeToggle } from "./dark-mode-toggle";
+import { SiteHeaderCompare } from "./site-header-compare";
 
 interface SiteHeaderProps {
   site: SiteDefinition;
   /** Optional dynamic nav items from DB (overrides site.nav if provided) */
   dbNavItems?: { label: string; href: string; icon?: string }[];
+  /**
+   * Resolved layout variant — DB value takes precedence over site config.
+   * Passed from the public layout so headers don't need to re-read the DB.
+   */
+  layoutVariant?: LayoutVariant;
 }
 
-export function SiteHeader({ site, dbNavItems }: SiteHeaderProps) {
+export function SiteHeader({ site, dbNavItems, layoutVariant = "standard" }: SiteHeaderProps) {
+  // Dispatch to per-variant header implementations.
+  // Each variant is a self-contained component with its own design system.
+  if (layoutVariant === "compare") {
+    return <SiteHeaderCompare site={site} dbNavItems={dbNavItems} />;
+  }
+  // "magazine", "minimal", "directory" — stubs that fall through to standard
+  // until their designs are implemented. Add their imports + conditions here.
+
+  // --- "standard" (default) ---
   // If DB nav items are provided and non-empty, convert them to NavItem format
   const nav: NavItem[] =
     dbNavItems && dbNavItems.length > 0

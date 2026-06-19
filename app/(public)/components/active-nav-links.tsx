@@ -5,9 +5,26 @@ import { usePathname } from "next/navigation";
 
 interface ActiveNavLinksProps {
   nav: { title: string; href: string }[];
+  /**
+   * Class applied to every nav link. Defaults to the standard light-bg style.
+   * Pass a full Tailwind string when using this inside a dark-bg header.
+   */
+  className?: string;
+  /**
+   * Class applied to the currently active nav link (overrides `className`).
+   * Defaults to the standard active style.
+   */
+  activeClassName?: string;
 }
 
-export function ActiveNavLinks({ nav }: ActiveNavLinksProps) {
+const DEFAULT_CLASS = "text-sm font-medium text-gray-600 transition-colors hover:text-gray-900";
+const DEFAULT_ACTIVE_CLASS = "text-sm font-medium text-gray-900";
+
+export function ActiveNavLinks({
+  nav,
+  className = DEFAULT_CLASS,
+  activeClassName = DEFAULT_ACTIVE_CLASS,
+}: ActiveNavLinksProps) {
   const pathname = usePathname();
 
   return (
@@ -19,9 +36,7 @@ export function ActiveNavLinks({ nav }: ActiveNavLinksProps) {
             key={item.href}
             href={item.href}
             aria-current={isActive ? "page" : undefined}
-            className={`text-sm font-medium transition-colors ${
-              isActive ? "text-gray-900" : "text-gray-600 hover:text-gray-900"
-            }`}
+            className={isActive ? activeClassName : className}
           >
             {item.title}
           </Link>

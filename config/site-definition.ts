@@ -1,5 +1,18 @@
 /** Site configuration — single source of truth for all site-specific behavior */
 
+/**
+ * Controls the chrome (header + footer) rendered around every page of a site.
+ * Distinct from `homepageTemplate` which only affects the homepage content.
+ *
+ * - "standard"  — light sticky header, simple footer (default for all sites)
+ * - "compare"   — dark navy header with CTA button, dark branded footer
+ *                 (used by compareai.site / AI Compared)
+ * - "magazine"  — bold editorial masthead, full-width dark footer
+ * - "minimal"   — borderless header, minimal single-line footer
+ * - "directory" — utility header with category chips, compact footer
+ */
+export type LayoutVariant = "standard" | "compare" | "magazine" | "minimal" | "directory";
+
 export interface SiteDefinition {
   id: string;
   name: string;
@@ -80,6 +93,13 @@ export interface SiteDefinition {
 
   /** Homepage template preset. Defaults to "standard". */
   homepageTemplate?: "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
+
+  /**
+   * Chrome variant — controls the header and footer design for this site.
+   * Defaults to "standard". Can be overridden at runtime via the DB
+   * `theme.layout_variant` field (admin panel → Site Settings).
+   */
+  layoutVariant?: LayoutVariant;
 
   /** Product card display variant. Defaults to "standard". */
   productCardStyle?: "standard" | "compact" | "detailed";

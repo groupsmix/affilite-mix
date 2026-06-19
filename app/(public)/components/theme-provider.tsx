@@ -1,12 +1,10 @@
 "use client";
 
 import { createContext, useMemo } from "react";
+import type { LayoutVariant } from "@/config/site-definition";
 
-/* ------------------------------------------------------------------ */
-/*  Layout variants                                                     */
-/* ------------------------------------------------------------------ */
-
-export type LayoutVariant = "standard" | "magazine" | "minimal" | "directory";
+// Re-export so existing imports of LayoutVariant from this file keep working.
+export type { LayoutVariant };
 
 /* ------------------------------------------------------------------ */
 /*  Theme types                                                         */
