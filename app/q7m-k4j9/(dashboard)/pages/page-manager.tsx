@@ -51,12 +51,12 @@ const inputCls =
 
 const labelCls = "mb-1 block text-sm font-medium text-gray-700";
 
-export function PageManager() {
+export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "create" } = {}) {
   const [pages, setPages] = useState<PageInfo[]>([]);
 
   const [loading, setLoading] = useState(true);
 
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(initialMode === "create");
 
   const [editingPage, setEditingPage] = useState<PageInfo | null>(null);
 
@@ -65,6 +65,14 @@ export function PageManager() {
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialMode === "create") {
+      setEditingPage(null);
+      setForm(emptyForm);
+      setShowForm(true);
+    }
+  }, [initialMode]);
 
   const [confirmDeletePage, setConfirmDeletePage] = useState<PageInfo | null>(null);
 

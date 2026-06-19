@@ -1,6 +1,7 @@
 import { escapeLike, stripPostgrestMeta } from "./search-utils";
 import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { logger } from "@/lib/logger";
 import { clampPagination } from "./pagination-guard";
 // M3: actor→id resolution reads the global admin_users table. Rather than add a
 // second service-role importer, delegate to the canonical admin-users DAL, which
@@ -105,7 +106,10 @@ export async function listAuditLogs(
   query = query.range(safeOffset, safeOffset + safeLimit - 1);
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    logger.warn("[audit-log] list unavailable", { siteId, error: error.message });
+    return [];
+  }
   return assertRows<AuditLogEntry>(data ?? []);
 }
 
@@ -148,7 +152,10 @@ export async function countAuditLogs(
   if (filters?.to) query = query.lte("created_at", filters.to);
 
   const { count, error } = await query;
-  if (error) throw error;
+  if (error) {
+    logger.warn("[audit-log] count unavailable", { siteId, error: error.message });
+    return 0;
+  }
   return count ?? 0;
 }
 
@@ -164,7 +171,10 @@ export async function getDistinctActions(
     .eq("site_id", siteId)
     .order("action");
 
-  if (error) throw error;
+  if (error) {
+    logger.warn("[audit-log] distinct actions unavailable", { siteId, error: error.message });
+    return [];
+  }
   const unique = new Set(assertRows<{ action: string }>(data ?? []).map((d) => d.action));
   return Array.from(unique);
 }
@@ -181,7 +191,10 @@ export async function getDistinctEntityTypes(
     .eq("site_id", siteId)
     .order("entity_type");
 
-  if (error) throw error;
+  if (error) {
+    logger.warn("[audit-log] distinct entity types unavailable", { siteId, error: error.message });
+    return [];
+  }
   const unique = new Set(assertRows<{ entity_type: string }>(data ?? []).map((d) => d.entity_type));
   return Array.from(unique);
 }

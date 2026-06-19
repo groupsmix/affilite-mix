@@ -1,6 +1,7 @@
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { AdPlacementRow, AdPlacementType } from "@/types/database";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import { logger } from "@/lib/logger";
 
 const TABLE = "ad_placements";
 const LIST_COLUMNS =
@@ -18,7 +19,10 @@ export async function listAdPlacements(
     .eq("site_id", siteId)
     .order("priority", { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    logger.warn("[ad-placements] list unavailable", { siteId, error: error.message });
+    return [];
+  }
   return assertRows<AdPlacementRow>(data);
 }
 
@@ -41,7 +45,10 @@ export async function listActiveAdPlacements(
   }
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    logger.warn("[ad-placements] active list unavailable", { siteId, error: error.message });
+    return [];
+  }
   return assertRows<AdPlacementRow>(data);
 }
 

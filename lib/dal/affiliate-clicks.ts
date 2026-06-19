@@ -2,6 +2,7 @@ import type { AffiliateClickRow } from "@/types/database";
 import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { logger } from "@/lib/logger";
+import { shouldSkipDbCall } from "@/lib/db-available";
 
 const TABLE = "affiliate_clicks";
 
@@ -103,11 +104,15 @@ export async function getClickCount(
   until?: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<number> {
+  if (shouldSkipDbCall()) return 0;
   const sb = await getClient();
   let query = sb.from(TABLE).select("id", { count: "exact", head: true }).eq("site_id", siteId);
   query = applyCreatedAtWindow(query, { since, until });
   const { count, error } = await query;
-  if (error) throw error;
+  if (error) {
+    logger.warn("[affiliate-clicks] count unavailable", { siteId, error: error.message });
+    return 0;
+  }
   return count ?? 0;
 }
 

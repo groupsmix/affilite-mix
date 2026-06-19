@@ -1,4 +1,5 @@
 import { requireAdminSessionWithSite } from "../components/admin-guard";
+import { AdminDataError, safeAdminData } from "../components/admin-page-state";
 import { listContent, countContent, type ContentSortColumn } from "@/lib/dal/content";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { redirect } from "next/navigation";
@@ -71,7 +72,21 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
   }
 
   const session = await requireAdminSessionWithSite();
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const siteIdResult = await safeAdminData(
+    "content active site resolution",
+    () => resolveDbSiteId(session.activeSiteSlug),
+    "",
+  );
+  if (siteIdResult.error || !siteIdResult.data) {
+    return (
+      <AdminDataError
+        title="Content could not load"
+        description="The active site could not be resolved in the database. Re-select the site or run the site provisioning migration."
+        retryHref="/q7m-k4j9/content"
+      />
+    );
+  }
+  const dbSiteId = siteIdResult.data;
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
   const types = parseCsvEnum(sp["f.type"], TYPE_VALUES);
@@ -91,25 +106,31 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
   const rawSize = parseInt(sp.size ?? String(DEFAULT_PAGE_SIZE), 10);
   const pageSize = ALLOWED_PAGE_SIZES.has(rawSize) ? rawSize : DEFAULT_PAGE_SIZE;
 
-  const [contentItems, totalContent, scheduledCount] = await Promise.all([
-    listContent({
-      siteId: dbSiteId,
-      statuses: statuses.length > 0 ? statuses : undefined,
-      types: types.length > 0 ? types : undefined,
-      q,
-      sortBy,
-      sortDirection,
-      limit: pageSize,
-      offset: (pageNum - 1) * pageSize,
-    }),
-    countContent({
-      siteId: dbSiteId,
-      statuses: statuses.length > 0 ? statuses : undefined,
-      types: types.length > 0 ? types : undefined,
-      q,
-    }),
-    countContent({ siteId: dbSiteId, status: "scheduled" }),
-  ]);
+  const contentResult = await safeAdminData(
+    "content page data",
+    () =>
+      Promise.all([
+        listContent({
+          siteId: dbSiteId,
+          statuses: statuses.length > 0 ? statuses : undefined,
+          types: types.length > 0 ? types : undefined,
+          q,
+          sortBy,
+          sortDirection,
+          limit: pageSize,
+          offset: (pageNum - 1) * pageSize,
+        }),
+        countContent({
+          siteId: dbSiteId,
+          statuses: statuses.length > 0 ? statuses : undefined,
+          types: types.length > 0 ? types : undefined,
+          q,
+        }),
+        countContent({ siteId: dbSiteId, status: "scheduled" }),
+      ]),
+    [[], 0, 0] as [ContentRow[], number, number],
+  );
+  const [contentItems, totalContent, scheduledCount] = contentResult.data;
 
   const rows: ContentTableRow[] = contentItems.map((item) => ({
     id: item.id,
@@ -124,6 +145,11 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
 
   return (
     <div className="mx-auto max-w-6xl">
+      {contentResult.error ? (
+        <div className="mb-6">
+          <AdminDataError title="Content data is partially unavailable" retryHref="/q7m-k4j9/content" />
+        </div>
+      ) : null}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Content</h1>
         <Link

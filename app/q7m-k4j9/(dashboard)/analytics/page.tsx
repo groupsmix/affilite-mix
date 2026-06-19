@@ -34,6 +34,7 @@ import { resolveDbSiteBySlug, resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getSiteById } from "@/config/sites";
 
 import { requireAdminSession } from "../components/admin-guard";
+import { AdminDataError, safeAdminData } from "../components/admin-page-state";
 import { AnalyticsKpis } from "./analytics-kpis";
 import { ClickChart } from "./click-chart";
 import { ConversionFunnel } from "./conversion-funnel";
@@ -101,8 +102,25 @@ export default async function AnalyticsPage({
   }
 
   const isSuperAdmin = session.role === "super_admin";
-  const dbSite = await resolveDbSiteBySlug(activeSiteSlug);
-  const siteId = dbSite?.id ?? (await resolveDbSiteId(activeSiteSlug));
+  const siteResult = await safeAdminData(
+    "analytics active site resolution",
+    async () => {
+      const dbSite = await resolveDbSiteBySlug(activeSiteSlug);
+      const siteId = dbSite?.id ?? (await resolveDbSiteId(activeSiteSlug));
+      return { dbSite, siteId };
+    },
+    { dbSite: null, siteId: "" },
+  );
+  if (siteResult.error || !siteResult.data.siteId) {
+    return (
+      <AdminDataError
+        title="Analytics could not load"
+        description="The active site could not be resolved in the database. Re-select the site or run the site provisioning migration."
+        retryHref="/q7m-k4j9/analytics"
+      />
+    );
+  }
+  const { dbSite, siteId } = siteResult.data;
   const siteConfig = getSiteById(activeSiteSlug);
 
   const sp = await searchParams;
@@ -115,6 +133,34 @@ export default async function AnalyticsPage({
     dbSite,
   });
 
+  const analyticsResult = await safeAdminData(
+    "analytics page data",
+    () =>
+      Promise.all([
+        getClickCount(siteId, range.since, range.until),
+        getTopProducts(siteId, range.since, 50, range.until),
+        getTopReferrers(siteId, range.since, 50, range.until),
+        getTopContentSlugs(siteId, range.since, 50, range.until),
+        getDailyClicks(siteId, {
+          since: range.since,
+          until: range.until,
+        }),
+        getRecentClicks(siteId, 20, {
+          since: range.since,
+          until: range.until,
+        }),
+        getAdImpressionStats(siteId, range.since.slice(0, 10), range.until?.slice(0, 10)),
+      ]),
+    [0, [], [], [], [], [], []] as [
+      number,
+      { product_name: string; click_count: number }[],
+      { referrer: string; click_count: number }[],
+      { content_slug: string; click_count: number }[],
+      { date: string; count: number }[],
+      RecentClickRow[],
+      { ad_placement_id: string; total_impressions: number }[],
+    ],
+  );
   const [
     clicksInRange,
     topProducts,
@@ -123,21 +169,7 @@ export default async function AnalyticsPage({
     dailyClicks,
     recentClicks,
     adImpressionStats,
-  ] = await Promise.all([
-    getClickCount(siteId, range.since, range.until),
-    getTopProducts(siteId, range.since, 50, range.until),
-    getTopReferrers(siteId, range.since, 50, range.until),
-    getTopContentSlugs(siteId, range.since, 50, range.until),
-    getDailyClicks(siteId, {
-      since: range.since,
-      until: range.until,
-    }),
-    getRecentClicks(siteId, 20, {
-      since: range.since,
-      until: range.until,
-    }),
-    getAdImpressionStats(siteId, range.since.slice(0, 10), range.until?.slice(0, 10)),
-  ]);
+  ] = analyticsResult.data;
 
   const uniqueReferrers = topReferrers.length;
   const estimatedRevenue = clicksInRange * estRevenuePerClick;
@@ -148,10 +180,17 @@ export default async function AnalyticsPage({
 
   const productRows =
     topProducts.length > 0
-      ? await listProductsByNames(
-          siteId,
-          topProducts.map((p) => p.product_name),
-        )
+      ? (
+          await safeAdminData(
+            "analytics product lookup",
+            () =>
+              listProductsByNames(
+                siteId,
+                topProducts.map((p) => p.product_name),
+              ),
+            [],
+          )
+        ).data
       : [];
   const productByName = new Map<string, { id: string; image_url: string; image_alt: string }>();
   for (const row of productRows) {
@@ -171,6 +210,16 @@ export default async function AnalyticsPage({
 
   return (
     <div className="mx-auto w-full max-w-7xl">
+      {analyticsResult.error ? (
+        <div className="mb-6">
+          <AdminDataError
+            title="Analytics data is partially unavailable"
+            description="Some analytics queries failed, so this page is showing safe empty values instead of crashing."
+            retryHref="/q7m-k4j9/analytics"
+          />
+        </div>
+      ) : null}
+
       <PageHeader
         title="Analytics"
         description={

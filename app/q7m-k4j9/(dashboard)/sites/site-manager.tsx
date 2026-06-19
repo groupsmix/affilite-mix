@@ -147,8 +147,25 @@ function readPrimaryColor(site: SiteInfo): string {
   return DEFAULT_PRIMARY;
 }
 
+function sanitizeStatValue(n: unknown): number | undefined {
+  if (typeof n !== "number" || !Number.isFinite(n)) return undefined;
+  return n;
+}
+
+function sanitizeStats(raw: Record<string, SiteStats>): Record<string, SiteStats> {
+  const out: Record<string, SiteStats> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    out[key] = {
+      activeProducts: sanitizeStatValue(value.activeProducts) ?? 0,
+      publishedContent: sanitizeStatValue(value.publishedContent) ?? 0,
+      clicks: sanitizeStatValue(value.clicks) ?? 0,
+    };
+  }
+  return out;
+}
+
 function formatNumber(n: number | undefined): string {
-  if (n === undefined || Number.isNaN(n)) return "—";
+  if (n === undefined || !Number.isFinite(n)) return "—";
 
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k`;
 

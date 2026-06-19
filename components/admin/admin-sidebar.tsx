@@ -43,12 +43,14 @@ export function AdminSidebarNav({
   isSuperAdmin = false,
   collapsed = false,
   onNavigate,
+  hasActiveSite = true,
   className,
 }: {
   monetizationType: AdminMonetizationType;
   isSuperAdmin?: boolean;
   collapsed?: boolean;
   onNavigate?: () => void;
+  hasActiveSite?: boolean;
   className?: string;
 }) {
   const pathname = usePathname();
@@ -59,23 +61,29 @@ export function AdminSidebarNav({
       <nav aria-label="Admin navigation" className={cn("flex flex-col gap-1 px-2 py-3", className)}>
         {items.map((item) => {
           const Icon = item.icon;
-          const active = isItemActive(item.href, pathname);
+          const disabled = Boolean(item.requiresActiveSite && !hasActiveSite);
+          const href = disabled ? "/q7m-k4j9/sites?needsSite=1" : item.href;
+          const active = !disabled && isItemActive(item.href, pathname);
           const linkClass = cn(
             "relative flex items-center rounded-md text-sm font-medium outline-none transition-colors",
             "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
             collapsed ? "h-10 w-10 justify-center" : "h-9 gap-3 px-3",
-            active
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+            disabled
+              ? "cursor-not-allowed text-muted-foreground/45 hover:bg-transparent"
+              : active
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
           );
 
           const link = (
             <Link
               key={item.href}
-              href={item.href}
+              href={href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
+              aria-disabled={disabled}
               data-active={active ? "true" : undefined}
+              title={disabled ? "Select a site first" : item.label}
               className={linkClass}
             >
               {/* Active indicator independent of colour: solid start-edge bar */}
@@ -93,6 +101,9 @@ export function AdminSidebarNav({
                 />
               ) : null}
               {!collapsed && <span className="truncate">{item.label}</span>}
+              {disabled && !collapsed ? (
+                <span className="ml-auto text-[10px] font-normal text-muted-foreground/70">site</span>
+              ) : null}
               {collapsed && <span className="sr-only">{item.label}</span>}
             </Link>
           );
@@ -102,7 +113,7 @@ export function AdminSidebarNav({
             <Tooltip key={item.href}>
               <TooltipTrigger asChild>{link}</TooltipTrigger>
               <TooltipContent side="right" sideOffset={6}>
-                {item.label}
+                {disabled ? `${item.label}: select a site first` : item.label}
               </TooltipContent>
             </Tooltip>
           );
@@ -122,12 +133,14 @@ export function AdminSidebar({
   onToggleCollapsed,
   monetizationType,
   isSuperAdmin = false,
+  hasActiveSite = true,
   className,
 }: {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   monetizationType: AdminMonetizationType;
   isSuperAdmin?: boolean;
+  hasActiveSite?: boolean;
   className?: string;
 }) {
   return (
@@ -147,7 +160,7 @@ export function AdminSidebar({
       >
         {!collapsed && (
           <Link
-            href="/q7m-k4j9"
+            href={hasActiveSite ? "/q7m-k4j9" : "/q7m-k4j9/sites?needsSite=1"}
             className="truncate text-sm font-semibold tracking-tight text-foreground"
           >
             Admin
@@ -170,6 +183,7 @@ export function AdminSidebar({
         <AdminSidebarNav
           monetizationType={monetizationType}
           isSuperAdmin={isSuperAdmin}
+          hasActiveSite={hasActiveSite}
           collapsed={collapsed}
         />
       </ScrollArea>

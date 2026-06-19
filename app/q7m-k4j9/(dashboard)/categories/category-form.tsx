@@ -265,7 +265,7 @@ export function CategoryForm({ category }: { category?: CategoryRow }) {
 
       <StickySaveBar
         formId={FORM_ID}
-        isDirty={isDirty}
+        isDirty={isEdit ? isDirty : true}
         saving={saving}
         saveLabel={isEdit ? "Save changes" : "Create category"}
         onCancel={handleCancel}

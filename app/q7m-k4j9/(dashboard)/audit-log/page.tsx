@@ -1,4 +1,5 @@
 import { requireAdminSessionWithSite } from "../components/admin-guard";
+import { AdminDataError, safeAdminData } from "../components/admin-page-state";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import {
   listAuditLogs,
@@ -97,7 +98,21 @@ export default async function AuditLogPage({
     redirect("/q7m-k4j9");
   }
 
-  const siteId = await resolveDbSiteId(session.activeSiteSlug);
+  const siteIdResult = await safeAdminData(
+    "audit log active site resolution",
+    () => resolveDbSiteId(session.activeSiteSlug),
+    "",
+  );
+  if (siteIdResult.error || !siteIdResult.data) {
+    return (
+      <AdminDataError
+        title="Audit log could not load"
+        description="The active site could not be resolved in the database. Re-select the site or run the site provisioning migration."
+        retryHref="/q7m-k4j9/audit-log"
+      />
+    );
+  }
+  const siteId = siteIdResult.data;
 
   const actions = parseCsvString(sp["f.action"]);
   const entityTypes = parseCsvString(sp["f.entity_type"]);
@@ -126,17 +141,29 @@ export default async function AuditLogPage({
     to,
   };
 
-  const [logs, totalCount, distinctActions, distinctEntityTypes] = await Promise.all([
-    listAuditLogs(siteId, pageSize, offset, filters),
-    countAuditLogs(siteId, filters),
-    getDistinctActions(siteId),
-    getDistinctEntityTypes(siteId),
-  ]);
+  const auditResult = await safeAdminData(
+    "audit log page data",
+    () =>
+      Promise.all([
+        listAuditLogs(siteId, pageSize, offset, filters),
+        countAuditLogs(siteId, filters),
+        getDistinctActions(siteId),
+        getDistinctEntityTypes(siteId),
+      ]),
+    [[], 0, [], []] as [Awaited<ReturnType<typeof listAuditLogs>>, number, string[], string[]],
+  );
+  const [logs, totalCount, distinctActions, distinctEntityTypes] = auditResult.data;
 
   // Resolve email-shaped actors to admin user ids so the Actor column can
   // link through to the admin-users page for reviewers. Unresolved actors
   // (literal "admin", JWT userIds, deleted users) fall back to plain text.
-  const actorUserIds = await resolveActorsToAdminUserIds(logs.map((log) => log.actor));
+  const actorUserIds = (
+    await safeAdminData(
+      "audit log actor resolution",
+      () => resolveActorsToAdminUserIds(logs.map((log) => log.actor)),
+      {},
+    )
+  ).data;
 
   const rows: AuditLogTableRow[] = logs.map((log) => ({
     id: log.id,

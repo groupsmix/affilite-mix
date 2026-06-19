@@ -77,6 +77,7 @@ export function AdminShell({
         onToggleCollapsed={handleToggleCollapsed}
         monetizationType={monetizationType}
         isSuperAdmin={isSuperAdmin}
+        hasActiveSite={hasActiveSite}
       />
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -88,6 +89,7 @@ export function AdminShell({
           <AdminSidebarNav
             monetizationType={monetizationType}
             isSuperAdmin={isSuperAdmin}
+            hasActiveSite={hasActiveSite}
             onNavigate={() => setMobileOpen(false)}
           />
         </SheetContent>
@@ -99,6 +101,7 @@ export function AdminShell({
           siteName={siteName}
           isSuperAdmin={isSuperAdmin}
           monetizationType={monetizationType}
+          hasActiveSite={hasActiveSite}
         />
         {hasActiveSite && (
           <div

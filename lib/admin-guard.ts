@@ -14,12 +14,15 @@ type AdminResult =
   | { error: NextResponse; session: null; dbSiteId: null; siteSlug: null }
   | { error: null; session: AdminPayload; dbSiteId: string; siteSlug: string };
 
-/** 100 admin API requests per minute per user session (3.30) */
+/**
+ * Authenticated admin navigation can fan out into several RSC/API requests per page.
+ * Keep login/step-up controls strict elsewhere, but do not brick an already-authenticated
+ * dashboard session when the distributed limiter binding is temporarily unavailable.
+ */
 const ADMIN_RATE_LIMIT = {
-  maxRequests: 100,
+  maxRequests: 600,
   windowMs: 60 * 1000,
-  failPolicy: "closed" as const,
-  graceMs: 0,
+  failPolicy: "open" as const,
 };
 
 /**

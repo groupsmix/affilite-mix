@@ -136,11 +136,13 @@ export function AdminTopbar({
   siteName,
   isSuperAdmin,
   monetizationType,
+  hasActiveSite = true,
 }: {
   onOpenMobileNav: () => void;
   siteName: string | null | undefined;
   isSuperAdmin: boolean;
   monetizationType?: AdminMonetizationType;
+  hasActiveSite?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -162,7 +164,7 @@ export function AdminTopbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <CommandMenu monetizationType={monetizationType} />
+        <CommandMenu monetizationType={monetizationType} hasActiveSite={hasActiveSite} />
         <TenantBadgeSwitcher initialSiteName={siteName ?? null} isSuperAdmin={isSuperAdmin} />
         <UserMenu />
       </div>

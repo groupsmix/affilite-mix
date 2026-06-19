@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-/** 100 admin API requests per minute per user session. */
+/**
+ * Per-route admin API limiter. Normal dashboard navigation triggers multiple
+ * authenticated API calls, so keep this high enough for real use and fail open
+ * if the distributed limiter binding is unavailable. Login/abuse-sensitive
+ * public routes use their own stricter limiters.
+ */
 const ADMIN_RATE_LIMIT = {
-  maxRequests: 100,
+  maxRequests: 300,
   windowMs: 60_000,
+  failPolicy: "open" as const,
 };
 
 /**

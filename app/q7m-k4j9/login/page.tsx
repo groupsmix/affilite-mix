@@ -88,7 +88,20 @@ export default function AdminLoginPage() {
         );
       }
 
-      window.location.href = "/q7m-k4j9";
+      let redirectTarget = "/q7m-k4j9/sites?needsSite=1";
+      try {
+        const activeRes = await fetch("/api/admin/sites/active", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (activeRes.ok) {
+          const activeData = (await activeRes.json()) as { activeSiteId?: string | null };
+          if (activeData.activeSiteId) redirectTarget = "/q7m-k4j9";
+        }
+      } catch {
+        // If the check fails, send the admin to site selection instead of a broken dashboard.
+      }
+      window.location.href = redirectTarget;
     } else {
       const data = await res.json();
 
