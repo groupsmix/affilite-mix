@@ -1,7 +1,8 @@
-import type { SiteDefinition } from "@/config/site-definition";
+import type { SiteDefinition, LayoutVariant } from "@/config/site-definition";
 import Link from "next/link";
 import { NewsletterSignup } from "./newsletter-signup";
 import { CookieSettingsButton } from "./cookie-settings-button";
+import { SiteFooterCompare } from "./site-footer-compare";
 
 interface SiteFooterProps {
   site: SiteDefinition;
@@ -9,9 +10,21 @@ interface SiteFooterProps {
   hideNewsletter?: boolean;
   /** Optional dynamic footer nav items from DB (renders as a flat list alongside config nav) */
   dbFooterNav?: { label: string; href: string; icon?: string }[];
+  /**
+   * Resolved layout variant — DB value takes precedence over site config.
+   * Passed from the public layout so footers don't need to re-read the DB.
+   */
+  layoutVariant?: LayoutVariant;
 }
 
-export function SiteFooter({ site, hideNewsletter, dbFooterNav }: SiteFooterProps) {
+export function SiteFooter({ site, hideNewsletter, dbFooterNav, layoutVariant = "standard" }: SiteFooterProps) {
+  // Dispatch to per-variant footer implementations.
+  if (layoutVariant === "compare") {
+    return <SiteFooterCompare site={site} hideNewsletter={hideNewsletter} dbFooterNav={dbFooterNav} />;
+  }
+  // "magazine", "minimal", "directory" — fall through to standard until implemented.
+
+  // --- "standard" (default) ---
   return (
     <footer className="border-t border-gray-200 bg-gray-50 py-10">
       <div className="mx-auto max-w-6xl px-4">

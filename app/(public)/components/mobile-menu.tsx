@@ -7,9 +7,19 @@ interface MobileMenuProps {
   nav: { title: string; href: string }[];
   searchLabel?: string;
   direction?: "ltr" | "rtl";
+  /**
+   * When true, renders the hamburger icon and drawer in dark mode colors
+   * (white icon on transparent bg, dark navy drawer). Use inside dark-bg headers.
+   */
+  dark?: boolean;
 }
 
-export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: MobileMenuProps) {
+export function MobileMenu({
+  nav,
+  searchLabel = "Search",
+  direction = "ltr",
+  dark = false,
+}: MobileMenuProps) {
   const [open, setOpen] = useState(false);
   const isRtl = direction === "rtl";
   const hamburgerRef = useRef<HTMLButtonElement>(null);
@@ -71,7 +81,11 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
         ref={hamburgerRef}
         type="button"
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center justify-center rounded-md p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 md:hidden"
+        className={`inline-flex items-center justify-center rounded-md p-2 md:hidden ${
+          dark
+            ? "text-gray-300 hover:bg-white/10 hover:text-white"
+            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+        }`}
         aria-label="Toggle menu"
         aria-expanded={open}
       >
@@ -111,18 +125,24 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
         aria-modal={open ? "true" : undefined}
         aria-label={isRtl ? "القائمة" : "Menu"}
         aria-hidden={!open}
-        className={`fixed inset-y-0 ${isRtl ? "left-0" : "right-0"} z-50 w-64 bg-white shadow-xl transition-transform duration-200 ease-in-out md:hidden ${
-          open ? "translate-x-0" : isRtl ? "-translate-x-full" : "translate-x-full"
-        }`}
+        className={`fixed inset-y-0 ${isRtl ? "left-0" : "right-0"} z-50 w-64 shadow-xl transition-transform duration-200 ease-in-out md:hidden ${
+          dark ? "bg-[#0B1120]" : "bg-white"
+        } ${open ? "translate-x-0" : isRtl ? "-translate-x-full" : "translate-x-full"}`}
       >
         <div
-          className={`flex items-center justify-between border-b border-gray-200 px-4 py-3 ${isRtl ? "flex-row-reverse" : ""}`}
+          className={`flex items-center justify-between px-4 py-3 ${isRtl ? "flex-row-reverse" : ""} ${
+            dark ? "border-b border-white/10" : "border-b border-gray-200"
+          }`}
         >
-          <span className="text-lg font-bold">{isRtl ? "القائمة" : "Menu"}</span>
+          <span className={`text-lg font-bold ${dark ? "text-white" : ""}`}>
+            {isRtl ? "القائمة" : "Menu"}
+          </span>
           <button
             type="button"
             onClick={closeMenu}
-            className="rounded-md p-2 text-gray-600 hover:bg-gray-100"
+            className={`rounded-md p-2 ${
+              dark ? "text-gray-400 hover:bg-white/10 hover:text-white" : "text-gray-600 hover:bg-gray-100"
+            }`}
             aria-label="Close menu"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -141,7 +161,11 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
               key={item.href}
               href={item.href}
               onClick={closeMenu}
-              className="rounded-md px-3 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900"
+              className={`rounded-md px-3 py-3 text-base font-medium transition-colors ${
+                dark
+                  ? "text-gray-300 hover:bg-white/10 hover:text-white"
+                  : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+              }`}
             >
               {item.title}
             </Link>
@@ -149,7 +173,11 @@ export function MobileMenu({ nav, searchLabel = "Search", direction = "ltr" }: M
           <Link
             href="/search"
             onClick={closeMenu}
-            className="flex items-center gap-2 rounded-md px-3 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900"
+            className={`flex items-center gap-2 rounded-md px-3 py-3 text-base font-medium transition-colors ${
+              dark
+                ? "text-gray-300 hover:bg-white/10 hover:text-white"
+                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+            }`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

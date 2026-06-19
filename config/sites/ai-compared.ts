@@ -25,6 +25,7 @@ export const aiComparedSite = defineSite({
   },
   fonts: "modern",
   homepage: "compare",
+  layout: "compare",
 
   features: [
     "blog",
