@@ -20,9 +20,7 @@ const StickyCtaBar = dynamic(() =>
 const ReadingProgress = dynamic(() =>
   import("../../components/reading-progress").then((m) => m.ReadingProgress),
 );
-const VerdictBox = dynamic(() =>
-  import("../../components/verdict-box").then((m) => m.VerdictBox),
-);
+const VerdictBox = dynamic(() => import("../../components/verdict-box").then((m) => m.VerdictBox));
 import { ProsCons } from "../../components/pros-cons";
 import {
   JsonLd,

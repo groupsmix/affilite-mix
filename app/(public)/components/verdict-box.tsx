@@ -71,13 +71,7 @@ export function VerdictBox({
     : undefined;
   const reason = verdict || (isComparison ? topPro || product.description : product.description);
 
-  const eyebrow = isComparison
-    ? isAr
-      ? "الفائز"
-      : "Winner"
-    : isAr
-      ? "خلاصتنا"
-      : "Our verdict";
+  const eyebrow = isComparison ? (isAr ? "الفائز" : "Winner") : isAr ? "خلاصتنا" : "Our verdict";
 
   return (
     <section
@@ -93,7 +87,12 @@ export function VerdictBox({
         <div className="mb-4 flex items-center gap-2">
           {isComparison ? (
             <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-wide text-white">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
                 <path
                   fillRule="evenodd"
                   d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
@@ -143,7 +142,9 @@ export function VerdictBox({
             {product.merchant && (
               <p className="mt-0.5 font-mono text-xs text-gray-500">{product.merchant}</p>
             )}
-            {reason && <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-600">{reason}</p>}
+            {reason && (
+              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-600">{reason}</p>
+            )}
           </div>
 
           {/* Score */}
