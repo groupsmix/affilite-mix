@@ -121,8 +121,7 @@ export function CompareHomepage({
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 opacity-[0.06]"
           style={{
-            backgroundImage:
-              "radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)",
+            backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)",
             backgroundSize: "22px 22px",
           }}
         />
@@ -193,7 +192,12 @@ export function CompareHomepage({
             )}
             <span className="text-white/80">{t.chipUpdated}</span>
             <span className="inline-flex items-center gap-1.5 text-emerald-400">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
                 <path
                   fillRule="evenodd"
                   d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
@@ -277,7 +281,12 @@ export function CompareHomepage({
                   </span>
                   {i === 0 && (
                     <span className="absolute -top-2 right-3 z-10 inline-flex items-center gap-1 rounded-md bg-emerald-500 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
-                      <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <svg
+                        className="h-3 w-3"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
                         <path
                           fillRule="evenodd"
                           d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
@@ -404,7 +413,10 @@ export function CompareHomepage({
         <section className="pb-20 pt-6">
           <div
             className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8"
-            style={{ borderInlineStartWidth: "3px", borderInlineStartColor: "var(--color-accent, #2D6BF0)" }}
+            style={{
+              borderInlineStartWidth: "3px",
+              borderInlineStartColor: "var(--color-accent, #2D6BF0)",
+            }}
           >
             <p
               className="font-mono text-xs uppercase tracking-[0.2em]"
