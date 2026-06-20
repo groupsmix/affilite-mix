@@ -91,11 +91,15 @@ export class RateLimiterDO {
     const now = Date.now();
     const windowId = Math.floor(now / windowMs);
 
-    const storedWindow = (await this.state.storage.get<number>(WINDOW_KEY)) ?? windowId;
+    const storedWindow = await this.state.storage.get<number>(WINDOW_KEY);
     let count = (await this.state.storage.get<number>(COUNT_KEY)) ?? 0;
 
-    // Roll the window if we've advanced to a new bucket
-    if (storedWindow !== windowId) {
+    // Roll the window on first sight (storedWindow unset) or when we've
+    // advanced to a new bucket. Persisting WINDOW_KEY unconditionally on the
+    // first request is what makes the fixed-window roll work: without it the
+    // key stayed unset, `storedWindow !== windowId` was never reached, and the
+    // reset depended solely on the cleanup alarm.
+    if (storedWindow === undefined || storedWindow !== windowId) {
       count = 0;
       await this.state.storage.put(WINDOW_KEY, windowId);
     }
@@ -112,9 +116,6 @@ export class RateLimiterDO {
 
     const nextCount = count + 1;
     await this.state.storage.put(COUNT_KEY, nextCount);
-    if (storedWindow !== windowId) {
-      await this.state.storage.put(WINDOW_KEY, windowId);
-    }
 
     // Schedule cleanup at the end of the window so idle objects don't
     // hold storage indefinitely.
