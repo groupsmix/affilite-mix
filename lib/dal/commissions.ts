@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { assertRow } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
@@ -18,7 +19,34 @@ export interface ProductEpcRow {
 const COMMISSION_TABLE = "commissions";
 const EPC_TABLE = "product_epc_stats";
 
-/** Ingest a batch of commission reports (with dedup) */
+/**
+ * Deterministic synthetic order_id for commission reports whose network did not
+ * supply one (Bug 6). It is a pure function of the report's identifying fields,
+ * so re-ingesting the same logical sale yields the same key and the
+ * (network, order_id) unique index dedups it instead of inserting a duplicate
+ * row on every nightly run. Exported for unit testing.
+ */
+export function syntheticOrderId(report: {
+  network: string;
+  product_id?: string;
+  click_id?: string;
+  commission_amount: number;
+  sale_amount?: number;
+  event_date: string;
+}): string {
+  const basis = [
+    report.network,
+    report.product_id ?? "",
+    report.click_id ?? "",
+    report.commission_amount,
+    report.sale_amount ?? "",
+    report.event_date,
+  ].join("|");
+  const digest = createHash("sha256").update(basis).digest("hex").slice(0, 24);
+  return `syn_${digest}`;
+}
+
+/** Ingest a batch of commission reports (upsert with dedup) */
 export async function ingestCommissions(
   reports: {
     site_id: string;
@@ -41,17 +69,38 @@ export async function ingestCommissions(
   let inserted = 0;
   let skipped = 0;
 
-  // Insert one at a time to handle dedup gracefully
+  // Upsert one at a time to keep per-row resilience while deduplicating on the
+  // full (network, order_id) unique index (migration 2026062003).
   for (const report of reports) {
-    const { error } = await sb.from(COMMISSION_TABLE).insert(report).select().single();
+    // Bug 6: some networks omit order_id. Those rows were excluded from the old
+    // PARTIAL dedup index (WHERE order_id IS NOT NULL) and duplicated on every
+    // run. Derive a deterministic key so re-ingesting the same sale dedups.
+    const order_id = report.order_id ?? syntheticOrderId(report);
+    const row = { ...report, order_id };
 
-    if (error) {
-      if (error.code === "23505") {
-        // Duplicate — skip
-        skipped++;
-      } else {
-        throw error;
-      }
+    // Classify new vs. already-present for accurate accounting. `skipped` is
+    // retained (the cron route consumes { inserted, skipped }) but now means
+    // "already present → refreshed in place" rather than "dropped".
+    const { data: existing } = await sb
+      .from(COMMISSION_TABLE)
+      .select("id")
+      .eq("network", row.network)
+      .eq("order_id", order_id)
+      .maybeSingle();
+
+    // Bug 6: upsert (was insert-only) so a re-reported sale updates its status
+    // and amounts instead of erroring on 23505 and being silently skipped. The
+    // onConflict target matches the full unique index from migration 2026062003.
+    const { error } = await sb
+      .from(COMMISSION_TABLE)
+      .upsert(row, { onConflict: "network,order_id" })
+      .select("id")
+      .single();
+
+    if (error) throw error;
+
+    if (existing) {
+      skipped++;
     } else {
       inserted++;
     }
