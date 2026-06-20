@@ -4,7 +4,10 @@ import { COOKIE_NAME, ACTIVITY_COOKIE, BINDING_COOKIE } from "@/lib/auth";
 import { ACTIVE_SITE_COOKIE } from "@/lib/active-site";
 import { IS_SECURE_COOKIE } from "@/lib/cookie-utils";
 import { CSRF_COOKIE } from "@/lib/csrf";
-import { revokeToken } from "@/lib/jwt-revocation";
+// Bug 9: use the strong revocation primitive (immediate in-memory +
+// KV) so a copied token cannot authorize after logout. Matches the
+// pattern used by refresh and reset-password.
+import { revokeTokenStrong } from "@/lib/jwt-revocation-strong";
 import { decodeJwtClaims } from "@/lib/decode-jwt-claims";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -47,7 +50,11 @@ export async function POST(request: NextRequest) {
         // to prevent prototype pollution from crafted JWT payloads.
         const claims = decodeJwtClaims(token);
         if (claims?.jti) {
-          await revokeToken(claims.jti);
+          // Bug 9: strong revocation = immediate in-memory blocklist
+          // + KV, not KV-only. verifyToken checks the in-memory list
+          // BEFORE KV, so a copied token is rejected on the very next
+          // request instead of after ~60s of KV propagation.
+          await revokeTokenStrong(claims.jti);
         }
       } catch (e) {
         captureException(e, { context: "[api/auth/logout] Failed to decode JWT for revocation" });
