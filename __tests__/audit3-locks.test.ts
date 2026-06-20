@@ -175,7 +175,14 @@ describe("Audit-3 regression locks", () => {
       // lib/dal/price-alerts.ts and this PR added lib/dal/admin-site-memberships.ts
       // — two independently audited service-role importers (see the
       // audited-service-role comments beside each entry in the allowlist).
-      expect(count).toBeLessThanOrEqual(31);
+      // Bumped 31 -> 36: the platform admin tabs (feature-flags, modules,
+      // integrations, permissions) and the audit-log page must read via the
+      // privileged gateway because migrations 00033 / 00040 / 2026052801 locked
+      // site_modules, site_feature_flags, site_integrations, user_site_roles,
+      // roles, permissions, integration_providers and audit_log to service_role.
+      // The tenant client read zero rows, blanking these pages. Each importer is
+      // super_admin-gated and site-scoped — see the allowlist comments.
+      expect(count).toBeLessThanOrEqual(36);
     });
   });
 

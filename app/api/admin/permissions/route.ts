@@ -8,6 +8,13 @@ import {
   removeUserSiteRole,
   getRoleByName,
 } from "@/lib/dal/permissions";
+// FIX: `roles`/`permissions` are RLS-restricted to authenticated/service_role
+// and `user_site_roles` to service_role only (migrations 00033 / 00040 /
+// 2026052801). The default tenant client returns zero rows / is denied —
+// when present, listSiteUserRoles() threw and poisoned the whole response, so
+// the Roles + Permission Matrix never rendered. Use the privileged gateway;
+// this route is gated by requireAdmin() + assertRole(super_admin).
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
@@ -34,7 +41,11 @@ export async function GET(request: NextRequest) {
   const siteId = request.nextUrl.searchParams.get("site_id");
 
   try {
-    const [roles, permissions] = await Promise.all([listRoles(), listPermissions()]);
+    const getPrivileged = () => getPrivilegedSupabaseClient("admin-permissions-read");
+    const [roles, permissions] = await Promise.all([
+      listRoles(getPrivileged),
+      listPermissions(getPrivileged),
+    ]);
 
     const response: {
       roles: typeof roles;
@@ -43,7 +54,7 @@ export async function GET(request: NextRequest) {
     } = { roles, permissions };
 
     if (siteId) {
-      response.site_user_roles = await listSiteUserRoles(siteId);
+      response.site_user_roles = await listSiteUserRoles(siteId, getPrivileged);
     }
 
     return NextResponse.json(response);
@@ -84,16 +95,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const role = await getRoleByName(role_name);
+    const role = await getRoleByName(role_name, () =>
+      getPrivilegedSupabaseClient("admin-permissions-role-lookup"),
+    );
     if (!role) {
       return NextResponse.json({ error: "Role not found" }, { status: 404 });
     }
 
-    const assignment = await assignUserSiteRole({
-      user_id,
-      site_id,
-      role_id: role.id,
-    });
+    const assignment = await assignUserSiteRole(
+      {
+        user_id,
+        site_id,
+        role_id: role.id,
+      },
+      () => getPrivilegedSupabaseClient("admin-permissions-assign"),
+    );
 
     // G-06: Await audit for privilege-escalation action.
     await recordAuditEvent({
@@ -133,7 +149,9 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await removeUserSiteRole(userId, siteId);
+    await removeUserSiteRole(userId, siteId, () =>
+      getPrivilegedSupabaseClient("admin-permissions-remove"),
+    );
 
     // G-06: Await audit for privilege-revocation action.
     await recordAuditEvent({

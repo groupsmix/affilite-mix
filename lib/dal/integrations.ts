@@ -26,6 +26,8 @@ export async function listIntegrationProviders(
   const { data, error } = await sb
     .from("integration_providers")
     .select(PROVIDER_COLUMNS)
+    // SAFE: `integration_providers` is a global registry with no `site_id`; privileged admin read (no-op on tenant).
+    .unsafeNoSiteFilter()
     .order("category", { ascending: true });
 
   if (error) throw error;

@@ -6,6 +6,11 @@ import {
   bulkUpsertFeatureFlags,
   deleteFeatureFlag,
 } from "@/lib/dal/feature-flags";
+// FIX: `site_feature_flags` is RLS-restricted to service_role (migrations
+// 00033 / 00040). The default tenant client (authenticated role) is denied,
+// so these admin reads/writes must use the privileged gateway. The route is
+// already gated by withAuthz(super_admin) and every DAL call is site-scoped.
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
@@ -21,7 +26,9 @@ export const GET = withAuthz(
     if (rlError) return rlError;
 
     try {
-      const flags = await listSiteFeatureFlags(dbSiteId);
+      const flags = await listSiteFeatureFlags(dbSiteId, () =>
+        getPrivilegedSupabaseClient("admin-feature-flags-list"),
+      );
       return NextResponse.json({ flags });
     } catch (err) {
       captureException(err, { context: "[api/admin/feature-flags] GET failed:" });
@@ -58,12 +65,15 @@ export const POST = withAuthz(
     }
 
     try {
-      const flag = await upsertFeatureFlag({
-        site_id: dbSiteId,
-        flag_key,
-        is_enabled,
-        description: (body.description as string) ?? "",
-      });
+      const flag = await upsertFeatureFlag(
+        {
+          site_id: dbSiteId,
+          flag_key,
+          is_enabled,
+          description: (body.description as string) ?? "",
+        },
+        () => getPrivilegedSupabaseClient("admin-feature-flags-upsert"),
+      );
 
       void recordAuditEvent({
         site_id: dbSiteId,
@@ -109,7 +119,9 @@ export const PATCH = withAuthz(
     }
 
     try {
-      const results = await bulkUpsertFeatureFlags(dbSiteId, flags);
+      const results = await bulkUpsertFeatureFlags(dbSiteId, flags, () =>
+        getPrivilegedSupabaseClient("admin-feature-flags-bulk"),
+      );
 
       void recordAuditEvent({
         site_id: dbSiteId,
@@ -152,7 +164,9 @@ export const DELETE = withAuthz(
     }
 
     try {
-      await deleteFeatureFlag(dbSiteId, flagKey);
+      await deleteFeatureFlag(dbSiteId, flagKey, () =>
+        getPrivilegedSupabaseClient("admin-feature-flags-delete"),
+      );
 
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({

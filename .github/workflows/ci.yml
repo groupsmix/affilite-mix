@@ -543,7 +543,18 @@ jobs:
           # requireAdminSession()-gated Users page and mirrors
           # lib/dal/admin-users.ts. +2 = the .unsafeNoSiteFilter() call plus its
           # audited doc reference.
-          BASELINE=81
+          # then 81 -> 85 (PR #900): admin platform-config pages read global,
+          # service_role-only tables that have no `site_id` to scope by. The
+          # DAL adds +4 opt-outs: lib/dal/permissions.ts listRoles() +
+          # getRoleByName() + listPermissions() on the global `roles` /
+          # `permissions` RBAC tables (+3), and lib/dal/integrations.ts
+          # listIntegrationProviders() on the global `integration_providers`
+          # registry (+1). Each call is annotated with a `// SAFE:` comment
+          # explaining the table is global (no tenant column), so the opt-out
+          # is a no-op on tenant scoping rather than an RLS bypass. These
+          # reads were locked to service_role by 00033 / 00040 and were the
+          # root cause of the five blank admin pages this PR fixes.
+          BASELINE=85
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
