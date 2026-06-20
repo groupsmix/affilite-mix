@@ -56,6 +56,19 @@ export type StripeEventOp =
 export interface StripeEventApplyResult {
   duplicate: boolean;
   membership_id: string | null;
+  /**
+   * S1-A10-03 / Bug 3: the RPC sets this when a renew/update/cancel UPDATE
+   * matches 0 rows — an out-of-order delivery where the membership row does
+   * not exist yet (e.g. a renewal arrives before checkout.session.completed).
+   *
+   * The RPC reports this via `RAISE WARNING` + `RETURN` (not `RAISE EXCEPTION`),
+   * so by the time we read it the `stripe_events` idempotency row has ALREADY
+   * been committed. A Stripe retry would therefore short-circuit as a duplicate
+   * and the mutation would be lost — callers must capture it out-of-band
+   * (durable DLQ) rather than relying on retry. Surfaced here via a local cast;
+   * `types/supabase.ts` deliberately left untouched.
+   */
+  missed_update?: boolean;
 }
 
 /**
