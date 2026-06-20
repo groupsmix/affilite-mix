@@ -5,6 +5,8 @@ import { assertRows, assertRow, rowOrNull } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { clampPagination } from "./pagination-guard";
+import { getEpcByProductIds } from "./commissions";
+import { applyEpcTieBreak } from "@/lib/ranking/epc-tie-break";
 
 const TABLE = "products";
 // A23-01: Full explicit column list. Update this constant (and ProductRow in
@@ -295,9 +297,28 @@ export async function deleteProduct(
   if (error) throw error;
 }
 
+export interface ListActiveProductsOptions {
+  /**
+   * When true, apply the EPC tie-break (lib/ranking/epc-tie-break.ts): within a
+   * band of near-equal scores, surface the higher-EPC tool first. Merit always
+   * wins across bands. Off by default so the public anon path is unchanged.
+   *
+   * Activation requires EPC read access. `product_epc_stats` has no anon SELECT
+   * policy, so on the public anon path this is a safe no-op (pure score order).
+   * To make it live on public pages, either pass a privileged `getClient`, or
+   * denormalize an anon-readable rank hint via the cron (backlog T-03a).
+   */
+  epcTieBreak?: boolean;
+  /** Client used to read EPC stats. Defaults to the request-scoped client. */
+  getClient?: DalClientGetter;
+  /** Score-noise band for the tie-break (0–10 scale). Defaults to 0.5. */
+  scoreBand?: number;
+}
+
 export async function listActiveProducts(
   siteId: string,
   categorySlug?: string,
+  opts?: ListActiveProductsOptions,
 ): Promise<ProductRow[]> {
   if (shouldSkipDbCall()) {
     return [];
@@ -319,7 +340,23 @@ export async function listActiveProducts(
 
   const { data, error } = await query;
   if (error) throw error;
-  return assertRows<ProductRow>(data);
+  const rows = assertRows<ProductRow>(data);
+
+  // Merit-first ordering with an optional EPC tie-break. EPC is read server-side
+  // and used only to reorder — the values are never returned to the client.
+  if (!opts?.epcTieBreak || rows.length < 2) {
+    return rows;
+  }
+  const epcById = await getEpcByProductIds(
+    siteId,
+    rows.map((r) => r.id),
+    opts.getClient ?? defaultDalClientGetter,
+  );
+  if (epcById.size === 0) {
+    // No EPC visibility (e.g. the public anon path) — keep pure score order.
+    return rows;
+  }
+  return applyEpcTieBreak(rows, epcById, { scoreBand: opts.scoreBand });
 }
 
 /** A73-F2: Cap search query length to prevent expensive trigram query plans. */
