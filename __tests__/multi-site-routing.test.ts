@@ -139,6 +139,18 @@ describe("toSiteRow", () => {
     expect(row.theme.accentColor).toBeTruthy();
   });
 
+  it("carries layout_variant from the site config into the theme", () => {
+    // Root cause of the per-tenant layout bug: toSiteRow never wrote
+    // layout_variant, so the DB row could not express a non-standard layout.
+    const ai = getSiteById("ai-compared");
+    expect(ai).toBeDefined();
+    expect(toSiteRow(ai!).theme.layout_variant).toBe("compare");
+
+    const watch = getSiteById("watch-tools");
+    expect(watch).toBeDefined();
+    expect(toSiteRow(watch!).theme.layout_variant).toBe("standard");
+  });
+
   it("generates nav_items from site nav", () => {
     const site = allSites[0];
     const row = toSiteRow(site!);

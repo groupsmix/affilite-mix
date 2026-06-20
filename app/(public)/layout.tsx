@@ -7,6 +7,7 @@ import { SiteFooter } from "./components/site-footer";
 import { ThemeProvider } from "./components/theme-provider";
 import type { SiteThemeConfig } from "./components/theme-provider";
 import type { LayoutVariant } from "@/config/site-definition";
+import { resolveLayoutVariant } from "@/lib/layout-variant";
 import { Toaster } from "sonner";
 import { logger } from "@/lib/logger";
 
@@ -56,6 +57,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
   // Read DB row for dynamic theme overrides, nav items, and footer nav
   let dbTheme: Partial<SiteThemeConfig> = {};
+  let dbLayoutVariant: string | null = null;
   let dbNavItems: { label: string; href: string; icon?: string }[] = [];
   let dbFooterNav: { label: string; href: string; icon?: string }[] = [];
   if (!shouldSkipDbCall()) {
@@ -70,8 +72,8 @@ export default async function PublicLayout({ children }: { children: React.React
           accentTextColor: t?.accent_text_color || site.theme.accentTextColor,
           fontHeading: t?.font_heading || site.theme.fontHeading,
           fontBody: t?.font_body || t?.font || site.theme.fontBody,
-          layoutVariant: (t?.layout_variant as LayoutVariant) || "standard",
         };
+        dbLayoutVariant = t?.layout_variant ?? null;
         // Dynamic navigation from DB
         if (Array.isArray(dbSite.nav_items) && dbSite.nav_items.length > 0) {
           dbNavItems = dbSite.nav_items;
@@ -88,9 +90,13 @@ export default async function PublicLayout({ children }: { children: React.React
   }
 
   // Merge: DB theme overrides config theme.
-  // layoutVariant priority: DB → site config → "standard"
-  const resolvedLayoutVariant: LayoutVariant =
-    (dbTheme.layoutVariant as LayoutVariant | undefined) ?? site.layoutVariant ?? "standard";
+  // layoutVariant priority: a valid DB value → site config → "standard".
+  // resolveLayoutVariant() guards against a missing/invalid DB value being
+  // coerced to "standard" and shadowing the site's configured layout.
+  const resolvedLayoutVariant: LayoutVariant = resolveLayoutVariant(
+    dbLayoutVariant,
+    site.layoutVariant,
+  );
 
   const themeConfig: Partial<SiteThemeConfig> = {
     primaryColor: site.theme.primaryColor,
@@ -100,8 +106,11 @@ export default async function PublicLayout({ children }: { children: React.React
     accentLightColor: site.theme.accentLightColor,
     fontHeading: site.theme.fontHeading,
     fontBody: site.theme.fontBody,
-    layoutVariant: resolvedLayoutVariant,
     ...dbTheme,
+    // Authoritative: set after the DB spread so the resolved variant (which
+    // already accounts for any DB value) is what ThemeProvider renders as
+    // data-layout, matching what SiteHeader/SiteFooter receive below.
+    layoutVariant: resolvedLayoutVariant,
   };
 
   return (
