@@ -41,10 +41,7 @@ describe("F1: stripe reconciliation entitlement policy", () => {
 });
 
 describe("F1: the cron route enforces the allowlist (guards against regression)", () => {
-  const route = readFileSync(
-    resolve(__dirname, "..", "app/api/cron/stripe-sync/route.ts"),
-    "utf8",
-  );
+  const route = readFileSync(resolve(__dirname, "..", "app/api/cron/stripe-sync/route.ts"), "utf8");
 
   it("gates the stale-status branch through isReconcilableToActive", () => {
     expect(route).toContain("isReconcilableToActive(dbMembership.status)");

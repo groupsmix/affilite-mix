@@ -22,10 +22,7 @@
  * reactivation after a won dispute must arrive via its own Stripe event
  * (e.g. charge.dispute.closed), never via blanket reconciliation.
  */
-export const RECONCILABLE_TO_ACTIVE: ReadonlySet<string> = new Set([
-  "past_due",
-  "expired",
-]);
+export const RECONCILABLE_TO_ACTIVE: ReadonlySet<string> = new Set(["past_due", "expired"]);
 
 /**
  * True when a non-active membership in `status` may be auto-corrected back to "active"
