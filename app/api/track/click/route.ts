@@ -19,12 +19,13 @@ import { isHttpsUrl } from "@/lib/validation";
 
 /**
  * A158: Compute a privacy-preserving click fingerprint for 24-hour dedup.
- * Inputs: HMAC key + site_id + content_slug (campaign) + ip_prefix + UA hash.
+ * Inputs: HMAC key + site_id + product_slug + content_slug (campaign) + ip_prefix + UA hash.
  * The fingerprint is an HMAC — no raw PII leaves this function.
  */
-async function computeClickFingerprint(
+export async function computeClickFingerprint(
   hmacKey: string,
   siteId: string,
+  productSlug: string,
   contentSlug: string,
   ipPrefix: string,
   userAgent: string,
@@ -35,7 +36,7 @@ async function computeClickFingerprint(
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
     .slice(0, 16); // truncated — sufficient for dedup, not reversible to UA
-  const payload = `${siteId}\x1F${contentSlug}\x1F${ipPrefix}\x1F${uaHash}`;
+  const payload = `${siteId}\x1F${productSlug}\x1F${contentSlug}\x1F${ipPrefix}\x1F${uaHash}`;
   return computeHmac(hmacKey, "click-dedup", "click-dedup", payload);
 }
 
@@ -90,15 +91,20 @@ function trackKvDedupWrite(): void {
   }
 }
 
-async function isDuplicateClick(
+/**
+ * Bug 5: dedup key includes product_slug between siteId and contentSlug so
+ * clicks on different products are not collapsed together.
+ */
+export async function isDuplicateClick(
   fingerprint: string,
   siteId: string,
+  productSlug: string,
   contentSlug: string,
 ): Promise<"duplicate" | "unique" | "error"> {
   try {
     const kv = getAppCacheKV();
     if (!kv) return "unique";
-    const dedupKey = `click-dedup:${safeKeyPart(siteId)}:${safeKeyPart(contentSlug)}:${fingerprint}`;
+    const dedupKey = `click-dedup:${safeKeyPart(siteId)}:${safeKeyPart(productSlug)}:${safeKeyPart(contentSlug)}:${fingerprint}`;
     const existing = await kv.get(dedupKey);
     if (existing !== null) return "duplicate";
     await kv.put(dedupKey, "1", { expirationTtl: 86400 });
@@ -363,11 +369,12 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
           fingerprint = await computeClickFingerprint(
             hmacKey,
             siteId,
+            productSlug,
             contentSlug,
             ipPrefix,
             userAgent,
           );
-          const dedupResult = await isDuplicateClick(fingerprint, siteId, contentSlug);
+          const dedupResult = await isDuplicateClick(fingerprint, siteId, productSlug, contentSlug);
           if (dedupResult === "duplicate") {
             logger.info("[track/click] duplicate click suppressed", {
               site_id: siteId,
