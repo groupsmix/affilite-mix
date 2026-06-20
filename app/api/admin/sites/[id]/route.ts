@@ -16,6 +16,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (error) return error;
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // F2: a site registry row exposes the full per-tenant config (domain, ad_config,
+  // monetization_type, est_revenue_per_click, social_links, theme). getSiteRowById()
+  // is not tenant-scoped, so reading one by DB id is a cross-tenant management
+  // operation and must carry the same super_admin gate as the PUT/DELETE handlers
+  // below. Without it, any site-scoped admin could read any tenant's site by
+  // enumerating ids. G-45: standardised 403 (Bearer challenge) for wrong role.
+  const roleError = assertRole(session, "super_admin");
+  if (roleError) return roleError;
+
   const rlError = await enforceAdminRateLimit("sites", session);
   if (rlError) return rlError;
 
