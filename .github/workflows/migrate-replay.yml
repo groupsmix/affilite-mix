@@ -1,0 +1,147 @@
+name: migrate-replay
+
+# Bug 2 — dedicated from-scratch migration replay.
+#
+# Spins up a throwaway Postgres and applies every up-migration, in order, on a
+# CLEAN database, failing on any "relation does not exist" error.
+#
+# Unlike the `migration-replay` job in ci.yml, this workflow does NOT bootstrap
+# the `pages` table. `pages` is now created by a real migration
+# (supabase/migrations/00030b_create_pages.sql), so a from-scratch replay must
+# succeed without papering over it. This catches the whole class of "a migration
+# references a table that no migration creates" going forward: add a new policy
+# or index on a table you forgot to create, and this job goes red.
+#
+# Two pre-existing, OUT-OF-SCOPE gaps are still bootstrapped below (each is
+# referenced before any migration creates it):
+#   - scheduled_jobs  (created by 00071, referenced by 00003/00020/00024/00068)
+#   - audit_events    (indexed by 2026052302_*, never created in a migration)
+# They are tracked separately. When real migrations create them, delete their
+# bootstrap here and this workflow will keep them honest too.
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/migrations-down/**"
+      - ".github/workflows/migrate-replay.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/migrate-replay.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    name: Replay migrations on a clean Postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: affilite_mix_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DB_URL: postgresql://postgres:postgres@localhost:5432/affilite_mix_test?sslmode=disable
+      PGSSLMODE: disable
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Supabase platform shim (roles + auth) and grandfathered tables
+        run: |
+          set -euo pipefail
+          # A plain postgres:15 image has none of the roles / auth.* functions a
+          # hosted Supabase project pre-creates. They are required for migration
+          # DDL (GRANT TO anon, CREATE POLICY ... auth.role()) to PARSE; they are
+          # never executed during apply. Deliberately NO `pages` table here.
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+            DO $$ BEGIN CREATE ROLE anon          NOLOGIN NOINHERIT;           EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+            DO $$ BEGIN CREATE ROLE authenticated NOLOGIN NOINHERIT;           EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+            DO $$ BEGIN CREATE ROLE service_role  NOLOGIN NOINHERIT BYPASSRLS; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+            CREATE SCHEMA IF NOT EXISTS auth;
+            CREATE OR REPLACE FUNCTION auth.role() RETURNS text  LANGUAGE sql STABLE
+              AS $$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claims', true), '')::jsonb->>'role', current_user) $$;
+            CREATE OR REPLACE FUNCTION auth.uid()  RETURNS uuid  LANGUAGE sql STABLE
+              AS $$ SELECT (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb->>'sub')::uuid $$;
+            CREATE OR REPLACE FUNCTION auth.jwt()  RETURNS jsonb LANGUAGE sql STABLE
+              AS $$ SELECT NULLIF(current_setting('request.jwt.claims', true), '')::jsonb $$;
+
+            -- Pre-existing, OUT-OF-SCOPE gaps (NOT the pages / Bug 2 fix).
+            CREATE TABLE IF NOT EXISTS public.scheduled_jobs (
+              id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+              site_id       uuid        NOT NULL,
+              job_type      text        NOT NULL,
+              target_id     uuid        NOT NULL,
+              scheduled_for timestamptz NOT NULL,
+              status        text        NOT NULL DEFAULT 'pending',
+              payload       jsonb       DEFAULT '{}',
+              executed_at   timestamptz,
+              error         text,
+              created_at    timestamptz DEFAULT now(),
+              updated_at    timestamptz DEFAULT now()
+            );
+            ALTER TABLE public.scheduled_jobs ENABLE ROW LEVEL SECURITY;
+
+            CREATE TABLE IF NOT EXISTS public.audit_events (
+              id            bigserial   PRIMARY KEY,
+              site_id       uuid        NOT NULL,
+              actor         text        NOT NULL,
+              actor_user_id uuid,
+              action        text        NOT NULL,
+              entity_type   text        NOT NULL DEFAULT '',
+              entity_id     text        NOT NULL DEFAULT '',
+              details       jsonb,
+              ip            text,
+              failure_type  text,
+              created_at    timestamptz NOT NULL DEFAULT now()
+            );
+          SQL
+
+      - name: Apply every up-migration from scratch (ON_ERROR_STOP)
+        run: |
+          set -uo pipefail
+          : > /tmp/replay.log
+          status=0
+          while IFS= read -r f; do
+            echo "── applying $f"
+            if ! psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$f" >>/tmp/replay.log 2>&1; then
+              status=1
+              echo "FAILED at: $f"
+              break
+            fi
+          done < <(find supabase/migrations -maxdepth 1 -name '*.sql' ! -name '*-down.sql' | sort)
+
+          echo "──────── psql output ────────"
+          cat /tmp/replay.log
+
+          if [ "$status" -ne 0 ]; then
+            if grep -qiE 'does not exist' /tmp/replay.log; then
+              echo "::error::migrate-replay: a migration references a relation that no migration creates (Bug 2 class). Add a CREATE TABLE migration BEFORE the first reference instead of relying on a CI bootstrap."
+            fi
+            echo "::error::migrate-replay: migration replay failed on a clean database."
+            exit 1
+          fi
+
+      - name: Assert pages came from a migration (not a bootstrap)
+        run: |
+          set -euo pipefail
+          COUNT=$(psql "$DB_URL" -tA -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';")
+          echo "public tables created: $COUNT"
+          test "$COUNT" -gt 0
+          # On this clean DB nothing bootstrapped `pages`; it must exist because
+          # migration 00030b created it.
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "SELECT 1 FROM public.pages WHERE false;"
+          echo "OK: pages exists on a clean replay — Bug 2 fixed at the migration level."
