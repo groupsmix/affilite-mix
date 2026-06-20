@@ -5,7 +5,11 @@ import {
   generateTaxonomyStaticParams,
 } from "../../components/taxonomy-page";
 
-const CONFIG = { prefix: "recipient", label: "Gifts by Recipient" } as const;
+const CONFIG = {
+  prefix: "recipient",
+  label: "Gifts by Recipient",
+  feature: "taxonomyPages",
+} as const;
 
 /** ISR: revalidate every 60 seconds */
 export const revalidate = 60;

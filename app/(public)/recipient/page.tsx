@@ -8,6 +8,7 @@ const CONFIG = {
   prefix: "recipient",
   label: "Gifts by Recipient",
   taxonomyType: "recipient" as const,
+  feature: "taxonomyPages" as const,
   description:
     "Find the perfect watch gift for anyone on your list. Browse our curated picks by recipient.",
 };
