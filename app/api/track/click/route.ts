@@ -22,7 +22,7 @@ import { isHttpsUrl } from "@/lib/validation";
  * Inputs: HMAC key + site_id + product_slug + content_slug (campaign) + ip_prefix + UA hash.
  * The fingerprint is an HMAC — no raw PII leaves this function.
  */
-export async function computeClickFingerprint(
+async function computeClickFingerprint(
   hmacKey: string,
   siteId: string,
   productSlug: string,
@@ -95,7 +95,7 @@ function trackKvDedupWrite(): void {
  * Bug 5: dedup key includes product_slug between siteId and contentSlug so
  * clicks on different products are not collapsed together.
  */
-export async function isDuplicateClick(
+async function isDuplicateClick(
   fingerprint: string,
   siteId: string,
   productSlug: string,

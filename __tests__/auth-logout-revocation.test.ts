@@ -129,9 +129,7 @@ describe("Bug 9 — logout must use strong revocation (immediate)", () => {
     const POST = await loadLogout();
     await POST(buildRequestWithCookie("am_session", "any-token-value") as never);
 
-    const { isTokenRevokedImmediate } = await import(
-      "@/lib/jwt-revocation-strong"
-    );
+    const { isTokenRevokedImmediate } = await import("@/lib/jwt-revocation-strong");
     // Regression pin: before the fix, the in-memory blocklist was empty
     // after logout (logout wrote to KV only). After the fix, the jti is
     // present immediately.
@@ -162,17 +160,9 @@ describe("Bug 9 — logout must use strong revocation (immediate)", () => {
     )) as Response;
 
     const setCookie = res.headers.get("set-cookie") ?? "";
-    for (const name of [
-      "am_session",
-      "am_bind",
-      "am_activity",
-      "am_site",
-      "am_csrf",
-    ]) {
+    for (const name of ["am_session", "am_bind", "am_activity", "am_site", "am_csrf"]) {
       expect(setCookie.toLowerCase()).toContain(name.toLowerCase());
-      expect(setCookie).toMatch(
-        new RegExp(`${name}=[^;]*;.*Max-Age=0`, "i"),
-      );
+      expect(setCookie).toMatch(new RegExp(`${name}=[^;]*;.*Max-Age=0`, "i"));
     }
   });
 
@@ -198,9 +188,7 @@ describe("Bug 9 — logout must use strong revocation (immediate)", () => {
     const POST = await loadLogout();
     await POST(buildRequestWithCookie("am_session", "any-token-value") as never);
 
-    const { isTokenRevokedImmediate } = await import(
-      "@/lib/jwt-revocation-strong"
-    );
+    const { isTokenRevokedImmediate } = await import("@/lib/jwt-revocation-strong");
     // The strong path is the only way to populate the in-memory blocklist.
     expect(isTokenRevokedImmediate(testJti)).toBe(true);
   });
@@ -224,9 +212,7 @@ describe("Bug 9 — logout must use strong revocation (immediate)", () => {
     // In-memory blocklist must also remain empty (rate-limited path
     // bypasses revocation entirely). This test's jti was never seen
     // before, so absence proves the path was bypassed.
-    const { isTokenRevokedImmediate } = await import(
-      "@/lib/jwt-revocation-strong"
-    );
+    const { isTokenRevokedImmediate } = await import("@/lib/jwt-revocation-strong");
     expect(isTokenRevokedImmediate(testJti)).toBe(false);
   });
 });

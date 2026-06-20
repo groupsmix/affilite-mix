@@ -1,23 +1,36 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { NextRequest } from "next/server";
 
 /**
  * Bug 5: per-product attribution undercount.
  *
  * The 24h dedup fingerprint and KV key used to include site_id + content_slug
  * but NOT product_slug, so a second click on a *different* product with the
- * same t / IP / UA was suppressed as a duplicate. These tests pin the fix:
- * product_slug must appear in both the fingerprint payload AND the dedup key,
- * and clicks on two different products within the window must both be recorded.
+ * same t / IP / UA was suppressed as a duplicate.
+ *
+ * These tests pin the fix by driving the public route handler (black-box).
+ * The dedup helpers (computeClickFingerprint / isDuplicateClick) stay PRIVATE
+ * to route.ts on purpose: Next.js rejects any non-handler export from a route
+ * module at build time, so exporting them to test directly breaks `next build`.
+ *
+ * Assertions follow the bug spec:
+ *   - two different `p` values, same t / IP / UA, within the window  → BOTH recorded
+ *   - the same `p` twice within the window                          → second is deduped
+ *   - the dedup key carries product_slug in the documented position
  */
 
-// --- Mocks for every top-level import the route module pulls in -----------
+// --- Mocks for the route module's top-level imports -----------------------
 
+const mockPublishClick = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/click-queue", () => ({
-  publishClick: vi.fn().mockResolvedValue(undefined),
+  publishClick: (...args: unknown[]) => mockPublishClick(...args),
 }));
 
 vi.mock("@/lib/dal/products", () => ({
-  getProductBySlug: vi.fn(),
+  getProductBySlug: vi.fn(async (_siteId: string, slug: string) => ({
+    name: `Product ${slug}`,
+    affiliate_url: `https://affiliate.example.com/${slug}`,
+  })),
 }));
 
 vi.mock("@/lib/site-context", () => ({
@@ -29,13 +42,7 @@ vi.mock("@/lib/dal/site-resolver", () => ({
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
-  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
-}));
-
-vi.mock("@/lib/api-error", () => ({
-  apiError: vi.fn((status: number, msg: string) =>
-    new Response(msg, { status }),
-  ),
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 59, retryAfterMs: 0 }),
 }));
 
 vi.mock("@/lib/sentry", () => ({
@@ -51,34 +58,51 @@ vi.mock("@/lib/wait-until", () => ({
   runAfterResponse: vi.fn(),
 }));
 
-// Use the real computeHmac so the test exercises the actual HMAC pipeline.
-// We only stub timingSafeEqual because the route also uses it on cache reads.
+// Use the real computeHmac so fingerprints are genuinely derived from the
+// inputs (including product_slug). Only timingSafeEqual is stubbed, because
+// the route also calls it when validating the product-url cache.
 vi.mock("@/lib/internal-hmac", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/internal-hmac")>(
-    "@/lib/internal-hmac",
-  );
-  return {
-    ...actual,
-    timingSafeEqual: vi.fn(() => true),
-  };
+  const actual = await vi.importActual<typeof import("@/lib/internal-hmac")>("@/lib/internal-hmac");
+  return { ...actual, timingSafeEqual: vi.fn(() => true) };
 });
 
 vi.mock("@/lib/affiliate-domain-allowlist", () => ({
-  validateAffiliateDomain: vi.fn(() => ({ allowed: true })),
+  validateAffiliateDomain: vi.fn(() => ({
+    allowed: true,
+    domain: "affiliate.example.com",
+    reason: null,
+  })),
 }));
 
 vi.mock("@/lib/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-// In-memory KV whose behaviour matches the production CloudflareKVBinding
-// surface used by isDuplicateClick: get(key) returns null when missing,
-// put(key, value, { expirationTtl }) stores the value.
+vi.mock("@/lib/hmac-key", () => ({
+  getOrDeriveHmacKey: vi.fn().mockResolvedValue({} as CryptoKey),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  verifyToken: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("@/lib/validation", () => ({
+  isHttpsUrl: vi.fn(() => true),
+}));
+
+// In-memory KV mirroring the CloudflareKV surface the route relies on:
+//   get(key)         -> string | null         (dedup reads)
+//   get(key, "json") -> parsed object | null  (product-url cache reads)
+//   put(key, value)  -> stores the value
 function makeKv() {
   const store = new Map<string, string>();
   return {
     store,
-    get: vi.fn(async (key: string) => store.get(key) ?? null),
+    get: vi.fn(async (key: string, type?: string) => {
+      const v = store.get(key);
+      if (v === undefined) return null;
+      return type === "json" ? JSON.parse(v) : v;
+    }),
     put: vi.fn(async (key: string, value: string) => {
       store.set(key, value);
     }),
@@ -99,199 +123,101 @@ vi.mock("@/lib/runtime-env", () => ({
   readGlobalBinding: vi.fn(() => undefined),
 }));
 
-vi.mock("@/lib/hmac-key", () => ({
-  getOrDeriveHmacKey: vi.fn().mockResolvedValue({} as CryptoKey),
-}));
+// Imported after the mocks above so they take effect on first evaluation.
+import { GET } from "@/app/api/track/click/route";
 
-vi.mock("@/lib/security/allowed-origins", () => ({
-  isOriginAllowedForSite: vi.fn(() => true),
-}));
+const UA = "Mozilla/5.0 (Macintosh) TestRunner";
 
-vi.mock("@/lib/auth", () => ({
-  verifyToken: vi.fn().mockResolvedValue(null),
-}));
+// A trusted top-level navigation (Sec-Fetch-Site: none / Dest: document) so
+// the analytics + dedup path runs inside the GET handler.
+function clickRequest(productSlug: string, contentSlug: string): NextRequest {
+  const url = `https://test.example.com/api/track/click?p=${productSlug}&t=${contentSlug}`;
+  return new NextRequest(url, {
+    method: "GET",
+    headers: {
+      "x-site-id": "affilite-mix",
+      "user-agent": UA,
+      "sec-fetch-site": "none",
+      "sec-fetch-dest": "document",
+    },
+  });
+}
 
-vi.mock("@/lib/validation", () => ({
-  isHttpsUrl: vi.fn(() => true),
-}));
+// The dedup writes are the click-dedup:* KV puts. The product-url cache shares
+// the same mock, so we filter puts by prefix.
+function dedupKeys(): string[] {
+  return kv.put.mock.calls.map((c) => String(c[0])).filter((k) => k.startsWith("click-dedup:"));
+}
 
-// ---------------------------------------------------------------------------
-
-beforeEach(() => {
+beforeEach(async () => {
   kv = makeKv();
+  mockPublishClick.mockClear();
+  // Re-establish the default KV provider each test (one test overrides it).
+  const { getAppCacheKV } = await import("@/lib/runtime-env");
+  (getAppCacheKV as ReturnType<typeof vi.fn>).mockImplementation(() => kv);
   vi.stubEnv("CLICK_CACHE_HMAC_KEY", "test-key-for-bug-5");
   vi.stubEnv("KV_DEDUP_WRITE_ALERT_RATE", "1000000"); // never alert in tests
 });
 
-// Scoped imports so the mocks above take effect on first evaluation.
-async function loadHelpers() {
-  const mod = await import("@/app/api/track/click/route");
-  return {
-    computeClickFingerprint: mod.computeClickFingerprint,
-    isDuplicateClick: mod.isDuplicateClick,
-  };
-}
-
-const FIXED_HMAC = "test-key-for-bug-5";
-const UA = "Mozilla/5.0 (Macintosh) TestRunner";
-const IP_PREFIX = "203.0.113";
-const SITE_ID = "db-affilite-mix";
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("Bug 5 — click dedup must include product_slug", () => {
   it("two clicks on different products with same t / IP / UA are BOTH recorded", async () => {
-    const { computeClickFingerprint, isDuplicateClick } = await loadHelpers();
+    const resA = await GET(clickRequest("product-a", "review"));
+    const resB = await GET(clickRequest("product-b", "review"));
 
-    const fpA = await computeClickFingerprint(
-      FIXED_HMAC,
-      SITE_ID,
-      "product-a",
-      "review",
-      IP_PREFIX,
-      UA,
-    );
-    const resultA = await isDuplicateClick(
-      fpA,
-      SITE_ID,
-      "product-a",
-      "review",
-    );
-    expect(resultA).toBe("unique");
+    expect(resA.status).toBe(302);
+    expect(resB.status).toBe(302);
 
-    const fpB = await computeClickFingerprint(
-      FIXED_HMAC,
-      SITE_ID,
-      "product-b", // <-- different product
-      "review",
-      IP_PREFIX,
-      UA,
-    );
-    const resultB = await isDuplicateClick(
-      fpB,
-      SITE_ID,
-      "product-b", // <-- different product
-      "review",
-    );
+    // Before the fix, product-b collapsed into product-a's bucket and was
+    // suppressed as a duplicate. After the fix both clicks are recorded.
+    expect(mockPublishClick).toHaveBeenCalledTimes(2);
 
-    // Bug 5: before the fix, resultB was "duplicate" because the dedup key
-    // collapsed both products into the same bucket. After the fix, product_b
-    // is its own bucket and is recorded.
-    expect(resultB).toBe("unique");
-    expect(fpA).not.toBe(fpB);
-
-    // And the two fingerprints must have produced two different KV keys.
-    expect(kv.put).toHaveBeenCalledTimes(2);
-    const keys = kv.put.mock.calls.map((c) => c[0]);
+    const keys = dedupKeys();
+    expect(keys).toHaveLength(2);
     expect(new Set(keys).size).toBe(2);
-    for (const k of keys) {
-      expect(k).toMatch(/^click-dedup:/);
-    }
+    expect(keys.some((k) => k.includes(":product-a:"))).toBe(true);
+    expect(keys.some((k) => k.includes(":product-b:"))).toBe(true);
   });
 
   it("a second click on the SAME product within the window is deduplicated", async () => {
-    const { computeClickFingerprint, isDuplicateClick } = await loadHelpers();
+    const first = await GET(clickRequest("product-a", "review"));
+    const second = await GET(clickRequest("product-a", "review"));
 
-    const fp = await computeClickFingerprint(
-      FIXED_HMAC,
-      SITE_ID,
-      "product-a",
-      "review",
-      IP_PREFIX,
-      UA,
-    );
+    expect(first.status).toBe(302);
+    expect(second.status).toBe(302);
 
-    expect(await isDuplicateClick(fp, SITE_ID, "product-a", "review")).toBe(
-      "unique",
-    );
-    expect(await isDuplicateClick(fp, SITE_ID, "product-a", "review")).toBe(
-      "duplicate",
-    );
-
-    // Only one KV write for the first (unique) click; the second is a miss.
-    expect(kv.put).toHaveBeenCalledTimes(1);
-    expect(kv.get).toHaveBeenCalledTimes(2);
+    // Only the first click is recorded; the second hits the 24h dedup window.
+    expect(mockPublishClick).toHaveBeenCalledTimes(1);
+    expect(dedupKeys()).toHaveLength(1);
   });
 
-  it("dedup key includes product_slug in the documented position", async () => {
-    const { computeClickFingerprint, isDuplicateClick } = await loadHelpers();
+  it("writes the dedup key with product_slug in the documented position", async () => {
+    await GET(clickRequest("product-a", "review"));
 
-    const fp = await computeClickFingerprint(
-      FIXED_HMAC,
-      SITE_ID,
-      "product-a",
-      "review",
-      IP_PREFIX,
-      UA,
-    );
-    await isDuplicateClick(fp, SITE_ID, "product-a", "review");
-
-    expect(kv.put).toHaveBeenCalledTimes(1);
-    const [key] = kv.put.mock.calls[0]!;
-    // Spec: click-dedup:{siteId}:{productSlug}:{contentSlug}:{fingerprint}
-    expect(key).toBe(
-      `click-dedup:${SITE_ID}:product-a:review:${fp}`,
-    );
+    const keys = dedupKeys();
+    expect(keys).toHaveLength(1);
+    // Spec key shape: click-dedup:{siteId}:{productSlug}:{contentSlug}:{fingerprint}
+    expect(keys[0]).toMatch(/^click-dedup:db-affilite-mix:product-a:review:.+$/);
   });
 
-  it("fingerprint payload changes when product_slug changes (hash sensitivity)", async () => {
-    const { computeClickFingerprint } = await loadHelpers();
+  it("does not collapse clicks that differ only by content_slug", async () => {
+    await GET(clickRequest("product-a", "review"));
+    await GET(clickRequest("product-a", "guide"));
 
-    const fpA = await computeClickFingerprint(
-      FIXED_HMAC,
-      SITE_ID,
-      "product-a",
-      "review",
-      IP_PREFIX,
-      UA,
-    );
-    const fpB = await computeClickFingerprint(
-      FIXED_HMAC,
-      SITE_ID,
-      "product-b",
-      "review",
-      IP_PREFIX,
-      UA,
-    );
-    const fpC = await computeClickFingerprint(
-      FIXED_HMAC,
-      SITE_ID,
-      "product-a",
-      "guide", // same product, different content
-      IP_PREFIX,
-      UA,
-    );
-    const fpD = await computeClickFingerprint(
-      FIXED_HMAC,
-      SITE_ID,
-      "product-a",
-      "review",
-      IP_PREFIX,
-      UA,
-    );
-
-    // Different product -> different fingerprint.
-    expect(fpA).not.toBe(fpB);
-    // Different content -> different fingerprint.
-    expect(fpA).not.toBe(fpC);
-    // Identical inputs -> identical fingerprint (deterministic).
-    expect(fpA).toBe(fpD);
+    expect(mockPublishClick).toHaveBeenCalledTimes(2);
+    expect(new Set(dedupKeys()).size).toBe(2);
   });
 
-  it("returns 'unique' (no-op) when KV is unavailable — must not crash", async () => {
-    // Simulate a deployment without the KV binding (e.g. local dev).
+  it("still redirects and records when KV is unavailable (no crash)", async () => {
     const { getAppCacheKV } = await import("@/lib/runtime-env");
-    (getAppCacheKV as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
+    (getAppCacheKV as ReturnType<typeof vi.fn>).mockReturnValue(null);
 
-    const { computeClickFingerprint, isDuplicateClick } = await loadHelpers();
-    const fp = await computeClickFingerprint(
-      FIXED_HMAC,
-      SITE_ID,
-      "product-a",
-      "review",
-      IP_PREFIX,
-      UA,
-    );
-    expect(await isDuplicateClick(fp, SITE_ID, "product-a", "review")).toBe(
-      "unique",
-    );
+    const res = await GET(clickRequest("product-a", "review"));
+
+    expect(res.status).toBe(302);
+    expect(mockPublishClick).toHaveBeenCalledTimes(1);
   });
 });
