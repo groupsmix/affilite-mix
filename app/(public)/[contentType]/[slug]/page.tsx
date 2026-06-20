@@ -1,12 +1,14 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { getContentBySlug, getRelatedContent } from "@/lib/dal/content";
-import { getLinkedProducts } from "@/lib/dal/content-products";
-import { injectProductLinks } from "@/lib/internal-links";
+import { getLinkedProducts, getContentLinkedToProducts } from "@/lib/dal/content-products";
+import { getCategoryById } from "@/lib/dal/categories";
+import { injectProductLinks, buildRelatedLinks } from "@/lib/internal-links";
 import { getAdminSession } from "@/lib/auth";
 import { validatePreviewToken } from "@/lib/preview-token";
 import { HtmlRenderer } from "../../components/html-renderer";
 import { ProductCard } from "../../components/product-card";
 import { ContentCard } from "../../components/content-card";
+import { RelatedLinks } from "../../components/related-links";
 import { Breadcrumbs } from "../../components/breadcrumbs";
 import { ReportContentLink } from "../../components/report-content-link";
 import dynamic from "next/dynamic";
@@ -148,11 +150,33 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
     notFound();
   }
 
-  // Load linked products and related content
-  const [linkedProducts, relatedContent] = await Promise.all([
+  // Load linked products, related content, and the category hub.
+  const [linkedProducts, relatedContent, hubCategory] = await Promise.all([
     getLinkedProducts(site.id, content.id),
     getRelatedContent(site.id, content.category_id, content.id, 4),
+    content.category_id ? getCategoryById(site.id, content.category_id) : Promise.resolve(null),
   ]);
+
+  // CA-306: automated contextual internal links. Find published content that
+  // references the same tools (reviews of the compared tools, comparisons that
+  // feature this tool) via content_products, then build the related-links
+  // groups. Depends on linkedProducts, so it runs after the Promise.all above.
+  const productIds = linkedProducts.map((lp) => lp.product_id);
+  const crossLinked = productIds.length
+    ? await getContentLinkedToProducts(site.id, productIds, { excludeContentId: content.id })
+    : [];
+  const relatedLinkGroups = buildRelatedLinks({
+    current: { id: content.id, type: content.type, slug: content.slug },
+    language: site.language,
+    categoryHub: hubCategory ? { slug: hubCategory.slug, name: hubCategory.name } : null,
+    crossLinked: crossLinked.map((c) => c.content),
+    sameCategory: relatedContent.map((c) => ({
+      id: c.id,
+      title: c.title,
+      slug: c.slug,
+      type: c.type,
+    })),
+  });
 
   // Build JSON-LD based on content type
   const contentTypeLabel =
@@ -349,6 +373,10 @@ export default async function ContentPage({ params, searchParams }: ContentPageP
           </div>
         </section>
       )}
+
+      {/* CA-306: automated contextual internal links (reviews ⇄ comparisons,
+          category hub, same-category siblings) — derived from content_products. */}
+      <RelatedLinks groups={relatedLinkGroups} language={site.language} />
 
       {/* Related content */}
       {relatedContent.length > 0 && (
