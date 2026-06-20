@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
 import { listSiteModules, upsertSiteModule, bulkUpsertSiteModules } from "@/lib/dal/modules";
+// FIX: `site_modules` is RLS-restricted to service_role (migrations 00033 /
+// 00040). The default tenant client (authenticated role) is denied, so these
+// admin reads/writes must use the privileged gateway. The route is gated by
+// withAuthz(super_admin) and every DAL call is site-scoped (.eq site_id).
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
@@ -25,7 +30,9 @@ export const GET = withAuthz("modules", "read", async (request, { session, siteI
   }
 
   try {
-    const siteModules = await listSiteModules(dbSiteId);
+    const siteModules = await listSiteModules(dbSiteId, () =>
+      getPrivilegedSupabaseClient("admin-modules-list"),
+    );
 
     // Merge with registry to show all available modules with their enabled status
     const merged = MODULE_REGISTRY.map((def) => {
@@ -87,12 +94,15 @@ export const POST = withAuthz(
     }
 
     try {
-      const mod = await upsertSiteModule({
-        site_id: dbSiteId,
-        module_key,
-        is_enabled,
-        config: (body.config as Record<string, unknown>) ?? {},
-      });
+      const mod = await upsertSiteModule(
+        {
+          site_id: dbSiteId,
+          module_key,
+          is_enabled,
+          config: (body.config as Record<string, unknown>) ?? {},
+        },
+        () => getPrivilegedSupabaseClient("admin-modules-upsert"),
+      );
 
       void recordAuditEvent({
         site_id: dbSiteId,
@@ -143,7 +153,9 @@ export const PATCH = withAuthz(
     }
 
     try {
-      const results = await bulkUpsertSiteModules(dbSiteId, modules);
+      const results = await bulkUpsertSiteModules(dbSiteId, modules, () =>
+        getPrivilegedSupabaseClient("admin-modules-bulk"),
+      );
 
       void recordAuditEvent({
         site_id: dbSiteId,

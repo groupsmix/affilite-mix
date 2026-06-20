@@ -6,6 +6,12 @@ import {
   upsertSiteIntegration,
   deleteSiteIntegration,
 } from "@/lib/dal/integrations";
+// FIX: `integration_providers` is RLS-restricted to authenticated/service_role
+// and `site_integrations` to service_role only (migrations 00033 / 00040 /
+// 2026052801). The default tenant client returns zero rows / is denied, so
+// these admin reads/writes use the privileged gateway. Gated by
+// withAuthz(super_admin); site reads/writes are site-scoped (.eq site_id).
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
@@ -28,10 +34,14 @@ export const GET = withAuthz(
     }
 
     try {
-      const providers = await listIntegrationProviders();
+      const providers = await listIntegrationProviders(() =>
+        getPrivilegedSupabaseClient("admin-integrations-providers"),
+      );
 
       if (querySiteId) {
-        const siteIntegrations = await listSiteIntegrations(dbSiteId);
+        const siteIntegrations = await listSiteIntegrations(dbSiteId, () =>
+          getPrivilegedSupabaseClient("admin-integrations-site-list"),
+        );
 
         // Merge providers with site-specific enablement/config
         const merged = providers.map((provider) => {
@@ -90,12 +100,15 @@ export const POST = withAuthz(
     }
 
     try {
-      const integration = await upsertSiteIntegration({
-        site_id: dbSiteId,
-        provider_key,
-        is_enabled,
-        config: (body.config as Record<string, unknown>) ?? {},
-      });
+      const integration = await upsertSiteIntegration(
+        {
+          site_id: dbSiteId,
+          provider_key,
+          is_enabled,
+          config: (body.config as Record<string, unknown>) ?? {},
+        },
+        () => getPrivilegedSupabaseClient("admin-integrations-upsert"),
+      );
 
       void recordAuditEvent({
         site_id: dbSiteId,
@@ -138,7 +151,9 @@ export const DELETE = withAuthz(
     }
 
     try {
-      await deleteSiteIntegration(dbSiteId, providerKey);
+      await deleteSiteIntegration(dbSiteId, providerKey, () =>
+        getPrivilegedSupabaseClient("admin-integrations-delete"),
+      );
 
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({

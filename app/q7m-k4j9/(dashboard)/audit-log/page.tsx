@@ -8,6 +8,11 @@ import {
   getDistinctEntityTypes,
   resolveActorsToAdminUserIds,
 } from "@/lib/dal/audit-log";
+// FIX: `audit_log` SELECT is RLS-restricted to service_role (migrations 00033 /
+// 00040; only an authenticated INSERT policy exists). The default tenant client
+// (authenticated role) reads zero rows, so the grid always rendered empty. This
+// page is a super_admin-only Server Component; read via the privileged gateway.
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { redirect } from "next/navigation";
 
 import { AuditLogTable, type AuditLogTableRow } from "./audit-log-table";
@@ -141,14 +146,15 @@ export default async function AuditLogPage({
     to,
   };
 
+  const getAuditClient = () => getPrivilegedSupabaseClient("admin-audit-log-page");
   const auditResult = await safeAdminData(
     "audit log page data",
     () =>
       Promise.all([
-        listAuditLogs(siteId, pageSize, offset, filters),
-        countAuditLogs(siteId, filters),
-        getDistinctActions(siteId),
-        getDistinctEntityTypes(siteId),
+        listAuditLogs(siteId, pageSize, offset, filters, getAuditClient),
+        countAuditLogs(siteId, filters, getAuditClient),
+        getDistinctActions(siteId, getAuditClient),
+        getDistinctEntityTypes(siteId, getAuditClient),
       ]),
     [[], 0, [], []] as [Awaited<ReturnType<typeof listAuditLogs>>, number, string[], string[]],
   );

@@ -34,6 +34,19 @@ const SERVICE_ROLE_ALLOWLIST = new Set([
   // Stats endpoint must list ALL sites before tenant context is established;
   // getTenantClient() mints HS256 JWTs that fail on asymmetric Supabase keys.
   "app/api/admin/sites/stats/route.ts",
+  // Platform config tabs read/write tables that migrations 00033 / 00040 /
+  // 2026052801 locked to service_role (site_modules, site_feature_flags,
+  // site_integrations, user_site_roles) — plus roles/permissions/
+  // integration_providers which only grant `authenticated` READ while these
+  // handlers also touch a service_role-only table. The tenant client returns
+  // zero rows / is denied, blanking the pages. Each route is super_admin-gated
+  // (withAuthz / requireAdmin+assertRole) and every site-scoped DAL call carries
+  // an explicit `.eq('site_id', …)` predicate. Mirrors the security allow-list
+  // in lib/security/service-role-allowlist.ts.
+  "app/api/admin/feature-flags/route.ts",
+  "app/api/admin/modules/route.ts",
+  "app/api/admin/integrations/route.ts",
+  "app/api/admin/permissions/route.ts",
 ]);
 
 describe("F-SEC-01: admin routes must not use service-role client", () => {

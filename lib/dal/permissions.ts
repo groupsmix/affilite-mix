@@ -40,6 +40,8 @@ export async function listRoles(
   const { data, error } = await sb
     .from("roles")
     .select(ROLE_COLUMNS)
+    // SAFE: `roles` is a global RBAC table with no `site_id`; privileged admin read (no-op on tenant).
+    .unsafeNoSiteFilter()
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -52,7 +54,13 @@ export async function getRoleByName(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<RoleRow | null> {
   const sb = await getClient();
-  const { data, error } = await sb.from("roles").select(ROLE_COLUMNS).eq("name", name).single();
+  const { data, error } = await sb
+    .from("roles")
+    .select(ROLE_COLUMNS)
+    // SAFE: `roles` is a global RBAC table with no `site_id`; privileged admin lookup (no-op on tenant).
+    .unsafeNoSiteFilter()
+    .eq("name", name)
+    .single();
 
   if (error && error.code !== "PGRST116") throw error;
   return rowOrNull<RoleRow>(data);
@@ -70,6 +78,8 @@ export async function listPermissions(
   const { data, error } = await sb
     .from("permissions")
     .select(PERMISSION_COLUMNS)
+    // SAFE: `permissions` is a global RBAC table with no `site_id`; privileged admin read (no-op on tenant).
+    .unsafeNoSiteFilter()
     .order("feature", { ascending: true });
 
   if (error) throw error;
