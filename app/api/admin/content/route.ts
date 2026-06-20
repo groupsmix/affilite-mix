@@ -20,6 +20,7 @@ import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { isUsableUuid } from "@/lib/security/uuid";
+import { canonicalizeVsSlug } from "@/lib/vs-slug";
 
 export const GET = withAuthz(
   "content",
@@ -106,6 +107,10 @@ export const POST = withAuthz(
     }
 
     const data = parsed.data;
+    // CA-302: store comparison slugs in canonical (alphabetical) order so the
+    // public route, sitemap, and the middleware 301 redirect never diverge.
+    // No-op for non-comparison slugs.
+    const slug = data.type === "comparison" ? canonicalizeVsSlug(data.slug) : data.slug;
     // G-01: validate URL-typed fields before persistence.
     const urlErr = validateAdminUrlFields({
       featured_image: data.featured_image,
@@ -118,7 +123,7 @@ export const POST = withAuthz(
       const content = await createContent({
         site_id: siteId,
         title: data.title,
-        slug: data.slug,
+        slug,
         body: sanitizeHtml(data.body),
         excerpt: data.excerpt,
         featured_image: data.featured_image ?? "",
@@ -142,7 +147,7 @@ export const POST = withAuthz(
         action: "create",
         entity_type: "content",
         entity_id: content.id,
-        details: { title: data.title, slug: data.slug, type: data.type },
+        details: { title: data.title, slug, type: data.type },
       });
 
       if (data.status === "published") {
@@ -200,6 +205,12 @@ export const PATCH = withAuthz(
 
     if (typeof updates.body === "string") {
       updates.body = sanitizeHtml(updates.body);
+    }
+    // CA-302: keep comparison slugs canonical on edit too. Applied when the
+    // payload sets both slug and type=comparison; this avoids an extra DB read
+    // on the hot path, and the backfill migration covers any historical rows.
+    if (updates.slug !== undefined && updates.type === "comparison") {
+      updates.slug = canonicalizeVsSlug(updates.slug);
     }
     // G-01: validate URL-typed fields on edit.
     const editUrlFields: Record<string, string | null | undefined> = {};
