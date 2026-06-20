@@ -1,4 +1,5 @@
 import { requireAdminSessionWithSite } from "../components/admin-guard";
+import { AdminDataError, safeAdminData } from "../components/admin-page-state";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { listAdPlacements } from "@/lib/dal/ad-placements";
 import { getAdImpressionStats } from "@/lib/dal/ad-impressions";
@@ -11,13 +12,32 @@ import { NewAdPlacementDialog } from "./new-ad-placement-dialog";
 export default async function AdsPage() {
   const session = await requireAdminSessionWithSite();
 
-  const siteId = await resolveDbSiteId(session.activeSiteSlug);
+  const siteIdResult = await safeAdminData(
+    "ads active site resolution",
+    () => resolveDbSiteId(session.activeSiteSlug),
+    "",
+  );
+  if (siteIdResult.error || !siteIdResult.data) {
+    return (
+      <AdminDataError
+        title="Ad placements could not load"
+        description="The active site could not be resolved in the database. Re-select the site or run the site provisioning migration."
+        retryHref="/q7m-k4j9/ads"
+      />
+    );
+  }
+  const siteId = siteIdResult.data;
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-  const [placements, impressionStats] = await Promise.all([
-    listAdPlacements(siteId),
-    getAdImpressionStats(siteId, thirtyDaysAgo!).catch(() => []),
-  ]);
+  const adsResult = await safeAdminData(
+    "ads page data",
+    () => Promise.all([listAdPlacements(siteId), getAdImpressionStats(siteId, thirtyDaysAgo!)]),
+    [[], []] as [
+      Awaited<ReturnType<typeof listAdPlacements>>,
+      Awaited<ReturnType<typeof getAdImpressionStats>>,
+    ],
+  );
+  const [placements, impressionStats] = adsResult.data;
 
   // Build a lookup map: placement_id → total impressions
   const impressionMap = new Map<string, number>();

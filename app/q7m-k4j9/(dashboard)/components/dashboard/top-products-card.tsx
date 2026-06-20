@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTopProducts } from "@/lib/dal/affiliate-clicks";
 import { listProductsByNames } from "@/lib/dal/products";
+import { logger } from "@/lib/logger";
 
 interface TopProductsCardProps {
   siteId: string;
@@ -13,14 +14,26 @@ interface TopProductsCardProps {
 }
 
 export async function TopProductsCard({ siteId, sevenDaysAgo, limit = 5 }: TopProductsCardProps) {
-  const topProducts = await getTopProducts(siteId, sevenDaysAgo, limit);
+  const topProducts = await getTopProducts(siteId, sevenDaysAgo, limit).catch((error: unknown) => {
+    logger.warn("[dashboard] top products unavailable", {
+      siteId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  });
 
   const byName = new Map<string, { id: string; image_url: string; image_alt: string }>();
   if (topProducts.length > 0) {
     const rows = await listProductsByNames(
       siteId,
       topProducts.map((p) => p.product_name),
-    );
+    ).catch((error: unknown) => {
+      logger.warn("[dashboard] top product lookup unavailable", {
+        siteId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    });
     for (const row of rows) {
       byName.set(row.name, {
         id: row.id,

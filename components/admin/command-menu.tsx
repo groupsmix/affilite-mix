@@ -17,13 +17,20 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-export function CommandMenu({ monetizationType }: { monetizationType?: AdminMonetizationType }) {
+export function CommandMenu({
+  monetizationType,
+  hasActiveSite = true,
+}: {
+  monetizationType?: AdminMonetizationType;
+  hasActiveSite?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
+      const key = e.key.toLowerCase();
+      if ((key === "k" && (e.metaKey || e.ctrlKey)) || key === "/") {
         if (
           (e.target instanceof HTMLElement && e.target.isContentEditable) ||
           e.target instanceof HTMLInputElement ||
@@ -58,7 +65,7 @@ export function CommandMenu({ monetizationType }: { monetizationType?: AdminMone
         <span className="hidden lg:inline-flex">Search...</span>
         <span className="inline-flex lg:hidden">Search...</span>
         <kbd className="pointer-events-none absolute right-1.5 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-          <span className="text-xs">&#8984;</span>K
+          <span className="text-xs">⌘</span>/<span>Ctrl</span>K
         </kbd>
       </Button>
 
@@ -69,14 +76,24 @@ export function CommandMenu({ monetizationType }: { monetizationType?: AdminMone
           <CommandGroup heading="Pages">
             {filterAdminNavItems(adminNavItems, monetizationType).map((item) => {
               const Icon = item.icon;
+              const disabled = Boolean(item.requiresActiveSite && !hasActiveSite);
               return (
                 <CommandItem
                   key={item.href}
                   value={item.label}
-                  onSelect={() => runCommand(() => router.push(item.href))}
+                  disabled={disabled}
+                  onSelect={() => {
+                    if (disabled) return;
+                    runCommand(() => router.push(item.href));
+                  }}
                 >
                   {Icon && <Icon className="mr-2 size-4" />}
                   <span>{item.label}</span>
+                  {disabled ? (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      Select a site first
+                    </span>
+                  ) : null}
                 </CommandItem>
               );
             })}

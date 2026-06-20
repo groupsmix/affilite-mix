@@ -148,7 +148,7 @@ function readPrimaryColor(site: SiteInfo): string {
 }
 
 function formatNumber(n: number | undefined): string {
-  if (n === undefined || Number.isNaN(n)) return "—";
+  if (n === undefined || !Number.isFinite(n)) return "—";
 
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k`;
 

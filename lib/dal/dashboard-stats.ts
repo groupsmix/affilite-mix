@@ -38,7 +38,15 @@ export async function getDashboardStats(
     logger.warn("[dashboard-stats] RPC unavailable, falling back to individual queries", {
       error: error.message,
     });
-    return fallbackDashboardStats(siteId, todayStart, sevenDaysAgo, getClient);
+    try {
+      return await fallbackDashboardStats(siteId, todayStart, sevenDaysAgo, getClient);
+    } catch (fallbackError) {
+      logger.warn("[dashboard-stats] fallback queries unavailable", {
+        siteId,
+        error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+      });
+      return emptyDashboardStats();
+    }
   }
 
   const stats = data as Record<string, number>;
@@ -58,6 +66,22 @@ export async function getDashboardStats(
 }
 
 /** Fallback: individual queries when RPC is not available */
+function emptyDashboardStats(): DashboardStats {
+  return {
+    total_products: 0,
+    active_products: 0,
+    draft_products: 0,
+    total_content: 0,
+    published_content: 0,
+    draft_content: 0,
+    clicks_today: 0,
+    clicks_7d: 0,
+    products_no_url: 0,
+    content_no_products: 0,
+    scheduled_content: 0,
+  };
+}
+
 async function fallbackDashboardStats(
   siteId: string,
   todayStart: string,

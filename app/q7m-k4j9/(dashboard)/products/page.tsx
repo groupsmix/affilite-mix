@@ -1,4 +1,5 @@
 import { requireAdminSessionWithSite } from "../components/admin-guard";
+import { AdminDataError, safeAdminData } from "../components/admin-page-state";
 import {
   listProducts,
   countProducts,
@@ -12,7 +13,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { CsvTools } from "./csv-tools";
 import { ProductsTable, type ProductsTableRow } from "./products-table";
-import type { ProductRow } from "@/types/database";
+import type { CategoryRow, ProductRow } from "@/types/database";
 
 const DEFAULT_PAGE_SIZE = 20;
 const ALLOWED_PAGE_SIZES = new Set([10, 20, 50, 100]);
@@ -78,7 +79,21 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const sp = await searchParams;
 
   const session = await requireAdminSessionWithSite();
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const siteIdResult = await safeAdminData(
+    "products active site resolution",
+    () => resolveDbSiteId(session.activeSiteSlug),
+    "",
+  );
+  if (siteIdResult.error || !siteIdResult.data) {
+    return (
+      <AdminDataError
+        title="Products could not load"
+        description="The active site could not be resolved in the database. Re-select the site or run the site provisioning migration."
+        retryHref="/q7m-k4j9/products"
+      />
+    );
+  }
+  const dbSiteId = siteIdResult.data;
 
   const statuses = parseCsvEnum(sp["f.status"], STATUS_VALUES);
   const categoryIds = parseCsvString(sp["f.category_id"]);
@@ -101,30 +116,36 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const rawSize = parseInt(sp.size ?? String(DEFAULT_PAGE_SIZE), 10);
   const pageSize = ALLOWED_PAGE_SIZES.has(rawSize) ? rawSize : DEFAULT_PAGE_SIZE;
 
-  const [products, totalProducts, categories, merchants] = await Promise.all([
-    listProducts({
-      siteId: dbSiteId,
-      statuses: statuses.length > 0 ? statuses : undefined,
-      categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
-      networks: networks.length > 0 ? networks : undefined,
-      q,
-      missingUrl: missingUrl || undefined,
-      sortBy,
-      sortDirection,
-      limit: pageSize,
-      offset: (pageNum - 1) * pageSize,
-    }),
-    countProducts({
-      siteId: dbSiteId,
-      statuses: statuses.length > 0 ? statuses : undefined,
-      categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
-      networks: networks.length > 0 ? networks : undefined,
-      q,
-      missingUrl: missingUrl || undefined,
-    }),
-    listCategories(dbSiteId),
-    listDistinctMerchants(dbSiteId),
-  ]);
+  const productsResult = await safeAdminData(
+    "products page data",
+    () =>
+      Promise.all([
+        listProducts({
+          siteId: dbSiteId,
+          statuses: statuses.length > 0 ? statuses : undefined,
+          categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+          networks: networks.length > 0 ? networks : undefined,
+          q,
+          missingUrl: missingUrl || undefined,
+          sortBy,
+          sortDirection,
+          limit: pageSize,
+          offset: (pageNum - 1) * pageSize,
+        }),
+        countProducts({
+          siteId: dbSiteId,
+          statuses: statuses.length > 0 ? statuses : undefined,
+          categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+          networks: networks.length > 0 ? networks : undefined,
+          q,
+          missingUrl: missingUrl || undefined,
+        }),
+        listCategories(dbSiteId),
+        listDistinctMerchants(dbSiteId),
+      ]),
+    [[], 0, [], []] as [ProductRow[], number, CategoryRow[], string[]],
+  );
+  const [products, totalProducts, categories, merchants] = productsResult.data;
 
   const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
 
@@ -160,6 +181,14 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
   return (
     <div className="mx-auto max-w-6xl">
+      {productsResult.error ? (
+        <div className="mb-6">
+          <AdminDataError
+            title="Products data is partially unavailable"
+            retryHref="/q7m-k4j9/products"
+          />
+        </div>
+      ) : null}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Products</h1>
         <Link

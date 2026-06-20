@@ -51,7 +51,10 @@ export async function getAdImpressionStats(
   }
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    logger.warn("[ad-impressions] stats unavailable", { siteId, error: error.message });
+    return [];
+  }
 
   // Aggregate by placement
   const map = new Map<string, number>();

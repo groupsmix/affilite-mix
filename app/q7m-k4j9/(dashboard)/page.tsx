@@ -3,12 +3,13 @@ import Link from "next/link";
 // redirect removed — no-site case now renders an inline empty state
 
 import { getDailyClicks } from "@/lib/dal/affiliate-clicks";
-import { getDashboardStats } from "@/lib/dal/dashboard-stats";
+import { getDashboardStats, type DashboardStats } from "@/lib/dal/dashboard-stats";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 
 import { PageHeader } from "@/components/admin/page-header";
 
 import { requireAdminSession } from "./components/admin-guard";
+import { AdminDataError, safeAdminData } from "./components/admin-page-state";
 import { AutoRefresh } from "./components/auto-refresh";
 import { AlertsCard, type DashboardAlert } from "./components/dashboard/alerts-card";
 import { KpiCard } from "./components/dashboard/kpi-card";
@@ -35,6 +36,20 @@ function pctDelta(current: number, previous: number): number {
   return pct;
 }
 
+const EMPTY_DASHBOARD_STATS: DashboardStats = {
+  total_products: 0,
+  active_products: 0,
+  draft_products: 0,
+  total_content: 0,
+  published_content: 0,
+  draft_content: 0,
+  clicks_today: 0,
+  clicks_7d: 0,
+  products_no_url: 0,
+  content_no_products: 0,
+  scheduled_content: 0,
+};
+
 export default async function AdminDashboard() {
   const session = await requireAdminSession();
   const isSuperAdmin = session.role === "super_admin";
@@ -56,19 +71,40 @@ export default async function AdminDashboard() {
     );
   }
 
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const activeSiteSlug = session.activeSiteSlug;
+  const siteIdResult = await safeAdminData(
+    "dashboard active site resolution",
+    () => resolveDbSiteId(activeSiteSlug),
+    "",
+  );
+  if (siteIdResult.error || !siteIdResult.data) {
+    return (
+      <AdminDataError
+        title="Active site could not load"
+        description="WristNerd is selected, but the dashboard could not resolve its database site row. Re-select the site or run the site provisioning migration."
+        retryHref="/q7m-k4j9"
+      />
+    );
+  }
+  const dbSiteId = siteIdResult.data;
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   // Single RPC call for all aggregate counts + the daily series for the chart.
-  // Top-products / scheduled-content are fetched inside their own Cards so
-  // they can Suspense-boundary independently if we add streaming later.
-  const [stats, dailyClicks] = await Promise.all([
-    getDashboardStats(dbSiteId, todayStart, sevenDaysAgo),
-    getDailyClicks(dbSiteId, 7),
-  ]);
+  // If analytics tables/RPCs are temporarily unavailable, render zeros/empty charts
+  // instead of tripping the whole admin error boundary.
+  const metricsResult = await safeAdminData(
+    "dashboard metrics",
+    () =>
+      Promise.all([
+        getDashboardStats(dbSiteId, todayStart, sevenDaysAgo),
+        getDailyClicks(dbSiteId, 7),
+      ]),
+    [EMPTY_DASHBOARD_STATS, []] as [DashboardStats, { date: string; count: number }[]],
+  );
+  const [stats, dailyClicks] = metricsResult.data;
 
   const {
     active_products: activeProducts,
@@ -147,13 +183,23 @@ export default async function AdminDashboard() {
     <div className="mx-auto w-full max-w-7xl">
       <AutoRefresh intervalMs={60_000} />
 
+      {metricsResult.error ? (
+        <div className="mb-6">
+          <AdminDataError
+            title="Dashboard data is partially unavailable"
+            description="Some database queries failed, so the dashboard is showing safe empty values instead of crashing."
+            retryHref="/q7m-k4j9"
+          />
+        </div>
+      ) : null}
+
       <PageHeader
         title="Dashboard"
         description={
           <>
             Managing:{" "}
             <span className="font-medium text-foreground">
-              {session.activeSiteName ?? session.activeSiteSlug}
+              {session.activeSiteName ?? activeSiteSlug}
             </span>
           </>
         }

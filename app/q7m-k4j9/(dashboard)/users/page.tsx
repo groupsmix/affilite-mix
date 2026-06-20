@@ -1,4 +1,5 @@
 import { requireAdminSession } from "../components/admin-guard";
+import { safeAdminData } from "../components/admin-page-state";
 import { listAdminUsers } from "@/lib/dal/admin-users";
 import { listAllAdminSiteMembershipsWithSlugs } from "@/lib/dal/admin-site-memberships";
 
@@ -24,10 +25,30 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
     sortDesc: true,
   });
 
-  const [users, memberships] = await Promise.all([
-    listAdminUsers(),
-    listAllAdminSiteMembershipsWithSlugs(),
-  ]);
+  const usersResult = await safeAdminData(
+    "admin users page data",
+    () => Promise.all([listAdminUsers(), listAllAdminSiteMembershipsWithSlugs()]),
+    [[], []] as [
+      Awaited<ReturnType<typeof listAdminUsers>>,
+      Awaited<ReturnType<typeof listAllAdminSiteMembershipsWithSlugs>>,
+    ],
+  );
+  let [users, memberships] = usersResult.data;
+  if (users.length === 0 && session.email) {
+    users = [
+      {
+        id: session.userId ?? "current-admin",
+        email: session.email,
+        name: session.email.split("@")[0] ?? "Current admin",
+        role: session.role,
+        is_active: true,
+        totp_enabled: false,
+        totp_verified_at: null,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+    ];
+  }
 
   // Bucket membership slugs by admin user id, sorted for stable rendering.
   const slugsByUser = new Map<string, string[]>();

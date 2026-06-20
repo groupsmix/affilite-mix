@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { listContent } from "@/lib/dal/content";
+import { logger } from "@/lib/logger";
 
 import { RelativeTime } from "./relative-time";
 
@@ -13,7 +14,13 @@ interface ScheduledContentCardProps {
 }
 
 export async function ScheduledContentCard({ siteId, limit = 5 }: ScheduledContentCardProps) {
-  const scheduled = await listContent({ siteId, status: "scheduled" });
+  const scheduled = await listContent({ siteId, status: "scheduled" }).catch((error: unknown) => {
+    logger.warn("[dashboard] scheduled content unavailable", {
+      siteId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  });
   const now = Date.now();
 
   const upcoming = scheduled
