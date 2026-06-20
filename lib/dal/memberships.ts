@@ -7,7 +7,7 @@ export interface MembershipRow {
   email: string;
   name: string | null;
   tier: "insider" | "pro";
-  status: "active" | "cancelled" | "expired" | "past_due";
+  status: "active" | "cancelled" | "expired" | "past_due" | "disputed";
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   current_period_start: string | null;

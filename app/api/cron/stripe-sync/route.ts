@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";
 import { untypedFrom } from "@/lib/dal/type-guards";
+import { isReconcilableToActive } from "@/lib/stripe-reconciliation-policy";
 
 export async function POST(request: NextRequest) {
   if (!verifyCronAuth(request, getCronAuthOptionsForPath("/api/cron/stripe-sync"))) {
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
     // cron was down for days, or a webhook was never delivered).
     const sb = getPrivilegedSupabaseClient();
     let reconcileFixed = 0;
+    let reconcileSkipped = 0;
 
     for await (const stripeSub of stripe.subscriptions.list({ status: "active", limit: 100 })) {
       const { data: dbMembership } = await untypedFrom(sb, "memberships")
@@ -97,8 +99,32 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Ensure status mirror is accurate.
+      // Ensure status mirror is accurate, but only for transient billing drift.
+      // F1: a dispute ("disputed") or full refund ("cancelled") does NOT cancel the
+      // Stripe subscription, so it stays "active" here. Reactivating those would
+      // silently undo a fraud/entitlement hold, so only transient billing states
+      // (past_due / expired) are eligible for auto-correction. See
+      // lib/stripe-reconciliation-policy.ts.
       if (dbMembership.status !== "active") {
+        if (!isReconcilableToActive(dbMembership.status)) {
+          logger.warn(
+            "OF-08: active Stripe subscription vs protected membership status; NOT auto-reactivating",
+            { subscriptionId: stripeSub.id, dbStatus: dbMembership.status },
+          );
+          try {
+            const { captureMessage } = await import("@/lib/sentry");
+            captureMessage(
+              `OF-08: active Stripe sub ${stripeSub.id} but membership status is "${dbMembership.status}"; manual review required, not auto-reactivated`,
+              "warning",
+            );
+          } catch {
+            // fail-open: best-effort [criticality:non-critical]
+            // ignore if sentry is not available
+          }
+          reconcileSkipped++;
+          continue;
+        }
+
         logger.info("OF-08: Correcting stale membership status", {
           subscriptionId: stripeSub.id,
           dbStatus: dbMembership.status,
@@ -123,7 +149,7 @@ export async function POST(request: NextRequest) {
     }
 
     void recordCronLiveness("stripe-sync");
-    return NextResponse.json({ success: true, syncedCount, reconcileFixed });
+    return NextResponse.json({ success: true, syncedCount, reconcileFixed, reconcileSkipped });
   } catch (error) {
     captureException(error, { context: "[cron/stripe-sync] failed" });
     logger.error("Stripe sync failed", {
