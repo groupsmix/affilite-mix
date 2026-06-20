@@ -89,3 +89,44 @@ export async function upsertProductEpc(
   if (error) throw error;
   return assertRow<ProductEpcRow>(data, "ProductEpc");
 }
+
+/**
+ * Best 30-day EPC per product, aggregated across the product's affiliate
+ * networks (max = the best-performing link). Used only to tie-break ranking
+ * (see lib/ranking/epc-tie-break.ts); the values never reach the browser.
+ *
+ * RLS-safe by design: `product_epc_stats` has no anon SELECT policy, so under
+ * the public anon client this returns an empty map and ranking degrades to pure
+ * score order. Privileged callers (tenant-scoped `authenticated` admin, or the
+ * service-role cron) receive real data. A query error is swallowed for the same
+ * reason — a non-essential ranking signal must never break a public page.
+ *
+ * @returns Map of product_id → best `epc_30d`. Products with no stats are absent.
+ */
+export async function getEpcByProductIds(
+  siteId: string,
+  productIds: string[],
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (productIds.length === 0) return out;
+
+  // Cap the IN list to keep the query bounded (page sizes are far below this).
+  const ids = productIds.slice(0, 200);
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from(EPC_TABLE)
+    .select("product_id, epc_30d")
+    .eq("site_id", siteId)
+    .in("product_id", ids);
+
+  if (error || !data) return out;
+
+  for (const row of data as { product_id: string; epc_30d: number | null }[]) {
+    const epc = typeof row.epc_30d === "number" ? row.epc_30d : 0;
+    if (epc > (out.get(row.product_id) ?? 0)) {
+      out.set(row.product_id, epc);
+    }
+  }
+  return out;
+}

@@ -4,6 +4,7 @@ import { Breadcrumbs } from "./breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "./json-ld";
 import { NewsletterSignup } from "./newsletter-signup";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { TaxonomyType } from "@/types/database";
 
@@ -16,12 +17,25 @@ export interface TaxonomyIndexConfig {
   taxonomyType: TaxonomyType;
   /** Description for the page */
   description: string;
+  /**
+   * The site feature flag that gates this taxonomy family. The index returns
+   * 404 on any tenant that does not enable it, keeping off-niche taxonomy off
+   * sites (e.g. the watch gift taxonomy stays on wristnerd, not compareai).
+   */
+  feature: "taxonomyPages" | "brandSpotlights";
 }
 
 export async function generateTaxonomyIndexMetadata(
   config: TaxonomyIndexConfig,
 ): Promise<Metadata> {
   const site = await getCurrentSite();
+
+  // Tenant gate: emit no metadata for sites that don't enable this taxonomy
+  // family, so a 404 page never advertises a canonical/title.
+  if (!site.features[config.feature]) {
+    return {};
+  }
+
   const url = `https://${site.domain}/${config.prefix}`;
 
   return {
@@ -46,6 +60,12 @@ export async function generateTaxonomyIndexMetadata(
 
 export async function TaxonomyIndexPage({ config }: { config: TaxonomyIndexConfig }) {
   const site = await getCurrentSite();
+
+  // Tenant gate: 404 on sites that don't enable this taxonomy family.
+  if (!site.features[config.feature]) {
+    notFound();
+  }
+
   const categories = await listCategoriesByTaxonomy(site.id, config.taxonomyType);
 
   const breadcrumbs = breadcrumbJsonLd(site, [

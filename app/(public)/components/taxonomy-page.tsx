@@ -18,6 +18,13 @@ export interface TaxonomyConfig {
   prefix: string;
   /** Human-readable label for breadcrumbs, e.g. "Shop by Budget" */
   label: string;
+  /**
+   * The site feature flag that gates this taxonomy family. The route returns
+   * 404 on any tenant that does not enable it, so off-niche taxonomy (e.g. the
+   * watch gift taxonomy) never renders or gets indexed on sites like
+   * compareai.site that have no business exposing it.
+   */
+  feature: "taxonomyPages" | "brandSpotlights";
 }
 
 interface TaxonomyPageProps {
@@ -31,6 +38,13 @@ export async function generateTaxonomyMetadata(
 ): Promise<Metadata> {
   const { slug } = await params;
   const site = await getCurrentSite();
+
+  // Tenant gate: emit no metadata for sites that don't enable this taxonomy
+  // family. Returning {} avoids leaking a canonical/title for a 404 page.
+  if (!site.features[config.feature]) {
+    return {};
+  }
+
   const category = await getCategoryBySlug(site.id, slug);
 
   if (!category) {
@@ -73,6 +87,13 @@ export async function TaxonomyPage({
   const { page: pageParam } = await searchParams;
   const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const site = await getCurrentSite();
+
+  // Tenant gate: this taxonomy family only exists on sites that enable the
+  // controlling feature flag (e.g. the watch gift taxonomy on wristnerd.xyz).
+  if (!site.features[config.feature]) {
+    notFound();
+  }
+
   const category = await getCategoryBySlug(site.id, slug);
 
   if (!category) {
