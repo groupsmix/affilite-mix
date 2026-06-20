@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import { applyStripeEventAtomic, type StripeEventOp } from "@/lib/dal/stripe-events";
+import { writeToDlq } from "@/lib/dal/webhook-dlq";
 import { logger } from "@/lib/logger";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
@@ -23,6 +24,35 @@ export async function processStripeEvent(
 ): Promise<StripeProcessingResult> {
   const payload = await buildStripeEventPayload(stripe, event);
   const result = await applyStripeEventAtomic(event.id, event.type, payload);
+
+  // Bug 3 (S1-A10-03): the RPC reports `missed_update` when a renew/update/cancel
+  // matched 0 rows — an out-of-order delivery where the membership row does not
+  // exist yet. Crucially the RPC has ALREADY committed the `stripe_events`
+  // idempotency row (it RAISE WARNINGs + RETURNs rather than RAISE EXCEPTION), so
+  // throwing to force a Stripe retry is futile: the retry re-enters the RPC, hits
+  // ON CONFLICT DO NOTHING, and comes back as `duplicate` → silent 200. The event
+  // id is already burned. The only way to recover the lost mutation is to capture
+  // it durably for out-of-band reconciliation, so route it to the DLQ. writeToDlq
+  // throws on persistence failure; we let that propagate (fail loud) so the route
+  // returns 5xx and the drop is alerted rather than swallowed.
+  if (result.missed_update) {
+    await writeToDlq({
+      event_id: event.id,
+      event_type: event.type,
+      payload: payload as unknown as Record<string, unknown>,
+      error_message: `missed_update: ${payload.op} matched 0 membership rows (out-of-order webhook delivery)`,
+      attempts: 1,
+    });
+    logger.warn(
+      "Stripe event missed its target membership row — routed to DLQ for reconciliation",
+      {
+        id: event.id,
+        type: event.type,
+        op: payload.op,
+      },
+    );
+    return { duplicate: false, membershipId: null };
+  }
 
   if (result.duplicate) {
     logger.info("Stripe event already processed, skipping", {
@@ -65,17 +95,41 @@ type ChargeInvoiceField = { invoice?: string | Stripe.Invoice | null };
 type SubscriptionPeriodFields = {
   current_period_start?: number | null;
   current_period_end?: number | null;
+  items?: {
+    data?: Array<
+      | {
+          current_period_start?: number | null;
+          current_period_end?: number | null;
+        }
+      | null
+      | undefined
+    > | null;
+  } | null;
 };
 
-/** Extract the current billing-period window from a retrieved subscription. */
+/**
+ * Extract the current billing-period window from a retrieved subscription.
+ *
+ * Bug 4: API version `2026-05-27.dahlia` (pinned in lib/stripe-client.ts) moved
+ * `current_period_start/end` off the Subscription root onto each subscription
+ * *item* (`subscription.items.data[].current_period_*`) — the very path this
+ * file already uses to read `price.id`. Reading the root alone now yields
+ * `undefined`, so memberships persist NULL periods. Prefer the item-level
+ * fields and fall back to the legacy root for older API versions / safety.
+ * Both the create (`checkout.session.completed`) and renew (`invoice.paid`)
+ * paths flow through this accessor.
+ */
 function getSubscriptionPeriod(sub: Stripe.Subscription): {
   current_period_start: string | undefined;
   current_period_end: string | undefined;
 } {
   const period = sub as unknown as SubscriptionPeriodFields;
+  const item = period.items?.data?.[0] ?? undefined;
   return {
-    current_period_start: toIsoOrUndefined(period.current_period_start),
-    current_period_end: toIsoOrUndefined(period.current_period_end),
+    current_period_start: toIsoOrUndefined(
+      item?.current_period_start ?? period.current_period_start,
+    ),
+    current_period_end: toIsoOrUndefined(item?.current_period_end ?? period.current_period_end),
   };
 }
 
