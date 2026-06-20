@@ -115,11 +115,19 @@ test.describe("Admin Login Page", () => {
       });
     });
 
+    // After login the page checks for an active site before deciding where to
+    // redirect: an admin who already has an active site lands on the dashboard,
+    // otherwise they are sent to site selection. Mock an active site here so we
+    // exercise the dashboard redirect path.
+    await page.route("/api/admin/sites/active", async (route) => {
+      await route.fulfill({ status: 200, json: { activeSiteId: "site-1" } });
+    });
+
     await page.locator('input[type="email"]').fill("admin@example.com");
     await page.locator('input[type="password"]').fill("password123");
     await page.locator('button[type="submit"]').click();
 
-    // The client-side code calls router.push("/q7m-k4j9") on success
+    // With an active site present, the client redirects to /q7m-k4j9.
     await page.waitForURL("**/q7m-k4j9", { timeout: 10_000 });
   });
 });

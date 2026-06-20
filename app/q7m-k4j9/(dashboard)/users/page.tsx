@@ -28,7 +28,10 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
   const usersResult = await safeAdminData(
     "admin users page data",
     () => Promise.all([listAdminUsers(), listAllAdminSiteMembershipsWithSlugs()]),
-    [[], []] as [Awaited<ReturnType<typeof listAdminUsers>>, Awaited<ReturnType<typeof listAllAdminSiteMembershipsWithSlugs>>],
+    [[], []] as [
+      Awaited<ReturnType<typeof listAdminUsers>>,
+      Awaited<ReturnType<typeof listAllAdminSiteMembershipsWithSlugs>>,
+    ],
   );
   let [users, memberships] = usersResult.data;
   if (users.length === 0 && session.email) {

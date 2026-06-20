@@ -183,7 +183,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     <div className="mx-auto max-w-6xl">
       {productsResult.error ? (
         <div className="mb-6">
-          <AdminDataError title="Products data is partially unavailable" retryHref="/q7m-k4j9/products" />
+          <AdminDataError
+            title="Products data is partially unavailable"
+            retryHref="/q7m-k4j9/products"
+          />
         </div>
       ) : null}
       <div className="mb-6 flex items-center justify-between">

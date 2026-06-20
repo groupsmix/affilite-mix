@@ -102,7 +102,9 @@ export function AdminSidebarNav({
               ) : null}
               {!collapsed && <span className="truncate">{item.label}</span>}
               {disabled && !collapsed ? (
-                <span className="ml-auto text-[10px] font-normal text-muted-foreground/70">site</span>
+                <span className="ml-auto text-[10px] font-normal text-muted-foreground/70">
+                  site
+                </span>
               ) : null}
               {collapsed && <span className="sr-only">{item.label}</span>}
             </Link>

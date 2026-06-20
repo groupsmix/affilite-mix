@@ -32,7 +32,10 @@ export default async function AdsPage() {
   const adsResult = await safeAdminData(
     "ads page data",
     () => Promise.all([listAdPlacements(siteId), getAdImpressionStats(siteId, thirtyDaysAgo!)]),
-    [[], []] as [Awaited<ReturnType<typeof listAdPlacements>>, Awaited<ReturnType<typeof getAdImpressionStats>>],
+    [[], []] as [
+      Awaited<ReturnType<typeof listAdPlacements>>,
+      Awaited<ReturnType<typeof getAdImpressionStats>>,
+    ],
   );
   const [placements, impressionStats] = adsResult.data;
 

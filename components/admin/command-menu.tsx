@@ -90,7 +90,9 @@ export function CommandMenu({
                   {Icon && <Icon className="mr-2 size-4" />}
                   <span>{item.label}</span>
                   {disabled ? (
-                    <span className="ml-auto text-xs text-muted-foreground">Select a site first</span>
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      Select a site first
+                    </span>
                   ) : null}
                 </CommandItem>
               );

@@ -147,11 +147,6 @@ function readPrimaryColor(site: SiteInfo): string {
   return DEFAULT_PRIMARY;
 }
 
-function sanitizeStatValue(n: unknown): number | undefined {
-  if (typeof n !== "number" || !Number.isFinite(n)) return undefined;
-  return n;
-}
-
 function formatNumber(n: number | undefined): string {
   if (n === undefined || !Number.isFinite(n)) return "—";
 

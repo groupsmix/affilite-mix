@@ -97,7 +97,11 @@ export default async function AdminDashboard() {
   // instead of tripping the whole admin error boundary.
   const metricsResult = await safeAdminData(
     "dashboard metrics",
-    () => Promise.all([getDashboardStats(dbSiteId, todayStart, sevenDaysAgo), getDailyClicks(dbSiteId, 7)]),
+    () =>
+      Promise.all([
+        getDashboardStats(dbSiteId, todayStart, sevenDaysAgo),
+        getDailyClicks(dbSiteId, 7),
+      ]),
     [EMPTY_DASHBOARD_STATS, []] as [DashboardStats, { date: string; count: number }[]],
   );
   const [stats, dailyClicks] = metricsResult.data;

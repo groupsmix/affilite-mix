@@ -147,7 +147,10 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
     <div className="mx-auto max-w-6xl">
       {contentResult.error ? (
         <div className="mb-6">
-          <AdminDataError title="Content data is partially unavailable" retryHref="/q7m-k4j9/content" />
+          <AdminDataError
+            title="Content data is partially unavailable"
+            retryHref="/q7m-k4j9/content"
+          />
         </div>
       ) : null}
       <div className="mb-6 flex items-center justify-between">

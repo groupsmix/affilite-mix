@@ -8,7 +8,8 @@ export default function NewCustomPageAdminPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Create Page</h1>
         <p className="text-sm text-gray-500">
-          Create a static page for this niche site. You can also start this flow from the Pages list.
+          Create a static page for this niche site. You can also start this flow from the Pages
+          list.
         </p>
       </div>
       <PageManager initialMode="create" />
