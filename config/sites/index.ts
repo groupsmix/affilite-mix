@@ -90,6 +90,7 @@ export function toSiteRow(site: SiteDefinition): DerivedSiteRow {
       accentLightColor: site.theme.accentLightColor,
       fontHeading: site.theme.fontHeading,
       fontBody: site.theme.fontBody,
+      layout_variant: site.layoutVariant ?? "standard",
     },
     logo_url: site.brand.logo ?? null,
     favicon_url: site.brand.faviconUrl ?? null,
