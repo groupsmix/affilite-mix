@@ -453,14 +453,18 @@ jobs:
             exit 1
           fi
 
+          # T4-#5: Normalise both URLs before comparing. Supabase pooled URLs
+          # commonly carry ?pgbouncer=true; comparing before stripping means a
+          # staging URL of <prod>?pgbouncer=true != <prod> → guard passes →
+          # DROP SCHEMA hits production. Strip query strings on BOTH sides first.
+          _STAGING_DB_URL="${_STAGING_DB_URL%%\?*}"
+          _PROD_DB_URL="${SUPABASE_DB_URL%%\?*}"
+
           # Guard: refuse to reset a database that matches any production URL
-          if [ -n "$SUPABASE_DB_URL" ] && [ "$_STAGING_DB_URL" = "$SUPABASE_DB_URL" ]; then
+          if [ -n "$_PROD_DB_URL" ] && [ "$_STAGING_DB_URL" = "$_PROD_DB_URL" ]; then
             echo "::error::STAGING_SUPABASE_DB_URL must not equal SUPABASE_DB_URL — refusing to reset production database"
             exit 1
           fi
-
-          # Strip ?pgbouncer=true — psql does not understand this query param.
-          _STAGING_DB_URL="${_STAGING_DB_URL%%\?*}"
 
           echo "Running fresh staging DB migration apply..."
 
