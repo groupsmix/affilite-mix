@@ -55,10 +55,12 @@ export async function GET(request: NextRequest) {
     // the same issue caught in app/api/admin/sites/route.ts (GET handler).
     const rows = await listSites(() => getPrivilegedSupabaseClient("admin-sites-stats"));
 
-    // T1-F7: non-super_admin users may only see stats for sites they belong to.
-    // Mirrors the membership filter in app/api/admin/sites/route.ts (GET).
-    // Without this, any admin session received per-tenant operational stats for
-    // EVERY site (tenant enumeration + cross-tenant metric disclosure).
+    // T1-F7 / audit-F7: non-super_admin users may only see stats for sites they
+    // belong to. Mirrors the membership filter in app/api/admin/sites/route.ts
+    // (GET). Without this, any admin session received per-tenant operational
+    // stats for EVERY site (tenant enumeration + cross-tenant metric disclosure).
+    // NOTE: main and PR #911 fixed this independently; this is the reconciled
+    // single implementation (the duplicate F7 block from #911 was dropped).
     let scopedRows = rows;
     if (session.role !== "super_admin" && session.userId) {
       const memberships = await listAdminSiteMemberships(session.userId, () =>

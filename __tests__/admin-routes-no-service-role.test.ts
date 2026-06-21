@@ -47,6 +47,12 @@ const SERVICE_ROLE_ALLOWLIST = new Set([
   "app/api/admin/modules/route.ts",
   "app/api/admin/integrations/route.ts",
   "app/api/admin/permissions/route.ts",
+  // F5 audit: hard-delete path. The DELETE handler is super_admin + step-up
+  // gated at the route layer (assertRole + requireStepUpAuth) and calls
+  // deleteSite() which throws unless callerRole === "super_admin" (sites.ts:361).
+  // Hard-deleting a tenant registry row requires the privileged client — the
+  // tenant client cannot reach the global `sites` table. Safe by construction.
+  "app/api/admin/sites/[id]/route.ts",
 ]);
 
 describe("F-SEC-01: admin routes must not use service-role client", () => {

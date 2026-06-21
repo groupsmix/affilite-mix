@@ -34,7 +34,12 @@ export async function generatePreviewToken(payload: PreviewTokenPayload): Promis
  */
 export async function validatePreviewToken(token: string): Promise<PreviewTokenPayload | null> {
   try {
+    // F6: pin the algorithm allow-list to HS256 (matches generatePreviewToken's
+    // setProtectedHeader({ alg: "HS256" }) and lib/auth.ts:370). Defense-in-depth
+    // against future key-format changes — jose already rejects "alg: none" for
+    // symmetric secrets, but explicit allow-listing is the standard pattern.
     const { payload } = await jwtVerify(token, getSecretKey(), {
+      algorithms: ["HS256"],
       audience: "affiliate-platform-preview",
       issuer: "affiliate-platform",
     });

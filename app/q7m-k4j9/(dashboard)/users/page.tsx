@@ -43,6 +43,7 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
         role: session.role,
         is_active: true,
         totp_enabled: false,
+        totp_last_step: null,
         totp_verified_at: null,
         created_at: new Date(0).toISOString(),
         updated_at: new Date(0).toISOString(),
