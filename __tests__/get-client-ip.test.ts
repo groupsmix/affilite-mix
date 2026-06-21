@@ -7,9 +7,11 @@ function makeRequest(headers: Record<string, string>): Request {
 
 describe("getClientIp", () => {
   const originalFlag = process.env.TRUST_PROXY_HEADERS;
+  const originalCfFlag = process.env.TRUST_CF_CONNECTING_IP;
 
   beforeEach(() => {
     delete process.env.TRUST_PROXY_HEADERS;
+    delete process.env.TRUST_CF_CONNECTING_IP;
   });
 
   afterEach(() => {
@@ -17,6 +19,11 @@ describe("getClientIp", () => {
       delete process.env.TRUST_PROXY_HEADERS;
     } else {
       process.env.TRUST_PROXY_HEADERS = originalFlag;
+    }
+    if (originalCfFlag === undefined) {
+      delete process.env.TRUST_CF_CONNECTING_IP;
+    } else {
+      process.env.TRUST_CF_CONNECTING_IP = originalCfFlag;
     }
   });
 
@@ -60,5 +67,34 @@ describe("getClientIp", () => {
     process.env.TRUST_PROXY_HEADERS = "false";
     const req = makeRequest({ "x-forwarded-for": "198.51.100.1" });
     expect(getClientIp(req)).toBe("unknown");
+  });
+
+  // F8: opt-out for directly-reachable (non-Cloudflare-only) origins where a
+  // client could spoof cf-connecting-ip.
+  it("trusts cf-connecting-ip by default (Cloudflare-only deployment model)", () => {
+    const req = makeRequest({ "cf-connecting-ip": "203.0.113.5" });
+    expect(getClientIp(req)).toBe("203.0.113.5");
+  });
+
+  it("ignores a spoofable cf-connecting-ip when TRUST_CF_CONNECTING_IP=false", () => {
+    process.env.TRUST_CF_CONNECTING_IP = "false";
+    const req = makeRequest({ "cf-connecting-ip": "203.0.113.5" });
+    expect(getClientIp(req)).toBe("unknown");
+  });
+
+  it("ignores cf-connecting-ip when TRUST_CF_CONNECTING_IP=0", () => {
+    process.env.TRUST_CF_CONNECTING_IP = "0";
+    const req = makeRequest({ "cf-connecting-ip": "203.0.113.5" });
+    expect(getClientIp(req)).toBe("unknown");
+  });
+
+  it("with cf-ip disabled, still honours x-forwarded-for when TRUST_PROXY_HEADERS=true", () => {
+    process.env.TRUST_CF_CONNECTING_IP = "false";
+    process.env.TRUST_PROXY_HEADERS = "true";
+    const req = makeRequest({
+      "cf-connecting-ip": "203.0.113.5",
+      "x-forwarded-for": "198.51.100.9, 10.0.0.1",
+    });
+    expect(getClientIp(req)).toBe("198.51.100.9");
   });
 });

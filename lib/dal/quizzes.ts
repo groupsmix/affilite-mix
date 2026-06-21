@@ -91,6 +91,7 @@ export async function createQuizSubmission(
 /** Update a submission with answers and optionally complete it */
 export async function updateQuizSubmission(
   id: string,
+  siteId: string,
   input: {
     answers?: Record<string, string | string[] | number>;
     email?: string;
@@ -102,10 +103,15 @@ export async function updateQuizSubmission(
 ): Promise<QuizSubmissionRow> {
   const sb = await getClient();
 
+  // L1: scope the update by site_id in addition to the submission id. Cross-tenant
+  // writes are already blocked by RLS on the tenant client, but this makes the
+  // ownership predicate explicit at the query layer (defense-in-depth) so the
+  // update can never touch a row outside the resolved tenant.
   const { data, error } = await sb
     .from(SUBMISSION_TABLE)
     .update(input)
     .eq("id", id)
+    .eq("site_id", siteId)
     .select()
     .single();
   if (error) throw error;

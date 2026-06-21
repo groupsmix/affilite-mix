@@ -332,3 +332,36 @@ curl -H 'X-Forwarded-For: 1.2.3.4' https://YOUR_HOST/some-route
 
 Cloudflare deployments should leave `TRUST_PROXY_HEADERS` unset (or
 `false`).
+
+## Directly-reachable origins — `TRUST_CF_CONNECTING_IP`
+
+> **F8**: `lib/get-client-ip.ts` trusts `cf-connecting-ip` by default. That
+> is correct **only** when the origin is reachable exclusively through
+> Cloudflare, because CF sets this header at the edge and strips any
+> client-supplied copy.
+
+If the origin can be reached **directly** — e.g. the `*.workers.dev` URL is
+public, or the origin server is not firewalled to [Cloudflare's IP
+ranges](https://www.cloudflare.com/ips/) and does not enforce
+[Authenticated Origin Pulls](https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/) —
+then a client can send a forged `cf-connecting-ip` header and:
+
+- poison another user's rate-limit bucket (or evade login throttling), and
+- satisfy JWT IP-binding (`lib/jwt-binding.ts`) from any network.
+
+**Two ways to close this:**
+
+1. **Preferred (infrastructure):** lock the origin down so it is only
+   reachable through Cloudflare — firewall inbound traffic to the CF IP
+   ranges and/or enable Authenticated Origin Pulls. Then the default
+   (`cf-connecting-ip` trusted) is safe.
+2. **Application opt-out:** if the origin must stay directly reachable, set:
+
+   ```bash
+   TRUST_CF_CONNECTING_IP=false
+   ```
+
+   `get-client-ip.ts` then ignores the spoofable `cf-connecting-ip` header
+   and falls back to the `TRUST_PROXY_HEADERS`-gated `x-forwarded-for`
+   logic (or `"unknown"`). Only the literal `false` / `0` disable it; any
+   other value keeps the Cloudflare-only default.
