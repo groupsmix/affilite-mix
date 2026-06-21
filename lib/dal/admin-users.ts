@@ -41,6 +41,9 @@ export interface AdminUserRow {
   totp_verified_at: string | null;
   totp_failed_attempts: number;
   totp_locked_until: string | null;
+  // T1-F4: last TOTP time-step accepted for this user (integer counter = unix_s / 30).
+  // Optional/nullable because the column is new — existing rows have NULL until first use.
+  last_totp_step?: number | null;
   login_failed_attempts: number;
   login_locked_until: string | null;
   created_at: string;
@@ -293,6 +296,54 @@ export async function incrementTotpFailedAttempts(
 
   // Unreachable: data is guaranteed non-null when error is null
   return { attempts: 0, locked: false };
+}
+
+/**
+ * T1-F4: Atomically claim a TOTP time-step to prevent code replay.
+ *
+ * Performs a conditional UPDATE that only succeeds when:
+ *   - last_totp_step IS NULL (first code ever accepted), OR
+ *   - last_totp_step < step  (newer time-step than the last accepted)
+ *
+ * Returns true  if the claim succeeded — the code is fresh; proceed with login.
+ * Returns false if 0 rows updated — the step was already consumed; reject as replay.
+ *
+ * This is the atomicity anchor for NIST 800-63B §5.1.4.2 single-use OTP.
+ * Even with concurrent requests, only one can win the conditional UPDATE.
+ */
+export async function claimTotpStep(
+  userId: string,
+  step: number,
+  getClient: DalClientGetter = defaultAdminUsersClient,
+): Promise<boolean> {
+  const sb = await getClient();
+
+  const { data, error } = await sb
+    .from(TABLE)
+    .update({ last_totp_step: step } as Record<string, unknown>)
+    // SAFE: admin_users is the global auth table; no site_id scoping.
+    .unsafeNoSiteFilter()
+    .eq("id", userId)
+    // Only update when the step has not been consumed yet.
+    .or(`last_totp_step.is.null,last_totp_step.lt.${step}`)
+    .select("id");
+
+  if (error) {
+    logger.error("[admin-users] claimTotpStep failed — failing closed (reject as replay)", {
+      userId,
+      step,
+      error: error.message,
+    });
+    captureException(error, {
+      context: "admin-users.claimTotpStep",
+      extra: { userId, step },
+    });
+    // Fail-closed: a DB error could be a transient blip, but we cannot
+    // distinguish it from a real replay. Reject the login.
+    return false;
+  }
+
+  return Array.isArray(data) && data.length > 0;
 }
 
 /** Delete an admin user */

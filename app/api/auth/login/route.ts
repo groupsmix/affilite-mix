@@ -26,9 +26,10 @@ import {
   updateAdminUser,
   incrementLoginFailedAttempts,
   incrementTotpFailedAttempts,
+  claimTotpStep,
 } from "@/lib/dal/admin-users";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
-import { verifyTotpToken, needsSha256Reenrollment, isSha1TotpPastDeadline } from "@/lib/totp";
+import { verifyTotpTokenStep, needsSha256Reenrollment, isSha1TotpPastDeadline } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -456,15 +457,52 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // AUDIT-FIX A4-004: Digit-only validation for TOTP tokens
-        if (
-          typeof totp_token !== "string" ||
-          !/^\d{6}$/.test(totp_token) ||
-          !user.totp_secret ||
-          // B-01: Decrypt TOTP secret before verification
-          !verifyTotpToken(await decryptTotpSecret(user.totp_secret), totp_token)
-        ) {
-          // AUDIT-FIX A3-002/A1-006: Use atomic increment to prevent race condition
+        // AUDIT-FIX A4-004: Digit-only validation for TOTP tokens (fast-fail before decrypt).
+        if (typeof totp_token !== "string" || !/^\d{6}$/.test(totp_token) || !user.totp_secret) {
+          try {
+            await incrementTotpFailedAttempts(user.id, 10, 60 * 60 * 1000, () =>
+              getPrivilegedSupabaseClient("login:totp-increment-failed"),
+            );
+          } catch (e: unknown) {
+            const code =
+              e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
+            if (code !== "42703") {
+              log.error("Failed to update TOTP lockout", { error: e });
+            }
+          }
+          return apiError(401, "Invalid 2FA token");
+        }
+
+        // T1-F4: verifyTotpTokenStep returns the consumed time-step so we can
+        // persist it and reject a replay within the ~90s validity window.
+        // window:1 = ±1 step × 30s = code valid for up to ~90s without this guard.
+        // NIST 800-63B §5.1.4.2 mandates OTP codes be single-use.
+        // B-01: Decrypt TOTP secret before verification.
+        const decryptedSecret = await decryptTotpSecret(user.totp_secret);
+        const totpResult = verifyTotpTokenStep(decryptedSecret, totp_token);
+        if (!totpResult.ok) {
+          // AUDIT-FIX A3-002/A1-006: Use atomic increment to prevent race condition.
+          try {
+            await incrementTotpFailedAttempts(user.id, 10, 60 * 60 * 1000, () =>
+              getPrivilegedSupabaseClient("login:totp-increment-failed"),
+            );
+          } catch (e: unknown) {
+            const code =
+              e instanceof Object && "code" in e ? (e as { code: string }).code : undefined;
+            if (code !== "42703") {
+              log.error("Failed to update TOTP lockout", { error: e });
+            }
+          }
+          return apiError(401, "Invalid 2FA token");
+        }
+
+        // T1-F4: Atomically claim the time-step. 0 rows updated = step already consumed.
+        // Concurrent requests for the same code race on this conditional UPDATE;
+        // only one can win. Fail-closed: DB errors also return false.
+        const stepClaimed = await claimTotpStep(user.id, totpResult.step, () =>
+          getPrivilegedSupabaseClient("login:totp-claim-step"),
+        );
+        if (!stepClaimed) {
           try {
             await incrementTotpFailedAttempts(user.id, 10, 60 * 60 * 1000, () =>
               getPrivilegedSupabaseClient("login:totp-increment-failed"),

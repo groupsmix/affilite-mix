@@ -120,6 +120,10 @@ export function generateTotpSecret(
  *
  * SECURITY: Prefer verifyTotpTokenWithRotation() for DB-stored secrets,
  * as it handles encrypted values and key rotation correctly.
+ *
+ * NOTE: This returns a plain boolean and does NOT prevent code replay.
+ * Use verifyTotpTokenStep() on the login/step-up critical paths where
+ * single-use enforcement (NIST 800-63B §5.1.4.2) is required.
  */
 export function verifyTotpToken(
   secret: string,
@@ -156,6 +160,62 @@ export function verifyTotpToken(
   // delta returns null if invalid, or the time step difference if valid
   const delta = totp.validate({ token, window: 1 });
   return delta !== null;
+}
+
+/**
+ * T1-F4: TOTP period in seconds — exported so callers can compute the consumed
+ * time-step and persist it for single-use enforcement.
+ */
+export const TOTP_PERIOD = PERIOD;
+
+/**
+ * T1-F4: Single-use OTP verification — NIST 800-63B §5.1.4.2.
+ *
+ * Like verifyTotpToken() but returns the accepted time-step so the caller can
+ * persist it and reject a replay of the same code within its ~90s window
+ * (window:1 = 3 steps × 30s = ±1 step from current).
+ *
+ * Callers MUST:
+ *   1. Call claimTotpStep(userId, step) after receiving { ok: true }.
+ *   2. Reject the auth if claimTotpStep returns false (step already consumed).
+ *
+ * Returns { ok: false } when the token is invalid.
+ * Returns { ok: true, step } when valid, where step is the integer counter
+ * (Math.floor(Date.now() / 1000 / 30)) of the accepted time window.
+ */
+export function verifyTotpTokenStep(
+  secret: string,
+  token: string,
+  options?: { algorithm?: TotpAlgorithm },
+): { ok: false } | { ok: true; step: number } {
+  let algorithm: TotpAlgorithm | undefined = options?.algorithm;
+  let secretBase32 = secret;
+  if (secret.startsWith("otpauth://")) {
+    try {
+      const parsed = OTPAuth.URI.parse(secret) as OTPAuth.TOTP;
+      if (!algorithm) algorithm = parseAlgorithm(parsed.algorithm);
+      secretBase32 = parsed.secret.base32;
+    } catch {
+      algorithm ??= DEFAULT_ALGORITHM;
+    }
+  }
+  algorithm ??= DEFAULT_ALGORITHM;
+
+  const totp = new OTPAuth.TOTP({
+    issuer: ISSUER,
+    algorithm,
+    digits: DIGITS,
+    period: PERIOD,
+    secret: OTPAuth.Secret.fromBase32(secretBase32),
+  });
+
+  const delta = totp.validate({ token, window: 1 });
+  if (delta === null) return { ok: false };
+
+  // Compute the integer time-step that was actually accepted.
+  // currentStep + delta is the counter whose code matched.
+  const currentStep = Math.floor(Date.now() / 1000 / PERIOD);
+  return { ok: true, step: currentStep + delta };
 }
 
 /**

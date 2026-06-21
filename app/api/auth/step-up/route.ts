@@ -13,8 +13,9 @@ import { captureException } from "@/lib/sentry";
 import { isOriginAllowed } from "@/lib/security/allowed-origins";
 import { parseJsonBody } from "@/lib/api-error";
 import { getAdminUserByEmail } from "@/lib/dal/admin-users";
+import { claimTotpStep } from "@/lib/dal/admin-users";
 import { verifyPassword } from "@/lib/password";
-import { verifyTotpToken } from "@/lib/totp";
+import { verifyTotpTokenStep } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import {
   ADMIN_JWT_EXPIRY_SECONDS,
@@ -98,14 +99,18 @@ export async function POST(request: NextRequest) {
 
     // Enforce TOTP when the account has 2FA enabled.
     if (user.totp_enabled) {
-      if (
-        typeof totp_token !== "string" ||
-        !/^\d{6}$/.test(totp_token) ||
-        !user.totp_secret ||
-        !verifyTotpToken(await decryptTotpSecret(user.totp_secret), totp_token)
-      ) {
+      if (typeof totp_token !== "string" || !/^\d{6}$/.test(totp_token) || !user.totp_secret) {
         return invalid;
       }
+
+      // T1-F4: use verifyTotpTokenStep for single-use enforcement (NIST 800-63B §5.1.4.2).
+      const decryptedSecret = await decryptTotpSecret(user.totp_secret);
+      const totpResult = verifyTotpTokenStep(decryptedSecret, totp_token);
+      if (!totpResult.ok) return invalid;
+
+      // Atomically claim the time-step. 0 rows updated = already consumed = replay.
+      const stepClaimed = await claimTotpStep(user.id, totpResult.step);
+      if (!stepClaimed) return invalid;
     }
 
     // Re-mint the session with a fresh step-up timestamp (milliseconds). All
