@@ -152,9 +152,21 @@ async function mockAdminSitesApis(page: Page, sites: MockSite[]): Promise<void> 
  * manager should skip in that case.
  */
 async function isLoginPage(page: Page): Promise<boolean> {
-  // Use domcontentloaded — networkidle can hang indefinitely when Supabase
-  // is unavailable (the local test environment uses stub credentials).
-  await page.waitForLoadState("domcontentloaded");
+  // The admin guard is a server component that redirect()s unauthenticated
+  // requests (or ones with a JWT the server won't accept) to the login page.
+  // That redirect can land a tick AFTER domcontentloaded, so a bare URL check
+  // races the navigation. Wait for whichever terminal state arrives first:
+  // the login URL (guard rejected us) or a rendered SiteManager action button
+  // (guard let us through). Using networkidle here can hang indefinitely when
+  // Supabase is unavailable, so we never wait on it.
+  await Promise.race([
+    page.waitForURL(/\/q7m-k4j9\/login/, { timeout: 10_000 }).catch(() => {}),
+    page
+      .getByRole("button", { name: /^Actions for / })
+      .first()
+      .waitFor({ state: "visible", timeout: 10_000 })
+      .catch(() => {}),
+  ]);
   // The admin login path is /q7m-k4j9/login, NOT /admin/login.
   if (/\/q7m-k4j9\/login/.test(page.url())) return true;
   return page

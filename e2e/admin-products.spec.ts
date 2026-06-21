@@ -7,6 +7,31 @@ function isOnLoginPage(page: { url(): string }): boolean {
   return page.url().includes("/q7m-k4j9/login");
 }
 
+/**
+ * Navigate to an admin route and wait for the auth guard's redirect to settle.
+ *
+ * The admin layout is a server component that calls `redirect("/q7m-k4j9/login")`
+ * when there is no valid session. In dev that redirect can land a tick AFTER
+ * `domcontentloaded` fires, so a bare `page.url()` check races the navigation
+ * and wrongly concludes we're authenticated — the test then waits for form
+ * fields that never appear. Here we wait for whichever terminal state arrives
+ * first: the login URL (unauthenticated) or the page heading (authenticated).
+ */
+async function gotoAdminAndSettle(
+  page: import("@playwright/test").Page,
+  path: string,
+  readyHeading: string,
+): Promise<void> {
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+  await Promise.race([
+    page.waitForURL(/\/q7m-k4j9\/login/, { timeout: 10_000 }).catch(() => {}),
+    page
+      .getByRole("heading", { name: readyHeading })
+      .waitFor({ state: "visible", timeout: 10_000 })
+      .catch(() => {}),
+  ]);
+}
+
 test.describe("Admin Products Page", () => {
   test("should redirect unauthenticated users to login", async ({ page }) => {
     await page.goto("/q7m-k4j9/products");
@@ -16,7 +41,7 @@ test.describe("Admin Products Page", () => {
   test("should display the new product form", async ({ page }) => {
     // domcontentloaded: resolves as soon as the HTML is parsed without
     // waiting for background Supabase requests to settle.
-    await page.goto("/q7m-k4j9/products/new", { waitUntil: "domcontentloaded" });
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
     // If redirected to login or error page, any h1 is acceptable.
     const heading = page.locator("h1");
@@ -24,9 +49,12 @@ test.describe("Admin Products Page", () => {
   });
 
   test("new product form should have required fields", async ({ page }) => {
-    await page.goto("/q7m-k4j9/products/new", { waitUntil: "domcontentloaded" });
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
-    if (isOnLoginPage(page)) return; // no auth → silently skip
+    if (isOnLoginPage(page)) {
+      test.skip(true, "admin auth not provisioned — login page detected");
+      return;
+    }
 
     await expect(page.locator("#prod-name")).toBeVisible();
     await expect(page.locator("#prod-slug")).toBeVisible();
@@ -34,7 +62,7 @@ test.describe("Admin Products Page", () => {
   });
 
   test("product form should auto-generate slug from name", async ({ page }) => {
-    await page.goto("/q7m-k4j9/products/new", { waitUntil: "domcontentloaded" });
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
     if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
@@ -49,7 +77,7 @@ test.describe("Admin Products Page", () => {
   });
 
   test("product form should show validation error on empty submit", async ({ page }) => {
-    await page.goto("/q7m-k4j9/products/new", { waitUntil: "domcontentloaded" });
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
     if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
@@ -63,7 +91,7 @@ test.describe("Admin Products Page", () => {
   });
 
   test("product form should have status dropdown with correct options", async ({ page }) => {
-    await page.goto("/q7m-k4j9/products/new", { waitUntil: "domcontentloaded" });
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
     if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
@@ -81,7 +109,7 @@ test.describe("Admin Products Page", () => {
   });
 
   test("product form should have currency dropdown", async ({ page }) => {
-    await page.goto("/q7m-k4j9/products/new", { waitUntil: "domcontentloaded" });
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
     if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
