@@ -9,16 +9,16 @@ live GitHub config is an audit finding, not an acceptable variance.
 
 ## Required controls
 
-| #    | Control                                         | Why                                                                              | Source of truth                                                                    |
-| ---- | ----------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| BP-1 | CI is a required status check on PRs to `main`  | Block merging code that doesn't pass lint, typecheck, build, tests.              | `terraform/github/branch-protection.tf`                                            |
-| BP-2 | Security workflow is a required status check    | Block merging code that fails secret scan, CodeQL, dependency-review, npm audit. | `terraform/github/branch-protection.tf`                                            |
-| BP-3 | At least one approving review required          | Two-person rule. Dismiss stale reviews on push; require code-owner approval.     | `terraform/github/branch-protection.tf` (`pull_request`)                           |
-| BP-4 | No direct push to `main`                        | All changes must flow through a PR; rulesets reject `git push origin main`.      | `terraform/github/branch-protection.tf` (`pull_request` rule + no `update` bypass) |
-| BP-5 | No admin / maintainer bypass except break-glass | Default GitHub behavior lets admins bypass protection silently. Disabled here.   | `terraform/github/branch-protection.tf` (`bypass_actors`)                          |
-| BP-6 | Signed commits required (provenance)            | Cryptographic attribution of every commit on `main`.                             | `terraform/github/branch-protection.tf` (`required_signatures`)                    |
-| BP-7 | No force-push, no branch deletion on `main`     | Preserve history. Force-push would silently rewrite audit trail.                 | `terraform/github/branch-protection.tf` (`non_fast_forward`, `deletion`)           |
-| BP-8 | Linear history                                  | Easier `git bisect`; matches our rebase-and-merge workflow.                      | `terraform/github/branch-protection.tf` (`required_linear_history`)                |
+| #    | Control                                         | Why                                                                                                                      | Source of truth                                                                    |
+| ---- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| BP-1 | CI is a required status check on PRs to `main`  | Block merging code that doesn't pass lint, typecheck, build, tests.                                                      | `terraform/github/branch-protection.tf`                                            |
+| BP-2 | Security workflow is a required status check    | Block merging code that fails secret scan, CodeQL, dependency-review, npm audit.                                         | `terraform/github/branch-protection.tf`                                            |
+| BP-3 | Peer review (DISABLED — solo-dev)               | Single-owner repo: a mandatory review count is unsatisfiable (cannot self-approve). PR-only flow + CI checks substitute. | `terraform/github/branch-protection.tf` (`pull_request`)                           |
+| BP-4 | No direct push to `main`                        | All changes must flow through a PR; rulesets reject `git push origin main`.                                              | `terraform/github/branch-protection.tf` (`pull_request` rule + no `update` bypass) |
+| BP-5 | No admin / maintainer bypass except break-glass | Default GitHub behavior lets admins bypass protection silently. Disabled here.                                           | `terraform/github/branch-protection.tf` (`bypass_actors`)                          |
+| BP-6 | Signed commits (DISABLED — solo-dev)            | Removed to unblock single-owner bot/automation commits. Re-enable for a signing policy.                                  | `terraform/github/branch-protection.tf` (`required_signatures`)                    |
+| BP-7 | No force-push, no branch deletion on `main`     | Preserve history. Force-push would silently rewrite audit trail.                                                         | `terraform/github/branch-protection.tf` (`non_fast_forward`, `deletion`)           |
+| BP-8 | Linear history                                  | Easier `git bisect`; matches our rebase-and-merge workflow.                                                              | `terraform/github/branch-protection.tf` (`required_linear_history`)                |
 
 ## Break-glass policy (BP-5 detail)
 
