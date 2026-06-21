@@ -125,7 +125,7 @@ export async function POST(
       // eslint-disable-next-line no-restricted-syntax -- Audited: uses site-scoped getTenantClient() (RLS-enforced)
       .from("products")
       .select(
-        "id, name, slug, image_url, price, price_amount, price_currency, score, affiliate_url, merchant, cta_text",
+        "id, name, slug, image_url, price:price_label, price_amount, price_currency, score, affiliate_url, merchant, cta_text",
       )
       .eq("site_id", siteId)
       .eq("status", "active")
