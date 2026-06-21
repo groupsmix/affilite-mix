@@ -5,8 +5,9 @@
  * minimal recording stand-in for the supabase-js query builder instead of
  * hitting a real database. They lock in:
  *
- *   - upsert (not insert) with onConflict "network,order_id" — the arbiter that
- *     migration 2026062003 turns into a full unique index;
+ *   - upsert (not insert) with onConflict "site_id,network,order_id": the
+ *     tenant-scoped arbiter (migration 2026062004). Identical (network, order_id)
+ *     reported by two different sites must NOT dedup.
  *   - a deterministic synthetic order_id when a network omits one, so the same
  *     logical sale dedups across nightly runs instead of duplicating;
  *   - the preserved { inserted, skipped } return shape consumed by
@@ -50,14 +51,15 @@ class FakeSupabase {
     this.present = new Set(present);
   }
 
-  private static key(network: unknown, orderId: unknown): string {
-    return `${String(network)}\u0000${String(orderId)}`;
+  private static key(siteId: unknown, network: unknown, orderId: unknown): string {
+    return `${String(siteId)}\u0000${String(network)}\u0000${String(orderId)}`;
   }
 
   from(_table: string) {
     const self = this;
     let network: string | undefined;
     let orderId: string | undefined;
+    let siteId: string | undefined;
     let upsertPayload: Record<string, unknown> | undefined;
 
     const builder = {
@@ -65,6 +67,7 @@ class FakeSupabase {
         return builder;
       },
       eq(column: string, value: string) {
+        if (column === "site_id") siteId = value;
         if (column === "network") network = value;
         if (column === "order_id") orderId = value;
         return builder;
@@ -75,13 +78,15 @@ class FakeSupabase {
         return builder;
       },
       maybeSingle(): Promise<QueryResult> {
-        const exists = self.present.has(FakeSupabase.key(network, orderId));
+        const exists = self.present.has(FakeSupabase.key(siteId, network, orderId));
         return Promise.resolve({ data: exists ? { id: "existing" } : null, error: null });
       },
       single(): Promise<QueryResult> {
         if (self.error) return Promise.resolve({ data: null, error: self.error });
         if (upsertPayload) {
-          self.present.add(FakeSupabase.key(upsertPayload.network, upsertPayload.order_id));
+          self.present.add(
+            FakeSupabase.key(upsertPayload.site_id, upsertPayload.network, upsertPayload.order_id),
+          );
         }
         return Promise.resolve({ data: { id: "row" }, error: null });
       },
@@ -136,7 +141,7 @@ describe("ingestCommissions", () => {
     expect(fake.upserts).toHaveLength(0);
   });
 
-  it("upserts new rows with onConflict 'network,order_id' and counts them inserted", async () => {
+  it("upserts new rows with onConflict 'site_id,network,order_id' and counts them inserted", async () => {
     const fake = new FakeSupabase();
     const res = await ingestCommissions(
       [makeReport({ order_id: "o1" }), makeReport({ order_id: "o2" })],
@@ -145,8 +150,24 @@ describe("ingestCommissions", () => {
     expect(res).toEqual({ inserted: 2, skipped: 0 });
     expect(fake.upserts).toHaveLength(2);
     for (const u of fake.upserts) {
-      expect(u.options?.onConflict).toBe("network,order_id");
+      expect(u.options?.onConflict).toBe("site_id,network,order_id");
     }
+  });
+
+  it("does NOT dedup identical (network, order_id) across different tenants (F12)", async () => {
+    const fake = new FakeSupabase();
+    const res = await ingestCommissions(
+      [
+        makeReport({ site_id: "site-A", network: "cj", order_id: "shared-1" }),
+        makeReport({ site_id: "site-B", network: "cj", order_id: "shared-1" }),
+      ],
+      asGetter(fake),
+    );
+    // Two distinct sales: neither tenant's row may mask or clobber the other.
+    expect(res).toEqual({ inserted: 2, skipped: 0 });
+    expect(fake.upserts).toHaveLength(2);
+    expect(fake.upserts[0]!.payload.site_id).toBe("site-A");
+    expect(fake.upserts[1]!.payload.site_id).toBe("site-B");
   });
 
   it("synthesizes a deterministic order_id when the network omits one", async () => {
@@ -168,7 +189,7 @@ describe("ingestCommissions", () => {
   });
 
   it("counts an already-present row as skipped (refreshed) but still upserts it", async () => {
-    const fake = new FakeSupabase(["cj\u0000dup"]);
+    const fake = new FakeSupabase(["site-1\u0000cj\u0000dup"]);
     const res = await ingestCommissions([makeReport({ order_id: "dup" })], asGetter(fake));
     expect(res).toEqual({ inserted: 0, skipped: 1 });
     expect(fake.upserts).toHaveLength(1);

@@ -84,16 +84,22 @@ export async function ingestCommissions(
     const { data: existing } = await sb
       .from(COMMISSION_TABLE)
       .select("id")
+      // F11 + F12: scope the existence check to the reporting tenant. This both
+      // satisfies the F-API-01 privileged-client guard (this SELECT previously
+      // threw at the await boundary, killing ingest) and stops Site A's row from
+      // masking Site B's identical (network, order_id).
+      .eq("site_id", row.site_id)
       .eq("network", row.network)
       .eq("order_id", order_id)
       .maybeSingle();
 
     // Bug 6: upsert (was insert-only) so a re-reported sale updates its status
     // and amounts instead of erroring on 23505 and being silently skipped. The
-    // onConflict target matches the full unique index from migration 2026062003.
+    // onConflict target matches the tenant-scoped unique index from migration
+    // 2026062004 (site_id, network, order_id).
     const { error } = await sb
       .from(COMMISSION_TABLE)
-      .upsert(row, { onConflict: "network,order_id" })
+      .upsert(row, { onConflict: "site_id,network,order_id" })
       .select("id")
       .single();
 
