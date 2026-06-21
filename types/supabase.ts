@@ -213,6 +213,7 @@ export type Database = {
           role: string;
           totp_enabled: boolean;
           totp_failed_attempts: number;
+          totp_last_step: number | null;
           totp_locked_until: string | null;
           totp_secret: string | null;
           totp_verified_at: string | null;
@@ -232,6 +233,7 @@ export type Database = {
           role?: string;
           totp_enabled?: boolean;
           totp_failed_attempts?: number;
+          totp_last_step?: number | null;
           totp_locked_until?: string | null;
           totp_secret?: string | null;
           totp_verified_at?: string | null;
@@ -251,6 +253,7 @@ export type Database = {
           role?: string;
           totp_enabled?: boolean;
           totp_failed_attempts?: number;
+          totp_last_step?: number | null;
           totp_locked_until?: string | null;
           totp_secret?: string | null;
           totp_verified_at?: string | null;
