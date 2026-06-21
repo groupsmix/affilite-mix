@@ -1,46 +1,46 @@
 import { test, expect } from "@playwright/test";
 
+/**
+ * Fast, navigation-state-independent login detection.
+ * Using page.url() is instant and reliable — it never hangs waiting
+ * for DOM elements that haven't appeared yet due to a slow server.
+ */
+function isOnLoginPage(page: { url(): string }): boolean {
+  return page.url().includes("/q7m-k4j9/login");
+}
+
 test.describe("Admin Content Page", () => {
   test("should redirect unauthenticated users to login", async ({ page }) => {
     await page.goto("/q7m-k4j9/content");
-
     // Should either redirect to login or show an auth error
     await expect(page).toHaveURL(/\/admin\/login|\/q7m-k4j9/);
   });
 
   test("should display the new content form", async ({ page }) => {
-    await page.goto("/q7m-k4j9/content/new");
+    // domcontentloaded: resolves as soon as the HTML is parsed without
+    // waiting for background Supabase requests to settle.
+    await page.goto("/q7m-k4j9/content/new", { waitUntil: "domcontentloaded" });
 
     const heading = page.locator("h1");
     await expect(heading).toBeVisible({ timeout: 10_000 });
   });
 
   test("new content form should have required fields", async ({ page }) => {
-    await page.goto("/q7m-k4j9/content/new");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/q7m-k4j9/content/new", { waitUntil: "domcontentloaded" });
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
+    // Fast URL check — works reliably during and after redirects.
+    if (isOnLoginPage(page)) return; // no auth → silently skip this test
 
-    if (!isLoginPage) {
-      await expect(page.locator("text=Title")).toBeVisible();
-      await expect(page.locator("text=Slug")).toBeVisible();
-      await expect(page.locator("text=Excerpt")).toBeVisible();
-      await expect(page.locator("text=Body")).toBeVisible();
-    }
+    await expect(page.locator("text=Title")).toBeVisible();
+    await expect(page.locator("text=Slug")).toBeVisible();
+    await expect(page.locator("text=Excerpt")).toBeVisible();
+    await expect(page.locator("text=Body")).toBeVisible();
   });
 
   test("content form should auto-generate slug from title", async ({ page }) => {
-    await page.goto("/q7m-k4j9/content/new");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/q7m-k4j9/content/new", { waitUntil: "domcontentloaded" });
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
@@ -53,14 +53,9 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should have content type dropdown with correct options", async ({ page }) => {
-    await page.goto("/q7m-k4j9/content/new");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/q7m-k4j9/content/new", { waitUntil: "domcontentloaded" });
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
@@ -74,14 +69,9 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should have status dropdown with scheduled option", async ({ page }) => {
-    await page.goto("/q7m-k4j9/content/new");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/q7m-k4j9/content/new", { waitUntil: "domcontentloaded" });
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
@@ -89,7 +79,6 @@ test.describe("Admin Content Page", () => {
     const statusSelect = page.locator('label:has-text("Status") + select');
     await expect(statusSelect).toBeVisible();
 
-    // Verify the status options include "Scheduled" (audit issue 2.8 fix)
     const options = statusSelect.locator("option");
     const texts = await options.allTextContents();
     expect(texts).toContain("Scheduled");
@@ -98,23 +87,16 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should have SEO section", async ({ page }) => {
-    await page.goto("/q7m-k4j9/content/new");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/q7m-k4j9/content/new", { waitUntil: "domcontentloaded" });
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
-    // SEO section is inside a <details> element
     const seoSummary = page.locator("summary:has-text('SEO')");
     await expect(seoSummary).toBeVisible();
 
-    // Expand the SEO section
     await seoSummary.click();
 
     await expect(page.locator("text=Meta Title")).toBeVisible();
@@ -123,14 +105,9 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should have scheduling section", async ({ page }) => {
-    await page.goto("/q7m-k4j9/content/new");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/q7m-k4j9/content/new", { waitUntil: "domcontentloaded" });
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
@@ -140,21 +117,15 @@ test.describe("Admin Content Page", () => {
   });
 
   test("content form should show validation error on empty submit", async ({ page }) => {
-    await page.goto("/q7m-k4j9/content/new");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/q7m-k4j9/content/new", { waitUntil: "domcontentloaded" });
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
     await page.locator('button:has-text("Create")').click();
 
-    // HTML validation should prevent submission (required fields)
     const titleInput = page.locator('label:has-text("Title") + input');
     await expect(titleInput).toHaveAttribute("required", "");
   });

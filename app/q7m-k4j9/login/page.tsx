@@ -43,6 +43,14 @@ export default function AdminLoginPage() {
 
   const [totpToken, setTotpToken] = useState("");
 
+  // E2E testing: signal that React has hydrated the page and event
+  // handlers are live. A lightweight data attribute on <body> is the
+  // only reliable hydration indicator in React 19 (which no longer
+  // attaches __reactFiber$ to DOM nodes).
+  useEffect(() => {
+    document.body.setAttribute("data-e2e-hydrated", "1");
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 

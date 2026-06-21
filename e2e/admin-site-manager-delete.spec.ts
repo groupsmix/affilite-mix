@@ -31,12 +31,13 @@ async function signAdminToken(): Promise<string> {
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) throw new Error("JWT_SECRET must be set for e2e tests");
   const secret = new TextEncoder().encode(jwtSecret);
+  // audience/issuer MUST match lib/auth.ts verifyToken() — note "affilite" spelling.
   return new SignJWT({ email: "e2e-admin@example.com", userId: "e2e-admin", role: "super_admin" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("1h")
-    .setAudience("affiliate-platform")
-    .setIssuer("affiliate-platform")
+    .setAudience("affilite-mix-admin")
+    .setIssuer("affilite-mix-auth")
     .sign(secret);
 }
 
@@ -151,8 +152,11 @@ async function mockAdminSitesApis(page: Page, sites: MockSite[]): Promise<void> 
  * manager should skip in that case.
  */
 async function isLoginPage(page: Page): Promise<boolean> {
-  await page.waitForLoadState("networkidle");
-  if (/\/admin\/login/.test(page.url())) return true;
+  // Use domcontentloaded — networkidle can hang indefinitely when Supabase
+  // is unavailable (the local test environment uses stub credentials).
+  await page.waitForLoadState("domcontentloaded");
+  // The admin login path is /q7m-k4j9/login, NOT /admin/login.
+  if (/\/q7m-k4j9\/login/.test(page.url())) return true;
   return page
     .locator("text=Admin Login")
     .isVisible()
@@ -166,7 +170,7 @@ test.describe("Admin Site Manager — delete dialog + static gate (15c.6)", () =
 
   test("delete confirmation button is gated by the site slug", async ({ page }) => {
     await mockAdminSitesApis(page, [DB_SITE]);
-    await page.goto("/q7m-k4j9/sites");
+    await page.goto("/q7m-k4j9/sites", { waitUntil: "domcontentloaded" });
     if (await isLoginPage(page))
       test.skip(true, "Admin guard rejected the test JWT; skipping UI assertions.");
 
@@ -201,7 +205,7 @@ test.describe("Admin Site Manager — delete dialog + static gate (15c.6)", () =
 
   test("static-config sites expose a disabled delete entry with tooltip", async ({ page }) => {
     await mockAdminSitesApis(page, [STATIC_SITE]);
-    await page.goto("/q7m-k4j9/sites");
+    await page.goto("/q7m-k4j9/sites", { waitUntil: "domcontentloaded" });
     if (await isLoginPage(page))
       test.skip(true, "Admin guard rejected the test JWT; skipping UI assertions.");
 
@@ -213,8 +217,9 @@ test.describe("Admin Site Manager — delete dialog + static gate (15c.6)", () =
     await expect(deleteItem).toHaveAttribute("aria-disabled", "true");
 
     // The tooltip is wired to the wrapper <div> around the disabled item;
-    // hovering surfaces the explanatory copy.
-    await deleteItem.hover();
+    // hovering surfaces the explanatory copy. force: true bypasses the
+    // TooltipTrigger wrapper that intercepts pointer events.
+    await deleteItem.hover({ force: true });
     await expect(
       page.getByText("Static-config sites cannot be deleted from the admin UI."),
     ).toBeVisible();
@@ -222,7 +227,7 @@ test.describe("Admin Site Manager — delete dialog + static gate (15c.6)", () =
 
   test("deactivated DB site surfaces an Activate toggle (no live DB)", async ({ page }) => {
     await mockAdminSitesApis(page, [DEACTIVATED_SITE]);
-    await page.goto("/q7m-k4j9/sites");
+    await page.goto("/q7m-k4j9/sites", { waitUntil: "domcontentloaded" });
     if (await isLoginPage(page))
       test.skip(true, "Admin guard rejected the test JWT; skipping UI assertions.");
 
