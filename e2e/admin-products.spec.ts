@@ -28,9 +28,9 @@ test.describe("Admin Products Page", () => {
 
     if (isOnLoginPage(page)) return; // no auth → silently skip
 
-    await expect(page.locator("text=Name")).toBeVisible();
-    await expect(page.locator("text=Slug")).toBeVisible();
-    await expect(page.locator("text=Description")).toBeVisible();
+    await expect(page.locator("#prod-name")).toBeVisible();
+    await expect(page.locator("#prod-slug")).toBeVisible();
+    await expect(page.locator("#prod-desc")).toBeVisible();
   });
 
   test("product form should auto-generate slug from name", async ({ page }) => {
@@ -41,8 +41,8 @@ test.describe("Admin Products Page", () => {
       return;
     }
 
-    const nameInput = page.locator('label:has-text("Name") + input');
-    const slugInput = page.locator('label:has-text("Slug") + input');
+    const nameInput = page.locator("#prod-name");
+    const slugInput = page.locator("#prod-slug");
 
     await nameInput.fill("Test Product Name");
     await expect(slugInput).toHaveValue("test-product-name");
@@ -58,7 +58,7 @@ test.describe("Admin Products Page", () => {
 
     await page.locator('button:has-text("Create")').click();
 
-    const nameInput = page.locator('label:has-text("Name") + input');
+    const nameInput = page.locator("#prod-name");
     await expect(nameInput).toHaveAttribute("required", "");
   });
 
@@ -70,7 +70,7 @@ test.describe("Admin Products Page", () => {
       return;
     }
 
-    const statusSelect = page.locator('label:has-text("Status") + select');
+    const statusSelect = page.locator("#prod-status");
     await expect(statusSelect).toBeVisible();
 
     const options = statusSelect.locator("option");
@@ -88,7 +88,7 @@ test.describe("Admin Products Page", () => {
       return;
     }
 
-    const currencySelect = page.locator('label:has-text("Currency") + select');
+    const currencySelect = page.locator("#prod-currency");
     await expect(currencySelect).toBeVisible();
     await expect(currencySelect).toHaveValue("USD");
   });

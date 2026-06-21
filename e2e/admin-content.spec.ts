@@ -31,10 +31,10 @@ test.describe("Admin Content Page", () => {
     // Fast URL check — works reliably during and after redirects.
     if (isOnLoginPage(page)) return; // no auth → silently skip this test
 
-    await expect(page.locator("text=Title")).toBeVisible();
-    await expect(page.locator("text=Slug")).toBeVisible();
-    await expect(page.locator("text=Excerpt")).toBeVisible();
-    await expect(page.locator("text=Body")).toBeVisible();
+    await expect(page.locator("#content-title")).toBeVisible();
+    await expect(page.locator("#content-slug")).toBeVisible();
+    await expect(page.locator("#content-excerpt")).toBeVisible();
+    await expect(page.locator('label[for="content-body"]')).toBeVisible();
   });
 
   test("content form should auto-generate slug from title", async ({ page }) => {
@@ -45,8 +45,8 @@ test.describe("Admin Content Page", () => {
       return;
     }
 
-    const titleInput = page.locator('label:has-text("Title") + input');
-    const slugInput = page.locator('label:has-text("Slug") + input');
+    const titleInput = page.locator("#content-title");
+    const slugInput = page.locator("#content-slug");
 
     await titleInput.fill("My Test Article");
     await expect(slugInput).toHaveValue("my-test-article");
@@ -60,7 +60,7 @@ test.describe("Admin Content Page", () => {
       return;
     }
 
-    const typeSelect = page.locator('label:has-text("Type") + select');
+    const typeSelect = page.locator("#content-type");
     await expect(typeSelect).toBeVisible();
 
     const options = typeSelect.locator("option");
@@ -76,7 +76,7 @@ test.describe("Admin Content Page", () => {
       return;
     }
 
-    const statusSelect = page.locator('label:has-text("Status") + select');
+    const statusSelect = page.locator("#content-status");
     await expect(statusSelect).toBeVisible();
 
     const options = statusSelect.locator("option");
@@ -126,7 +126,7 @@ test.describe("Admin Content Page", () => {
 
     await page.locator('button:has-text("Create")').click();
 
-    const titleInput = page.locator('label:has-text("Title") + input');
+    const titleInput = page.locator("#content-title");
     await expect(titleInput).toHaveAttribute("required", "");
   });
 });
