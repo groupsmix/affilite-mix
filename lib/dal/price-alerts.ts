@@ -93,6 +93,7 @@ export async function getPriceAlert(
 
 /** Find all active alerts that should trigger for a given product + price */
 export async function findTriggeredAlerts(
+  siteId: string,
   productId: string,
   currentPrice: number,
   getClient: DalClientGetter = priceAlertClient,
@@ -102,6 +103,10 @@ export async function findTriggeredAlerts(
   const { data, error } = await sb
     .from(TABLE)
     .select(ALL_COLUMNS)
+    // F-API-01: scope to the product's tenant. Without a site_id predicate the
+    // privileged client throws at the await boundary, which is why this cron
+    // was dead (every run 500'd before a single alert could fire).
+    .eq("site_id", siteId)
     .eq("product_id", productId)
     .eq("is_active", true)
     .gte("target_price", currentPrice);
@@ -112,6 +117,7 @@ export async function findTriggeredAlerts(
 
 /** Mark an alert as triggered */
 export async function markAlertTriggered(
+  siteId: string,
   id: string,
   getClient: DalClientGetter = priceAlertClient,
 ): Promise<void> {
@@ -120,6 +126,8 @@ export async function markAlertTriggered(
   const { error } = await sb
     .from(TABLE)
     .update({ triggered_at: new Date().toISOString(), is_active: false })
+    // F-API-01: satisfy the tenant guard and prevent any cross-tenant write.
+    .eq("site_id", siteId)
     .eq("id", id)
     .is("triggered_at", null); // A10: Atomic update pattern to prevent race conditions
   if (error) throw error;

@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
       if (!product.price_amount) continue;
 
       const triggered = await findTriggeredAlerts(
+        product.site_id,
         product.id,
         product.price_amount as number,
         getPrivilegedSupabaseClient,
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Only mark the alert triggered if the email succeeded or Resend isn't configured
-        await markAlertTriggered(alert.id, getPrivilegedSupabaseClient);
+        await markAlertTriggered(alert.site_id, alert.id, getPrivilegedSupabaseClient);
         alertsTriggered++;
 
         // Log the trigger
