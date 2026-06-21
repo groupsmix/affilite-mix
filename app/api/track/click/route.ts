@@ -12,7 +12,7 @@ import { computeHmac, timingSafeEqual } from "@/lib/internal-hmac";
 import { validateAffiliateDomain } from "@/lib/affiliate-domain-allowlist";
 import { logger } from "@/lib/logger";
 import { getAppCacheKV } from "@/lib/runtime-env";
-import { getOrDeriveHmacKey } from "@/lib/hmac-key";
+import { getOrDeriveHmacKeyString } from "@/lib/hmac-key";
 import { isOriginAllowedForSite } from "@/lib/security/allowed-origins";
 import { verifyToken } from "@/lib/auth";
 import { isHttpsUrl } from "@/lib/validation";
@@ -162,17 +162,25 @@ async function handleClick(request: NextRequest, opts: { skipAnalytics?: boolean
     // an opaque handle, not raw key material. On hot paths (e.g.
     // 100 clicks/s) this drops the per-request HMAC import+derive
     // from O(ms) to O(ns).
-    const hmacKey = process.env.CLICK_CACHE_HMAC_KEY;
-    try {
-      await getOrDeriveHmacKey("click-cache", ["sign", "verify"]);
-    } catch {
-      if (process.env.NODE_ENV === "production" && !hmacKey) {
-        captureException(new Error("CLICK_CACHE_HMAC_KEY missing and getOrDeriveHmacKey failed"), {
-          context: "[api/track/click] missing signing secret",
-        });
-        return apiError(503, "Service temporarily unavailable", undefined, {
-          "Retry-After": "30",
-        });
+    // H-12 + audit #4: Resolve a signing secret for 24h click dedup + the
+    // product-url cache MAC. Prefer the explicit env var; otherwise DERIVE and
+    // ACTUALLY USE a stable HKDF subkey. Previously the derived key was computed
+    // and thrown away, so whenever CLICK_CACHE_HMAC_KEY was unset both dedup and
+    // cache signing silently turned off (inflated click counts / unsigned cache).
+    // Now dedup only disables if BOTH the env var is unset AND derivation fails.
+    let hmacKey = process.env.CLICK_CACHE_HMAC_KEY;
+    if (!hmacKey) {
+      try {
+        hmacKey = await getOrDeriveHmacKeyString("click-cache");
+      } catch {
+        if (process.env.NODE_ENV === "production") {
+          captureException(new Error("CLICK_CACHE_HMAC_KEY unset and HKDF derivation failed"), {
+            context: "[api/track/click] no signing secret available",
+          });
+          return apiError(503, "Service temporarily unavailable", undefined, {
+            "Retry-After": "30",
+          });
+        }
       }
     }
 
