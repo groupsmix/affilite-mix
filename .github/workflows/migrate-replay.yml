@@ -12,12 +12,15 @@ name: migrate-replay
 # references a table that no migration creates" going forward: add a new policy
 # or index on a table you forgot to create, and this job goes red.
 #
-# Two pre-existing, OUT-OF-SCOPE gaps are still bootstrapped below (each is
+# One pre-existing, OUT-OF-SCOPE gap is still bootstrapped below (it is
 # referenced before any migration creates it):
 #   - scheduled_jobs  (created by 00071, referenced by 00003/00020/00024/00068)
-#   - audit_events    (indexed by 2026052302_*, never created in a migration)
-# They are tracked separately. When real migrations create them, delete their
-# bootstrap here and this workflow will keep them honest too.
+# It is tracked separately. When a real migration creates it, delete its
+# bootstrap here and this workflow will keep it honest too.
+#
+# audit_events is now created by its own migration (2026052302_security_audit_
+# hardening.sql, immediately before the indexes that reference it), so its
+# bootstrap was removed — the replay below now verifies that fix on a clean DB.
 
 on:
   pull_request:
@@ -79,7 +82,7 @@ jobs:
             CREATE OR REPLACE FUNCTION auth.jwt()  RETURNS jsonb LANGUAGE sql STABLE
               AS $$ SELECT NULLIF(current_setting('request.jwt.claims', true), '')::jsonb $$;
 
-            -- Pre-existing, OUT-OF-SCOPE gaps (NOT the pages / Bug 2 fix).
+            -- Pre-existing, OUT-OF-SCOPE gap (NOT the pages / Bug 2 fix).
             CREATE TABLE IF NOT EXISTS public.scheduled_jobs (
               id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
               site_id       uuid        NOT NULL,
@@ -94,20 +97,6 @@ jobs:
               updated_at    timestamptz DEFAULT now()
             );
             ALTER TABLE public.scheduled_jobs ENABLE ROW LEVEL SECURITY;
-
-            CREATE TABLE IF NOT EXISTS public.audit_events (
-              id            bigserial   PRIMARY KEY,
-              site_id       uuid        NOT NULL,
-              actor         text        NOT NULL,
-              actor_user_id uuid,
-              action        text        NOT NULL,
-              entity_type   text        NOT NULL DEFAULT '',
-              entity_id     text        NOT NULL DEFAULT '',
-              details       jsonb,
-              ip            text,
-              failure_type  text,
-              created_at    timestamptz NOT NULL DEFAULT now()
-            );
           SQL
 
       - name: Apply every up-migration from scratch (ON_ERROR_STOP)

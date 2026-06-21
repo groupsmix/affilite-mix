@@ -98,8 +98,41 @@ END $$;
 -- ============================================================================
 
 -- ============================================================================
--- SC16-007: Indexes for audit_events table
+-- SC16-007: audit_events table + indexes
+--
+-- Bug-2 / fresh-apply blocker (Tier-2 audit Finding #1): the indexes below
+-- referenced `audit_events`, but NO migration ever created that table — only the
+-- CI replay bootstrap (.github/workflows/migrate-replay.yml) and prod's
+-- out-of-band seed did. A clean `psql -v ON_ERROR_STOP=1` apply (DR rebuild,
+-- `supabase db reset`, a preview/branch DB) therefore aborted here with
+--   relation "audit_events" does not exist
+-- Fix per the repo's own CI guidance ("Add a CREATE TABLE migration BEFORE the
+-- first reference"): create the table in-file, immediately before its indexes.
+-- Shape mirrors the canonical CI bootstrap so a fresh DB matches prod. IF NOT
+-- EXISTS makes it a no-op where the table was already seeded (prod is unchanged;
+-- this migration is already recorded as applied there).
+--
+-- NOTE: the application writes audit rows to `audit_log` (see lib/audit-log.ts);
+-- `audit_events` is a separate, currently app-unused table whose only consumers
+-- are these indexes. Reconciling the two is tracked separately (out of scope for
+-- this fresh-apply unblock). RLS is enabled (stricter than the bootstrap) so the
+-- table is locked down by default on fresh databases.
 -- ============================================================================
+CREATE TABLE IF NOT EXISTS public.audit_events (
+  id            bigserial   PRIMARY KEY,
+  site_id       uuid        NOT NULL,
+  actor         text        NOT NULL,
+  actor_user_id uuid,
+  action        text        NOT NULL,
+  entity_type   text        NOT NULL DEFAULT '',
+  entity_id     text        NOT NULL DEFAULT '',
+  details       jsonb,
+  ip            text,
+  failure_type  text,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.audit_events ENABLE ROW LEVEL SECURITY;
+
 CREATE INDEX IF NOT EXISTS idx_audit_events_created_at ON audit_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_events_site_id ON audit_events(site_id);
 CREATE INDEX IF NOT EXISTS idx_audit_events_entity ON audit_events(entity_type, entity_id);
