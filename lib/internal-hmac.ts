@@ -164,7 +164,7 @@ export async function computeHmac(
  * `"POST\n/api/queue/clicks?dlq=true"`.
  */
 export function buildInternalHmacContext(method: string, url: string): string {
-  let pathAndQuery = url;
+  let pathAndQuery: string;
   try {
     const u = new URL(url);
     pathAndQuery = `${u.pathname}${u.search}`;
