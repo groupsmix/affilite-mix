@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { requireAdmin, assertRole } from "@/lib/admin-guard";
 import { getSiteRowById, updateSite, deleteSite } from "@/lib/dal/sites";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
@@ -186,7 +187,10 @@ export async function DELETE(
       // Ignore KV purge errors.
     }
 
-    await deleteSite(id);
+    // T1-F5: pass the privileged getter + session.role so deleteSite's
+    // super_admin guard succeeds. The route is already assertRole + step-up
+    // gated above; forwarding role here isn't a bypass, it's the required arg.
+    await deleteSite(id, () => getPrivilegedSupabaseClient("admin-sites-delete"), session.role);
     // S0-FP-002: await audit for destructive actions so the trail is durable.
     await recordAuditEvent({
       site_id: id,

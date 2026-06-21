@@ -3,6 +3,7 @@ import { getClickCount, getDailyClicks, getTopProducts } from "./affiliate-click
 import { countContent } from "./content";
 import { countProducts } from "./products";
 import { listSites } from "./sites";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -115,12 +116,21 @@ export async function getTopProductsWithRevenue(
 
 // ── Domain / site breakdown (super-admin) ───────────────────────────────
 
-export async function getDomainPerformance(sinceIso: string): Promise<DomainPerformanceRow[]> {
-  const sites = await listSites();
+export async function getDomainPerformance(
+  sinceIso: string,
+  // T3-F2: default to the privileged client. This function iterates listSites()
+  // (registry-wide) and then reads each site's click count. Using the default
+  // tenant client caused RLS to block every non-active-cookie site → all rows
+  // returned 0 clicks / $0 revenue for every site except the admin's active one.
+  // The route is already requireSuperAdmin()-gated; the privileged path matches
+  // what the crons use for the same cross-tenant rollup pattern.
+  getClient: DalClientGetter = getPrivilegedSupabaseClient,
+): Promise<DomainPerformanceRow[]> {
+  const sites = await listSites(getClient);
 
   const rows = await Promise.all(
     sites.map(async (site) => {
-      const clicks = await getClickCount(site.id, sinceIso);
+      const clicks = await getClickCount(site.id, sinceIso, undefined, getClient);
       const ratePerClick = Number(site.est_revenue_per_click ?? 0);
       return {
         siteId: site.id,

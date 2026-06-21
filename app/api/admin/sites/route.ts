@@ -338,7 +338,9 @@ export async function DELETE(request: NextRequest) {
   try {
     // FIX: privileged client required — same RLS reason as createSite above.
     const deletePrivileged = () => getPrivilegedSupabaseClient("admin-sites-delete");
-    await deleteSite(id, deletePrivileged);
+    // T1-F5: pass session.role so deleteSite's super_admin guard doesn't throw.
+    // Both callers are already super_admin + step-up gated at route level.
+    await deleteSite(id, deletePrivileged, session.role);
     // S0-FP-002: await audit for destructive actions so the trail is durable.
     await recordAuditEvent({
       site_id: id,
