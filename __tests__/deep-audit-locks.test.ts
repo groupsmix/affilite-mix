@@ -119,8 +119,10 @@ describe("Deep audit regression locks (F-001 .. F-016)", () => {
     });
 
     it("does NOT unconditionally ackAll() inside the DLQ try block", () => {
-      const dlqBlockStart = exec.indexOf('batch.queue === "click-tracking-dlq"');
-      const dlqBlockEnd = exec.indexOf('batch.queue !== "click-tracking"');
+      // The worker matches queues via the DLQ_QUEUES / MAIN_QUEUES sets
+      // (prod + staging names), so locate the DLQ branch by those guards.
+      const dlqBlockStart = exec.indexOf("DLQ_QUEUES.has(batch.queue)");
+      const dlqBlockEnd = exec.indexOf("MAIN_QUEUES.has(batch.queue)");
       expect(dlqBlockStart).toBeGreaterThan(-1);
       expect(dlqBlockEnd).toBeGreaterThan(dlqBlockStart);
       const dlqBlock = exec.slice(dlqBlockStart, dlqBlockEnd);

@@ -112,11 +112,31 @@ export function generateTotpSecret(
 }
 
 /**
+ * Result of a TOTP verification that includes the consumed time-step so
+ * callers can persist it and reject replays within the validity window.
+ *
+ * F4 audit: a captured 6-digit code could previously be replayed for up to
+ * ~90s (window:1 = 3 steps × 30s). Callers MUST persist `step` when `ok` is
+ * true and pass the previously persisted value as `options.lastStep` on the
+ * next call.
+ */
+export interface VerifyTotpStepResult {
+  ok: boolean;
+  /** Time-step at which this code is valid, or null if verification failed. */
+  step: number | null;
+}
+
+/**
  * Verify a TOTP token against a raw secret (unencrypted base32).
  * Allows a window of ±1 period (30s) to account for clock drift.
  *
  * A6-001: Automatically detects the algorithm from the otpauth:// URI if
  * provided, otherwise falls back to SHA-1 for legacy base32 secrets.
+ *
+ * F4 audit: when `options.lastStep` is provided, additionally rejects codes
+ * whose computed step is less than or equal to the previously consumed step,
+ * closing the replay window. The step at which the code is valid is returned
+ * via `step` so the caller can advance the persisted baseline.
  *
  * SECURITY: Prefer verifyTotpTokenWithRotation() for DB-stored secrets,
  * as it handles encrypted values and key rotation correctly.
@@ -124,8 +144,8 @@ export function generateTotpSecret(
 export function verifyTotpToken(
   secret: string,
   token: string,
-  options?: { algorithm?: TotpAlgorithm },
-): boolean {
+  options?: { algorithm?: TotpAlgorithm; lastStep?: number | null },
+): VerifyTotpStepResult {
   // If the secret is an otpauth:// URI, extract both the algorithm and secret from it
   let algorithm: TotpAlgorithm | undefined = options?.algorithm;
   let secretBase32 = secret;
@@ -155,7 +175,21 @@ export function verifyTotpToken(
 
   // delta returns null if invalid, or the time step difference if valid
   const delta = totp.validate({ token, window: 1 });
-  return delta !== null;
+  if (delta === null) return { ok: false, step: null };
+
+  // F4: compute the absolute time-step so we can enforce single-use.
+  // OTPAuth treats step 0 as the unix epoch; step N corresponds to the
+  // N-th 30-second slot since then.
+  const step = Math.floor(Date.now() / 1000 / PERIOD) + delta;
+
+  // Replay protection: if the caller has already consumed this step (or a
+  // newer one), reject. lastStep === null means no baseline yet (first use
+  // after enrollment, or the column was null) — always allow.
+  if (options?.lastStep != null && step <= options.lastStep) {
+    return { ok: false, step: null };
+  }
+
+  return { ok: true, step };
 }
 
 /**
@@ -236,5 +270,11 @@ export async function verifyTotpTokenWithRotation(
 
   if (!rawSecret) return false;
 
-  return verifyTotpToken(rawSecret, normalizedToken);
+  // F4: verifyTotpToken is synchronous and returns {ok, step}. The rotation
+  // wrapper is async (decryption round-trips), so we read .ok directly rather
+  // than await-ing — there is no Promise to await. Note: callers going through
+  // this path do not persist totp_last_step today; if that changes they should
+  // chain the returned `step` through their own persistence layer.
+  const result = verifyTotpToken(rawSecret, normalizedToken);
+  return result.ok;
 }

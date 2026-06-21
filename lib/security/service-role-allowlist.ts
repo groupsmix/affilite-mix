@@ -132,6 +132,14 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   "app/api/admin/sites/route.ts",
   "app/api/admin/sites/select/route.ts",
 
+  // F5 audit: hard-delete path for a tenant registry row. The DELETE handler
+  // is super_admin + step-up gated at the route layer (assertRole +
+  // requireStepUpAuth) and calls deleteSite() which throws unless
+  // callerRole === "super_admin" (lib/dal/sites.ts:361). Hard-deleting a
+  // tenant requires the privileged client — the tenant client cannot reach
+  // the global `sites` table. Safe by construction.
+  "app/api/admin/sites/[id]/route.ts",
+
   // Site stats endpoint lists ALL sites via listSites() to batch-fetch
   // per-site counts (products, content, clicks). Like the sites list
   // route above, getTenantClient() mints HS256 JWTs that fail against

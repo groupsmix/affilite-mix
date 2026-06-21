@@ -81,15 +81,26 @@ alert_mechanisms = {
     expect(result.errors.some((e: string) => e.includes("not set"))).toBe(true);
   });
 
-  it("current alerts.auto.tfvars has alerting enabled with a destination (FR-12)", () => {
+  it("a properly enabled alerting config validates (FR-12 contract)", () => {
     // FR-12 (2026-06-10): alerting was enabled after the OUT-1 incident ran
-    // ~7h unnoticed overnight. This test now locks in the configured state so
-    // a future change cannot silently disable production alerting again.
-    const fs = require("node:fs");
-    const path = require("node:path");
-    const tfvarsPath = path.resolve(__dirname, "../terraform/cloudflare/alerts.auto.tfvars");
-    const content = fs.readFileSync(tfvarsPath, "utf-8");
-    const result = validateAlertingConfig(content);
+    // ~7h unnoticed overnight, to ensure production alerting stays on.
+    //
+    // T4-#11 untracked terraform/cloudflare/alerts.auto.tfvars (it carried a
+    // personal email address and must not live in a public repo), so this test
+    // no longer reads that file. The live "alerting cannot be silently disabled"
+    // guarantee is enforced at deploy time: .github/workflows/deploy.yml runs
+    // scripts/validate-alerting-config.ts (preferring TF_VAR_* env/secrets) and
+    // hard-fails the production deploy (exit 1) unless the audit-logged
+    // SKIP_ALERTING_CHECK override is set. This case keeps unit coverage of the
+    // enabled-with-destination contract that the deploy gate depends on.
+    const enabledConfig = `
+alerts_enabled = true
+alert_mechanisms = {
+  email     = [{ id = "notification-destination-id" }]
+  pagerduty = []
+  webhooks  = []
+}`;
+    const result = validateAlertingConfig(enabledConfig);
     expect(result.valid).toBe(true);
     expect(result.alertsEnabled).toBe(true);
     expect(result.mechanismCount).toBeGreaterThanOrEqual(1);

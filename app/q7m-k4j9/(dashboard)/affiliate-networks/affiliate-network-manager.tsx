@@ -57,11 +57,18 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
   async function handleDelete(id: string) {
     if (!confirm("Remove this network configuration?")) return;
     try {
-      await fetchWithCsrf("/api/admin/affiliate-networks", {
+      // T3-F7: check res.ok — a non-OK response previously fell through to
+      // onRefresh() as if the delete succeeded; only a thrown network error
+      // surfaced the catch block.
+      const res = await fetchWithCsrf("/api/admin/affiliate-networks", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      if (!res.ok) {
+        setError("Failed to delete");
+        return;
+      }
       void onRefresh();
     } catch {
       // fail-open: best-effort

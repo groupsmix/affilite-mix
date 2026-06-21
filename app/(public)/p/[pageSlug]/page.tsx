@@ -47,7 +47,7 @@ async function getProducts(siteId: string, slugA: string, slugB: string) {
     // eslint-disable-next-line no-restricted-syntax -- Audited: server component uses site-scoped getTenantClient() (RLS-enforced)
     .from("products")
     .select(
-      "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at",
+      "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price:price_label, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at",
     )
     .eq("site_id", siteId)
     .in("slug", [slugA, slugB])

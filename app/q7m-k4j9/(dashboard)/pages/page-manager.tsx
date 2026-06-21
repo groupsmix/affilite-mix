@@ -228,7 +228,10 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
     setPages(newPages);
 
     try {
-      await fetchWithCsrf("/api/admin/pages/reorder", {
+      // T3-F5: check res.ok — a 4xx/5xx previously never entered catch because
+      // fetchWithCsrf doesn't throw on non-OK. The wrong order was left on
+      // screen with no feedback, silently reverting on next page load.
+      const res = await fetchWithCsrf("/api/admin/pages/reorder", {
         method: "PUT",
 
         headers: { "Content-Type": "application/json" },
@@ -237,10 +240,14 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
 
         body: JSON.stringify({ pages: reordered }),
       });
+      if (!res.ok) {
+        setError("Could not save the new order.");
+        await loadPages();
+      }
     } catch {
       // fail-open: best-effort
       // silent — reload to reset
-
+      setError("Could not save the new order.");
       await loadPages();
     } finally {
       reorderingRef.current = false;
@@ -268,7 +275,8 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
     setPages(newPages);
 
     try {
-      await fetchWithCsrf("/api/admin/pages/reorder", {
+      // T3-F5: check res.ok (handleMoveDown)
+      const res = await fetchWithCsrf("/api/admin/pages/reorder", {
         method: "PUT",
 
         headers: { "Content-Type": "application/json" },
@@ -277,8 +285,13 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
 
         body: JSON.stringify({ pages: reordered }),
       });
+      if (!res.ok) {
+        setError("Could not save the new order.");
+        await loadPages();
+      }
     } catch {
       // fail-open: best-effort
+      setError("Could not save the new order.");
       await loadPages();
     } finally {
       reorderingRef.current = false;

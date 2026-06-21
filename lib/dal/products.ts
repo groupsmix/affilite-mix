@@ -12,8 +12,27 @@ const TABLE = "products";
 // A23-01: Full explicit column list. Update this constant (and ProductRow in
 // types/database.ts) whenever a column is added so select("*") never silently
 // over-returns new sensitive columns.
+// DB-11 / migration 00089 renamed the column `price` -> `price_label` (display
+// text). ProductRow keeps the app-facing `price` field, so reads alias the real
+// column back to `price` via PostgREST (`price:price_label`) and writes are
+// translated by toProductDbWrite() below. Selecting a literal `price` here would
+// 400 ("column products.price does not exist") on any DB where 00089 has run.
 const LIST_COLUMNS =
-  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at" as const;
+  "id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price:price_label, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at" as const;
+
+/**
+ * Translate the app-facing `price` field to the real DB column `price_label`
+ * (renamed in migration 00089) for INSERT/UPDATE payloads. Only rewrites the key
+ * when present, so partial updates that omit `price` are unaffected.
+ */
+function toProductDbWrite<T extends object>(input: T): Record<string, unknown> {
+  const obj = { ...(input as Record<string, unknown>) };
+  if ("price" in obj) {
+    obj.price_label = obj.price;
+    delete obj.price;
+  }
+  return obj;
+}
 
 export type ProductSortColumn =
   | "name"
@@ -234,7 +253,7 @@ export async function createProduct(
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<ProductRow> {
   const sb = await getClient();
-  const { data, error } = await sb.from(TABLE).insert(input).select().single();
+  const { data, error } = await sb.from(TABLE).insert(toProductDbWrite(input)).select().single();
   if (error) throw error;
   return assertRow<ProductRow>(data, "Product");
 }
@@ -245,7 +264,7 @@ export async function bulkCreateProducts(
 ): Promise<ProductRow[]> {
   if (inputs.length === 0) return [];
   const sb = await getClient();
-  const { data, error } = await sb.from(TABLE).insert(inputs).select();
+  const { data, error } = await sb.from(TABLE).insert(inputs.map(toProductDbWrite)).select();
   if (error) throw error;
   return assertRows<ProductRow>(data);
 }
@@ -265,7 +284,7 @@ export async function updateProduct(
   // The version column is always incremented atomically via a DB trigger
   // (or fallback: version = version + 1 via RPC). When no expectedVersion
   // is supplied, we simply don't filter on version (no optimistic lock).
-  let query = sb.from(TABLE).update(input).eq("site_id", siteId).eq("id", id);
+  let query = sb.from(TABLE).update(toProductDbWrite(input)).eq("site_id", siteId).eq("id", id);
 
   // ISO18-001: When the caller supplies an expected version, add it as a
   // filter. If the row's version differs (concurrent edit) the update will
@@ -325,7 +344,10 @@ export async function listActiveProducts(
   }
   const sb = getAnonClient();
   const joinType = categorySlug ? "categories!inner(slug)" : "*, categories(slug)";
-  const selectColumns = categorySlug ? `*, ${joinType}` : joinType;
+  // DB-11/00089: expose the renamed `price_label` column under the app-facing
+  // `price` key so product.price is populated on the public anon path too
+  // (this path uses select("*"), which would otherwise only return price_label).
+  const selectColumns = `${categorySlug ? `*, ${joinType}` : joinType}, price:price_label`;
 
   let query = sb
     .from(TABLE)

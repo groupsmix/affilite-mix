@@ -65,6 +65,8 @@ interface AdminRow {
   totp_secret: string | null;
   totp_enabled: boolean;
   totp_verified_at: string | null;
+  // F4 audit: highest TOTP time-step consumed. NULL = no baseline yet.
+  totp_last_step: number | null;
   totp_failed_attempts: number;
   totp_locked_until: string | null;
   login_failed_attempts: number;
@@ -84,6 +86,7 @@ function makeRow(partial: Partial<AdminRow>): AdminRow {
     totp_secret: null,
     totp_enabled: false,
     totp_verified_at: null,
+    totp_last_step: null,
     totp_failed_attempts: 0,
     totp_locked_until: null,
     login_failed_attempts: 0,
