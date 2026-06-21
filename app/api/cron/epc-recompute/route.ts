@@ -46,20 +46,47 @@ export async function POST(request: NextRequest) {
 
     let updated = 0;
 
+    // T3-F1: a product may have multiple active links per network (geo/weight
+    // A/B split). The previous per-link loop counted clicks for one URL at a
+    // time but summed commissions per (product, network) — so when a product
+    // had 2+ active links on the same network, each iteration overwrote the
+    // same upsert row with: commissions_total / last_link_clicks = inflated EPC
+    // and undercounted clicks. This fed epc-tie-break ranking upward.
+    //
+    // Fix: group by (site_id, product_id, network), count clicks across ALL
+    // the group's URLs with .in(), and upsert exactly ONE row per group.
+    const groups = new Map<
+      string,
+      { site_id: string; product_id: string; network: string; urls: string[] }
+    >();
     for (const link of links as {
       product_id: string;
       network: string;
       url: string;
       products: { site_id: string };
     }[]) {
-      // Count clicks (30d and 7d) — match via affiliate_url from the link
+      const site_id = link.products.site_id;
+      const key = `${site_id}|${link.product_id}|${link.network}`;
+      const existing = groups.get(key);
+      if (existing) existing.urls.push(link.url);
+      else
+        groups.set(key, {
+          site_id,
+          product_id: link.product_id,
+          network: link.network,
+          urls: [link.url],
+        });
+    }
+
+    for (const g of groups.values()) {
+      // Count clicks (30d and 7d) across ALL of this group's URLs.
       const { count: clicks30d } = await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
         .select("id", { count: "exact", head: true })
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
         .unsafeNoSiteFilter()
-        .eq("affiliate_url", link.url)
+        .in("affiliate_url", g.urls)
         .gte("created_at", thirtyDaysAgo);
 
       const { count: clicks7d } = await sb
@@ -68,17 +95,16 @@ export async function POST(request: NextRequest) {
         .select("id", { count: "exact", head: true })
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
         .unsafeNoSiteFilter()
-        .eq("affiliate_url", link.url)
+        .in("affiliate_url", g.urls)
         .gte("created_at", sevenDaysAgo);
 
       // Sum commissions (30d and 7d)
-
       const { data: comm30d } = await untypedFrom(sb, "commissions")
         .select("commission_amount")
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
         .unsafeNoSiteFilter()
-        .eq("product_id", link.product_id)
-        .eq("network", link.network)
+        .eq("product_id", g.product_id)
+        .eq("network", g.network)
         .in("status", ["approved", "paid"])
         .gte("event_date", thirtyDaysAgo);
 
@@ -86,8 +112,8 @@ export async function POST(request: NextRequest) {
         .select("commission_amount")
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
         .unsafeNoSiteFilter()
-        .eq("product_id", link.product_id)
-        .eq("network", link.network)
+        .eq("product_id", g.product_id)
+        .eq("network", g.network)
         .in("status", ["approved", "paid"])
         .gte("event_date", sevenDaysAgo);
 
@@ -105,9 +131,9 @@ export async function POST(request: NextRequest) {
 
       await upsertProductEpc(
         {
-          site_id: link.products.site_id,
-          product_id: link.product_id,
-          network: link.network,
+          site_id: g.site_id,
+          product_id: g.product_id,
+          network: g.network,
           clicks_30d: c30,
           commissions_30d: totalComm30d,
           epc_30d: c30 > 0 ? totalComm30d / c30 : 0,
