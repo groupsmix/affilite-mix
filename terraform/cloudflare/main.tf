@@ -595,12 +595,9 @@ resource "cloudflare_zero_trust_access_application" "admin_segment" {
     # Set var.admin_allowed_emails in tfvars to your admin email(s) before applying.
     # An empty list (default) is fail-closed and will block everyone — the validation
     # block above ensures it must be populated when Access is active.
-    dynamic "include" {
-      for_each = var.admin_allowed_emails
-      content {
-        email = { email = include.value }
-      }
-    }
+    include = [for email in var.admin_allowed_emails : {
+      email = { email = email }
+    }]
   }]
 
   # T4-#9: replace wildcard CORS (origins + headers = ["*"]) with explicit
