@@ -35,7 +35,7 @@
  *   2  partial replay failure (some batches did not 2xx — re-run or investigate)
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { signInternalRequest } from "../lib/internal-hmac";
+import { buildInternalHmacContext, signInternalRequest } from "../lib/internal-hmac";
 
 interface CliArgs {
   command: "list" | "replay" | "purge" | "help";
@@ -202,10 +202,16 @@ async function postReplayBatch(
   }
   const url = `${args.target}/api/queue/clicks`;
   const bodyText = JSON.stringify({ messages });
-  const headers = await signInternalRequest(token, bodyText, {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  });
+  const headers = await signInternalRequest(
+    token,
+    bodyText,
+    {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    // audit #7: bind the operation (replay posts to the normal queue path).
+    buildInternalHmacContext("POST", url),
+  );
   const res = await fetch(url, { method: "POST", headers, body: bodyText });
   const responseText = await res.text().catch(() => "");
   return { ok: res.ok, status: res.status, bodyText: responseText };

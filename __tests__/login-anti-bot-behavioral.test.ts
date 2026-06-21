@@ -41,7 +41,10 @@ vi.mock("@/lib/sentry", () => ({
   captureException: vi.fn(),
 }));
 vi.mock("@/lib/totp", () => ({
-  verifyTotpToken: vi.fn(),
+  // F4 audit: verifyTotpToken returns {ok, step} now. Default to the
+  // "code is invalid" branch so anti-bot assertions are predictable — each
+  // test that needs a passing token sets its own mockReturnValue.
+  verifyTotpToken: vi.fn().mockReturnValue({ ok: false, step: null }),
   needsSha256Reenrollment: vi.fn().mockReturnValue(false),
   isSha1TotpPastDeadline: vi.fn().mockReturnValue(false),
 }));

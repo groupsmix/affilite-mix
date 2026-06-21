@@ -3,6 +3,7 @@ import { requireAdminSession } from "@/lib/admin-guard";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { listSites } from "@/lib/dal/sites";
+import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { countContent } from "@/lib/dal/content";
 import { countProducts } from "@/lib/dal/products";
@@ -54,8 +55,23 @@ export async function GET(request: NextRequest) {
     // the same issue caught in app/api/admin/sites/route.ts (GET handler).
     const rows = await listSites(() => getPrivilegedSupabaseClient("admin-sites-stats"));
 
+    // T1-F7 / audit-F7: non-super_admin users may only see stats for sites they
+    // belong to. Mirrors the membership filter in app/api/admin/sites/route.ts
+    // (GET). Without this, any admin session received per-tenant operational
+    // stats for EVERY site (tenant enumeration + cross-tenant metric disclosure).
+    // NOTE: main and PR #911 fixed this independently; this is the reconciled
+    // single implementation (the duplicate F7 block from #911 was dropped).
+    let scopedRows = rows;
+    if (session.role !== "super_admin" && session.userId) {
+      const memberships = await listAdminSiteMemberships(session.userId, () =>
+        getPrivilegedSupabaseClient("admin-sites-stats"),
+      );
+      const allowedSiteIds = new Set(memberships.map((m) => m.site_id));
+      scopedRows = rows.filter((row) => allowedSiteIds.has(row.id));
+    }
+
     const entries = await Promise.all(
-      rows.map(async (row) => {
+      scopedRows.map(async (row) => {
         const [activeProducts, publishedContent, clicks] = await Promise.all([
           countProducts({ siteId: row.id, status: "active" }).catch(() => 0),
           countContent({ siteId: row.id, status: "published" }).catch(() => 0),

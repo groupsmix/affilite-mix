@@ -22,7 +22,13 @@ const enc = new TextEncoder();
 
 /** Import the master JWT secret as raw HKDF key material. */
 async function getMasterKeyMaterial(): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", enc.encode(getJwtSecret()), "HKDF", false, ["deriveKey"]);
+  // audit #4: also allow `deriveBits` so we can expose a STRING form of a
+  // derived subkey (see getOrDeriveHmacKeyString) for callers whose HMAC
+  // primitive takes a raw string secret (e.g. computeHmac).
+  return crypto.subtle.importKey("raw", enc.encode(getJwtSecret()), "HKDF", false, [
+    "deriveKey",
+    "deriveBits",
+  ]);
 }
 
 /**
@@ -62,6 +68,47 @@ export function getOrDeriveHmacKey(purpose: string, usages: KeyUsage[]): Promise
   if (!p) {
     p = deriveHmacKey(purpose, usages);
     keyCache.set(cacheKey, p);
+  }
+  return p;
+}
+
+/**
+ * audit #4: String form of the per-purpose HMAC subkey.
+ *
+ * Some callers (e.g. `computeHmac` in lib/internal-hmac.ts) take the secret as a
+ * string and import it as raw HMAC key bytes — they can't consume a non-extractable
+ * CryptoKey. For those we expose the derived key material as lowercase hex via HKDF
+ * `deriveBits`, using the SAME salt/info as `deriveHmacKey`, so a given `purpose`
+ * yields consistent material in either form and stays stable across isolates and
+ * deploys (the derivation root is the fixed JWT secret).
+ *
+ * This is what lets click dedup + cache signing keep working when
+ * CLICK_CACHE_HMAC_KEY is unset, instead of silently turning off.
+ */
+async function deriveHmacKeyString(purpose: string): Promise<string> {
+  const master = await getMasterKeyMaterial();
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(0),
+      info: enc.encode(`affilite-mix:hmac:${purpose}`),
+    },
+    master,
+    256,
+  );
+  return Array.from(new Uint8Array(bits))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+const stringKeyCache = new Map<string, Promise<string>>();
+
+export function getOrDeriveHmacKeyString(purpose: string): Promise<string> {
+  let p = stringKeyCache.get(purpose);
+  if (!p) {
+    p = deriveHmacKeyString(purpose);
+    stringKeyCache.set(purpose, p);
   }
   return p;
 }

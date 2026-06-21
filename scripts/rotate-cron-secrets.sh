@@ -147,10 +147,30 @@ push_secret() {
 
 echo
 echo "Pushing to $MAIN_WORKER..."
+# T4-#7: track rotation phase so a mid-run failure (set -e exits) emits a
+# loud, actionable error instead of silently leaving main rotated but
+# heavy-crons on the old secret (→ 401 for ai-generate, commission-ingest,
+# price-scrape until someone notices and re-runs).
+ROTATION_PHASE="pre"
+trap '
+  if [ "$ROTATION_PHASE" = "main-done" ]; then
+    echo "" >&2
+    echo "================================================================" >&2
+    echo "PARTIAL ROTATION DETECTED — ACTION REQUIRED" >&2
+    echo "  $MAIN_WORKER  : ROTATED (new secrets)" >&2
+    echo "  $HEAVY_CRONS_WORKER : NOT ROTATED (still on old secrets)" >&2
+    echo "  Heavy-cron jobs (ai-generate, commission-ingest, price-scrape)" >&2
+    echo "  will 401 until you re-run this script or restore the prior" >&2
+    echo "  secrets manually." >&2
+    echo "================================================================" >&2
+  fi
+' ERR
+
 for name in "${CRON_SECRET_ENV_VARS[@]}"; do
   push_secret "$name" "${NEW_VALUES[$name]}" --name "$MAIN_WORKER"
   echo "  ✓ $name (main)"
 done
+ROTATION_PHASE="main-done"
 
 echo
 echo "Pushing to $HEAVY_CRONS_WORKER..."
@@ -159,6 +179,7 @@ for name in "${CRON_SECRET_ENV_VARS[@]}"; do
     --config "$HEAVY_CRONS_CONFIG" --name "$HEAVY_CRONS_WORKER"
   echo "  ✓ $name (heavy-crons)"
 done
+ROTATION_PHASE="all-done"
 
 # --- audit log -----------------------------------------------------------
 

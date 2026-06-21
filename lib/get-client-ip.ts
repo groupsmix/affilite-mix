@@ -10,7 +10,9 @@
  * Priority:
  *   1. `cf-connecting-ip` (set by Cloudflare and stripped/overwritten at the
  *      edge, so it is trustworthy when the origin is only reachable through
- *      Cloudflare).
+ *      Cloudflare). Deployments whose origin is reachable directly (not behind
+ *      Cloudflare) can set `TRUST_CF_CONNECTING_IP=false` to stop honouring this
+ *      client-spoofable header — see `isCfConnectingIpTrusted()`.
  *   2. First entry of `x-forwarded-for`, but ONLY when
  *      `TRUST_PROXY_HEADERS=true` is set.
  *   3. Otherwise `"unknown"`.
@@ -21,7 +23,15 @@ let _warnedMissingCfIp = false;
 
 export function getClientIp(request: Request): string {
   const cfIp = request.headers.get("cf-connecting-ip");
-  if (cfIp) return cfIp;
+  // F8: `cf-connecting-ip` is only trustworthy when the origin is exclusively
+  // reachable through Cloudflare (CF sets it at the edge and strips any
+  // client-supplied value). If the origin is directly reachable (e.g. a
+  // *.workers.dev URL or an origin not firewalled to Cloudflare IP ranges), a
+  // client can spoof this header to poison another user's rate-limit bucket,
+  // evade login throttling, or satisfy JWT IP-binding from any network. Such
+  // deployments set `TRUST_CF_CONNECTING_IP=false` to ignore it. Defaults to
+  // `true` to preserve the documented Cloudflare-only deployment model.
+  if (cfIp && isCfConnectingIpTrusted()) return cfIp;
 
   if (isProxyHeaderTrusted()) {
     const xff = request.headers.get("x-forwarded-for");
@@ -58,6 +68,22 @@ function isProxyHeaderTrusted(): boolean {
   const flag = process.env.TRUST_PROXY_HEADERS;
   if (!flag) return false;
   return flag.toLowerCase() === "true" || flag === "1";
+}
+
+/**
+ * F8: whether `cf-connecting-ip` should be trusted. Defaults to `true` because
+ * the canonical deployment is Cloudflare-only (see docs/CLOUDFLARE.md), where CF
+ * sets this header and strips client-supplied copies. Deployments whose origin
+ * is directly reachable (not exclusively behind Cloudflare) MUST set
+ * `TRUST_CF_CONNECTING_IP=false` so a client cannot spoof its source IP via this
+ * header. Only the explicit strings `false` / `0` disable it; any other value
+ * (or unset) keeps the safe Cloudflare default.
+ */
+function isCfConnectingIpTrusted(): boolean {
+  const flag = process.env.TRUST_CF_CONNECTING_IP;
+  if (flag === undefined) return true;
+  const normalized = flag.toLowerCase();
+  return !(normalized === "false" || normalized === "0");
 }
 
 /**

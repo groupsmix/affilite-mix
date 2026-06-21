@@ -201,9 +201,13 @@ interface AdImpressionRow {
   id: string;
   site_id: string;
   ad_placement_id: string;
-  page_path: string;
+  // T4-#14: page_path is nullable per the DB schema.
+  page_path: string | null;
   impression_date: string;
-  count: number;
+  // T4-#14: real column is `impression_count` (not `count`).
+  // lib/dal/ad-impressions.ts already selects/reads `impression_count` correctly;
+  // this type was drifted from the actual schema.
+  impression_count: number;
   created_at: string;
 }
 
