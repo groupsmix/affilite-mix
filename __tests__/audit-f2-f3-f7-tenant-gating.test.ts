@@ -17,7 +17,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const REPO_ROOT = path.resolve(__dirname, "..");
-const APP_DIR = path.join(REPO_ROOT, "app", "api", "admin");
 
 function read(relPath: string): string {
   return fs.readFileSync(path.join(REPO_ROOT, relPath), "utf-8");
