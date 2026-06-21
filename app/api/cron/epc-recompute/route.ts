@@ -44,22 +44,50 @@ export async function POST(request: NextRequest) {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    let updated = 0;
-
-    for (const link of links as {
+    // B-F1: a product may have multiple active links per (site_id, product_id,
+    // network) — e.g. geo-split or weighted A/B links. The previous per-link loop
+    // counted clicks for a single URL and then upserted on (site_id, product_id,
+    // network), so each iteration overwrote the same row and only the LAST link's
+    // click count survived. With two active links A (clicks=a) and B (clicks=b)
+    // and total commissions C: stored clicks=b (last), epc=C/b — inflated by
+    // (a+b)/b. Group by (site_id, product_id, network) first, collect all URLs,
+    // then count with .in() so the stored result is always clicks=a+b, epc=C/(a+b).
+    type LinkRow = {
       product_id: string;
       network: string;
       url: string;
       products: { site_id: string };
-    }[]) {
-      // Count clicks (30d and 7d) — match via affiliate_url from the link
+    };
+    type LinkGroup = { site_id: string; product_id: string; network: string; urls: string[] };
+
+    const groups = new Map<string, LinkGroup>();
+    for (const link of links as LinkRow[]) {
+      const site_id = link.products.site_id;
+      const key = `${site_id}|${link.product_id}|${link.network}`;
+      const g = groups.get(key);
+      if (g) {
+        g.urls.push(link.url);
+      } else {
+        groups.set(key, {
+          site_id,
+          product_id: link.product_id,
+          network: link.network,
+          urls: [link.url],
+        });
+      }
+    }
+
+    let updated = 0;
+
+    for (const g of groups.values()) {
+      // Count clicks across ALL URLs for this (site, product, network) group.
       const { count: clicks30d } = await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
         .select("id", { count: "exact", head: true })
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
         .unsafeNoSiteFilter()
-        .eq("affiliate_url", link.url)
+        .in("affiliate_url", g.urls)
         .gte("created_at", thirtyDaysAgo);
 
       const { count: clicks7d } = await sb
@@ -68,17 +96,16 @@ export async function POST(request: NextRequest) {
         .select("id", { count: "exact", head: true })
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
         .unsafeNoSiteFilter()
-        .eq("affiliate_url", link.url)
+        .in("affiliate_url", g.urls)
         .gte("created_at", sevenDaysAgo);
 
-      // Sum commissions (30d and 7d)
-
+      // Sum commissions (30d and 7d) — scoped to this product+network group.
       const { data: comm30d } = await untypedFrom(sb, "commissions")
         .select("commission_amount")
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
         .unsafeNoSiteFilter()
-        .eq("product_id", link.product_id)
-        .eq("network", link.network)
+        .eq("product_id", g.product_id)
+        .eq("network", g.network)
         .in("status", ["approved", "paid"])
         .gte("event_date", thirtyDaysAgo);
 
@@ -86,8 +113,8 @@ export async function POST(request: NextRequest) {
         .select("commission_amount")
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
         .unsafeNoSiteFilter()
-        .eq("product_id", link.product_id)
-        .eq("network", link.network)
+        .eq("product_id", g.product_id)
+        .eq("network", g.network)
         .in("status", ["approved", "paid"])
         .gte("event_date", sevenDaysAgo);
 
@@ -105,9 +132,9 @@ export async function POST(request: NextRequest) {
 
       await upsertProductEpc(
         {
-          site_id: link.products.site_id,
-          product_id: link.product_id,
-          network: link.network,
+          site_id: g.site_id,
+          product_id: g.product_id,
+          network: g.network,
           clicks_30d: c30,
           commissions_30d: totalComm30d,
           epc_30d: c30 > 0 ? totalComm30d / c30 : 0,

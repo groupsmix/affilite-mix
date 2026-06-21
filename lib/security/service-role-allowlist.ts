@@ -140,14 +140,20 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // the global `sites` table. Safe by construction.
   "app/api/admin/sites/[id]/route.ts",
 
-  // Site stats endpoint lists ALL sites via listSites() to batch-fetch
-  // per-site counts (products, content, clicks). Like the sites list
+  // Site stats endpoint lists ALL sites via listSites() to batch-fetch  // per-site counts (products, content, clicks). Like the sites list
   // route above, getTenantClient() mints HS256 JWTs that fail against
   // asymmetric Supabase signing keys, so the privileged client is
   // required. The route is gated by requireAdminSession() and operates
   // before any tenant context is established (stats must be visible
   // before a site is set as active).
   "app/api/admin/sites/stats/route.ts",
+
+  // B-F2: Performance-by-domain rollup iterates every site in the registry
+  // via listSites() + getClickCount(). The default RLS tenant client only
+  // sees the active site, so all other tenants returned 0 clicks/$0. The
+  // route is super_admin-gated (requireSuperAdmin) and is inherently a
+  // cross-tenant aggregation — privileged client is required by design.
+  "app/api/admin/analytics/domains/route.ts",
 
   // Health liveness probe uses service-role for the DB connectivity check.
   // getTenantClient() mints HS256 JWTs which break when Supabase is

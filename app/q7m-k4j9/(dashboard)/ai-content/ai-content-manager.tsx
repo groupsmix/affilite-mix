@@ -117,13 +117,25 @@ export function AIContentManager({
   async function handleDelete(id: string) {
     if (!confirm("Delete this AI draft?")) return;
     setActionLoading(id);
+    setError(null);
     try {
-      await fetchWithCsrf("/api/admin/ai-content", {
+      // B-F6: capture res so non-OK responses are detected and surfaced.
+      // Previously the response was discarded and onRefresh() was always
+      // called, making a 403/404/500 look like a successful delete until
+      // the next data load brought the draft back.
+      const res = await fetchWithCsrf("/api/admin/ai-content", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError((data as { error?: string }).error ?? "Delete failed");
+        return;
+      }
       void onRefresh();
+    } catch {
+      setError("Delete failed");
     } finally {
       setActionLoading(null);
     }

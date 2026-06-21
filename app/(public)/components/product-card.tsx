@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ProductRow } from "@/types/database";
 import Image from "next/image";
 import { useCookieConsent } from "./cookie-consent";
@@ -70,9 +70,16 @@ export function ProductCard({
 }: ProductCardProps) {
   const { accepted: consentAccepted } = useCookieConsent();
   const [imgError, setImgError] = useState(false);
+  // B-nit: isDealActive / getDealTimeLeft call new Date() which differs between
+  // SSR time and client hydration time, causing a React hydration mismatch on
+  // ISR-cached pages. Guard with `mounted` so the deal badge only renders
+  // client-side (safe fallback: no badge during SSR, shown after hydration).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const buttonLabel = product.cta_text || ctaLabel;
-  const showDeal = product.deal_text && isDealActive(product.deal_expires_at);
-  const dealTimeLeft = getDealTimeLeft(product.deal_expires_at);
+  const showDeal = mounted && product.deal_text && isDealActive(product.deal_expires_at);
+  const dealTimeLeft = mounted ? getDealTimeLeft(product.deal_expires_at) : null;
 
   function handleCtaClick(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();

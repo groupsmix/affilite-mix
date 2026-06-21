@@ -228,7 +228,8 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
     setPages(newPages);
 
     try {
-      await fetchWithCsrf("/api/admin/pages/reorder", {
+      // B-F5: capture res so we can detect non-OK without relying on a thrown error.
+      const res = await fetchWithCsrf("/api/admin/pages/reorder", {
         method: "PUT",
 
         headers: { "Content-Type": "application/json" },
@@ -237,9 +238,16 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
 
         body: JSON.stringify({ pages: reordered }),
       });
+
+      if (!res.ok) {
+        // Server rejected the reorder — roll back optimistic update.
+        setError("Could not save the new page order. Please try again.");
+
+        await loadPages();
+      }
     } catch {
-      // fail-open: best-effort
-      // silent — reload to reset
+      // Network-level failure — roll back and show an error.
+      setError("Could not save the new page order. Please try again.");
 
       await loadPages();
     } finally {
@@ -268,7 +276,8 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
     setPages(newPages);
 
     try {
-      await fetchWithCsrf("/api/admin/pages/reorder", {
+      // B-F5: capture res so we can detect non-OK without relying on a thrown error.
+      const res = await fetchWithCsrf("/api/admin/pages/reorder", {
         method: "PUT",
 
         headers: { "Content-Type": "application/json" },
@@ -277,8 +286,17 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
 
         body: JSON.stringify({ pages: reordered }),
       });
+
+      if (!res.ok) {
+        // Server rejected the reorder — roll back optimistic update.
+        setError("Could not save the new page order. Please try again.");
+
+        await loadPages();
+      }
     } catch {
-      // fail-open: best-effort
+      // Network-level failure — roll back and show an error.
+      setError("Could not save the new page order. Please try again.");
+
       await loadPages();
     } finally {
       reorderingRef.current = false;
@@ -293,9 +311,17 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
 
   return (
     <div className="space-y-4">
+      {/* B-F5: show reorder errors even when the form is closed */}
+      {error && !showForm && (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+          {error}
+          <button onClick={() => setError(null)} className="ml-2 font-medium underline">
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{pages.length} page(s)</p>
-
         <button
           type="button"
           onClick={openCreateForm}

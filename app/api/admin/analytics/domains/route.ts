@@ -3,6 +3,13 @@ import { getDomainPerformance } from "@/lib/dal/analytics-dashboard";
 import { captureException } from "@/lib/sentry";
 import { requireSuperAdmin } from "@/lib/admin-guard";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+// B-F2: getDomainPerformance iterates the full tenant registry and counts clicks
+// per site — it is a cross-tenant rollup that requires the privileged client (the
+// default RLS-bound tenant client only sees the active site, so every other site's
+// click count was 0). The route is already gated on requireSuperAdmin() and is on
+// the SERVICE_ROLE_IMPORT_ALLOWLIST (lib/security/service-role-allowlist.ts).
+// nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 
 /**
  * GET /api/admin/analytics/domains — Performance by domain/site (super_admin only).
@@ -40,7 +47,12 @@ export async function GET(request: NextRequest) {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
-    const domains = await getDomainPerformance(since.toISOString());
+    const domains = await getDomainPerformance(
+      since.toISOString(),
+      // B-F2: thread the privileged client so listSites() + getClickCount()
+      // bypass RLS and return real data for every tenant, not just the active one.
+      getPrivilegedSupabaseClient,
+    );
 
     return NextResponse.json({ days, domains });
   } catch (err) {
