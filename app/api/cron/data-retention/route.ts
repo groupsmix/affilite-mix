@@ -157,99 +157,89 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // FIX-11 (F-016): Transactional audit_log purge via Postgres RPC.
-  // The previous fetch→archive→delete was non-transactional: if the delete
-  // failed after a successful R2 archive, rows were lost without a hot-table
-  // record. The `purge_retention` SECURITY DEFINER function does the
-  // archive + delete inside a single transaction, returning the count of
-  // archived/deleted rows. If the function doesn't exist yet (pre-migration),
-  // fall back to the old fetch→archive→delete path.
+  // FIX-11 (F-016) + audit #9: Archive-first audit_log retention.
+  //
+  // This deliberately does NOT go through a SQL function. Archiving must land in
+  // R2 (object storage) *before* any row is deleted, and a SECURITY DEFINER SQL
+  // function cannot write to R2 — so the route owns the durable sequence:
+  //   fetch expired rows → archive to R2 → delete only what was archived.
+  // (The previous code called a 3-arg `purge_retention` overload that was never
+  // created, so it always errored and silently fell through to this path anyway.
+  // Removed to drop the dead `@ts-expect-error` and the false "transactional"
+  // guarantee.)
+  //
+  // If R2 is unbound we refuse to delete (no silent data loss) AND alert, so
+  // "retention is not being enforced" can no longer hide behind a debug log.
   try {
     const auditDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-    // Try the transactional RPC first
-    // F-API-01 / NEW-03: purge_retention is a cross-tenant maintenance
-    // RPC (no p_site_id) — opt out of the RPC guard.
-    const { data: rpcResult, error: rpcError } = await sb
-      // @ts-expect-error ACCEPTED: the 3-arg overload purge_retention(p_table, p_cutoff, p_batch_limit) is not yet created — only the no-arg form exists (migration 00077/00085). If the RPC errors, we fall back to fetch→archive→delete below. Regenerate types once the overload migration lands.
-      .rpc("purge_retention", {
-        p_table: "audit_log",
-        p_cutoff: auditDate.toISOString(),
-        p_batch_limit: 10000,
-      })
-      .unsafeNoSiteFilter();
+    // Fetch rows to archive before deleting.
+    const { data: auditRows, error: fetchError } = (await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
+      .from("audit_log")
+      .select(
+        "id, site_id, actor, actor_user_id, action, entity_type, entity_id, details, ip, created_at",
+      )
+      // F-API-01: cross-tenant audit-log retention sweep.
+      .unsafeNoSiteFilter()
+      .lt("created_at", auditDate.toISOString())
+      .limit(10000)) as unknown as {
+      data:
+        | {
+            id: string;
+            site_id: string;
+            actor: string;
+            actor_user_id: string | null;
+            action: string;
+            entity_type: string;
+            entity_id: string;
+            details: Record<string, unknown> | null;
+            ip: string | null;
+            created_at: string;
+          }[]
+        | null;
+      error: { message: string; code?: string } | null;
+    };
 
-    if (rpcError) {
-      // RPC not yet migrated — fall back to the old non-transactional path
-      logger.warn("purge_retention RPC not available, falling back to fetch→archive→delete", {
-        error: rpcError.message,
-      });
+    if (fetchError) throw fetchError;
 
-      // Fetch rows to archive before deleting
-      const { data: auditRows, error: fetchError } = (await sb
-        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
-        .from("audit_log")
-        .select(
-          "id, site_id, actor, actor_user_id, action, entity_type, entity_id, details, ip, created_at",
-        )
-        // F-API-01: cross-tenant audit-log retention sweep.
-        .unsafeNoSiteFilter()
-        .lt("created_at", auditDate.toISOString())
-        .limit(10000)) as unknown as {
-        data:
-          | {
-              id: string;
-              site_id: string;
-              actor: string;
-              actor_user_id: string | null;
-              action: string;
-              entity_type: string;
-              entity_id: string;
-              details: Record<string, unknown> | null;
-              ip: string | null;
-              created_at: string;
-            }[]
-          | null;
-        error: { message: string; code?: string } | null;
-      };
+    if (!auditRows || auditRows.length === 0) {
+      results.audit_log = { success: true, archived: 0, deleted: 0 };
+    } else {
+      const r2 = getAuditArchiveR2();
 
-      if (fetchError) throw fetchError;
+      if (!r2) {
+        // audit #9: R2 unbound ⇒ audit_log retention is NOT being enforced (rows
+        // are neither archived nor deleted). This used to be a debug-level warn
+        // that hid an unbounded-growth + GDPR-retention gap. Alert loudly so it's
+        // visible. By default keep the cron GREEN — a Low-severity config gap
+        // shouldn't page on every run — but set AUDIT_ARCHIVE_R2_REQUIRED=1 to
+        // treat it as a hard failure (job returns 500) once R2 is expected to be
+        // bound in every environment.
+        const msg =
+          "AUDIT_ARCHIVE_R2 unbound — audit_log retention is NOT being enforced. " +
+          "Bind the R2 bucket; expired rows are retried each run until then.";
+        logger.error(msg, { pending_rows: auditRows.length });
+        captureException(new Error(msg), {
+          context: "[cron/data-retention] audit_log retention skipped — R2 unbound",
+          extra: { pending_rows: auditRows.length },
+        });
+        const hardFail = process.env.AUDIT_ARCHIVE_R2_REQUIRED === "1";
+        results.audit_log = {
+          success: !hardFail,
+          error: hardFail ? msg : undefined,
+          archived: 0,
+          deleted: 0,
+        };
+      } else {
+        // Archive first.
+        const yearMonth = `${auditDate.getFullYear()}-${String(auditDate.getMonth() + 1).padStart(2, "0")}`;
+        const jsonl = auditRows.map((row) => JSON.stringify(row)).join("\n");
+        const archiveKey = `audit-log-archive/${yearMonth}/${now.toISOString()}.jsonl`;
+        await r2.put(archiveKey, jsonl);
+        logger.info("Audit log archived to R2", { key: archiveKey, count: auditRows.length });
 
-      let archivedCount = 0;
-      let archiveSucceeded = false;
-      if (auditRows && auditRows.length > 0) {
-        try {
-          const r2 = getAuditArchiveR2();
-
-          if (r2) {
-            const yearMonth = `${auditDate.getFullYear()}-${String(auditDate.getMonth() + 1).padStart(2, "0")}`;
-            const jsonl = auditRows.map((row) => JSON.stringify(row)).join("\n");
-            const archiveKey = `audit-log-archive/${yearMonth}/${now.toISOString()}.jsonl`;
-            await r2.put(archiveKey, jsonl);
-            archivedCount = auditRows.length;
-            archiveSucceeded = true;
-            logger.info("Audit log archived to R2", { key: archiveKey, count: archivedCount });
-          } else {
-            logger.warn(
-              "AUDIT_ARCHIVE_R2 binding not available — skipping audit log deletion until R2 is configured. " +
-                "Rows will be retried on the next cron run.",
-            );
-          }
-        } catch (archiveErr) {
-          logger.error(
-            "Failed to archive audit log to R2 — skipping deletion to prevent data loss",
-            {
-              error: archiveErr instanceof Error ? archiveErr.message : String(archiveErr),
-            },
-          );
-          captureException(archiveErr, {
-            context: "[cron/data-retention] audit_log R2 archive failed",
-          });
-        }
-      }
-
-      let deletedCount = 0;
-      if (archiveSucceeded && auditRows && auditRows.length > 0) {
+        // Delete only what we archived.
         const ids = auditRows.map((row) => row.id);
         const { error: auditError } = await sb
           // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
@@ -260,34 +250,25 @@ export async function POST(request: NextRequest) {
           .in("id", ids);
 
         if (auditError) throw auditError;
-        deletedCount = ids.length;
 
-        // A82-F1: Persist checkpoint so interrupted fallback runs resume
-        // past already-deleted rows instead of re-fetching them.
+        // A82-F1: Persist checkpoint so interrupted runs resume past
+        // already-deleted rows instead of re-fetching them.
         const lastDeletedId = ids[ids.length - 1];
         await sb
           // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
           .from("cron_state")
           .upsert(
             {
-              job_name: "data-retention:audit-log-fallback",
+              job_name: "data-retention:audit-log",
               last_id: lastDeletedId,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "job_name" },
           )
-
           .unsafeNoSiteFilter();
+
+        results.audit_log = { success: true, archived: ids.length, deleted: ids.length };
       }
-      results.audit_log = { success: true, archived: archivedCount, deleted: deletedCount };
-    } else {
-      // Transactional RPC succeeded
-      const result = rpcResult as { archived: number; deleted: number } | null;
-      results.audit_log = {
-        success: true,
-        archived: result?.archived ?? 0,
-        deleted: result?.deleted ?? 0,
-      };
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

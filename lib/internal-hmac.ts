@@ -123,14 +123,21 @@ async function recordNonceInKV(nonce: string): Promise<void> {
 /**
  * Compute the HMAC-SHA256 signature for an internal request.
  *
- * The signature input is: `${timestamp}\n${nonce}\n${body}`
- * using the shared secret as the HMAC key.
+ * The signature input is `${timestamp}\n${nonce}\n${context}\n${body}` when a
+ * `context` is supplied, else the legacy `${timestamp}\n${nonce}\n${body}`.
+ *
+ * audit #7: `context` binds the operation (method + path + query) into the
+ * signature so a captured request cannot be replayed against a different path
+ * — e.g. appending `?dlq=true` to /api/queue/clicks. An empty context keeps the
+ * exact legacy bytes so unbound callers (the click-dedup fingerprint and the
+ * product-url cache MAC in app/api/track/click) produce identical output.
  */
 export async function computeHmac(
   secret: string,
   timestamp: string,
   nonce: string,
   body: string,
+  context = "",
 ): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -140,10 +147,33 @@ export async function computeHmac(
     false,
     ["sign"],
   );
-  const message = encoder.encode(`${timestamp}\n${nonce}\n${body}`);
+  const message = encoder.encode(
+    context ? `${timestamp}\n${nonce}\n${context}\n${body}` : `${timestamp}\n${nonce}\n${body}`,
+  );
   const signature = await crypto.subtle.sign("HMAC", key, message);
   const hashArray = Array.from(new Uint8Array(signature));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * audit #7: Canonical request context bound into the internal HMAC signature.
+ *
+ * Signer and verifier MUST derive this identically from the SAME request
+ * (method + path + query). The verifier passes `request.url`; each signer passes
+ * the exact absolute URL it is about to fetch. Returns e.g.
+ * `"POST\n/api/queue/clicks?dlq=true"`.
+ */
+export function buildInternalHmacContext(method: string, url: string): string {
+  let pathAndQuery: string;
+  try {
+    const u = new URL(url);
+    pathAndQuery = `${u.pathname}${u.search}`;
+  } catch {
+    // Already a path (or unparseable): use verbatim so both sides still agree
+    // as long as they pass the same string.
+    pathAndQuery = url;
+  }
+  return `${method.toUpperCase()}\n${pathAndQuery}`;
 }
 
 /**
@@ -156,11 +186,12 @@ export async function signInternalRequest(
   secret: string,
   body: string,
   headers: Record<string, string> = {},
+  context = "",
 ): Promise<Record<string, string>> {
   const timestamp = String(Date.now());
   const nonce = crypto.randomUUID();
 
-  const signature = await computeHmac(secret, timestamp, nonce, body);
+  const signature = await computeHmac(secret, timestamp, nonce, body, context);
 
   return {
     ...headers,
@@ -230,9 +261,29 @@ export async function verifyInternalHmac(
     return { valid: false, reason: "Nonce already used (replay)" };
   }
 
-  // 3. HMAC signature verification
-  const expected = await computeHmac(secret, timestamp, nonce, body);
-  if (!timingSafeEqual(signature, expected)) {
+  // 3. HMAC signature verification.
+  // audit #7: bind method + path + query so a captured signature can't be
+  // replayed against a different operation (e.g. flipping ?dlq=true). During
+  // rollout the worker (signer) and the app (verifier) deploy independently,
+  // so unless INTERNAL_HMAC_BIND_MODE=strict we also accept the legacy
+  // body-only signature, emitting telemetry so operators can confirm every
+  // signer is bound before flipping to strict.
+  const context = buildInternalHmacContext(request.method, request.url);
+  const expectedBound = await computeHmac(secret, timestamp, nonce, body, context);
+  let signatureValid = timingSafeEqual(signature, expectedBound);
+
+  if (!signatureValid && process.env.INTERNAL_HMAC_BIND_MODE !== "strict") {
+    const expectedLegacy = await computeHmac(secret, timestamp, nonce, body);
+    if (timingSafeEqual(signature, expectedLegacy)) {
+      signatureValid = true;
+      logger.warn("internal_hmac_unbound_signature_accepted", {
+        hint: "Signer has not adopted audit #7 context binding. Update all signers, then set INTERNAL_HMAC_BIND_MODE=strict.",
+      });
+      emitMetric("internal_hmac_unbound_accepted", 1, {});
+    }
+  }
+
+  if (!signatureValid) {
     return { valid: false, reason: "Signature mismatch" };
   }
 
