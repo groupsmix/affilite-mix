@@ -3,6 +3,7 @@ import { requireAdminSession } from "@/lib/admin-guard";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { listSites } from "@/lib/dal/sites";
+import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { countContent } from "@/lib/dal/content";
 import { countProducts } from "@/lib/dal/products";
@@ -50,12 +51,27 @@ export async function GET(request: NextRequest) {
   const sinceIso = since.toISOString();
 
   try {
+    // F7: this route reads listSites() — the whole tenant registry — but used
+    // only the requireAdminSession() guard, so any single-site admin received
+    // {activeProducts, publishedContent, clicks} + slug enumeration for EVERY
+    // tenant. Mirror the sibling list route's membership filter so non-super
+    // admins only see sites they have a row in admin_site_memberships for.
+    let allowedSiteIds: Set<string> | null = null;
+    if (session.role !== "super_admin" && session.userId) {
+      const memberships = await listAdminSiteMemberships(
+        session.userId,
+        () => getPrivilegedSupabaseClient("admin-sites-stats"),
+      );
+      allowedSiteIds = new Set(memberships.map((m) => m.site_id));
+    }
+
     // Use the privileged client to avoid HS256/asymmetric-key JWT failures —
     // the same issue caught in app/api/admin/sites/route.ts (GET handler).
     const rows = await listSites(() => getPrivilegedSupabaseClient("admin-sites-stats"));
+    const scoped = allowedSiteIds ? rows.filter((r) => allowedSiteIds!.has(r.id)) : rows;
 
     const entries = await Promise.all(
-      rows.map(async (row) => {
+      scoped.map(async (row) => {
         const [activeProducts, publishedContent, clicks] = await Promise.all([
           countProducts({ siteId: row.id, status: "active" }).catch(() => 0),
           countContent({ siteId: row.id, status: "published" }).catch(() => 0),

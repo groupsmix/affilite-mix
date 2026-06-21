@@ -37,7 +37,10 @@ vi.mock("@/lib/dal/admin-users", () => ({
   incrementTotpFailedAttempts: vi.fn().mockResolvedValue({ attempts: 1, locked: false }),
 }));
 vi.mock("@/lib/totp", () => ({
-  verifyTotpToken: vi.fn().mockReturnValue(true),
+  // F4 audit: verifyTotpToken now returns {ok, step} so callers can persist
+  // the consumed time-step. Tests that previously mocked the boolean form
+  // must return the new shape.
+  verifyTotpToken: vi.fn().mockReturnValue({ ok: true, step: 1 }),
   needsSha256Reenrollment: vi.fn().mockReturnValue(false),
   isSha1TotpPastDeadline: vi.fn().mockReturnValue(false),
 }));

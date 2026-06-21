@@ -456,13 +456,24 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // F4 audit: capture the verification result so we can both gate on
+        // ok AND persist the consumed time-step on success. Passing
+        // user.totp_last_step closes the ~90s replay window (window:1 = 3
+        // steps × 30s) — a captured 6-digit code is now single-use.
+        const totpResult = user.totp_secret
+          ? verifyTotpToken(
+              // B-01: Decrypt TOTP secret before verification
+              await decryptTotpSecret(user.totp_secret),
+              totp_token,
+              { lastStep: user.totp_last_step },
+            )
+          : { ok: false, step: null };
+
         // AUDIT-FIX A4-004: Digit-only validation for TOTP tokens
         if (
           typeof totp_token !== "string" ||
           !/^\d{6}$/.test(totp_token) ||
-          !user.totp_secret ||
-          // B-01: Decrypt TOTP secret before verification
-          !verifyTotpToken(await decryptTotpSecret(user.totp_secret), totp_token)
+          !totpResult.ok
         ) {
           // AUDIT-FIX A3-002/A1-006: Use atomic increment to prevent race condition
           try {
@@ -479,11 +490,34 @@ export async function POST(request: NextRequest) {
           return apiError(401, "Invalid 2FA token");
         }
 
+        // F4: advance the consumed TOTP time-step so the just-used code
+        // can't be replayed within its window. Done after the failed-attempts
+        // reset below in a single update call to keep the round-trip count
+        // bounded.
         // Reset failed attempts on success
         if (user.totp_failed_attempts > 0 || user.totp_locked_until) {
-          await updateAdminUser(user.id, { totp_failed_attempts: 0, totp_locked_until: null }, () =>
-            getPrivilegedSupabaseClient("login:totp-reset"),
+          await updateAdminUser(
+            user.id,
+            { totp_failed_attempts: 0, totp_locked_until: null },
+            () => getPrivilegedSupabaseClient("login:totp-reset"),
           );
+        }
+        // F4: persist the just-consumed TOTP step. Best-effort — failure to
+        // record here cannot downgrade a legitimately verified login, but
+        // the next code within the same window would still be rejected if
+        // we successfully recorded. Log and continue if the write fails.
+        if (totpResult.step != null) {
+          try {
+            await updateAdminUser(
+              user.id,
+              { totp_last_step: totpResult.step },
+              () => getPrivilegedSupabaseClient("login:totp-advance-step"),
+            );
+          } catch (e) {
+            log.warn("Failed to persist TOTP consumed step", {
+              error: e instanceof Error ? e.message : String(e),
+            });
+          }
         }
 
         // E2-009: Detect legacy SHA-1 TOTP and signal the client to re-enroll.

@@ -121,15 +121,22 @@ export async function PUT(request: Request) {
 
     // B-01: Decrypt the stored TOTP secret before verification
     const decryptedSecret = await decryptTotpSecret(user.totp_secret);
-    const isValid = verifyTotpToken(decryptedSecret, token);
-    if (!isValid) {
+    // F4 audit: pass the previously consumed step so the same code can't
+    // be replayed within its ~90s window. On first verify after enrollment
+    // totp_last_step is null, so the check is a no-op and the new step is
+    // returned for persistence.
+    const { ok, step } = verifyTotpToken(decryptedSecret, token, {
+      lastStep: user.totp_last_step,
+    });
+    if (!ok) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    // Enable 2FA
+    // Enable 2FA + record the consumed step in one round-trip.
     await updateAdminUser(session.userId, {
       totp_enabled: true,
       totp_verified_at: new Date().toISOString(),
+      totp_last_step: step,
     });
 
     return NextResponse.json({ ok: true, message: "2FA enabled successfully" });
@@ -185,8 +192,12 @@ export async function DELETE(request: Request) {
 
     // B-01: Decrypt the stored TOTP secret before verification
     const decryptedSecret = await decryptTotpSecret(user.totp_secret);
-    const isValid = verifyTotpToken(decryptedSecret, token);
-    if (!isValid) {
+    // F4 audit: single-use replay check on disable too — a captured code
+    // shouldn't be usable both to disable 2FA and to authenticate later.
+    const { ok, step } = verifyTotpToken(decryptedSecret, token, {
+      lastStep: user.totp_last_step,
+    });
+    if (!ok) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
@@ -194,6 +205,8 @@ export async function DELETE(request: Request) {
       totp_secret: null,
       totp_enabled: false,
       totp_verified_at: null,
+      // F4: clear the step baseline so a future re-enrollment starts fresh.
+      totp_last_step: null,
     });
 
     return NextResponse.json({ ok: true, message: "2FA disabled successfully" });

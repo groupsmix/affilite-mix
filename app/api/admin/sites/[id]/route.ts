@@ -9,6 +9,7 @@ import { requireStepUpAuth } from "@/lib/step-up-auth";
 import { parseJsonBody } from "@/lib/api-error";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { getAppCacheKV } from "@/lib/runtime-env";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 
 /** GET /api/admin/sites/[id] — get a single site by DB id */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -186,7 +187,14 @@ export async function DELETE(
       // Ignore KV purge errors.
     }
 
-    await deleteSite(id);
+    // F5: deleteSite requires callerRole === "super_admin" (lib/dal/sites.ts:361);
+    // forward the role from the session and a labelled privileged client so the
+    // fail-closed throw doesn't fire on every legitimate delete.
+    await deleteSite(
+      id,
+      () => getPrivilegedSupabaseClient("admin-sites-delete"),
+      session.role,
+    );
     // S0-FP-002: await audit for destructive actions so the trail is durable.
     await recordAuditEvent({
       site_id: id,
