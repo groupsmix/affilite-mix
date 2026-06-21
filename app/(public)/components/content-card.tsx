@@ -77,7 +77,12 @@ export function ContentCard({
           <span>{content.type}</span>
           {(content.publish_at ?? content.created_at) && (
             <time dateTime={content.publish_at ?? content.created_at}>
-              {new Date(content.publish_at ?? content.created_at).toLocaleDateString(locale)}
+              {new Date(content.publish_at ?? content.created_at).toLocaleDateString(locale, {
+                // B-nit: omitting timeZone causes SSR (UTC) and client (browser TZ) to
+                // format differently near midnight, producing a hydration mismatch.
+                // Pin to UTC for consistent SSR/client output.
+                timeZone: "UTC",
+              })}
             </time>
           )}
         </div>

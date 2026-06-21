@@ -77,7 +77,35 @@ export async function getAnalyticsSummary(
   ]);
 
   const estimatedRevenue = totalClicks * estRevenuePerClick;
-  const avgOrderValue = totalClicks > 0 ? estimatedRevenue / totalClicks : 0;
+
+  // B-F3: the previous formula was `estimatedRevenue / totalClicks` which reduces
+  // algebraically to `estRevenuePerClick` for all totalClicks > 0 — a tautology,
+  // not a real average order value. Compute real AOV from actual commission
+  // sale_amount rows for this site and period instead.
+  let avgOrderValue = 0;
+  try {
+    const sb = await Promise.resolve(getClient());
+    const { data: commRows } = await sb
+      .from("commissions")
+      .select("sale_amount")
+      .eq("site_id", siteId)
+      .gte("event_date", since)
+      .in("status", ["approved", "paid"]);
+    const orders = (commRows ?? []).filter(
+      (r: { sale_amount: number | null }) => Number(r.sale_amount) > 0,
+    );
+    if (orders.length > 0) {
+      const totalSale = orders.reduce(
+        (s: number, r: { sale_amount: number | null }) => s + Number(r.sale_amount),
+        0,
+      );
+      avgOrderValue = parseFloat((totalSale / orders.length).toFixed(2));
+    }
+  } catch {
+    // best-effort — fall back to 0 rather than surfacing a commission-query
+    // error in the summary KPI response
+    avgOrderValue = 0;
+  }
 
   let growthRatePct = 0;
   if (prevClicks > 0) {
@@ -115,12 +143,23 @@ export async function getTopProductsWithRevenue(
 
 // ── Domain / site breakdown (super-admin) ───────────────────────────────
 
-export async function getDomainPerformance(sinceIso: string): Promise<DomainPerformanceRow[]> {
-  const sites = await listSites();
+/**
+ * B-F2: this function iterates listSites() (the full tenant registry) and
+ * counts clicks per site — it is inherently cross-tenant. The previous
+ * implementation used the default RLS-bound tenant client, so every non-active
+ * site returned 0 clicks and $0 revenue (the RLS policy filtering by
+ * current_request_site_ids() denied access). The caller MUST pass a privileged
+ * client so the rollup reflects real per-tenant data.
+ */
+export async function getDomainPerformance(
+  sinceIso: string,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<DomainPerformanceRow[]> {
+  const sites = await listSites(getClient);
 
   const rows = await Promise.all(
     sites.map(async (site) => {
-      const clicks = await getClickCount(site.id, sinceIso);
+      const clicks = await getClickCount(site.id, sinceIso, undefined, getClient);
       const ratePerClick = Number(site.est_revenue_per_click ?? 0);
       return {
         siteId: site.id,

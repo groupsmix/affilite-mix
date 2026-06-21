@@ -53,6 +53,11 @@ const SERVICE_ROLE_ALLOWLIST = new Set([
   // Hard-deleting a tenant registry row requires the privileged client — the
   // tenant client cannot reach the global `sites` table. Safe by construction.
   "app/api/admin/sites/[id]/route.ts",
+  // B-F2: domain performance rollup is a super_admin-only cross-tenant aggregate
+  // (requireSuperAdmin gate). The default RLS client only sees the active site,
+  // so all non-active tenants returned 0 — the privileged client is required to
+  // get real per-tenant click/revenue data. Mirrors lib/security/service-role-allowlist.ts.
+  "app/api/admin/analytics/domains/route.ts",
 ]);
 
 describe("F-SEC-01: admin routes must not use service-role client", () => {
