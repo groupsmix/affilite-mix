@@ -65,6 +65,23 @@ variable "access_audience" {
   description = "Cloudflare Access audience tag for SSO integration. Required for Access protection."
 }
 
+# T4-#4: Replace the wildcard email_domain="*" Access policy that allowed any
+# authenticated Google/GitHub identity through the admin gate. Default is []
+# (deny everyone — fail-closed). Set to your admin email(s) in a tfvars file:
+#
+#   admin_allowed_emails = ["you@yourdomain.com"]
+#
+# or via TF_VAR_admin_allowed_emails at apply time.
+variable "admin_allowed_emails" {
+  type        = list(string)
+  default     = []
+  description = "T4-#4: Email addresses explicitly allowed through the Cloudflare Access admin gate. Replaces email_domain='*' wildcard. Must be non-empty when Access is enabled."
+  validation {
+    condition     = length(var.admin_allowed_emails) > 0 || var.access_audience == null
+    error_message = "admin_allowed_emails must contain at least one email when Access is enabled (access_audience is set)."
+  }
+}
+
 # T4-#9: replaces the former wildcard allowed_origins / allowed_headers = ["*"]
 # on the admin Access app CORS config. Default is empty (no cross-origin requests
 # permitted), which is correct for a same-origin admin SPA. Set to your admin
@@ -574,16 +591,16 @@ resource "cloudflare_zero_trust_access_application" "admin_segment" {
   policies = [{
     name     = "Require Authentication"
     decision = "allow"
-    include = [
-      {
-        email_domain = { domain = "*" } # Allow any authenticated email - refine for production
+    # T4-#4: explicit email allow-list replaces the former email_domain="*" wildcard.
+    # Set var.admin_allowed_emails in tfvars to your admin email(s) before applying.
+    # An empty list (default) is fail-closed and will block everyone — the validation
+    # block above ensures it must be populated when Access is active.
+    dynamic "include" {
+      for_each = var.admin_allowed_emails
+      content {
+        email = { email = include.value }
       }
-    ]
-    require = [
-      {
-        email = { email = "*" } # Require email authentication
-      }
-    ]
+    }
   }]
 
   # T4-#9: replace wildcard CORS (origins + headers = ["*"]) with explicit
