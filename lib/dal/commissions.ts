@@ -84,16 +84,22 @@ export async function ingestCommissions(
     const { data: existing } = await sb
       .from(COMMISSION_TABLE)
       .select("id")
+      // Audit #3: scope the existing-row check to the tenant so accounting
+      // (inserted vs. skipped) and dedup are per-site, matching the
+      // (site_id, network, order_id) unique index.
+      .eq("site_id", row.site_id)
       .eq("network", row.network)
       .eq("order_id", order_id)
       .maybeSingle();
 
     // Bug 6: upsert (was insert-only) so a re-reported sale updates its status
-    // and amounts instead of erroring on 23505 and being silently skipped. The
-    // onConflict target matches the full unique index from migration 2026062003.
+    // and amounts instead of erroring on 23505 and being silently skipped.
+    // Audit #3: the onConflict target is the (site_id, network, order_id) unique
+    // index (migration 2026062101) so commissions dedup per-tenant and one
+    // tenant can no longer overwrite another tenant's row on a colliding order_id.
     const { error } = await sb
       .from(COMMISSION_TABLE)
-      .upsert(row, { onConflict: "network,order_id" })
+      .upsert(row, { onConflict: "site_id,network,order_id" })
       .select("id")
       .single();
 
