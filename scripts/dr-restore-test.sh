@@ -2,12 +2,23 @@
 # DR Drill Evidence: Automated restore test for Supabase
 # This script spins up a local Supabase instance, applies migrations, and seeds test data to verify backup integrity.
 
-set -e
+# T4-#16: use -euo pipefail so unbound variables and pipe failures are caught.
+# Previously set -e only; that missed failures in pipelines and refs to unset vars.
+set -euo pipefail
 
 echo "Starting Disaster Recovery Restore Drill..."
 
 # Start local Supabase (acting as the 'recovered' instance)
-supabase start || echo "Supabase already running"
+# T4-#16: gate the db reset on a successful start so a failed start (beyond
+# "already running") doesn't trigger supabase db reset unconditionally.
+if ! supabase start 2>&1 | tee /tmp/supabase-start.log; then
+  if grep -q "already running" /tmp/supabase-start.log 2>/dev/null; then
+    echo "Supabase already running, continuing..."
+  else
+    echo "❌ supabase start failed — aborting (see above for details)"
+    exit 1
+  fi
+fi
 
 # Reset the database to apply all migrations from scratch
 supabase db reset

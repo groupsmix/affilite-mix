@@ -35,12 +35,16 @@ jobs:
       - name: Rollback deployment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # T4-#13: pass user-controlled inputs via env vars so they cannot
+          # be interpreted as shell when interpolated into run: blocks.
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          echo "Rolling back $WORKER_NAME to version: ${{ inputs.deployment_id }}"
+          echo "Rolling back $WORKER_NAME to version: $DEPLOYMENT_ID"
           npx --yes wrangler@${WRANGLER_VERSION} versions rollback \
             --name "$WORKER_NAME" \
-            --version-id "${{ inputs.deployment_id }}" \
-            --message "Rollback triggered by GitHub Actions (run ${{ github.run_id }})" \
+            --version-id "$DEPLOYMENT_ID" \
+            --message "Rollback triggered by GitHub Actions (run $RUN_ID)" \
             --yes
 
       - name: Post-rollback smoke tests
