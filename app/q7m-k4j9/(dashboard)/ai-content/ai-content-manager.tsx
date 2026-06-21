@@ -119,10 +119,8 @@ export function AIContentManager({
     setActionLoading(id);
     setError(null);
     try {
-      // B-F6: capture res so non-OK responses are detected and surfaced.
-      // Previously the response was discarded and onRefresh() was always
-      // called, making a 403/404/500 look like a successful delete until
-      // the next data load brought the draft back.
+      // T3-F6: check res.ok — sibling create/update handlers do this;
+      // handleDelete previously always called onRefresh() on non-OK responses.
       const res = await fetchWithCsrf("/api/admin/ai-content", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -130,12 +128,10 @@ export function AIContentManager({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError((data as { error?: string }).error ?? "Delete failed");
+        setError((data as { error?: string }).error || "Delete failed");
         return;
       }
       void onRefresh();
-    } catch {
-      setError("Delete failed");
     } finally {
       setActionLoading(null);
     }

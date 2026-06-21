@@ -57,18 +57,16 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
   async function handleDelete(id: string) {
     if (!confirm("Remove this network configuration?")) return;
     try {
-      // B-F7: capture res so non-OK responses are detected and surfaced.
-      // Previously a server-rejected delete fell through to onRefresh(),
-      // so the config re-appeared with no error shown (only an actual
-      // network-level throw was surfaced via catch).
+      // T3-F7: check res.ok — a non-OK response previously fell through to
+      // onRefresh() as if the delete succeeded; only a thrown network error
+      // surfaced the catch block.
       const res = await fetchWithCsrf("/api/admin/affiliate-networks", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError((data as { error?: string }).error ?? "Failed to delete");
+        setError("Failed to delete");
         return;
       }
       void onRefresh();

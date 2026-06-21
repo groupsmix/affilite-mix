@@ -44,43 +44,42 @@ export async function POST(request: NextRequest) {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    // B-F1: a product may have multiple active links per (site_id, product_id,
-    // network) — e.g. geo-split or weighted A/B links. The previous per-link loop
-    // counted clicks for a single URL and then upserted on (site_id, product_id,
-    // network), so each iteration overwrote the same row and only the LAST link's
-    // click count survived. With two active links A (clicks=a) and B (clicks=b)
-    // and total commissions C: stored clicks=b (last), epc=C/b — inflated by
-    // (a+b)/b. Group by (site_id, product_id, network) first, collect all URLs,
-    // then count with .in() so the stored result is always clicks=a+b, epc=C/(a+b).
-    type LinkRow = {
+    let updated = 0;
+
+    // T3-F1: a product may have multiple active links per network (geo/weight
+    // A/B split). The previous per-link loop counted clicks for one URL at a
+    // time but summed commissions per (product, network) — so when a product
+    // had 2+ active links on the same network, each iteration overwrote the
+    // same upsert row with: commissions_total / last_link_clicks = inflated EPC
+    // and undercounted clicks. This fed epc-tie-break ranking upward.
+    //
+    // Fix: group by (site_id, product_id, network), count clicks across ALL
+    // the group's URLs with .in(), and upsert exactly ONE row per group.
+    const groups = new Map<
+      string,
+      { site_id: string; product_id: string; network: string; urls: string[] }
+    >();
+    for (const link of links as {
       product_id: string;
       network: string;
       url: string;
       products: { site_id: string };
-    };
-    type LinkGroup = { site_id: string; product_id: string; network: string; urls: string[] };
-
-    const groups = new Map<string, LinkGroup>();
-    for (const link of links as LinkRow[]) {
+    }[]) {
       const site_id = link.products.site_id;
       const key = `${site_id}|${link.product_id}|${link.network}`;
-      const g = groups.get(key);
-      if (g) {
-        g.urls.push(link.url);
-      } else {
+      const existing = groups.get(key);
+      if (existing) existing.urls.push(link.url);
+      else
         groups.set(key, {
           site_id,
           product_id: link.product_id,
           network: link.network,
           urls: [link.url],
         });
-      }
     }
 
-    let updated = 0;
-
     for (const g of groups.values()) {
-      // Count clicks across ALL URLs for this (site, product, network) group.
+      // Count clicks (30d and 7d) across ALL of this group's URLs.
       const { count: clicks30d } = await sb
         // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
         .from("affiliate_clicks")
@@ -99,7 +98,7 @@ export async function POST(request: NextRequest) {
         .in("affiliate_url", g.urls)
         .gte("created_at", sevenDaysAgo);
 
-      // Sum commissions (30d and 7d) — scoped to this product+network group.
+      // Sum commissions (30d and 7d)
       const { data: comm30d } = await untypedFrom(sb, "commissions")
         .select("commission_amount")
         // F-API-01: rollup is per (product, network); intentionally cross-tenant.
