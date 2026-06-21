@@ -65,6 +65,23 @@ variable "access_audience" {
   description = "Cloudflare Access audience tag for SSO integration. Required for Access protection."
 }
 
+# T4-#4: Replace the wildcard email_domain="*" Access policy that allowed any
+# authenticated Google/GitHub identity through the admin gate. Default is empty
+# (deny everyone — fail-closed). Set to your admin email address(es) in a
+# tfvars file or via TF_VAR_admin_allowed_emails before running terraform apply.
+#
+# Example tfvars:
+#   admin_allowed_emails = ["you@yourdomain.com"]
+variable "admin_allowed_emails" {
+  type        = list(string)
+  default     = []
+  description = "T4-#4: Email addresses explicitly allowed through the Cloudflare Access admin gate. Replaces email_domain='*'. Set to your actual admin email(s) before applying."
+  validation {
+    condition     = length(var.admin_allowed_emails) > 0 || var.access_audience == null
+    error_message = "admin_allowed_emails must contain at least one email when Access is enabled (access_audience is set). The wildcard policy has been removed."
+  }
+}
+
 variable "cloudflare_account_id" {
   type        = string
   description = "Cloudflare account ID that owns the zone (used for account-scoped resources like Logpush)."
@@ -564,16 +581,16 @@ resource "cloudflare_zero_trust_access_application" "admin_segment" {
   policies = [{
     name     = "Require Authentication"
     decision = "allow"
-    include = [
-      {
-        email_domain = { domain = "*" } # Allow any authenticated email - refine for production
+    # T4-#4: explicit email allow-list replaces the former email_domain="*" wildcard.
+    # Set var.admin_allowed_emails in tfvars to your admin email address(es).
+    # The validation block on the variable ensures this list is non-empty when
+    # Access is enabled, so an empty list is fail-closed (denies everyone).
+    dynamic "include" {
+      for_each = var.admin_allowed_emails
+      content {
+        email = { email = include.value }
       }
-    ]
-    require = [
-      {
-        email = { email = "*" } # Require email authentication
-      }
-    ]
+    }
   }]
 
   # F-08: Protect the admin segment path

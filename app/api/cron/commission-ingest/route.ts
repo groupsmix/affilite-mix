@@ -8,7 +8,6 @@ import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { recordCronLiveness } from "@/lib/cron-liveness";
-import { createHmac } from "crypto";
 
 /**
  * GET /api/cron/commission-ingest
@@ -94,8 +93,6 @@ interface NormalizedCommission {
   sale_amount?: number;
   event_date: string;
   raw_data?: Record<string, unknown>;
-  /** F-034: HMAC of the raw API response body for integrity verification */
-  response_hmac?: string;
 }
 
 type ResolvedCommission = {
@@ -151,14 +148,6 @@ async function resolveCommissions(
   return { resolved, discarded };
 }
 
-// F-034: Compute HMAC-SHA256 of raw response body for integrity verification.
-// The HMAC key is derived from the network API key so it's unique per network
-// and rotates when the API key changes.
-function computeResponseHmac(rawBody: string, apiKey: string): string {
-  const hmacKey = `commission-hmac:${apiKey}`;
-  return createHmac("sha256", hmacKey).update(rawBody).digest("hex");
-}
-
 async function fetchCjReports(): Promise<NormalizedCommission[]> {
   const apiKey = process.env.CJ_API_KEY;
   if (!apiKey) {
@@ -183,9 +172,13 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
     throw new Error(`CJ API failed (${response.status}): ${errorText}`);
   }
 
-  // F-034: Capture raw body for HMAC before JSON parsing
+  // T3-F4: removed dead response_hmac / computeResponseHmac (F-034 claim).
+  // The HMAC was computed but NormalizedCommission.response_hmac was dropped
+  // by ResolvedCommission and never persisted or verified — a no-op security
+  // control that overstated the threat model. Removed rather than leaving a
+  // false claim. Wire up properly (persist column + verify on read) when the
+  // real upstream-feed integrity requirement is defined.
   const rawBody = await response.text();
-  const responseHmac = computeResponseHmac(rawBody, apiKey);
   const data = JSON.parse(rawBody);
   return (data.commissions || []).map((c: Record<string, unknown>) => ({
     tracking_key: typeof c.shopperId === "string" ? c.shopperId : "",
@@ -196,7 +189,6 @@ async function fetchCjReports(): Promise<NormalizedCommission[]> {
     status: typeof c.actionStatus === "string" ? c.actionStatus : undefined,
     event_date: typeof c.eventDate === "string" ? c.eventDate : new Date().toISOString(),
     raw_data: c,
-    response_hmac: responseHmac,
   }));
 }
 
@@ -218,9 +210,7 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
     throw new Error(`Admitad API failed (${response.status}): ${errorText}`);
   }
 
-  // F-034: Capture raw body for HMAC before JSON parsing
   const rawBody = await response.text();
-  const responseHmac = computeResponseHmac(rawBody, apiKey);
   const data = JSON.parse(rawBody);
   return (data.results || []).map((c: Record<string, unknown>) => ({
     tracking_key: typeof c.subid === "string" ? c.subid : "",
@@ -231,7 +221,6 @@ async function fetchAdmitadReports(): Promise<NormalizedCommission[]> {
     status: typeof c.status === "string" ? c.status : undefined,
     event_date: typeof c.action_date === "string" ? c.action_date : new Date().toISOString(),
     raw_data: c,
-    response_hmac: responseHmac,
   }));
 }
 
@@ -253,9 +242,7 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
     throw new Error(`PartnerStack API failed (${response.status}): ${errorText}`);
   }
 
-  // F-034: Capture raw body for HMAC before JSON parsing
   const rawBody = await response.text();
-  const responseHmac = computeResponseHmac(rawBody, apiKey);
   const data = JSON.parse(rawBody);
   return (data.transactions || []).map((c: Record<string, unknown>) => ({
     tracking_key: typeof c.customer_key === "string" ? c.customer_key : "",
@@ -266,6 +253,5 @@ async function fetchPartnerStackReports(): Promise<NormalizedCommission[]> {
     status: typeof c.status === "string" ? c.status : undefined,
     event_date: typeof c.created_at === "string" ? c.created_at : new Date().toISOString(),
     raw_data: c,
-    response_hmac: responseHmac,
   }));
 }
