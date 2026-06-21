@@ -71,21 +71,24 @@ async function main() {
 
   const varName = toVarName(id);
 
-  const featuresArray = features.map((f) => `    "${f}",`).join("\n");
+  // T4-#6: use JSON.stringify for every interpolated value so characters like
+  // quotes, backslashes, or template literals in user input cannot break the
+  // generated TypeScript module (which would fail the build for ALL tenants).
+  const featuresArray = features.map((f) => `    ${JSON.stringify(f)},`).join("\n");
 
   const fileContent = `import { defineSite } from "../define-site";
 
 export const ${varName} = defineSite({
-  id: "${id}",
-  name: "${name}",
-  domain: "${domain}",
-  niche: "${niche}",
-  description: "${description}",
-  language: "${language}",
+  id: ${JSON.stringify(id)},
+  name: ${JSON.stringify(name)},
+  domain: ${JSON.stringify(domain)},
+  niche: ${JSON.stringify(niche)},
+  description: ${JSON.stringify(description)},
+  language: ${JSON.stringify(language)},
 
-  colors: { primary: "${primary}", accent: "${accent}" },
-  fonts: "${fonts}",
-  homepage: "${homepage}",
+  colors: { primary: ${JSON.stringify(primary)}, accent: ${JSON.stringify(accent)} },
+  fonts: ${JSON.stringify(fonts)},
+  homepage: ${JSON.stringify(homepage)},
 
   features: [
 ${featuresArray}
