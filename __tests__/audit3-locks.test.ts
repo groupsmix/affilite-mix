@@ -190,7 +190,13 @@ describe("Audit-3 regression locks", () => {
       // tenant client cannot reach the global `sites` table. Safe by
       // construction; justification comment lives next to the entry in the
       // allowlist.
-      expect(count).toBeLessThanOrEqual(37);
+      // Bumped 37 -> 38: T3-F2 domain-rollup — getDomainPerformance
+      // (lib/dal/analytics-dashboard.ts) iterates the whole site registry via
+      // listSites() + getClickCount() and must read via the privileged gateway,
+      // since the RLS tenant client only sees the active site and zeroed every
+      // other tenant's clicks/revenue. super_admin-gated cross-tenant rollup by
+      // design; justification comment lives next to the entry in the allowlist.
+      expect(count).toBeLessThanOrEqual(38);
     });
   });
 

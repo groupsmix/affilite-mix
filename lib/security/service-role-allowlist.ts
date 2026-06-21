@@ -149,6 +149,14 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // before a site is set as active).
   "app/api/admin/sites/stats/route.ts",
 
+  // T3-F2: Performance-by-domain rollup (getDomainPerformance) iterates the
+  // whole site registry via listSites() + getClickCount() and must bypass the
+  // RLS tenant client, which only sees the active site and therefore zeroed
+  // every other tenant's clicks/revenue. Callers are super_admin-gated; this
+  // is an inherently cross-tenant aggregation, so the privileged client is
+  // required by design.
+  "lib/dal/analytics-dashboard.ts",
+
   // Health liveness probe uses service-role for the DB connectivity check.
   // getTenantClient() mints HS256 JWTs which break when Supabase is
   // configured with asymmetric-only signing keys. The health endpoint is
