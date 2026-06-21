@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
+import { assertRole } from "@/lib/admin-guard";
 import {
   listNicheTemplates,
   createNicheTemplate,
@@ -29,6 +30,15 @@ export const POST = withAuthz(
   "settings",
   "create",
   async (request, { session, siteId: dbSiteId }) => {
+    // F9: niche templates are a GLOBAL resource (deleteNicheTemplate/createNicheTemplate
+    // are not tenant-scoped). The withAuthz("settings","create"/"delete") permission
+    // pair does not exist in the catalog (migration 00028 seeds only settings:view /
+    // settings:manage), so today it resolves super_admin-only by accident. Gate it
+    // EXPLICITLY so that if anyone ever seeds settings:create/settings:delete, a
+    // per-site admin does not silently gain write over global templates.
+    const roleError = assertRole(session, "super_admin");
+    if (roleError) return roleError;
+
     const rlResponse = await enforceAdminRateLimit("sites-templates", session);
     if (rlResponse) return rlResponse;
 
@@ -78,6 +88,11 @@ export const DELETE = withAuthz(
   "settings",
   "delete",
   async (request, { session, siteId: dbSiteId }) => {
+    // F9: see POST — explicitly gate this global-resource mutation on super_admin
+    // rather than relying on the (currently non-existent) settings:delete permission.
+    const roleError = assertRole(session, "super_admin");
+    if (roleError) return roleError;
+
     const rlResponse = await enforceAdminRateLimit("sites-templates", session);
     if (rlResponse) return rlResponse;
 

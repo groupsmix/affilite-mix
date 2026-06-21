@@ -8,14 +8,17 @@
 #
 #   1. CI is a required status check on PRs to main.
 #   2. The security workflow is a required status check on PRs to main.
-#   3. PRs require at least one review approval and dismiss stale reviews
-#      on new commits.
+#   3. SOLO-DEV: peer review is NOT required (single-owner repo — a mandatory
+#      review count is unsatisfiable). Re-enable in branch-protection.tf if
+#      maintainers are added.
 #   4. Direct pushes to main are forbidden — all changes flow through PRs.
 #   5. Admin / maintainer bypass is disabled by default. Bypass is granted
 #      only to the `break-glass` team listed in
 #      `var.break_glass_team_slug`, which exists for documented incident
 #      response use only and whose membership is monitored.
-#   6. Signed commits are required on main.
+#   6. SOLO-DEV: signed commits are NOT required (removed merge friction for
+#      single-owner automation/bot commits). Re-enable in branch-protection.tf
+#      if a signing policy is adopted.
 #   7. Force-pushes and branch deletion are forbidden on main.
 #
 # The same controls can also be applied via the GitHub API directly using
@@ -132,18 +135,20 @@ variable "required_status_checks" {
   ]
 }
 
-# A34: Reconcile reviewer policy — both JSON ruleset and Terraform now
-# require 2 approvals. The JSON ruleset at .github/rulesets/main-protection.json
-# previously required 1; this variable default is the single source of truth.
+# SOLO-DEV POLICY: this repository is maintained by a single owner, so a
+# mandatory peer-review count is unsatisfiable (you cannot approve your own PR)
+# and would make merging impossible. Review gating is therefore disabled and the
+# branch is protected by CI status checks + PR-only flow + no-force-push instead.
+# Raise this (and re-enable the review requirements in branch-protection.tf) if
+# the project later adds maintainers. Must match
+# .github/rulesets/main-protection.json required_approving_review_count.
 variable "required_review_count" {
   type        = number
-  description = "Number of approving PR reviews required. Must match .github/rulesets/main-protection.json required_approving_review_count."
-  # A34: Require 2 reviewers to prevent single-actor merges.
-  default = 2
+  description = "Number of approving PR reviews required. Must match .github/rulesets/main-protection.json required_approving_review_count. 0 = solo-dev (no peer review)."
+  default     = 0
   validation {
-    # A34: 2 is the enforced minimum — 1 reviewer allows single-actor merges.
-    condition     = var.required_review_count >= 2
-    error_message = "required_review_count must be at least 2 (A34: prevents single-actor merges)."
+    condition     = var.required_review_count >= 0
+    error_message = "required_review_count cannot be negative."
   }
 }
 

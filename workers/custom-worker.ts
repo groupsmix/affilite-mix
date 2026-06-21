@@ -19,7 +19,7 @@ import { default as handler } from "../.open-next/worker.js";
 import { withSentry, captureException } from "@sentry/cloudflare";
 import { RateLimiterDO } from "./rate-limiter-do";
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
-import { signInternalRequest } from "../lib/internal-hmac";
+import { buildInternalHmacContext, signInternalRequest } from "../lib/internal-hmac";
 import { logger } from "../lib/logger";
 
 // Minimal type stubs for Cloudflare Worker APIs (provided by the runtime)
@@ -170,7 +170,14 @@ const worker = {
     env: Record<string, unknown>,
     ctx: CloudflareExecutionContext,
   ) {
-    if (batch.queue === "click-tracking-dlq") {
+    // T4-#3: recognise both production and staging queue names. The DLQ
+    // consumers (click-tracking-dlq / -staging) are wired in wrangler.jsonc;
+    // without this generalisation a staging batch would fall through to the
+    // "unknown queue" ackAll() below and be silently dropped.
+    const DLQ_QUEUES = new Set(["click-tracking-dlq", "click-tracking-dlq-staging"]);
+    const MAIN_QUEUES = new Set(["click-tracking", "click-tracking-staging"]);
+
+    if (DLQ_QUEUES.has(batch.queue)) {
       // R5: DLQ consumer. Every dead letter represents a click whose revenue
       // attribution we have lost. Until a persistent `click_failures` table
       // (or equivalent) is wired up, log each payload individually so the
@@ -192,10 +199,17 @@ const worker = {
             try {
               const dlqBody = JSON.stringify({ messages: batch.messages.map((m) => m.body) });
               // FIX-03: Sign with HMAC; keep Bearer for backward compat during migration
-              const hmacHeaders = await signInternalRequest(internalToken as string, dlqBody, {
-                Authorization: `Bearer ${internalToken}`,
-                "Content-Type": "application/json",
-              });
+              const hmacHeaders = await signInternalRequest(
+                internalToken as string,
+                dlqBody,
+                {
+                  Authorization: `Bearer ${internalToken}`,
+                  "Content-Type": "application/json",
+                },
+                // audit #7: bind the exact operation we are about to POST,
+                // including ?dlq=true, so the signature can't be re-pointed.
+                buildInternalHmacContext("POST", dlqUrl),
+              );
               const res = await fetch(dlqUrl, {
                 method: "POST",
                 headers: hmacHeaders,
@@ -234,7 +248,7 @@ const worker = {
       return;
     }
 
-    if (batch.queue !== "click-tracking") {
+    if (!MAIN_QUEUES.has(batch.queue)) {
       // Unknown queue — ack so it doesn't loop forever
       batch.ackAll();
       return;
@@ -277,10 +291,17 @@ const worker = {
           };
           const queueBody = JSON.stringify(envelope);
           // FIX-03: Sign with HMAC; keep Bearer for backward compat during migration
-          const hmacHeaders = await signInternalRequest(internalToken as string, queueBody, {
-            Authorization: `Bearer ${internalToken}`,
-            "Content-Type": "application/json",
-          });
+          const hmacHeaders = await signInternalRequest(
+            internalToken as string,
+            queueBody,
+            {
+              Authorization: `Bearer ${internalToken}`,
+              "Content-Type": "application/json",
+            },
+            // audit #7: bind method + path (no ?dlq) so this normal-queue
+            // signature can't be replayed against the dlq branch.
+            buildInternalHmacContext("POST", url),
+          );
           const res = await fetch(url, {
             method: "POST",
             headers: hmacHeaders,

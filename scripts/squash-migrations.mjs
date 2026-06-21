@@ -3,27 +3,12 @@
 /**
  * F-06 / ADR-0013: Migration Squashing Script
  *
- * This script generates a baseline migration from the current database schema
- * and archives existing migrations to improve bootstrap time for fresh environments.
- *
  * USAGE:
- *   node scripts/squash-migrations.mjs
+ *   node scripts/squash-migrations.mjs --yes
  *
- * PREREQUISITES:
- *   - Supabase CLI installed and authenticated
- *   - SUPABASE_DB_URL environment variable set
- *   - Access to the target database (production or staging)
- *
- * PROCESS:
- *   1. Takes a schema-only dump of the current database
- *   2. Saves as supabase/migrations/00000_baseline.sql
- *   3. Moves existing migrations to supabase/migrations/_archive/
- *   4. Verifies the baseline produces identical schema
- *
- * SAFETY:
- *   - Never squash migrations that haven't been applied to production
- *   - Always verify schema parity before and after squash
- *   - Keep rollback capability via the _archive/ directory
+ * --yes is REQUIRED to prevent accidental execution. Squashing archives all
+ * existing migration files and rewrites the baseline — a destructive local
+ * operation that must be intentional.
  */
 
 import { execSync } from "child_process";
@@ -182,6 +167,18 @@ function verifySchema() {
 }
 
 function main() {
+  // T4-#15: require explicit --yes flag to prevent accidental execution.
+  // archiveExistingMigrations() moves ALL migration files, which is
+  // irreversible without a git checkout. Fail loudly without the flag.
+  if (!process.argv.includes("--yes")) {
+    console.error(
+      "\nERROR: squash-migrations requires --yes to confirm the destructive operation.\n" +
+        "  This will archive ALL existing migrations and rewrite the baseline.\n" +
+        "  If you are sure, re-run with: node scripts/squash-migrations.mjs --yes\n",
+    );
+    process.exit(1);
+  }
+
   log("=== F-06 / ADR-0013: Migration Squashing ===");
   log("");
 

@@ -39,6 +39,9 @@ export interface AdminUserRow {
   totp_secret: string | null;
   totp_enabled: boolean;
   totp_verified_at: string | null;
+  // F4: highest TOTP time-step consumed. Strictly greater-than on persist;
+  // NULL means "no baseline" — first use after enrollment passes through.
+  totp_last_step: number | null;
   totp_failed_attempts: number;
   totp_locked_until: string | null;
   login_failed_attempts: number;
@@ -59,7 +62,7 @@ export type AdminUserPublic = Omit<
 
 const TABLE = "admin_users";
 const ALL_COLUMNS =
-  "id, email, password_hash, name, role, is_active, totp_secret, totp_enabled, totp_verified_at, totp_failed_attempts, totp_locked_until, login_failed_attempts, login_locked_until, reset_token, reset_token_expires_at, created_at, updated_at" as const;
+  "id, email, password_hash, name, role, is_active, totp_secret, totp_enabled, totp_verified_at, totp_last_step, totp_failed_attempts, totp_locked_until, login_failed_attempts, login_locked_until, reset_token, reset_token_expires_at, created_at, updated_at" as const;
 
 /** Find an active admin user by email (for login) */
 export async function getAdminUserByEmail(
@@ -169,6 +172,7 @@ export async function updateAdminUser(
       | "totp_secret"
       | "totp_enabled"
       | "totp_verified_at"
+      | "totp_last_step"
       | "totp_failed_attempts"
       | "totp_locked_until"
       | "login_failed_attempts"

@@ -37,18 +37,25 @@ DB_URL="${STAGING_DATABASE_URL:-${DR_DATABASE_URL:-}}"
 backup() {
   require_env DB_URL
   echo "==> Creating compressed backup..."
+  # T4-#8: use --format=plain (SQL text) so the restore step can rename the
+  # schema via sed before piping to psql. Custom format + pg_restore --schema
+  # is a FILTER on the archive's schema name, not a remap target — a public-
+  # schema dump with --schema=dr_test restores zero objects.
   pg_dump "$DB_URL" \
     --no-owner \
     --no-privileges \
     --schema=public \
-    --format=custom \
+    --format=plain \
     | gzip > "$DUMP_FILE"
   echo "    Backup written to $DUMP_FILE ($(du -h "$DUMP_FILE" | cut -f1))"
 }
 
 verify_schema() {
+  # T4-#8: accept an optional schema name so the restore drill can verify the
+  # RESTORED dr_test schema instead of always checking the live public schema.
+  local SCHEMA="${1:-public}"
   require_env DB_URL
-  echo "==> Verifying schema integrity..."
+  echo "==> Verifying schema integrity (schema: $SCHEMA)..."
 
   local FAILED=0
 
@@ -60,7 +67,7 @@ verify_schema() {
   )
 
   for table in "${TABLES[@]}"; do
-    if psql "$DB_URL" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='$table')" 2>/dev/null | grep -q "t"; then
+    if psql "$DB_URL" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='$SCHEMA' AND table_name='$table')" 2>/dev/null | grep -q "t"; then
       echo "    ✓ $table"
     else
       echo "    ✗ $table MISSING"
@@ -68,16 +75,19 @@ verify_schema() {
     fi
   done
 
-  # RLS enforcement
-  local RLS_TABLES=(sites content products affiliate_clicks)
-  for table in "${RLS_TABLES[@]}"; do
-    if psql "$DB_URL" -tAc "SELECT rowsecurity FROM pg_tables WHERE schemaname='public' AND tablename='$table'" 2>/dev/null | grep -q "t"; then
-      echo "    ✓ RLS on $table"
-    else
-      echo "    ✗ RLS NOT on $table"
-      FAILED=$((FAILED + 1))
-    fi
-  done
+  # RLS enforcement — only meaningful on the live public schema; dr_test is a
+  # throwaway restore target and RLS policies are not included in plain dumps.
+  if [ "$SCHEMA" = "public" ]; then
+    local RLS_TABLES=(sites content products affiliate_clicks)
+    for table in "${RLS_TABLES[@]}"; do
+      if psql "$DB_URL" -tAc "SELECT rowsecurity FROM pg_tables WHERE schemaname='$SCHEMA' AND tablename='$table'" 2>/dev/null | grep -q "t"; then
+        echo "    ✓ RLS on $table"
+      else
+        echo "    ✗ RLS NOT on $table"
+        FAILED=$((FAILED + 1))
+      fi
+    done
+  fi
 
   # Migration parity
   local DISK_COUNT
@@ -95,27 +105,39 @@ verify_schema() {
 restore() {
   backup
 
-  echo "==> Restore drill: dropping and recreating from backup..."
-  # Create a temporary test schema to avoid touching public
+  echo "==> Restore drill: creating scratch schema dr_test..."
   psql "$DB_URL" -c "DROP SCHEMA IF EXISTS dr_test CASCADE; CREATE SCHEMA dr_test;" 2>/dev/null || true
 
   echo "==> Restoring backup into dr_test schema..."
-  gunzip -c "$DUMP_FILE" | pg_restore \
-    --dbname="$DB_URL" \
-    --schema=dr_test \
-    --no-owner \
-    --no-privileges \
-    --if-exists \
-    --clean \
-    2>/dev/null || true
+  # T4-#8: plain pg_dump sets `SET search_path = public, pg_catalog;` before all
+  # DDL and uses unqualified names thereafter. Rename that to dr_test so every
+  # restored object lands in dr_test, not in the live public schema. This makes
+  # the restore a genuine exercise of the recovery path without touching live data.
+  gunzip -c "$DUMP_FILE" \
+    | sed 's/SET search_path = public/SET search_path = dr_test/g' \
+    | psql "$DB_URL" --single-transaction -v ON_ERROR_STOP=0 >/dev/null 2>&1 || true
+
+  # Verify the restore ACTUALLY populated dr_test. A count of 0 means the
+  # restore path is broken — fail loudly rather than silently always-passing.
+  local TABLE_COUNT
+  TABLE_COUNT=$(psql "$DB_URL" -tAc \
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='dr_test'" \
+    2>/dev/null | tr -d ' ' || echo 0)
+  if [ "${TABLE_COUNT:-0}" -eq 0 ]; then
+    echo "ERROR: DR drill restore produced 0 tables in dr_test — restore path is broken."
+    psql "$DB_URL" -c "DROP SCHEMA IF EXISTS dr_test CASCADE;" 2>/dev/null || true
+    rm -f "$DUMP_FILE"
+    exit 1
+  fi
+  echo "    Restored ${TABLE_COUNT} tables into dr_test."
+
+  echo "==> Verifying restored schema (dr_test)..."
+  verify_schema "dr_test"
 
   echo "==> Cleaning up test schema..."
   psql "$DB_URL" -c "DROP SCHEMA IF EXISTS dr_test CASCADE;" 2>/dev/null || true
 
-  echo "==> Verifying production schema is intact..."
-  verify_schema
-
-  echo "==> DR drill complete. Cleaning up dump file..."
+  echo "==> DR drill complete — restore path verified. Cleaning up dump file..."
   rm -f "$DUMP_FILE"
 }
 

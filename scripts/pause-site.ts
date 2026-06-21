@@ -78,19 +78,20 @@ async function main() {
     );
 
     // Remove from allSites array
+    // T4-#10: use word boundaries so a varName that is a substring of another
+    // (e.g. "pet" vs "carpet") doesn't accidentally remove the wrong entry.
     const varName = toVarName(target);
-    updated = updated.replace(new RegExp(`,?\\s*${varName}`, "g"), (match) => {
-      // If it starts with comma, remove the comma too
+    updated = updated.replace(new RegExp(`,?\\s*\\b${varName}\\b`, "g"), () => {
       return "";
     });
 
     // Remove from re-export
     updated = updated.replace(
-      new RegExp(`(export \\{[^}]*),\\s*${varName}([^}]*\\})`, "g"),
+      new RegExp(`(export \\{[^}]*),\\s*\\b${varName}\\b([^}]*\\})`, "g"),
       "$1$2",
     );
     updated = updated.replace(
-      new RegExp(`(export \\{[^}]*)${varName},?\\s*([^}]*\\})`, "g"),
+      new RegExp(`(export \\{[^}]*)\\b${varName}\\b,?\\s*([^}]*\\})`, "g"),
       "$1$2",
     );
 

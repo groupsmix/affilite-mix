@@ -182,7 +182,15 @@ describe("Audit-3 regression locks", () => {
       // roles, permissions, integration_providers and audit_log to service_role.
       // The tenant client read zero rows, blanking these pages. Each importer is
       // super_admin-gated and site-scoped — see the allowlist comments.
-      expect(count).toBeLessThanOrEqual(36);
+      // Bumped 36 -> 37: F5 audit — DELETE /api/admin/sites/[id] hard-delete
+      // path. The route is super_admin + step-up gated at the handler layer
+      // (assertRole + requireStepUpAuth) and calls deleteSite() which throws
+      // unless callerRole === "super_admin" (lib/dal/sites.ts:361). Hard-
+      // deleting a tenant registry row requires the privileged client — the
+      // tenant client cannot reach the global `sites` table. Safe by
+      // construction; justification comment lives next to the entry in the
+      // allowlist.
+      expect(count).toBeLessThanOrEqual(37);
     });
   });
 

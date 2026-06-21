@@ -65,6 +65,16 @@ variable "access_audience" {
   description = "Cloudflare Access audience tag for SSO integration. Required for Access protection."
 }
 
+# T4-#9: replaces the former wildcard allowed_origins / allowed_headers = ["*"]
+# on the admin Access app CORS config. Default is empty (no cross-origin requests
+# permitted), which is correct for a same-origin admin SPA. Set to your admin
+# hostname(s) only if the admin frontend is genuinely served from a different origin.
+variable "admin_cors_origins" {
+  type        = list(string)
+  default     = []
+  description = "Allowed CORS origins for the admin Access app. Default [] disables cross-origin (same-origin only). Set to your admin domain(s) if the admin UI is cross-origin."
+}
+
 variable "cloudflare_account_id" {
   type        = string
   description = "Cloudflare account ID that owns the zone (used for account-scoped resources like Logpush)."
@@ -576,13 +586,16 @@ resource "cloudflare_zero_trust_access_application" "admin_segment" {
     ]
   }]
 
-  # F-08: Protect the admin segment path
-  # The actual path is obfuscated as /q7m-k4j9/ in the codebase
-  # This Access rule ensures only authenticated users can reach it
+  # T4-#9: replace wildcard CORS (origins + headers = ["*"]) with explicit
+  # values. The admin Access app is same-origin for normal use and doesn't
+  # need CORS enabled; a wildcard allows any origin to make credentialed
+  # requests to the admin segment if Access is ever misconfigured.
+  # Set var.admin_cors_origins to your admin hostname(s) if cross-origin
+  # requests to the admin app are genuinely required (e.g. a separate SPA).
   cors_headers = {
     allowed_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    allowed_origins = ["*"]
-    allowed_headers = ["*"]
+    allowed_origins = var.admin_cors_origins
+    allowed_headers = ["Authorization", "Content-Type", "X-Requested-With"]
     max_age         = 86400
   }
 
