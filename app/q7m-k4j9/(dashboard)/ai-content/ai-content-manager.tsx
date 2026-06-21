@@ -117,12 +117,20 @@ export function AIContentManager({
   async function handleDelete(id: string) {
     if (!confirm("Delete this AI draft?")) return;
     setActionLoading(id);
+    setError(null);
     try {
-      await fetchWithCsrf("/api/admin/ai-content", {
+      // T3-F6: check res.ok — sibling create/update handlers do this;
+      // handleDelete previously always called onRefresh() on non-OK responses.
+      const res = await fetchWithCsrf("/api/admin/ai-content", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError((data as { error?: string }).error || "Delete failed");
+        return;
+      }
       void onRefresh();
     } finally {
       setActionLoading(null);
