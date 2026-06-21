@@ -51,27 +51,27 @@ export async function GET(request: NextRequest) {
   const sinceIso = since.toISOString();
 
   try {
-    // F7: this route reads listSites() — the whole tenant registry — but used
-    // only the requireAdminSession() guard, so any single-site admin received
-    // {activeProducts, publishedContent, clicks} + slug enumeration for EVERY
-    // tenant. Mirror the sibling list route's membership filter so non-super
-    // admins only see sites they have a row in admin_site_memberships for.
-    let allowedSiteIds: Set<string> | null = null;
-    if (session.role !== "super_admin" && session.userId) {
-      const memberships = await listAdminSiteMemberships(
-        session.userId,
-        () => getPrivilegedSupabaseClient("admin-sites-stats"),
-      );
-      allowedSiteIds = new Set(memberships.map((m) => m.site_id));
-    }
-
     // Use the privileged client to avoid HS256/asymmetric-key JWT failures —
     // the same issue caught in app/api/admin/sites/route.ts (GET handler).
     const rows = await listSites(() => getPrivilegedSupabaseClient("admin-sites-stats"));
-    const scoped = allowedSiteIds ? rows.filter((r) => allowedSiteIds!.has(r.id)) : rows;
+
+    // T1-F7 / audit-F7: non-super_admin users may only see stats for sites they
+    // belong to. Mirrors the membership filter in app/api/admin/sites/route.ts
+    // (GET). Without this, any admin session received per-tenant operational
+    // stats for EVERY site (tenant enumeration + cross-tenant metric disclosure).
+    // NOTE: main and PR #911 fixed this independently; this is the reconciled
+    // single implementation (the duplicate F7 block from #911 was dropped).
+    let scopedRows = rows;
+    if (session.role !== "super_admin" && session.userId) {
+      const memberships = await listAdminSiteMemberships(session.userId, () =>
+        getPrivilegedSupabaseClient("admin-sites-stats"),
+      );
+      const allowedSiteIds = new Set(memberships.map((m) => m.site_id));
+      scopedRows = rows.filter((row) => allowedSiteIds.has(row.id));
+    }
 
     const entries = await Promise.all(
-      scoped.map(async (row) => {
+      scopedRows.map(async (row) => {
         const [activeProducts, publishedContent, clicks] = await Promise.all([
           countProducts({ siteId: row.id, status: "active" }).catch(() => 0),
           countContent({ siteId: row.id, status: "published" }).catch(() => 0),

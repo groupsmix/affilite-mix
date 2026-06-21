@@ -50,8 +50,7 @@ function listRouteFiles(dirRel: string): string[] {
  */
 function isProperlyGated(src: string): { ok: boolean; reason: string } {
   const hasSuperAdmin =
-    src.includes("requireSuperAdmin(") ||
-    /\bassertRole\([^)]*["']super_admin["']\s*\)/.test(src);
+    src.includes("requireSuperAdmin(") || /\bassertRole\([^)]*["']super_admin["']\s*\)/.test(src);
   const hasMembershipFilter =
     src.includes("listAdminSiteMemberships(") &&
     (src.includes("allowedSiteIds") || src.includes("allowed_site_ids"));
@@ -87,16 +86,13 @@ describe("F2/F3/F7: cross-tenant data routes are properly gated", () => {
       // the sibling list route: listAdminSiteMemberships + allowedSiteIds +
       // filter() before iterating the registry.
       const src = read("app/api/admin/sites/stats/route.ts");
-      expect(src, "must import listAdminSiteMemberships").toContain(
-        "listAdminSiteMemberships",
-      );
-      expect(src, "must compute allowedSiteIds membership set").toContain(
-        "allowedSiteIds",
-      );
+      expect(src, "must import listAdminSiteMemberships").toContain("listAdminSiteMemberships");
+      expect(src, "must compute allowedSiteIds membership set").toContain("allowedSiteIds");
       // The filter must actually narrow the iterated rows, not just compute the set.
-      expect(src, "must apply allowedSiteIds.has(...) filter").toMatch(
-        /\.has\(\s*r\.id\s*\)/,
-      );
+      // Accept any parameter name (`r`, `row`, …) — after reconciling with main's
+      // canonical fix (PR #911 used `r`, main used `row`), the security property
+      // is "a .has(<param>.id) filter is applied", not the identifier spelling.
+      expect(src, "must apply allowedSiteIds.has(...) filter").toMatch(/\.has\(\s*\w+\.id\s*\)/);
     });
   });
 
@@ -110,8 +106,7 @@ describe("F2/F3/F7: cross-tenant data routes are properly gated", () => {
 
     for (const rel of routes) {
       const src = read(rel);
-      const usesGlobalRead =
-        src.includes("listSites(") || src.includes("getSiteRowById(");
+      const usesGlobalRead = src.includes("listSites(") || src.includes("getSiteRowById(");
       if (!usesGlobalRead) continue;
 
       const gate = isProperlyGated(src);

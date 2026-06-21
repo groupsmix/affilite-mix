@@ -190,11 +190,7 @@ export async function DELETE(
     // F5: deleteSite requires callerRole === "super_admin" (lib/dal/sites.ts:361);
     // forward the role from the session and a labelled privileged client so the
     // fail-closed throw doesn't fire on every legitimate delete.
-    await deleteSite(
-      id,
-      () => getPrivilegedSupabaseClient("admin-sites-delete"),
-      session.role,
-    );
+    await deleteSite(id, () => getPrivilegedSupabaseClient("admin-sites-delete"), session.role);
     // S0-FP-002: await audit for destructive actions so the trail is durable.
     await recordAuditEvent({
       site_id: id,

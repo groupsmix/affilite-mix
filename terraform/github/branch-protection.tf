@@ -67,18 +67,22 @@ resource "github_repository_ruleset" "main_protection" {
     non_fast_forward        = true
     required_linear_history = true
 
-    # 6. Signed commits required.
-    required_signatures = true
+    # 6. SOLO-DEV: signed commits NOT required (removes merge friction for
+    # single-owner bot/automation commits). Re-enable for a signing policy.
+    required_signatures = false
 
     # 3. PR review requirements.
-    # A34: required_review_count defaults to 2 (single source of truth
-    # with .github/rulesets/main-protection.json).
+    # SOLO-DEV: review gating is disabled — required_review_count defaults to 0
+    # and code-owner / last-push / thread-resolution gates are off so the sole
+    # owner can self-merge a PR once CI passes. Direct pushes are still blocked
+    # (creation/update = false), so all changes still flow through a PR and the
+    # required status checks below. Re-enable these if maintainers are added.
     pull_request {
       required_approving_review_count   = var.required_review_count
-      dismiss_stale_reviews_on_push     = true
-      require_code_owner_review         = true
-      require_last_push_approval        = true
-      required_review_thread_resolution = true
+      dismiss_stale_reviews_on_push     = false
+      require_code_owner_review         = false
+      require_last_push_approval        = false
+      required_review_thread_resolution = false
     }
 
     # 1, 2. CI + security workflow are required status checks.

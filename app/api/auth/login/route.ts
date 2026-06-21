@@ -470,11 +470,7 @@ export async function POST(request: NextRequest) {
           : { ok: false, step: null };
 
         // AUDIT-FIX A4-004: Digit-only validation for TOTP tokens
-        if (
-          typeof totp_token !== "string" ||
-          !/^\d{6}$/.test(totp_token) ||
-          !totpResult.ok
-        ) {
+        if (typeof totp_token !== "string" || !/^\d{6}$/.test(totp_token) || !totpResult.ok) {
           // AUDIT-FIX A3-002/A1-006: Use atomic increment to prevent race condition
           try {
             await incrementTotpFailedAttempts(user.id, 10, 60 * 60 * 1000, () =>
@@ -496,10 +492,8 @@ export async function POST(request: NextRequest) {
         // bounded.
         // Reset failed attempts on success
         if (user.totp_failed_attempts > 0 || user.totp_locked_until) {
-          await updateAdminUser(
-            user.id,
-            { totp_failed_attempts: 0, totp_locked_until: null },
-            () => getPrivilegedSupabaseClient("login:totp-reset"),
+          await updateAdminUser(user.id, { totp_failed_attempts: 0, totp_locked_until: null }, () =>
+            getPrivilegedSupabaseClient("login:totp-reset"),
           );
         }
         // F4: persist the just-consumed TOTP step. Best-effort — failure to
@@ -508,10 +502,8 @@ export async function POST(request: NextRequest) {
         // we successfully recorded. Log and continue if the write fails.
         if (totpResult.step != null) {
           try {
-            await updateAdminUser(
-              user.id,
-              { totp_last_step: totpResult.step },
-              () => getPrivilegedSupabaseClient("login:totp-advance-step"),
+            await updateAdminUser(user.id, { totp_last_step: totpResult.step }, () =>
+              getPrivilegedSupabaseClient("login:totp-advance-step"),
             );
           } catch (e) {
             log.warn("Failed to persist TOTP consumed step", {

@@ -108,11 +108,9 @@ export async function POST(request: NextRequest) {
       // user.totp_last_step closes the ~90s window in which a captured
       // code could previously be replayed.
       const totpResult = user.totp_secret
-        ? verifyTotpToken(
-            await decryptTotpSecret(user.totp_secret),
-            totp_token,
-            { lastStep: user.totp_last_step },
-          )
+        ? verifyTotpToken(await decryptTotpSecret(user.totp_secret), totp_token, {
+            lastStep: user.totp_last_step,
+          })
         : { ok: false, step: null };
       if (!totpResult.ok) {
         return invalid;

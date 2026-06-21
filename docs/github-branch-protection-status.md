@@ -31,10 +31,10 @@
 | ---- | ---------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------- |
 | BP-1 | CI is a required status check on PRs to `main` | ✅ Enforced | Required checks: `check`, `secret-scan`, `codeql`, `dependency-review`, `sbom`, `wrangler-dry-run`, `staging-smoke` |
 | BP-2 | Security workflow is a required status check   | ✅ Enforced | `secret-scan`, `codeql`, `dependency-review` are required                                                           |
-| BP-3 | At least one approving review required         | ✅ Enforced | **required_review_count = 2** (see below)                                                                           |
+| BP-3 | Peer review (DISABLED — solo-dev)              | ⚪ Disabled | **required_review_count = 0** (single-owner repo; see below)                                                        |
 | BP-4 | No direct push to `main`                       | ✅ Enforced | `update = false` in ruleset                                                                                         |
 | BP-5 | No admin/maintainer bypass except break-glass  | ✅ Enforced | Bypass actors disabled by default (`break_glass_team_slug = null`)                                                  |
-| BP-6 | Signed commits required (provenance)           | ✅ Enforced | `required_signatures = true`                                                                                        |
+| BP-6 | Signed commits (DISABLED — solo-dev)           | ⚪ Disabled | `required_signatures = false`                                                                                       |
 | BP-7 | No force-push, no branch deletion on `main`    | ✅ Enforced | `non_fast_forward = true`, `deletion = true`                                                                        |
 | BP-8 | Linear history                                 | ✅ Enforced | `required_linear_history = true`                                                                                    |
 
@@ -42,15 +42,15 @@
 
 ## PR Review Requirements
 
-| Setting                               | Value | Source                                                   |
-| ------------------------------------- | ----- | -------------------------------------------------------- |
-| **Required Approving Review Count**   | **2** | `terraform/github/main.tf` (default = 2, validated >= 2) |
-| **Dismiss Stale Reviews on Push**     | Yes   | `terraform/github/branch-protection.tf`                  |
-| **Require Code Owner Review**         | Yes   | `terraform/github/branch-protection.tf`                  |
-| **Require Last Push Approval**        | Yes   | `terraform/github/branch-protection.tf`                  |
-| **Required Review Thread Resolution** | Yes   | `terraform/github/branch-protection.tf`                  |
+| Setting                               | Value | Source                                             |
+| ------------------------------------- | ----- | -------------------------------------------------- |
+| **Required Approving Review Count**   | **0** | `terraform/github/main.tf` (default = 0, solo-dev) |
+| **Dismiss Stale Reviews on Push**     | No    | `terraform/github/branch-protection.tf`            |
+| **Require Code Owner Review**         | No    | `terraform/github/branch-protection.tf`            |
+| **Require Last Push Approval**        | No    | `terraform/github/branch-protection.tf`            |
+| **Required Review Thread Resolution** | No    | `terraform/github/branch-protection.tf`            |
 
-**Policy Rationale (A34):** Require 2 reviewers to prevent single-actor merges. The Terraform variable validates that `required_review_count >= 2`.
+**Policy Rationale (solo-dev):** This repository is maintained by a single owner. A mandatory peer-review count is unsatisfiable (you cannot approve your own PR) and would make merging impossible. Review gating is therefore disabled; `main` is protected instead by required CI status checks, PR-only flow (`update = false`), no force-push, and no deletion. Re-enable the review/signature requirements in `terraform/github/branch-protection.tf` + `main.tf` if maintainers are added.
 
 ---
 
