@@ -91,6 +91,10 @@ export async function createQuizSubmission(
 /** Update a submission with answers and optionally complete it */
 export async function updateQuizSubmission(
   id: string,
+  // T1-L1: siteId parameter scopes the update to the tenant so a known
+  // submission UUID cannot overwrite a different site's submission
+  // (within-tenant IDOR defence-in-depth beside RLS).
+  siteId: string,
   input: {
     answers?: Record<string, string | string[] | number>;
     email?: string;
@@ -106,6 +110,7 @@ export async function updateQuizSubmission(
     .from(SUBMISSION_TABLE)
     .update(input)
     .eq("id", id)
+    .eq("site_id", siteId)
     .select()
     .single();
   if (error) throw error;

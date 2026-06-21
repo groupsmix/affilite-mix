@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
+import { assertRole } from "@/lib/admin-guard";
 import {
   listNicheTemplates,
   createNicheTemplate,
@@ -29,6 +30,15 @@ export const POST = withAuthz(
   "settings",
   "create",
   async (request, { session, siteId: dbSiteId }) => {
+    // T1-F9: niche_templates is a GLOBAL resource (no tenant scope). The action
+    // "settings:create" is not in the permission catalog (only settings:view /
+    // settings:manage are seeded in migration 00028), so this resolves to
+    // super_admin-only today — but if anyone later seeds that permission, every
+    // per-site admin would silently gain write over global templates. Make the
+    // intent explicit and durable so adding catalog rows can't change behaviour.
+    const roleError = assertRole(session, "super_admin");
+    if (roleError) return roleError;
+
     const rlResponse = await enforceAdminRateLimit("sites-templates", session);
     if (rlResponse) return rlResponse;
 
@@ -78,6 +88,11 @@ export const DELETE = withAuthz(
   "settings",
   "delete",
   async (request, { session, siteId: dbSiteId }) => {
+    // T1-F9: same reasoning as POST — explicit super_admin gate so catalog
+    // additions can never silently promote per-site admins to global resource writes.
+    const roleError = assertRole(session, "super_admin");
+    if (roleError) return roleError;
+
     const rlResponse = await enforceAdminRateLimit("sites-templates", session);
     if (rlResponse) return rlResponse;
 

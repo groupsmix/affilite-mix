@@ -35,6 +35,10 @@ export async function generatePreviewToken(payload: PreviewTokenPayload): Promis
 export async function validatePreviewToken(token: string): Promise<PreviewTokenPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), {
+      // T1-F6: pin the algorithm allow-list (defence-in-depth, matches lib/auth.ts:370).
+      // Not forgeable (symmetric secret; jose rejects alg:none), but inconsistent
+      // without this. Prevents alg-confusion if the library's defaults ever widen.
+      algorithms: ["HS256"],
       audience: "affiliate-platform-preview",
       issuer: "affiliate-platform",
     });
