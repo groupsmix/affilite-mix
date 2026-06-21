@@ -80,21 +80,30 @@ jobs:
         if: steps.diff.outputs.drift_found == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # T4-#13: pass step outputs via env vars — they may contain DNS/route
+          # data with special characters that would be interpreted as shell if
+          # interpolated directly into the run: block via ${{ ... }}.
+          DNS_DRIFT: ${{ steps.diff.outputs.dns_drift }}
+          ROUTES_DRIFT: ${{ steps.diff.outputs.routes_drift }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           TITLE="ASM Drift Detected — $(date +%Y-%m-%d)"
           BODY="## Attack Surface Drift Detected
 
           **Date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
-          **Workflow:** [Run #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          **Workflow:** [Run #${RUN_NUMBER}](${SERVER_URL}/${REPOSITORY}/actions/runs/${RUN_ID})
 
           ### DNS Changes
           \`\`\`diff
-          ${{ steps.diff.outputs.dns_drift }}
+          ${DNS_DRIFT}
           \`\`\`
 
           ### Worker Route Changes
           \`\`\`diff
-          ${{ steps.diff.outputs.routes_drift }}
+          ${ROUTES_DRIFT}
           \`\`\`
 
           ### Required Actions
