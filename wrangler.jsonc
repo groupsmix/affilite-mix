@@ -163,6 +163,17 @@
         "max_concurrency": 4,
         "dead_letter_queue": "click-tracking-dlq",
       },
+      {
+        // T4-#3: consume the DLQ itself so dead letters are persisted durably
+        // (the worker forwards them to /api/queue/clicks?dlq=true ->
+        // click_failures) instead of sitting unconsumed until DLQ retention
+        // (~4 days) silently drops them. No dead_letter_queue here: the worker's
+        // DLQ branch retries on failure and click_failures is the durable sink.
+        "queue": "click-tracking-dlq",
+        "max_batch_size": 100,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+      },
     ],
   },
   // ═════════════════════════════════════════════════════════════════
@@ -362,6 +373,13 @@
             "max_retries": 3,
             "max_concurrency": 2, // Lower concurrency for staging
             "dead_letter_queue": "click-tracking-dlq-staging",
+          },
+          {
+            // T4-#3: consume the staging DLQ (worker matches both env names).
+            "queue": "click-tracking-dlq-staging",
+            "max_batch_size": 100,
+            "max_batch_timeout": 30,
+            "max_retries": 3,
           },
         ],
       },

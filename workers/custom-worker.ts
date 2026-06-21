@@ -170,7 +170,14 @@ const worker = {
     env: Record<string, unknown>,
     ctx: CloudflareExecutionContext,
   ) {
-    if (batch.queue === "click-tracking-dlq") {
+    // T4-#3: recognise both production and staging queue names. The DLQ
+    // consumers (click-tracking-dlq / -staging) are wired in wrangler.jsonc;
+    // without this generalisation a staging batch would fall through to the
+    // "unknown queue" ackAll() below and be silently dropped.
+    const DLQ_QUEUES = new Set(["click-tracking-dlq", "click-tracking-dlq-staging"]);
+    const MAIN_QUEUES = new Set(["click-tracking", "click-tracking-staging"]);
+
+    if (DLQ_QUEUES.has(batch.queue)) {
       // R5: DLQ consumer. Every dead letter represents a click whose revenue
       // attribution we have lost. Until a persistent `click_failures` table
       // (or equivalent) is wired up, log each payload individually so the
@@ -241,7 +248,7 @@ const worker = {
       return;
     }
 
-    if (batch.queue !== "click-tracking") {
+    if (!MAIN_QUEUES.has(batch.queue)) {
       // Unknown queue — ack so it doesn't loop forever
       batch.ackAll();
       return;
