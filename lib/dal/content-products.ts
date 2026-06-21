@@ -26,7 +26,7 @@ export async function getLinkedProducts(
   const { data, error } = await sb
     .from(TABLE)
     .select(
-      "content_id, product_id, role, product:products!inner(id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at)",
+      "content_id, product_id, role, product:products!inner(id, site_id, name, slug, description, affiliate_url, image_url, image_alt, price:price_label, price_amount, price_currency, merchant, score, featured, status, category_id, cta_text, deal_text, deal_expires_at, pros, cons, version, created_at, updated_at)",
     )
     .eq("content_id", contentId)
     .eq("product.site_id", siteId)

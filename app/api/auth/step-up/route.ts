@@ -12,7 +12,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { isOriginAllowed } from "@/lib/security/allowed-origins";
 import { parseJsonBody } from "@/lib/api-error";
-import { getAdminUserByEmail } from "@/lib/dal/admin-users";
+import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
 import { verifyPassword } from "@/lib/password";
 import { verifyTotpToken } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
@@ -98,13 +98,35 @@ export async function POST(request: NextRequest) {
 
     // Enforce TOTP when the account has 2FA enabled.
     if (user.totp_enabled) {
-      if (
-        typeof totp_token !== "string" ||
-        !/^\d{6}$/.test(totp_token) ||
-        !user.totp_secret ||
-        !verifyTotpToken(await decryptTotpSecret(user.totp_secret), totp_token)
-      ) {
+      // Validate the token shape before passing to verifyTotpToken so its
+      // `token: string` parameter is satisfied (totp_token is `string |
+      // undefined` from the request body parse).
+      if (typeof totp_token !== "string" || !/^\d{6}$/.test(totp_token)) {
         return invalid;
+      }
+      // F4 audit: single-use TOTP check with replay protection. Passing
+      // user.totp_last_step closes the ~90s window in which a captured
+      // code could previously be replayed.
+      const totpResult = user.totp_secret
+        ? verifyTotpToken(await decryptTotpSecret(user.totp_secret), totp_token, {
+            lastStep: user.totp_last_step,
+          })
+        : { ok: false, step: null };
+      if (!totpResult.ok) {
+        return invalid;
+      }
+      // F4: persist the consumed step so the same code can't be replayed.
+      // Best-effort; a failure here means the next code in the window may
+      // still pass (replay still possible for that one window), but this
+      // is preferable to blocking a legitimately verified step-up.
+      if (totpResult.step != null) {
+        try {
+          await updateAdminUser(user.id, { totp_last_step: totpResult.step });
+        } catch {
+          // fail-open: best-effort [criticality:non-critical]
+          // step-up verification already succeeded; persistence is a
+          // best-effort hardening, not a correctness invariant.
+        }
       }
     }
 
