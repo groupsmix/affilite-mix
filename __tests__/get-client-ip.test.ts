@@ -20,13 +20,19 @@ describe("getClientIp", () => {
     }
   });
 
-  it("prefers cf-connecting-ip over x-forwarded-for", () => {
+  it("prefers cf-connecting-ip over x-forwarded-for when TRUST_PROXY_HEADERS=true", () => {
     process.env.TRUST_PROXY_HEADERS = "true";
     const req = makeRequest({
       "cf-connecting-ip": "203.0.113.1",
       "x-forwarded-for": "10.0.0.1",
     });
     expect(getClientIp(req)).toBe("203.0.113.1");
+  });
+
+  it("T1-F8: does NOT trust cf-connecting-ip without TRUST_PROXY_HEADERS (spoofable on direct-to-origin paths)", () => {
+    // Without TRUST_PROXY_HEADERS, any header can be forged by the client.
+    const req = makeRequest({ "cf-connecting-ip": "1.2.3.4" });
+    expect(getClientIp(req)).toBe("unknown");
   });
 
   it("ignores x-forwarded-for by default (no trusted-proxy signal)", () => {

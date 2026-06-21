@@ -77,7 +77,11 @@ export async function getAnalyticsSummary(
   ]);
 
   const estimatedRevenue = totalClicks * estRevenuePerClick;
-  const avgOrderValue = totalClicks > 0 ? estimatedRevenue / totalClicks : 0;
+  // T3-F3: the previous formula (estimatedRevenue / totalClicks) reduces
+  // algebraically to estRevenuePerClick for all totalClicks > 0 — a tautology
+  // that was never a real average order value. Return 0 until real AOV is
+  // implemented from commissions data (sum(sale_amount) / count(distinct orders)).
+  const avgOrderValue = 0;
 
   let growthRatePct = 0;
   if (prevClicks > 0) {

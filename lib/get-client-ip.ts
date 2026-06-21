@@ -1,38 +1,44 @@
 /**
  * Extract the client IP address from request headers.
  *
- * Security: the raw `x-forwarded-for` header is spoofable by any client that
- * can talk directly to the origin, so we do NOT trust it by default. We only
- * honour it when the deployment has explicitly opted in via the
- * `TRUST_PROXY_HEADERS` environment variable — e.g. when the origin is known
- * to sit behind a trusted reverse proxy that overwrites XFF.
+ * Security: both `cf-connecting-ip` and `x-forwarded-for` are spoofable by
+ * any client that can talk directly to the origin. We only honour them when
+ * the deployment has explicitly opted in via `TRUST_PROXY_HEADERS=true` —
+ * i.e. when the origin is only reachable through a trusted proxy/CDN that
+ * overwrites these headers before they reach us.
  *
- * Priority:
- *   1. `cf-connecting-ip` (set by Cloudflare and stripped/overwritten at the
- *      edge, so it is trustworthy when the origin is only reachable through
- *      Cloudflare).
- *   2. First entry of `x-forwarded-for`, but ONLY when
- *      `TRUST_PROXY_HEADERS=true` is set.
+ * T1-F8: previously `cf-connecting-ip` was returned unconditionally (before
+ * the TRUST_PROXY_HEADERS gate), which made it spoofable on any non-Cloudflare
+ * path (e.g. *.workers.dev or if the origin IP were reachable directly). Both
+ * headers now require TRUST_PROXY_HEADERS=true.
+ *
+ * Priority (when TRUST_PROXY_HEADERS=true):
+ *   1. `cf-connecting-ip` — Cloudflare overwrites this at the edge so it
+ *      is the real client IP for any traffic that flows through Cloudflare.
+ *   2. First entry of `x-forwarded-for`.
  *   3. Otherwise `"unknown"`.
+ *
+ * Deployment note: always set TRUST_PROXY_HEADERS=true in Cloudflare Workers
+ * and any deployment that sits exclusively behind a trusted reverse proxy.
+ * Without this flag all IP-based rate-limit keys collapse to the shared
+ * "unknown" bucket.
  */
 // R10-01: Track whether the missing-header warning has fired this isolate
 // to avoid flooding logs with one warning per request.
 let _warnedMissingCfIp = false;
 
 export function getClientIp(request: Request): string {
-  const cfIp = request.headers.get("cf-connecting-ip");
-  if (cfIp) return cfIp;
-
   if (isProxyHeaderTrusted()) {
+    const cfIp = request.headers.get("cf-connecting-ip");
+    if (cfIp) return cfIp;
+
     const xff = request.headers.get("x-forwarded-for");
     const first = xff?.split(",")[0]?.trim();
     if (first) return first;
   }
 
-  // R10-01: Warn once per isolate only when we actually fall back to the shared
-  // "unknown" bucket in production — i.e. no cf-connecting-ip AND no trusted
-  // XFF. Warning before the XFF check would misfire for valid proxy setups
-  // where clients are correctly bucketed by x-forwarded-for.
+  // R10-01: Warn once per isolate only when we fall back to the shared
+  // "unknown" bucket in production — i.e. no trusted header found.
   if (process.env.NODE_ENV === "production" && !_warnedMissingCfIp) {
     _warnedMissingCfIp = true;
     // Use console.warn to avoid import cycle with logger (which may import us).
