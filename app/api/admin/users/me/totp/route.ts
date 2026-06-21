@@ -194,7 +194,8 @@ export async function DELETE(request: Request) {
     const decryptedSecret = await decryptTotpSecret(user.totp_secret);
     // F4 audit: single-use replay check on disable too — a captured code
     // shouldn't be usable both to disable 2FA and to authenticate later.
-    const { ok, step } = verifyTotpToken(decryptedSecret, token, {
+    // (We only need `ok` here: the step baseline is cleared on disable below.)
+    const { ok } = verifyTotpToken(decryptedSecret, token, {
       lastStep: user.totp_last_step,
     });
     if (!ok) {

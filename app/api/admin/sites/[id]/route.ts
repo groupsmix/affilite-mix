@@ -9,6 +9,11 @@ import { requireStepUpAuth } from "@/lib/step-up-auth";
 import { parseJsonBody } from "@/lib/api-error";
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { getAppCacheKV } from "@/lib/runtime-env";
+// F5: the DELETE handler hard-deletes a global `sites` registry row, which the
+// tenant client cannot reach. It is super_admin + step-up gated at the route
+// layer and listed on the SERVICE_ROLE_IMPORT_ALLOWLIST
+// (lib/security/service-role-allowlist.ts).
+// nosemgrep: service-role-import
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 
 /** GET /api/admin/sites/[id] — get a single site by DB id */
