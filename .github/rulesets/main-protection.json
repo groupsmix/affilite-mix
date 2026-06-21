@@ -38,17 +38,14 @@
       "type": "required_linear_history"
     },
     {
-      "type": "required_signatures"
-    },
-    {
       "type": "pull_request",
       "parameters": {
-        "_comment": "A34: Single source of truth \u2014 this value must match terraform/github/main.tf var.required_review_count (default 2).",
-        "required_approving_review_count": 2,
-        "dismiss_stale_reviews_on_push": true,
-        "require_code_owner_review": true,
-        "require_last_push_approval": true,
-        "required_review_thread_resolution": true
+        "_comment": "SOLO-DEV: single-owner repo — peer review is disabled (count 0) so the owner can self-merge once CI passes. required_signatures rule intentionally omitted to remove bot/automation merge friction. Keep in sync with terraform/github/main.tf var.required_review_count and branch-protection.tf.",
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
       }
     },
     {
