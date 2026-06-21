@@ -280,6 +280,11 @@ async function buildStripeEventPayload(
 
       // A169-01: only cancel on full refund; partial refunds just log
       if (isFullRefund) {
+        // F1: this sets the local membership to 'cancelled' but does NOT cancel
+        // the Stripe subscription, so Stripe may keep emitting invoice.paid /
+        // subscription.updated for it. The DB function apply_stripe_membership_event
+        // (migration 2026062202) refuses to flip a 'cancelled'/'disputed' membership
+        // back to 'active', so those later events cannot resurrect this entitlement.
         return {
           op: "cancel_membership",
           stripe_subscription_id: subscriptionId,
@@ -332,7 +337,12 @@ async function buildStripeEventPayload(
       const subscriptionId = getInvoiceSubscriptionId(invoice);
       if (!subscriptionId) return { op: "noop" };
 
-      // A169-02: set to "disputed" instead of "past_due" for clear audit trail
+      // A169-02: set to "disputed" instead of "past_due" for clear audit trail.
+      // F1: the Stripe subscription is intentionally left as-is (we do not auto-cancel
+      // it here — a dispute may still be won). The terminal-state guard in
+      // apply_stripe_membership_event (migration 2026062202) ensures a later
+      // invoice.paid / customer.subscription.updated cannot flip this 'disputed'
+      // membership back to 'active', so the anti-abuse hold survives renewals.
       return {
         op: "update_status",
         stripe_subscription_id: subscriptionId,
