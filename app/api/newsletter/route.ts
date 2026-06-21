@@ -142,9 +142,17 @@ export async function POST(request: Request) {
       return apiError(400, disposableError);
     }
 
+    const site = await getCurrentSite();
+
     const emailHash = await hashEmailForRateLimit(email);
     const emailRateConfig = { maxRequests: 5, windowMs: 60 * 60 * 1000 };
-    const emailRl = await checkRateLimit(`newsletter:cooldown:${emailHash}`, emailRateConfig);
+    // T4-#2: scope the per-email cooldown to the tenant. A global key let anyone
+    // who knows a target email exhaust its 5/hour budget on one site and thereby
+    // false-429 that email's signup across every other site in the network.
+    const emailRl = await checkRateLimit(
+      `newsletter:cooldown:${site.id}:${emailHash}`,
+      emailRateConfig,
+    );
     if (!emailRl.allowed) {
       return apiError(429, "Too many signup attempts for this email", undefined, {
         "Retry-After": String(Math.ceil(emailRl.retryAfterMs / 1000)),
@@ -152,7 +160,6 @@ export async function POST(request: Request) {
       });
     }
 
-    const site = await getCurrentSite();
     const sb = await getTenantClient();
     // A153-03: de-alias email for dedup (strips +tags, dots on Gmail etc).
     // Check both the original email and de-aliased form so alias-based
