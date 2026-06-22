@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuthz } from "@/lib/authz";
+import { assertRole } from "@/lib/admin-guard";
 import {
   listSiteFeatureFlags,
   upsertFeatureFlag,
@@ -10,8 +11,13 @@ import { getSiteRowById, updateSiteFeatures } from "@/lib/dal/sites";
 import { KNOWN_FEATURES, isKnownFeatureKey, normalizeFlagKey } from "@/lib/feature-flag-keys";
 // FIX: `site_feature_flags` is RLS-restricted to service_role (migrations
 // 00033 / 00040). The default tenant client (authenticated role) is denied,
-// so these admin reads/writes must use the privileged gateway. The route is
-// already gated by withAuthz(super_admin) and every DAL call is site-scoped.
+// so these admin reads/writes must use the privileged gateway. Each handler
+// also asserts super_admin as defense-in-depth (F2/F3/F7 invariant): these
+// handlers read/write the global `sites` registry (readLiveFeatures and
+// updateSiteFeatures bypass DB-level site scoping), and a site-scoped withAuthz
+// permission alone is not sufficient for global-registry access, matching
+// app/api/admin/permissions and app/api/admin/analytics/domains. Every DAL
+// call is still scoped to the server-derived active site.
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
@@ -54,6 +60,10 @@ export const GET = withAuthz(
   "feature-flags",
   "read",
   async (_request, { session, siteId: dbSiteId }) => {
+    // F2/F3/F7: this handler reads the global `sites` registry, so require super_admin.
+    const roleError = assertRole(session, "super_admin");
+    if (roleError) return roleError;
+
     const rlError = await enforceAdminRateLimit("feature-flags", session);
     if (rlError) return rlError;
 
@@ -83,6 +93,10 @@ export const POST = withAuthz(
   "feature-flags",
   "configure",
   async (request, { session, siteId: dbSiteId }) => {
+    // F2/F3/F7: this handler reads/writes the global `sites` registry, so require super_admin.
+    const roleError = assertRole(session, "super_admin");
+    if (roleError) return roleError;
+
     const rlError = await enforceAdminRateLimit("feature-flags", session);
     if (rlError) return rlError;
 
@@ -163,6 +177,10 @@ export const PATCH = withAuthz(
   "feature-flags",
   "configure",
   async (request, { session, siteId: dbSiteId }) => {
+    // F2/F3/F7: this handler reads/writes the global `sites` registry, so require super_admin.
+    const roleError = assertRole(session, "super_admin");
+    if (roleError) return roleError;
+
     const rlError = await enforceAdminRateLimit("feature-flags", session);
     if (rlError) return rlError;
 
@@ -236,6 +254,10 @@ export const DELETE = withAuthz(
   "feature-flags",
   "delete",
   async (request, { session, siteId: dbSiteId }) => {
+    // F2/F3/F7: this handler reads/writes the global `sites` registry, so require super_admin.
+    const roleError = assertRole(session, "super_admin");
+    if (roleError) return roleError;
+
     const rlError = await enforceAdminRateLimit("feature-flags", session);
     if (rlError) return rlError;
 
