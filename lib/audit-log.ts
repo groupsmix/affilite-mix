@@ -1,4 +1,13 @@
-import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
+import { type DalClientGetter } from "./dal/dal-client";
+// audit_log INSERT is granted to service_role only (migration 2026050103,
+// `audit_log_service_insert`). The tenant/authenticated client is RLS-denied —
+// and degrades to anon on any SUPABASE_JWT_SECRET mismatch — so defaulting to it
+// silently dropped every audit event. The audit *reader* (audit-log page) and
+// lib/dal/admin-users already use this gateway for the same reason. This module
+// is on the SERVICE_ROLE_IMPORT_ALLOWLIST and is reached only from server-side
+// admin/auth handlers that have already gated the caller.
+// nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { captureException } from "@/lib/sentry";
 import { getRuntimeEnv } from "@/lib/runtime-env";
 import { logger } from "@/lib/logger";
@@ -192,9 +201,27 @@ export class AuditWriteError extends Error {
   }
 }
 
+/**
+ * Audit writes use the privileged service_role client by default.
+ *
+ * The `audit_log` RLS exposes exactly one unconditional INSERT policy —
+ * `audit_log_service_insert` (to service_role, WITH CHECK true). The
+ * request-scoped tenant client runs as `authenticated`, which is only
+ * permitted by the brittle `tenant_isolation_auth_audit_log` policy (needs an
+ * `app_metadata.site_id` JWT claim equal to the row's site_id) and is
+ * otherwise RLS-denied — and degrades to `anon` (hard-denied) on any
+ * SUPABASE_JWT_SECRET mismatch. Defaulting to the tenant client silently
+ * dropped every audit event. The audit *reader* already uses this privileged
+ * client; the writer now matches it.
+ */
+const defaultAuditClientGetter: DalClientGetter = () => getPrivilegedSupabaseClient("audit-log");
+
+/** Canonical UUID matcher; used to null out non-uuid sentinels like "_global". */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function recordAuditEvent(
   event: AuditEvent,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAuditClientGetter,
   options: { critical?: boolean } = {},
 ): Promise<void> {
   // ── Path 1: Queue-backed write (preferred) ──────────────────────
@@ -216,7 +243,11 @@ export async function recordAuditEvent(
   // A8-005: Redact sensitive fields from audit details before persistence
   const redactedDetails = redactAuditDetails(event.entity_type, event.details) ?? {};
   const row = {
-    site_id: event.site_id,
+    // `audit_log.site_id` is a nullable uuid column. Cross-site / auth events
+    // use the sentinel "_global", which is NOT a valid uuid and throws
+    // "invalid input syntax for type uuid". Store NULL for any non-uuid
+    // site_id so global events persist instead of silently failing.
+    site_id: UUID_RE.test(event.site_id ?? "") ? event.site_id : null,
     actor: event.actor,
     actor_user_id: event.actor_user_id ?? null,
     action: event.action,
@@ -229,14 +260,19 @@ export async function recordAuditEvent(
   };
 
   const sb = await getClient();
-  const { error } = await sb.from("audit_log").insert(row);
+  // audit_log is a cross-tenant ledger: rows exist for every site and for
+  // global / auth events (site_id = NULL). The privileged client's F-API-01
+  // site-filter guard is therefore satisfied with the explicit cross-tenant
+  // opt-out rather than an .eq('site_id', …) predicate — see lib/dal/admin-users
+  // and lib/dal/sites for the same pattern on other global tables.
+  const { error } = await sb.from("audit_log").insert(row).unsafeNoSiteFilter();
 
   if (error) {
     logger.error("[audit-log] Insert failed, retrying once", { error: error.message });
     // A74-F2: Apply a short jittered delay before retry to avoid
     // hammering Supabase during congestion. Base 100ms + up to 100ms jitter.
     await new Promise((r) => setTimeout(r, 100 + Math.random() * 100));
-    const { error: retryError } = await sb.from("audit_log").insert(row);
+    const { error: retryError } = await sb.from("audit_log").insert(row).unsafeNoSiteFilter();
     if (retryError) {
       logger.error("[audit-log] Retry also failed", { error: retryError.message });
 

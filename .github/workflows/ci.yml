@@ -554,7 +554,22 @@ jobs:
           # is a no-op on tenant scoping rather than an RLS bypass. These
           # reads were locked to service_role by 00033 / 00040 and were the
           # root cause of the five blank admin pages this PR fixes.
-          BASELINE=85
+          # then 85 -> 87 (PR #932): the audit_log writer fix. recordAuditEvent()
+          # in lib/audit-log.ts switches from the RLS-scoped tenant client to the
+          # privileged service_role client and adds the cross-tenant opt-out on
+          # both the direct insert and its single retry. `audit_log` INSERT is
+          # granted to service_role only (migration 2026050103
+          # `audit_log_service_insert`; UPDATE/DELETE are revoked from every
+          # role), and the ledger spans every site plus global / auth events
+          # (site_id = NULL), so there is no site_id to scope by; the F-API-01
+          # guard is satisfied with the explicit opt-out, not an .eq('site_id').
+          # Reached only from server-side admin/auth handlers that have already
+          # gated the caller. Without this the writes were RLS-denied (and
+          # degraded to anon on a SUPABASE_JWT_SECRET mismatch) and silently
+          # dropped, so the Audit Log grid was always empty. The grep count is
+          # now 87: +3 matches = the insert call, the retry call, and the
+          # audited doc reference in lib/security/service-role-allowlist.ts.
+          BASELINE=87
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."

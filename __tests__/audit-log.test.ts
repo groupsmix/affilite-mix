@@ -1,21 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock the supabase-server module before importing audit-log
+// recordAuditEvent persists via the privileged gateway and opts out of the
+// site filter (audit_log is a cross-tenant ledger), so mock that module and
+// model the `from(t).insert(row).unsafeNoSiteFilter()` chain: `mockInsert`
+// receives the row and returns the awaitable `{ error }`, exactly as the real
+// builder does once the opt-out is applied.
 const mockInsert = vi.fn();
-vi.mock("@/lib/supabase-server", () => ({
-  getServiceClient: () => ({
+vi.mock("@/lib/server-only/service-role", () => ({
+  getPrivilegedSupabaseClient: () => ({
     from: () => ({
-      insert: mockInsert,
-    }),
-  }),
-  getTenantClient: async () => ({
-    from: () => ({
-      insert: mockInsert,
+      insert: (row: unknown) => {
+        const result = mockInsert(row);
+        return { unsafeNoSiteFilter: () => result };
+      },
     }),
   }),
 }));
 
 import { recordAuditEvent, type AuditEvent } from "@/lib/audit-log";
+
+// A real UUID so the writer's non-uuid → NULL site_id coercion leaves it intact.
+const SITE_ID = "11111111-1111-4111-8111-111111111111";
 
 describe("recordAuditEvent", () => {
   beforeEach(() => {
@@ -26,7 +31,7 @@ describe("recordAuditEvent", () => {
     mockInsert.mockReturnValue(Promise.resolve({ error: null }));
 
     const event: AuditEvent = {
-      site_id: "site-123",
+      site_id: SITE_ID,
       actor: "admin@example.com",
       action: "create",
       entity_type: "content",
@@ -36,7 +41,7 @@ describe("recordAuditEvent", () => {
     await recordAuditEvent(event);
 
     expect(mockInsert).toHaveBeenCalledWith({
-      site_id: "site-123",
+      site_id: SITE_ID,
       actor: "admin@example.com",
       actor_user_id: null,
       action: "create",
@@ -52,7 +57,7 @@ describe("recordAuditEvent", () => {
     mockInsert.mockReturnValue(Promise.resolve({ error: null }));
 
     const event: AuditEvent = {
-      site_id: "site-123",
+      site_id: SITE_ID,
       actor: "admin@example.com",
       action: "update",
       entity_type: "product",
@@ -64,7 +69,7 @@ describe("recordAuditEvent", () => {
     await recordAuditEvent(event);
 
     expect(mockInsert).toHaveBeenCalledWith({
-      site_id: "site-123",
+      site_id: SITE_ID,
       actor: "admin@example.com",
       actor_user_id: null,
       action: "update",
@@ -80,7 +85,7 @@ describe("recordAuditEvent", () => {
     mockInsert.mockReturnValue(Promise.resolve({ error: null }));
 
     const event: AuditEvent = {
-      site_id: "site-123",
+      site_id: SITE_ID,
       actor: "admin@example.com",
       action: "update",
       entity_type: "product",
@@ -102,7 +107,7 @@ describe("recordAuditEvent", () => {
     mockInsert.mockReturnValue(Promise.resolve({ error: { message: "DB connection failed" } }));
 
     const event: AuditEvent = {
-      site_id: "site-123",
+      site_id: SITE_ID,
       actor: "admin@example.com",
       action: "delete",
       entity_type: "category",
@@ -131,7 +136,7 @@ describe("recordAuditEvent", () => {
       .mockReturnValueOnce(Promise.resolve({ error: null }));
 
     const event: AuditEvent = {
-      site_id: "site-123",
+      site_id: SITE_ID,
       actor: "admin@example.com",
       action: "update",
       entity_type: "content",
@@ -156,7 +161,7 @@ describe("recordAuditEvent", () => {
     mockInsert.mockReturnValue(Promise.resolve({ error: null }));
 
     const event: AuditEvent = {
-      site_id: "site-1",
+      site_id: SITE_ID,
       actor: "user@test.com",
       action: "create",
       entity_type: "content",
@@ -165,5 +170,39 @@ describe("recordAuditEvent", () => {
 
     await expect(recordAuditEvent(event)).resolves.toBeUndefined();
     expect(mockInsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("coerces a non-uuid site_id sentinel to NULL", async () => {
+    // Auth/cross-site events use the "_global" sentinel. The audit_log.site_id
+    // column is a nullable uuid, so a non-uuid value would throw
+    // "invalid input syntax for type uuid" and silently drop the row. The
+    // writer stores NULL for any non-uuid site_id instead.
+    mockInsert.mockReturnValue(Promise.resolve({ error: null }));
+
+    const event: AuditEvent = {
+      site_id: "_global",
+      actor: "system",
+      action: "auth.login.failed",
+      entity_type: "admin_user",
+      entity_id: "unknown",
+    };
+
+    await recordAuditEvent(event);
+
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ site_id: null }));
+  });
+
+  it("preserves a valid uuid site_id unchanged", async () => {
+    mockInsert.mockReturnValue(Promise.resolve({ error: null }));
+
+    await recordAuditEvent({
+      site_id: SITE_ID,
+      actor: "admin@example.com",
+      action: "update",
+      entity_type: "content",
+      entity_id: "c-2",
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ site_id: SITE_ID }));
   });
 });
