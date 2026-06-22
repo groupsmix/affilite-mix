@@ -1,4 +1,5 @@
-import { defaultDalClientGetter, type DalClientGetter } from "./dal/dal-client";
+import { type DalClientGetter } from "./dal/dal-client";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { captureException } from "@/lib/sentry";
 import { getRuntimeEnv } from "@/lib/runtime-env";
 import { logger } from "@/lib/logger";
@@ -192,9 +193,27 @@ export class AuditWriteError extends Error {
   }
 }
 
+/**
+ * Audit writes use the privileged service_role client by default.
+ *
+ * The `audit_log` RLS exposes exactly one unconditional INSERT policy —
+ * `audit_log_service_insert` (to service_role, WITH CHECK true). The
+ * request-scoped tenant client runs as `authenticated`, which is only
+ * permitted by the brittle `tenant_isolation_auth_audit_log` policy (needs an
+ * `app_metadata.site_id` JWT claim equal to the row's site_id) and is
+ * otherwise RLS-denied — and degrades to `anon` (hard-denied) on any
+ * SUPABASE_JWT_SECRET mismatch. Defaulting to the tenant client silently
+ * dropped every audit event. The audit *reader* already uses this privileged
+ * client; the writer now matches it.
+ */
+const defaultAuditClientGetter: DalClientGetter = () => getPrivilegedSupabaseClient("audit-log");
+
+/** Canonical UUID matcher; used to null out non-uuid sentinels like "_global". */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function recordAuditEvent(
   event: AuditEvent,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultAuditClientGetter,
   options: { critical?: boolean } = {},
 ): Promise<void> {
   // ── Path 1: Queue-backed write (preferred) ──────────────────────
@@ -216,7 +235,11 @@ export async function recordAuditEvent(
   // A8-005: Redact sensitive fields from audit details before persistence
   const redactedDetails = redactAuditDetails(event.entity_type, event.details) ?? {};
   const row = {
-    site_id: event.site_id,
+    // `audit_log.site_id` is a nullable uuid column. Cross-site / auth events
+    // use the sentinel "_global", which is NOT a valid uuid and throws
+    // "invalid input syntax for type uuid". Store NULL for any non-uuid
+    // site_id so global events persist instead of silently failing.
+    site_id: UUID_RE.test(event.site_id ?? "") ? event.site_id : null,
     actor: event.actor,
     actor_user_id: event.actor_user_id ?? null,
     action: event.action,
