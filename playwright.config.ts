@@ -61,6 +61,13 @@ export default defineConfig({
     // or overlay content during tests. Tests that need the banner
     // (e.g. cookie-consent) call context.clearCookies() first.
     storageState: path.join(__dirname, "e2e", ".auth", "storage-state.json"),
+    // Bypass CSP in local dev: webpack's eval-source-map (used by Next.js
+    // dev mode) is blocked by the app's strict `script-src` policy, which
+    // prevents React from hydrating and makes all interaction tests fail.
+    // This flag is safe for E2E tests because we are testing functionality,
+    // not the CSP policy itself. It is intentionally not set in CI, where
+    // tests run against a production-built deployment that doesn't use eval.
+    bypassCSP: !process.env.CI,
   },
   projects: (fullSuite ? allProjects : ciProjects).filter(
     (p): p is NonNullable<typeof p> => p !== undefined,

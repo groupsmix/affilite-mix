@@ -1,113 +1,106 @@
 import { test, expect } from "@playwright/test";
 
+/**
+ * Fast, navigation-state-independent login detection.
+ */
+function isOnLoginPage(page: { url(): string }): boolean {
+  return page.url().includes("/q7m-k4j9/login");
+}
+
+/**
+ * Navigate to an admin route and wait for the auth guard's redirect to settle.
+ *
+ * The admin layout is a server component that calls `redirect("/q7m-k4j9/login")`
+ * when there is no valid session. In dev that redirect can land a tick AFTER
+ * `domcontentloaded` fires, so a bare `page.url()` check races the navigation
+ * and wrongly concludes we're authenticated — the test then waits for form
+ * fields that never appear. Here we wait for whichever terminal state arrives
+ * first: the login URL (unauthenticated) or the page heading (authenticated).
+ */
+async function gotoAdminAndSettle(
+  page: import("@playwright/test").Page,
+  path: string,
+  readyHeading: string,
+): Promise<void> {
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+  await Promise.race([
+    page.waitForURL(/\/q7m-k4j9\/login/, { timeout: 10_000 }).catch(() => {}),
+    page
+      .getByRole("heading", { name: readyHeading })
+      .waitFor({ state: "visible", timeout: 10_000 })
+      .catch(() => {}),
+  ]);
+}
+
 test.describe("Admin Products Page", () => {
   test("should redirect unauthenticated users to login", async ({ page }) => {
     await page.goto("/q7m-k4j9/products");
-
-    // Should either redirect to login or show an auth error
     await expect(page).toHaveURL(/\/admin\/login|\/q7m-k4j9/);
   });
 
   test("should display the new product form", async ({ page }) => {
-    // Mock auth by setting the admin cookie via the login API
-    await page.route("/api/auth/login", async (route) => {
-      await route.fulfill({
-        status: 200,
-        json: { ok: true },
-        headers: {
-          "Set-Cookie": "nh_admin_token=mock-token; Path=/; HttpOnly",
-        },
-      });
-    });
+    // domcontentloaded: resolves as soon as the HTML is parsed without
+    // waiting for background Supabase requests to settle.
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
-    await page.goto("/q7m-k4j9/products/new");
-
-    // If not authenticated, we'll be redirected. Check that the form loads
-    // or we're on the login page (acceptable for E2E without real DB)
+    // If redirected to login or error page, any h1 is acceptable.
     const heading = page.locator("h1");
     await expect(heading).toBeVisible({ timeout: 10_000 });
   });
 
   test("new product form should have required fields", async ({ page }) => {
-    await page.goto("/q7m-k4j9/products/new");
-    await page.waitForLoadState("networkidle");
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
-    // The page may redirect to login if not authenticated
-    // If we land on the product form, verify fields exist
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-
-    if (!isLoginPage) {
-      await expect(page.locator("text=Name")).toBeVisible();
-      await expect(page.locator("text=Slug")).toBeVisible();
-      await expect(page.locator("text=Description")).toBeVisible();
-    }
-  });
-
-  test("product form should auto-generate slug from name", async ({ page }) => {
-    // Navigate and check if we can access the form
-    await page.goto("/q7m-k4j9/products/new");
-    await page.waitForLoadState("networkidle");
-
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
-      // Skip test if we can't access the product form without auth
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
-    const nameInput = page.locator('label:has-text("Name") + input');
-    const slugInput = page.locator('label:has-text("Slug") + input');
+    await expect(page.locator("#prod-name")).toBeVisible();
+    await expect(page.locator("#prod-slug")).toBeVisible();
+    await expect(page.locator("#prod-desc")).toBeVisible();
+  });
+
+  test("product form should auto-generate slug from name", async ({ page }) => {
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
+
+    if (isOnLoginPage(page)) {
+      test.skip(true, "admin auth not provisioned — login page detected");
+      return;
+    }
+
+    const nameInput = page.locator("#prod-name");
+    const slugInput = page.locator("#prod-slug");
 
     await nameInput.fill("Test Product Name");
-
-    // Slug should be auto-generated
     await expect(slugInput).toHaveValue("test-product-name");
   });
 
   test("product form should show validation error on empty submit", async ({ page }) => {
-    await page.goto("/q7m-k4j9/products/new");
-    await page.waitForLoadState("networkidle");
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
-    // Try to submit without filling required fields
     await page.locator('button:has-text("Create")').click();
 
-    // HTML validation should prevent submission (required fields)
-    const nameInput = page.locator('label:has-text("Name") + input');
+    const nameInput = page.locator("#prod-name");
     await expect(nameInput).toHaveAttribute("required", "");
   });
 
   test("product form should have status dropdown with correct options", async ({ page }) => {
-    await page.goto("/q7m-k4j9/products/new");
-    await page.waitForLoadState("networkidle");
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
-    const statusSelect = page.locator('label:has-text("Status") + select');
+    const statusSelect = page.locator("#prod-status");
     await expect(statusSelect).toBeVisible();
 
-    // Verify the status options
     const options = statusSelect.locator("option");
     await expect(options).toHaveCount(3);
     await expect(options.nth(0)).toHaveText("Draft");
@@ -116,19 +109,14 @@ test.describe("Admin Products Page", () => {
   });
 
   test("product form should have currency dropdown", async ({ page }) => {
-    await page.goto("/q7m-k4j9/products/new");
-    await page.waitForLoadState("networkidle");
+    await gotoAdminAndSettle(page, "/q7m-k4j9/products/new", "New Product");
 
-    const isLoginPage = await page
-      .locator("text=Admin Login")
-      .isVisible()
-      .catch(() => false);
-    if (isLoginPage) {
+    if (isOnLoginPage(page)) {
       test.skip(true, "admin auth not provisioned — login page detected");
       return;
     }
 
-    const currencySelect = page.locator('label:has-text("Currency") + select');
+    const currencySelect = page.locator("#prod-currency");
     await expect(currencySelect).toBeVisible();
     await expect(currencySelect).toHaveValue("USD");
   });
