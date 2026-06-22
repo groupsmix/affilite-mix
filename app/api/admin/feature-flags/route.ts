@@ -7,11 +7,7 @@ import {
   deleteFeatureFlag,
 } from "@/lib/dal/feature-flags";
 import { getSiteRowById, updateSiteFeatures } from "@/lib/dal/sites";
-import {
-  KNOWN_FEATURES,
-  isKnownFeatureKey,
-  normalizeFlagKey,
-} from "@/lib/feature-flag-keys";
+import { KNOWN_FEATURES, isKnownFeatureKey, normalizeFlagKey } from "@/lib/feature-flag-keys";
 // FIX: `site_feature_flags` is RLS-restricted to service_role (migrations
 // 00033 / 00040). The default tenant client (authenticated role) is denied,
 // so these admin reads/writes must use the privileged gateway. The route is
