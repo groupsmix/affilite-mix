@@ -4,6 +4,7 @@ import type { SiteDefinition } from "@/config/site-definition";
 import { resolveDbSiteId, resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import type { SiteRow } from "@/types/database";
 import { logger } from "@/lib/logger";
+import { applyFeatureOverrides } from "@/lib/feature-flag-keys";
 
 const SITE_HEADER = "x-site-id";
 const SITE_COOKIE = "x-site-id";
@@ -66,14 +67,20 @@ function siteDefinitionFromDbRow(row: SiteRow): SiteDefinition {
 
     estRevenuePerClick: row.est_revenue_per_click,
 
-    features: {
-      newsletter: features.newsletter ?? true,
-      searchModal: features.search ?? features.searchModal ?? true,
-      giftFinder: features.giftFinder ?? false,
-      scheduling: features.scheduling ?? true,
-      blog: features.blog ? { source: "database" as const } : undefined,
-      cookieConsent: features.cookieConsent ?? true,
-    },
+    // Base feature defaults for a DB-only site, with explicit per-site
+    // boolean overrides (comparisons, deals, rssFeed, …) from the `features`
+    // jsonb column overlaid on top. Additive: unset keys keep their defaults.
+    features: applyFeatureOverrides(
+      {
+        newsletter: features.newsletter ?? true,
+        searchModal: features.search ?? features.searchModal ?? true,
+        giftFinder: features.giftFinder ?? false,
+        scheduling: features.scheduling ?? true,
+        blog: features.blog ? { source: "database" as const } : undefined,
+        cookieConsent: features.cookieConsent ?? true,
+      },
+      features as Record<string, unknown>,
+    ),
 
     pages: {
       about: { title: "About", description: `About ${row.name}` },
@@ -176,7 +183,19 @@ export async function getCurrentSite(): Promise<SiteDefinition> {
     // Try to get DB UUID, but don't fail if DB is not available
     try {
       const dbSiteId = await resolveDbSiteId(siteSlug);
-      return { ...site, id: dbSiteId };
+      // Overlay per-site feature flags stored in the DB so dashboard toggles
+      // take effect even for static-config sites. Read via the cached,
+      // public-safe slug lookup. Strictly additive + fail-open: when no
+      // override is set, features are identical to the static config.
+      let dbFeatures: Record<string, unknown> | null = null;
+      try {
+        const row = await resolveDbSiteBySlug(siteSlug);
+        dbFeatures = (row?.features as Record<string, unknown> | null) ?? null;
+      } catch {
+        // fail-open: best-effort [criticality:non-critical]
+        // keep static-config features if the override read fails
+      }
+      return { ...site, id: dbSiteId, features: applyFeatureOverrides(site.features, dbFeatures) };
     } catch {
       // fail-open: best-effort [criticality:non-critical]
       // DB not available or site not in DB yet - use static config
