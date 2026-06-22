@@ -1,4 +1,12 @@
 import { type DalClientGetter } from "./dal/dal-client";
+// audit_log INSERT is granted to service_role only (migration 2026050103,
+// `audit_log_service_insert`). The tenant/authenticated client is RLS-denied —
+// and degrades to anon on any SUPABASE_JWT_SECRET mismatch — so defaulting to it
+// silently dropped every audit event. The audit *reader* (audit-log page) and
+// lib/dal/admin-users already use this gateway for the same reason. This module
+// is on the SERVICE_ROLE_IMPORT_ALLOWLIST and is reached only from server-side
+// admin/auth handlers that have already gated the caller.
+// nosemgrep: service-role-import
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { captureException } from "@/lib/sentry";
 import { getRuntimeEnv } from "@/lib/runtime-env";
@@ -252,14 +260,19 @@ export async function recordAuditEvent(
   };
 
   const sb = await getClient();
-  const { error } = await sb.from("audit_log").insert(row);
+  // audit_log is a cross-tenant ledger: rows exist for every site and for
+  // global / auth events (site_id = NULL). The privileged client's F-API-01
+  // site-filter guard is therefore satisfied with the explicit cross-tenant
+  // opt-out rather than an .eq('site_id', …) predicate — see lib/dal/admin-users
+  // and lib/dal/sites for the same pattern on other global tables.
+  const { error } = await sb.from("audit_log").insert(row).unsafeNoSiteFilter();
 
   if (error) {
     logger.error("[audit-log] Insert failed, retrying once", { error: error.message });
     // A74-F2: Apply a short jittered delay before retry to avoid
     // hammering Supabase during congestion. Base 100ms + up to 100ms jitter.
     await new Promise((r) => setTimeout(r, 100 + Math.random() * 100));
-    const { error: retryError } = await sb.from("audit_log").insert(row);
+    const { error: retryError } = await sb.from("audit_log").insert(row).unsafeNoSiteFilter();
     if (retryError) {
       logger.error("[audit-log] Retry also failed", { error: retryError.message });
 

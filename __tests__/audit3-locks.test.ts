@@ -188,7 +188,14 @@ describe("Audit-3 regression locks", () => {
       // route is super_admin-gated (requireSuperAdmin) and is inherently a cross-tenant
       // aggregate — privileged client is required by design. Entry added to both the
       // lib/security/service-role-allowlist.ts and the test allowlist above.
-      expect(count).toBeLessThanOrEqual(38);
+      // Bumped 38 -> 39: the audit *writer* (lib/audit-log.ts) now persists via the
+      // privileged gateway. `audit_log` INSERT is service_role-only (migration
+      // 2026050103); the tenant client was RLS-denied (degrading to anon on a
+      // JWT-secret mismatch), so every event was silently dropped. The ledger spans
+      // all sites + global/auth events (site_id = NULL), hence the cross-tenant
+      // .unsafeNoSiteFilter() opt-out. Reached only from super_admin/auth-gated
+      // handlers; entry + rationale added to lib/security/service-role-allowlist.ts.
+      expect(count).toBeLessThanOrEqual(39);
     });
   });
 
