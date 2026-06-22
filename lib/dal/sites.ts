@@ -346,6 +346,40 @@ export async function updateSite(
   return assertRow<SiteRow>(data, "Site");
 }
 
+/**
+ * Partial-merge update of a site's `features` jsonb column.
+ *
+ * Reads the current `features`, merges the supplied boolean overrides on top
+ * (so unrelated keys are preserved), writes the column, and invalidates the
+ * site cache so the runtime (`getCurrentSite` in lib/site-context.ts) picks up
+ * the change on its next revalidation. Used by the admin Feature Flags page so
+ * a "live" feature toggle actually gates the feature site-wide.
+ */
+export async function updateSiteFeatures(
+  id: string,
+  overrides: Record<string, boolean>,
+  getClient: DalClientGetter = defaultDalClientGetter,
+): Promise<SiteRow> {
+  const sb = await getClient();
+
+  const existing = await getSiteRowById(id, getClient);
+  const currentFeatures = (existing?.features as Record<string, unknown> | null) ?? {};
+  const mergedFeatures = { ...currentFeatures, ...overrides };
+
+  const { data, error } = await sb
+    .from(TABLE)
+    .update({ features: mergedFeatures as unknown as Json })
+    // SAFE: updating a tenant definition targets the global `sites` registry.
+    .unsafeNoSiteFilter()
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  invalidateSiteCache();
+  return assertRow<SiteRow>(data, "Site");
+}
+
 /** Hard-delete a site — requires super_admin role.
  *
  * A27-001: Hard delete is restricted to super_admin for maintenance only.

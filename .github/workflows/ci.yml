@@ -569,7 +569,17 @@ jobs:
           # dropped, so the Audit Log grid was always empty. The grep count is
           # now 87: +3 matches = the insert call, the retry call, and the
           # audited doc reference in lib/security/service-role-allowlist.ts.
-          BASELINE=87
+          # then 87 -> 88 (PR #933): the feature-flags writer fix adds
+          # updateSiteFeatures() in lib/dal/sites.ts, which writes the global
+          # `sites` registry's `features` jsonb column (the column the runtime
+          # actually reads to gate live features). `sites` is the cross-tenant
+          # control-plane table with no per-row tenant scope to filter by, so
+          # the write uses the same cross-tenant opt-out as the existing
+          # getSiteRowById() / createSite() / upsertConfigSite() accessors in
+          # this file (annotated `// SAFE:` at the call). The admin route that
+          # reaches it is super_admin-gated (assertRole) on every handler. +1
+          # match = the single .unsafeNoSiteFilter() write in updateSiteFeatures.
+          BASELINE=88
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."
