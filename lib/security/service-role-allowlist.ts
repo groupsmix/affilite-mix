@@ -191,4 +191,15 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // policy exists), so the tenant client read zero rows and the grid was always
   // empty. Reads are pinned to the caller's active site via `.eq('site_id', …)`.
   "app/q7m-k4j9/(dashboard)/audit-log/page.tsx",
+
+  // Audit *writer*: recordAuditEvent persists to `audit_log`, whose INSERT is
+  // granted to service_role only (migration 2026050103 `audit_log_service_insert`;
+  // UPDATE/DELETE are revoked from every role). The tenant/authenticated client is
+  // RLS-denied — and degrades to anon on a SUPABASE_JWT_SECRET mismatch — so every
+  // event was silently dropped and the Audit Log grid was always empty. The ledger
+  // spans all sites plus global/auth events (site_id = NULL), so writes use the
+  // cross-tenant `.unsafeNoSiteFilter()` opt-out. Reached only from server-side
+  // admin/auth handlers (super_admin-gated routes and the rate-limited login path)
+  // that have already gated the caller. Mirrors the audit reader entry above.
+  "lib/audit-log.ts",
 ] as const;

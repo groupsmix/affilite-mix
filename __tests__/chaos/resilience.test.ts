@@ -10,10 +10,14 @@ import { describe, it, expect } from "vitest";
 
 describe("Chaos: graceful degradation", () => {
   it("audit-log recordAuditEvent does not throw when DB is unreachable", async () => {
-    // Simulate a DB client that always errors
+    // Simulate a DB client that always errors. recordAuditEvent writes to the
+    // cross-tenant audit_log ledger via the privileged client's
+    // `.insert(row).unsafeNoSiteFilter()` opt-out, so the fake mirrors that chain.
     const failClient = {
       from: () => ({
-        insert: () => Promise.resolve({ error: { message: "connection refused" } }),
+        insert: () => ({
+          unsafeNoSiteFilter: () => Promise.resolve({ error: { message: "connection refused" } }),
+        }),
       }),
     };
 
