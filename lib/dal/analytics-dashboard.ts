@@ -100,10 +100,10 @@ export async function getAnalyticsSummary(
   // not a real average order value. Compute real AOV from actual commission
   // sale_amount rows for this site and period instead.
   let avgOrderValue = 0;
-  // Defaults to "empty-period"; promoted to "computed" when at least one
-  // in-window order exists, or set to "query-failure" if the query throws or
-  // returns an error. This keeps the two zero-valued outcomes distinguishable.
-  let avgOrderValueStatus: AovIndication = "empty-period";
+  // Set based on outcome: "computed" when in-window orders exist,
+  // "empty-period" when query succeeds but no in-window orders exist,
+  // and "query-failure" when the query throws or returns an error.
+  let avgOrderValueStatus: AovIndication;
   try {
     const sb = await Promise.resolve(getClient());
     const { data: commRows, error: commError } = await sb
