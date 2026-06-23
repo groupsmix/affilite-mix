@@ -12,10 +12,27 @@ export interface RevenueTrendPoint {
   revenue: number;
 }
 
+/**
+ * Distinguishes the three AOV outcomes so that the two zero-valued cases are
+ * not conflated (R11.3 / R11.4):
+ * - "computed"      — AOV is a real mean over at least one in-window order.
+ * - "empty-period"  — the commissions query succeeded but the in-window period
+ *                     contained no orders; AOV is 0 by definition, not by error.
+ * - "query-failure" — the commissions query failed; AOV is 0 and no partial
+ *                     results are retained.
+ */
+export type AovIndication = "computed" | "empty-period" | "query-failure";
+
 export interface AnalyticsSummary {
   totalClicks: number;
   estimatedRevenue: number;
   avgOrderValue: number;
+  /**
+   * Indicates whether `avgOrderValue` reflects a real computation, an empty
+   * in-window period, or a commissions-query failure. Lets consumers tell the
+   * two zero-valued outcomes apart.
+   */
+  avgOrderValueStatus: AovIndication;
   growthRatePct: number;
   activeProducts: number;
   publishedContent: number;
@@ -83,14 +100,22 @@ export async function getAnalyticsSummary(
   // not a real average order value. Compute real AOV from actual commission
   // sale_amount rows for this site and period instead.
   let avgOrderValue = 0;
+  // Set based on outcome: "computed" when in-window orders exist,
+  // "empty-period" when query succeeds but no in-window orders exist,
+  // and "query-failure" when the query throws or returns an error.
+  let avgOrderValueStatus: AovIndication;
   try {
     const sb = await Promise.resolve(getClient());
-    const { data: commRows } = await sb
+    const { data: commRows, error: commError } = await sb
       .from("commissions")
       .select("sale_amount")
       .eq("site_id", siteId)
       .gte("event_date", since)
       .in("status", ["approved", "paid"]);
+    if (commError) {
+      // a query-level error is a failure, not an empty period
+      throw commError;
+    }
     const orders = (commRows ?? []).filter(
       (r: { sale_amount: number | null }) => Number(r.sale_amount) > 0,
     );
@@ -100,11 +125,16 @@ export async function getAnalyticsSummary(
         0,
       );
       avgOrderValue = parseFloat((totalSale / orders.length).toFixed(2));
+      avgOrderValueStatus = "computed";
+    } else {
+      // query succeeded but no orders fell in the window
+      avgOrderValueStatus = "empty-period";
     }
   } catch {
-    // best-effort — fall back to 0 rather than surfacing a commission-query
-    // error in the summary KPI response
+    // commission-query failure — fall back to 0 and flag it as a query failure
+    // (distinct from an empty period), retaining no partial results
     avgOrderValue = 0;
+    avgOrderValueStatus = "query-failure";
   }
 
   let growthRatePct = 0;
@@ -118,6 +148,7 @@ export async function getAnalyticsSummary(
     totalClicks,
     estimatedRevenue,
     avgOrderValue,
+    avgOrderValueStatus,
     growthRatePct: parseFloat(growthRatePct.toFixed(1)),
     activeProducts,
     publishedContent,

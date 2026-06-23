@@ -56,6 +56,7 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
 
   async function handleDelete(id: string) {
     if (!confirm("Remove this network configuration?")) return;
+    setError(null);
     try {
       // T3-F7: check res.ok — a non-OK response previously fell through to
       // onRefresh() as if the delete succeeded; only a thrown network error
@@ -66,13 +67,23 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
         body: JSON.stringify({ id }),
       });
       if (!res.ok) {
-        setError("Failed to delete");
+        // R15.1 / R15.4: surface the server-provided error message when present,
+        // otherwise fall back to a generic delete-failure message. The target
+        // item is retained because onRefresh() is not called on a non-OK
+        // response (the list is sourced from props).
+        const data = await res.json().catch(() => ({}));
+        setError((data as { error?: string }).error || "Failed to delete");
         return;
       }
+      // R15.2: clear any existing error and treat the delete as a success,
+      // refreshing the list so the removed item disappears.
+      setError(null);
       void onRefresh();
     } catch {
-      // fail-open: best-effort
-      setError("Failed to delete");
+      // R15.5: a network failure (fetchWithCsrf rejects / no response) must
+      // surface an error rather than silently dropping out of the handler, and
+      // the item must remain in the list (onRefresh is not called).
+      setError("The delete could not be completed. Please try again.");
     }
   }
 
