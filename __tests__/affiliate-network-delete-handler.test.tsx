@@ -77,10 +77,10 @@ const availableNetworks: AvailableNetwork[] = [
 
 let container: HTMLDivElement;
 let root: Root;
-let onRefresh: ReturnType<typeof vi.fn>;
+let onRefresh: () => void;
 
 function renderManager(configured: AffiliateNetworkConfig[]) {
-  onRefresh = vi.fn();
+  onRefresh = vi.fn<() => void>();
   act(() => {
     root.render(
       <AffiliateNetworkManager

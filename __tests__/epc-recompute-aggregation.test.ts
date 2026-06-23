@@ -76,8 +76,10 @@ describe("EPC-recompute aggregation (Requirement 9)", () => {
           linkGroupKey(l.site_id, l.product_id, l.network);
         for (let i = 0; i < links.length; i++) {
           for (let j = i + 1; j < links.length; j++) {
-            const sameTuple = keyOf(links[i]) === keyOf(links[j]);
-            const sameGroup = groups.get(keyOf(links[i])) === groups.get(keyOf(links[j]));
+            const li = links[i]!;
+            const lj = links[j]!;
+            const sameTuple = keyOf(li) === keyOf(lj);
+            const sameGroup = groups.get(keyOf(li)) === groups.get(keyOf(lj));
             expect(sameGroup).toBe(sameTuple);
           }
         }

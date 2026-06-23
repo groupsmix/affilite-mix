@@ -66,10 +66,10 @@ function makeDraft(overrides: Partial<AIDraft> = {}): AIDraft {
 
 let container: HTMLDivElement;
 let root: Root;
-let onRefresh: ReturnType<typeof vi.fn>;
+let onRefresh: () => void;
 
 function renderManager(drafts: AIDraft[]) {
-  onRefresh = vi.fn();
+  onRefresh = vi.fn<() => void>();
   act(() => {
     root.render(
       <AIContentManager
