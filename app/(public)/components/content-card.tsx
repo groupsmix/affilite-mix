@@ -5,6 +5,7 @@ import type { ContentRow } from "@/types/database";
 import Link from "next/link";
 import Image from "next/image";
 import { shimmerPlaceholder } from "@/lib/image-placeholder";
+import { formatCardDate } from "@/lib/format-card-date";
 import { highlightText } from "./highlight-text";
 
 interface ContentCardProps {
@@ -77,12 +78,7 @@ export function ContentCard({
           <span>{content.type}</span>
           {(content.publish_at ?? content.created_at) && (
             <time dateTime={content.publish_at ?? content.created_at}>
-              {new Date(content.publish_at ?? content.created_at).toLocaleDateString(locale, {
-                // B-nit: omitting timeZone causes SSR (UTC) and client (browser TZ) to
-                // format differently near midnight, producing a hydration mismatch.
-                // Pin to UTC for consistent SSR/client output.
-                timeZone: "UTC",
-              })}
+              {formatCardDate(content.publish_at ?? content.created_at, locale)}
             </time>
           )}
         </div>

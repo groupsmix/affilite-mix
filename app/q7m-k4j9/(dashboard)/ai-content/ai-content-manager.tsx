@@ -132,6 +132,13 @@ export function AIContentManager({
         return;
       }
       void onRefresh();
+    } catch {
+      // R14.5: a network failure (fetchWithCsrf rejects / no response) must
+      // surface an error rather than silently dropping out of the handler.
+      // Without this catch the delete was neither reported nor refreshed, so
+      // the admin had no signal the item was not removed. Mirrors the reorder
+      // network-failure handling in page-manager.tsx.
+      setError("The delete could not be completed. Please try again.");
     } finally {
       setActionLoading(null);
     }

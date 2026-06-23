@@ -20,6 +20,7 @@
  */
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { SignJWT } from "jose";
+import { isLoginPage as urlIsLoginPage } from "./helpers/is-login-page";
 
 const ADMIN_COOKIE = "nh_admin_token";
 
@@ -168,7 +169,7 @@ async function isLoginPage(page: Page): Promise<boolean> {
       .catch(() => {}),
   ]);
   // The admin login path is /q7m-k4j9/login, NOT /admin/login.
-  if (/\/q7m-k4j9\/login/.test(page.url())) return true;
+  if (urlIsLoginPage(page.url())) return true;
   return page
     .locator("text=Admin Login")
     .isVisible()

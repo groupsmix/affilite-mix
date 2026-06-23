@@ -11,6 +11,7 @@ import { recordCronLiveness } from "@/lib/cron-liveness";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { untypedFrom } from "@/lib/dal/type-guards";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
+import { groupAffiliateLinks, sumCommissions, computeEpc } from "./aggregation";
 
 /**
  * GET /api/cron/epc-recompute
@@ -55,28 +56,21 @@ export async function POST(request: NextRequest) {
     //
     // Fix: group by (site_id, product_id, network), count clicks across ALL
     // the group's URLs with .in(), and upsert exactly ONE row per group.
-    const groups = new Map<
-      string,
-      { site_id: string; product_id: string; network: string; urls: string[] }
-    >();
-    for (const link of links as {
-      product_id: string;
-      network: string;
-      url: string;
-      products: { site_id: string };
-    }[]) {
-      const site_id = link.products.site_id;
-      const key = `${site_id}|${link.product_id}|${link.network}`;
-      const existing = groups.get(key);
-      if (existing) existing.urls.push(link.url);
-      else
-        groups.set(key, {
-          site_id,
-          product_id: link.product_id,
-          network: link.network,
-          urls: [link.url],
-        });
-    }
+    // Grouping is the pure `groupAffiliateLinks` helper (see ./aggregation).
+    const normalizedLinks = (
+      links as {
+        product_id: string;
+        network: string;
+        url: string;
+        products: { site_id: string };
+      }[]
+    ).map((link) => ({
+      site_id: link.products.site_id,
+      product_id: link.product_id,
+      network: link.network,
+      url: link.url,
+    }));
+    const groups = groupAffiliateLinks(normalizedLinks);
 
     for (const g of groups.values()) {
       // Count clicks (30d and 7d) across ALL of this group's URLs.
@@ -117,14 +111,8 @@ export async function POST(request: NextRequest) {
         .in("status", ["approved", "paid"])
         .gte("event_date", sevenDaysAgo);
 
-      const totalComm30d = (comm30d || []).reduce(
-        (sum: number, c: { commission_amount: number }) => sum + Number(c.commission_amount),
-        0,
-      );
-      const totalComm7d = (comm7d || []).reduce(
-        (sum: number, c: { commission_amount: number }) => sum + Number(c.commission_amount),
-        0,
-      );
+      const totalComm30d = sumCommissions(comm30d);
+      const totalComm7d = sumCommissions(comm7d);
 
       const c30 = clicks30d || 0;
       const c7 = clicks7d || 0;
@@ -136,10 +124,10 @@ export async function POST(request: NextRequest) {
           network: g.network,
           clicks_30d: c30,
           commissions_30d: totalComm30d,
-          epc_30d: c30 > 0 ? totalComm30d / c30 : 0,
+          epc_30d: computeEpc(totalComm30d, c30),
           clicks_7d: c7,
           commissions_7d: totalComm7d,
-          epc_7d: c7 > 0 ? totalComm7d / c7 : 0,
+          epc_7d: computeEpc(totalComm7d, c7),
         },
         getPrivilegedSupabaseClient,
       );

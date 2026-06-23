@@ -242,8 +242,12 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
       });
       if (!res.ok) {
         setError("Could not save the new order.");
-        await loadPages();
       }
+      // R13.2: on an OK response, reload from the server to confirm the
+      // persisted order. R13.1/R13.4: on a non-OK response, also reload to
+      // restore the previously persisted order after the failed optimistic
+      // update.
+      await loadPages();
     } catch {
       // fail-open: best-effort
       // silent — reload to reset
@@ -287,8 +291,12 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
       });
       if (!res.ok) {
         setError("Could not save the new order.");
-        await loadPages();
       }
+      // R13.2: on an OK response, reload from the server to confirm the
+      // persisted order. R13.1/R13.4: on a non-OK response, also reload to
+      // restore the previously persisted order after the failed optimistic
+      // update.
+      await loadPages();
     } catch {
       // fail-open: best-effort
       setError("Could not save the new order.");
@@ -317,6 +325,16 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
           + New Page
         </button>
       </div>
+
+      {/* R13.3: surface reorder (and other) errors while the page form is
+          closed. Reorder controls only appear in the list view, so without a
+          top-level banner a failed reorder would be set via setError but never
+          shown — the silent-failure this requirement guards against. */}
+      {error && !showForm && (
+        <div role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Form */}
 
