@@ -167,8 +167,13 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         router.push("/q7m-k4j9/products");
         router.refresh();
       } else {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        const msg = data.error ?? "Failed to save";
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          errorId?: string;
+        };
+        const baseMsg = data.error ?? "Failed to save";
+        // F-010: surface the error reference id so the operator can quote it.
+        const msg = data.errorId ? `${baseMsg} (ref: ${data.errorId})` : baseMsg;
         setError(msg);
         toast.error(msg);
       }

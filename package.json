@@ -32,6 +32,7 @@
     "seed": "tsx scripts/seed.ts",
     "seed:ai-compared": "tsx scripts/seed-ai-compared.ts",
     "setup-supabase-auth": "tsx scripts/setup-supabase-auth.ts",
+    "bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
     "test:chaos": "vitest run __tests__/chaos",
     "test:mutation": "stryker run",
     "format": "prettier --write .",

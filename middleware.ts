@@ -33,6 +33,7 @@ import { parseOrCreateTraceContext, applyTraceHeaders, exportTraceSpan } from "@
 import { emitMetric } from "@/lib/metrics";
 // F-017: env-tunable self-reference recursion ceiling (default 2, was 3).
 import { MAX_RECURSION_DEPTH, RECURSION_DEPTH_HEADER } from "@/lib/worker-recursion";
+import { PATHNAME_HEADER } from "@/lib/request-path";
 
 const CSP_HEADER = "Content-Security-Policy";
 
@@ -198,6 +199,10 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
   // subrequests via WORKER_SELF_REFERENCE are capped at MAX_RECURSION_DEPTH.
   requestHeaders.set(RECURSION_DEPTH_HEADER, String(depth + 1));
   requestHeaders.set("x-site-id", siteId);
+  // Propagate the request pathname so Server Components (e.g. the root layout)
+  // can make path-aware decisions Next.js does not otherwise expose to layouts
+  // — used to suppress the public cookie-consent banner on /q7m-k4j9/* admin routes.
+  requestHeaders.set(PATHNAME_HEADER, pathname);
   // A7-005: Sign the site-id header so downstream getTenantClient() can
   // verify it came from middleware, not from a spoofed client request.
   const siteIdSig = await signSiteIdFallback(siteId);

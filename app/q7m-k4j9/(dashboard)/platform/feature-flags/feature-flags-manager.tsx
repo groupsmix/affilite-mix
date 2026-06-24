@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { resolveDefaultSiteId } from "@/lib/admin/default-site";
 
 interface FeatureFlag {
   id: string;
@@ -39,7 +40,10 @@ export function FeatureFlagsManager() {
       const dbSites = (data.sites as SiteOption[]).filter((s) => s.source === "database");
       setSites(dbSites);
       if (dbSites.length > 0 && !selectedSiteId) {
-        setSelectedSiteId(dbSites[0]!.db_id ?? dbSites[0]!.id);
+        // F-013 (rc4): default to the globally active site, falling back to the
+        // first DB site only when there is no active site.
+        const defaultId = await resolveDefaultSiteId(dbSites);
+        if (defaultId) setSelectedSiteId(defaultId);
       }
     }
     setLoading(false);

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { STATIC_INTEGRATION_PROVIDERS } from "@/lib/integrations/provider-catalog";
+import { resolveDefaultSiteId } from "@/lib/admin/default-site";
 
 interface IntegrationInfo {
   id: string;
@@ -49,7 +51,10 @@ export function IntegrationsManager() {
       const dbSites = (data.sites as SiteOption[]).filter((s) => s.source === "database");
       setSites(dbSites);
       if (dbSites.length > 0 && !selectedSiteId) {
-        setSelectedSiteId(dbSites[0]!.db_id ?? dbSites[0]!.id);
+        // F-013 (rc4): default to the globally active site, falling back to the
+        // first DB site only when there is no active site.
+        const defaultId = await resolveDefaultSiteId(dbSites);
+        if (defaultId) setSelectedSiteId(defaultId);
       }
     }
     setLoading(false);
@@ -124,9 +129,31 @@ export function IntegrationsManager() {
     );
   }
 
+  // F-019 (rc4 catalogRendersEmpty): Integrations is an app-defined static
+  // catalog. When the DB registry is momentarily empty / unseeded (e.g.
+  // migration 00028 not yet applied), fall back to the static provider catalog
+  // so the page always renders the registered providers with their toggles
+  // instead of collapsing to "No integration providers available". Toggling a
+  // static-fallback provider still posts against the selected site; the next
+  // load reflects the persisted state once the registry is populated.
+  const displayIntegrations: IntegrationInfo[] =
+    integrations.length > 0
+      ? integrations
+      : STATIC_INTEGRATION_PROVIDERS.map((provider) => ({
+          id: provider.key,
+          key: provider.key,
+          name: provider.name,
+          category: provider.category,
+          description: provider.description,
+          is_builtin: provider.is_builtin,
+          is_enabled: false,
+          site_config: {},
+          site_integration_id: null,
+        }));
+
   // Group integrations by category
   const grouped: Record<string, IntegrationInfo[]> = {};
-  for (const integ of integrations) {
+  for (const integ of displayIntegrations) {
     if (!grouped[integ.category]) grouped[integ.category] = [];
     grouped[integ.category]!.push(integ);
   }
@@ -200,7 +227,7 @@ export function IntegrationsManager() {
         ))}
       </div>
 
-      {integrations.length === 0 && (
+      {displayIntegrations.length === 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
           No integration providers available.
         </div>

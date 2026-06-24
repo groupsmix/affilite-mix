@@ -1,5 +1,6 @@
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { MAX_LIMIT } from "./pagination-guard";
+import { logger } from "@/lib/logger";
 
 export interface NicheHealthRow {
   site_id: string;
@@ -30,7 +31,15 @@ export async function getNicheHealthStats(
     })
     .limit(MAX_LIMIT);
 
-  if (error) throw error;
+  if (error) {
+    // RPC not deployed / failed (e.g. function missing, permission denied,
+    // schema-cache miss, statement timeout) — degrade to "no niche data"
+    // instead of throwing past the unguarded super_admin Dashboard cards.
+    logger.error("[niche-health] get_niche_health_stats RPC unavailable, returning empty result", {
+      error: error.message,
+    });
+    return [];
+  }
 
   return (data ?? []) as NicheHealthRow[];
 }

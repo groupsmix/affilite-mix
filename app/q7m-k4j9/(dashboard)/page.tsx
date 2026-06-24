@@ -12,6 +12,7 @@ import { requireAdminSession } from "./components/admin-guard";
 import { AdminDataError, safeAdminData } from "./components/admin-page-state";
 import { AutoRefresh } from "./components/auto-refresh";
 import { AlertsCard, type DashboardAlert } from "./components/dashboard/alerts-card";
+import { CardErrorBoundary } from "./components/dashboard/card-error-boundary";
 import { KpiCard } from "./components/dashboard/kpi-card";
 import {
   CountUpValue,
@@ -279,8 +280,12 @@ export default async function AdminDashboard() {
           Both rely on `listSites()` so we gate both behind super_admin. */}
       {isSuperAdmin && (
         <div className="mb-6 grid gap-4 xl:grid-cols-2">
-          <NicheHealthCard />
-          <RevenuePerSiteCard sevenDaysAgo={sevenDaysAgo} />
+          <CardErrorBoundary title="Niche health">
+            <NicheHealthCard />
+          </CardErrorBoundary>
+          <CardErrorBoundary title="Estimated revenue (7d)">
+            <RevenuePerSiteCard sevenDaysAgo={sevenDaysAgo} />
+          </CardErrorBoundary>
         </div>
       )}
 

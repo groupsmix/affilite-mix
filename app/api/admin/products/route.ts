@@ -11,6 +11,7 @@ import {
 import { validateCreateProduct, validateUpdateProduct } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
+import { saveErrorResponse } from "@/lib/save-error";
 import { parseJsonBody } from "@/lib/api-error";
 import { parsePagination } from "@/lib/pagination";
 import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/authz";
@@ -141,8 +142,10 @@ export const POST = withAuthz(
       });
       return NextResponse.json(product, { status: 201 });
     } catch (err) {
-      captureException(err, { context: "[api/admin/products] POST create failed:" });
-      return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
+      // F-010: map known failures (unprovisioned site → FK violation 23503,
+      // RLS denial) to an actionable message and attach an error reference id
+      // instead of a generic "Failed to create product".
+      return saveErrorResponse(err, "[api/admin/products] POST create failed:");
     }
   },
 );
@@ -247,8 +250,8 @@ export const PATCH = withAuthz(
           { status: 409, headers: { "Retry-After": "0" } },
         );
       }
-      captureException(err, { context: "[api/admin/products] PATCH update failed:" });
-      return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
+      // F-010: actionable message + error reference id for non-conflict failures.
+      return saveErrorResponse(err, "[api/admin/products] PATCH update failed:");
     }
   },
 );
@@ -318,8 +321,8 @@ export const DELETE = withAuthz(
       });
       return NextResponse.json({ ok: true });
     } catch (err) {
-      captureException(err, { context: "[api/admin/products] DELETE failed:" });
-      return NextResponse.json({ error: "Failed to delete product" }, { status: 500 });
+      // F-010: actionable message + error reference id on delete failures.
+      return saveErrorResponse(err, "[api/admin/products] DELETE failed:");
     }
   },
 );

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
+  AlertTriangleIcon,
   BarChart3Icon,
   CheckIcon,
   ExternalLinkIcon,
@@ -189,6 +190,19 @@ function SourceBadge({ source }: { source: "config" | "database" }) {
   );
 }
 
+// F-007 / Property 1: a configured tenant (config/sites/*) whose `sites` row is
+// missing surfaces as a config-source site here — i.e. it is NOT provisioned in
+// the database. Flag it so an admin knows the active-site resolution / module
+// load will fail until the row is provisioned.
+function NotProvisionedBadge() {
+  return (
+    <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+      <AlertTriangleIcon className="size-3" aria-hidden />
+      Not provisioned
+    </Badge>
+  );
+}
+
 function StatCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col items-center gap-0.5 text-center">
@@ -222,9 +236,13 @@ interface SiteCardViewProps {
 
   selecting: boolean;
 
+  provisioning: boolean;
+
   onToggleActive: (site: SiteInfo, next: boolean) => void;
 
   onSetActive: (site: SiteInfo) => void;
+
+  onProvision: (site: SiteInfo) => void;
 
   onEdit: (site: SiteInfo) => void;
 
@@ -246,9 +264,13 @@ function SiteCardView({
 
   selecting,
 
+  provisioning,
+
   onToggleActive,
 
   onSetActive,
+
+  onProvision,
 
   onEdit,
 
@@ -261,6 +283,11 @@ function SiteCardView({
   const slug = site.slug ?? site.id;
 
   const isConfigSite = site.source === "config";
+
+  // A configured tenant whose `sites` row is missing (it only resolves from
+  // static config, not the DB). Until it is provisioned, site-scoped modules
+  // cannot resolve its active site (F-007 / Property 1).
+  const isNotProvisioned = isConfigSite;
 
   const isEnabled = site.is_active ?? true;
 
@@ -329,6 +356,13 @@ function SiteCardView({
                     <DropdownMenuItem onSelect={() => onSetActive(site)} disabled={selecting}>
                       <CheckIcon />
                       Set as active
+                    </DropdownMenuItem>
+                  )}
+
+                  {isNotProvisioned && (
+                    <DropdownMenuItem onSelect={() => onProvision(site)} disabled={provisioning}>
+                      <AlertTriangleIcon />
+                      Run site provisioning
                     </DropdownMenuItem>
                   )}
 
@@ -404,10 +438,44 @@ function SiteCardView({
           )}
 
           <SourceBadge source={site.source} />
+
+          {isNotProvisioned && <NotProvisionedBadge />}
         </div>
       </CardHeader>
 
       <CardContent className="pb-4 pt-4">
+        {isNotProvisioned && (
+          <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+            <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+
+            <div className="flex-1 space-y-1.5">
+              <p className="font-medium">Not provisioned — run site provisioning</p>
+
+              <p className="text-amber-700">
+                This tenant is defined in config but has no database row yet, so its dashboard
+                modules can&apos;t load until it&apos;s provisioned.
+              </p>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-1 h-7 border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                onClick={() => onProvision(site)}
+                disabled={provisioning}
+              >
+                {provisioning ? (
+                  <>
+                    <Loader2 className="animate-spin" aria-hidden />
+                    Provisioning…
+                  </>
+                ) : (
+                  "Run site provisioning"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-2 rounded-md border bg-muted/30 py-3">
           <StatCell
             label="Products"
@@ -444,7 +512,12 @@ function SiteCardView({
               isEnabled ? "text-foreground" : "text-muted-foreground",
             )}
           >
-            {isEnabled ? "Active" : "Inactive"}
+            {/* F-004 / Property 7 (Req 2.14): the per-tenant enable toggle is
+                labelled "Enabled"/"Disabled" so the word "Active" no longer
+                names two different concepts (the working-context control below
+                remains "Set as active"). This disambiguates the overloaded
+                "Active" affordance on the fresh-login Sites page. */}
+            {isEnabled ? "Enabled" : "Disabled"}
           </label>
         </div>
 
@@ -531,6 +604,8 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [selectingId, setSelectingId] = useState<string | null>(null);
+
+  const [provisioningId, setProvisioningId] = useState<string | null>(null);
 
   const [addOpen, setAddOpen] = useState(false);
 
@@ -695,6 +770,55 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
     [router],
   );
 
+  // F-007 / Property 1: provision a configured tenant whose `sites` row is
+  // missing by creating its DB row from the static config. Once provisioned,
+  // site-scoped modules can resolve its active site and load.
+  const handleProvision = useCallback(
+    async (site: SiteInfo) => {
+      if (site.source !== "config") return;
+
+      setProvisioningId(site.id);
+
+      try {
+        const res = await fetchWithCsrf("/api/admin/sites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: site.slug ?? site.id,
+            name: site.name,
+            domain: site.domain,
+            language: site.language,
+            direction: site.direction,
+            monetization_type: site.monetization_type,
+            theme: site.theme,
+          }),
+        });
+
+        if (res.ok) {
+          toast.success(`Provisioned “${site.name}”. Its dashboard modules can now load.`);
+          await Promise.all([loadSites(), loadStats()]);
+          router.refresh();
+        } else {
+          let message = "Failed to provision site. Please try again.";
+          try {
+            const data = (await res.json()) as { error?: string };
+            if (typeof data.error === "string" && data.error.length > 0) {
+              message = data.error;
+            }
+          } catch {
+            // Non-JSON error body — keep the default message.
+          }
+          toast.error(message);
+        }
+      } catch {
+        toast.error("Failed to provision site. Check your connection and try again.");
+      } finally {
+        setProvisioningId(null);
+      }
+    },
+    [loadSites, loadStats, router],
+  );
+
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
 
@@ -763,11 +887,15 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
         statsLoading={statsLoading}
         toggling={togglingId === site.id}
         selecting={selectingId === site.id}
+        provisioning={provisioningId === site.id}
         onToggleActive={(site, next) => {
           void handleToggleActive(site, next);
         }}
         onSetActive={(site) => {
           void handleSetActive(site);
+        }}
+        onProvision={(site) => {
+          void handleProvision(site);
         }}
         onEdit={setEditStubSite}
         onDelete={setDeleteTarget}
@@ -789,9 +917,13 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
 
     selectingId,
 
+    provisioningId,
+
     handleToggleActive,
 
     handleSetActive,
+
+    handleProvision,
 
     handleViewAnalytics,
   ]);

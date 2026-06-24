@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { NETWORK_CONFIGS } from "@/lib/affiliate/networks";
 import type { AffiliateNetworkConfig, AvailableNetwork } from "./page";
 
 interface Props {
@@ -10,6 +11,23 @@ interface Props {
   loading: boolean;
   onRefresh: () => void | Promise<void>;
 }
+
+/**
+ * F-019 (rc4 catalogRendersEmpty): the affiliate-network catalog is app-defined
+ * (`NETWORK_CONFIGS`). When the DB-derived `available` list is momentarily empty
+ * (registry unseeded / fetch returned nothing), fall back to the static catalog
+ * so the "Available Networks" reference table always renders its registered
+ * networks instead of an empty table.
+ */
+const STATIC_AVAILABLE_NETWORKS: AvailableNetwork[] = Object.values(NETWORK_CONFIGS).map((n) => ({
+  network: n.network,
+  name: n.name,
+  description: n.description,
+  bestFor: n.bestFor,
+  baseUrl: n.baseUrl,
+  requiresApiKey: n.requiresApiKey,
+  envKeyName: n.envKeyName,
+}));
 
 export function AffiliateNetworkManager({ configured, available, loading, onRefresh }: Props) {
   const [showForm, setShowForm] = useState(false);
@@ -88,6 +106,10 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
   }
 
   const configuredNetworkKeys = new Set(configured.map((c) => c.network));
+
+  // Always render the app-defined catalog: use the DB-derived list when present,
+  // otherwise fall back to the static `NETWORK_CONFIGS` catalog.
+  const availableNetworks = available.length > 0 ? available : STATIC_AVAILABLE_NETWORKS;
 
   return (
     <div className="space-y-4">
@@ -178,7 +200,7 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
                   onChange={(e) => setFormNetwork(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 >
-                  {available
+                  {availableNetworks
                     .filter((n) => !configuredNetworkKeys.has(n.network))
                     .map((n) => (
                       <option key={n.network} value={n.network}>
@@ -237,7 +259,7 @@ export function AffiliateNetworkManager({ configured, available, loading, onRefr
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
-              {available.map((net) => (
+              {availableNetworks.map((net) => (
                 <tr key={net.network}>
                   <td className="px-4 py-2 font-medium text-gray-900">{net.name}</td>
                   <td className="px-4 py-2 text-gray-500">{net.bestFor}</td>
