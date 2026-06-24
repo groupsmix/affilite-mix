@@ -12,7 +12,11 @@ export function AutoRefresh({ intervalMs = 60_000 }: { intervalMs?: number }) {
 
   useEffect(() => {
     const id = setInterval(() => {
-      router.refresh();
+      // Skip refresh when the tab is hidden to avoid racing with active
+      // form edits or in-flight mutations in a background tab.
+      if (document.visibilityState !== "hidden") {
+        router.refresh();
+      }
     }, intervalMs);
     return () => clearInterval(id);
   }, [router, intervalMs]);

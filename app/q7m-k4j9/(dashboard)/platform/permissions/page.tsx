@@ -1,8 +1,14 @@
-import { requireAdminSession } from "../../components/admin-guard";
+import { redirect } from "next/navigation";
+import { getAdminSession } from "@/lib/auth";
 import { PermissionsManager } from "./permissions-manager";
 
 export default async function PermissionsPage() {
-  await requireAdminSession();
+  const session = await getAdminSession();
+  if (!session) redirect("/q7m-k4j9/login");
+  // Only super_admin may manage roles — a regular admin hitting this page
+  // gets a hard redirect rather than a confusing partial state where all
+  // API calls return 403.
+  if (session.role !== "super_admin") redirect("/q7m-k4j9");
 
   return (
     <div className="mx-auto max-w-5xl">
