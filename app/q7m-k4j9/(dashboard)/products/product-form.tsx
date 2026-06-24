@@ -101,6 +101,14 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
     if (saving) return;
 
+    // F-011: an active product with no affiliate URL earns nothing. Block
+    // submission and surface a clear inline error rather than letting a blank
+    // URL silently reach the DB.
+    if (status === "active" && !affiliateUrl.trim()) {
+      setError("An affiliate URL is required before setting a product to Active.");
+      return;
+    }
+
     setSaving(true);
 
     setError("");
@@ -267,7 +275,12 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="prod-affiliate-url">Affiliate URL</Label>
+                <Label htmlFor="prod-affiliate-url">
+                  Affiliate URL{" "}
+                  <span className="font-normal text-muted-foreground text-xs">
+                    (required for active products)
+                  </span>
+                </Label>
 
                 <Input
                   id="prod-affiliate-url"
