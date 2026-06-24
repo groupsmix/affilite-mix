@@ -5,6 +5,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import { NONCE_HEADER } from "@/lib/csp";
+import { PATHNAME_HEADER } from "@/lib/request-path";
 import { WebVitals } from "./web-vitals";
 import { logger } from "@/lib/logger";
 import CookieConsentCmp from "./(public)/components/cookie-consent-cmp";
@@ -105,7 +106,15 @@ const fontVarMap: Record<string, string> = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const site = await getCurrentSite();
-  const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
+  const headerList = await headers();
+  const nonce = headerList.get(NONCE_HEADER) ?? undefined;
+
+  // The admin panel shares this root layout, but the public GDPR cookie-consent
+  // banner must never render on admin routes. Detect the admin path prefix via
+  // the request pathname header propagated by middleware and suppress the banner
+  // for `/q7m-k4j9` and its sub-paths (the public render is left unchanged).
+  const pathname = headerList.get(PATHNAME_HEADER) ?? "";
+  const isAdminRoute = pathname === "/q7m-k4j9" || pathname.startsWith("/q7m-k4j9/");
 
   // Collect only the font CSS variables that this site actually uses
   const needed = new Set<string>();
@@ -148,7 +157,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <WebVitals />
-        {site.features.cookieConsent && (
+        {site.features.cookieConsent && !isAdminRoute && (
           <CookieConsentCmp language={site.language} siteId={site.id} />
         )}
         {children}

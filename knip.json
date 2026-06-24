@@ -15,8 +15,7 @@
     "components/data-table/skeleton.tsx",
     "workers/custom-worker.ts",
     "workers/heavy-crons.ts",
-    "workers/log-shipper/index.ts",
-    "workers/rate-limiter-do.ts"
+    "workers/log-shipper/index.ts"
   ],
   "ignoreBinaries": [
     "wrangler",

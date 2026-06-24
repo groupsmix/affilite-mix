@@ -352,7 +352,7 @@ function UsersEmptyState() {
       <CardContent className="py-10 text-center">
         <p className="text-muted-foreground">No admin users yet.</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Add your first admin user to enable login.
+          Add an admin user to grant additional people access to this dashboard.
         </p>
       </CardContent>
     </Card>

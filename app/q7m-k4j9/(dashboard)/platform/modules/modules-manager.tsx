@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
+import { MODULE_REGISTRY } from "@/lib/module-registry";
+import { resolveDefaultSiteId } from "@/lib/admin/default-site";
 
 interface ModuleInfo {
   key: string;
@@ -31,11 +33,34 @@ const categoryLabels: Record<string, string> = {
   seo: "SEO",
 };
 
+/**
+ * F-018 (rc4): the static, app-defined module catalog. When the per-site
+ * `GET /api/admin/modules` fetch fails (e.g. DB unavailable), the region below
+ * the site selector must NOT render blank — we fall back to this seeded
+ * `MODULE_REGISTRY` so every available module still renders (with its default
+ * enabled state) alongside an explicit error banner.
+ */
+function registryFallbackModules(): ModuleInfo[] {
+  return MODULE_REGISTRY.map((def) => ({
+    key: def.key,
+    name: def.name,
+    description: def.description,
+    category: def.category,
+    defaultEnabled: def.defaultEnabled,
+    dependencies: [...def.dependencies],
+    is_enabled: false,
+    config: {},
+    site_module_id: null,
+  }));
+}
+
 export function ModulesManager() {
   const [sites, setSites] = useState<SiteOption[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string>("");
   const [modules, setModules] = useState<ModuleInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modulesLoading, setModulesLoading] = useState(false);
+  const [modulesError, setModulesError] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -46,7 +71,10 @@ export function ModulesManager() {
       const dbSites = (data.sites as SiteOption[]).filter((s) => s.source === "database");
       setSites(dbSites);
       if (dbSites.length > 0 && !selectedSiteId) {
-        setSelectedSiteId(dbSites[0]!.db_id ?? dbSites[0]!.id);
+        // F-013 (rc4): default to the globally active site, falling back to the
+        // first DB site only when there is no active site.
+        const defaultId = await resolveDefaultSiteId(dbSites);
+        if (defaultId) setSelectedSiteId(defaultId);
       }
     }
     setLoading(false);
@@ -59,12 +87,31 @@ export function ModulesManager() {
   const loadModules = useCallback(async () => {
     if (!selectedSiteId) return;
     const requestedSiteId = selectedSiteId;
-    const res = await fetch(`/api/admin/modules?site_id=${encodeURIComponent(requestedSiteId)}`);
-    // M4: drop a stale response if the active site changed while in flight.
-    if (requestedSiteId !== activeSiteIdRef.current) return;
-    if (res.ok) {
-      const data = await res.json();
-      setModules(data.modules);
+    setModulesLoading(true);
+    setModulesError("");
+    try {
+      const res = await fetch(`/api/admin/modules?site_id=${encodeURIComponent(requestedSiteId)}`);
+      // M4: drop a stale response if the active site changed while in flight.
+      if (requestedSiteId !== activeSiteIdRef.current) return;
+      if (res.ok) {
+        const data = await res.json();
+        setModules(data.modules);
+      } else {
+        // F-018: never render blank below the selector — fall back to the
+        // seeded static catalog and surface an explicit error state.
+        setModules(registryFallbackModules());
+        setModulesError(
+          "Couldn't load this site's module settings. Showing the default module catalog.",
+        );
+      }
+    } catch {
+      if (requestedSiteId !== activeSiteIdRef.current) return;
+      setModules(registryFallbackModules());
+      setModulesError(
+        "Couldn't load this site's module settings. Showing the default module catalog.",
+      );
+    } finally {
+      if (requestedSiteId === activeSiteIdRef.current) setModulesLoading(false);
     }
   }, [selectedSiteId]);
 
@@ -145,59 +192,77 @@ export function ModulesManager() {
 
       {error && <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
 
-      {/* Module groups */}
-      <div className="space-y-6">
-        {Object.entries(grouped).map(([category, mods]) => (
-          <div key={category} className="rounded-lg border border-gray-200 bg-white">
-            <div className="border-b border-gray-100 px-5 py-3">
-              <h2 className="text-sm font-semibold text-gray-900">
-                {categoryLabels[category] ?? category}
-              </h2>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {mods.map((mod) => (
-                <div key={mod.key} className="flex items-center justify-between px-5 py-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-gray-900">{mod.name}</p>
-                      {mod.defaultEnabled && (
-                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-                          default
-                        </span>
+      {/* F-018: explicit error state — the static catalog still renders below. */}
+      {modulesError && (
+        <div className="mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+          {modulesError}
+        </div>
+      )}
+
+      {/* Post-selector region: loading → empty → module groups. */}
+      {modulesLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-sm text-gray-500">Loading modules...</div>
+        </div>
+      ) : modules.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
+          <p className="text-gray-500">No modules available for this site.</p>
+        </div>
+      ) : (
+        /* Module groups */
+        <div className="space-y-6">
+          {Object.entries(grouped).map(([category, mods]) => (
+            <div key={category} className="rounded-lg border border-gray-200 bg-white">
+              <div className="border-b border-gray-100 px-5 py-3">
+                <h2 className="text-sm font-semibold text-gray-900">
+                  {categoryLabels[category] ?? category}
+                </h2>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {mods.map((mod) => (
+                  <div key={mod.key} className="flex items-center justify-between px-5 py-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-gray-900">{mod.name}</p>
+                        {mod.defaultEnabled && (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                            default
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-gray-500">{mod.description}</p>
+                      {mod.dependencies.length > 0 && (
+                        <p className="mt-1 text-xs text-amber-600">
+                          Depends on: {mod.dependencies.join(", ")}
+                        </p>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-gray-500">{mod.description}</p>
-                    {mod.dependencies.length > 0 && (
-                      <p className="mt-1 text-xs text-amber-600">
-                        Depends on: {mod.dependencies.join(", ")}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void toggleModule(mod.key, !mod.is_enabled);
-                    }}
-                    disabled={saving === mod.key}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
-                      mod.is_enabled ? "bg-blue-600" : "bg-gray-200"
-                    }`}
-                    role="switch"
-                    aria-checked={mod.is_enabled}
-                    aria-label={`Toggle ${mod.name}`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        mod.is_enabled ? "translate-x-5" : "translate-x-0"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void toggleModule(mod.key, !mod.is_enabled);
+                      }}
+                      disabled={saving === mod.key}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
+                        mod.is_enabled ? "bg-blue-600" : "bg-gray-200"
                       }`}
-                    />
-                  </button>
-                </div>
-              ))}
+                      role="switch"
+                      aria-checked={mod.is_enabled}
+                      aria-label={`Toggle ${mod.name}`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          mod.is_enabled ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
