@@ -17,7 +17,7 @@ import { captureException } from "@/lib/sentry";
  */
 
 /** A reference id field name the admin UI / clients can rely on. */
-export const ERROR_REFERENCE_FIELD = "errorId" as const;
+const ERROR_REFERENCE_FIELD = "errorId" as const;
 
 /** Postgres / PostgREST error codes we map to actionable, user-safe messages. */
 const FOREIGN_KEY_VIOLATION = "23503";
