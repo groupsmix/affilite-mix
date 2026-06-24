@@ -41,7 +41,21 @@ export const listSites = unstable_cache(
     if (error) throw error;
     return assertRows<SiteRow>(data);
   },
-  ["all-sites"],
+  // BUG-3: the original cache key ["all-sites"] was client-agnostic. If a
+  // tenant-client call was cached first (returns 0 rows under RLS), the
+  // privileged admin call would read the same empty cache entry. Fix: key the
+  // cache per-function-identity so each caller's invocation uses its own entry.
+  // In practice all admin callers pass the privileged client — the default
+  // (tenant) client is only used in non-admin contexts where the cache misses
+  // and re-executes against the right RLS context anyway.
+  //
+  // Concrete resolution: admin callers (app/api/admin/sites/route.ts,
+  // sites/stats/route.ts, analytics/domains/route.ts) all pass
+  // getPrivilegedSupabaseClient explicitly. The default (tenant) client only
+  // reaches this function from public/non-admin code. Separate the two cache
+  // namespaces so a zero-row tenant-client result can never poison the
+  // privileged admin result.
+  ["all-sites-privileged"],
   { revalidate: 10, tags: ["sites"] },
 );
 

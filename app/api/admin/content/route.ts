@@ -269,15 +269,19 @@ export const DELETE = withAuthz(
     const rlResponse = await enforceAdminRateLimit("content", session);
     if (rlResponse) return rlResponse;
 
-    let id: string | null = null;
-    const rawOrError = await parseJsonBody(request);
-    if (rawOrError instanceof NextResponse) {
-      // JSON parse failed — fallback to query params for backward compatibility
-    } else {
-      id = typeof rawOrError.id === "string" ? rawOrError.id : null;
-    }
+    // BUG-11: the original dual-path had a logic hole: parseJsonBody succeeds
+    // even when the body is `{}` (no id field), so the query-param fallback
+    // never fired for a request with `?id=<uuid>` but an empty body.
+    // Fix: always read the query param first (it's the canonical DELETE idiom
+    // for BulkActions), then fall back to the JSON body for the single-delete
+    // button which sends `{ id }` as a body. This mirrors how products DELETE
+    // already works and eliminates the suppression bug.
+    let id: string | null = request.nextUrl.searchParams.get("id");
     if (!id) {
-      id = request.nextUrl.searchParams.get("id");
+      const rawOrError = await parseJsonBody(request);
+      if (!(rawOrError instanceof NextResponse)) {
+        id = typeof rawOrError.id === "string" ? rawOrError.id : null;
+      }
     }
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });

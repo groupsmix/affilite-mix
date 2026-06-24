@@ -90,16 +90,11 @@ async function fallbackDashboardStats(
 ): Promise<DashboardStats> {
   const sb = await getClient();
 
-  const [
-    { count: totalProducts },
-    { count: activeProducts },
-    { count: draftProducts },
-    { count: totalContent },
-    { count: publishedContent },
-    { count: draftContent },
-    { count: clicksToday },
-    { count: clicks7d },
-  ] = await Promise.all([
+  // BUG-9: use Promise.allSettled so a single transient count query failure
+  // (e.g. affiliate_clicks temporarily unavailable) does not reject the entire
+  // fallback and wipe all dashboard metrics. Each metric gracefully falls back
+  // to 0 on failure.
+  const countResults = await Promise.allSettled([
     sb.from("products").select("id", { count: "exact", head: true }).eq("site_id", siteId),
     sb
       .from("products")
@@ -133,6 +128,19 @@ async function fallbackDashboardStats(
       .eq("site_id", siteId)
       .gte("created_at", sevenDaysAgo),
   ]);
+
+  function countOf(result: (typeof countResults)[number]): number {
+    return result.status === "fulfilled" ? (result.value.count ?? 0) : 0;
+  }
+
+  const totalProducts = countOf(countResults[0]!);
+  const activeProducts = countOf(countResults[1]!);
+  const draftProducts = countOf(countResults[2]!);
+  const totalContent = countOf(countResults[3]!);
+  const publishedContent = countOf(countResults[4]!);
+  const draftContent = countOf(countResults[5]!);
+  const clicksToday = countOf(countResults[6]!);
+  const clicks7d = countOf(countResults[7]!);
 
   // Products with no affiliate URL
   // NOTE: head:true returns no row data — destructure count, not data.length
@@ -188,14 +196,14 @@ async function fallbackDashboardStats(
     .gt("publish_at", new Date().toISOString());
 
   return {
-    total_products: totalProducts ?? 0,
-    active_products: activeProducts ?? 0,
-    draft_products: draftProducts ?? 0,
-    total_content: totalContent ?? 0,
-    published_content: publishedContent ?? 0,
-    draft_content: draftContent ?? 0,
-    clicks_today: clicksToday ?? 0,
-    clicks_7d: clicks7d ?? 0,
+    total_products: totalProducts,
+    active_products: activeProducts,
+    draft_products: draftProducts,
+    total_content: totalContent,
+    published_content: publishedContent,
+    draft_content: draftContent,
+    clicks_today: clicksToday,
+    clicks_7d: clicks7d,
     products_no_url: productsNoUrl ?? 0,
     content_no_products: contentNoProducts,
     scheduled_content: scheduledContent ?? 0,

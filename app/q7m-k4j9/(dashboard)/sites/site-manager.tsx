@@ -637,12 +637,17 @@ export function SiteManager({ needsSite = false }: { needsSite?: boolean }) {
   }, [needsSite]);
 
   const loadSites = useCallback(async () => {
-    const res = await fetch("/api/admin/sites");
+    try {
+      const res = await fetch("/api/admin/sites");
 
-    if (res.ok) {
-      const data = (await res.json()) as { sites: SiteInfo[] };
+      if (res.ok) {
+        const data = (await res.json()) as { sites: SiteInfo[] };
 
-      setSites(data.sites);
+        setSites(data.sites);
+      }
+    } catch {
+      // Network error — sites list stays empty; user sees the empty state
+      // instead of an uncaught rejection + blank screen.
     }
   }, []);
 

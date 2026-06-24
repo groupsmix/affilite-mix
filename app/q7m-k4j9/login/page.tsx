@@ -87,7 +87,7 @@ export default function AdminLoginPage() {
     }
 
     if (res.ok) {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}) as Record<string, unknown>);
 
       // A154: Advisory breached-password notice — do not block login
       if (data.password_breached) {
@@ -111,9 +111,11 @@ export default function AdminLoginPage() {
       }
       window.location.href = redirectTarget;
     } else {
-      const data = await res.json();
+      // BUG-10: guard against non-JSON error responses (e.g. CDN HTML errors)
+      // so a parse failure doesn't lock the loading spinner permanently.
+      const data = await res.json().catch(() => ({}) as Record<string, unknown>);
 
-      setError(data.error ?? "Login failed");
+      setError(typeof data.error === "string" ? data.error : "Login failed");
 
       // If TOTP attempt failed, clear the token so the user can retry
       if (requires2fa) {
@@ -370,9 +372,8 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
     if (res.ok) {
       setSent(true);
     } else {
-      const data = await res.json();
-
-      setResetError(data.error ?? "Failed to send reset email");
+      const data = await res.json().catch(() => ({}) as Record<string, unknown>);
+      setResetError(typeof data.error === "string" ? data.error : "Failed to send reset email");
     }
 
     setSending(false);

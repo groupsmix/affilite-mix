@@ -158,7 +158,11 @@ export async function getTopProducts(
 
   let query = sb.from(TABLE).select("product_name, created_at, is_internal").eq("site_id", siteId);
   query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-  const { data, error } = await query;
+  // BUG-8: add a hard cap to prevent unbounded full-table fetches in the
+  // Cloudflare Worker runtime (128 MB memory limit). Results beyond
+  // FALLBACK_ROW_CAP are truncated — the aggregation becomes approximate
+  // but the worker stays alive. The RPC path (no `until`) has no cap issue.
+  const { data, error } = await query.limit(10_000);
   if (error) throw error;
 
   const rows = assertRows<{ product_name: string }>(data ?? []);
@@ -197,7 +201,7 @@ export async function getTopReferrers(
 
   let query = sb.from(TABLE).select("referrer, created_at, is_internal").eq("site_id", siteId);
   query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-  const { data, error } = await query;
+  const { data, error } = await query.limit(10_000);
   if (error) throw error;
 
   const rows = assertRows<{ referrer: string }>(data ?? []);
@@ -236,7 +240,7 @@ export async function getTopContentSlugs(
 
   let query = sb.from(TABLE).select("content_slug, created_at, is_internal").eq("site_id", siteId);
   query = applyCreatedAtWindow(query, { since: sinceDate, until: untilDate });
-  const { data, error } = await query;
+  const { data, error } = await query.limit(10_000);
   if (error) throw error;
 
   const rows = assertRows<{ content_slug: string }>(data ?? []);
@@ -290,7 +294,7 @@ export async function getDailyClicks(
     since: sinceDate.toISOString(),
     until: untilDate.toISOString(),
   });
-  const { data, error } = await query;
+  const { data, error } = await query.limit(10_000);
   if (error) throw error;
 
   const rows = assertRows<{ created_at: string }>(data ?? []);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { resolveDefaultSiteId } from "@/lib/admin/default-site";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 
 interface RoleInfo {
   id: string;
@@ -60,28 +61,36 @@ export function PermissionsManager() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const loadSites = useCallback(async () => {
-    const res = await fetch("/api/admin/sites");
-    if (res.ok) {
-      const data = await res.json();
-      const dbSites = (data.sites as SiteOption[]).filter((s) => s.source === "database");
-      setSites(dbSites);
-      if (dbSites.length > 0 && !selectedSiteId) {
-        // F-013 (rc4): default to the globally active site, falling back to the
-        // first DB site only when there is no active site.
-        const defaultId = await resolveDefaultSiteId(dbSites);
-        if (defaultId) setSelectedSiteId(defaultId);
+    try {
+      const res = await fetch("/api/admin/sites");
+      if (res.ok) {
+        const data = await res.json();
+        const dbSites = (data.sites as SiteOption[]).filter((s) => s.source === "database");
+        setSites(dbSites);
+        if (dbSites.length > 0 && !selectedSiteId) {
+          // F-013 (rc4): default to the globally active site, falling back to the
+          // first DB site only when there is no active site.
+          const defaultId = await resolveDefaultSiteId(dbSites);
+          if (defaultId) setSelectedSiteId(defaultId);
+        }
       }
+    } catch {
+      // Network error — loading false so the UI unblocks; sites list stays empty.
     }
     setLoading(false);
   }, [selectedSiteId]);
 
   // F-012: load the admin users that can be granted a role.
   const loadUsers = useCallback(async () => {
-    const res = await fetch("/api/admin/users");
-    if (res.ok) {
-      const data = await res.json();
-      const list = Array.isArray(data) ? (data as AdminUserOption[]) : [];
-      setUsers(list);
+    try {
+      const res = await fetch("/api/admin/users");
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? (data as AdminUserOption[]) : [];
+        setUsers(list);
+      }
+    } catch {
+      // Network error — user list stays empty; assign form will show no options.
     }
   }, []);
 
@@ -128,7 +137,9 @@ export function PermissionsManager() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/admin/permissions", {
+      // BUG-1: must use fetchWithCsrf — bare fetch() gets rejected with
+      // 403 "missing CSRF token" in production for all non-GET /api/ routes.
+      const res = await fetchWithCsrf("/api/admin/permissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -162,7 +173,9 @@ export function PermissionsManager() {
       }
       setSubmitting(true);
       try {
-        const res = await fetch(
+        // BUG-1: must use fetchWithCsrf — bare fetch() gets rejected with
+        // 403 "missing CSRF token" in production for all non-GET /api/ routes.
+        const res = await fetchWithCsrf(
           `/api/admin/permissions?user_id=${encodeURIComponent(userId)}&site_id=${encodeURIComponent(selectedSiteId)}`,
           { method: "DELETE" },
         );
