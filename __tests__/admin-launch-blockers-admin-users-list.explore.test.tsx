@@ -34,7 +34,7 @@
  * by rendering the REAL `<UsersTable>` under jsdom — mirroring the
  * mocked-data + component-render patterns already in `__tests__/`.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import fc from "fast-check";
