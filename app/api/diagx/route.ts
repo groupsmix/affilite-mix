@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // TEMPORARY DIAGNOSTIC — remove after debugging the category 500.
 function err(e: unknown) {
   if (e instanceof Error)
-    return { name: e.name, message: e.message, stack: (e.stack || "").slice(0, 800) };
+    return { name: e.name, message: e.message, stack: (e.stack || "").slice(0, 900) };
   try {
     return { raw: JSON.stringify(e) };
   } catch {
@@ -22,14 +22,12 @@ function err(e: unknown) {
 
 export async function GET() {
   const out: Record<string, unknown> = {};
-  // What did middleware inject?
   try {
     const h = await headers();
     out.x_site_id_header = h.get("x-site-id");
   } catch (e) {
     out.headers_ERROR = err(e);
   }
-  // Resolution chain (each independently)
   try {
     out.resolveDbSiteId = await resolveDbSiteId("watch-tools");
   } catch (e) {
