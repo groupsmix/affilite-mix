@@ -152,7 +152,7 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
     logger.info("GDPR data export performed", {
       actor: session.email ?? session.userId ?? "system",
       action: "gdpr_export",
-      target_email_hash: hashEmailForGdpr(email),
+      target_email_hash: await hashEmailForGdpr(email),
       site_id,
     });
 
@@ -163,8 +163,8 @@ export const GET = withAuthz("privacy", "read", async (request, { session }) => 
       actor_user_id: session.userId,
       action: "gdpr_export",
       entity_type: "subject",
-      entity_id: hashEmailForGdpr(email),
-      details: { target_email_hash: hashEmailForGdpr(email) },
+      entity_id: await hashEmailForGdpr(email),
+      details: { target_email_hash: await hashEmailForGdpr(email) },
     });
 
     // A62-F1: GDPR Art. 20 data portability — support CSV format
@@ -277,8 +277,8 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
       actor_user_id: session.userId,
       action: "gdpr_erasure",
       entity_type: "subject",
-      entity_id: hashEmailForGdpr(email),
-      details: { target_email_hash: hashEmailForGdpr(email) },
+      entity_id: await hashEmailForGdpr(email),
+      details: { target_email_hash: await hashEmailForGdpr(email) },
     });
 
     return NextResponse.json({

@@ -38,7 +38,7 @@ test.describe("Admin Content Page", () => {
   test("should redirect unauthenticated users to login", async ({ page }) => {
     await page.goto("/q7m-k4j9/content");
     // Should either redirect to login or show an auth error
-    await expect(page).toHaveURL(/\/admin\/login|\/q7m-k4j9/);
+    await expect(page).toHaveURL(/\/q7m-k4j9\/login/);
   });
 
   test("should display the new content form", async ({ page }) => {

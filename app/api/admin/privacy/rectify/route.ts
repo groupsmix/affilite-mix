@@ -113,7 +113,7 @@ export const POST = withAuthz("privacy", "manage", async (request, { session }) 
 
     logger.info("GDPR data rectification performed", {
       action: "gdpr_rectify",
-      target_email_hash: hashEmailForGdpr(email),
+      target_email_hash: await hashEmailForGdpr(email),
       site_id,
       tables: updatedTables.join(","),
     });
@@ -124,7 +124,7 @@ export const POST = withAuthz("privacy", "manage", async (request, { session }) 
       actor_user_id: session.userId,
       action: "gdpr.rectify",
       entity_type: "subject",
-      entity_id: hashEmailForGdpr(email),
+      entity_id: await hashEmailForGdpr(email),
       details: {
         tables: updatedTables,
         fields_corrected: Object.keys(corrections).filter(

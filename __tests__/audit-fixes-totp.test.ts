@@ -86,7 +86,8 @@ describe("A98-53: TOTP encryption and rotation", () => {
       const token = totp.generate();
 
       const result = await verifyTotpTokenWithRotation(encrypted, token, decryptFn);
-      expect(result).toBe(true);
+      expect(result.ok).toBe(true);
+      expect(typeof result.step).toBe("number");
     });
 
     it("verifies with previous encryption key fallback", async () => {
@@ -106,7 +107,8 @@ describe("A98-53: TOTP encryption and rotation", () => {
       const token = totp.generate();
 
       const result = await verifyTotpTokenWithRotation(encrypted, token, decryptFn);
-      expect(result).toBe(true);
+      expect(result.ok).toBe(true);
+      expect(typeof result.step).toBe("number");
     });
 
     it("rejects invalid token", async () => {
@@ -115,13 +117,15 @@ describe("A98-53: TOTP encryption and rotation", () => {
       const decryptFn = async (cipher: string) => cipher;
 
       const result = await verifyTotpTokenWithRotation(encrypted, "000000", decryptFn);
-      expect(result).toBe(false);
+      expect(result.ok).toBe(false);
+      expect(result.step).toBeNull();
     });
 
     it("rejects expired/null secrets", async () => {
       const decryptFn = async () => null;
       const result = await verifyTotpTokenWithRotation(null, "123456", decryptFn);
-      expect(result).toBe(false);
+      expect(result.ok).toBe(false);
+      expect(result.step).toBeNull();
     });
 
     it("handles decrypt failure gracefully", async () => {
@@ -130,7 +134,8 @@ describe("A98-53: TOTP encryption and rotation", () => {
       const decryptFn = async () => null; // decryption fails
 
       const result = await verifyTotpTokenWithRotation(encrypted, "123456", decryptFn);
-      expect(result).toBe(false);
+      expect(result.ok).toBe(false);
+      expect(result.step).toBeNull();
     });
   });
 });
