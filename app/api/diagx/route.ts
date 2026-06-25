@@ -6,6 +6,12 @@ import { listActiveProducts } from "@/lib/dal/products";
 import { getAnonClient } from "@/lib/supabase-server";
 import { resolveDbSiteId, resolveDbSiteBySlug } from "@/lib/dal/site-resolver";
 import { headers } from "next/headers";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { ProductCard } from "@/app/(public)/components/product-card";
+import { ContentCard } from "@/app/(public)/components/content-card";
+import { Pagination, PaginationHead } from "@/app/(public)/components/pagination";
+import { Breadcrumbs } from "@/app/(public)/components/breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -76,10 +82,71 @@ export async function GET() {
       try {
         const p = await listActiveProducts(siteId, "seiko");
         out.listActiveProducts = p.length;
+        // RENDER each suspect component with real data — this catches render-phase throws.
+        if (p[0]) {
+          try {
+            renderToStaticMarkup(
+              createElement(ProductCard, {
+                product: p[0],
+                sourceType: "category",
+                ctaLabel: "View Deal",
+              }),
+            );
+            out.render_ProductCard = "ok";
+          } catch (e) {
+            out.render_ProductCard_ERROR = err(e);
+          }
+        }
       } catch (e) {
         out.listActiveProducts_ERROR = err(e);
       }
     })(),
+    (async () => {
+      try {
+        const c = await listContent({ siteId, status: "published", limit: 1 }, getAnonClient);
+        if (c[0]) {
+          try {
+            renderToStaticMarkup(createElement(ContentCard, { content: c[0], locale: "en-US" }));
+            out.render_ContentCard = "ok";
+          } catch (e) {
+            out.render_ContentCard_ERROR = err(e);
+          }
+        }
+      } catch (e) {
+        out.render_content_fetch_ERROR = err(e);
+      }
+    })(),
   ]);
+  try {
+    renderToStaticMarkup(
+      createElement(Breadcrumbs, {
+        items: [{ label: "WristNerd", href: "/" }, { label: "Seiko" }],
+      }),
+    );
+    out.render_Breadcrumbs = "ok";
+  } catch (e) {
+    out.render_Breadcrumbs_ERROR = err(e);
+  }
+  try {
+    renderToStaticMarkup(
+      createElement(PaginationHead, {
+        currentPage: 1,
+        totalItems: 4,
+        pageSize: 12,
+        baseUrl: "https://wristnerd.xyz/category/seiko",
+      }),
+    );
+    renderToStaticMarkup(
+      createElement(Pagination, {
+        currentPage: 1,
+        totalItems: 4,
+        pageSize: 12,
+        basePath: "/category/seiko",
+      }),
+    );
+    out.render_Pagination = "ok";
+  } catch (e) {
+    out.render_Pagination_ERROR = err(e);
+  }
   return NextResponse.json(out);
 }
