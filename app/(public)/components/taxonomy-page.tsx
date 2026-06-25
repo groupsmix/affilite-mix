@@ -2,6 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getCategoryBySlug, listCategories } from "@/lib/dal/categories";
 import { listContent, countContent } from "@/lib/dal/content";
 import { listActiveProducts } from "@/lib/dal/products";
+import { getAnonClient } from "@/lib/supabase-server";
 import { ContentCard } from "./content-card";
 import { ProductCard } from "./product-card";
 import { Pagination, PaginationHead } from "./pagination";
@@ -101,18 +102,24 @@ export async function TaxonomyPage({
   }
 
   const [content, totalContent, products] = await Promise.all([
-    listContent({
-      siteId: site.id,
-      categoryId: category.id,
-      status: "published",
-      limit: PAGE_SIZE,
-      offset: (currentPage - 1) * PAGE_SIZE,
-    }),
-    countContent({
-      siteId: site.id,
-      categoryId: category.id,
-      status: "published",
-    }),
+    listContent(
+      {
+        siteId: site.id,
+        categoryId: category.id,
+        status: "published",
+        limit: PAGE_SIZE,
+        offset: (currentPage - 1) * PAGE_SIZE,
+      },
+      getAnonClient,
+    ),
+    countContent(
+      {
+        siteId: site.id,
+        categoryId: category.id,
+        status: "published",
+      },
+      getAnonClient,
+    ),
     listActiveProducts(site.id, slug),
   ]);
 
