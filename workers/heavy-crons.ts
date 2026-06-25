@@ -14,7 +14,9 @@
  * duplication.
  */
 
+import { withSentry, captureException } from "@sentry/cloudflare";
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
+import { buildInternalHmacContext, signInternalRequest } from "../lib/internal-hmac";
 import { logger } from "../lib/logger";
 
 interface CloudflareScheduledController {
@@ -46,19 +48,22 @@ const worker = {
       typeof env.CRON_HOST === "string" && env.CRON_HOST.trim() ? env.CRON_HOST.trim() : null;
 
     if (!cronHost) {
-      logger.error(
+      const msg =
         "[heavy-crons] CRON_HOST is not configured — skipping dispatch. " +
-          "Set it with: wrangler secret put CRON_HOST",
-      );
+        "Set it with: wrangler secret put CRON_HOST";
+      logger.error(msg);
+      captureException(new Error(msg));
       return;
     }
 
     const job = getCronJobBySchedule(controller.cron);
     if (!job) {
-      logger.error(
+      const err = new Error(
         `[heavy-crons] Unknown cron schedule "${controller.cron}". ` +
           "Add it to lib/cron-registry.ts.",
       );
+      logger.error(err.message);
+      captureException(err);
       return;
     }
 
@@ -81,39 +86,77 @@ const worker = {
 
     if (!cronSecret) {
       logger.error(`[heavy-crons] No secret configured for "${job.name}" — skipping dispatch.`);
+      captureException(
+        new Error(
+          `[heavy-crons] No secret configured for "${job.name}" (${job.path}) — skipping dispatch.`,
+        ),
+      );
       return;
     }
 
     const url = `${cronHost}${job.path}`;
     ctx.waitUntil(
-      fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${cronSecret}`,
-          "Content-Type": "application/json",
-        },
-      })
-        .then(async (res: Response) => {
-          const body = await res.text();
-          if (res.ok) {
-            logger.info("[heavy-crons] dispatch responded", {
-              job: job.name,
-              status: res.status,
-              body,
-            });
-          } else {
-            logger.error("[heavy-crons] dispatch failed", {
-              job: job.name,
-              status: res.status,
-              body,
-            });
-          }
-        })
-        .catch((err: unknown) => {
-          logger.error("[heavy-crons] dispatch fetch error", { job: job.name, error: err });
-        }),
+      (async () => {
+        let headers: Record<string, string>;
+        try {
+          const body = "";
+          headers = await signInternalRequest(
+            cronSecret,
+            body,
+            {
+              Authorization: `Bearer ${cronSecret}`,
+              "Content-Type": "application/json",
+            },
+            buildInternalHmacContext("POST", url),
+          );
+        } catch (err: unknown) {
+          logger.error("[heavy-crons] failed to sign request", { job: job.name, error: err });
+          captureException(err instanceof Error ? err : new Error(String(err)));
+          return;
+        }
+        return fetch(url, { method: "POST", headers })
+          .then(async (res: Response) => {
+            const resBody = await res.text();
+            if (res.ok) {
+              logger.info("[heavy-crons] dispatch responded", {
+                job: job.name,
+                status: res.status,
+                body: resBody,
+              });
+            } else {
+              logger.error("[heavy-crons] dispatch failed", {
+                job: job.name,
+                status: res.status,
+                body: resBody,
+              });
+            }
+          })
+          .catch((err: unknown) => {
+            logger.error("[heavy-crons] dispatch fetch error", { job: job.name, error: err });
+            captureException(err instanceof Error ? err : new Error(String(err)));
+          });
+      })(),
     );
   },
 };
 
-export default worker;
+export default withSentry((env: Record<string, unknown>) => {
+  const dsn = typeof env.SENTRY_DSN === "string" ? env.SENTRY_DSN.trim() : "";
+  const environment =
+    typeof env.NODE_ENV === "string" && env.NODE_ENV ? env.NODE_ENV : "production";
+  const release =
+    typeof env.SENTRY_RELEASE === "string" && env.SENTRY_RELEASE ? env.SENTRY_RELEASE : undefined;
+  return {
+    dsn,
+    environment,
+    release,
+    tracesSampleRate: parseSampleRate(env.SENTRY_TRACES_SAMPLE_RATE, 0.1),
+    sendDefaultPii: false,
+  };
+}, worker);
+
+function parseSampleRate(raw: unknown, fallback: number): number {
+  if (typeof raw !== "string" || !raw) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : fallback;
+}

@@ -51,6 +51,11 @@ const ALERT_KEYWORDS = [
   "[queue/", // queue / DLQ failures
   "Health check:", // health-check errors
   "audit/security",
+  "unauthorized", // auth failures
+  "forbidden",
+  "migration", // DB migration errors
+  "RateLimitError",
+  "auth",
 ];
 
 function shouldAlert(event: CloudflareTailEvent): boolean {
@@ -70,25 +75,27 @@ function buildKey(): string {
   const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(now.getUTCDate()).padStart(2, "0");
   const iso = now.toISOString().replace(/[:.]/g, "-");
-  const rand = Math.random().toString(36).slice(2, 10);
+  // Use crypto.randomUUID() instead of Math.random() to avoid key collisions
+  // when multiple tail events arrive within the same millisecond.
+  const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
   return `logs/${yyyy}/${mm}/${dd}/${iso}-${rand}.jsonl`;
 }
 
-async function postAlert(env: TailWorkerEnv, payload: CloudflareTailEvent): Promise<void> {
-  if (!env.ALERT_WEBHOOK_URL) return;
-  // M2-FIX: SSRF guard — reject non-HTTPS URLs and private/metadata IP ranges
-  // before fetching. The full lib/ssrf-guard.ts is not importable here, so we
-  // apply a minimal allowlist: HTTPS only, and block well-known internal ranges.
-  const url = env.ALERT_WEBHOOK_URL;
-  if (!/^https:\/\//i.test(url)) {
+/**
+ * Validate the ALERT_WEBHOOK_URL against the SSRF allowlist.
+ * Returns the validated URL string, or null if rejected.
+ */
+function validateAlertWebhookUrl(raw: string): string | null {
+  if (!/^https:\/\//i.test(raw)) {
     // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
-    console.error("[log-shipper] ALERT_WEBHOOK_URL rejected: must be https://", url.slice(0, 40));
-    return;
+    console.error("[log-shipper] ALERT_WEBHOOK_URL rejected: must be https://", raw.slice(0, 40));
+    return null;
   }
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(raw);
     const host = parsed.hostname.toLowerCase();
-    // Block localhost, RFC-1918, link-local, and cloud metadata endpoints
+    // Block localhost, RFC-1918, link-local, IPv6 private ranges, and cloud
+    // metadata endpoints. Also guard against IPv4-mapped IPv6 (::ffff:127.x).
     const blockedPatterns = [
       /^localhost$/,
       /^127\./,
@@ -97,40 +104,61 @@ async function postAlert(env: TailWorkerEnv, payload: CloudflareTailEvent): Prom
       /^192\.168\./,
       /^169\.254\./,
       /^::1$/,
-      /^fd/,
+      /^::ffff:/i, // IPv4-mapped IPv6 addresses
+      /^fd/i, // ULA IPv6
+      /^fc/i, // ULA IPv6
       /^metadata\.google/,
       /^169\.254\.169\.254$/,
     ];
     if (blockedPatterns.some((re) => re.test(host))) {
       // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
       console.error("[log-shipper] ALERT_WEBHOOK_URL rejected: blocked host", host);
-      return;
+      return null;
     }
   } catch {
     // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
     console.error("[log-shipper] ALERT_WEBHOOK_URL is not a valid URL");
-    return;
+    return null;
   }
+  return raw;
+}
+
+/**
+ * Post a batched alert for multiple alerting events in a single HTTP call.
+ * Prevents alert-sink flooding when a bad deploy triggers many errors at once.
+ * Uses `redirect: "error"` so an attacker-controlled redirect cannot bypass
+ * the SSRF hostname check above.
+ */
+async function postAlertBatch(env: TailWorkerEnv, events: CloudflareTailEvent[]): Promise<void> {
+  if (!env.ALERT_WEBHOOK_URL || !events.length) return;
+
+  const validatedUrl = validateAlertWebhookUrl(env.ALERT_WEBHOOK_URL);
+  if (!validatedUrl) return;
+
   try {
-    await fetch(env.ALERT_WEBHOOK_URL, {
+    await fetch(validatedUrl, {
       method: "POST",
+      // redirect: "error" prevents SSRF via a redirect to an internal address
+      // that passes the hostname check above (DNS rebinding, open redirects).
+      redirect: "error",
       headers: {
         "Content-Type": "application/json",
         ...(env.ALERT_WEBHOOK_TOKEN ? { Authorization: `Bearer ${env.ALERT_WEBHOOK_TOKEN}` } : {}),
       },
       body: JSON.stringify({
         source: "affilite-mix-log-shipper",
-        outcome: payload.outcome,
-        eventTimestamp: payload.eventTimestamp,
-        exceptions: payload.exceptions,
-        logs: payload.logs,
+        alertCount: events.length,
+        events: events.map((e) => ({
+          outcome: e.outcome,
+          eventTimestamp: e.eventTimestamp,
+          exceptions: e.exceptions,
+          logs: e.logs,
+        })),
       }),
     });
   } catch (err) {
     // Never throw from a tail worker — Cloudflare drops the batch.
-    // FR-06: console is intentional here. This tail worker IS the structured
-    // log consumer; importing lib/logger would feed its own output back into
-    // the pipeline it ships. Plain console is the correct last-resort sink.
+    // FR-06: console is intentional here (see validateAlertWebhookUrl).
     // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
     console.error("[log-shipper] alert webhook failed:", err);
   }
@@ -145,15 +173,17 @@ const logShipper = {
 
     ctx.waitUntil(
       env.LOG_SINK.put(key, body).catch((err) => {
-        // eslint-disable-next-line no-console -- FR-06 documented last-resort sink (see postAlert)
+        // eslint-disable-next-line no-console -- FR-06 documented last-resort sink (see postAlertBatch)
         console.error("[log-shipper] R2 put failed:", err);
       }),
     );
 
-    for (const event of events) {
-      if (shouldAlert(event)) {
-        ctx.waitUntil(postAlert(env, event));
-      }
+    // Collect all alertable events and send a single batched HTTP call rather
+    // than one call per event — prevents flooding the alert sink during error
+    // bursts (e.g. a bad deploy triggering dozens of exceptions at once).
+    const alertableEvents = events.filter(shouldAlert);
+    if (alertableEvents.length > 0) {
+      ctx.waitUntil(postAlertBatch(env, alertableEvents));
     }
   },
 };

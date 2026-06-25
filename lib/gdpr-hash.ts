@@ -23,16 +23,20 @@
  * is byte-for-byte identical to the previous per-route implementations so
  * existing stored hashes continue to correlate after this change.
  */
-import crypto from "crypto";
 
 /**
  * Returns a stable, non-reversible 16-hex-char identifier for an email,
  * suitable for GDPR audit logs.
  *
+ * Uses the universal Web Crypto API (`crypto.subtle`) so this module works
+ * on Node.js ≥ 15, the Next.js Edge runtime, and Cloudflare Workers alike.
+ * The previous `import crypto from "crypto"` (Node.js built-in) was
+ * unavailable on Cloudflare Workers, causing a runtime crash.
+ *
  * @throws if GDPR_HASH_SECRET is unset/empty, so PII is never hashed with
  *         a shared, hardcoded, or auth-derived key.
  */
-export function hashEmailForGdpr(email: string): string {
+export async function hashEmailForGdpr(email: string): Promise<string> {
   const secret = process.env.GDPR_HASH_SECRET;
   if (!secret || secret.trim().length === 0) {
     throw new Error(
@@ -41,9 +45,21 @@ export function hashEmailForGdpr(email: string): string {
         "in .env.example.",
     );
   }
-  return crypto
-    .createHmac("sha256", secret)
-    .update(email.toLowerCase().trim())
-    .digest("hex")
-    .substring(0, 16);
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign(
+    "HMAC",
+    keyMaterial,
+    encoder.encode(email.toLowerCase().trim()),
+  );
+  const hex = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return hex.substring(0, 16);
 }

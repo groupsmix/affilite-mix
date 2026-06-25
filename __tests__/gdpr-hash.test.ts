@@ -22,42 +22,42 @@ afterEach(() => {
 });
 
 describe("hashEmailForGdpr (F-012)", () => {
-  it("produces a stable, normalised 16-hex-char HMAC", () => {
+  it("produces a stable, normalised 16-hex-char HMAC", async () => {
     process.env.GDPR_HASH_SECRET = "test-secret";
-    const h = hashEmailForGdpr("User@Example.com");
+    const h = await hashEmailForGdpr("User@Example.com");
     expect(h).toMatch(/^[0-9a-f]{16}$/);
     // Case + surrounding whitespace are normalised away.
-    expect(hashEmailForGdpr("  user@example.com  ")).toBe(h);
+    expect(await hashEmailForGdpr("  user@example.com  ")).toBe(h);
   });
 
-  it("is deterministic for the same input and secret", () => {
+  it("is deterministic for the same input and secret", async () => {
     process.env.GDPR_HASH_SECRET = "test-secret";
-    expect(hashEmailForGdpr("a@b.com")).toBe(hashEmailForGdpr("a@b.com"));
+    expect(await hashEmailForGdpr("a@b.com")).toBe(await hashEmailForGdpr("a@b.com"));
   });
 
-  it("produces different output when the secret changes", () => {
+  it("produces different output when the secret changes", async () => {
     process.env.GDPR_HASH_SECRET = "secret-one";
-    const a = hashEmailForGdpr("a@b.com");
+    const a = await hashEmailForGdpr("a@b.com");
     process.env.GDPR_HASH_SECRET = "secret-two";
-    const b = hashEmailForGdpr("a@b.com");
+    const b = await hashEmailForGdpr("a@b.com");
     expect(a).not.toBe(b);
   });
 
-  it("throws when GDPR_HASH_SECRET is unset", () => {
+  it("throws when GDPR_HASH_SECRET is unset", async () => {
     delete process.env.GDPR_HASH_SECRET;
-    expect(() => hashEmailForGdpr("a@b.com")).toThrow(/GDPR_HASH_SECRET must be set/);
+    await expect(hashEmailForGdpr("a@b.com")).rejects.toThrow(/GDPR_HASH_SECRET must be set/);
   });
 
-  it("throws when GDPR_HASH_SECRET is blank/whitespace", () => {
+  it("throws when GDPR_HASH_SECRET is blank/whitespace", async () => {
     process.env.GDPR_HASH_SECRET = "   ";
-    expect(() => hashEmailForGdpr("a@b.com")).toThrow(/GDPR_HASH_SECRET must be set/);
+    await expect(hashEmailForGdpr("a@b.com")).rejects.toThrow(/GDPR_HASH_SECRET must be set/);
   });
 
-  it("does NOT fall back to JWT_SECRET (core F-012 regression)", () => {
+  it("does NOT fall back to JWT_SECRET (core F-012 regression)", async () => {
     // Only the auth signing key is present — hashing must fail rather than
     // silently re-couple PII hashing to auth.
     delete process.env.GDPR_HASH_SECRET;
     process.env.JWT_SECRET = "auth-signing-key-must-not-be-used-for-pii";
-    expect(() => hashEmailForGdpr("a@b.com")).toThrow();
+    await expect(hashEmailForGdpr("a@b.com")).rejects.toThrow();
   });
 });

@@ -36,6 +36,12 @@ interface DOState {
 }
 
 interface CheckRequestBody {
+  /**
+   * The rate-limit key. This field is used externally to derive the Durable
+   * Object ID (so all requests for the same key route to the same DO instance)
+   * but is intentionally NOT read inside the DO itself — the routing already
+   * guarantees per-key isolation.
+   */
   key: string;
   maxRequests: number;
   windowMs: number;
@@ -63,9 +69,21 @@ export class RateLimiterDO {
       return new Response("Not found", { status: 404 });
     }
 
+    // Guard against oversized request bodies (e.g. misconfigured client or
+    // accidental large payload). The DO is internal-only, so a tiny limit is safe.
+    const MAX_BODY_BYTES = 4096;
+    const contentLength = request.headers.get("content-length");
+    if (contentLength !== null && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+      return new Response("Request body too large", { status: 413 });
+    }
+
     let body: CheckRequestBody;
     try {
-      body = (await request.json()) as CheckRequestBody;
+      const text = await request.text();
+      if (text.length > MAX_BODY_BYTES) {
+        return new Response("Request body too large", { status: 413 });
+      }
+      body = JSON.parse(text) as CheckRequestBody;
     } catch {
       // fail-closed: malformed request body is rejected
       return new Response("Invalid JSON body", { status: 400 });

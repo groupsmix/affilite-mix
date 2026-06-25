@@ -35,7 +35,7 @@ async function gotoAdminAndSettle(
 test.describe("Admin Products Page", () => {
   test("should redirect unauthenticated users to login", async ({ page }) => {
     await page.goto("/q7m-k4j9/products");
-    await expect(page).toHaveURL(/\/admin\/login|\/q7m-k4j9/);
+    await expect(page).toHaveURL(/\/q7m-k4j9\/login/);
   });
 
   test("should display the new product form", async ({ page }) => {

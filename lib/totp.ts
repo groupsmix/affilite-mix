@@ -228,33 +228,39 @@ export function isSha1TotpPastDeadline(): boolean {
  *   2. Attempts verification with both current and previous encryption keys
  *   3. Prevents lockouts during TOTP encryption key rotation
  *
+ * F4 audit: pass `options.lastStep` to reject replays within the same 30 s
+ * window. The returned `step` (when `ok` is true) MUST be persisted by the
+ * caller so it can be forwarded as `lastStep` on the next call.
+ *
  * @param storedSecret - The secret as stored in DB (may be encrypted or plaintext)
  * @param token - The 6-digit TOTP code from the user
  * @param decryptFn - Callback that decrypts the ciphertext; receives (ciphertext, isPreviousKey)
- * @returns boolean indicating whether the token is valid
+ * @param options - Optional verification options; `lastStep` enables replay protection
+ * @returns VerifyTotpStepResult with `ok` flag and consumed time-step
  */
 export async function verifyTotpTokenWithRotation(
   storedSecret: string | null | undefined,
   token: string,
   decryptFn: (ciphertext: string, usePreviousKey: boolean) => Promise<string | null>,
-): Promise<boolean> {
-  if (!storedSecret || !token) return false;
+  options?: { lastStep?: number | null },
+): Promise<VerifyTotpStepResult> {
+  if (!storedSecret || !token) return { ok: false, step: null };
 
   // RISK-11 (étap-3): Reject SHA-1 TOTP secrets after the hard deprecation deadline
   if (needsSha256Reenrollment(storedSecret) && isSha1TotpPastDeadline()) {
-    return false;
+    return { ok: false, step: null };
   }
 
   // Normalize token (remove whitespace)
   const normalizedToken = token.replace(/\s/g, "");
-  if (!/^\d{6}$/.test(normalizedToken)) return false;
+  if (!/^\d{6}$/.test(normalizedToken)) return { ok: false, step: null };
 
   let rawSecret: string | null = null;
 
   if (isTotpSecretEncrypted(storedSecret)) {
     // Try current encryption key first
     const payload = extractEncryptedPayload(storedSecret);
-    if (!payload) return false;
+    if (!payload) return { ok: false, step: null };
 
     const isPreviousKey = storedSecret.startsWith(ENCRYPTION_PREFIX_PREVIOUS);
     rawSecret = await decryptFn(payload, isPreviousKey);
@@ -268,13 +274,10 @@ export async function verifyTotpTokenWithRotation(
     rawSecret = storedSecret;
   }
 
-  if (!rawSecret) return false;
+  if (!rawSecret) return { ok: false, step: null };
 
-  // F4: verifyTotpToken is synchronous and returns {ok, step}. The rotation
-  // wrapper is async (decryption round-trips), so we read .ok directly rather
-  // than await-ing — there is no Promise to await. Note: callers going through
-  // this path do not persist totp_last_step today; if that changes they should
-  // chain the returned `step` through their own persistence layer.
-  const result = verifyTotpToken(rawSecret, normalizedToken);
-  return result.ok;
+  // F4: forward lastStep so verifyTotpToken can enforce the replay-protection
+  // window. The returned VerifyTotpStepResult is propagated directly so callers
+  // can persist the consumed step and prevent future replays.
+  return verifyTotpToken(rawSecret, normalizedToken, { lastStep: options?.lastStep });
 }

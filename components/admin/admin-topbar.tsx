@@ -40,7 +40,7 @@ function humanize(segment: string): string {
  */
 function buildCrumbs(pathname: string): Crumb[] {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts.length === 0 || parts[0] !== "admin") return [];
+  if (parts.length === 0 || parts[0] !== "q7m-k4j9") return [];
 
   const crumbs: Crumb[] = [{ label: "Admin", href: "/q7m-k4j9" }];
   let acc = "/q7m-k4j9";

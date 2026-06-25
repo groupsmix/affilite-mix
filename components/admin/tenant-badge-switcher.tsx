@@ -3,10 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown } from "lucide-react";
+import { z } from "zod";
 
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+const SiteInfoSchema = z.object({ id: z.string(), name: z.string(), domain: z.string() });
+const SitesResponseSchema = z.object({ sites: z.array(SiteInfoSchema) });
+const ActiveSiteResponseSchema = z.object({ activeSiteId: z.string().nullable() });
 
 interface SiteInfo {
   id: string;
@@ -35,6 +40,7 @@ export function TenantBadgeSwitcher({ initialSiteName, isSuperAdmin }: TenantBad
   const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   // Lazy-load the sites list + active-site id the first time the popover opens.
   useEffect(() => {
@@ -47,16 +53,11 @@ export function TenantBadgeSwitcher({ initialSiteName, isSuperAdmin }: TenantBad
           fetch("/api/admin/sites/active"),
         ]);
         if (cancelled) return;
-        if (sitesRes.ok) {
-          const data = (await sitesRes.json()) as { sites: SiteInfo[] };
-          setSites(data.sites);
-        } else {
-          setLoadError("Failed to load sites");
-        }
-        if (activeRes.ok) {
-          const active = (await activeRes.json()) as { activeSiteId: string | null };
-          setActiveSiteId(active.activeSiteId);
-        }
+        const parsed = SitesResponseSchema.safeParse(await sitesRes.json());
+        if (parsed.success) setSites(parsed.data.sites);
+        else setLoadError("Invalid site list response");
+        const activeParsed = ActiveSiteResponseSchema.safeParse(await activeRes.json());
+        if (activeParsed.success) setActiveSiteId(activeParsed.data.activeSiteId);
       } catch {
         // fail-open: site list fetch failure shows error badge to admin
         if (!cancelled) setLoadError("Failed to load sites");
@@ -78,8 +79,11 @@ export function TenantBadgeSwitcher({ initialSiteName, isSuperAdmin }: TenantBad
       });
       if (res.ok) {
         setActiveSiteId(siteId);
+        setSwitchError(null);
         setOpen(false);
         router.refresh();
+      } else {
+        setSwitchError("Failed to switch site. Please try again.");
       }
     } finally {
       setSwitching(false);
@@ -123,6 +127,11 @@ export function TenantBadgeSwitcher({ initialSiteName, isSuperAdmin }: TenantBad
         <div className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Switch site
         </div>
+        {switchError && (
+          <div role="alert" className="px-3 py-2 text-sm text-destructive">
+            {switchError}
+          </div>
+        )}
         <div className="max-h-80 overflow-y-auto">
           {sites === null && !loadError && (
             <div className="space-y-2 p-3">
