@@ -1,7 +1,7 @@
 import { getCurrentSite } from "@/lib/site-context";
 import { getCategoryBySlug, listCategories } from "@/lib/dal/categories";
 import { listContent, countContent } from "@/lib/dal/content";
-import { listActiveProducts } from "@/lib/dal/products";
+import { listProducts } from "@/lib/dal/products";
 import { getAnonClient } from "@/lib/supabase-server";
 import { ContentCard } from "../../components/content-card";
 import { ProductCard } from "../../components/product-card";
@@ -85,7 +85,17 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       },
       getAnonClient,
     ),
-    listActiveProducts(site.id, slug),
+    listProducts(
+      {
+        siteId: site.id,
+        categoryId: category.id,
+        status: "active",
+        sortBy: "score",
+        sortDirection: "desc",
+        limit: 24,
+      },
+      getAnonClient,
+    ),
   ]);
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";

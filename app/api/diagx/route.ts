@@ -76,6 +76,7 @@ export async function GET() {
       try {
         const p = await listActiveProducts(siteId, "seiko");
         out.listActiveProducts = p.length;
+        out.listActiveProducts_sample = p[0] ?? null;
       } catch (e) {
         out.listActiveProducts_ERROR = err(e);
       }
