@@ -129,10 +129,7 @@ function validateAlertWebhookUrl(raw: string): string | null {
  * Uses `redirect: "error"` so an attacker-controlled redirect cannot bypass
  * the SSRF hostname check above.
  */
-async function postAlertBatch(
-  env: TailWorkerEnv,
-  events: CloudflareTailEvent[],
-): Promise<void> {
+async function postAlertBatch(env: TailWorkerEnv, events: CloudflareTailEvent[]): Promise<void> {
   if (!env.ALERT_WEBHOOK_URL || !events.length) return;
 
   const validatedUrl = validateAlertWebhookUrl(env.ALERT_WEBHOOK_URL);

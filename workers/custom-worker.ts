@@ -198,11 +198,11 @@ const worker = {
             const dlqUrl = `${cronHost}/api/queue/clicks?dlq=true`;
             try {
               const dlqBody = JSON.stringify({ messages: batch.messages.map((m) => m.body) });
-          // FIX-03: Sign with HMAC; keep Bearer for backward compat during migration.
-          // TODO: Remove the Bearer header once all receivers have been confirmed to
-          // validate HMAC (set INTERNAL_HMAC_BIND_MODE=strict and verify no
-          // "internal_hmac_unbound_signature_accepted" metric fires for 7+ days).
-          const hmacHeaders = await signInternalRequest(
+              // FIX-03: Sign with HMAC; keep Bearer for backward compat during migration.
+              // TODO: Remove the Bearer header once all receivers have been confirmed to
+              // validate HMAC (set INTERNAL_HMAC_BIND_MODE=strict and verify no
+              // "internal_hmac_unbound_signature_accepted" metric fires for 7+ days).
+              const hmacHeaders = await signInternalRequest(
                 internalToken as string,
                 dlqBody,
                 {
