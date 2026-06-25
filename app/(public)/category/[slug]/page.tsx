@@ -8,6 +8,7 @@ import { ProductCard } from "../../components/product-card";
 import { Pagination, PaginationHead } from "../../components/pagination";
 import { Breadcrumbs } from "../../components/breadcrumbs";
 import { JsonLd, breadcrumbJsonLd } from "../../components/json-ld";
+import { DiagBoundary } from "../../components/diag-boundary";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -107,63 +108,65 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   ]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <JsonLd data={breadcrumbs} />
+    <DiagBoundary>
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <JsonLd data={breadcrumbs} />
 
-      <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: category.name }]} />
+        <Breadcrumbs items={[{ label: site.name, href: "/" }, { label: category.name }]} />
 
-      <header className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
-        {category.description && <p className="text-gray-600">{category.description}</p>}
-      </header>
+        <header className="mb-8">
+          <h1 className="mb-2 text-3xl font-bold">{category.name}</h1>
+          {category.description && <p className="text-gray-600">{category.description}</p>}
+        </header>
 
-      {/* Products */}
-      {products.length > 0 && (
-        <section className="mb-12">
-          <h2 className="mb-4 text-xl font-bold">{site.productLabelPlural}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                sourceType="category"
-                ctaLabel={ctaLabel}
-              />
+        {/* Products */}
+        {products.length > 0 && (
+          <section className="mb-12">
+            <h2 className="mb-4 text-xl font-bold">{site.productLabelPlural}</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  sourceType="category"
+                  ctaLabel={ctaLabel}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Content */}
+        {content.length > 0 ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {content.map((item) => (
+              <ContentCard key={item.id} content={item} locale={locale} />
             ))}
           </div>
-        </section>
-      )}
+        ) : products.length === 0 ? (
+          <div className="py-16 text-center text-gray-500">
+            <p className="text-lg">
+              {site.language === "ar"
+                ? "لا يوجد محتوى في هذا التصنيف بعد"
+                : "No content in this category yet"}
+            </p>
+          </div>
+        ) : null}
 
-      {/* Content */}
-      {content.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {content.map((item) => (
-            <ContentCard key={item.id} content={item} locale={locale} />
-          ))}
-        </div>
-      ) : products.length === 0 ? (
-        <div className="py-16 text-center text-gray-500">
-          <p className="text-lg">
-            {site.language === "ar"
-              ? "لا يوجد محتوى في هذا التصنيف بعد"
-              : "No content in this category yet"}
-          </p>
-        </div>
-      ) : null}
-
-      <PaginationHead
-        currentPage={currentPage}
-        totalItems={totalContent}
-        pageSize={PAGE_SIZE}
-        baseUrl={`https://${site.domain}/category/${category.slug}`}
-      />
-      <Pagination
-        currentPage={currentPage}
-        totalItems={totalContent}
-        pageSize={PAGE_SIZE}
-        basePath={`/category/${category.slug}`}
-      />
-    </div>
+        <PaginationHead
+          currentPage={currentPage}
+          totalItems={totalContent}
+          pageSize={PAGE_SIZE}
+          baseUrl={`https://${site.domain}/category/${category.slug}`}
+        />
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalContent}
+          pageSize={PAGE_SIZE}
+          basePath={`/category/${category.slug}`}
+        />
+      </div>
+    </DiagBoundary>
   );
 }
 
