@@ -1,6 +1,6 @@
 // DESIGN: No site_id filtering — this module manages the `sites` table itself (global scope).
 import { unstable_cache } from "next/cache";
-import { getTenantClient } from "@/lib/supabase-server";
+import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
 import type { SiteRow } from "@/types/database";
 import type { Database, Json } from "@/types/supabase";
@@ -102,7 +102,13 @@ export async function getSiteRowBySlugWithClient(
 /** Get a single site by slug (cached + singleflight coalesced) */
 const _getSiteRowBySlugCached = unstable_cache(
   async (slug: string): Promise<SiteRow | null> => {
-    return getSiteRowBySlugWithClient(slug, getTenantClient);
+    // Site rows are global (anon-readable via `public_read_sites`). Use the
+    // anon client here: getTenantClient() reads headers()/cookies(), which is
+    // forbidden inside unstable_cache and THROWS in production — that throw
+    // made getCurrentSite() fall back to the static config (id = slug), so
+    // every downstream DAL query ran `.eq("site_id", "<slug>")` and failed
+    // with `22P02 invalid input syntax for type uuid`, 500-ing public pages.
+    return getSiteRowBySlugWithClient(slug, getAnonClient);
   },
   ["site-by-slug"],
   { revalidate: 10, tags: ["sites"] },
@@ -122,7 +128,10 @@ const _getSiteRowByDomainCached = unstable_cache(
   async (domain: string): Promise<SiteRow | null> => {
     if (shouldSkipDbCall()) return null;
 
-    const sb = await getTenantClient();
+    // Anon client (global, anon-readable sites) — getTenantClient() reads
+    // headers()/cookies() which is forbidden inside unstable_cache and throws
+    // in production. See _getSiteRowBySlugCached above.
+    const sb = getAnonClient();
     const { data, error } = await sb.from(TABLE).select(ALL_COLUMNS).eq("domain", domain).single();
 
     if (error && error.code !== "PGRST116") throw error;
