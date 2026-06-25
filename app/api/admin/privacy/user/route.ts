@@ -7,6 +7,8 @@ import { captureException } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { unauthorizedResponse } from "@/lib/admin-guard";
 import { untypedRpc } from "@/lib/dal/type-guards";
+import { hashEmailForGdpr } from "@/lib/gdpr-hash";
+import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 
 /**
  * DELETE /api/admin/privacy/user — GDPR Right to be Forgotten (RTBF)
@@ -292,6 +294,3 @@ export const DELETE = withAuthz("privacy", "delete", async (request, { session }
     return apiError(500, "Failed to process data erasure");
   }
 });
-
-import { hashEmailForGdpr } from "@/lib/gdpr-hash";
-import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
