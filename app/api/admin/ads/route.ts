@@ -6,6 +6,7 @@ import type { AdPlacementType, AdProvider } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
   "sidebar",
@@ -67,20 +68,27 @@ export const POST = withAuthz(
     }
 
     try {
-      const ad = await createAdPlacement({
-        site_id: siteId,
-        name,
-        placement_type,
-        provider,
-        // ad_code is stored as raw HTML/JS intentionally — it is rendered inside
-        // a sandboxed iframe (SandboxedAd) with no `allow-same-origin`, so the
-        // ad script cannot access the parent page's DOM, cookies, or storage.
-        // See app/(public)/components/sandboxed-ad.tsx for the security model.
-        ad_code: ad_code ?? null,
-        config: config ?? {},
-        is_active: is_active ?? true,
-        priority: priority ?? 0,
-      });
+      // Bind the tenant client to the withAuthz-validated `siteId` so the
+      // minted JWT carries app_metadata.site_id and the write satisfies the
+      // tenant_isolation RLS WITH CHECK; see the createCategory note in
+      // app/api/admin/categories/route.ts for the full rationale.
+      const ad = await createAdPlacement(
+        {
+          site_id: siteId,
+          name,
+          placement_type,
+          provider,
+          // ad_code is stored as raw HTML/JS intentionally — it is rendered inside
+          // a sandboxed iframe (SandboxedAd) with no `allow-same-origin`, so the
+          // ad script cannot access the parent page's DOM, cookies, or storage.
+          // See app/(public)/components/sandboxed-ad.tsx for the security model.
+          ad_code: ad_code ?? null,
+          config: config ?? {},
+          is_active: is_active ?? true,
+          priority: priority ?? 0,
+        },
+        () => getTenantClientForSite(siteId, session.userId),
+      );
 
       void recordAuditEvent({
         site_id: siteId,

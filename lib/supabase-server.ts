@@ -210,6 +210,38 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
 }
 
 /**
+ * Tenant client scoped to an EXPLICIT, already-validated `siteId`.
+ *
+ * `getTenantClient()` re-derives the active site from request state (the
+ * `nh_active_site` cookie, then the HMAC-signed `x-site-id` header). In admin
+ * API handlers that derivation can come back empty — e.g. when middleware does
+ * not inject `x-site-id` on `/api/admin/*` and the active-site cookie is not
+ * carried on the write request. The minted JWT then has no
+ * `app_metadata.site_id` claim, so `current_request_site_ids()` is empty and
+ * the `tenant_isolation` RLS WITH CHECK rejects every INSERT/UPDATE/DELETE with
+ * Postgres 42501 — surfacing in the dashboard as "Failed to create …".
+ *
+ * Admin routes already resolve and authorize the active site in
+ * `withAuthz`/`requireAdmin` (via the privileged admin-guard path) and receive
+ * it as `siteId`. Passing that validated id here mints a JWT carrying the
+ * correct `site_id` claim, so the write satisfies RLS WITHOUT bypassing it —
+ * tenant isolation stays enforced by Postgres, exactly as designed. Use this
+ * for admin mutations on tenant-scoped tables (categories, products, content,
+ * pages, ad placements) instead of the service-role client.
+ *
+ * SECURITY: `siteId` MUST be a server-derived, authorized DB UUID (the
+ * `withAuthz` context value) — never a raw client-supplied string.
+ */
+export async function getTenantClientForSite(
+  siteId: string,
+  userId?: string | null,
+): Promise<SupabaseClient<Database>> {
+  return withNoopSiteFilterOptOut(
+    await getAuthenticatedClient(siteId, userId ?? null, "authenticated"),
+  );
+}
+
+/**
  * Server-only Supabase client using the anon key.
  * Respects RLS policies — use for public-facing queries (content listing, search, etc.)
  * to provide defense-in-depth security.

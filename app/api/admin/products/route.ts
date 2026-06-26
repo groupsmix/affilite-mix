@@ -18,6 +18,7 @@ import { withAuthz, authorizeResource, authorizationErrorResponse } from "@/lib/
 import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isUsableUuid } from "@/lib/security/uuid";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 export const GET = withAuthz(
   "products",
@@ -108,28 +109,35 @@ export const POST = withAuthz(
       return NextResponse.json({ error: urlErr.error }, { status: 400 });
     }
     try {
-      const product = await createProduct({
-        site_id: siteId,
-        name: data.name,
-        slug: data.slug,
-        description: data.description,
-        affiliate_url: data.affiliate_url,
-        image_url: data.image_url,
-        image_alt: data.image_alt ?? "",
-        price: data.price,
-        price_amount: data.price_amount,
-        price_currency: data.price_currency,
-        merchant: data.merchant,
-        score: data.score,
-        featured: data.featured,
-        status: data.status,
-        category_id: data.category_id,
-        cta_text: data.cta_text ?? "",
-        deal_text: data.deal_text ?? "",
-        deal_expires_at: data.deal_expires_at ?? null,
-        pros: data.pros ?? "",
-        cons: data.cons ?? "",
-      });
+      // Bind the tenant client to the withAuthz-validated `siteId` so the
+      // minted JWT carries app_metadata.site_id and the write satisfies the
+      // tenant_isolation RLS WITH CHECK; see the createCategory note in
+      // app/api/admin/categories/route.ts for the full rationale.
+      const product = await createProduct(
+        {
+          site_id: siteId,
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          affiliate_url: data.affiliate_url,
+          image_url: data.image_url,
+          image_alt: data.image_alt ?? "",
+          price: data.price,
+          price_amount: data.price_amount,
+          price_currency: data.price_currency,
+          merchant: data.merchant,
+          score: data.score,
+          featured: data.featured,
+          status: data.status,
+          category_id: data.category_id,
+          cta_text: data.cta_text ?? "",
+          deal_text: data.deal_text ?? "",
+          deal_expires_at: data.deal_expires_at ?? null,
+          pros: data.pros ?? "",
+          cons: data.cons ?? "",
+        },
+        () => getTenantClientForSite(siteId, session.userId),
+      );
 
       void revalidateTag(productsTag(siteId));
       void recordAuditEvent({
@@ -220,7 +228,13 @@ export const PATCH = withAuthz(
         : undefined;
 
     try {
-      const product = await updateProduct(siteId, id, updates, undefined, expectedVersion);
+      const product = await updateProduct(
+        siteId,
+        id,
+        updates,
+        () => getTenantClientForSite(siteId, session.userId),
+        expectedVersion,
+      );
       void revalidateTag(productsTag(siteId));
       void recordAuditEvent({
         site_id: siteId,
@@ -309,7 +323,7 @@ export const DELETE = withAuthz(
     }
 
     try {
-      await deleteProduct(siteId, id);
+      await deleteProduct(siteId, id, () => getTenantClientForSite(siteId, session.userId));
       void revalidateTag(productsTag(siteId));
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({

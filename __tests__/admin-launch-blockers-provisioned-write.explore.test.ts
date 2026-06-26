@@ -83,7 +83,17 @@ vi.mock("@/lib/validation", () => ({
 vi.mock("@/lib/admin-url-guard", () => ({ validateAdminUrlFields: mocks.validateAdminUrlFields }));
 vi.mock("@/lib/audit-log", () => ({ recordAuditEvent: mocks.recordAuditEvent }));
 vi.mock("@/lib/sentry", () => ({ captureException: mocks.captureException }));
-vi.mock("next/cache", () => ({ revalidateTag: mocks.revalidateTag }));
+vi.mock("next/cache", () => ({
+  revalidateTag: mocks.revalidateTag,
+  // The product route now imports getTenantClientForSite from
+  // @/lib/supabase-server (site-scoped tenant client for RLS-safe admin
+  // writes); that module pulls in unstable_cache at load time, so the mock
+  // must provide it. Identity passthrough keeps cached DAL helpers callable.
+  unstable_cache:
+    <T extends (...args: unknown[]) => unknown>(fn: T) =>
+    (...args: Parameters<T>) =>
+      fn(...args),
+}));
 vi.mock("@/lib/cache-tags", () => ({ productsTag: (id: string) => `products:${id}` }));
 
 /**
