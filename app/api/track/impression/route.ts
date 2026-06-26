@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordAdImpression } from "@/lib/dal/ad-impressions";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getCurrentSite } from "@/lib/site-context";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const site = await getCurrentSite();
-    const siteId = await resolveDbSiteId(site.id);
+    const siteId = site.id; // site.id is already the resolved DB UUID
 
     const bodyOrError = await parseJsonBody(request);
     if (bodyOrError instanceof NextResponse) return bodyOrError;

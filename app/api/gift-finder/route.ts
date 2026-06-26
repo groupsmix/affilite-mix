@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentSite } from "@/lib/site-context";
 import { getTenantClient } from "@/lib/supabase-server";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import type { ProductRow } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -82,7 +81,7 @@ export async function GET(request: NextRequest) {
   const recipient = rawRecipient.toLowerCase();
   const style = rawStyle.toLowerCase();
 
-  const dbSiteId = await resolveDbSiteId(site.id);
+  const dbSiteId = site.id; // site.id is already the resolved DB UUID
   const sb = await getTenantClient();
 
   // Fetch active products within budget

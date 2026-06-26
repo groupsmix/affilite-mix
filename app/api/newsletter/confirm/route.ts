@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantClient } from "@/lib/supabase-server";
 import { getCurrentSite } from "@/lib/site-context";
-import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { captureException } from "@/lib/sentry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -39,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     const site = await getCurrentSite();
-    const siteId = await resolveDbSiteId(site.id);
+    const siteId = site.id; // site.id is already the resolved DB UUID
     const sb = await getTenantClient();
 
     // B-02: Hash the raw token to match the stored hash
