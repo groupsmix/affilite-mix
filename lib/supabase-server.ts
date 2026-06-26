@@ -189,7 +189,20 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
     const rawSiteId = h.get("x-site-id");
     const siteIdSig = h.get("x-site-id-sig");
     if (rawSiteId && (await verifySiteIdSignature(rawSiteId, siteIdSig))) {
-      siteId = rawSiteId;
+      // The x-site-id header carries the site SLUG. Resolve it to the DB UUID
+      // before minting the JWT: the tenant_isolation RLS policy runs
+      // current_request_site_ids(), which casts the app_metadata.site_id claim
+      // to uuid. A slug there throws `22P02 invalid input syntax for type uuid`
+      // and every public tenant-scoped query fails. (The admin branch above
+      // already resolves slug -> UUID via the privileged client.)
+      try {
+        const priv = getPrivilegedSupabaseClient();
+        const dbSite = await getSiteRowBySlugWithClient(rawSiteId, async () => priv);
+        siteId = dbSite?.id ?? null;
+      } catch {
+        // fail-closed: leave siteId null so RLS returns no rows rather than erroring
+        siteId = null;
+      }
     }
   }
 
