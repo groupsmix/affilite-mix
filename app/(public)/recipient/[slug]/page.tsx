@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-import {
-  TaxonomyPage,
-  generateTaxonomyMetadata,
-  generateTaxonomyStaticParams,
-} from "../../components/taxonomy-page";
+import { TaxonomyPage, generateTaxonomyMetadata } from "../../components/taxonomy-page";
 
 const CONFIG = {
   prefix: "recipient",
@@ -26,5 +22,3 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function RecipientPage({ params, searchParams }: PageProps) {
   return <TaxonomyPage config={CONFIG} params={params} searchParams={searchParams} />;
 }
-
-export const generateStaticParams = generateTaxonomyStaticParams;

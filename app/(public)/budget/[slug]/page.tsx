@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-import {
-  TaxonomyPage,
-  generateTaxonomyMetadata,
-  generateTaxonomyStaticParams,
-} from "../../components/taxonomy-page";
+import { TaxonomyPage, generateTaxonomyMetadata } from "../../components/taxonomy-page";
 
 const CONFIG = { prefix: "budget", label: "Shop by Budget", feature: "taxonomyPages" } as const;
 
@@ -22,5 +18,3 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function BudgetPage({ params, searchParams }: PageProps) {
   return <TaxonomyPage config={CONFIG} params={params} searchParams={searchParams} />;
 }
-
-export const generateStaticParams = generateTaxonomyStaticParams;
