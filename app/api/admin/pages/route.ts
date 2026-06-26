@@ -6,6 +6,7 @@ import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { withAuthz } from "@/lib/authz";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 /**
  * GET /api/admin/pages  — list all pages for the current site
@@ -42,14 +43,21 @@ export const POST = withAuthz(
         return NextResponse.json({ error: "slug and title are required" }, { status: 400 });
       }
 
-      const page = await createPage({
-        site_id: siteId,
-        slug: bodyOrError.slug as string,
-        title: bodyOrError.title as string,
-        body: sanitizeHtml((bodyOrError.body as string) ?? ""),
-        is_published: (bodyOrError.is_published as boolean) ?? false,
-        sort_order: (bodyOrError.sort_order as number) ?? 0,
-      });
+      // Bind the tenant client to the withAuthz-validated `siteId` so the
+      // minted JWT carries app_metadata.site_id and the write satisfies the
+      // tenant_isolation RLS WITH CHECK; see the createCategory note in
+      // app/api/admin/categories/route.ts for the full rationale.
+      const page = await createPage(
+        {
+          site_id: siteId,
+          slug: bodyOrError.slug as string,
+          title: bodyOrError.title as string,
+          body: sanitizeHtml((bodyOrError.body as string) ?? ""),
+          is_published: (bodyOrError.is_published as boolean) ?? false,
+          sort_order: (bodyOrError.sort_order as number) ?? 0,
+        },
+        () => getTenantClientForSite(siteId, session.userId),
+      );
 
       void recordAuditEvent({
         site_id: siteId,

@@ -21,6 +21,7 @@ import { validateAdminUrlFields } from "@/lib/admin-url-guard";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { isUsableUuid } from "@/lib/security/uuid";
 import { canonicalizeVsSlug } from "@/lib/vs-slug";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 export const GET = withAuthz(
   "content",
@@ -120,25 +121,32 @@ export const POST = withAuthz(
       return NextResponse.json({ error: urlErr.error }, { status: 400 });
     }
     try {
-      const content = await createContent({
-        site_id: siteId,
-        title: data.title,
-        slug,
-        body: sanitizeHtml(data.body),
-        excerpt: data.excerpt,
-        featured_image: data.featured_image ?? "",
-        type: data.type,
-        status: data.status,
-        category_id: data.category_id,
-        tags: data.tags,
-        author: data.author,
-        publish_at: data.publish_at,
-        meta_title: data.meta_title,
-        meta_description: data.meta_description,
-        og_image: data.og_image,
-        body_previous: null,
-        review_state: "draft",
-      });
+      // Bind the tenant client to the withAuthz-validated `siteId` so the
+      // minted JWT carries app_metadata.site_id and the write satisfies the
+      // tenant_isolation RLS WITH CHECK; see the createCategory note in
+      // app/api/admin/categories/route.ts for the full rationale.
+      const content = await createContent(
+        {
+          site_id: siteId,
+          title: data.title,
+          slug,
+          body: sanitizeHtml(data.body),
+          excerpt: data.excerpt,
+          featured_image: data.featured_image ?? "",
+          type: data.type,
+          status: data.status,
+          category_id: data.category_id,
+          tags: data.tags,
+          author: data.author,
+          publish_at: data.publish_at,
+          meta_title: data.meta_title,
+          meta_description: data.meta_description,
+          og_image: data.og_image,
+          body_previous: null,
+          review_state: "draft",
+        },
+        () => getTenantClientForSite(siteId, session.userId),
+      );
 
       void revalidateTag(contentTag(siteId));
       await recordAuditEvent({
@@ -230,7 +238,7 @@ export const PATCH = withAuthz(
         siteId,
         id,
         updates as Parameters<typeof updateContent>[2],
-        undefined,
+        () => getTenantClientForSite(siteId, session.userId),
         expectedUpdatedAt,
       );
       void revalidateTag(contentTag(siteId));
@@ -292,7 +300,7 @@ export const DELETE = withAuthz(
     }
 
     try {
-      await deleteContent(siteId, id);
+      await deleteContent(siteId, id, () => getTenantClientForSite(siteId, session.userId));
       void revalidateTag(contentTag(siteId));
       // G-06: Await audit for content deletion.
       await recordAuditEvent({

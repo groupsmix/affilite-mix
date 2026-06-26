@@ -7,6 +7,7 @@ import {
   updateCategory,
   deleteCategory,
 } from "@/lib/dal/categories";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 import { validateCreateCategory, validateUpdateCategory } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
@@ -45,13 +46,22 @@ export const POST = withAuthz(
     }
 
     try {
-      const category = await createCategory({
-        site_id: siteId,
-        name: parsed.data.name,
-        slug: parsed.data.slug,
-        description: parsed.data.description,
-        taxonomy_type: parsed.data.taxonomy_type,
-      });
+      // Bind the tenant client to the withAuthz-validated `siteId` so the
+      // minted JWT carries the app_metadata.site_id claim. Without it the admin
+      // write request can reach RLS with no site claim and fail the
+      // tenant_isolation WITH CHECK (Postgres 42501) — surfacing as
+      // "Failed to create category". This keeps RLS enforcing isolation rather
+      // than bypassing it via service_role.
+      const category = await createCategory(
+        {
+          site_id: siteId,
+          name: parsed.data.name,
+          slug: parsed.data.slug,
+          description: parsed.data.description,
+          taxonomy_type: parsed.data.taxonomy_type,
+        },
+        () => getTenantClientForSite(siteId, session.userId),
+      );
 
       void revalidateTag(categoriesTag(siteId));
       void recordAuditEvent({
@@ -89,7 +99,9 @@ export const PATCH = withAuthz(
 
     const { id, ...updates } = parsed.data;
     try {
-      const category = await updateCategory(siteId, id, updates);
+      const category = await updateCategory(siteId, id, updates, () =>
+        getTenantClientForSite(siteId, session.userId),
+      );
       void revalidateTag(categoriesTag(siteId));
       void recordAuditEvent({
         site_id: siteId,
@@ -127,7 +139,7 @@ export const DELETE = withAuthz(
     }
 
     try {
-      await deleteCategory(siteId, id);
+      await deleteCategory(siteId, id, () => getTenantClientForSite(siteId, session.userId));
       void revalidateTag(categoriesTag(siteId));
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({

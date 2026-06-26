@@ -150,6 +150,10 @@ describe("POST /api/admin/categories (integration)", () => {
         slug: "luxury",
         taxonomy_type: "budget",
       }),
+      // Admin writes pass a site-scoped tenant client getter so the minted JWT
+      // carries the app_metadata.site_id claim required by the tenant_isolation
+      // RLS WITH CHECK (otherwise the INSERT fails with Postgres 42501).
+      expect.any(Function),
     );
   });
 
@@ -254,7 +258,12 @@ describe("DELETE /api/admin/categories (integration)", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
-    expect(mockDeleteCategory).toHaveBeenCalledWith("site-uuid-123", validId);
+    expect(mockDeleteCategory).toHaveBeenCalledWith(
+      "site-uuid-123",
+      validId,
+      // Site-scoped tenant client getter — see the create assertion above.
+      expect.any(Function),
+    );
   });
 
   it("returns 400 when id is missing", async () => {

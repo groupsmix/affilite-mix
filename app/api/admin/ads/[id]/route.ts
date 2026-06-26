@@ -6,6 +6,7 @@ import { parseJsonBody } from "@/lib/api-error";
 import type { AdPlacementType, AdProvider } from "@/types/database";
 import { captureException } from "@/lib/sentry";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 const VALID_PLACEMENT_TYPES: AdPlacementType[] = [
   "sidebar",
@@ -72,7 +73,9 @@ export const PUT = withAuthzDynamic(
       if (is_active !== undefined) updates.is_active = is_active;
       if (priority !== undefined) updates.priority = priority;
 
-      const ad = await updateAdPlacement(dbSiteId, id!, updates);
+      const ad = await updateAdPlacement(dbSiteId, id!, updates, () =>
+        getTenantClientForSite(dbSiteId, session.userId),
+      );
 
       void recordAuditEvent({
         site_id: dbSiteId,
@@ -111,7 +114,9 @@ export const DELETE = withAuthzDynamic(
     if (!authz.ok) return authorizationErrorResponse(authz);
 
     try {
-      await deleteAdPlacement(dbSiteId, id!);
+      await deleteAdPlacement(dbSiteId, id!, () =>
+        getTenantClientForSite(dbSiteId, session.userId),
+      );
 
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({

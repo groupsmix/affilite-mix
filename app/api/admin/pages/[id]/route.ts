@@ -6,6 +6,7 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
+import { getTenantClientForSite } from "@/lib/supabase-server";
 
 /**
  * GET /api/admin/pages/:id  — get a single page
@@ -71,7 +72,9 @@ export const PATCH = withAuthzDynamic(
         }
       }
 
-      const page = await updatePage(dbSiteId, id!, filtered);
+      const page = await updatePage(dbSiteId, id!, filtered, () =>
+        getTenantClientForSite(dbSiteId, session.userId),
+      );
 
       void recordAuditEvent({
         site_id: dbSiteId,
@@ -113,7 +116,7 @@ export const DELETE = withAuthzDynamic(
       });
       if (!authz.ok) return authorizationErrorResponse(authz);
 
-      await deletePage(dbSiteId, id!);
+      await deletePage(dbSiteId, id!, () => getTenantClientForSite(dbSiteId, session.userId));
 
       // S0-FP-002: await audit for destructive actions so the trail is durable.
       await recordAuditEvent({
