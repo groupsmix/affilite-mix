@@ -1,5 +1,5 @@
 import { getCurrentSite } from "@/lib/site-context";
-import { getCategoryBySlug, listCategories } from "@/lib/dal/categories";
+import { getCategoryBySlug } from "@/lib/dal/categories";
 import { listContent, countContent } from "@/lib/dal/content";
 import { listProducts } from "@/lib/dal/products";
 import { getAnonClient } from "@/lib/supabase-server";
@@ -212,16 +212,4 @@ export async function TaxonomyPage({
       </section>
     </div>
   );
-}
-
-/** Generate static params for taxonomy pages by listing all categories */
-export async function generateTaxonomyStaticParams() {
-  try {
-    const site = await getCurrentSite();
-    const categories = await listCategories(site.id);
-    return categories.map((c) => ({ slug: c.slug }));
-  } catch {
-    // fail-open: best-effort
-    return [];
-  }
 }
