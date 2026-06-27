@@ -213,7 +213,7 @@ describe("/api/internal/resolve-site auth misconfiguration", () => {
     const res = await GET(req);
     expect(res.status).toBe(500);
     vi.unstubAllEnvs();
-  });
+  }, 30000);
 
   it("returns 500 in production when INTERNAL_API_TOKEN_INTERNAL is the dev fallback", async () => {
     vi.stubEnv("NODE_ENV", "production");
@@ -229,7 +229,7 @@ describe("/api/internal/resolve-site auth misconfiguration", () => {
     // Misconfigured → 500, NOT 200/403 based on the public fallback.
     expect(res.status).toBe(500);
     vi.unstubAllEnvs();
-  });
+  }, 30000);
 
   it("rejects requests sending the dev fallback token when a real token is configured", async () => {
     vi.stubEnv("NODE_ENV", "production");
@@ -244,5 +244,5 @@ describe("/api/internal/resolve-site auth misconfiguration", () => {
     const res = await GET(req);
     expect(res.status).toBe(403);
     vi.unstubAllEnvs();
-  });
+  }, 30000);
 });

@@ -162,11 +162,16 @@ export async function POST(request: NextRequest) {
       const safeDomain = site.domain.replace(/[\r\n\0]/g, "").toLowerCase();
       const fromEmail = `noreply@${safeDomain}`;
 
+      // SEC-01: Display the code as plain text only — do NOT embed it as a
+      // query parameter in any URL. A clickable URL containing the code
+      // allows mail proxies, spam filters, and email-preview services to
+      // silently consume the OTP before the user sees it.
+      const verifyUrl = `https://${safeDomain}/api/user/data-export?email=${encodeURIComponent(email)}`;
       const emailHtml = `
         <p>You requested a copy of your data from ${safeSiteName}.</p>
         <p>Your verification code is: <strong>${code}</strong></p>
-        <p>This code expires in 10 minutes. Use it at:<br>
-        <code>GET /api/user/data-export?email=${encodeURIComponent(email)}&code=${code}</code></p>
+        <p>This code expires in 10 minutes. Enter it at:<br>
+        <a href="${verifyUrl}">${verifyUrl}</a></p>
         <p>If you did not request this, you can ignore this email.</p>
       `;
       const emailText = `Your data export verification code for ${safeSiteName}: ${code}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, ignore this email.`;

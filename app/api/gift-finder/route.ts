@@ -169,6 +169,10 @@ export async function GET(request: NextRequest) {
 
   scored.sort((a, b) => b.relevance - a.relevance);
 
+  // Issue 8: suppress raw affiliate_url and replace with a /r/ redirect URL.
+  // Exposing affiliate_url publicly lets competitors identify networks and strip
+  // tracking parameters. Route traffic through the internal /r/[slug] redirect
+  // instead so the affiliate URL is never sent to the browser.
   const results = scored.slice(0, 3).map((p) => ({
     name: p.name,
     slug: p.slug,
@@ -176,11 +180,12 @@ export async function GET(request: NextRequest) {
     price_amount: p.price_amount,
     price_currency: p.price_currency,
     score: p.score,
-    affiliate_url: p.affiliate_url,
     image_url: p.image_url,
     description: p.description,
     merchant: p.merchant,
     deal_text: p.deal_text,
+    // Include redirect_url only when the product has a non-empty slug.
+    ...(p.slug ? { redirect_url: `/r/${p.slug}` } : {}),
   }));
 
   return NextResponse.json({ results });

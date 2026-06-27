@@ -8,11 +8,19 @@ const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 
 async function doRefresh() {
   try {
-    await fetchWithCsrf("/api/auth/refresh", { method: "POST" });
+    const res = await fetchWithCsrf("/api/auth/refresh", { method: "POST" });
+    // Issue 5: surface auth failures so the admin is not silently left with
+    // an expired session. A 401/403 means the session is gone — redirect to
+    // the login page. Any other non-2xx (network-level, 5xx, 429) is
+    // treated as transient and silently ignored so the next scheduled
+    // interval can retry.
+    if (res.status === 401 || res.status === 403) {
+      window.location.href = "/q7m-k4j9/login";
+    }
+    // 2xx: success — cookie silently renewed, nothing to do.
+    // Other non-2xx (5xx, 429, etc.): transient — fall through silently.
   } catch {
-    // fail-open: best-effort
-    // Silently ignore refresh failures — user will be redirected on next
-    // server action if the token truly expired.
+    // Network error or rejected promise — transient, retry on next interval.
   }
 }
 

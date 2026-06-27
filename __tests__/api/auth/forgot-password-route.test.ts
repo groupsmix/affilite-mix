@@ -100,6 +100,8 @@ describe("POST /api/auth/forgot-password (route-level)", () => {
       totp_locked_until: null,
       login_failed_attempts: 0,
       login_locked_until: null,
+      reset_token: null,
+      reset_token_expires_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
