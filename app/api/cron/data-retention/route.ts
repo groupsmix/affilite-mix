@@ -244,7 +244,6 @@ export async function POST(request: NextRequest) {
           archived: totalAuditArchived,
           deleted: totalAuditDeleted,
         };
-        auditHasMore = false;
         break;
       }
 
