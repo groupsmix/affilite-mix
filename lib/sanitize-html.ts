@@ -369,11 +369,19 @@ export function sanitizeHtml(html: string): string {
  * input always produces identical output, and the cache stores no
  * information beyond what callers already supplied.
  *
- * `MAX_INPUT_LENGTH` is enforced before cache lookup so the cache
- * cannot be poisoned with oversize entries. The LRU is capped at
- * `MEMO_CAPACITY` entries (small intentionally — content pages reuse
- * the same HTML body across requests, so a high hit rate is achieved
- * with a tiny working set).
+ * Issue 11: Memory-growth invariants — two bounds work together to prevent
+ * unbounded memory growth even under adversarial input:
+ *   1. `MAX_INPUT_LENGTH = 100_000` — enforced as a hard pre-check before
+ *      every cache lookup. Inputs longer than 100 KB are rejected with an
+ *      error and never enter the cache, bounding the maximum size of any
+ *      single cached value.
+ *   2. `MEMO_CAPACITY = 64` — the LRU evicts the least-recently-used entry
+ *      whenever the cache reaches this limit, bounding the total number of
+ *      cached values.
+ * Together these two invariants cap worst-case memory at
+ * 64 × 100 KB ≈ 6.4 MB — acceptable for a long-lived server process and
+ * safe under both high-cardinality inputs and adversarial cache-flooding.
+ * Do not remove either bound without re-evaluating the memory budget.
  */
 const MEMO_CAPACITY = 64;
 const memoCache = new Map<string, string>();

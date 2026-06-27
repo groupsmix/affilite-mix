@@ -64,6 +64,18 @@ export async function POST(request: Request) {
       return successResponse;
     }
 
+    // Issue 13: If a still-valid (unexpired) reset token already exists for
+    // this account, return the success response immediately without overwriting
+    // the token or re-sending the email. This prevents a second request from
+    // invalidating a reset link already delivered to the user's inbox.
+    if (user.reset_token && user.reset_token_expires_at) {
+      const expiresAtMs = new Date(user.reset_token_expires_at).getTime();
+      if (expiresAtMs > Date.now()) {
+        // A valid unexpired token exists — silently succeed without overwriting.
+        return successResponse;
+      }
+    }
+
     // Resolve the active tenant up front: the reset link must point at the
     // tenant the user belongs to, otherwise a user on tenant A could be sent
     // a reset link on tenant B's host (G-22).

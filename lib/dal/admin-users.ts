@@ -46,6 +46,11 @@ export interface AdminUserRow {
   totp_locked_until: string | null;
   login_failed_attempts: number;
   login_locked_until: string | null;
+  // Issue 13: password-reset token (SHA-256 hashed) and its expiry.
+  // Included in ALL_COLUMNS so getAdminUserByEmail returns these fields,
+  // allowing the forgot-password handler to detect an unexpired pending token.
+  reset_token: string | null;
+  reset_token_expires_at: string | null;
   created_at: string;
   updated_at: string;
 }

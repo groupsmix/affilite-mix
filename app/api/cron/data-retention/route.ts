@@ -163,59 +163,72 @@ export async function POST(request: NextRequest) {
   // R2 (object storage) *before* any row is deleted, and a SECURITY DEFINER SQL
   // function cannot write to R2 — so the route owns the durable sequence:
   //   fetch expired rows → archive to R2 → delete only what was archived.
-  // (The previous code called a 3-arg `purge_retention` overload that was never
-  // created, so it always errored and silently fell through to this path anyway.
-  // Removed to drop the dead `@ts-expect-error` and the false "transactional"
-  // guarantee.)
   //
-  // If R2 is unbound we refuse to delete (no silent data loss) AND alert, so
-  // "retention is not being enforced" can no longer hide behind a debug log.
+  // Issue 7: Use cursor-based batching (matching the affiliate_clicks block)
+  // so runs with >BATCH_SIZE expired rows eventually process all of them.
+  // The checkpoint is keyed "data-retention:audit-log" in cron_state.
   try {
     const auditDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-    // Fetch rows to archive before deleting.
-    const { data: auditRows, error: fetchError } = (await sb
-      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
-      .from("audit_log")
-      .select(
-        "id, site_id, actor, actor_user_id, action, entity_type, entity_id, details, ip, created_at",
-      )
-      // F-API-01: cross-tenant audit-log retention sweep.
+    // Load checkpoint cursor — resume from last processed ID.
+    const { data: auditCheckpoint } = (await sb
+      // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+      .from("cron_state")
+      .select("job_name, last_id, last_processed_at, cursor, updated_at")
       .unsafeNoSiteFilter()
-      .lt("created_at", auditDate.toISOString())
-      .limit(10000)) as unknown as {
-      data:
-        | {
-            id: string;
-            site_id: string;
-            actor: string;
-            actor_user_id: string | null;
-            action: string;
-            entity_type: string;
-            entity_id: string;
-            details: Record<string, unknown> | null;
-            ip: string | null;
-            created_at: string;
-          }[]
-        | null;
-      error: { message: string; code?: string } | null;
-    };
+      .eq("job_name", "data-retention:audit-log")
+      .single()) as { data: { last_id?: string | null } | null };
 
-    if (fetchError) throw fetchError;
+    let auditLastId = auditCheckpoint?.last_id ?? "";
+    let auditHasMore = true;
+    let totalAuditArchived = 0;
+    let totalAuditDeleted = 0;
 
-    if (!auditRows || auditRows.length === 0) {
-      results.audit_log = { success: true, archived: 0, deleted: 0 };
-    } else {
+    while (auditHasMore) {
+      // Fetch a batch of rows to archive before deleting.
+      let auditQuery = sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
+        .from("audit_log")
+        .select(
+          "id, site_id, actor, actor_user_id, action, entity_type, entity_id, details, ip, created_at",
+        )
+        .unsafeNoSiteFilter()
+        .lt("created_at", auditDate.toISOString())
+        .order("id", { ascending: true })
+        .limit(BATCH_SIZE);
+
+      if (auditLastId) {
+        auditQuery = auditQuery.gt("id", auditLastId);
+      }
+
+      const { data: auditRows, error: fetchError } = (await auditQuery) as unknown as {
+        data:
+          | {
+              id: string;
+              site_id: string;
+              actor: string;
+              actor_user_id: string | null;
+              action: string;
+              entity_type: string;
+              entity_id: string;
+              details: Record<string, unknown> | null;
+              ip: string | null;
+              created_at: string;
+            }[]
+          | null;
+        error: { message: string; code?: string } | null;
+      };
+
+      if (fetchError) throw fetchError;
+
+      if (!auditRows || auditRows.length === 0) {
+        break;
+      }
+
       const r2 = getAuditArchiveR2();
 
       if (!r2) {
-        // audit #9: R2 unbound ⇒ audit_log retention is NOT being enforced (rows
-        // are neither archived nor deleted). This used to be a debug-level warn
-        // that hid an unbounded-growth + GDPR-retention gap. Alert loudly so it's
-        // visible. By default keep the cron GREEN — a Low-severity config gap
-        // shouldn't page on every run — but set AUDIT_ARCHIVE_R2_REQUIRED=1 to
-        // treat it as a hard failure (job returns 500) once R2 is expected to be
-        // bound in every environment.
+        // R2 unbound — refuse to delete (no silent data loss) and alert loudly.
         const msg =
           "AUDIT_ARCHIVE_R2 unbound — audit_log retention is NOT being enforced. " +
           "Bind the R2 bucket; expired rows are retried each run until then.";
@@ -228,47 +241,72 @@ export async function POST(request: NextRequest) {
         results.audit_log = {
           success: !hardFail,
           error: hardFail ? msg : undefined,
-          archived: 0,
-          deleted: 0,
+          archived: totalAuditArchived,
+          deleted: totalAuditDeleted,
         };
-      } else {
-        // Archive first.
-        const yearMonth = `${auditDate.getFullYear()}-${String(auditDate.getMonth() + 1).padStart(2, "0")}`;
-        const jsonl = auditRows.map((row) => JSON.stringify(row)).join("\n");
-        const archiveKey = `audit-log-archive/${yearMonth}/${now.toISOString()}.jsonl`;
-        await r2.put(archiveKey, jsonl);
-        logger.info("Audit log archived to R2", { key: archiveKey, count: auditRows.length });
-
-        // Delete only what we archived.
-        const ids = auditRows.map((row) => row.id);
-        const { error: auditError } = await sb
-          // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
-          .from("audit_log")
-          .delete()
-          // F-API-01: ids resolved cross-tenant above.
-          .unsafeNoSiteFilter()
-          .in("id", ids);
-
-        if (auditError) throw auditError;
-
-        // A82-F1: Persist checkpoint so interrupted runs resume past
-        // already-deleted rows instead of re-fetching them.
-        const lastDeletedId = ids[ids.length - 1];
-        await sb
-          // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
-          .from("cron_state")
-          .upsert(
-            {
-              job_name: "data-retention:audit-log",
-              last_id: lastDeletedId,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "job_name" },
-          )
-          .unsafeNoSiteFilter();
-
-        results.audit_log = { success: true, archived: ids.length, deleted: ids.length };
+        auditHasMore = false;
+        break;
       }
+
+      // Archive first.
+      const yearMonth = `${auditDate.getFullYear()}-${String(auditDate.getMonth() + 1).padStart(2, "0")}`;
+      const jsonl = auditRows.map((row) => JSON.stringify(row)).join("\n");
+      const archiveKey = `audit-log-archive/${yearMonth}/${now.toISOString()}-${auditLastId || "start"}.jsonl`;
+      await r2.put(archiveKey, jsonl);
+      logger.info("Audit log batch archived to R2", { key: archiveKey, count: auditRows.length });
+
+      // Delete only what we archived.
+      const ids = auditRows.map((row) => row.id);
+      const { error: auditError } = await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client (no site header); gated by CRON_SECRET
+        .from("audit_log")
+        .delete()
+        .unsafeNoSiteFilter()
+        .in("id", ids);
+
+      if (auditError) throw auditError;
+
+      totalAuditArchived += ids.length;
+      totalAuditDeleted += ids.length;
+      auditLastId = ids[ids.length - 1]!;
+
+      // Persist checkpoint after each batch so interrupted runs resume.
+      await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+        .from("cron_state")
+        .upsert(
+          {
+            job_name: "data-retention:audit-log",
+            last_id: auditLastId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "job_name" },
+        )
+        .unsafeNoSiteFilter();
+
+      if (auditRows.length < BATCH_SIZE) auditHasMore = false;
+    }
+
+    if (!results.audit_log) {
+      // Clear checkpoint on successful completion of all batches.
+      await sb
+        // eslint-disable-next-line no-restricted-syntax -- Audited: cron uses privileged client; gated by CRON_SECRET
+        .from("cron_state")
+        .upsert(
+          {
+            job_name: "data-retention:audit-log",
+            last_id: null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "job_name" },
+        )
+        .unsafeNoSiteFilter();
+
+      results.audit_log = {
+        success: true,
+        archived: totalAuditArchived,
+        deleted: totalAuditDeleted,
+      };
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

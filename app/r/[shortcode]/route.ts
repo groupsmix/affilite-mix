@@ -114,12 +114,18 @@ export async function GET(
     }
 
     // Record click (fire-and-forget via waitUntil)
+    // Issue 10: validate the `ref` param against the same slug regex used by
+    // /api/track/click before storing it, so arbitrary strings (including
+    // those with special characters) are never written as content_slug.
+    const SLUG_RE = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+    const rawRef = request.nextUrl.searchParams.get("ref") ?? "";
+    const contentSlug = SLUG_RE.test(rawRef) ? rawRef : "";
     void runAfterResponse(
       recordClick({
         site_id: siteId,
         product_name: product.name,
         affiliate_url: destinationUrl,
-        content_slug: request.nextUrl.searchParams.get("ref") ?? "",
+        content_slug: contentSlug,
         referrer: request.headers.get("referer") ?? undefined,
       }),
       { context: "[r/shortcode] recordClick" },

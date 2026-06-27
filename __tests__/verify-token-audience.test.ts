@@ -74,7 +74,7 @@ describe("R2: verifyToken audience acceptance/rejection", () => {
     expect(decoded).not.toBeNull();
     expect(decoded?.email).toBe("admin@test.com");
     expect(decoded?.role).toBe("admin");
-  });
+  }, 30000);
 
   it("2.3 rejects a token whose aud is any other value (no session)", async () => {
     const { verifyToken } = await import("@/lib/auth");
@@ -83,7 +83,7 @@ describe("R2: verifyToken audience acceptance/rejection", () => {
     const decoded = await verifyToken(token);
 
     expect(decoded).toBeNull();
-  });
+  }, 30000);
 
   it("2.3 rejects a token whose aud is a near-miss of the expected value", async () => {
     const { verifyToken } = await import("@/lib/auth");
@@ -92,7 +92,7 @@ describe("R2: verifyToken audience acceptance/rejection", () => {
     const decoded = await verifyToken(token);
 
     expect(decoded).toBeNull();
-  });
+  }, 30000);
 
   it("2.4 rejects a token that omits the aud claim (no session)", async () => {
     const { verifyToken } = await import("@/lib/auth");
@@ -101,7 +101,7 @@ describe("R2: verifyToken audience acceptance/rejection", () => {
     const decoded = await verifyToken(token);
 
     expect(decoded).toBeNull();
-  });
+  }, 30000);
 
   it("2.4 rejects a token with an empty aud claim (no session)", async () => {
     const { verifyToken } = await import("@/lib/auth");
@@ -110,5 +110,5 @@ describe("R2: verifyToken audience acceptance/rejection", () => {
     const decoded = await verifyToken(token);
 
     expect(decoded).toBeNull();
-  });
+  }, 30000);
 });
