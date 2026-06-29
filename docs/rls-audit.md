@@ -18,14 +18,16 @@ The following tables are queried using `getAnonClient()` in the public DAL files
 ## RLS Policy Analysis
 
 ### ✅ sites
+
 - **Policy:** `public_read_sites` (migration 00074)
 - **Predicate:** `USING (is_active = true)`
 - **Site Scoping:** NOT REQUIRED
 - **Rationale:** The `sites` table is the global tenant registry itself. Site-scoping would be circular. The policy correctly restricts to active sites only.
 
 ### ✅ categories
+
 - **Policy:** `public_read_categories` (migration 00074)
-- **Predicate:** 
+- **Predicate:**
   ```sql
   USING (
     EXISTS (
@@ -39,6 +41,7 @@ The following tables are queried using `getAnonClient()` in the public DAL files
 - **Status:** Properly scoped via `categories.site_id = sites.id` join
 
 ### ✅ products
+
 - **Policy:** `public_read_active_products` (migration 00074)
 - **Predicate:**
   ```sql
@@ -55,6 +58,7 @@ The following tables are queried using `getAnonClient()` in the public DAL files
 - **Status:** Properly scoped via `products.site_id = sites.id` join
 
 ### ✅ content
+
 - **Policy:** `public_read_published_content` (migration 00074)
 - **Predicate:**
   ```sql
@@ -71,6 +75,7 @@ The following tables are queried using `getAnonClient()` in the public DAL files
 - **Status:** Properly scoped via `content.site_id = sites.id` join
 
 ### ✅ pages
+
 - **Policy:** `public_read_published_pages` (migration 00074)
 - **Predicate:**
   ```sql
@@ -87,6 +92,7 @@ The following tables are queried using `getAnonClient()` in the public DAL files
 - **Status:** Properly scoped via `pages.site_id = sites.id` join
 
 ### ✅ content_products
+
 - **Policy:** `public_read_content_products` (migration 00074)
 - **Predicate:**
   ```sql

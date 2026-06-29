@@ -162,20 +162,17 @@ export async function POST(request: NextRequest) {
     // A short-lived KV lock closes this window.
     const checkoutEmailHash = await hashEmailForRateLimit(body.email);
     const lockKey = `checkout_lock:${checkoutEmailHash}:${siteId}`;
-    
+
     // Try to acquire lock using KV binding if available
     const kvBinding = getKVNamespace();
     if (kvBinding) {
       const existing = await kvBinding.get(lockKey);
       if (existing) {
-        logger.warn("Checkout lock hit - double-submit attempt", { 
-          emailHash: checkoutEmailHash, 
-          siteId 
+        logger.warn("Checkout lock hit - double-submit attempt", {
+          emailHash: checkoutEmailHash,
+          siteId,
         });
-        return NextResponse.json(
-          { error: "Checkout already in progress" }, 
-          { status: 409 }
-        );
+        return NextResponse.json({ error: "Checkout already in progress" }, { status: 409 });
       }
       await kvBinding.put(lockKey, "1", { expirationTtl: 30 }); // 30s TTL
     }

@@ -201,7 +201,11 @@ export async function POST(request: NextRequest) {
             if (sub.status === "canceled" || sub.status === "incomplete_expired") {
               await untypedFrom(sb, "memberships")
                 .update(
-                  { status: "cancelled", cancelled_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+                  {
+                    status: "cancelled",
+                    cancelled_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  },
                   // F-API-01: stripe_subscription_id is globally unique across tenants.
                 )
                 .unsafeNoSiteFilter()

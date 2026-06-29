@@ -514,9 +514,12 @@ export async function POST(request: NextRequest) {
               getPrivilegedSupabaseClient("login:totp-advance-step"),
             );
           } catch (e) {
-            log.error("verify_and_set_totp_step RPC failed; failing closed for TOTP replay safety", {
-              error: e instanceof Error ? e.message : String(e),
-            });
+            log.error(
+              "verify_and_set_totp_step RPC failed; failing closed for TOTP replay safety",
+              {
+                error: e instanceof Error ? e.message : String(e),
+              },
+            );
             return apiError(401, "Invalid 2FA token");
           }
           if (!accepted) {

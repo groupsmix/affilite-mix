@@ -72,7 +72,11 @@ describe("auth token lifecycle", () => {
     expect(await verifyToken(forged)).toBeNull();
 
     // And a token with a bogus (foreign) role string is rejected too.
-    const forgedRole = await new SignJWT({ email: "forged@test.com", userId: "u-1", role: "intern" })
+    const forgedRole = await new SignJWT({
+      email: "forged@test.com",
+      userId: "u-1",
+      role: "intern",
+    })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
       .setExpirationTime("1h")

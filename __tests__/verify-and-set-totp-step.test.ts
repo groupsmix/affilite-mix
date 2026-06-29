@@ -40,7 +40,9 @@ describe("verifyAndSetTotpStep (Bug 8)", () => {
     vi.doMock("@/lib/server-only/service-role", () => ({
       getPrivilegedSupabaseClient: () => client,
     }));
-    vi.doMock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
+    vi.doMock("@/lib/logger", () => ({
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+    }));
     vi.doMock("@/lib/sentry", () => ({ captureException: vi.fn() }));
     vi.doMock("@/lib/metrics", () => ({ emitMetric: vi.fn() }));
 
@@ -62,7 +64,9 @@ describe("verifyAndSetTotpStep (Bug 8)", () => {
     vi.doMock("@/lib/server-only/service-role", () => ({
       getPrivilegedSupabaseClient: () => client,
     }));
-    vi.doMock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
+    vi.doMock("@/lib/logger", () => ({
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+    }));
     vi.doMock("@/lib/sentry", () => ({ captureException: vi.fn() }));
     vi.doMock("@/lib/metrics", () => ({ emitMetric: vi.fn() }));
 
@@ -80,7 +84,9 @@ describe("verifyAndSetTotpStep (Bug 8)", () => {
       getPrivilegedSupabaseClient: () => client,
     }));
     const sentryCapture = vi.fn();
-    vi.doMock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
+    vi.doMock("@/lib/logger", () => ({
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+    }));
     vi.doMock("@/lib/sentry", () => ({ captureException: sentryCapture }));
     vi.doMock("@/lib/metrics", () => ({ emitMetric: vi.fn() }));
 

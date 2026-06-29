@@ -184,9 +184,7 @@ describe("stripe-sync reverse reconciliation (Issue 4)", () => {
     // No membership deactivation update should have run.
     const deactivations = queries.filter(
       (q) =>
-        q.table === "memberships" &&
-        q.op === "update" &&
-        q.updatePayload?.status === "cancelled",
+        q.table === "memberships" && q.op === "update" && q.updatePayload?.status === "cancelled",
     );
     expect(deactivations).toHaveLength(0);
     const body = await res.json();
@@ -215,8 +213,20 @@ describe("stripe-sync reverse reconciliation (Issue 4)", () => {
     // Seed the reverse-reconcile list query: two active memberships with sub ids.
     selectResults["memberships"] = {
       data: [
-        { id: "m1", site_id: "s1", email: "a@x", stripe_subscription_id: "sub_canceled", status: "active" },
-        { id: "m2", site_id: "s2", email: "b@x", stripe_subscription_id: "sub_error", status: "active" },
+        {
+          id: "m1",
+          site_id: "s1",
+          email: "a@x",
+          stripe_subscription_id: "sub_canceled",
+          status: "active",
+        },
+        {
+          id: "m2",
+          site_id: "s2",
+          email: "b@x",
+          stripe_subscription_id: "sub_error",
+          status: "active",
+        },
       ],
       error: null,
     };
@@ -239,9 +249,7 @@ describe("stripe-sync reverse reconciliation (Issue 4)", () => {
     // Exactly one deactivation update (m1), none for m2.
     const deactivations = queries.filter(
       (q) =>
-        q.table === "memberships" &&
-        q.op === "update" &&
-        q.updatePayload?.status === "cancelled",
+        q.table === "memberships" && q.op === "update" && q.updatePayload?.status === "cancelled",
     );
     expect(deactivations).toHaveLength(1);
     expect(deactivations[0]?.updatePayload?.cancelled_at).toBeTruthy();
@@ -252,7 +260,15 @@ describe("stripe-sync reverse reconciliation (Issue 4)", () => {
     vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
 
     selectResults["memberships"] = {
-      data: [{ id: "m1", site_id: "s1", email: "a@x", stripe_subscription_id: "sub_pd", status: "active" }],
+      data: [
+        {
+          id: "m1",
+          site_id: "s1",
+          email: "a@x",
+          stripe_subscription_id: "sub_pd",
+          status: "active",
+        },
+      ],
       error: null,
     };
     retrieveMock.mockResolvedValue({ id: "sub_pd", status: "past_due" });
@@ -267,9 +283,7 @@ describe("stripe-sync reverse reconciliation (Issue 4)", () => {
     expect(body.reverseChecked).toBe(1);
     const deactivations = queries.filter(
       (q) =>
-        q.table === "memberships" &&
-        q.op === "update" &&
-        q.updatePayload?.status === "cancelled",
+        q.table === "memberships" && q.op === "update" && q.updatePayload?.status === "cancelled",
     );
     expect(deactivations).toHaveLength(0);
   });
