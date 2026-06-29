@@ -569,7 +569,17 @@ jobs:
           # dropped, so the Audit Log grid was always empty. The grep count is
           # now 87: +3 matches = the insert call, the retry call, and the
           # audited doc reference in lib/security/service-role-allowlist.ts.
-          BASELINE=87
+          # then 87 -> 89 (Issue-7 cursor-batching fix): the audit_log retention
+          # block is reworked from a single .limit(10000) fetch to cursor-based
+          # batching matching the affiliate_clicks block. The two extra opt-outs
+          # are: (1) the cron_state checkpoint SELECT before the batch loop
+          # and (2) the cron_state checkpoint UPSERT that clears the cursor
+          # after the final batch. Both are on the global `cron_state` table
+          # (no site_id column) — the same rationale as the affiliate_clicks
+          # checkpoint calls already included in the baseline. These are NOT
+          # new RLS bypasses; `cron_state` has no tenant column and is
+          # service_role-only by policy.
+          BASELINE=89
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."

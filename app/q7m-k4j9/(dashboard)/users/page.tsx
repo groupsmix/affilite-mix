@@ -45,6 +45,8 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
         totp_enabled: false,
         totp_last_step: null,
         totp_verified_at: null,
+        reset_token: null,
+        reset_token_expires_at: null,
         created_at: new Date(0).toISOString(),
         updated_at: new Date(0).toISOString(),
       },

@@ -19,6 +19,8 @@ import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { parseJsonBody } from "@/lib/api-error";
+// Issue 4: validate UUIDs before passing to DAL functions (CWE-20).
+import { isUsableUuid } from "@/lib/security/uuid";
 
 /**
  * GET /api/admin/permissions — list roles, permissions, and site-user assignments
@@ -94,6 +96,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Issue 4: reject non-UUID / nil-UUID values before hitting the DAL.
+  if (!isUsableUuid(user_id)) {
+    return NextResponse.json({ error: "user_id must be a valid UUID" }, { status: 400 });
+  }
+  if (!isUsableUuid(site_id)) {
+    return NextResponse.json({ error: "site_id must be a valid UUID" }, { status: 400 });
+  }
+
   try {
     const role = await getRoleByName(role_name, () =>
       getPrivilegedSupabaseClient("admin-permissions-role-lookup"),
@@ -146,6 +156,14 @@ export async function DELETE(request: NextRequest) {
 
   if (!userId || !siteId) {
     return NextResponse.json({ error: "user_id and site_id are required" }, { status: 400 });
+  }
+
+  // Issue 4: reject non-UUID / nil-UUID values before hitting the DAL.
+  if (!isUsableUuid(userId)) {
+    return NextResponse.json({ error: "user_id must be a valid UUID" }, { status: 400 });
+  }
+  if (!isUsableUuid(siteId)) {
+    return NextResponse.json({ error: "site_id must be a valid UUID" }, { status: 400 });
   }
 
   try {

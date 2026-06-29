@@ -21,6 +21,8 @@ import {
   MAX_SESSION_AGE_REGULAR_SECONDS,
   MAX_SESSION_AGE_ADMIN_SECONDS,
 } from "@/lib/auth-constants";
+// Issue 3: revoke the pre-step-up token before re-minting the session.
+import { revokeTokenStrong } from "@/lib/jwt-revocation-strong";
 
 /**
  * 5 step-up attempts per 5 minutes per session. Fail-closed: if the rate-limit
@@ -138,6 +140,21 @@ export async function POST(request: NextRequest) {
     const refreshed = { ...session, step_up_at: Date.now() };
     if (!refreshed.session_start) {
       refreshed.session_start = Math.floor(Date.now() / 1000);
+    }
+
+    // Issue 3: Revoke the pre-step-up token using strong revocation (immediate
+    // in-memory blocklist + KV persistence) so it cannot be replayed for its
+    // remaining lifetime. Fail-open: a revocation failure must not block the
+    // step-up — the admin already proved their identity.
+    if (session.jti) {
+      try {
+        await revokeTokenStrong(session.jti);
+      } catch (revokeErr) {
+        // fail-open: best-effort [criticality:non-critical]
+        captureException(revokeErr, {
+          context: "[api/auth/step-up] Failed to revoke pre-step-up token",
+        });
+      }
     }
 
     const token = await createToken(refreshed, request);

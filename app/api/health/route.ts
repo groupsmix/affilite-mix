@@ -30,12 +30,22 @@ export async function GET(request: NextRequest) {
   }
 
   // M-8: Prefer a dedicated HEALTH_DETAIL_BEARER secret so health probes
-  // don't share credentials with cron triggers. Fall back to cron auth
-  // for backward compatibility when the dedicated secret is not set.
-  const healthBearer = process.env.HEALTH_DETAIL_BEARER;
+  // don't share credentials with cron triggers. When HEALTH_DETAIL_BEARER is
+  // set, ONLY that token grants access to the full checks object — the cron
+  // credential is NOT evaluated as a fallback, preventing a cron token from
+  // leaking env-var names (Issue 2).
+  const healthBearer = process.env.HEALTH_DETAIL_BEARER?.trim();
   const authHeader = request.headers.get("authorization") ?? "";
-  const isAuthorized =
-    (healthBearer && authHeader === `Bearer ${healthBearer}`) || verifyCronAuth(request);
+
+  let isAuthorized: boolean;
+  if (healthBearer) {
+    // Bearer is configured — only the dedicated token grants detail access.
+    isAuthorized = authHeader === `Bearer ${healthBearer}`;
+  } else {
+    // Bearer not configured — fall back to cron auth for backward compatibility
+    // (e.g. dev environments that haven't set the dedicated secret yet).
+    isAuthorized = verifyCronAuth(request);
+  }
 
   if (!isAuthorized) {
     return NextResponse.json({ status: "healthy" });

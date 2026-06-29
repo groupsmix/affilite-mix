@@ -192,6 +192,7 @@ export default function AdminLoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@example.com"
                     autoComplete="email"
+                    required
                   />
                 </div>
 

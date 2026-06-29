@@ -137,6 +137,7 @@ describe("lib/runtime-env.ts source locks", () => {
 
 describe("ESLint rule blocks `(process.env as Record<string, unknown>).BINDING`", () => {
   it("source files in lib/, app/, workers/ do not contain the banned cast (except one allow-listed line)", async () => {
+    // Filesystem scan may be slow on cold runs — 30 s is ample.
     const { promises: fs } = await import("node:fs");
     const path = await import("node:path");
     const repoRoot = path.resolve(__dirname, "..");
@@ -173,7 +174,7 @@ describe("ESLint rule blocks `(process.env as Record<string, unknown>).BINDING`"
     }
 
     expect(offenders).toEqual([]);
-  });
+  }, 30000);
 
   it("rate-limit.ts delegates to getRuntimeEnv() instead of direct process.env cast", async () => {
     const { promises: fs } = await import("node:fs");

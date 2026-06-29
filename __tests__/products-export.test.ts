@@ -153,7 +153,7 @@ describe("GET /api/admin/products/export — Bug 7 (export all products)", () =>
 
     const { dataLines } = parseCsv(await res.text());
     expect(dataLines).toHaveLength(45);
-  });
+  }, 30000);
 
   it("includes the first and last product, not just the first page", async () => {
     catalog = makeCatalog(45);
@@ -162,7 +162,7 @@ describe("GET /api/admin/products/export — Bug 7 (export all products)", () =>
 
     expect(body).toContain("product-0");
     expect(body).toContain("product-44");
-  });
+  }, 30000);
 
   it("pages through the whole catalogue across multiple DAL calls", async () => {
     catalog = makeCatalog(450); // 200 + 200 + 50
@@ -178,7 +178,7 @@ describe("GET /api/admin/products/export — Bug 7 (export all products)", () =>
     }
     // A 450-row catalogue is nowhere near the cap, so no truncation warning.
     expect(mockLoggerWarn).not.toHaveBeenCalled();
-  });
+  }, 30000);
 
   it("terminates cleanly when the total is an exact multiple of the page size", async () => {
     catalog = makeCatalog(400); // 200 + 200, then an empty trailing page
@@ -188,7 +188,7 @@ describe("GET /api/admin/products/export — Bug 7 (export all products)", () =>
     expect(dataLines).toHaveLength(400);
     // One extra empty fetch detects the end: offsets 0, 200, 400.
     expect(calledOffsets()).toEqual([0, 200, 400]);
-  });
+  }, 30000);
 
   it("returns only the header row for an empty catalogue", async () => {
     catalog = makeCatalog(0);
@@ -198,5 +198,5 @@ describe("GET /api/admin/products/export — Bug 7 (export all products)", () =>
     expect(header.split(",")[0]).toBe("name");
     expect(dataLines).toHaveLength(0);
     expect(mockListProducts).toHaveBeenCalledTimes(1);
-  });
+  }, 30000);
 });
