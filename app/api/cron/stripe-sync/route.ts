@@ -148,8 +148,103 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Phase 3: Reverse reconciliation (Issue 4) ──────────────────────
+    // Phase 2 only iterates ACTIVE Stripe subscriptions and ensures the DB
+    // mirrors them. The reverse direction is unguarded: a DB membership whose
+    // Stripe subscription was cancelled (e.g. directly in the Stripe dashboard,
+    // or a webhook that never arrived) stays `active` forever — the user keeps
+    // their paid entitlement with no matching billing.
+    //
+    // This pass walks every DB-active membership that has a Stripe sub id and
+    // asks Stripe for the authoritative status. If Stripe says the sub is
+    // terminal (canceled / incomplete_expired), the membership is deactivated.
+    //
+    // GATED behind STRIPE_REVERSE_RECONCILE_ENABLED=true (default off) because:
+    //   - It makes one Stripe API call per active member per cron tick, which
+    //     is billable volume that should be opted into deliberately.
+    //   - A misconfigured/overlapping cancellation rule could mass-deactivate
+    //     members; defaulting off lets an operator enable it after review.
+    let reverseReconciled = 0;
+    let reverseSkipped = 0;
+    let reverseChecked = 0;
+    if (process.env.STRIPE_REVERSE_RECONCILE_ENABLED === "true") {
+      logger.info("STRIPE_REVERSE_RECONCILE_ENABLED=true — running reverse reconciliation pass");
+
+      // Query DB-active memberships that have a Stripe subscription id. Use the
+      // privileged client + unsafeNoSiteFilter(): the sub id is globally unique
+      // and this is a cross-tenant billing-integrity sweep (mirrors Phase 2).
+      const { data: activeMemberships, error: listError } = await untypedFrom(sb, "memberships")
+        .select("id, site_id, email, stripe_subscription_id, status")
+        // F-API-01: reverse reconciliation must consider every tenant's
+        // memberships — a cancelled sub in any site is an entitlement leak.
+        .unsafeNoSiteFilter()
+        .eq("status", "active")
+        .not("stripe_subscription_id", "is", null);
+
+      if (listError) {
+        logger.error("Reverse reconcile: failed to list active memberships", {
+          error: listError.message,
+        });
+        // Non-fatal: the rest of the sync already succeeded. Do not 500.
+        captureException(listError, { context: "[cron/stripe-sync] reverse-reconcile-list" });
+      } else if (activeMemberships) {
+        for (const m of activeMemberships as Array<{
+          id: string;
+          stripe_subscription_id: string;
+        }>) {
+          reverseChecked++;
+          try {
+            const sub = await stripe.subscriptions.retrieve(m.stripe_subscription_id);
+            // Only terminal, non-resurrectable states deactivate a membership.
+            // A transient state (past_due, unpaid) is left alone here — Phase 2
+            // / webhook handling manages reactivation vs. dunning for those.
+            if (sub.status === "canceled" || sub.status === "incomplete_expired") {
+              await untypedFrom(sb, "memberships")
+                .update(
+                  { status: "cancelled", cancelled_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+                  // F-API-01: stripe_subscription_id is globally unique across tenants.
+                )
+                .unsafeNoSiteFilter()
+                .eq("id", m.id);
+              reverseReconciled++;
+              logger.warn("Reverse reconcile: deactivated membership — Stripe sub is terminal", {
+                membershipId: m.id,
+                stripeSubscriptionId: m.stripe_subscription_id,
+                stripeStatus: sub.status,
+              });
+            }
+          } catch (retrieveErr) {
+            // NEVER deactivate without a confirmed Stripe response. A retrieve
+            // failure (network blip, transient 5xx, rate limit) must skip the
+            // row, not assume cancellation. Log and move on.
+            reverseSkipped++;
+            logger.warn("Reverse reconcile: Stripe retrieve failed — skipping (NOT deactivating)", {
+              membershipId: m.id,
+              stripeSubscriptionId: m.stripe_subscription_id,
+              error: retrieveErr instanceof Error ? retrieveErr.message : String(retrieveErr),
+            });
+          }
+        }
+        logger.info("Reverse reconcile pass complete", {
+          reverseChecked,
+          reverseReconciled,
+          reverseSkipped,
+        });
+      }
+    }
+
     void recordCronLiveness("stripe-sync");
-    return NextResponse.json({ success: true, syncedCount, reconcileFixed, reconcileSkipped });
+    return NextResponse.json({
+      success: true,
+      syncedCount,
+      reconcileFixed,
+      reconcileSkipped,
+      // Phase 3 metrics — always present so callers/monitors see zeros when the
+      // pass is disabled, not a missing key.
+      reverseChecked,
+      reverseReconciled,
+      reverseSkipped,
+    });
   } catch (error) {
     captureException(error, { context: "[cron/stripe-sync] failed" });
     logger.error("Stripe sync failed", {

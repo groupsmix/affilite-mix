@@ -37,7 +37,7 @@ interface SiteFormData {
   language: string;
   direction: "ltr" | "rtl";
   monetization_type: "affiliate" | "ads" | "both";
-  homepage_template: "standard" | "cinematic" | "minimal" | "editorial" | "top10";
+  homepage_template: "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
   product_card_style: "standard" | "compact" | "detailed";
   meta_title: string;
   meta_description: string;
@@ -86,6 +86,11 @@ const HOMEPAGE_TEMPLATES = [
     value: "top10",
     label: "Top 10 List",
     description: "Numbered product ranking with horizontal content list",
+  },
+  {
+    value: "compare",
+    label: "Compare",
+    description: "Side-by-side product comparison layout for comparison sites",
   },
 ] as const;
 

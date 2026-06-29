@@ -1,9 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeHtml, isSafeUrl } from "@/lib/sanitize-html";
+import { sanitizeHtml, sanitizeHtmlMemoized, isSafeUrl } from "@/lib/sanitize-html";
 
 describe("sanitizeHtml", () => {
   it("returns empty/falsy input unchanged", () => {
     expect(sanitizeHtml("")).toBe("");
+  });
+
+  // LIB-4: a null/undefined input must never propagate back — it used to be
+  // returned verbatim and flow into dangerouslySetInnerHTML={{ __html: null }}.
+  it("returns an empty string for null/undefined input (LIB-4)", () => {
+    // The signature is (html: string) but callers can pass null/undefined via
+    // untyped JSON bodies; the guard must coerce both to "".
+    expect(sanitizeHtml(null as unknown as string)).toBe("");
+    expect(sanitizeHtml(undefined as unknown as string)).toBe("");
+    expect(sanitizeHtmlMemoized(null as unknown as string)).toBe("");
+    expect(sanitizeHtmlMemoized(undefined as unknown as string)).toBe("");
   });
 
   it("keeps allowed tags", () => {

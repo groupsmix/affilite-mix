@@ -1,5 +1,7 @@
 -- DB-04: Multi-site RLS — update policies to use current_request_site_ids()
 -- where applicable, so admins with multi-site JWT can see rows across sites.
+-- EG: Wrapped function calls in (select ...) to match init-plan optimisation
+-- required by check-migrations.sh (see migration 00082 and audit G-CI-01).
 --
 -- DB-05: Fix dead grant on record_ad_impression — grant to anon (aligned
 -- with the public_insert_ad_impressions policy).
@@ -25,7 +27,7 @@ BEGIN
       DROP POLICY IF EXISTS tenant_isolation_auth_products ON public.products;
       CREATE POLICY tenant_isolation_auth_products ON public.products
         FOR ALL TO authenticated
-        USING (site_id = ANY(public.current_request_site_ids()));
+        USING (site_id = ANY((select current_request_site_ids())));
     END IF;
 
     -- Update content policy
@@ -33,7 +35,7 @@ BEGIN
       DROP POLICY IF EXISTS tenant_isolation_auth_content ON public.content;
       CREATE POLICY tenant_isolation_auth_content ON public.content
         FOR ALL TO authenticated
-        USING (site_id = ANY(public.current_request_site_ids()));
+        USING (site_id = ANY((select current_request_site_ids())));
     END IF;
 
     -- Update pages policy
@@ -41,7 +43,7 @@ BEGIN
       DROP POLICY IF EXISTS tenant_isolation_auth_pages ON public.pages;
       CREATE POLICY tenant_isolation_auth_pages ON public.pages
         FOR ALL TO authenticated
-        USING (site_id = ANY(public.current_request_site_ids()));
+        USING (site_id = ANY((select current_request_site_ids())));
     END IF;
 
     -- Update categories policy
@@ -49,7 +51,7 @@ BEGIN
       DROP POLICY IF EXISTS tenant_isolation_auth_categories ON public.categories;
       CREATE POLICY tenant_isolation_auth_categories ON public.categories
         FOR ALL TO authenticated
-        USING (site_id = ANY(public.current_request_site_ids()));
+        USING (site_id = ANY((select current_request_site_ids())));
     END IF;
 
     -- Update newsletter_subscribers policy
@@ -57,7 +59,7 @@ BEGIN
       DROP POLICY IF EXISTS tenant_isolation_auth_newsletter_subscribers ON public.newsletter_subscribers;
       CREATE POLICY tenant_isolation_auth_newsletter_subscribers ON public.newsletter_subscribers
         FOR ALL TO authenticated
-        USING (site_id = ANY(public.current_request_site_ids()));
+        USING (site_id = ANY((select current_request_site_ids())));
     END IF;
 
     -- Update affiliate_clicks policy
@@ -65,7 +67,7 @@ BEGIN
       DROP POLICY IF EXISTS tenant_isolation_auth_affiliate_clicks ON public.affiliate_clicks;
       CREATE POLICY tenant_isolation_auth_affiliate_clicks ON public.affiliate_clicks
         FOR ALL TO authenticated
-        USING (site_id = ANY(public.current_request_site_ids()));
+        USING (site_id = ANY((select current_request_site_ids())));
     END IF;
   END IF;
 END $$;

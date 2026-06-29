@@ -25,7 +25,7 @@
  * burn-rate metric.
  */
 
-import { captureException } from "@/lib/sentry";
+import { captureException, captureMessage } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { getRuntimeEnv } from "@/lib/runtime-env";
 
@@ -348,6 +348,54 @@ function checkRateLimitMemory(key: string, config: RateLimitConfig): RateLimitRe
 // ── Public API ──────────────────────────────────────────────────────
 
 /**
+ * LIB-HIGH-2: Audit-trail logging for the rate-limit kill switches
+ * (`RATE_LIMIT_FORCE_OPEN` / `RATE_LIMIT_FORCE_CLOSED`).
+ *
+ * Both flags bypass the entire distributed limiter with, previously, zero log
+ * trail. FORCE_OPEN in particular disables ALL rate limiting — if an operator
+ * flips it on during an incident and forgets to flip it back, every brute-force
+ * / abuse control is silently gone. Emit a structured warning on every bypassed
+ * request so the state is always visible in logs, and a (throttled) Sentry
+ * capture so it pages in monitoring dashboards.
+ *
+ * `key` carries the rate-limit bucket identity (e.g. `login:<ip>`,
+ * `admin:<email>`), which is the closest available proxy to "which request was
+ * bypassed" without plumbing the full request URL through every caller.
+ *
+ * The Sentry capture is throttled once per minute per switch (mirroring the
+ * `kvLastAlertedAt` pattern) to avoid burning Sentry quota under load while the
+ * kill switch is intentionally on; the structured `logger.warn` fires on every
+ * call so log scrapers/burn-rate metrics see continuous signal.
+ */
+const killSwitchLastAlertedAt: Record<string, number> = {};
+const KILL_SWITCH_ALERT_INTERVAL_MS = 60_000;
+
+function logKillSwitchBypass(flag: string, key: string, mode: "force-open" | "force-closed"): void {
+  const event = mode === "force-open" ? "rate_limit_bypassed" : "rate_limit_force_closed";
+  logger.warn("Rate-limit kill switch is active — every request bypasses the limiter", {
+    level: "WARN",
+    event,
+    flag,
+    rate_limit_key: key,
+    ts: new Date().toISOString(),
+  });
+
+  const now = Date.now();
+  if (now - (killSwitchLastAlertedAt[flag] ?? 0) >= KILL_SWITCH_ALERT_INTERVAL_MS) {
+    killSwitchLastAlertedAt[flag] = now;
+    try {
+      captureMessage(
+        `Rate-limit kill switch ${flag} is active (mode: ${mode}); rate limiting bypassed for key ${key}`,
+        "warning",
+      );
+    } catch {
+      // fail-open: best-effort [criticality:non-critical]
+      // Sentry unavailable — the logger.warn above still carries the signal.
+    }
+  }
+}
+
+/**
  * Check and record a request against the rate limit.
  *
  * Uses Cloudflare KV in production for distributed rate limiting.
@@ -389,6 +437,7 @@ export function __resetRateLimitKvStateForTests(): void {
   kvUnavailableSince = null;
   kvRecentOutageCount = 0;
   kvLastRecoveredAt = null;
+  for (const k of Object.keys(killSwitchLastAlertedAt)) delete killSwitchLastAlertedAt[k];
 }
 
 function markKvAvailable(): void {
@@ -519,6 +568,7 @@ export async function checkRateLimit(
   // rate-limited request is immediately rejected without consulting
   // KV/DO. Use during active abuse to shed load instantly.
   if (process.env.RATE_LIMIT_FORCE_CLOSED === "true") {
+    logKillSwitchBypass("RATE_LIMIT_FORCE_CLOSED", key, "force-closed");
     return { allowed: false, remaining: 0, retryAfterMs: config.windowMs };
   }
 
@@ -528,6 +578,13 @@ export async function checkRateLimit(
   // Higher-level controls (Cloudflare WAF, Turnstile) should be relied on
   // while this is enabled.
   if (process.env.RATE_LIMIT_FORCE_OPEN === "true") {
+    // LIB-HIGH-2: FORCE_OPEN disables ALL rate limiting with zero audit trail.
+    // Emit a structured warning on every bypassed request so the bypass is
+    // operationally visible — this is a high-risk kill switch that must never
+    // be silently left on. The Sentry capture is throttled to once per minute
+    // per switch to avoid burning quota under load; the structured logger
+    // warning fires every time.
+    logKillSwitchBypass("RATE_LIMIT_FORCE_OPEN", key, "force-open");
     return { allowed: true, remaining: config.maxRequests, retryAfterMs: 0 };
   }
 

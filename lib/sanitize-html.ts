@@ -261,7 +261,12 @@ export const MAX_INPUT_LENGTH = 100_000; // Shared constant — also used by lib
 const MAX_NESTING_DEPTH = 100;
 
 export function sanitizeHtml(html: string): string {
-  if (!html) return html;
+  // LIB-4: never propagate a falsy input (null/undefined/empty) back to the
+  // caller. Returning the raw value here meant `sanitizeHtml(null)` returned
+  // `null`, which then flowed straight into
+  // `dangerouslySetInnerHTML={{ __html: null }}` and bypassed the contract.
+  // The declared return type is `string`, so "" is the faithful empty result.
+  if (!html) return "";
 
   if (html.length > MAX_INPUT_LENGTH) {
     throw new Error(`Input exceeds maximum allowed length of ${MAX_INPUT_LENGTH} characters`);
@@ -379,7 +384,8 @@ const MEMO_CAPACITY = 64;
 const memoCache = new Map<string, string>();
 
 export function sanitizeHtmlMemoized(html: string): string {
-  if (!html) return html;
+  // LIB-4: same null-safety as sanitizeHtml — see comment there.
+  if (!html) return "";
 
   // Pre-validate length so we never cache oversize inputs.
   if (html.length > MAX_INPUT_LENGTH) {

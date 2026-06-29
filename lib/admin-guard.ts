@@ -190,7 +190,27 @@ export async function requireAdmin(): Promise<AdminResult> {
         siteSlug: null,
       };
     }
-    dbSiteId = await resolveDbSiteId(siteSlug);
+    // LIB-2: resolveDbSiteId() can throw ("Site not found in database") when a
+    // known static-config site fails to auto-provision (DB write error, unique
+    // conflict that the single re-read did not resolve, etc.). Previously that
+    // throw propagated uncaught → 500. Catch it here and treat as an
+    // unresolvable site so the request is denied cleanly instead of erroring.
+    // Also guards against a hypothetical null return — a null dbSiteId must
+    // never reach getAdminSiteMembership(), which would otherwise receive
+    // `undefined` and bypass the membership check.
+    try {
+      dbSiteId = await resolveDbSiteId(siteSlug);
+    } catch {
+      dbSiteId = null;
+    }
+    if (!dbSiteId) {
+      return {
+        error: unauthorizedResponse(),
+        session: null,
+        dbSiteId: null,
+        siteSlug: null,
+      };
+    }
   }
 
   // Enforce membership: non-super_admin users must have a membership row

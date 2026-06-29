@@ -197,6 +197,7 @@ export async function POST(request: NextRequest) {
           | "minimal"
           | "editorial"
           | "top10"
+          | "compare"
           | undefined,
         product_card_style: body.product_card_style as
           | "standard"

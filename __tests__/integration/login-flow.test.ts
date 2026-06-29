@@ -35,6 +35,9 @@ vi.mock("@/lib/dal/admin-users", () => ({
   updateAdminUser: vi.fn().mockResolvedValue({}),
   incrementLoginFailedAttempts: vi.fn().mockResolvedValue({ attempts: 1, locked: false }),
   incrementTotpFailedAttempts: vi.fn().mockResolvedValue({ attempts: 1, locked: false }),
+  // Bug 8: the TOTP success path now calls the atomic compare-and-set RPC.
+  // Default to accepted (true) so the happy-path login test still succeeds.
+  verifyAndSetTotpStep: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("@/lib/totp", () => ({
   // F4 audit: verifyTotpToken now returns {ok, step} so callers can persist

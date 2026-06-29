@@ -356,6 +356,39 @@ export async function createToken(payload: AdminPayload, request?: Request): Pro
 }
 
 /**
+ * LIB-HIGH-1: Validate that a decoded JWT payload carries every claim needed
+ * to establish a trusted admin session.
+ *
+ * `jwtVerify` cryptographically proves the token was signed with our key and
+ * that the `aud`/`iss`/`exp` claims are valid, but it does NOT enforce the
+ * presence of the application-level admin claims (`userId`, `role`). The rest
+ * of `verifyToken` casts the decoded payload to `AdminPayload` and trusts
+ * `role` for authorization (assertRole / requireSuperAdmin) and `userId` for
+ * audit logging and per-user session floors. A token whose payload omits
+ * those fields — e.g. one minted by a buggy future code path, or a token
+ * forged after a key compromise that only knew to set `sub`/`exp` — would
+ * otherwise authenticate with `role`/`userId` = undefined and could bypass
+ * role requirements (a missing role never equals "super_admin", so it fails
+ * closed for super_admin checks, but a *forged* role string is the real risk).
+ *
+ * Defence-in-depth: also re-check `aud` even though jose enforces it, so a
+ * future refactor that drops the `audience` option cannot silently widen the
+ * accepted token set.
+ */
+function isValidAdminPayload(payload: Record<string, unknown>): boolean {
+  // userId: must be a non-empty string. Every real admin session carries it
+  // (authenticateUser sets it from the DB row).
+  if (typeof payload.userId !== "string" || payload.userId.length === 0) return false;
+  // role: must be exactly one of the two known admin roles. Anything else
+  // (missing, a number, a foreign role string) is a forged/corrupt payload.
+  if (payload.role !== "admin" && payload.role !== "super_admin") return false;
+  // aud: jose already verified it equals "affilite-mix-admin"; re-check here
+  // as belt-and-braces against a future config regression.
+  if (payload.aud !== "affilite-mix-admin") return false;
+  return true;
+}
+
+/**
  * Verify and decode the admin JWT.
  *
  * If `request` is supplied and the token carries a `bnd` claim (F-035), the
@@ -411,6 +444,24 @@ export async function verifyToken(token: string, request?: Request): Promise<Adm
   }
 
   if (!payload) return null;
+
+  // LIB-HIGH-1: Explicit presence/shape validation for every role-bearing
+  // claim BEFORE the payload is trusted. `jwtVerify` already guarantees the
+  // `aud` matches "affilite-mix-admin", but the rest of the payload is the
+  // raw decoded JSON — a token minted with a crafted payload (e.g. a leaked
+  // signing key, or a future code path that constructs a token without the
+  // required fields) could otherwise carry a missing/garbage `role`/`userId`
+  // and still authenticate. Reject it up front so the cast at the end of this
+  // function can never produce an AdminPayload that downstream role checks
+  // (assertRole, requireSuperAdmin) would mis-trust.
+  if (!isValidAdminPayload(payload)) {
+    logger.warn("Admin token rejected: payload missing required admin claims", {
+      hasUserId: typeof payload.userId === "string" && payload.userId.length > 0,
+      hasRole: typeof payload.role === "string",
+      aud: payload.aud,
+    });
+    return null;
+  }
 
   // A100-1 / A98-8: Absolute session lifetime enforcement.
   // Prevents indefinite sessions via repeated refresh. The `session_start`
