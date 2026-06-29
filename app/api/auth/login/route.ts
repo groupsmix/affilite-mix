@@ -26,6 +26,7 @@ import {
   updateAdminUser,
   incrementLoginFailedAttempts,
   incrementTotpFailedAttempts,
+  verifyAndSetTotpStep,
 } from "@/lib/dal/admin-users";
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
 import { verifyTotpToken, needsSha256Reenrollment, isSha1TotpPastDeadline } from "@/lib/totp";
@@ -496,19 +497,34 @@ export async function POST(request: NextRequest) {
             getPrivilegedSupabaseClient("login:totp-reset"),
           );
         }
-        // F4: persist the just-consumed TOTP step. Best-effort — failure to
-        // record here cannot downgrade a legitimately verified login, but
-        // the next code within the same window would still be rejected if
-        // we successfully recorded. Log and continue if the write fails.
+        // Bug 8 (audit-round2-fixes): atomically compare-and-set the consumed
+        // TOTP step via the verify_and_set_totp_step RPC. This closes the
+        // TOCTOU race where two concurrent requests with the SAME valid code
+        // both passed the single-use check before either write persisted.
+        // accepted=false means the step was already consumed → replay → reject.
+        // A thrown RPC error (e.g. function not deployed, DB outage) is treated
+        // as fail-closed: a loud log + 401, because silently accepting TOTPs
+        // while the single-use guard is down reintroduces the exact bug this
+        // fixes. The replay path does NOT increment the lockout counter (a
+        // genuine concurrent double-submit by the same user is not brute force).
         if (totpResult.step != null) {
+          let accepted: boolean;
           try {
-            await updateAdminUser(user.id, { totp_last_step: totpResult.step }, () =>
+            accepted = await verifyAndSetTotpStep(user.id, totpResult.step, totpResult.step, () =>
               getPrivilegedSupabaseClient("login:totp-advance-step"),
             );
           } catch (e) {
-            log.warn("Failed to persist TOTP consumed step", {
-              error: e instanceof Error ? e.message : String(e),
-            });
+            log.error(
+              "verify_and_set_totp_step RPC failed; failing closed for TOTP replay safety",
+              {
+                error: e instanceof Error ? e.message : String(e),
+              },
+            );
+            return apiError(401, "Invalid 2FA token");
+          }
+          if (!accepted) {
+            log.warn("TOTP rejected: step already consumed (replay)", { userId: user.id });
+            return apiError(401, "Invalid 2FA token");
           }
         }
 

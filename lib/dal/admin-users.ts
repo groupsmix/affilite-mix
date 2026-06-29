@@ -304,6 +304,65 @@ export async function incrementTotpFailedAttempts(
   return { attempts: 0, locked: false };
 }
 
+/**
+ * Bug 8 (audit-round2-fixes): Atomically compare-and-set the consumed TOTP
+ * time-step on `admin_users.totp_last_step` via the `verify_and_set_totp_step`
+ * RPC (migration 2026062302).
+ *
+ * Closes a TOCTOU race in the previous read-then-write flow: two concurrent
+ * requests with the SAME valid 6-digit code both passed the single-use check
+ * before either write persisted the new baseline. The RPC performs the
+ * compare-and-set in a single statement, so only the FIRST concurrent request
+ * can advance the baseline; the second sees zero rows updated.
+ *
+ * Returns `true` when the step was accepted (first use, or a newer step) and
+ * `false` when it was already consumed (replay → caller MUST reject). On RPC
+ * error (e.g. the function not yet deployed) this throws so the caller can
+ * decide its fail-safe policy — the previous non-atomic update is NOT silently
+ * re-introduced, because that path is exactly the race this closes.
+ *
+ * `expectedStep` and `newStep` are passed separately so a future caller could
+ * reserve a step ahead; the login/step-up paths pass `totpResult.step` for
+ * both (advance to the just-consumed step).
+ */
+export async function verifyAndSetTotpStep(
+  userId: string,
+  expectedStep: number,
+  newStep: number,
+  getClient: DalClientGetter = defaultAdminUsersClient,
+): Promise<boolean> {
+  const sb = await getClient();
+
+  // F-API-01 / NEW-03: user-scoped TOTP RPC (no p_site_id) — opt out of the
+  // RPC tenant guard. admin_users is global auth state, not site data.
+  const { data, error } = await sb
+    .rpc("verify_and_set_totp_step", {
+      p_user_id: userId,
+      p_expected_step: expectedStep,
+      p_new_step: newStep,
+    })
+    // SAFE: TOTP step CAS mutates global admin auth state, not site data.
+    .unsafeNoSiteFilter();
+
+  if (error) {
+    logger.error("verify_and_set_totp_step RPC failed", {
+      userId,
+      code: error.code,
+      message: error.message,
+    });
+    captureException(error, {
+      context: "admin-users.verify-and-set-totp-step-rpc",
+      extra: { userId, code: error.code },
+    });
+    emitMetric("admin_auth_rpc_failure_total", 1, {
+      method: "verify_and_set_totp_step",
+    });
+    throw error;
+  }
+
+  return Boolean(data);
+}
+
 /** Delete an admin user */
 export async function deleteAdminUser(
   id: string,

@@ -12,7 +12,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { captureException } from "@/lib/sentry";
 import { isOriginAllowed } from "@/lib/security/allowed-origins";
 import { parseJsonBody } from "@/lib/api-error";
-import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
+import { getAdminUserByEmail, verifyAndSetTotpStep } from "@/lib/dal/admin-users";
 import { verifyPassword } from "@/lib/password";
 import { verifyTotpToken } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
@@ -117,17 +117,19 @@ export async function POST(request: NextRequest) {
       if (!totpResult.ok) {
         return invalid;
       }
-      // F4: persist the consumed step so the same code can't be replayed.
-      // Best-effort; a failure here means the next code in the window may
-      // still pass (replay still possible for that one window), but this
-      // is preferable to blocking a legitimately verified step-up.
+      // Bug 8 (audit-round2-fixes): atomically compare-and-set the consumed
+      // TOTP step via the verify_and_set_totp_step RPC (same fix as the login
+      // route). accepted=false = replay (step already consumed) → reject.
+      // A thrown RPC error is fail-closed for the same replay-safety reason.
       if (totpResult.step != null) {
+        let accepted: boolean;
         try {
-          await updateAdminUser(user.id, { totp_last_step: totpResult.step });
+          accepted = await verifyAndSetTotpStep(user.id, totpResult.step, totpResult.step);
         } catch {
-          // fail-open: best-effort [criticality:non-critical]
-          // step-up verification already succeeded; persistence is a
-          // best-effort hardening, not a correctness invariant.
+          return invalid;
+        }
+        if (!accepted) {
+          return invalid;
         }
       }
     }

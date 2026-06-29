@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getKVNamespace } from "@/lib/rate-limit";
 import { getSiteIdFromHeader, getCurrentSite } from "@/lib/site-context";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getActiveMembership } from "@/lib/dal/memberships";
@@ -156,65 +156,93 @@ export async function POST(request: NextRequest) {
     const siteSlug = getSiteIdFromHeader(request.headers.get("x-site-id"));
     const siteId = await resolveDbSiteId(siteSlug);
 
-    // Check if already a member
-    const existing = await getActiveMembership(body.email, siteId);
-    if (existing) {
-      return NextResponse.json({ error: "Already an active member" }, { status: 409 });
+    // EF: KV lock around checkout critical section to prevent double-submit
+    // The unique index on stripe_subscription_id prevents duplicate rows at INSERT time,
+    // but two concurrent checkout sessions can both succeed before either writes.
+    // A short-lived KV lock closes this window.
+    const checkoutEmailHash = await hashEmailForRateLimit(body.email);
+    const lockKey = `checkout_lock:${checkoutEmailHash}:${siteId}`;
+
+    // Try to acquire lock using KV binding if available
+    const kvBinding = getKVNamespace();
+    if (kvBinding) {
+      const existing = await kvBinding.get(lockKey);
+      if (existing) {
+        logger.warn("Checkout lock hit - double-submit attempt", {
+          emailHash: checkoutEmailHash,
+          siteId,
+        });
+        return NextResponse.json({ error: "Checkout already in progress" }, { status: 409 });
+      }
+      await kvBinding.put(lockKey, "1", { expirationTtl: 30 }); // 30s TTL
     }
 
-    // AM-09 / AUDIT-1: Build the Stripe redirect base URL from the *verified*
-    // tenant site, never the raw Host header. `getCurrentSite()` resolves the
-    // site from the x-site-id header that middleware sets only after it has
-    // resolved and verified the domain, so this is host-injection-safe.
-    //
-    // In production each tenant's subscribers now return to their own domain
-    // after checkout instead of always bouncing to the primary APP_URL host
-    // (the cross-tenant redirect the audit flagged). In dev we keep honouring
-    // APP_URL (typically http://localhost:3000) so local Stripe testing works.
-    const currentSite = await getCurrentSite();
-    const tenantOrigin = currentSite.domain ? `https://${currentSite.domain}` : null;
-    const baseUrl =
-      process.env.NODE_ENV === "production"
-        ? (tenantOrigin ?? process.env.APP_URL ?? null)
-        : process.env.APP_URL || tenantOrigin || `https://${request.headers.get("host")}`;
-    if (!baseUrl) {
-      logger.error("No verified tenant domain or APP_URL configured in production");
-      return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
+    try {
+      // Check if already a member
+      const existing = await getActiveMembership(body.email, siteId);
+      if (existing) {
+        return NextResponse.json({ error: "Already an active member" }, { status: 409 });
+      }
+
+      // AM-09 / AUDIT-1: Build the Stripe redirect base URL from the *verified*
+      // tenant site, never the raw Host header. `getCurrentSite()` resolves the
+      // site from the x-site-id header that middleware sets only after it has
+      // resolved and verified the domain, so this is host-injection-safe.
+      //
+      // In production each tenant's subscribers now return to their own domain
+      // after checkout instead of always bouncing to the primary APP_URL host
+      // (the cross-tenant redirect the audit flagged). In dev we keep honouring
+      // APP_URL (typically http://localhost:3000) so local Stripe testing works.
+      const currentSite = await getCurrentSite();
+      const tenantOrigin = currentSite.domain ? `https://${currentSite.domain}` : null;
+      const baseUrl =
+        process.env.NODE_ENV === "production"
+          ? (tenantOrigin ?? process.env.APP_URL ?? null)
+          : process.env.APP_URL || tenantOrigin || `https://${request.headers.get("host")}`;
+      if (!baseUrl) {
+        logger.error("No verified tenant domain or APP_URL configured in production");
+        return NextResponse.json({ error: "Payment system not configured" }, { status: 503 });
+      }
+
+      // Create Stripe Checkout session via API (no SDK dependency needed)
+      const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${stripeKey}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          mode: "subscription",
+          customer_email: body.email,
+          "line_items[0][price]": priceId,
+          "line_items[0][quantity]": "1",
+          success_url: `${baseUrl}/membership/welcome?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}/membership`,
+          "metadata[site_id]": siteId,
+          "metadata[tier]": tier,
+          "subscription_data[metadata][site_id]": siteId,
+          "subscription_data[metadata][tier]": tier,
+          // OF-05: Enable Stripe Tax automatic tax calculation.
+          "automatic_tax[enabled]": "true",
+          // Collect tax IDs for B2B customers (optional reverse-charge VAT).
+          "tax_id_collection[enabled]": "true",
+        }),
+      });
+
+      const session = await stripeRes.json();
+
+      if (!stripeRes.ok) {
+        logger.error("Stripe checkout session creation failed", { error: session });
+        return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
+      }
+
+      return NextResponse.json({ url: session.url, session_id: session.id });
+    } finally {
+      // Release KV lock if it was acquired
+      if (kvBinding) {
+        await kvBinding.delete(lockKey);
+      }
     }
-
-    // Create Stripe Checkout session via API (no SDK dependency needed)
-    const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${stripeKey}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        mode: "subscription",
-        customer_email: body.email,
-        "line_items[0][price]": priceId,
-        "line_items[0][quantity]": "1",
-        success_url: `${baseUrl}/membership/welcome?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/membership`,
-        "metadata[site_id]": siteId,
-        "metadata[tier]": tier,
-        "subscription_data[metadata][site_id]": siteId,
-        "subscription_data[metadata][tier]": tier,
-        // OF-05: Enable Stripe Tax automatic tax calculation.
-        "automatic_tax[enabled]": "true",
-        // Collect tax IDs for B2B customers (optional reverse-charge VAT).
-        "tax_id_collection[enabled]": "true",
-      }),
-    });
-
-    const session = await stripeRes.json();
-
-    if (!stripeRes.ok) {
-      logger.error("Stripe checkout session creation failed", { error: session });
-      return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
-    }
-
-    return NextResponse.json({ url: session.url, session_id: session.id });
   } catch (err) {
     logger.error("Membership checkout failed", {
       error: err instanceof Error ? err.message : String(err),

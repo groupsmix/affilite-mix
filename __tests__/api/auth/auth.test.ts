@@ -47,6 +47,45 @@ describe("auth token lifecycle", () => {
     const decoded = await verifyToken("not.a.jwt");
     expect(decoded).toBeNull();
   });
+
+  // LIB-HIGH-1: a token that verifies cryptographically but whose payload is
+  // missing the required admin claims (userId/role/aud) must be rejected
+  // before the session is established. Forging such a token requires the
+  // signing key; we mint it here directly with SignJWT to simulate a
+  // compromised key / buggy future mint path.
+  it("verifyToken rejects a signed token missing required admin claims (LIB-HIGH-1)", async () => {
+    const { SignJWT } = await import("jose");
+    const { getJwtSecret } = await import("@/lib/jwt-secret");
+    const { verifyToken } = await import("@/lib/auth");
+
+    const key = new TextEncoder().encode(getJwtSecret());
+
+    // Correctly signed, valid audience + expiry, but NO userId and NO role.
+    const forged = await new SignJWT({ email: "forged@test.com" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("1h")
+      .setAudience("affilite-mix-admin")
+      .setIssuer("affilite-mix-auth")
+      .sign(key);
+
+    expect(await verifyToken(forged)).toBeNull();
+
+    // And a token with a bogus (foreign) role string is rejected too.
+    const forgedRole = await new SignJWT({
+      email: "forged@test.com",
+      userId: "u-1",
+      role: "intern",
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("1h")
+      .setAudience("affilite-mix-admin")
+      .setIssuer("affilite-mix-auth")
+      .sign(key);
+
+    expect(await verifyToken(forgedRole)).toBeNull();
+  });
 });
 
 // ── Password hashing for login ──────────────────────────────────

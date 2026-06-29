@@ -579,7 +579,25 @@ jobs:
           # checkpoint calls already included in the baseline. These are NOT
           # new RLS bypasses; `cron_state` has no tenant column and is
           # service_role-only by policy.
-          BASELINE=89
+          # then 89 -> 93 (PR #950 security-audit fixes): +4 audited opt-outs,
+          # each annotated with an F-API-01 / NEW-03 / SAFE audit-ticket
+          # comment at the call site:
+          #   (1) lib/dal/admin-users.ts verifyAndSetTotpStep() — the Bug-8
+          #   TOTP replay fix. The compare-and-set runs via the
+          #   verify_and_set_totp_step RPC against `admin_users`, which is
+          #   global admin auth state (service_role-only), not site data, so
+          #   there is no site_id to scope by. +1 = the .unsafeNoSiteFilter()
+          #   on the RPC chain.
+          #   (2)-(3) app/api/cron/stripe-sync/route.ts reverse-reconciliation
+          #   pass (gated behind STRIPE_REVERSE_RECONCILE_ENABLED, default
+          #   off): the SELECT of DB-active memberships and the terminal-sub
+          #   deactivation UPDATE. Like the Phase-2 forward reconciliation
+          #   already in the baseline, this is a cross-tenant billing-integrity
+          #   sweep keyed on the globally-unique stripe_subscription_id /
+          #   membership id — a cancelled sub in any site is an entitlement
+          #   leak, so it must consider every tenant. +2 calls.
+          #   (4) +1 = the audited doc-reference comment in the same file.
+          BASELINE=93
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."

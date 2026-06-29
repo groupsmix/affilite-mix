@@ -58,3 +58,12 @@ ADMITAD_PUBLISHER_ID=
 
 # ── Optional ─ Multi-site ────────────────────────────────
 WILDCARD_PARENT_DOMAINS=wristnerd.xyz
+
+# ── Optional ─ Stripe billing ────────────────────────────
+# STRIPE_REVERSE_RECONCILE_ENABLED — opt-in reverse reconciliation pass in the
+# stripe-sync cron (Issue 4). When "true", every DB-active membership with a
+# stripe_subscription_id is checked against Stripe and deactivated if the sub
+# is terminal (canceled / incomplete_expired). DEFAULT: false — enable
+# deliberately (one Stripe API call per active member per cron tick, and a
+# misrule could mass-deactivate). See .env.example for the full risk note.
+STRIPE_REVERSE_RECONCILE_ENABLED=false
