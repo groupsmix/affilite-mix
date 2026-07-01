@@ -45,4 +45,24 @@ describe("log-shipper alert routing", () => {
     expect(SOURCE).toMatch(/console\.error\("\[log-shipper\] R2 put failed:"/);
     expect(SOURCE).toMatch(/console\.error\("\[log-shipper\] alert webhook failed:"/);
   });
+
+  it("M2: SSRF guard requires https and strips IPv6 brackets before matching", () => {
+    // Regression: `new URL("https://[::1]/").hostname` is "[::1]" (bracketed),
+    // so the old /^::1$/ pattern never matched and IPv6 loopback slipped
+    // through. The guard must strip brackets and detect IPv6 explicitly.
+    expect(SOURCE).toMatch(/\^https:\\\/\\\//); // https-only check
+    expect(SOURCE).toMatch(/startsWith\("\["\)/);
+    expect(SOURCE).toMatch(/looksIpv6/);
+    // IPv6 loopback + unique-local + link-local families are blocked.
+    expect(SOURCE).toMatch(/\/\^::1\$\//);
+    expect(SOURCE).toMatch(/f\[cd\]/); // fc00::/7 (fc.. / fd..)
+  });
+
+  it("M2: IPv6 blocklist does not false-positive on hostnames beginning with 'fd'", () => {
+    // The old /^fd/ pattern was applied to every hostname, wrongly rejecting
+    // legitimate hosts like "fd-metrics.example.com". IPv6 rules must only
+    // apply when the host is actually an IPv6 literal.
+    expect(SOURCE).toMatch(/looksIpv6\s*\n?\s*\?\s*ipv6Blocked/);
+    expect(SOURCE).toContain("ipv4OrHostBlocked");
+  });
 });

@@ -196,6 +196,7 @@ describe("cron-registry — wrangler.jsonc consistency", () => {
   const wranglerJson = readRepoFile("wrangler.jsonc");
   const wrangler = JSON.parse(stripJsonComments(wranglerJson)) as {
     triggers?: { crons?: string[] };
+    env?: { staging?: { triggers?: { crons?: string[] } } };
   };
 
   it("wrangler.jsonc parses as JSONC", () => {
@@ -211,6 +212,44 @@ describe("cron-registry — wrangler.jsonc consistency", () => {
     const lightCrons = listLightCronSchedules();
     expect(new Set(wranglerCrons)).toEqual(new Set(lightCrons));
     expect(wranglerCrons.length).toBe(lightCrons.length);
+  });
+
+  it("staging env triggers.crons matches the registry's light jobs exactly (H1 — no drift)", () => {
+    // H1: the staging main worker uses the same exact-match dispatcher as
+    // production. Staging-only schedules that don't exist in the registry
+    // silently dispatched the wrong job (or nothing at all). Staging must
+    // use the exact registry light schedules. Heavy jobs run on the separate
+    // heavy-crons worker, which has no staging environment.
+    const stagingCrons = wrangler.env?.staging?.triggers?.crons ?? [];
+    const lightCrons = listLightCronSchedules();
+    expect(new Set(stagingCrons)).toEqual(new Set(lightCrons));
+    expect(stagingCrons.length).toBe(lightCrons.length);
+    // Every staging schedule must resolve to a real, non-heavy registry job.
+    for (const schedule of stagingCrons) {
+      const job = getCronJobBySchedule(schedule);
+      expect(job, `staging schedule "${schedule}" has no registry entry`).toBeTruthy();
+      expect(job?.heavy ?? false).toBe(false);
+    }
+  });
+
+  it("wrangler.heavy-crons.jsonc triggers.crons matches the registry's heavy jobs exactly", () => {
+    // A-018: heavy jobs run on the dedicated dispatcher worker. Its schedule
+    // list must equal exactly the `heavy: true` registry schedules, or heavy
+    // jobs either never fire or a heavy schedule leaks onto the main worker.
+    const heavyJson = readRepoFile("wrangler.heavy-crons.jsonc");
+    const heavy = JSON.parse(stripJsonComments(heavyJson)) as {
+      triggers?: { crons?: string[] };
+    };
+    const heavyCrons = heavy.triggers?.crons ?? [];
+    const heavySchedules = cronJobs.filter((j) => j.heavy).map((j) => j.schedule);
+    expect(heavySchedules.length).toBeGreaterThan(0);
+    expect(new Set(heavyCrons)).toEqual(new Set(heavySchedules));
+    expect(heavyCrons.length).toBe(heavySchedules.length);
+    for (const schedule of heavyCrons) {
+      const job = getCronJobBySchedule(schedule);
+      expect(job, `heavy schedule "${schedule}" has no registry entry`).toBeTruthy();
+      expect(job?.heavy ?? false).toBe(true);
+    }
   });
 });
 

@@ -87,21 +87,39 @@ async function postAlert(env: TailWorkerEnv, payload: CloudflareTailEvent): Prom
   }
   try {
     const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
-    // Block localhost, RFC-1918, link-local, and cloud metadata endpoints
-    const blockedPatterns = [
+    let host = parsed.hostname.toLowerCase();
+    // URL.hostname returns IPv6 literals wrapped in brackets, e.g. "[::1]".
+    // The previous checks tested the bracketed form against /^::1$/ etc., so
+    // an IPv6 loopback/ULA literal slipped through. Strip the brackets and
+    // detect IPv6 explicitly so the address-family-specific rules apply.
+    const isIpv6Literal = host.startsWith("[") && host.endsWith("]");
+    if (isIpv6Literal) host = host.slice(1, -1);
+    const looksIpv6 = isIpv6Literal || host.includes(":");
+
+    // IPv6 rules only apply to IPv6 literals — this avoids the old
+    // false-positive where /^fd/ rejected legitimate hostnames like
+    // "fd-metrics.example.com".
+    const ipv6Blocked = [
+      /^::1$/, // loopback
+      /^::$/, // unspecified
+      /^::ffff:/, // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+      /^f[cd]/, // fc00::/7 unique-local (fc.. / fd..)
+      /^fe[89ab]/, // fe80::/10 link-local
+    ];
+    const ipv4OrHostBlocked = [
       /^localhost$/,
       /^127\./,
+      /^0\./,
       /^10\./,
       /^172\.(1[6-9]|2\d|3[01])\./,
       /^192\.168\./,
-      /^169\.254\./,
-      /^::1$/,
-      /^fd/,
-      /^metadata\.google/,
-      /^169\.254\.169\.254$/,
+      /^169\.254\./, // link-local, incl. 169.254.169.254 cloud metadata
+      /^metadata\./, // metadata.google.internal and similar
     ];
-    if (blockedPatterns.some((re) => re.test(host))) {
+    const blocked = looksIpv6
+      ? ipv6Blocked.some((re) => re.test(host))
+      : ipv4OrHostBlocked.some((re) => re.test(host));
+    if (blocked) {
       // eslint-disable-next-line no-console -- FR-06 documented last-resort sink
       console.error("[log-shipper] ALERT_WEBHOOK_URL rejected: blocked host", host);
       return;

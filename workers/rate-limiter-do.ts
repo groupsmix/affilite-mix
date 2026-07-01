@@ -107,6 +107,11 @@ export class RateLimiterDO {
     if (count >= maxRequests) {
       const windowStart = windowId * windowMs;
       const windowEnd = windowStart + windowMs;
+      // L2: arm the cleanup alarm on the blocked path too. Previously the
+      // alarm was only (re)set when a request was allowed, so a window that
+      // opened straight into the limit (or only ever saw blocked requests)
+      // could leave stale counter storage until some later allowed request.
+      await this.state.storage.setAlarm(windowEnd + 1000);
       return {
         allowed: false,
         remaining: 0,
