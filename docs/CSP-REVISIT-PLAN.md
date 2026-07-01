@@ -148,7 +148,7 @@ Before the revisit date:
 
 ## Related Documentation
 
-- `affilite-mix-AUDIT(15).md` - Full audit report
+- `docs/audit-history/affilite-mix-AUDIT(15).md` - Full audit report (historical)
 - `docs/security.md` - Security policies
 - `docs/adr/` - Architecture decision records
 - `.github/ISSUE_TEMPLATE/` - Issue templates for future security improvements
