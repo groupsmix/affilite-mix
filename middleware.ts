@@ -16,6 +16,9 @@ import { canonicalComparisonPath } from "@/lib/vs-slug";
 import { withCorsPreflight } from "@/lib/middleware/cors";
 import { withCsrf } from "@/lib/middleware/csrf";
 import type { MiddlewareContext } from "@/lib/middleware/compose";
+// Optional admin IP allow-list (defence-in-depth on top of the JWT/RBAC
+// admin guard). Disabled by default; see lib/admin-ip-allowlist.ts.
+import { enforceAdminIpAllowlist } from "@/lib/admin-ip-allowlist";
 
 import {
   buildCspHeader,
@@ -324,6 +327,12 @@ export async function middleware(request: NextRequest) {
   if (isRetiredAdminPath(request.nextUrl.pathname)) {
     return retiredAdminResponse();
   }
+
+  // Optional admin IP allow-list (defence-in-depth). Runs before the
+  // AbortController / timeout / DB / KV machinery because the decision is a
+  // cheap, static header + env check. No-op unless ADMIN_IP_ALLOWLIST is set.
+  const adminIpBlock = enforceAdminIpAllowlist(request);
+  if (adminIpBlock) return adminIpBlock;
 
   // A98-49: AbortController lets us cancel downstream KV/DB work when the
   // timeout fires. Without this, the inner middleware continues running
