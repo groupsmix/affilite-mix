@@ -261,4 +261,4 @@ Roll back if:
 - [Cloudflare Queues](https://developers.cloudflare.com/queues/)
 - [Supabase Connection Pooling](https://supabase.com/docs/guides/platform/connection-pooling)
 - [PgBouncer Documentation](https://www.pgbouncer.org/usage.html)
-- Audit finding F-13 in affilite-mix-AUDIT(15).md
+- Audit finding F-13 in docs/audit-history/affilite-mix-AUDIT(15).md (historical)
