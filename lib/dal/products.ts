@@ -1,4 +1,4 @@
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import type { ProductRow } from "@/types/database";
 import { escapeLike, toTsquery } from "./search-utils";
 import { assertRows, assertRow, rowOrNull } from "./type-guards";
@@ -342,7 +342,7 @@ export async function listActiveProducts(
   if (shouldSkipDbCall()) {
     return [];
   }
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const joinType = categorySlug ? "categories!inner(slug)" : "*, categories(slug)";
   // DB-11/00089: expose the renamed `price_label` column under the app-facing
   // `price` key so product.price is populated on the public anon path too
@@ -391,7 +391,7 @@ export async function searchProducts(
 ): Promise<ProductRow[]> {
   // A73-F2: Truncate overly long search queries to prevent expensive DB plans
   const trimmedQuery = query.slice(0, MAX_SEARCH_QUERY_LENGTH);
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const tsq = toTsquery(trimmedQuery);
 
   if (tsq) {
@@ -450,7 +450,7 @@ export async function listFeaturedProducts(siteId: string, limit = 6): Promise<P
   if (shouldSkipDbCall()) {
     return [];
   }
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(LIST_COLUMNS)

@@ -2,7 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getCategoryBySlug } from "@/lib/dal/categories";
 import { listContent, countContent } from "@/lib/dal/content";
 import { listActiveProducts } from "@/lib/dal/products";
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { ContentCard } from "../../components/content-card";
 import { ProductCard } from "../../components/product-card";
 import { Pagination, PaginationHead } from "../../components/pagination";
@@ -78,7 +78,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         limit: PAGE_SIZE,
         offset: (currentPage - 1) * PAGE_SIZE,
       },
-      getAnonClient,
+      getTenantClient,
     ),
     countContent(
       {
@@ -86,7 +86,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         categoryId: category.id,
         status: "published",
       },
-      getAnonClient,
+      getTenantClient,
     ),
     listActiveProducts(site.id, slug),
   ]);
