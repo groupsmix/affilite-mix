@@ -12,7 +12,7 @@ import {
 // 00040; only an authenticated INSERT policy exists). The default tenant client
 // (authenticated role) reads zero rows, so the grid always rendered empty. This
 // page is a super_admin-only Server Component; read via the privileged gateway.
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import — see lib/security/service-role-allowlist.ts
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { redirect } from "next/navigation";
 
 import { AuditLogTable, type AuditLogTableRow } from "./audit-log-table";

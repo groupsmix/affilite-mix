@@ -34,7 +34,7 @@ import { hasPermission } from "./dal/permissions";
 import type { PermissionFeature, PermissionAction } from "@/types/database";
 import { apiError } from "./api-error";
 import { requireAdmin } from "./admin-guard";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import — see lib/security/service-role-allowlist.ts
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { getCircuitBreaker } from "@/lib/ai/circuit-breaker";
 import { untypedFrom } from "@/lib/dal/type-guards";
 

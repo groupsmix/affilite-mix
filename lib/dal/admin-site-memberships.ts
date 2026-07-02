@@ -4,7 +4,7 @@ import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 // service-role client (the per-tenant client is emptied/blocked by RLS on this
 // service-role-only table) — exactly like lib/dal/admin-users.
 // nosemgrep: service-role-import
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 interface CrossTenantBuilder {
   unsafeNoSiteFilter(): CrossTenantBuilder;

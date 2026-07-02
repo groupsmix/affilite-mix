@@ -14,7 +14,7 @@ import { getAppCacheKV } from "@/lib/runtime-env";
 // layer and listed on the SERVICE_ROLE_IMPORT_ALLOWLIST
 // (lib/security/service-role-allowlist.ts).
 // nosemgrep: service-role-import
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 /** GET /api/admin/sites/[id] — get a single site by DB id */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -14,7 +14,7 @@ import {
 // when present, listSiteUserRoles() threw and poisoned the whole response, so
 // the Roles + Permission Matrix never rendered. Use the privileged gateway;
 // this route is gated by requireAdmin() + assertRole(super_admin).
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import — see lib/security/service-role-allowlist.ts
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
