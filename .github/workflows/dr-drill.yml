@@ -1,5 +1,8 @@
 name: DR Drill
 
+permissions:
+  contents: read
+
 on:
   schedule:
     # A40-04: Quarterly DR drill — first Monday of Jan/Apr/Jul/Oct at 10:00 UTC.
@@ -18,7 +21,7 @@ jobs:
   dr-drill:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Run DR drill
         run: bash scripts/dr-drill.sh
         env:

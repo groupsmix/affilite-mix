@@ -78,7 +78,7 @@
             "context": "License compliance"
           },
           {
-            "context": "npm audit (high / critical)"
+            "context": "npm audit (moderate+)"
           },
           {
             "context": "Preview E2E gate"
