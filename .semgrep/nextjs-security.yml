@@ -75,6 +75,10 @@ rules:
       audit-ref: F-003
 
   # High 3b: catch sync function handlers (export function GET() {})
+  # Note: Semgrep normalizes `async function` to `function` in its AST, so
+  # this rule also matches `export async function GET()`. The pattern-not
+  # blocks include both sync and async (await) guard calls to avoid false
+  # positives on async handlers that use requireAdminSession/withAuthz.
   - id: admin-route-missing-auth-sync
     patterns:
       - pattern: |
@@ -91,7 +95,43 @@ rules:
       - pattern-not: |
           export function $METHOD(...) {
             ...
+            await requireAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
             requireSuperAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            await requireSuperAdmin(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            requireAdminSession(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            await requireAdminSession(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            withAuthz(...)
+            ...
+          }
+      - pattern-not: |
+          export function $METHOD(...) {
+            ...
+            await withAuthz(...)
             ...
           }
     paths:
