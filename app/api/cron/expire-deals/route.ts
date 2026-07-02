@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { expireDeals } from "@/lib/dal/deals";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import, semgrep.service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";

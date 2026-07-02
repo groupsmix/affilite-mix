@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestCommissions } from "@/lib/dal/commissions";
 import { resolveSiteByTrackingKey } from "@/lib/dal/affiliate-tracking-keys";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import, semgrep.service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep
 import { logger } from "@/lib/logger";
 import { fetchWithTimeout } from "@/lib/fetch-timeout";
 import { verifyCronAuth } from "@/lib/cron-auth";

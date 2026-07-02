@@ -6,8 +6,8 @@ import { type DalClientGetter } from "./dal/dal-client";
 // lib/dal/admin-users already use this gateway for the same reason. This module
 // is on the SERVICE_ROLE_IMPORT_ALLOWLIST and is reached only from server-side
 // admin/auth handlers that have already gated the caller.
-// nosemgrep: service-role-import, semgrep.service-role-import
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import, semgrep.service-role-import
+// nosemgrep
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep
 import { captureException } from "@/lib/sentry";
 import { getRuntimeEnv } from "@/lib/runtime-env";
 import { logger } from "@/lib/logger";
