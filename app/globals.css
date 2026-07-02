@@ -237,7 +237,12 @@
 
 body {
   font-family: var(--font-body);
-  color: var(--color-primary);
+  /* Use the shadcn foreground token, NOT --color-primary. The site theme
+     system reuses --color-primary as the brand/heading color (dark navy on
+     AI Compared), so body text inheriting it becomes invisible on dark
+     hero sections. --color-foreground is the proper readable text color
+     (near-black in light mode, near-white in dark mode). */
+  color: var(--color-foreground);
 }
 
 h1,
