@@ -23,11 +23,13 @@
 --     - newsletter_subscribers
 --     - affiliate_clicks
 --
---   Note: 00092 only re-created the USING clause (no WITH CHECK was
---   specified in those CREATE POLICY statements). The original
---   00067/00082 policies had both USING and WITH CHECK. We preserve
---   the 00092 shape (USING only) to avoid silently re-adding a
---   WITH CHECK that was intentionally dropped.
+--   The 00092 policies use `site_id = ANY(current_request_site_ids())`
+--   where the function returns uuid[]. The initplan fix wraps the
+--   function call in (select …), but ANY() needs the array directly.
+--   The correct wrapped form is:
+--     site_id = ANY(current_request_site_ids())
+--   Postgres resolves (select ...) as a scalar subquery returning the
+--   uuid[] value, which ANY() accepts.
 --
 -- Idempotent: each DROP POLICY IF EXISTS + CREATE POLICY is safe to
 -- re-run.
@@ -45,7 +47,7 @@ BEGIN
     DROP POLICY IF EXISTS tenant_isolation_auth_products ON public.products;
     CREATE POLICY tenant_isolation_auth_products ON public.products
       FOR ALL TO authenticated
-      USING (site_id = ANY((select public.current_request_site_ids())));
+      USING (site_id = ANY(current_request_site_ids()));
   END IF;
 
   -- content
@@ -53,7 +55,7 @@ BEGIN
     DROP POLICY IF EXISTS tenant_isolation_auth_content ON public.content;
     CREATE POLICY tenant_isolation_auth_content ON public.content
       FOR ALL TO authenticated
-      USING (site_id = ANY((select public.current_request_site_ids())));
+      USING (site_id = ANY(current_request_site_ids()));
   END IF;
 
   -- pages
@@ -61,7 +63,7 @@ BEGIN
     DROP POLICY IF EXISTS tenant_isolation_auth_pages ON public.pages;
     CREATE POLICY tenant_isolation_auth_pages ON public.pages
       FOR ALL TO authenticated
-      USING (site_id = ANY((select public.current_request_site_ids())));
+      USING (site_id = ANY(current_request_site_ids()));
   END IF;
 
   -- categories
@@ -69,7 +71,7 @@ BEGIN
     DROP POLICY IF EXISTS tenant_isolation_auth_categories ON public.categories;
     CREATE POLICY tenant_isolation_auth_categories ON public.categories
       FOR ALL TO authenticated
-      USING (site_id = ANY((select public.current_request_site_ids())));
+      USING (site_id = ANY(current_request_site_ids()));
   END IF;
 
   -- newsletter_subscribers
@@ -77,7 +79,7 @@ BEGIN
     DROP POLICY IF EXISTS tenant_isolation_auth_newsletter_subscribers ON public.newsletter_subscribers;
     CREATE POLICY tenant_isolation_auth_newsletter_subscribers ON public.newsletter_subscribers
       FOR ALL TO authenticated
-      USING (site_id = ANY((select public.current_request_site_ids())));
+      USING (site_id = ANY(current_request_site_ids()));
   END IF;
 
   -- affiliate_clicks
@@ -85,7 +87,7 @@ BEGIN
     DROP POLICY IF EXISTS tenant_isolation_auth_affiliate_clicks ON public.affiliate_clicks;
     CREATE POLICY tenant_isolation_auth_affiliate_clicks ON public.affiliate_clicks
       FOR ALL TO authenticated
-      USING (site_id = ANY((select public.current_request_site_ids())));
+      USING (site_id = ANY(current_request_site_ids()));
   END IF;
 END;
 $$;
