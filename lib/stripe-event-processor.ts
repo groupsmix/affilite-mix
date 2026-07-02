@@ -67,6 +67,38 @@ export async function processStripeEvent(
     });
   }
 
+  // Issue 3 / P1: if the RPC detected an orphaned duplicate subscription,
+  // cancel it via the Stripe API to stop double-billing. The RPC has already
+  // committed the event row (so Stripe won't retry), and the audit_log entry
+  // inside the RPC records the detection. We cancel best-effort — if the
+  // Stripe API call fails, the subscription stays active but the audit entry
+  // is there for manual follow-up.
+  if (result.orphan_subscription_id) {
+    const orphanId = result.orphan_subscription_id;
+    logger.warn("Orphaned duplicate subscription detected — cancelling via Stripe API", {
+      orphanSubscriptionId: orphanId,
+      eventId: event.id,
+      eventType: event.type,
+    });
+    try {
+      await stripe.subscriptions.cancel(orphanId);
+      logger.info("Orphaned subscription cancelled successfully", {
+        orphanSubscriptionId: orphanId,
+      });
+    } catch (err) {
+      // The subscription may already be cancelled, or the Stripe API may be
+      // temporarily unavailable. Log + Sentry so ops can follow up manually.
+      logger.error("Failed to cancel orphaned subscription — manual follow-up required", {
+        orphanSubscriptionId: orphanId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      captureException(err, {
+        context: "orphan_subscription_cancellation_failed",
+        orphanSubscriptionId: orphanId,
+      });
+    }
+  }
+
   return { duplicate: result.duplicate, membershipId: result.membership_id };
 }
 
