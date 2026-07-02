@@ -46,14 +46,8 @@ export function SiteHeader({ site, dbNavItems, layoutVariant = "standard" }: Sit
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         {/* Two-tone wordmark */}
-        <Link
-          href="/"
-          className="flex items-center gap-0.5 select-none"
-          aria-label={site.name}
-        >
-          <span className="text-xl font-extrabold tracking-tight text-white">
-            {part1}
-          </span>
+        <Link href="/" className="flex items-center gap-0.5 select-none" aria-label={site.name}>
+          <span className="text-xl font-extrabold tracking-tight text-white">{part1}</span>
           {part2 && (
             <span
               className="text-xl font-extrabold tracking-tight"
