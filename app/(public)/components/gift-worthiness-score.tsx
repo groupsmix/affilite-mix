@@ -12,20 +12,39 @@ interface GiftWorthinessScoreProps {
   showLabel?: boolean;
 }
 
-function getTier(score: number): { label: string; color: string; bg: string } {
+function getTier(score: number): { label: string; ringClass: string; badgeClass: string } {
+  // Score ring + number use the site's accent color (via CSS var) for all
+  // tiers, so the badge matches the site's brand instead of generic Tailwind
+  // blue. The tier label badge keeps semantic colors to communicate quality.
   if (score >= 9)
     return {
       label: "Exceptional",
-      color: "text-emerald-700",
-      bg: "bg-emerald-50 border-emerald-200",
+      ringClass: "text-emerald-600",
+      badgeClass: "bg-emerald-50 border-emerald-200 text-emerald-700",
     };
   if (score >= 8)
-    return { label: "Excellent", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" };
+    return {
+      label: "Excellent",
+      ringClass: "text-emerald-600",
+      badgeClass: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    };
   if (score >= 7)
-    return { label: "Great", color: "text-indigo-700", bg: "bg-indigo-50 border-indigo-200" };
+    return {
+      label: "Great",
+      ringClass: "text-amber-600",
+      badgeClass: "bg-amber-50 border-amber-200 text-amber-700",
+    };
   if (score >= 6)
-    return { label: "Good", color: "text-amber-700", bg: "bg-amber-50 border-amber-200" };
-  return { label: "Average", color: "text-gray-700", bg: "bg-gray-50 border-gray-200" };
+    return {
+      label: "Good",
+      ringClass: "text-amber-600",
+      badgeClass: "bg-amber-50 border-amber-200 text-amber-700",
+    };
+  return {
+    label: "Average",
+    ringClass: "text-gray-500",
+    badgeClass: "bg-gray-50 border-gray-200 text-gray-600",
+  };
 }
 
 const sizeMap = {
@@ -71,16 +90,21 @@ export function GiftWorthinessScore({
             strokeWidth="6"
             strokeDasharray={`${progress} ${circumference - progress}`}
             strokeLinecap="round"
-            className={tier.color}
+            className={tier.ringClass}
           />
         </svg>
-        {/* Score number */}
-        <span className={`relative font-bold ${s.text} ${tier.color}`}>{clamped.toFixed(1)}</span>
+        {/* Score number — uses site accent for brand consistency */}
+        <span
+          className={`relative font-bold ${s.text}`}
+          style={{ color: "var(--color-accent-text, var(--color-accent))" }}
+        >
+          {clamped.toFixed(1)}
+        </span>
       </div>
       {showLabel && (
         <div className="flex flex-col items-center">
           <span
-            className={`rounded-full border px-2 py-0.5 font-medium ${s.label} ${tier.bg} ${tier.color}`}
+            className={`rounded-full border px-2 py-0.5 font-medium ${s.label} ${tier.badgeClass}`}
           >
             {tier.label}
           </span>

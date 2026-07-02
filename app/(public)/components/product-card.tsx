@@ -253,7 +253,7 @@ export function ProductCard({
               {prosArr.length > 0 && (
                 <ul className="space-y-0.5">
                   {prosArr.slice(0, 3).map((pro) => (
-                    <li key={pro} className="flex items-start gap-1 text-green-700">
+                    <li key={pro} className="flex items-start gap-1" style={{ color: "var(--color-accent-text, #059669)" }}>
                       <svg
                         className="mt-0.5 size-3 shrink-0"
                         fill="currentColor"

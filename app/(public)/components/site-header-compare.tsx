@@ -43,7 +43,7 @@ export function SiteHeaderCompare({ site, dbNavItems }: SiteHeaderCompareProps) 
 
   return (
     <header
-      className="sticky top-0 z-40"
+      className="sticky top-0 z-40 shadow-sm"
       style={{ backgroundColor: "var(--color-primary, #0B1120)" }}
     >
       {/* Cobalt accent stripe at the top */}

@@ -46,6 +46,9 @@ export function DarkModeToggle() {
     localStorage.setItem(STORAGE_KEY, next!);
   }, [theme]);
 
+  // Render a default (system) icon during SSR and pre-hydration so the
+  // button is never blank. After mount, the correct icon for the stored
+  // theme replaces it. This avoids the empty-button flash on first paint.
   if (!mounted) {
     return (
       <button
@@ -53,7 +56,21 @@ export function DarkModeToggle() {
         className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         aria-label="Toggle theme"
       >
-        <span className="h-5 w-5" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-5 w-5"
+          aria-hidden="true"
+        >
+          <rect x="2" y="3" width="20" height="14" rx="2" />
+          <line x1="8" y1="21" x2="16" y2="21" />
+          <line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
       </button>
     );
   }
