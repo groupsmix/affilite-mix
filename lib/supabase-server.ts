@@ -6,7 +6,7 @@ import { SignJWT } from "jose";
 import { logger } from "@/lib/logger";
 import { headers, cookies } from "next/headers";
 import { getAdminSession } from "@/lib/auth";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 import { authzPrimaryRead } from "@/lib/read-after-write";

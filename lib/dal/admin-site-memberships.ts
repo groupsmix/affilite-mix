@@ -4,8 +4,8 @@ import type { AdminSiteMembershipRow } from "@/types/database";
 // M2: the "all memberships" read below spans every tenant, so it needs the
 // service-role client (the per-tenant client is emptied/blocked by RLS on this
 // service-role-only table) — exactly like lib/dal/admin-users.
-// nosemgrep
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep
+// nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 interface CrossTenantBuilder {
   unsafeNoSiteFilter(): CrossTenantBuilder;
