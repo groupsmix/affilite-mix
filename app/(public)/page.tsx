@@ -3,7 +3,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getRecentContent, countPublishedContent } from "@/lib/dal/content";
 import { listFeaturedProducts, countProducts } from "@/lib/dal/products";
 import { listCategoriesWithProductCount } from "@/lib/dal/categories";
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import dynamic from "next/dynamic";
@@ -97,7 +97,7 @@ export default async function HomePage() {
         reportHomepageFanoutError("listCategoriesWithProductCount", site.id, err);
         return [];
       }),
-      countProducts({ siteId: site.id, status: "active" }, getAnonClient).catch((err) => {
+      countProducts({ siteId: site.id, status: "active" }, getTenantClient).catch((err) => {
         reportHomepageFanoutError("countProducts", site.id, err);
         return 0;
       }),

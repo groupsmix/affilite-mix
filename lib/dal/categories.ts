@@ -1,4 +1,6 @@
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
 import type { CategoryRow, TaxonomyType } from "@/types/database";
 import { assertRows, assertRow, rowOrNull, hasStringProp } from "./type-guards";
 import { shouldSkipDbCall } from "@/lib/db-available";
@@ -66,7 +68,7 @@ type CategoriesQueryBuilder = {
  * ("description" or "taxonomy_type"), retries with narrower column sets.
  */
 async function queryCategoriesWithFallback(
-  sb: ReturnType<typeof getAnonClient>,
+  sb: SupabaseClient<Database>,
   siteId: string,
   addFilters?: (builder: CategoriesQueryBuilder) => CategoriesQueryBuilder,
 ): Promise<QueryResult> {
@@ -97,7 +99,7 @@ export async function listCategories(
   opts: ListCategoriesOptions = {},
 ): Promise<CategoryRow[]> {
   if (shouldSkipDbCall()) return [];
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const ilikePattern = buildCategoryNameIlikePattern(opts.q);
 
   const result = await queryCategoriesWithFallback(
@@ -116,7 +118,7 @@ export async function listCategoriesByTaxonomy(
   taxonomyType: TaxonomyType,
 ): Promise<CategoryRow[]> {
   if (shouldSkipDbCall()) return [];
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
 
   const result = await queryCategoriesWithFallback(sb, siteId, (b) =>
     b.eq("taxonomy_type", taxonomyType),
@@ -157,7 +159,7 @@ export async function getCategoryBySlug(siteId: string, slug: string): Promise<C
     return null;
   }
 
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const { data, error } = await sb
     .from(TABLE)
     .select(FULL_COLUMNS)
@@ -175,7 +177,7 @@ export async function listCategoriesWithProductCount(
 ): Promise<(CategoryRow & { product_count: number })[]> {
   if (shouldSkipDbCall()) return [];
 
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   const catsResult = await queryCategoriesWithFallback(sb, siteId);
   if (catsResult.error) return [];
 

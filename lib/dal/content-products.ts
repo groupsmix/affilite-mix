@@ -1,7 +1,7 @@
 import type { ContentProductRow, ContentRow, ProductRow } from "@/types/database";
 import { assertRows } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { shouldSkipDbCall } from "@/lib/db-available";
 
 const TABLE = "content_products";
@@ -56,7 +56,7 @@ export async function getContentLinkedToProducts(
 ): Promise<ContentForProduct[]> {
   if (shouldSkipDbCall() || productIds.length === 0) return [];
 
-  const sb = getAnonClient();
+  const sb = await getTenantClient();
   let query = sb
     .from(TABLE)
     .select("product_id, content:content!inner(id, site_id, title, slug, type, status)")

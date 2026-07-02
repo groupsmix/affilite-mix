@@ -2,7 +2,7 @@ import { getCurrentSite } from "@/lib/site-context";
 import { getCategoryBySlug } from "@/lib/dal/categories";
 import { listContent, countContent } from "@/lib/dal/content";
 import { listProducts } from "@/lib/dal/products";
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { ContentCard } from "./content-card";
 import { ProductCard } from "./product-card";
 import { Pagination, PaginationHead } from "./pagination";
@@ -110,7 +110,7 @@ export async function TaxonomyPage({
         limit: PAGE_SIZE,
         offset: (currentPage - 1) * PAGE_SIZE,
       },
-      getAnonClient,
+      getTenantClient,
     ),
     countContent(
       {
@@ -118,7 +118,7 @@ export async function TaxonomyPage({
         categoryId: category.id,
         status: "published",
       },
-      getAnonClient,
+      getTenantClient,
     ),
     listProducts(
       {
@@ -129,7 +129,7 @@ export async function TaxonomyPage({
         sortDirection: "desc",
         limit: 24,
       },
-      getAnonClient,
+      getTenantClient,
     ),
   ]);
 

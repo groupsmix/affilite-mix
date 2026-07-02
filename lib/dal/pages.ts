@@ -1,4 +1,4 @@
-import { getAnonClient } from "@/lib/supabase-server";
+import { getTenantClient } from "@/lib/supabase-server";
 import { isSupabaseConfigured } from "@/lib/db-available";
 import { assertRows, rowOrNull, assertRow } from "./type-guards";
 import type { PageRow } from "@/types/database";
@@ -34,7 +34,8 @@ export async function listPages(
 /** List only published pages for a site */
 export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
   if (!isSupabaseConfigured()) return [];
-  const { data, error } = await getAnonClient()
+  const sb = await getTenantClient();
+  const { data, error } = await sb
     .from("pages")
     .select(LIST_COLUMNS)
     .eq("site_id", siteId)
@@ -48,7 +49,8 @@ export async function listPublishedPages(siteId: string): Promise<PageRow[]> {
 /** Get a single page by slug within a site */
 export async function getPageBySlug(siteId: string, slug: string): Promise<PageRow | null> {
   if (!isSupabaseConfigured()) return null;
-  const { data, error } = await getAnonClient()
+  const sb = await getTenantClient();
+  const { data, error } = await sb
     .from("pages")
     .select(FULL_COLUMNS)
     .eq("site_id", siteId)
