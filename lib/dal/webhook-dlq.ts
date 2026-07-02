@@ -19,7 +19,7 @@
  *   );
  */
 
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import, semgrep.service-role-import
 import { logger } from "@/lib/logger";
 
 export interface DlqEntry {

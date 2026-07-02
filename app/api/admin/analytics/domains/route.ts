@@ -8,8 +8,8 @@ import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 // default RLS-bound tenant client only sees the active site, so every other site's
 // click count was 0). The route is already gated on requireSuperAdmin() and is on
 // the SERVICE_ROLE_IMPORT_ALLOWLIST (lib/security/service-role-allowlist.ts).
-// nosemgrep: service-role-import
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
+// nosemgrep: service-role-import, semgrep.service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import, semgrep.service-role-import
 
 /**
  * GET /api/admin/analytics/domains — Performance by domain/site (super_admin only).

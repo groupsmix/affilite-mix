@@ -1,4 +1,4 @@
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import, semgrep.service-role-import
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 
 /**
