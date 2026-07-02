@@ -19,10 +19,11 @@ runs:
   steps:
     - name: Post-deploy health gate
       shell: bash
+      env:
+        CRON_HOST: ${{ inputs.cron-host }}
+        CRON_SECRET: ${{ inputs.cron-secret }}
       run: |
         set -euo pipefail
-        CRON_HOST="${{ inputs.cron-host }}"
-        CRON_SECRET="${{ inputs.cron-secret }}"
 
         if [ -z "$CRON_HOST" ] || [ -z "$CRON_SECRET" ]; then
           echo "::error::cron-host and cron-secret inputs are required"

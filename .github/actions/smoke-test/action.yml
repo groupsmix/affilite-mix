@@ -17,12 +17,15 @@ runs:
   steps:
     - name: Run smoke tests
       shell: bash
+      env:
+        HOST: ${{ inputs.host }}
+        PATHS_INPUT: ${{ inputs.paths }}
+        TIMEOUT: ${{ inputs.timeout }}
       run: |
-        HOST="${{ inputs.host }}"
-        TIMEOUT="${{ inputs.timeout }}"
-        IFS=',' read -ra PATHS <<< "${{ inputs.paths }}"
+        set -euo pipefail
         echo "Running smoke tests against ${HOST}..."
         FAILURES=0
+        IFS=',' read -ra PATHS <<< "$PATHS_INPUT"
         for path in "${PATHS[@]}"; do
           path=$(echo "$path" | xargs)
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" "https://${HOST}${path}" || echo "000")
