@@ -9,7 +9,7 @@ import { getProductById } from "./products";
 // data layer, rather than leaking it into route handlers. Cross-tenant access
 // is enforced explicitly by the site_id predicates below and by
 // productBelongsToSite(), not by RLS.
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import — see lib/security/service-role-allowlist.ts
 
 /** Default client for all price_alerts access: privileged (RLS is service_role-only). */
 const priceAlertClient: DalClientGetter = getPrivilegedSupabaseClient;
