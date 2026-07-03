@@ -89,6 +89,12 @@ const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   weight: ["400", "500", "600", "700"],
   display: "swap",
   variable: "--font-ibm-plex-arabic",
+  // preload: false — this font is only used by sites with Arabic content.
+  // next/font preloads ALL declared fonts on every page (including the admin
+  // dashboard), causing "preloaded but not used" console warnings for 8+ woff2
+  // files. The font is still available via its CSS variable; the browser
+  // fetches it lazily when a computed style references it.
+  preload: false,
 });
 
 const playfairDisplay = Playfair_Display({
@@ -96,6 +102,9 @@ const playfairDisplay = Playfair_Display({
   weight: ["600", "700"],
   display: "swap",
   variable: "--font-playfair",
+  // preload: false — only used by sites that select Playfair as their heading
+  // or body font. Same rationale as ibmPlexArabic above.
+  preload: false,
 });
 
 const fontVarMap: Record<string, string> = {
