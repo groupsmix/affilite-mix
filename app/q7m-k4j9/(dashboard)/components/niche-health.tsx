@@ -1,5 +1,6 @@
 import { listSites } from "@/lib/dal/sites";
 import { getNicheHealthStats } from "@/lib/dal/niche-health";
+import { logger } from "@/lib/logger";
 import Link from "next/link";
 
 interface NicheHealth {
@@ -20,9 +21,17 @@ export async function NicheHealthPanel() {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Fetch sites and aggregated stats in parallel (single RPC replaces N+1 queries)
+  // Fetch sites and aggregated stats in parallel (single RPC replaces N+1 queries).
+  // Both calls can fail when the DB is unavailable — catch here so the error
+  // degrades to an empty panel instead of crashing past CardErrorBoundary
+  // (which does not catch Server Component errors during initial SSR).
   const [sites, stats] = await Promise.all([
-    listSites(),
+    listSites().catch((error: unknown) => {
+      logger.warn("[niche-health] listSites unavailable", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }),
     getNicheHealthStats(sevenDaysAgo, fourteenDaysAgo),
   ]);
 
