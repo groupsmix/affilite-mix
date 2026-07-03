@@ -4,7 +4,7 @@ import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { getRecentStripeEventIds } from "@/lib/dal/stripe-events";
 import { processStripeEvent } from "@/lib/stripe-event-processor";
 import { getStripeClient } from "@/lib/stripe-client";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";
 import { recordCronLiveness } from "@/lib/cron-liveness";

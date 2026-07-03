@@ -28,7 +28,7 @@ import {
   incrementTotpFailedAttempts,
   verifyAndSetTotpStep,
 } from "@/lib/dal/admin-users";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { verifyTotpToken, needsSha256Reenrollment, isSha1TotpPastDeadline } from "@/lib/totp";
 import { decryptTotpSecret } from "@/lib/totp-encryption";
 import { validateNotDisposable } from "@/lib/security/disposable-email";

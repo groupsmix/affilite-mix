@@ -7,7 +7,7 @@ import { type DalClientGetter } from "./dal/dal-client";
 // is on the SERVICE_ROLE_IMPORT_ALLOWLIST and is reached only from server-side
 // admin/auth handlers that have already gated the caller.
 // nosemgrep: service-role-import
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { captureException } from "@/lib/sentry";
 import { getRuntimeEnv } from "@/lib/runtime-env";
 import { logger } from "@/lib/logger";

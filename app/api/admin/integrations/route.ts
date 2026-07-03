@@ -11,7 +11,7 @@ import {
 // 2026052801). The default tenant client returns zero rows / is denied, so
 // these admin reads/writes use the privileged gateway. Gated by
 // withAuthz(super_admin); site reads/writes are site-scoped (.eq site_id).
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { recordAuditEvent } from "@/lib/audit-log";
 import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";

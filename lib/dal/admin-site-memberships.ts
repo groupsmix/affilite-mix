@@ -1,10 +1,11 @@
 import { assertRows, rowOrNull } from "./type-guards";
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
+import type { AdminSiteMembershipRow } from "@/types/database";
 // M2: the "all memberships" read below spans every tenant, so it needs the
 // service-role client (the per-tenant client is emptied/blocked by RLS on this
 // service-role-only table) — exactly like lib/dal/admin-users.
 // nosemgrep: service-role-import
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 interface CrossTenantBuilder {
   unsafeNoSiteFilter(): CrossTenantBuilder;
@@ -12,13 +13,6 @@ interface CrossTenantBuilder {
   order(col: string, opts: { ascending: boolean }): CrossTenantBuilder;
   single(): Promise<{ data: unknown; error: { code: string; message: string } | null }>;
   then: Promise<{ data: unknown; error: { code: string; message: string } | null }>["then"];
-}
-
-export interface AdminSiteMembershipRow {
-  id: string;
-  admin_user_id: string;
-  site_id: string;
-  created_at: string;
 }
 
 const TABLE = "admin_site_memberships";

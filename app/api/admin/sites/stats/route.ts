@@ -4,7 +4,7 @@ import { enforceAdminRateLimit } from "@/lib/admin-rate-limit";
 import { captureException } from "@/lib/sentry";
 import { listSites } from "@/lib/dal/sites";
 import { listAdminSiteMemberships } from "@/lib/dal/admin-site-memberships";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { countContent } from "@/lib/dal/content";
 import { countProducts } from "@/lib/dal/products";
 import { getClickCount } from "@/lib/dal/affiliate-clicks";

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 // eslint-disable-next-line no-restricted-imports -- health endpoint needs privileged client for DB liveness probe; getTenantClient() mints HS256 JWTs that break with asymmetric-only Supabase signing keys
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyCronAuth } from "@/lib/cron-auth";

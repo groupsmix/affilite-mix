@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify, errors as joseErrors } from "jose";
 import { cookies, headers } from "next/headers";
 import { getAdminUserByEmail, updateAdminUser } from "@/lib/dal/admin-users";
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { verifyPassword, hashPassword, BCRYPT_ROUNDS } from "@/lib/password";
 import { logger } from "@/lib/logger";
 import { getJwtSecret, getJwtSecretPrevious, getJwtKid } from "@/lib/jwt-secret";

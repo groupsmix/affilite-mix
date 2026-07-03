@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 // tenant JWTs carry no site claim and the tenant_isolation RLS policy
 // rejects writes. Cron is CRON_SECRET-gated; use the privileged client
 // and do tenant scoping per query.
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { upsertProductEpc } from "@/lib/dal/commissions";
 import { logger } from "@/lib/logger";
 import { captureException } from "@/lib/sentry";

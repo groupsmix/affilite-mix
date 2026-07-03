@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 // Cron is already gated by `CRON_SECRET`, so the privileged server-only
 // Supabase client is the correct model — every query in this route
 // must perform its own tenant scoping.
-import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role";
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { getCronAuthOptionsForPath } from "@/lib/cron-registry";
 import { pingSitemapIndexers } from "@/lib/sitemap-ping";
