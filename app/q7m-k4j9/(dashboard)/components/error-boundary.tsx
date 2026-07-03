@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <button
             type="button"
             onClick={this.handleReset}
-            className="mt-2 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+            className="mt-2 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white dark:text-gray-900 hover:bg-blue-700"
           >
             Retry loading editor
           </button>

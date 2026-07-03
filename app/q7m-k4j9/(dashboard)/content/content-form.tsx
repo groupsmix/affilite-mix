@@ -28,7 +28,7 @@ import { ErrorBoundary } from "../components/error-boundary";
 
 const RichEditor = dynamic(() => import("./rich-editor").then((m) => m.RichEditor), {
   loading: () => (
-    <div className="h-[300px] animate-pulse rounded-lg border border-gray-300 bg-gray-50" />
+    <div className="h-[300px] animate-pulse rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50" />
   ),
 });
 
@@ -304,7 +304,7 @@ export function ContentForm({
           <div
             role="alert"
             aria-live="polite"
-            className="rounded bg-red-50 p-3 text-sm text-red-600"
+            className="rounded bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400"
           >
             {error}
           </div>
@@ -312,7 +312,10 @@ export function ContentForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="content-title" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="content-title"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
               Title
             </label>
 
@@ -327,13 +330,16 @@ export function ContentForm({
 
                 markDirty();
               }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="content-slug" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="content-slug"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
               Slug
             </label>
 
@@ -346,14 +352,17 @@ export function ContentForm({
 
                 markDirty();
               }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               required
             />
           </div>
         </div>
 
         <div>
-          <label htmlFor="content-excerpt" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="content-excerpt"
+            className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             Excerpt
           </label>
 
@@ -366,14 +375,17 @@ export function ContentForm({
               markDirty();
             }}
             rows={2}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
         <ImageUploader value={featuredImage} onChange={setFeaturedImage} label="Featured Image" />
 
         <div>
-          <label htmlFor="content-body" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="content-body"
+            className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             Body
           </label>
 
@@ -387,7 +399,7 @@ export function ContentForm({
                   markDirty();
                 }}
                 rows={12}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Rich editor failed to load. You can use HTML here instead."
               />
             }
@@ -405,7 +417,10 @@ export function ContentForm({
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label htmlFor="content-type" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="content-type"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
               Type
             </label>
 
@@ -413,7 +428,7 @@ export function ContentForm({
               id="content-type"
               value={contentType}
               onChange={(e) => setContentType(e.target.value as ContentRow["type"])}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {siteContentTypes.map((ct) => (
                 <option key={ct.value} value={ct.value}>
@@ -426,7 +441,7 @@ export function ContentForm({
           <div>
             <label
               htmlFor="content-status"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Status
             </label>
@@ -435,7 +450,7 @@ export function ContentForm({
               id="content-status"
               value={status}
               onChange={(e) => setStatus(e.target.value as ContentRow["status"])}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="draft">Draft</option>
 
@@ -452,7 +467,7 @@ export function ContentForm({
           <div>
             <label
               htmlFor="content-category"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Category
             </label>
@@ -461,7 +476,7 @@ export function ContentForm({
               id="content-category"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">No category</option>
 
@@ -523,7 +538,7 @@ export function ContentForm({
                     setStatus("scheduled");
                   }
                 }}
-                className="w-full rounded border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded border border-indigo-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
 
               <p className="mt-1 text-xs text-indigo-600">
@@ -551,7 +566,7 @@ export function ContentForm({
           <div>
             <label
               htmlFor="content-author"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Author
             </label>
@@ -561,12 +576,15 @@ export function ContentForm({
               type="text"
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label htmlFor="content-tags" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="content-tags"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
               Tags (comma-separated)
             </label>
 
@@ -575,23 +593,23 @@ export function ContentForm({
               type="text"
               value={tagsStr}
               onChange={(e) => setTagsStr(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
 
         {/* SEO Meta Fields */}
 
-        <details className="rounded-lg border border-gray-200 bg-white">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+        <details className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50">
             SEO &amp; Open Graph Settings
           </summary>
 
-          <div className="space-y-4 border-t border-gray-200 px-4 py-4">
+          <div className="space-y-4 border-t border-gray-200 dark:border-gray-800 px-4 py-4">
             <div>
               <label
                 htmlFor="content-meta-title"
-                className="mb-1 block text-sm font-medium text-gray-700"
+                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
                 Meta Title
               </label>
@@ -603,16 +621,18 @@ export function ContentForm({
                 onChange={(e) => setMetaTitle(e.target.value)}
                 placeholder={title || "Defaults to content title"}
                 maxLength={70}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
 
-              <p className="mt-1 text-xs text-gray-500">{metaTitle.length}/70 characters</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {metaTitle.length}/70 characters
+              </p>
             </div>
 
             <div>
               <label
                 htmlFor="content-meta-desc"
-                className="mb-1 block text-sm font-medium text-gray-700"
+                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
                 Meta Description
               </label>
@@ -624,16 +644,18 @@ export function ContentForm({
                 placeholder={excerpt || "Defaults to content excerpt"}
                 maxLength={160}
                 rows={2}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
 
-              <p className="mt-1 text-xs text-gray-500">{metaDescription.length}/160 characters</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {metaDescription.length}/160 characters
+              </p>
             </div>
 
             <div>
               <label
                 htmlFor="content-og-image"
-                className="mb-1 block text-sm font-medium text-gray-700"
+                className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
                 OG Image URL
               </label>
@@ -644,10 +666,10 @@ export function ContentForm({
                 value={ogImage}
                 onChange={(e) => setOgImage(e.target.value)}
                 placeholder={featuredImage || "Defaults to featured image"}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
 
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Override the Open Graph image for social sharing
               </p>
             </div>
@@ -658,40 +680,40 @@ export function ContentForm({
 
         {isEdit && content?.body_previous && (
           <details
-            className="rounded-lg border border-amber-200 bg-amber-50"
+            className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20"
             open={showVersionHistory}
             onToggle={(e) => setShowVersionHistory((e.target as HTMLDetailsElement).open)}
           >
-            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-amber-800 hover:bg-amber-100">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100">
               Version History
             </summary>
 
             <div className="border-t border-amber-200 px-4 py-4">
-              <p className="mb-2 text-xs text-amber-700">
+              <p className="mb-2 text-xs text-amber-700 dark:text-amber-300">
                 Previous version of the body content (before last edit):
               </p>
 
               <div
-                className="mb-3 max-h-48 overflow-auto rounded border border-amber-200 bg-white p-3 text-sm text-gray-700"
+                className="mb-3 max-h-48 overflow-auto rounded border border-amber-200 bg-white dark:bg-gray-900 p-3 text-sm text-gray-700 dark:text-gray-300"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(content.body_previous) }}
               />
 
               <button
                 type="button"
                 onClick={() => setShowRestoreConfirm(true)}
-                className="rounded-md border border-amber-400 bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-200"
+                className="rounded-md border border-amber-400 bg-amber-100 dark:bg-amber-900/30 px-3 py-1.5 text-sm font-medium text-amber-800 dark:text-amber-300 hover:bg-amber-200"
               >
                 Restore Previous Version
               </button>
 
               {showRestoreConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                  <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-                    <h3 className="mb-2 text-lg font-semibold text-gray-900">
+                  <div className="mx-4 w-full max-w-sm rounded-lg bg-white dark:bg-gray-900 p-6 shadow-xl">
+                    <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
                       Restore Previous Version
                     </h3>
 
-                    <p className="mb-4 text-sm text-gray-600">
+                    <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
                       Are you sure you want to restore the previous version? Your current body
                       content will be replaced.
                     </p>
@@ -700,7 +722,7 @@ export function ContentForm({
                       <button
                         type="button"
                         onClick={() => setShowRestoreConfirm(false)}
-                        className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                        className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100"
                       >
                         Cancel
                       </button>
@@ -716,7 +738,7 @@ export function ContentForm({
 
                           toast.success("Previous version restored. Save to persist.");
                         }}
-                        className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+                        className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-amber-700"
                       >
                         Restore
                       </button>
@@ -736,7 +758,7 @@ export function ContentForm({
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            className="rounded-md bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
           >
             {saving ? "Saving..." : isEdit ? "Update" : "Create"}
           </button>
@@ -748,7 +770,7 @@ export function ContentForm({
                 void handlePreview();
               }}
               disabled={generatingPreview}
-              className="inline-flex items-center rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+              className="inline-flex items-center rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 disabled:opacity-50"
             >
               {generatingPreview ? "Generating..." : "Preview"}
             </button>
@@ -757,7 +779,7 @@ export function ContentForm({
           <button
             type="button"
             onClick={() => router.push("/q7m-k4j9/content")}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="rounded-md border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50"
           >
             Cancel
           </button>

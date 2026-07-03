@@ -17,7 +17,7 @@ export default function AdminError({
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 py-16 text-center">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
         <svg
           className="h-8 w-8 text-red-500"
           fill="none"
@@ -34,8 +34,10 @@ export default function AdminError({
         </svg>
       </div>
 
-      <h2 className="mb-2 text-xl font-bold text-gray-900">Something went wrong</h2>
-      <p className="mb-6 text-sm text-gray-500">
+      <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-gray-100">
+        Something went wrong
+      </h2>
+      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
         {process.env.NODE_ENV === "development"
           ? error.message || "An unexpected error occurred in the admin panel."
           : "An unexpected error occurred in the admin panel."}
@@ -44,19 +46,19 @@ export default function AdminError({
       <div className="flex flex-wrap items-center justify-center gap-3">
         <button
           onClick={reset}
-          className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+          className="rounded-lg bg-gray-900 dark:bg-gray-100 px-5 py-2.5 text-sm font-medium text-white dark:text-gray-900 transition-colors hover:bg-gray-800"
         >
           Try again
         </button>
         <Link
           href="/q7m-k4j9"
-          className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 dark:border-gray-700 px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50"
         >
           Go to Dashboard
         </Link>
         <Link
           href="/api/auth/logout"
-          className="text-sm text-gray-500 transition-colors hover:text-gray-600"
+          className="text-sm text-gray-500 dark:text-gray-400 transition-colors hover:text-gray-600"
         >
           Logout
         </Link>

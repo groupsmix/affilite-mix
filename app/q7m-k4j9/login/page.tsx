@@ -146,7 +146,7 @@ export default function AdminLoginPage() {
               {(process.env.NEXT_PUBLIC_APP_ENV_NAME ||
                 (process.env.NODE_ENV !== "production" ? "DEV" : "")) && (
                 <span
-                  className="ml-2 inline-block rounded bg-amber-500/20 px-2 py-0.5 align-middle text-xs font-semibold uppercase tracking-wider text-amber-700"
+                  className="ml-2 inline-block rounded bg-amber-500/20 px-2 py-0.5 align-middle text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300"
                   data-testid="admin-login-env-badge"
                 >
                   {process.env.NEXT_PUBLIC_APP_ENV_NAME ?? "DEV"}
@@ -169,8 +169,13 @@ export default function AdminLoginPage() {
         >
           <CardContent className="space-y-4">
             {error && (
-              <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-600">
-                <AlertDescription className="text-red-600">{error}</AlertDescription>
+              <Alert
+                variant="destructive"
+                className="bg-red-50 dark:bg-red-900/20 border-red-200 text-red-600 dark:text-red-400"
+              >
+                <AlertDescription className="text-red-600 dark:text-red-400">
+                  {error}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -429,8 +434,13 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
           >
             <CardContent className="space-y-4">
               {resetError && (
-                <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-600">
-                  <AlertDescription className="text-red-600">{resetError}</AlertDescription>
+                <Alert
+                  variant="destructive"
+                  className="bg-red-50 dark:bg-red-900/20 border-red-200 text-red-600 dark:text-red-400"
+                >
+                  <AlertDescription className="text-red-600 dark:text-red-400">
+                    {resetError}
+                  </AlertDescription>
                 </Alert>
               )}
 

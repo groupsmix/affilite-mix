@@ -60,14 +60,14 @@ interface AuditLogTableProps {
  * still light up in the palette.
  */
 const ACTION_BADGE_CLASSES: Record<string, string> = {
-  create: "bg-green-100 text-green-700 hover:bg-green-100",
-  created: "bg-green-100 text-green-700 hover:bg-green-100",
-  update: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-  updated: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-  delete: "bg-red-100 text-red-700 hover:bg-red-100",
-  deleted: "bg-red-100 text-red-700 hover:bg-red-100",
-  login: "bg-gray-100 text-gray-700 hover:bg-gray-100",
-  logout: "bg-gray-100 text-gray-700 hover:bg-gray-100",
+  create: "bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100",
+  created: "bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100",
+  update: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
+  updated: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
+  delete: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100",
+  deleted: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100",
+  login: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100",
+  logout: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100",
   error: "bg-orange-100 text-orange-700 hover:bg-orange-100",
   failed: "bg-orange-100 text-orange-700 hover:bg-orange-100",
 };

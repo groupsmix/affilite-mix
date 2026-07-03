@@ -456,8 +456,8 @@ export function SiteFormDialog({
                     disabled={saving}
                     className={`rounded-lg border p-3 text-left transition-all ${
                       form.homepage_template === t.value
-                        ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200"
-                        : "border-gray-200 hover:border-gray-400"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200"
+                        : "border-gray-200 dark:border-gray-800 hover:border-gray-400"
                     }`}
                   >
                     <div className="text-sm font-medium">{t.label}</div>
@@ -478,8 +478,8 @@ export function SiteFormDialog({
                     disabled={saving}
                     className={`rounded-lg border p-3 text-left transition-all ${
                       form.product_card_style === s.value
-                        ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200"
-                        : "border-gray-200 hover:border-gray-400"
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200"
+                        : "border-gray-200 dark:border-gray-800 hover:border-gray-400"
                     }`}
                   >
                     <div className="text-sm font-medium">{s.label}</div>
@@ -573,7 +573,7 @@ export function SiteFormDialog({
               {FEATURE_FLAGS.map((f) => (
                 <div
                   key={f.key}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"
+                  className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 px-3 py-2"
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-medium">{f.label}</div>

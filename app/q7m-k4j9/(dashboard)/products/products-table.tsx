@@ -61,9 +61,9 @@ interface ProductsTableProps {
 }
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
-  active: "bg-green-100 text-green-700 hover:bg-green-100",
+  active: "bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100",
   draft: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
-  archived: "bg-gray-100 text-gray-600 hover:bg-gray-100",
+  archived: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100",
 };
 
 function initialsFromName(name: string): string {
@@ -112,7 +112,7 @@ function ProductThumbnail({ row }: { row: ProductsTableRow }) {
     );
   }
   return (
-    <div className="flex size-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
+    <div className="flex size-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600 dark:text-gray-400">
       {initialsFromName(row.name)}
     </div>
   );
@@ -142,7 +142,7 @@ function AffiliateUrlIcon({ row }: { row: ProductsTableRow }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <span
-            className="inline-flex items-center text-red-600"
+            className="inline-flex items-center text-red-600 dark:text-red-400"
             aria-label="Missing affiliate URL"
           >
             <AlertCircleIcon className="size-4" aria-hidden="true" />
@@ -343,7 +343,9 @@ function MissingUrlPill({ active }: { active: boolean }) {
       variant={active ? "default" : "outline"}
       size="sm"
       className={`h-8 border-dashed ${
-        active ? "bg-red-600 text-white hover:bg-red-700" : "text-red-700 hover:bg-red-50"
+        active
+          ? "bg-red-600 text-white dark:text-gray-900 hover:bg-red-700"
+          : "text-red-700 dark:text-red-300 hover:bg-red-50"
       }`}
       onClick={toggle}
       aria-pressed={active}

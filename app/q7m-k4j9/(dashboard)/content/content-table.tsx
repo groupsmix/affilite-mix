@@ -52,11 +52,11 @@ const TYPE_OPTIONS = [
 ];
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
-  published: "bg-green-100 text-green-700 hover:bg-green-100",
+  published: "bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100",
   draft: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
-  review: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  review: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
   scheduled: "bg-indigo-100 text-indigo-700 hover:bg-indigo-100",
-  archived: "bg-gray-100 text-gray-600 hover:bg-gray-100",
+  archived: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100",
 };
 
 const STATUS_FALLBACK_CLASS = "";

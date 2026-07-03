@@ -45,7 +45,7 @@ export function AlertsCard({ alerts }: { alerts: DashboardAlert[] }) {
               className={cn(
                 "flex items-start justify-between gap-3",
                 isWarning
-                  ? "border-amber-300/70 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                  ? "border-amber-300/70 bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200 dark:bg-amber-950/30 dark:text-amber-100"
                   : "border-sky-300/70 bg-sky-50 text-sky-900 dark:bg-sky-950/30 dark:text-sky-100",
               )}
             >
