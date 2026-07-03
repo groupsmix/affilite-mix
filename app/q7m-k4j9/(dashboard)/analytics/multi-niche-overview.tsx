@@ -43,7 +43,28 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
 }
 
 export async function MultiNicheOverview() {
-  const sites = await listSites();
+  // listSites() and the per-site DB calls (getClickCount, countProducts,
+  // countContent) throw on DB errors. This is a Server Component rendered
+  // inside the analytics page — an unhandled throw propagates past the
+  // client-only CardErrorBoundary and crashes the entire page with
+  // "An error occurred in the Server Components render". Same bug class as
+  // NicheHealthPanel / RevenuePerSiteCard (fixed in PR #961).
+  const sites = await listSites().catch(() => []);
+
+  if (sites.length === 0) {
+    return (
+      <section className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Multi-Niche Overview</CardTitle>
+            <CardDescription>
+              Site data is temporarily unavailable. Try refreshing the page.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </section>
+    );
+  }
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -51,11 +72,13 @@ export async function MultiNicheOverview() {
 
   const nicheStats: NicheStats[] = await Promise.all(
     sites.map(async (site) => {
+      // Per-site calls can fail individually without taking down the whole
+      // table. Degrade to zeros for the failing site.
       const [clicksToday, clicks7d, totalProducts, totalContent] = await Promise.all([
-        getClickCount(site.id, todayStart),
-        getClickCount(site.id, sevenDaysAgo),
-        countProducts({ siteId: site.id }),
-        countContent({ siteId: site.id }),
+        getClickCount(site.id, todayStart).catch(() => 0),
+        getClickCount(site.id, sevenDaysAgo).catch(() => 0),
+        countProducts({ siteId: site.id }).catch(() => 0),
+        countContent({ siteId: site.id }).catch(() => 0),
       ]);
 
       return {
