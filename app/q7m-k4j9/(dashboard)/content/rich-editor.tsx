@@ -301,6 +301,12 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
     extensions: [
       StarterKit.configure({
         heading: { levels: [2, 3, 4] },
+        // StarterKit v3 includes Link and Underline by default. We add them
+        // separately below with custom configuration (openOnClick, validate,
+        // HTMLAttributes) that StarterKit's options don't support. Disabling
+        // them here prevents the "Duplicate extension names" warning.
+        link: false,
+        underline: false,
       }),
       Link.configure({
         openOnClick: false,
