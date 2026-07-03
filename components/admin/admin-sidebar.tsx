@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { PanelLeft, PanelRight } from "lucide-react";
 
 import { adminNavItems, type AdminNavItem } from "@/config/admin-nav";
+import { ADMIN_PATH, ADMIN_SITES_PATH } from "@/lib/admin-paths";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,14 +26,15 @@ export function filterAdminNavItems(
   if (isSuperAdmin) return items;
   return items.filter((item) => {
     if (!monetizationType) return true;
-    if (item.href === "/q7m-k4j9/ads" && monetizationType === "affiliate") return false;
-    if (item.href === "/q7m-k4j9/affiliate-networks" && monetizationType === "ads") return false;
+    if (item.href === `${ADMIN_PATH}/ads` && monetizationType === "affiliate") return false;
+    if (item.href === `${ADMIN_PATH}/affiliate-networks` && monetizationType === "ads")
+      return false;
     return true;
   });
 }
 
 function isItemActive(href: string, pathname: string) {
-  return href === "/q7m-k4j9" ? pathname === "/q7m-k4j9" : pathname.startsWith(href);
+  return href === ADMIN_PATH ? pathname === ADMIN_PATH : pathname.startsWith(href);
 }
 
 /**
@@ -62,7 +64,7 @@ export function AdminSidebarNav({
         {items.map((item) => {
           const Icon = item.icon;
           const disabled = Boolean(item.requiresActiveSite && !hasActiveSite);
-          const href = disabled ? "/q7m-k4j9/sites?needsSite=1" : item.href;
+          const href = disabled ? `${ADMIN_SITES_PATH}?needsSite=1` : item.href;
           const active = !disabled && isItemActive(item.href, pathname);
           const linkClass = cn(
             "relative flex items-center rounded-md text-sm font-medium outline-none transition-colors",
@@ -162,7 +164,7 @@ export function AdminSidebar({
       >
         {!collapsed && (
           <Link
-            href={hasActiveSite ? "/q7m-k4j9" : "/q7m-k4j9/sites?needsSite=1"}
+            href={hasActiveSite ? ADMIN_PATH : `${ADMIN_SITES_PATH}?needsSite=1`}
             className="truncate text-sm font-semibold tracking-tight text-foreground"
           >
             Admin

@@ -6,6 +6,8 @@ import type {
   LayoutVariant,
 } from "./site-definition";
 
+import { ADMIN_PATH } from "../lib/admin-paths";
+
 /* ------------------------------------------------------------------ */
 /*  Font presets                                                       */
 /* ------------------------------------------------------------------ */
@@ -451,7 +453,7 @@ function generateSeo(input: SiteInput, features: FeatureFlags): SiteDefinition["
   }
 
   return {
-    robotsDisallow: ["/q7m-k4j9/", "/api/"],
+    robotsDisallow: [`${ADMIN_PATH}/`, "/api/"],
     sitemapStaticPages: staticPages,
   };
 }

@@ -27,6 +27,8 @@ import {
   Users,
 } from "lucide-react";
 
+import { adminRoute, ADMIN_SETTINGS_PATH } from "@/lib/admin-paths";
+
 export interface AdminNavItem {
   href: string;
   label: string;
@@ -40,104 +42,104 @@ export interface AdminNavItem {
 
 export const adminNavItems: AdminNavItem[] = [
   {
-    href: "/q7m-k4j9",
+    href: adminRoute(),
     label: "Dashboard",
     iconKey: "dashboard",
     icon: LayoutDashboard,
     requiresActiveSite: true,
   },
   {
-    href: "/q7m-k4j9/analytics",
+    href: adminRoute("/analytics"),
     label: "Analytics",
     iconKey: "analytics",
     icon: BarChart3,
     requiresActiveSite: true,
   },
   {
-    href: "/q7m-k4j9/ai-content",
+    href: adminRoute("/ai-content"),
     label: "AI Content",
     iconKey: "content",
     icon: Sparkles,
     requiresActiveSite: true,
   },
   {
-    href: "/q7m-k4j9/categories",
+    href: adminRoute("/categories"),
     label: "Categories",
     iconKey: "categories",
     icon: FolderTree,
     requiresActiveSite: true,
   },
   {
-    href: "/q7m-k4j9/products",
+    href: adminRoute("/products"),
     label: "Products",
     iconKey: "products",
     icon: Package,
     requiresActiveSite: true,
   },
   {
-    href: "/q7m-k4j9/content",
+    href: adminRoute("/content"),
     label: "Content",
     iconKey: "content",
     icon: FileText,
     requiresActiveSite: true,
   },
   {
-    href: "/q7m-k4j9/pages",
+    href: adminRoute("/pages"),
     label: "Pages",
     iconKey: "pages",
     icon: Files,
     requiresActiveSite: true,
   },
   {
-    href: "/q7m-k4j9/ads",
+    href: adminRoute("/ads"),
     label: "Ad Placements",
     iconKey: "ads",
     icon: Megaphone,
     requiresActiveSite: true,
   },
   {
-    href: "/q7m-k4j9/affiliate-networks",
+    href: adminRoute("/affiliate-networks"),
     requiresActiveSite: true,
     label: "Affiliate Networks",
     iconKey: "sites",
     icon: LinkIcon,
   },
-  { href: "/q7m-k4j9/users", label: "Users", iconKey: "users", icon: Users },
-  { href: "/q7m-k4j9/sites", label: "Sites", iconKey: "sites", icon: Globe },
+  { href: adminRoute("/users"), label: "Users", iconKey: "users", icon: Users },
+  { href: adminRoute("/sites"), label: "Sites", iconKey: "sites", icon: Globe },
   {
-    href: "/q7m-k4j9/platform/modules",
+    href: adminRoute("/platform/modules"),
     label: "Modules",
     iconKey: "products",
     icon: Puzzle,
     requiresActiveSite: true,
   },
   {
-    href: "/q7m-k4j9/platform/integrations",
+    href: adminRoute("/platform/integrations"),
     requiresActiveSite: true,
     label: "Integrations",
     iconKey: "sites",
     icon: Plug,
   },
   {
-    href: "/q7m-k4j9/platform/permissions",
+    href: adminRoute("/platform/permissions"),
     requiresActiveSite: true,
     label: "Permissions",
     iconKey: "users",
     icon: ShieldCheck,
   },
   {
-    href: "/q7m-k4j9/platform/feature-flags",
+    href: adminRoute("/platform/feature-flags"),
     requiresActiveSite: true,
     label: "Feature Flags",
     iconKey: "dashboard",
     icon: Flag,
   },
   {
-    href: "/q7m-k4j9/audit-log",
+    href: adminRoute("/audit-log"),
     label: "Audit Log",
     iconKey: "audit-log",
     icon: ScrollText,
     requiresActiveSite: true,
   },
-  { href: "/q7m-k4j9/settings", label: "Settings", iconKey: "settings", icon: Settings },
+  { href: ADMIN_SETTINGS_PATH, label: "Settings", iconKey: "settings", icon: Settings },
 ];

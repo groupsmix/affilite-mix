@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { ChevronRight, LogOut, Menu, Settings, User } from "lucide-react";
 
 import { adminNavItems } from "@/config/admin-nav";
+import { ADMIN_PATH, ADMIN_LOGIN_PATH, ADMIN_SETTINGS_PATH } from "@/lib/admin-paths";
 import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -42,8 +43,8 @@ function buildCrumbs(pathname: string): Crumb[] {
   const parts = pathname.split("/").filter(Boolean);
   if (parts.length === 0 || parts[0] !== "admin") return [];
 
-  const crumbs: Crumb[] = [{ label: "Admin", href: "/q7m-k4j9" }];
-  let acc = "/q7m-k4j9";
+  const crumbs: Crumb[] = [{ label: "Admin", href: ADMIN_PATH }];
+  let acc = ADMIN_PATH;
   for (let i = 1; i < parts.length; i++) {
     acc += `/${parts[i]}`;
     const match = adminNavItems.find((item) => item.href === acc);
@@ -102,7 +103,7 @@ async function handleLogout() {
   } catch {
     // Fall through to client-side redirect; the login page will re-check session.
   }
-  window.location.href = "/q7m-k4j9/login";
+  window.location.href = ADMIN_LOGIN_PATH;
 }
 
 function UserMenu() {
@@ -117,7 +118,7 @@ function UserMenu() {
         <DropdownMenuLabel>Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/q7m-k4j9/settings">
+          <Link href={ADMIN_SETTINGS_PATH}>
             <Settings className="size-4" />
             Settings
           </Link>
