@@ -5,14 +5,15 @@ import { listProducts } from "@/lib/dal/products";
 import { getLinkedProducts } from "@/lib/dal/content-products";
 import { resolveDbSiteId } from "@/lib/dal/site-resolver";
 import { getSiteById } from "@/config/sites";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ContentForm } from "../content-form";
 
 export default async function EditContentPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) notFound();
   const { id } = await params;
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug).catch(() => null);
+  if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
   const [content, categories, products, linkedProducts] = await Promise.all([
     getContentById(dbSiteId, id),
     listCategories(dbSiteId),

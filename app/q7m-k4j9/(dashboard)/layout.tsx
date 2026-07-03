@@ -55,7 +55,12 @@ async function resolveActiveSite(): Promise<ResolvedActiveSite> {
     };
   }
 
-  const dbSite = await getSiteRowBySlug(slug);
+  // getSiteRowBySlug throws on DB errors (anything but PGRST116). A transient
+  // DB failure here would crash the entire admin shell (layout renders above
+  // every dashboard route, so no inner error boundary can catch it). Degrade
+  // to the neutral fallback branding below instead — same resilience pattern
+  // as the dashboard cards (NicheHealthPanel / RevenuePerSiteCard).
+  const dbSite = await getSiteRowBySlug(slug).catch(() => null);
   if (dbSite) {
     const theme = dbSite.theme as Record<string, string> | null;
     return {

@@ -178,6 +178,13 @@ export function buildCspHeader(nonce: string): string {
     // (and dynamic element.style writes) work again. Nonce protection on
     // <style> elements via style-src is unaffected.
     "style-src-attr 'unsafe-inline'",
+    // style-src-elem: same rationale as style-src-attr above. When style-src
+    // carries a nonce, CSP Level-3 browsers ignore its 'unsafe-inline' and
+    // the style-src-elem fallback inherits that restriction — silently
+    // blocking <style> elements injected by Next.js (styled-jsx) and React
+    // that don't carry the nonce. Setting style-src-elem explicitly without
+    // a nonce ensures 'unsafe-inline' is honoured for <style> elements.
+    "style-src-elem 'self' 'unsafe-inline'",
     "font-src 'self'",
     `img-src ${imgSources.join(" ")}`,
     `connect-src ${connectSources.join(" ")}`,

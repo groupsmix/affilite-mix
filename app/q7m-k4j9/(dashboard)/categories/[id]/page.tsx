@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { getCategoryById } from "@/lib/dal/categories";
@@ -11,7 +11,8 @@ export default async function EditCategoryPage({ params }: { params: Promise<{ i
   const session = await requireAdminSession();
   if (!session.activeSiteSlug) notFound();
   const { id } = await params;
-  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug);
+  const dbSiteId = await resolveDbSiteId(session.activeSiteSlug).catch(() => null);
+  if (!dbSiteId) redirect("/q7m-k4j9/sites?needsSite=1");
   const category = await getCategoryById(dbSiteId, id);
 
   if (!category) notFound();

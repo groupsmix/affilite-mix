@@ -56,6 +56,15 @@ describe("buildCspHeader", () => {
     expect(header).toContain("style-src-attr 'unsafe-inline'");
   });
 
+  it("allows inline <style> elements via style-src-elem (nonce on style-src otherwise disables them in CSP L3)", () => {
+    // Same rationale as style-src-attr: when style-src carries a nonce,
+    // Chromium ignores 'unsafe-inline' and the style-src-elem fallback
+    // inherits that restriction — silently blocking <style> elements
+    // injected by Next.js (styled-jsx) and React. style-src-elem has no
+    // nonce, so 'unsafe-inline' is honoured for <style> elements.
+    expect(header).toContain("style-src-elem 'self' 'unsafe-inline'");
+  });
+
   it("keeps 'strict-dynamic' on script-src", () => {
     expect(header).toMatch(/script-src[^;]*'strict-dynamic'/);
   });

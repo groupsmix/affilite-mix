@@ -221,7 +221,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         seenContentUrls.add(url);
         contentEntries.push({
           url,
-          lastModified: item.updated_at ? new Date(item.updated_at) : new Date(),
+          lastModified: item.updated_at
+            ? new Date(item.updated_at)
+            : item.created_at
+              ? new Date(item.created_at)
+              : STATIC_LAST_MODIFIED,
           changeFrequency: "weekly" as const,
           priority: 0.7,
         });
@@ -242,7 +246,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // Published custom pages (/p/[pageSlug]) are real public routes
       const pageEntries: MetadataRoute.Sitemap = pages.map((page) => ({
         url: `${baseUrl}/p/${page.slug}`,
-        lastModified: page.updated_at ? new Date(page.updated_at) : new Date(),
+        lastModified: page.updated_at
+          ? new Date(page.updated_at)
+          : page.created_at
+            ? new Date(page.created_at)
+            : STATIC_LAST_MODIFIED,
         changeFrequency: "monthly" as const,
         priority: 0.5,
       }));
