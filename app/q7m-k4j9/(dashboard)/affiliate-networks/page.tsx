@@ -61,7 +61,7 @@ export default function AffiliateNetworksPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Affiliate Networks</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Manage your affiliate network integrations — CJ Affiliate, PartnerStack, Admitad
         </p>
       </div>

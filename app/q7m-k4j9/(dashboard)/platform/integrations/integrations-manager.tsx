@@ -116,15 +116,17 @@ export function IntegrationsManager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-gray-500">Loading...</div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
 
   if (sites.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
-        <p className="text-gray-500">No database-managed sites found. Create a site first.</p>
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center">
+        <p className="text-gray-500 dark:text-gray-400">
+          No database-managed sites found. Create a site first.
+        </p>
       </div>
     );
   }
@@ -162,11 +164,13 @@ export function IntegrationsManager() {
     <div>
       {/* Site selector */}
       <div className="mb-6">
-        <label className="mb-1 block text-sm font-medium text-gray-700">Select Site</label>
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Select Site
+        </label>
         <select
           value={selectedSiteId}
           onChange={(e) => setSelectedSiteId(e.target.value)}
-          className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full max-w-xs rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           {sites.map((site) => (
             <option key={site.db_id ?? site.id} value={site.db_id ?? site.id}>
@@ -176,14 +180,21 @@ export function IntegrationsManager() {
         </select>
       </div>
 
-      {error && <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+      {error && (
+        <div className="mb-4 rounded bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Integration groups */}
       <div className="space-y-6">
         {Object.entries(grouped).map(([category, integs]) => (
-          <div key={category} className="rounded-lg border border-gray-200 bg-white">
+          <div
+            key={category}
+            className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
+          >
             <div className="border-b border-gray-100 px-5 py-3">
-              <h2 className="text-sm font-semibold text-gray-900">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 {categoryLabels[category] ?? category}
               </h2>
             </div>
@@ -192,14 +203,18 @@ export function IntegrationsManager() {
                 <div key={integ.key} className="flex items-center justify-between px-5 py-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-gray-900">{integ.name}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {integ.name}
+                      </p>
                       {integ.is_builtin && (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                        <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
                           built-in
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-gray-500">{integ.description}</p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {integ.description}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -215,7 +230,7 @@ export function IntegrationsManager() {
                     aria-label={`Toggle ${integ.name}`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-gray-900 shadow ring-0 transition duration-200 ease-in-out ${
                         integ.is_enabled ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
@@ -228,7 +243,7 @@ export function IntegrationsManager() {
       </div>
 
       {displayIntegrations.length === 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
           No integration providers available.
         </div>
       )}

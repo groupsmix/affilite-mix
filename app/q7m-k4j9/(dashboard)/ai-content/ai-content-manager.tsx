@@ -148,7 +148,7 @@ export function AIContentManager({
     <div className="space-y-4">
       {/* Messages */}
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
           {error}
           <button onClick={() => setError(null)} className="ml-2 font-medium underline">
             Dismiss
@@ -156,7 +156,7 @@ export function AIContentManager({
         </div>
       )}
       {successMsg && (
-        <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+        <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-700 dark:text-green-300">
           {successMsg}
           <button onClick={() => setSuccessMsg(null)} className="ml-2 font-medium underline">
             Dismiss
@@ -168,7 +168,7 @@ export function AIContentManager({
       <div className="flex gap-3">
         <button
           onClick={() => setShowGenerator(!showGenerator)}
-          className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
+          className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-purple-700"
         >
           {showGenerator ? "Cancel" : "Generate Article"}
         </button>
@@ -176,7 +176,7 @@ export function AIContentManager({
           onClick={() => {
             void onRefresh();
           }}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="rounded-md border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50"
         >
           Refresh
         </button>
@@ -187,21 +187,25 @@ export function AIContentManager({
           <h3 className="font-semibold text-purple-900">Generate New Content</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Topic *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Topic *
+              </label>
               <input
                 type="text"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="e.g. Best Luxury Watches Under $500"
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Content Type</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Content Type
+              </label>
               <select
                 value={contentType}
                 onChange={(e) => setContentType(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm"
               >
                 {CONTENT_TYPES.map((ct) => (
                   <option key={ct.value} value={ct.value}>
@@ -212,7 +216,7 @@ export function AIContentManager({
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Keywords (comma-separated, optional)
             </label>
             <input
@@ -220,7 +224,7 @@ export function AIContentManager({
               value={keywords}
               onChange={(e) => setKeywords(e.target.value)}
               placeholder="e.g. luxury watch, affordable, gift"
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm"
             />
           </div>
           <button
@@ -228,7 +232,7 @@ export function AIContentManager({
               void handleGenerate();
             }}
             disabled={generating || !topic.trim()}
-            className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+            className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-purple-700 disabled:opacity-50"
           >
             {generating ? "Generating..." : "Generate"}
           </button>
@@ -236,7 +240,7 @@ export function AIContentManager({
       )}
 
       {/* Status tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-800">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
@@ -246,7 +250,7 @@ export function AIContentManager({
             className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${
               statusFilter === tab.value
                 ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700"
             }`}
           >
             {tab.label}
@@ -256,15 +260,18 @@ export function AIContentManager({
 
       {/* Drafts list */}
       {loading ? (
-        <div className="py-12 text-center text-gray-500">Loading...</div>
+        <div className="py-12 text-center text-gray-500 dark:text-gray-400">Loading...</div>
       ) : drafts.length === 0 ? (
-        <div className="py-12 text-center text-gray-500">
+        <div className="py-12 text-center text-gray-500 dark:text-gray-400">
           No {statusFilter || ""} AI drafts yet. Click &quot;Generate Article&quot; to create one.
         </div>
       ) : (
         <div className="space-y-3">
           {drafts.map((draft) => (
-            <div key={draft.id} className="rounded-lg border border-gray-200 bg-white p-4">
+            <div
+              key={draft.id}
+              className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4"
+            >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -276,19 +283,25 @@ export function AIContentManager({
                             ? "bg-blue-100 text-blue-800"
                             : draft.status === "published"
                               ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
+                              : "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300"
                       }`}
                     >
                       {draft.status}
                     </span>
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+                    <span className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-xs text-gray-600 dark:text-gray-400">
                       {draft.content_type}
                     </span>
-                    <span className="text-xs text-gray-400">via {draft.ai_provider}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-600">
+                      via {draft.ai_provider}
+                    </span>
                   </div>
-                  <h3 className="mt-1 font-semibold text-gray-900 truncate">{draft.title}</h3>
-                  <p className="mt-1 text-sm text-gray-500 line-clamp-2">{draft.excerpt}</p>
-                  <p className="mt-1 text-xs text-gray-400">
+                  <h3 className="mt-1 font-semibold text-gray-900 dark:text-gray-100 truncate">
+                    {draft.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                    {draft.excerpt}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-600">
                     Topic: {draft.topic} &middot;{" "}
                     {new Date(draft.generated_at).toLocaleDateString()}
                   </p>
@@ -297,7 +310,7 @@ export function AIContentManager({
                 <div className="flex flex-shrink-0 gap-2">
                   <button
                     onClick={() => setPreviewDraft(previewDraft?.id === draft.id ? null : draft)}
-                    className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    className="rounded border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50"
                   >
                     {previewDraft?.id === draft.id ? "Close" : "Preview"}
                   </button>
@@ -309,7 +322,7 @@ export function AIContentManager({
                           void handleAction(draft.id, "publish");
                         }}
                         disabled={actionLoading === draft.id}
-                        className="rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                        className="rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white dark:text-gray-900 hover:bg-green-700 disabled:opacity-50"
                       >
                         Approve & Publish
                       </button>
@@ -318,7 +331,7 @@ export function AIContentManager({
                           void handleAction(draft.id, "reject");
                         }}
                         disabled={actionLoading === draft.id}
-                        className="rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        className="rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 hover:bg-red-50 disabled:opacity-50"
                       >
                         Reject
                       </button>
@@ -331,7 +344,7 @@ export function AIContentManager({
                         void handleAction(draft.id, "publish");
                       }}
                       disabled={actionLoading === draft.id}
-                      className="rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      className="rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white dark:text-gray-900 hover:bg-green-700 disabled:opacity-50"
                     >
                       Publish
                     </button>
@@ -342,7 +355,7 @@ export function AIContentManager({
                       void handleDelete(draft.id);
                     }}
                     disabled={actionLoading === draft.id}
-                    className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-red-600 disabled:opacity-50"
+                    className="rounded border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 hover:text-red-600 disabled:opacity-50"
                   >
                     Delete
                   </button>
@@ -351,12 +364,12 @@ export function AIContentManager({
 
               {/* Preview panel */}
               {previewDraft?.id === draft.id && (
-                <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
-                  <h4 className="font-semibold text-gray-900">{draft.title}</h4>
-                  <div className="mt-2 text-sm text-gray-500">
+                <div className="mt-4 rounded-md border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">{draft.title}</h4>
+                  <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                     <strong>Meta title:</strong> {draft.meta_title}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     <strong>Meta description:</strong> {draft.meta_description}
                   </div>
                   <div

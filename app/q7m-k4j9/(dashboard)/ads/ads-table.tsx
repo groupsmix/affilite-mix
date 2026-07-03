@@ -55,7 +55,7 @@ const PROVIDER_META: Record<AdProvider, { label: string; icon: LucideIcon; class
   adsense: {
     label: "Google AdSense",
     icon: GlobeIcon,
-    className: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+    className: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
   },
   carbon: {
     label: "Carbon Ads",
@@ -83,10 +83,10 @@ const SLOT_LABELS: Record<AdPlacementType, string> = {
 };
 
 const SLOT_CLASSES: Record<AdPlacementType, string> = {
-  header: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  header: "bg-blue-100 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
   sidebar: "bg-purple-100 text-purple-700 hover:bg-purple-100",
-  in_content: "bg-green-100 text-green-700 hover:bg-green-100",
-  footer: "bg-red-100 text-red-700 hover:bg-red-100",
+  in_content: "bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100",
+  footer: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100",
   between_posts: "bg-orange-100 text-orange-700 hover:bg-orange-100",
 };
 
@@ -145,7 +145,9 @@ function CpmCell({ value, isOverride }: { value: number; isOverride: boolean }) 
 
 function StatusCell({ isActive }: { isActive: boolean }) {
   return isActive ? (
-    <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Active</Badge>
+    <Badge className="bg-green-100 text-green-700 dark:text-green-300 hover:bg-green-100">
+      Active
+    </Badge>
   ) : (
     <Badge variant="outline" className="text-muted-foreground">
       Inactive
@@ -208,7 +210,7 @@ const adsTableColumns: ColumnDef<AdsTableRow>[] = [
     accessorKey: "est_revenue_30d",
     header: () => <span className="block text-right">Est. revenue (30d)</span>,
     cell: ({ row }) => (
-      <div className="text-right font-medium tabular-nums text-green-700">
+      <div className="text-right font-medium tabular-nums text-green-700 dark:text-green-300">
         {formatUsd(row.original.est_revenue_30d)}
       </div>
     ),

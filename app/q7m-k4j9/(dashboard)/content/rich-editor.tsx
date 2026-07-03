@@ -46,8 +46,8 @@ function UrlPopover({
   }, []);
 
   return (
-    <div className="absolute left-0 top-full z-50 mt-1 flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
-      <label className="text-xs font-medium text-gray-500">{label}</label>
+    <div className="absolute left-0 top-full z-50 mt-1 flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2 shadow-lg">
+      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</label>
       <input
         ref={inputRef}
         type="url"
@@ -61,21 +61,21 @@ function UrlPopover({
           if (e.key === "Escape") onCancel();
         }}
         placeholder={placeholder}
-        className="w-56 rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-56 rounded border border-gray-300 dark:border-gray-700 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
       />
       <button
         type="button"
         onClick={() => {
           if (url) onSubmit(url);
         }}
-        className="rounded bg-gray-800 px-2 py-1 text-xs font-medium text-white hover:bg-gray-700"
+        className="rounded bg-gray-800 px-2 py-1 text-xs font-medium text-white dark:text-gray-900 hover:bg-gray-700"
       >
         Add
       </button>
       <button
         type="button"
         onClick={onCancel}
-        className="rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100"
+        className="rounded px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100"
       >
         Cancel
       </button>
@@ -92,11 +92,13 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 
   const btnClass = (active: boolean) =>
     `rounded px-2 py-1 text-xs font-medium transition-colors ${
-      active ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      active
+        ? "bg-gray-800 text-white dark:text-gray-900"
+        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200"
     }`;
 
   return (
-    <div className="flex flex-wrap gap-1 border-b border-gray-200 bg-gray-50 px-2 py-1.5">
+    <div className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5">
       <button
         type="button"
         onClick={() => editor.chain().focus().toggleBold().run()}
@@ -130,7 +132,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         S
       </button>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
 
       <button
         type="button"
@@ -157,7 +159,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         H4
       </button>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
 
       <button
         type="button"
@@ -176,7 +178,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         1. List
       </button>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
 
       <button
         type="button"
@@ -203,7 +205,7 @@ function MenuBar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         &mdash;
       </button>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-gray-300 dark:border-gray-700" />
 
       <div className="relative">
         <button
@@ -352,7 +354,7 @@ export function RichEditor({ value, onChange }: RichEditorProps) {
   }, [editor, value]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+    <div className="overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
       <MenuBar editor={editor} />
       <EditorContent editor={editor} />
     </div>

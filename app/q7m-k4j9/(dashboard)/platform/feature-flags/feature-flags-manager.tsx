@@ -146,15 +146,17 @@ export function FeatureFlagsManager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-gray-500">Loading...</div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
 
   if (sites.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
-        <p className="text-gray-500">No database-managed sites found. Create a site first.</p>
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center">
+        <p className="text-gray-500 dark:text-gray-400">
+          No database-managed sites found. Create a site first.
+        </p>
       </div>
     );
   }
@@ -164,11 +166,13 @@ export function FeatureFlagsManager() {
       {/* Site selector */}
       <div className="mb-6 flex items-end gap-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Select Site</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Select Site
+          </label>
           <select
             value={selectedSiteId}
             onChange={(e) => setSelectedSiteId(e.target.value)}
-            className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full max-w-xs rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             {sites.map((site) => (
               <option key={site.db_id ?? site.id} value={site.db_id ?? site.id}>
@@ -180,37 +184,47 @@ export function FeatureFlagsManager() {
         <button
           type="button"
           onClick={() => setShowAddForm(!showAddForm)}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          className="rounded-md bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800"
         >
           + Add Flag
         </button>
       </div>
 
-      {error && <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+      {error && (
+        <div className="mb-4 rounded bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Add flag form */}
       {showAddForm && (
-        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
-          <h3 className="mb-3 text-sm font-semibold text-gray-900">New Feature Flag</h3>
+        <div className="mb-6 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+            New Feature Flag
+          </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Flag Key</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Flag Key
+              </label>
               <input
                 type="text"
                 value={newFlagKey}
                 onChange={(e) => setNewFlagKey(e.target.value)}
                 placeholder="e.g. enable_dark_mode"
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Description
+              </label>
               <input
                 type="text"
                 value={newFlagDesc}
                 onChange={(e) => setNewFlagDesc(e.target.value)}
                 placeholder="Optional description"
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -221,14 +235,14 @@ export function FeatureFlagsManager() {
                 void addFlag();
               }}
               disabled={saving === "new"}
-              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+              className="rounded-md bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
             >
               {saving === "new" ? "Adding..." : "Add Flag"}
             </button>
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50"
             >
               Cancel
             </button>
@@ -237,9 +251,9 @@ export function FeatureFlagsManager() {
       )}
 
       {/* Flags list */}
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         {flags.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-500">
+          <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
             No feature flags configured for this site.
           </div>
         ) : (
@@ -247,9 +261,13 @@ export function FeatureFlagsManager() {
             {flags.map((flag) => (
               <div key={flag.id} className="flex items-center justify-between px-5 py-4">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{flag.flag_key}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {flag.flag_key}
+                  </p>
                   {flag.description && (
-                    <p className="mt-0.5 text-xs text-gray-500">{flag.description}</p>
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {flag.description}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
@@ -267,7 +285,7 @@ export function FeatureFlagsManager() {
                     aria-label={`Toggle ${flag.flag_key}`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-gray-900 shadow ring-0 transition duration-200 ease-in-out ${
                         flag.is_enabled ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
@@ -278,7 +296,7 @@ export function FeatureFlagsManager() {
                       void deleteFlag(flag.flag_key);
                     }}
                     disabled={saving === flag.flag_key}
-                    className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 disabled:opacity-50"
                   >
                     Delete
                   </button>

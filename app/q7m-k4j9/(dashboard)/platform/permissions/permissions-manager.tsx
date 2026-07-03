@@ -198,7 +198,7 @@ export function PermissionsManager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-gray-500">Loading...</div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
@@ -217,11 +217,13 @@ export function PermissionsManager() {
     <div>
       {/* Site selector */}
       <div className="mb-6">
-        <label className="mb-1 block text-sm font-medium text-gray-700">Select Site</label>
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Select Site
+        </label>
         <select
           value={selectedSiteId}
           onChange={(e) => setSelectedSiteId(e.target.value)}
-          className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full max-w-xs rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           {sites.map((site) => (
             <option key={site.db_id ?? site.id} value={site.db_id ?? site.id}>
@@ -232,10 +234,12 @@ export function PermissionsManager() {
       </div>
 
       {/* F-012: Assign a role to a user */}
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white">
+      <div className="mb-6 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="border-b border-gray-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Assign Role to User</h2>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            Assign Role to User
+          </h2>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             Grant or revoke a role for a user on the selected site.
           </p>
         </div>
@@ -244,7 +248,7 @@ export function PermissionsManager() {
             <div>
               <label
                 htmlFor="permission-user-select"
-                className="mb-1 block text-xs font-medium text-gray-700"
+                className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300"
               >
                 User
               </label>
@@ -254,7 +258,7 @@ export function PermissionsManager() {
                 aria-label="Select user"
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
-                className="w-56 rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-56 rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="">Select a user…</option>
                 {users.map((u) => (
@@ -267,7 +271,7 @@ export function PermissionsManager() {
             <div>
               <label
                 htmlFor="permission-role-select"
-                className="mb-1 block text-xs font-medium text-gray-700"
+                className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300"
               >
                 Role
               </label>
@@ -277,7 +281,7 @@ export function PermissionsManager() {
                 aria-label="Select role"
                 value={selectedRoleName}
                 onChange={(e) => setSelectedRoleName(e.target.value)}
-                className="w-56 rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-56 rounded border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="">Select a role…</option>
                 {roles.map((role) => (
@@ -291,7 +295,7 @@ export function PermissionsManager() {
               type="button"
               onClick={() => void handleAssign()}
               disabled={submitting}
-              className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Assign
             </button>
@@ -299,23 +303,27 @@ export function PermissionsManager() {
               type="button"
               onClick={() => void handleRevoke(selectedUserId)}
               disabled={submitting}
-              className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Revoke
             </button>
           </div>
-          {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
+          {actionError && (
+            <p className="mt-3 text-sm text-red-600 dark:text-red-400">{actionError}</p>
+          )}
           {actionMessage && <p className="mt-3 text-sm text-green-600">{actionMessage}</p>}
         </div>
       </div>
 
       {/* F-012: Current assignments for the selected site */}
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white">
+      <div className="mb-6 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="border-b border-gray-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Current Assignments</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            Current Assignments
+          </h2>
         </div>
         {assignments.length === 0 ? (
-          <div className="px-5 py-6 text-center text-sm text-gray-500">
+          <div className="px-5 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
             No role assignments for this site yet.
           </div>
         ) : (
@@ -326,14 +334,14 @@ export function PermissionsManager() {
               return (
                 <div key={assignment.id} className="flex items-center justify-between px-5 py-3">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {user
                         ? user.name
                           ? `${user.name} (${user.email})`
                           : user.email
                         : assignment.user_id}
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
+                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                       {role ? `${role.label} (${role.name})` : assignment.role_id}
                     </p>
                   </div>
@@ -341,7 +349,7 @@ export function PermissionsManager() {
                     type="button"
                     onClick={() => void handleRevoke(assignment.user_id)}
                     disabled={submitting}
-                    className="rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Revoke
                   </button>
@@ -353,47 +361,53 @@ export function PermissionsManager() {
       </div>
 
       {/* Roles reference */}
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white">
+      <div className="mb-6 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="border-b border-gray-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Available Roles</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            Available Roles
+          </h2>
         </div>
         <div className="divide-y divide-gray-100">
           {roles.map((role) => (
             <div key={role.id} className="px-5 py-3">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-gray-900">{role.label}</p>
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{role.label}</p>
+                <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
                   {role.name}
                 </span>
                 {role.is_system && (
-                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:text-blue-300">
                     system
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-gray-500">{role.description}</p>
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{role.description}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Permissions reference */}
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="border-b border-gray-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Permission Matrix</h2>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            Permission Matrix
+          </h2>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             Features and actions available in the permission system.
           </p>
         </div>
         <div className="divide-y divide-gray-100">
           {Object.entries(permsByFeature).map(([feature, perms]) => (
             <div key={feature} className="px-5 py-3">
-              <p className="mb-1 text-sm font-medium capitalize text-gray-900">{feature}</p>
+              <p className="mb-1 text-sm font-medium capitalize text-gray-900 dark:text-gray-100">
+                {feature}
+              </p>
               <div className="flex flex-wrap gap-1.5">
                 {perms.map((perm) => (
                   <span
                     key={perm.id}
-                    className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
+                    className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300"
                     title={perm.description}
                   >
                     {perm.action}
@@ -406,7 +420,7 @@ export function PermissionsManager() {
       </div>
 
       {sites.length === 0 && (
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+        <div className="mt-6 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
           No database-managed sites found. Create a site first to manage permissions.
         </div>
       )}

@@ -54,7 +54,7 @@ export class CardErrorBoundary extends Component<CardErrorBoundaryProps, CardErr
             <h2 className="text-base font-semibold text-amber-950">
               {this.props.title} could not load
             </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-amber-900">
+            <p className="mx-auto mt-2 max-w-md text-sm text-amber-900 dark:text-amber-200">
               This card is temporarily unavailable, so it has been hidden instead of crashing the
               dashboard. Try again after the database or migration issue is fixed.
             </p>

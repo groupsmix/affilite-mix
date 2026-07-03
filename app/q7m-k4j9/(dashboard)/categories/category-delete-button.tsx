@@ -52,23 +52,27 @@ export function CategoryDeleteButton({ id, name }: { id: string; name: string })
     <>
       <button
         onClick={() => void openConfirmDialog()}
-        className="text-sm text-red-600 hover:underline"
+        className="text-sm text-red-600 dark:text-red-400 hover:underline"
       >
         Delete
       </button>
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete Category</h3>
-            <p className="mb-4 text-sm text-gray-600">
+          <div className="mx-4 w-full max-w-sm rounded-lg bg-white dark:bg-gray-900 p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Delete Category
+            </h3>
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
               Are you sure you want to delete <strong>&ldquo;{name}&rdquo;</strong>? This action
               cannot be undone.
             </p>
             {loading && (
-              <p className="mb-4 text-xs text-gray-500">Checking for associated records…</p>
+              <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
+                Checking for associated records…
+              </p>
             )}
             {!loading && totalAffected > 0 && (
-              <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+              <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-800 dark:text-amber-300">
                 <p className="font-medium">This category has associated records:</p>
                 <ul className="mt-1 list-inside list-disc text-xs">
                   {(usageCounts?.contentCount ?? 0) > 0 && (
@@ -96,14 +100,14 @@ export function CategoryDeleteButton({ id, name }: { id: string; name: string })
                   setUsageCounts(null);
                 }}
                 disabled={deleting}
-                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void handleDelete()}
                 disabled={deleting}
-                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-red-700 disabled:opacity-50"
               >
                 {deleting ? "Deleting…" : "Delete"}
               </button>

@@ -154,10 +154,10 @@ export default async function ContentPage({ searchParams }: ContentPageProps) {
         </div>
       ) : null}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Content</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Content</h1>
         <Link
           href="/q7m-k4j9/content/new"
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          className="rounded-md bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800"
         >
           Add Content
         </Link>

@@ -47,9 +47,9 @@ const emptyForm: PageFormData = {
 };
 
 const inputCls =
-  "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500";
+  "block w-full rounded-md border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500";
 
-const labelCls = "mb-1 block text-sm font-medium text-gray-700";
+const labelCls = "mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300";
 
 export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "create" } = {}) {
   const [pages, setPages] = useState<PageInfo[]>([]);
@@ -309,18 +309,18 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
   }
 
   if (loading) {
-    return <p className="text-sm text-gray-500">Loading pages...</p>;
+    return <p className="text-sm text-gray-500 dark:text-gray-400">Loading pages...</p>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">{pages.length} page(s)</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{pages.length} page(s)</p>
 
         <button
           type="button"
           onClick={openCreateForm}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          className="rounded-md bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800"
         >
           + New Page
         </button>
@@ -331,7 +331,10 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
           top-level banner a failed reorder would be set via setError but never
           shown — the silent-failure this requirement guards against. */}
       {error && !showForm && (
-        <div role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+        <div
+          role="alert"
+          className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300"
+        >
           {error}
         </div>
       )}
@@ -339,13 +342,15 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
       {/* Form */}
 
       {showForm && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
             {editingPage ? "Edit Page" : "Create Page"}
           </h2>
 
           {error && (
-            <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+            <div className="mb-4 rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
+              {error}
+            </div>
           )}
 
           <form
@@ -398,7 +403,9 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
                   required
                 />
 
-                <p className="mt-1 text-xs text-gray-500">URL: /p/{form.slug || "slug"}</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  URL: /p/{form.slug || "slug"}
+                </p>
               </div>
             </div>
 
@@ -416,7 +423,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
                 className={`${inputCls} font-mono text-xs`}
               />
 
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Supports HTML. A rich text editor (TipTap) can be integrated for a better editing
                 experience.
               </p>
@@ -429,22 +436,22 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
                   id="is_published"
                   checked={form.is_published}
                   onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-gray-300 dark:border-gray-700"
                 />
 
-                <label htmlFor="is_published" className="text-sm text-gray-700">
+                <label htmlFor="is_published" className="text-sm text-gray-700 dark:text-gray-300">
                   Published
                 </label>
               </div>
 
               <div>
-                <label className="text-sm text-gray-700">Sort Order: </label>
+                <label className="text-sm text-gray-700 dark:text-gray-300">Sort Order: </label>
 
                 <input
                   type="number"
                   value={form.sort_order}
                   onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })}
-                  className="w-20 rounded-md border border-gray-300 px-2 py-1 text-sm"
+                  className="w-20 rounded-md border border-gray-300 dark:border-gray-700 px-2 py-1 text-sm"
                 />
               </div>
             </div>
@@ -453,7 +460,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                className="rounded-md bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
               >
                 {saving ? "Saving..." : editingPage ? "Update Page" : "Create Page"}
               </button>
@@ -461,7 +468,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-md border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50"
               >
                 Cancel
               </button>
@@ -473,8 +480,8 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
       {/* Pages list */}
 
       {pages.length === 0 && !showForm && (
-        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
-          <p className="text-gray-500">No custom pages yet.</p>
+        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center">
+          <p className="text-gray-500 dark:text-gray-400">No custom pages yet.</p>
 
           <button
             type="button"
@@ -491,7 +498,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
           {pages.map((page, index) => (
             <div
               key={page.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+              className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm"
             >
               <div className="flex items-center gap-3">
                 {/* Reorder buttons */}
@@ -503,7 +510,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
                       void handleMoveUp(index);
                     }}
                     disabled={index === 0 || reordering}
-                    className="text-gray-500 hover:text-gray-600 disabled:opacity-30"
+                    className="text-gray-500 dark:text-gray-400 hover:text-gray-600 disabled:opacity-30"
                     title="Move up"
                   >
                     <svg
@@ -526,7 +533,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
                       void handleMoveDown(index);
                     }}
                     disabled={index >= pages.length - 1 || reordering}
-                    className="text-gray-500 hover:text-gray-600 disabled:opacity-30"
+                    className="text-gray-500 dark:text-gray-400 hover:text-gray-600 disabled:opacity-30"
                     title="Move down"
                   >
                     <svg
@@ -545,16 +552,18 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
                 </div>
 
                 <div>
-                  <h3 className="font-medium text-gray-900">{page.title}</h3>
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100">{page.title}</h3>
 
-                  <p className="text-xs text-gray-500">/p/{page.slug}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">/p/{page.slug}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <span
                   className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-                    page.is_published ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                    page.is_published
+                      ? "bg-green-100 text-green-700 dark:text-green-300"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
                   }`}
                 >
                   {page.is_published ? "Published" : "Draft"}
@@ -563,7 +572,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
                 <button
                   type="button"
                   onClick={() => openEditForm(page)}
-                  className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  className="rounded-md border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50"
                 >
                   Edit
                 </button>
@@ -571,7 +580,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
                 <button
                   type="button"
                   onClick={() => setConfirmDeletePage(page)}
-                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50"
                 >
                   Delete
                 </button>
@@ -585,10 +594,12 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
 
       {confirmDeletePage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Delete Page</h3>
+          <div className="mx-4 w-full max-w-sm rounded-lg bg-white dark:bg-gray-900 p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Delete Page
+            </h3>
 
-            <p className="mb-4 text-sm text-gray-600">
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
               Are you sure you want to delete{" "}
               <strong>&ldquo;{confirmDeletePage.title}&rdquo;</strong>? This action cannot be
               undone.
@@ -597,7 +608,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDeletePage(null)}
-                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100"
               >
                 Cancel
               </button>
@@ -606,7 +617,7 @@ export function PageManager({ initialMode = "list" }: { initialMode?: "list" | "
                 onClick={() => {
                   void handleDeleteConfirmed(confirmDeletePage);
                 }}
-                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-red-700"
               >
                 Delete
               </button>

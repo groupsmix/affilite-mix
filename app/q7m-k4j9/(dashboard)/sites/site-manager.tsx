@@ -172,7 +172,10 @@ function MonetizationBadge({ type }: { type: string | undefined }) {
   const label = type === "both" ? "Affiliate + Ads" : type === "ads" ? "Ads" : "Affiliate";
 
   return (
-    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+    <Badge
+      variant="outline"
+      className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300"
+    >
       {label}
     </Badge>
   );
@@ -180,7 +183,10 @@ function MonetizationBadge({ type }: { type: string | undefined }) {
 
 function SourceBadge({ source }: { source: "config" | "database" }) {
   return source === "database" ? (
-    <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
+    <Badge
+      variant="outline"
+      className="border-blue-200 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+    >
       DB
     </Badge>
   ) : (
@@ -196,7 +202,10 @@ function SourceBadge({ source }: { source: "config" | "database" }) {
 // load will fail until the row is provisioned.
 function NotProvisionedBadge() {
   return (
-    <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+    <Badge
+      variant="outline"
+      className="border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300"
+    >
       <AlertTriangleIcon className="size-3" aria-hidden />
       Not provisioned
     </Badge>
@@ -321,7 +330,7 @@ function SiteCardView({
       <CardHeader className="gap-3 pt-5">
         <div className="flex items-start gap-3">
           <span
-            className="flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-bold text-white"
+            className="flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-bold text-white dark:text-gray-900"
             style={{ background: primary }}
           >
             {initialFor(site.name)}
@@ -420,7 +429,10 @@ function SiteCardView({
 
         <div className="flex flex-wrap items-center gap-1.5">
           {isActive && (
-            <Badge className="border-transparent text-white" style={{ background: primary }}>
+            <Badge
+              className="border-transparent text-white dark:text-gray-900"
+              style={{ background: primary }}
+            >
               Editing now
             </Badge>
           )}
@@ -445,13 +457,13 @@ function SiteCardView({
 
       <CardContent className="pb-4 pt-4">
         {isNotProvisioned && (
-          <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+          <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-800 dark:text-amber-300">
             <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
 
             <div className="flex-1 space-y-1.5">
               <p className="font-medium">Not provisioned — run site provisioning</p>
 
-              <p className="text-amber-700">
+              <p className="text-amber-700 dark:text-amber-300">
                 This tenant is defined in config but has no database row yet, so its dashboard
                 modules can&apos;t load until it&apos;s provisioned.
               </p>
@@ -459,7 +471,7 @@ function SiteCardView({
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-1 h-7 border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                className="mt-1 h-7 border-amber-300 bg-white dark:bg-gray-900 text-amber-800 dark:text-amber-300 hover:bg-amber-100"
                 onClick={() => onProvision(site)}
                 disabled={provisioning}
               >

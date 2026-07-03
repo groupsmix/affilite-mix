@@ -7,7 +7,7 @@ export default function AdminContentLoading() {
       </div>
 
       {/* Bulk actions bar skeleton */}
-      <div className="mb-2 h-9 w-48 rounded bg-gray-100" />
+      <div className="mb-2 h-9 w-48 rounded bg-gray-100 dark:bg-gray-800" />
 
       {/* Status filter tabs skeleton */}
       <div className="mb-4 flex flex-wrap gap-2">
@@ -19,7 +19,10 @@ export default function AdminContentLoading() {
       {/* Card layout skeleton (mobile) */}
       <div className="mt-4 grid gap-3 md:hidden">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-lg border border-gray-200 bg-white p-4">
+          <div
+            key={i}
+            className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4"
+          >
             <div className="mb-2 flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
                 <div className="h-4 w-4 rounded bg-gray-200" />
@@ -28,21 +31,21 @@ export default function AdminContentLoading() {
               <div className="h-5 w-16 rounded-full bg-gray-200" />
             </div>
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <div className="h-5 w-14 rounded bg-gray-100" />
-              <div className="h-3 w-16 rounded bg-gray-100" />
+              <div className="h-5 w-14 rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-3 w-16 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
             <div className="flex gap-3">
-              <div className="h-4 w-10 rounded bg-gray-100" />
-              <div className="h-4 w-12 rounded bg-gray-100" />
-              <div className="h-4 w-14 rounded bg-gray-100" />
+              <div className="h-4 w-10 rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-4 w-12 rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-4 w-14 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
         ))}
       </div>
 
       {/* Table layout skeleton (md+) */}
-      <div className="mt-4 hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
-        <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+      <div className="mt-4 hidden overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 md:block">
+        <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-4 py-3">
           <div className="flex gap-8">
             <div className="h-4 w-4 rounded bg-gray-200" />
             <div className="h-4 w-24 rounded bg-gray-200" />
@@ -56,13 +59,13 @@ export default function AdminContentLoading() {
           <div key={i} className="flex items-center gap-8 border-b border-gray-100 px-4 py-3">
             <div className="h-4 w-4 rounded bg-gray-200" />
             <div className="h-4 w-48 rounded bg-gray-200" />
-            <div className="h-4 w-16 rounded bg-gray-100" />
-            <div className="h-5 w-16 rounded-full bg-gray-100" />
-            <div className="h-4 w-24 rounded bg-gray-100" />
+            <div className="h-4 w-16 rounded bg-gray-100 dark:bg-gray-800" />
+            <div className="h-5 w-16 rounded-full bg-gray-100 dark:bg-gray-800" />
+            <div className="h-4 w-24 rounded bg-gray-100 dark:bg-gray-800" />
             <div className="flex gap-2">
-              <div className="h-4 w-10 rounded bg-gray-100" />
-              <div className="h-4 w-12 rounded bg-gray-100" />
-              <div className="h-4 w-14 rounded bg-gray-100" />
+              <div className="h-4 w-10 rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-4 w-12 rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-4 w-14 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
         ))}
