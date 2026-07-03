@@ -2632,6 +2632,42 @@ export type Database = {
           content_slug: string;
         }[];
       };
+      get_multi_niche_overview: {
+        Args: { p_today_start: string; p_seven_days_ago: string };
+        Returns: {
+          site_id: string;
+          name: string;
+          slug: string;
+          clicks_today: number;
+          clicks_7d: number;
+          total_products: number;
+          total_content: number;
+          is_active: boolean;
+        }[];
+      };
+      get_domain_performance: {
+        Args: { p_since: string };
+        Returns: {
+          site_id: string;
+          slug: string;
+          name: string;
+          domain: string;
+          clicks: number;
+          est_revenue_per_click: number;
+          revenue: number;
+        }[];
+      };
+      get_revenue_per_site: {
+        Args: { p_since: string };
+        Returns: {
+          site_id: string;
+          slug: string;
+          name: string;
+          clicks: number;
+          rate_per_click: number;
+          revenue: number;
+        }[];
+      };
       get_top_products: {
         Args: { p_limit: number; p_since: string; p_site_id: string };
         Returns: {

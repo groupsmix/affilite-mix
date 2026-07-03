@@ -11,10 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { getClickCount } from "@/lib/dal/affiliate-clicks";
-import { countContent } from "@/lib/dal/content";
-import { countProducts } from "@/lib/dal/products";
-import { listSites } from "@/lib/dal/sites";
+import { getAnonClient } from "@/lib/supabase-server";
 
 interface NicheStats {
   siteId: string;
@@ -25,6 +22,18 @@ interface NicheStats {
   totalProducts: number;
   totalContent: number;
   isActive: boolean;
+}
+
+/** Raw row returned by the get_multi_niche_overview RPC */
+interface MultiNicheRpcRow {
+  site_id: string;
+  name: string;
+  slug: string;
+  clicks_today: number;
+  clicks_7d: number;
+  total_products: number;
+  total_content: number;
+  is_active: boolean;
 }
 
 function StatusBadge({ isActive }: { isActive: boolean }) {
@@ -43,15 +52,28 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
 }
 
 export async function MultiNicheOverview() {
-  // listSites() and the per-site DB calls (getClickCount, countProducts,
-  // countContent) throw on DB errors. This is a Server Component rendered
-  // inside the analytics page — an unhandled throw propagates past the
-  // client-only CardErrorBoundary and crashes the entire page with
-  // "An error occurred in the Server Components render". Same bug class as
-  // NicheHealthPanel / RevenuePerSiteCard (fixed in PR #961).
-  const sites = await listSites().catch(() => []);
+  // Previously an N+1 pattern: listSites() + N * (getClickCount x2,
+  // countProducts, countContent). Now a single RPC call
+  // (get_multi_niche_overview) that does all the work in one query using
+  // LEFT JOIN + LATERAL aggregate. Reduces 1+(N*4) queries to 1.
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  if (sites.length === 0) {
+  const sb = getAnonClient();
+  let rpcData: MultiNicheRpcRow[] | null = null;
+  try {
+    const result = await sb.rpc("get_multi_niche_overview", {
+      p_today_start: todayStart,
+      p_seven_days_ago: sevenDaysAgo,
+    });
+    rpcData = result.data;
+    if (result.error) rpcData = null;
+  } catch {
+    // Degrade to empty state — same resilience pattern as other dashboard cards.
+  }
+
+  if (!rpcData || rpcData.length === 0) {
     return (
       <section className="space-y-4">
         <Card>
@@ -66,33 +88,16 @@ export async function MultiNicheOverview() {
     );
   }
 
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-  const nicheStats: NicheStats[] = await Promise.all(
-    sites.map(async (site) => {
-      // Per-site calls can fail individually without taking down the whole
-      // table. Degrade to zeros for the failing site.
-      const [clicksToday, clicks7d, totalProducts, totalContent] = await Promise.all([
-        getClickCount(site.id, todayStart).catch(() => 0),
-        getClickCount(site.id, sevenDaysAgo).catch(() => 0),
-        countProducts({ siteId: site.id }).catch(() => 0),
-        countContent({ siteId: site.id }).catch(() => 0),
-      ]);
-
-      return {
-        siteId: site.id,
-        name: site.name,
-        slug: site.slug,
-        clicks7d,
-        clicksToday,
-        totalProducts,
-        totalContent,
-        isActive: site.is_active,
-      };
-    }),
-  );
+  const nicheStats: NicheStats[] = rpcData.map((row: MultiNicheRpcRow) => ({
+    siteId: row.site_id,
+    name: row.name,
+    slug: row.slug,
+    clicks7d: row.clicks_7d,
+    clicksToday: row.clicks_today,
+    totalProducts: row.total_products,
+    totalContent: row.total_content,
+    isActive: row.is_active,
+  }));
 
   const totalClicksToday = nicheStats.reduce((sum, s) => sum + s.clicksToday, 0);
   const totalClicks7d = nicheStats.reduce((sum, s) => sum + s.clicks7d, 0);
@@ -112,11 +117,11 @@ export async function MultiNicheOverview() {
           <CardHeader className="px-5 [&>div]:!gap-0">
             <CardDescription>Total Sites</CardDescription>
             <CardTitle className="text-3xl font-bold tracking-tight tabular-nums">
-              {sites.length}
+              {nicheStats.length}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 text-xs text-muted-foreground">
-            {sites.filter((s) => s.is_active).length} active
+            {nicheStats.filter((s) => s.isActive).length} active
           </CardContent>
         </Card>
         <Card className="gap-1 py-5">

@@ -3,8 +3,20 @@ import { getClickCount, getDailyClicks, getTopProducts } from "./affiliate-click
 import { countContent } from "./content";
 import { countProducts } from "./products";
 import { listSites } from "./sites";
+import { logger } from "@/lib/logger";
 
 // ── Types ───────────────────────────────────────────────────────────────
+
+/** Raw row returned by the get_domain_performance RPC */
+interface DomainPerformanceRpcRow {
+  site_id: string;
+  slug: string;
+  name: string;
+  domain: string;
+  clicks: number;
+  est_revenue_per_click: number;
+  revenue: number;
+}
 
 export interface RevenueTrendPoint {
   date: string;
@@ -186,24 +198,29 @@ export async function getDomainPerformance(
   sinceIso: string,
   getClient: DalClientGetter = defaultDalClientGetter,
 ): Promise<DomainPerformanceRow[]> {
-  const sites = await listSites(getClient);
+  // Previously an N+1 pattern: listSites() + N * getClickCount().
+  // Now a single RPC call (get_domain_performance) that does a LEFT JOIN
+  // + LATERAL aggregate in one query. Reduces 1+N queries to 1.
+  const sb = await getClient();
+  const { data, error } = await sb.rpc("get_domain_performance", {
+    p_since: sinceIso,
+  });
 
-  const rows = await Promise.all(
-    sites.map(async (site) => {
-      const clicks = await getClickCount(site.id, sinceIso, undefined, getClient);
-      const ratePerClick = Number(site.est_revenue_per_click ?? 0);
-      return {
-        siteId: site.id,
-        slug: site.slug,
-        name: site.name,
-        domain: site.domain,
-        clicks,
-        revenue: parseFloat((clicks * ratePerClick).toFixed(2)),
-      } satisfies DomainPerformanceRow;
-    }),
-  );
+  if (error) {
+    logger.warn("[analytics] get_domain_performance RPC failed", {
+      error: error.message,
+    });
+    return [];
+  }
 
-  return rows.sort((a, b) => b.clicks - a.clicks);
+  return (data ?? []).map((row: DomainPerformanceRpcRow) => ({
+    siteId: row.site_id,
+    slug: row.slug,
+    name: row.name,
+    domain: row.domain,
+    clicks: row.clicks,
+    revenue: Number(row.revenue),
+  }));
 }
 
 // ── Conversion funnel ───────────────────────────────────────────────────

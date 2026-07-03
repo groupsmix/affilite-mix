@@ -1,8 +1,8 @@
 // Card composition patterns adapted from https://github.com/Qualiora/shadboard (MIT).
 import { unstable_cache } from "next/cache";
 
-import { getClickCount } from "@/lib/dal/affiliate-clicks";
-import { listSites } from "@/lib/dal/sites";
+import { getAnonClient } from "@/lib/supabase-server";
+import { logger } from "@/lib/logger";
 
 /**
  * Per-site click + estimated-revenue aggregate used by the super-admin
@@ -10,11 +10,11 @@ import { listSites } from "@/lib/dal/sites";
  *
  * Computation: `revenue = clicks × est_revenue_per_click`. Both inputs come
  * from existing tables (`affiliate_clicks` for clicks, `sites` for the
- * per-site rate) — no new migrations, RPCs, or columns are introduced.
+ * per-site rate).
  *
- * The underlying query is one cheap COUNT per active site. Even at ~50 sites
- * that is still fast, but since the dashboard auto-refreshes every 60 s we
- * wrap the computation in `unstable_cache` to avoid thrashing the database.
+ * Previously this used an N+1 pattern (listSites() + N * getClickCount()).
+ * Now a single RPC call (get_revenue_per_site) does the work in one query
+ * using LEFT JOIN + LATERAL aggregate. Reduces 1+N queries to 1.
  */
 export interface SiteRevenueRow {
   /** Stable DB UUID for the site (used as React key). */
@@ -28,6 +28,16 @@ export interface SiteRevenueRow {
   /** Per-site configured revenue per click (USD). */
   ratePerClick: number;
   /** Derived: clicks × ratePerClick (USD). */
+  revenue: number;
+}
+
+/** Raw row returned by the get_revenue_per_site RPC */
+interface RevenuePerSiteRpcRow {
+  site_id: string;
+  slug: string;
+  name: string;
+  clicks: number;
+  rate_per_click: number;
   revenue: number;
 }
 
@@ -54,25 +64,26 @@ export async function getRevenuePerSite(sinceIso: string): Promise<SiteRevenueRo
 
 const cachedRevenueQuery = unstable_cache(
   async (sinceIso: string): Promise<SiteRevenueRow[]> => {
-    const sites = await listSites();
+    const sb = getAnonClient();
+    const { data, error } = await sb.rpc("get_revenue_per_site", {
+      p_since: sinceIso,
+    });
 
-    const rows = await Promise.all(
-      sites.map(async (site) => {
-        const clicks = await getClickCount(site.id, sinceIso);
-        const ratePerClick = Number(site.est_revenue_per_click ?? 0);
-        return {
-          siteId: site.id,
-          slug: site.slug,
-          name: site.name,
-          clicks,
-          ratePerClick,
-          revenue: clicks * ratePerClick,
-        } satisfies SiteRevenueRow;
-      }),
-    );
+    if (error) {
+      logger.warn("[revenue] get_revenue_per_site RPC failed", {
+        error: error.message,
+      });
+      return [];
+    }
 
-    // Sort by revenue desc so the top-earning niche is always first.
-    return rows.sort((a, b) => b.revenue - a.revenue);
+    return (data ?? []).map((row: RevenuePerSiteRpcRow) => ({
+      siteId: row.site_id,
+      slug: row.slug,
+      name: row.name,
+      clicks: row.clicks,
+      ratePerClick: Number(row.rate_per_click),
+      revenue: Number(row.revenue),
+    }));
   },
   ["dashboard-revenue-per-site"],
   {
