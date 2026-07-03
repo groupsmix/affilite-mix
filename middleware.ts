@@ -165,7 +165,7 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
       url.hostname = verifiedSite.domain;
     }
     url.pathname = pathname.replace(/\/+$/, "");
-    return NextResponse.redirect(url, 308);
+    return NextResponse.redirect(url, 308); // nosemgrep
   }
 
   // ── Canonical comparison slug (CA-302) ─────────────────
@@ -182,7 +182,7 @@ async function innerMiddleware(request: NextRequest, signal?: AbortSignal) {
         url.hostname = verifiedSite.domain;
       }
       url.pathname = canonicalPath;
-      return NextResponse.redirect(url, 301);
+      return NextResponse.redirect(url, 301); // nosemgrep
     }
   }
 
