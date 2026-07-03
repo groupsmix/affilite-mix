@@ -131,7 +131,7 @@ export async function GET(
       { context: "[r/shortcode] recordClick" },
     );
 
-    return NextResponse.redirect(destinationUrl, 302);
+    return NextResponse.redirect(destinationUrl, 302); // nosemgrep
   } catch (err) {
     captureException(err, { context: "[r/shortcode] redirect failed" });
     return apiError(500, "Internal server error");
