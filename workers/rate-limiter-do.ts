@@ -97,8 +97,8 @@ export class RateLimiterDO {
     // section compared to two sequential get() calls. The Map only contains
     // entries that exist in storage; missing keys are absent (not undefined).
     const stored = await (this.state.storage as DOStorage).get<number>([WINDOW_KEY, COUNT_KEY]);
-    const storedWindow = stored.get(WINDOW_KEY);
-    let count = stored.get(COUNT_KEY) ?? 0;
+    const storedWindow = stored?.get(WINDOW_KEY);
+    let count = stored?.get(COUNT_KEY) ?? 0;
 
     // Roll the window on first sight (storedWindow unset) or when we've
     // advanced to a new bucket. Persisting WINDOW_KEY unconditionally on the

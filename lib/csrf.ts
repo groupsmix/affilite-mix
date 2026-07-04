@@ -63,7 +63,7 @@ function timingSafeCompare(a: string, b: string): boolean {
     // eliminate the timing-equalising loop. The expression always evaluates to
     // false for mismatched lengths (result is already poisoned by lenA ^ lenB),
     // but result is now live so the loop cannot be optimised away.
-    return result !== result + 1; // always false; keeps result live
+    return result === result + 1; // always false; keeps result live
   }
   // A3-02 / A7-04: Cap the equal-length loop to MAX_COMPARE_LEN so a
   // future increase in TOKEN_BYTES cannot make the loop unbounded.
