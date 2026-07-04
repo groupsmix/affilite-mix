@@ -7,7 +7,10 @@ import { SignJWT } from "jose";
  */
 async function mintAdminJwt(): Promise<string> {
   const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) throw new Error("JWT_SECRET must be set for E2E tests");
+  if (!jwtSecret) {
+    test.skip(true, "JWT_SECRET must be set for E2E tests");
+    return "";
+  }
   const secret = new TextEncoder().encode(jwtSecret);
   return new SignJWT({ email: "e2e-admin@example.com", userId: "e2e-admin", role: "super_admin" })
     .setProtectedHeader({ alg: "HS256" })

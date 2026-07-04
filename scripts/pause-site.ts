@@ -95,6 +95,28 @@ async function main() {
       "$1$2",
     );
 
+    // Pre-write sanity checks: confirm each transform actually changed
+    // what it was supposed to. A regex that silently no-ops (due to
+    // formatting or structural changes in index.ts) would write back an
+    // unchanged file, leaving the site still active and no error emitted.
+    const importLine = `from "./${target}"`;
+    if (updated.includes(importLine)) {
+      // The import is still present — the comment-out regex didn't match.
+      console.error(
+        `ERROR: Could not comment out the import for '${target}'. ` +
+          `The index.ts format may have changed. Edit manually.`,
+      );
+      process.exit(1);
+    }
+    const varName2 = toVarName(target);
+    if (new RegExp(`\\b${varName2}\\b`).test(updated)) {
+      console.error(
+        `ERROR: '${varName2}' is still referenced in index.ts after removal. ` +
+          `The allSites or re-export regex may have failed. Edit manually.`,
+      );
+      process.exit(1);
+    }
+
     fs.writeFileSync(indexPath, updated, "utf-8");
     console.log(`\n⏸️   ${target} paused. Domain will return 404.`);
   } else {
@@ -136,6 +158,22 @@ async function main() {
       /export \{([^}]+)\}/,
       (_, inner) => `export { ${inner.trim()}, ${varName} }`,
     );
+
+    // Pre-write sanity checks: confirm each transform produced the expected result.
+    if (!updated.includes(`from "./${target}"`)) {
+      console.error(
+        `ERROR: Could not add/uncomment the import for '${target}'. ` +
+          `The index.ts format may have changed. Edit manually.`,
+      );
+      process.exit(1);
+    }
+    if (!new RegExp(`\\ballSites\\b[^=]*=\\s*\\[[^\\]]*\\b${varName}\\b`).test(updated)) {
+      console.error(
+        `ERROR: '${varName}' was not added to allSites. ` +
+          `The allSites regex may have failed. Edit manually.`,
+      );
+      process.exit(1);
+    }
 
     fs.writeFileSync(indexPath, updated, "utf-8");
     console.log(`\n▶️   ${target} unpaused and active again!`);

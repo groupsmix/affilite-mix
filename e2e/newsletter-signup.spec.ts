@@ -31,14 +31,15 @@ test.describe("Newsletter Signup", () => {
     // Type an invalid email
     await emailInput.first().fill("not-an-email");
 
-    // Find and click the subscribe/submit button near the email input
-    const submitBtn = page.locator('button[type="submit"]:near(input[type="email"])');
+    // Find and click the subscribe/submit button within the same form
+    const form = emailInput.first().locator("xpath=ancestor::form");
+    const submitBtn = form.locator('button[type="submit"]');
     if ((await submitBtn.count()) > 0) {
       await submitBtn.first().click();
 
-      // HTML5 validation should prevent submission, or an error should appear
-      // Either way, page should not crash
-      await expect(page.locator("body")).toBeVisible();
+      // HTML5 validation should prevent submission
+      const isValid = await emailInput.first().evaluate((el: any) => el.validity.valid);
+      expect(isValid).toBe(false);
     }
   });
 
@@ -69,13 +70,14 @@ test.describe("Newsletter Signup", () => {
 
     await emailInput.first().fill("test@example.com");
 
-    const submitBtn = page.locator('button[type="submit"]:near(input[type="email"])');
+    const form = emailInput.first().locator("xpath=ancestor::form");
+    const submitBtn = form.locator('button[type="submit"]');
     if ((await submitBtn.count()) > 0) {
       await submitBtn.first().click();
 
-      // Should show a success message or the form should react
-      await page.waitForTimeout(1000);
-      await expect(page.locator("body")).toBeVisible();
+      await expect(page.getByText("Please check your email to confirm")).toBeVisible({
+        timeout: 5000,
+      });
     }
   });
 });

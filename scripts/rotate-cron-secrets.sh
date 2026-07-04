@@ -147,25 +147,41 @@ push_secret() {
 
 echo
 echo "Pushing to $MAIN_WORKER..."
-# T4-#7: track rotation phase so a mid-run failure (set -e exits) emits a
-# loud, actionable error instead of silently leaving main rotated but
-# heavy-crons on the old secret (→ 401 for ai-generate, commission-ingest,
-# price-scrape until someone notices and re-runs).
+# T4-#7 / SCRIPTS-02: Track rotation phase so ANY mid-run failure (set -e exits)
+# emits a loud, actionable error. Three phases:
+#   "pre"           — nothing has been pushed yet; a failure here is safe to re-run.
+#   "main-partial"  — at least one secret was pushed to the main worker; a failure
+#                     here leaves main partially rotated and heavy-crons untouched.
+#   "main-done"     — all main-worker secrets pushed; failure during heavy-crons loop
+#                     means main is on new secrets but heavy-crons is still old.
 ROTATION_PHASE="pre"
 trap '
-  if [ "$ROTATION_PHASE" = "main-done" ]; then
-    echo "" >&2
-    echo "================================================================" >&2
-    echo "PARTIAL ROTATION DETECTED — ACTION REQUIRED" >&2
-    echo "  $MAIN_WORKER  : ROTATED (new secrets)" >&2
-    echo "  $HEAVY_CRONS_WORKER : NOT ROTATED (still on old secrets)" >&2
-    echo "  Heavy-cron jobs (ai-generate, commission-ingest, price-scrape)" >&2
-    echo "  will 401 until you re-run this script or restore the prior" >&2
-    echo "  secrets manually." >&2
-    echo "================================================================" >&2
-  fi
+  case "$ROTATION_PHASE" in
+    main-partial)
+      echo "" >&2
+      echo "================================================================" >&2
+      echo "PARTIAL ROTATION DETECTED — ACTION REQUIRED" >&2
+      echo "  $MAIN_WORKER : PARTIALLY ROTATED (some secrets old, some new)" >&2
+      echo "  $HEAVY_CRONS_WORKER : NOT ROTATED (still on old secrets)" >&2
+      echo "  Re-run this script to complete rotation, or restore prior" >&2
+      echo "  secrets manually before the next cron fires." >&2
+      echo "================================================================" >&2
+      ;;
+    main-done)
+      echo "" >&2
+      echo "================================================================" >&2
+      echo "PARTIAL ROTATION DETECTED — ACTION REQUIRED" >&2
+      echo "  $MAIN_WORKER  : ROTATED (new secrets)" >&2
+      echo "  $HEAVY_CRONS_WORKER : NOT ROTATED (still on old secrets)" >&2
+      echo "  Heavy-cron jobs (ai-generate, commission-ingest, price-scrape)" >&2
+      echo "  will 401 until you re-run this script or restore the prior" >&2
+      echo "  secrets manually." >&2
+      echo "================================================================" >&2
+      ;;
+  esac
 ' ERR
 
+ROTATION_PHASE="main-partial"
 for name in "${CRON_SECRET_ENV_VARS[@]}"; do
   push_secret "$name" "${NEW_VALUES[$name]}" --name "$MAIN_WORKER"
   echo "  ✓ $name (main)"

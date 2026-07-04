@@ -226,7 +226,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
     "scheduling",
     "comparisons",
   ];
-  const features = input.featureFlags ?? expandFeatures(input.features ?? defaultFeatures);
+  const features = { ...(input.featureFlags ?? expandFeatures(input.features ?? defaultFeatures)) };
 
   // Apply homepage preset
   const homepage = input.homepage ?? "standard";
@@ -244,7 +244,7 @@ export function defineSite(input: SiteInput): SiteDefinition {
   const nav = input.nav ?? generateNav(contentTypes, features, isArabic);
 
   // Auto-generate footer nav
-  const footerNav = input.footerNav ?? generateFooterNav(contentTypes, input, isArabic);
+  const footerNav = input.footerNav ?? generateFooterNav(contentTypes, input, features, isArabic);
 
   // Product labels
   const productLabel = input.productLabel ?? (isArabic ? "منتج" : "Product");
@@ -344,6 +344,7 @@ function generateNav(
 function generateFooterNav(
   contentTypes: ContentTypeConfig[],
   input: SiteInput,
+  features: FeatureFlags,
   isArabic: boolean,
 ): Record<string, NavItem[]> {
   const quickLinks: NavItem[] = [{ title: isArabic ? "الرئيسية" : "Home", href: "/" }];
@@ -359,7 +360,7 @@ function generateFooterNav(
     });
   }
 
-  if (input.featureFlags?.giftFinder || input.features?.includes("giftFinder")) {
+  if (features.giftFinder) {
     quickLinks.push({
       title: isArabic ? "اختبار الهدايا" : "Gift Finder",
       href: "/gift-finder",

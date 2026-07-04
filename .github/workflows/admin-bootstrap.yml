@@ -23,6 +23,7 @@ permissions:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # F-017: Use dedicated break-glass environment for production with required reviewers
     # Configure 'production-break-glass' environment in GitHub repo settings with:
     # - Required reviewers: at least 2

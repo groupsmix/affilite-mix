@@ -24,7 +24,16 @@ function makeState() {
       return alarmAt;
     },
     storage: {
-      get: async <T>(key: string): Promise<T | undefined> => map.get(key) as T | undefined,
+      get: async (key: string | string[]) => {
+        if (Array.isArray(key)) {
+          const res = new Map<string, unknown>();
+          for (const k of key) {
+            if (map.has(k)) res.set(k, map.get(k));
+          }
+          return res;
+        }
+        return map.get(key);
+      },
       put: async <T>(key: string, value: T): Promise<void> => {
         map.set(key, value);
       },

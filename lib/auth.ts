@@ -385,6 +385,14 @@ function isValidAdminPayload(payload: Record<string, unknown>): boolean {
   // aud: jose already verified it equals "affilite-mix-admin"; re-check here
   // as belt-and-braces against a future config regression.
   if (payload.aud !== "affilite-mix-admin") return false;
+  // Validate all optional fields that are casted to AdminPayload
+  if (payload.email !== undefined && typeof payload.email !== "string") return false;
+  if (payload.bnd !== undefined && typeof payload.bnd !== "string") return false;
+  if (payload.session_start !== undefined && typeof payload.session_start !== "number")
+    return false;
+  if (payload.step_up_at !== undefined && typeof payload.step_up_at !== "number") return false;
+  if (payload.site_id !== undefined && typeof payload.site_id !== "string") return false;
+  if (payload.jti !== undefined && typeof payload.jti !== "string") return false;
   return true;
 }
 
@@ -598,7 +606,9 @@ export async function getAdminSession(): Promise<AdminPayload | null> {
 
   // SEC-CRIT-04: Each defence reads its own flag. ADMIN_SESSION_STRICT (legacy
   // umbrella) still implies all three; individual flags allow precise toggling.
-  const idleStrict = isAdminControlEnabled("ADMIN_SESSION_IDLE_STRICT");
+  // SEC-FIX: Idle timeout is now DEFAULT-ON for standard deployments.
+  const idleFlag = parseTriBoolEnv("ADMIN_SESSION_IDLE_STRICT");
+  const idleStrict = idleFlag !== null ? idleFlag : parseBoolEnv("ADMIN_SESSION_STRICT", true);
   const bindingStrict = isAdminControlEnabled("ADMIN_SESSION_BINDING_STRICT");
 
   // G-15 / P1-8 / SEC-CRIT-04: Server-side idle timeout — the activity cookie

@@ -25,6 +25,8 @@
 
 interface DOStorage {
   get<T = unknown>(key: string): Promise<T | undefined>;
+  /** Multi-key read: returns a Map<key, value> with only the found entries. */
+  get<T = unknown>(keys: string[]): Promise<Map<string, T>>;
   put<T = unknown>(key: string, value: T): Promise<void>;
   delete(key: string): Promise<boolean>;
   setAlarm(scheduledTime: number | Date): Promise<void>;
@@ -91,8 +93,12 @@ export class RateLimiterDO {
     const now = Date.now();
     const windowId = Math.floor(now / windowMs);
 
-    const storedWindow = await this.state.storage.get<number>(WINDOW_KEY);
-    let count = (await this.state.storage.get<number>(COUNT_KEY)) ?? 0;
+    // Perf: single multi-key read halves DO storage I/O inside the critical
+    // section compared to two sequential get() calls. The Map only contains
+    // entries that exist in storage; missing keys are absent (not undefined).
+    const stored = await (this.state.storage as DOStorage).get<number>([WINDOW_KEY, COUNT_KEY]);
+    const storedWindow = stored.get(WINDOW_KEY);
+    let count = stored.get(COUNT_KEY) ?? 0;
 
     // Roll the window on first sight (storedWindow unset) or when we've
     // advanced to a new bucket. Persisting WINDOW_KEY unconditionally on the

@@ -1,0 +1,50 @@
+﻿# scripts/admin-authz-allowlist.txt
+#
+# Allowlist for check-admin-authz.sh
+#
+# Each non-comment line is a repo-relative path to an admin API route that is
+# legitimately exempt from the requireAdmin()/withAuthz()/withAuthzDynamic()
+# guard requirement. Add a comment on the preceding line explaining why.
+#
+# FORMAT: one path per line, relative to the repo root, no leading slash.
+# PROCESS: to add a new exemption, add the path AND a justification comment
+#          here. The script reads this file at runtime, so no script changes needed.
+
+# Multi-site onboarding; guarded by requireSuperAdmin() directly inside the handler.
+app/api/admin/sites/route.ts
+
+# Per-site management; guarded by requireSuperAdmin() directly inside the handler.
+app/api/admin/sites/[id]/route.ts
+
+# Read-only active-site query used by the site-selector UI; session validated via
+# requireAdminSession() which does not resolve a dbSiteId (pre-selection context).
+app/api/admin/sites/active/route.ts
+
+# Site-selection endpoint; uses requireAdminSession() intentionally before site
+# context is established so the user can pick which site to manage.
+app/api/admin/sites/select/route.ts
+
+# Aggregate stats across all sites; guarded by requireSuperAdmin().
+app/api/admin/sites/stats/route.ts
+
+# Site template listing; guarded by requireSuperAdmin().
+app/api/admin/sites/templates/route.ts
+
+# User management; guarded by requireSuperAdmin().
+app/api/admin/users/route.ts
+
+# Self-profile read/write; session validated via requireAdminSession() because the
+# route operates on the authenticated user's own record, not a site-scoped resource.
+app/api/admin/users/me/route.ts
+
+# Password change for the authenticated admin; uses requireAdminSession() + step-up.
+app/api/admin/users/me/password/route.ts
+
+# TOTP enrol/disable for the authenticated admin; uses requireAdminSession() + step-up.
+app/api/admin/users/me/totp/route.ts
+
+# Feature flag management; guarded by requireSuperAdmin().
+app/api/admin/feature-flags/route.ts
+
+# Permission listing/assignment; guarded by requireSuperAdmin().
+app/api/admin/permissions/route.ts

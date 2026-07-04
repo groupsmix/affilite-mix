@@ -30,7 +30,10 @@ const ADMIN_COOKIE = "nh_admin_token";
  */
 async function signAdminToken(): Promise<string> {
   const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) throw new Error("JWT_SECRET must be set for e2e tests");
+  if (!jwtSecret) {
+    test.skip(true, "JWT_SECRET must be set for e2e tests");
+    return "";
+  }
   const secret = new TextEncoder().encode(jwtSecret);
   // audience/issuer MUST match lib/auth.ts verifyToken() — note "affilite" spelling.
   return new SignJWT({ email: "e2e-admin@example.com", userId: "e2e-admin", role: "super_admin" })

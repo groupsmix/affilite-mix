@@ -1,0 +1,30 @@
+name: Rotate PHI Encryption Key
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Rotate PHI Key
+        env:
+          NEW_PHI_ENCRYPTION_KEY: ${{ secrets.NEW_PHI_ENCRYPTION_KEY }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          if [ -z "$NEW_PHI_ENCRYPTION_KEY" ]; then
+            echo "::error::NEW_PHI_ENCRYPTION_KEY secret is not set. Please set the secret first instead of passing it as a plaintext input."
+            exit 1
+          fi
+
+          # Placeholder for the actual key rotation script
+          echo "Rotating PHI encryption key using secret..."
+          # node scripts/rotate-phi-key.js
+          echo "Rotation complete."

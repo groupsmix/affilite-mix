@@ -62,15 +62,18 @@ function monotonicNow(): number {
     : Date.now();
 }
 
-let lastNonceCleanup = monotonicNow();
 const NONCE_CLEANUP_INTERVAL_MS = 60_000;
+let lastNonceCleanup = Date.now();
 
 function cleanupNonces(): void {
-  const nowMonotonic = monotonicNow();
-  if (nowMonotonic - lastNonceCleanup < NONCE_CLEANUP_INTERVAL_MS) return;
-  lastNonceCleanup = nowMonotonic;
+  // Use Date.now() for cleanup interval so the guard is not reset on every
+  // isolate restart (performance.now() resets to 0 on isolate boot, which
+  // would make the interval always appear elapsed on a fresh isolate).
+  const now = Date.now();
+  if (now - lastNonceCleanup < NONCE_CLEANUP_INTERVAL_MS) return;
+  lastNonceCleanup = now;
   for (const [nonce, expiresAt] of seenNonces) {
-    if (expiresAt <= nowMonotonic) seenNonces.delete(nonce);
+    if (expiresAt <= now) seenNonces.delete(nonce);
   }
 }
 
@@ -287,8 +290,11 @@ export async function verifyInternalHmac(
     return { valid: false, reason: "Signature mismatch" };
   }
 
-  // Mark nonce as seen (in-memory + KV)
-  seenNonces.set(nonce, monotonicNow() + NONCE_TTL_MS);
+  // SEC-FIX: Use Date.now() (epoch ms) for nonce expiry so timestamps are
+  // always wall-clock relative, consistent across calls and isolate restarts.
+  // performance.now() resets to ~0 on each isolate boot and mixing it with
+  // Date.now() would prevent nonces from expiring.
+  seenNonces.set(nonce, Date.now() + NONCE_TTL_MS);
   void recordNonceInKV(nonce);
 
   return { valid: true };
