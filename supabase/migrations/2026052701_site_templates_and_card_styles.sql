@@ -8,7 +8,7 @@
 --         'top10' (numbered list)
 ALTER TABLE sites ADD COLUMN IF NOT EXISTS homepage_template TEXT
   NOT NULL DEFAULT 'standard'
-  CHECK (homepage_template IN ('standard', 'cinematic', 'minimal', 'editorial', 'top10'));
+  CHECK (homepage_template IN ('standard', 'cinematic', 'minimal', 'editorial', 'top10', 'compare'));
 
 -- product_card_style: which product card variant to use across the site
 -- Values: 'standard' (current default card), 'compact' (horizontal/row),
@@ -20,7 +20,7 @@ ALTER TABLE sites ADD COLUMN IF NOT EXISTS product_card_style TEXT
 -- Also add these to niche_templates so templates can set default layouts
 ALTER TABLE niche_templates ADD COLUMN IF NOT EXISTS homepage_template TEXT
   NOT NULL DEFAULT 'standard'
-  CHECK (homepage_template IN ('standard', 'cinematic', 'minimal', 'editorial', 'top10'));
+  CHECK (homepage_template IN ('standard', 'cinematic', 'minimal', 'editorial', 'top10', 'compare'));
 
 ALTER TABLE niche_templates ADD COLUMN IF NOT EXISTS product_card_style TEXT
   NOT NULL DEFAULT 'standard'

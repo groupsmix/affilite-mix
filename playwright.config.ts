@@ -60,7 +60,15 @@ export default defineConfig({
     // Pre-accepted cookie consent so the banner doesn't steal focus
     // or overlay content during tests. Tests that need the banner
     // (e.g. cookie-consent) call context.clearCookies() first.
-    storageState: path.join(__dirname, "e2e", ".auth", "storage-state.json"),
+    storageState: (() => {
+      const statePath = path.join(__dirname, "e2e", ".auth", "storage-state.json");
+      const fs = require("node:fs");
+      if (!fs.existsSync(statePath)) {
+        fs.mkdirSync(path.dirname(statePath), { recursive: true });
+        fs.writeFileSync(statePath, JSON.stringify({ cookies: [], origins: [] }));
+      }
+      return statePath;
+    })(),
     // Bypass CSP in local dev: webpack's eval-source-map (used by Next.js
     // dev mode) is blocked by the app's strict `script-src` policy, which
     // prevents React from hydrating and makes all interaction tests fail.

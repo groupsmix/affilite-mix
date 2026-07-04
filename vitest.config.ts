@@ -31,10 +31,10 @@ export default defineConfig({
       // documenting why. C1: ratcheted 2026-05-29 from 23/19/19/23 to
       // measured levels (24/20/20/24).
       thresholds: {
-        statements: 24,
-        branches: 20,
-        functions: 20,
-        lines: 24,
+        statements: 80,
+        branches: 80,
+        functions: 80,
+        lines: 80,
         // Per-directory gates for critical code paths — set to current levels
         "lib/auth*": { statements: 50, branches: 46, functions: 71, lines: 52 },
         "lib/authz*": { statements: 58, branches: 62, functions: 57, lines: 60 },

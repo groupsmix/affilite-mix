@@ -9,7 +9,11 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Quota Exhaustion", () => {
-  test("gift-finder respects rate limits", async ({ request }) => {
+  test("gift-finder respects rate limits", async ({ request, browserName }) => {
+    if (browserName !== "chromium") {
+      test.skip(true, "Rate limiting tests only need to run on one browser");
+      return;
+    }
     // Send requests until rate-limited
     let rateLimited = false;
     for (let i = 0; i < 35; i++) {
@@ -25,7 +29,12 @@ test.describe("Quota Exhaustion", () => {
     expect(rateLimited).toBe(true);
   });
 
-  test("membership checkout respects rate limits", async ({ request }) => {
+  test("membership checkout respects rate limits", async ({ request, browserName }) => {
+    if (browserName !== "chromium") {
+      test.skip(true, "Rate limiting tests only need to run on one browser");
+      return;
+    }
+
     const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     if (supaUrl.includes("placeholder")) {
       test.skip(true, "Requires real Supabase backend for Stripe checkout rate limiting");

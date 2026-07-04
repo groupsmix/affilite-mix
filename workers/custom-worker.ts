@@ -390,6 +390,15 @@ const worker = {
 // options callback receives the Cloudflare `env` binding object (NOT
 // `process.env`); SENTRY_DSN is plumbed through wrangler.jsonc vars /
 // secrets the same way every other Worker-scoped secret is.
+//
+// INSTRUMENTATION NOTE (audit-M-001): `withSentry` wraps the entire `worker`
+// object, proxying every handler (fetch, scheduled, queue) — it does NOT skip
+// `fetch` in favour of a sub-property. The `worker.fetch` field here points
+// directly to `handler.fetch` (the OpenNext-generated fetch handler), so
+// Sentry *does* instrument that handler. Verified against @sentry/cloudflare
+// src/cloudflare/instrument.ts: the SDK iterates all own-property handlers on
+// the exported object and wraps each one. No special treatment for `.fetch`
+// nested under a sub-object occurs.
 export default withSentry((env: Record<string, unknown>) => {
   const dsn = typeof env.SENTRY_DSN === "string" ? env.SENTRY_DSN.trim() : "";
   const environment =

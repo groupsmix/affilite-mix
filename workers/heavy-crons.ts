@@ -15,6 +15,7 @@
  */
 
 import { getCronJobBySchedule, CRON_FALLBACK_SECRET_ENV } from "../lib/cron-registry";
+import { buildInternalHmacContext, signInternalRequest } from "../lib/internal-hmac";
 import { logger } from "../lib/logger";
 
 interface CloudflareScheduledController {
@@ -86,32 +87,43 @@ const worker = {
 
     const url = `${cronHost}${job.path}`;
     ctx.waitUntil(
-      fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${cronSecret}`,
-          "Content-Type": "application/json",
-        },
-      })
-        .then(async (res: Response) => {
-          const body = await res.text();
+      (async () => {
+        try {
+          // SEC: sign with HMAC (timestamp + nonce + context) so the cron
+          // dispatch is replay-resistant within the 60 s skew window — the
+          // same mechanism custom-worker.ts uses for queue dispatch.
+          const body = "";
+          const hmacHeaders = await signInternalRequest(
+            cronSecret,
+            body,
+            {
+              Authorization: `Bearer ${cronSecret}`,
+              "Content-Type": "application/json",
+            },
+            buildInternalHmacContext("POST", url),
+          );
+          const res = await fetch(url, {
+            method: "POST",
+            headers: hmacHeaders,
+          });
+          const resBody = await res.text();
           if (res.ok) {
             logger.info("[heavy-crons] dispatch responded", {
               job: job.name,
               status: res.status,
-              body,
+              body: resBody,
             });
           } else {
             logger.error("[heavy-crons] dispatch failed", {
               job: job.name,
               status: res.status,
-              body,
+              body: resBody,
             });
           }
-        })
-        .catch((err: unknown) => {
+        } catch (err: unknown) {
           logger.error("[heavy-crons] dispatch fetch error", { job: job.name, error: err });
-        }),
+        }
+      })(),
     );
   },
 };

@@ -118,9 +118,15 @@ REQUIRED_SECRETS=(
 )
 
 for secret in "${REQUIRED_SECRETS[@]}"; do
-    # Check if secret is set in GitHub Actions env
-    # Note: In CI, we check via env vars set in the workflow
-    echo "  $secret: checking..."
+    # Check if the variable is set AND non-empty in the current environment.
+    # In CI the deploy workflow must export these before calling this script;
+    # locally operators should source their .env.production file first.
+    if [[ -z "${!secret:-}" ]]; then
+        echo "  MISSING: $secret"
+        FAILURES+=("Required secret '$secret' is not set in the environment")
+    else
+        echo "  OK: $secret"
+    fi
 done
 
 # ──────────────────────────────────────────────────────────────

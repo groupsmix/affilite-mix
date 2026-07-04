@@ -39,6 +39,7 @@ jobs:
     # Actions variables after an incident. Nightly failure is the alert.
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Assert SKIP_DB_MIGRATIONS is unset
         env:
@@ -78,6 +79,7 @@ jobs:
   audit:
     name: npm audit (moderate+)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -107,6 +109,7 @@ jobs:
   licenses:
     name: License compliance
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -143,6 +146,7 @@ jobs:
     # Only runs on pull_request — the action is a no-op on push/schedule.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -155,6 +159,7 @@ jobs:
   gitleaks:
     name: Secret leak prevention
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -173,6 +178,7 @@ jobs:
   socket-security:
     name: Socket.dev supply chain scan
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -224,16 +230,17 @@ jobs:
   codeql:
     name: CodeQL SAST
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       security-events: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v3
         with:
           languages: javascript-typescript
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v3
 
   # FR-015: run the in-repo Semgrep rules (.semgrep/) in CI. The custom rules
   # encode project-specific security conventions (getClientIp usage, admin-route
@@ -247,6 +254,7 @@ jobs:
   semgrep:
     name: Semgrep SAST (custom rules)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       security-events: write
@@ -289,7 +297,7 @@ jobs:
 
       - name: Upload Semgrep SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v3
         with:
           sarif_file: semgrep.sarif
           category: semgrep

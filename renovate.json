@@ -2,7 +2,6 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "schedule:weekly", ":separateMultipleMajorReleases"],
   "labels": ["dependencies"],
-  "automerge": false,
   "automergeType": "pr",
   "automergeStrategy": "squash",
   "packageRules": [
@@ -18,20 +17,22 @@
       "automerge": true
     },
     {
-      "description": "Require manual review for major updates",
+      "description": "Require manual review for major updates — kept as individual PRs via :separateMultipleMajorReleases",
       "matchUpdateTypes": ["major"],
       "automerge": false,
       "reviewers": ["groupsmix"]
     },
     {
-      "description": "Group GitHub Actions updates",
+      "description": "Group GitHub Actions patch & minor updates — matchUpdateTypes excludes majors so a single major bump cannot poison the group's automerge resolution",
       "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["patch", "minor"],
       "groupName": "github-actions",
       "automerge": true
     },
     {
-      "description": "Group devDependencies",
+      "description": "Group devDependency patch & minor updates — matchUpdateTypes excludes majors for the same reason; majors are handled individually by the rule above",
       "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
       "groupName": "dev-dependencies",
       "automerge": true
     }
@@ -41,3 +42,4 @@
     "labels": ["security"]
   }
 }
+

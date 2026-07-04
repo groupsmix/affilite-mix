@@ -485,8 +485,13 @@ export async function fetchStagingBytes(stagingKey: string, byteCount = 32): Pro
     headers: { ...signed.headers, Range: `bytes=0-${byteCount - 1}` },
     timeoutMs: 15000,
   });
-  if (!res.ok && res.status !== 206) {
-    throw new Error(`R2 staging read failed: ${res.status}`);
+  // SEC-FIX: Require strictly 206 Partial Content. A 200 OK means R2 ignored
+  // the Range header and returned the full object body, which defeats the
+  // magic-byte-only design and risks memory exhaustion on large uploads.
+  if (res.status !== 206) {
+    // Drain the body to avoid leaking the connection, then throw.
+    await res.body?.cancel().catch(() => {});
+    throw new Error(`R2 staging read expected 206, got ${res.status}`);
   }
   return new Uint8Array(await res.arrayBuffer());
 }
