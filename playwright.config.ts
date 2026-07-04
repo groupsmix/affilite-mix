@@ -63,9 +63,11 @@ export default defineConfig({
     storageState: (() => {
       const statePath = path.join(__dirname, "e2e", ".auth", "storage-state.json");
       const fs = require("node:fs");
-      if (!fs.existsSync(statePath)) {
-        fs.mkdirSync(path.dirname(statePath), { recursive: true });
-        fs.writeFileSync(statePath, JSON.stringify({ cookies: [], origins: [] }));
+      fs.mkdirSync(path.dirname(statePath), { recursive: true });
+      try {
+        fs.writeFileSync(statePath, JSON.stringify({ cookies: [], origins: [] }), { flag: "wx" });
+      } catch (e) {
+        if (e.code !== "EEXIST") throw e;
       }
       return statePath;
     })(),
