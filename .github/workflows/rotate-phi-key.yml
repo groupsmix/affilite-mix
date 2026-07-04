@@ -23,7 +23,7 @@ jobs:
             echo "::error::NEW_PHI_ENCRYPTION_KEY secret is not set. Please set the secret first instead of passing it as a plaintext input."
             exit 1
           fi
-          
+
           # Placeholder for the actual key rotation script
           echo "Rotating PHI encryption key using secret..."
           # node scripts/rotate-phi-key.js

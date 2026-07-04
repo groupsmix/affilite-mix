@@ -32,7 +32,7 @@ test.describe("Newsletter Signup", () => {
     await emailInput.first().fill("not-an-email");
 
     // Find and click the subscribe/submit button within the same form
-    const form = emailInput.first().locator('xpath=ancestor::form');
+    const form = emailInput.first().locator("xpath=ancestor::form");
     const submitBtn = form.locator('button[type="submit"]');
     if ((await submitBtn.count()) > 0) {
       await submitBtn.first().click();
@@ -70,12 +70,14 @@ test.describe("Newsletter Signup", () => {
 
     await emailInput.first().fill("test@example.com");
 
-    const form = emailInput.first().locator('xpath=ancestor::form');
+    const form = emailInput.first().locator("xpath=ancestor::form");
     const submitBtn = form.locator('button[type="submit"]');
     if ((await submitBtn.count()) > 0) {
       await submitBtn.first().click();
 
-      await expect(page.getByText("Please check your email to confirm")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Please check your email to confirm")).toBeVisible({
+        timeout: 5000,
+      });
     }
   });
 });

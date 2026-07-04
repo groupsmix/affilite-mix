@@ -20,7 +20,9 @@ describe("supabase migration filenames", () => {
       (prefixes[prefix!] ??= []).push(file);
     }
     const grandfathered = ["00038", "00039", "00070"];
-    const collisions = Object.entries(prefixes).filter(([prefix, files]) => files.length > 1 && !grandfathered.includes(prefix));
+    const collisions = Object.entries(prefixes).filter(
+      ([prefix, files]) => files.length > 1 && !grandfathered.includes(prefix),
+    );
     expect(collisions, `Migration prefix collisions: ${JSON.stringify(collisions)}`).toEqual([]);
   });
 

@@ -96,10 +96,7 @@ export class RateLimiterDO {
     // Perf: single multi-key read halves DO storage I/O inside the critical
     // section compared to two sequential get() calls. The Map only contains
     // entries that exist in storage; missing keys are absent (not undefined).
-    const stored = await (this.state.storage as DOStorage).get<number>([
-      WINDOW_KEY,
-      COUNT_KEY,
-    ]);
+    const stored = await (this.state.storage as DOStorage).get<number>([WINDOW_KEY, COUNT_KEY]);
     const storedWindow = stored.get(WINDOW_KEY);
     let count = stored.get(COUNT_KEY) ?? 0;
 

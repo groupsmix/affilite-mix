@@ -66,7 +66,7 @@ export default defineConfig({
       fs.mkdirSync(path.dirname(statePath), { recursive: true });
       try {
         fs.writeFileSync(statePath, JSON.stringify({ cookies: [], origins: [] }), { flag: "wx" });
-      } catch (e) {
+      } catch (e: any) {
         if (e.code !== "EEXIST") throw e;
       }
       return statePath;

@@ -388,7 +388,8 @@ function isValidAdminPayload(payload: Record<string, unknown>): boolean {
   // Validate all optional fields that are casted to AdminPayload
   if (payload.email !== undefined && typeof payload.email !== "string") return false;
   if (payload.bnd !== undefined && typeof payload.bnd !== "string") return false;
-  if (payload.session_start !== undefined && typeof payload.session_start !== "number") return false;
+  if (payload.session_start !== undefined && typeof payload.session_start !== "number")
+    return false;
   if (payload.step_up_at !== undefined && typeof payload.step_up_at !== "number") return false;
   if (payload.site_id !== undefined && typeof payload.site_id !== "string") return false;
   if (payload.jti !== undefined && typeof payload.jti !== "string") return false;

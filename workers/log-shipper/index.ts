@@ -103,11 +103,11 @@ async function postAlert(env: TailWorkerEnv, payload: CloudflareTailEvent): Prom
       /^10\./,
       /^172\.(1[6-9]|2\d|3[01])\./,
       /^192\.168\./,
-      /^169\.254\./,       // IPv4 link-local
-      /^::1$/,             // IPv6 loopback
+      /^169\.254\./, // IPv4 link-local
+      /^::1$/, // IPv6 loopback
       /^fe[89ab][0-9a-f]:/i, // fe80:: – fe bf:: link-local (covers fe80::/10)
-      /^f[cd]/i,           // fc00::/7 ULA (fc:: and fd::)
-      /^::ffff:/i,         // IPv4-mapped IPv6 (e.g. ::ffff:192.168.0.1)
+      /^f[cd]/i, // fc00::/7 ULA (fc:: and fd::)
+      /^::ffff:/i, // IPv4-mapped IPv6 (e.g. ::ffff:192.168.0.1)
       /^metadata\.google/,
       /^169\.254\.169\.254$/,
     ];
