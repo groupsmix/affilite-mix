@@ -26,6 +26,8 @@
     "test:a11y": "playwright test e2e/a11y.spec.ts",
     "lighthouse": "lhci autorun",
     "add-site": "tsx scripts/add-site.ts",
+    "check:site-drift": "tsx scripts/check-site-config-drift.ts",
+    "audit:password-hashes": "tsx scripts/audit-password-hashes.ts",
     "pause-site": "tsx scripts/pause-site.ts",
     "redesign-site": "tsx scripts/redesign-site.ts",
     "drain-dlq": "tsx scripts/drain-dlq.ts",
