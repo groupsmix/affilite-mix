@@ -34,7 +34,7 @@
 | `JWT_SECRET_PREVIOUS`                   | ⚠️ Optional       | 🔒 Secret | Used during key rotation (24h window) |
 | `JWT_ROTATION_STARTED_AT`               | ⚠️ Optional       | 🔒 Secret | ISO-8601 timestamp of rotation start  |
 | `ADMIN_SESSION_STRICT`                  | ✅ Set            | 🔒 Secret | Admin session hardening umbrella      |
-| `ADMIN_SESSION_TOKEN_REVOCATION_STRICT` | ⚠️ Optional       | 🔒 Secret | Inherits from umbrella if unset       |
+| `ADMIN_SESSION_TOKEN_REVOCATION_STRICT` | ✅ Set (`true`)   | 🔒 Secret | Deep-audit B3: fail-closed on KV outage. Does NOT inherit the umbrella for fail-closed — must be set explicitly. `false` is break-glass only (`docs/runbooks/kv-outage.md`) |
 | `ADMIN_SESSION_BINDING_STRICT`          | ⚠️ Optional       | 🔒 Secret | Inherits from umbrella if unset       |
 | `ADMIN_SESSION_IDLE_STRICT`             | ⚠️ Optional       | 🔒 Secret | Inherits from umbrella if unset       |
 
