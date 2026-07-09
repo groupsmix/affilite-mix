@@ -36,12 +36,12 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" \
 
 ## Impact Assessment
 
-| Component           | Impact         | Degradation Mode                  |
-| ------------------- | -------------- | --------------------------------- |
-| Rate limiting       | Degraded       | Per-isolate in-memory (60s grace) |
-| Admin guard cache   | Degraded       | Falls back to DB lookup           |
-| Site resolver cache | Degraded       | Falls back to DB lookup           |
-| Maintenance mode    | Non-functional | Cannot set/read maintenance flag  |
+| Component            | Impact          | Degradation Mode                                                  |
+| -------------------- | --------------- | ----------------------------------------------------------------- |
+| Rate limiting        | Degraded        | Per-isolate in-memory (60s grace)                                 |
+| Admin guard cache    | Degraded        | Falls back to DB lookup                                           |
+| Site resolver cache  | Degraded        | Falls back to DB lookup                                           |
+| Maintenance mode     | Non-functional  | Cannot set/read maintenance flag                                  |
 | Admin JWT revocation | **Fail-closed** | Admin sessions REJECTED while KV is down (strict mode, see below) |
 
 ## Mitigation
