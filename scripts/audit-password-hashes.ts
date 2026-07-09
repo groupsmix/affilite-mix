@@ -78,7 +78,13 @@ async function main() {
   const legacy = totals["legacy-pbkdf2"];
 
   if (asJson) {
-    console.log(JSON.stringify({ total: hashes.length, safeToRemovePbkdf2: legacy === 0, ...totals }, null, 2));
+    console.log(
+      JSON.stringify(
+        { total: hashes.length, safeToRemovePbkdf2: legacy === 0, ...totals },
+        null,
+        2,
+      ),
+    );
     process.exit(legacy === 0 ? 0 : 1);
   }
 
@@ -86,14 +92,18 @@ async function main() {
   console.log(`  current ($sha256$+bcrypt) : ${totals["current-prehash"]}`);
   console.log(`  bcrypt-only (auto-upgrades): ${totals["bcrypt-only"]}`);
   console.log(`  \u001b[${legacy === 0 ? 32 : 31}mlegacy PBKDF2             : ${legacy}\u001b[0m`);
-  if (totals.unknown > 0) console.log(`  \u001b[33munknown format            : ${totals.unknown}\u001b[0m`);
+  if (totals.unknown > 0)
+    console.log(`  \u001b[33munknown format            : ${totals.unknown}\u001b[0m`);
   console.log("");
 
   if (legacy === 0 && totals.unknown === 0) {
-    console.log("\u001b[32m✓ No legacy PBKDF2 hashes remain — safe to remove the PBKDF2 path.\u001b[0m\n");
+    console.log(
+      "\u001b[32m✓ No legacy PBKDF2 hashes remain — safe to remove the PBKDF2 path.\u001b[0m\n",
+    );
     process.exit(0);
   }
-  if (totals.unknown > 0) fail("Unknown hash formats present — investigate before removing any path.");
+  if (totals.unknown > 0)
+    fail("Unknown hash formats present — investigate before removing any path.");
   fail(`${legacy} legacy PBKDF2 hash(es) remain — do NOT remove the PBKDF2 path yet.`);
 }
 

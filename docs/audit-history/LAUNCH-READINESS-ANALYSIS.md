@@ -3,6 +3,7 @@
 > **⚠️ SUPERSEDED — STATUS UPDATE (2026-07-09).**
 > The 3 code blockers this document describes (broken build / lint / test
 > runner) are **resolved**. As of this date:
+>
 > - `npm run typecheck` — **clean** (0 errors)
 > - `eslint . --max-warnings=0` — **clean**
 > - full vitest suite — **passing**
@@ -11,6 +12,7 @@
 > scope). **Remaining launch work is operational, not code:** set/verify the
 > production secrets in Cloudflare, stand up staging, and run the two drift
 > gates added for this launch:
+>
 > - `npm run check:site-drift` — config/sites ↔ DB `sites` reconciliation
 > - `npm run audit:password-hashes` — gate before removing the PBKDF2 path
 >

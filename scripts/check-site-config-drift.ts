@@ -49,10 +49,7 @@ export type ConfigSite = { id: string; domain: string };
  * Compares static config sites against DB rows and returns the four
  * categories of drift.
  */
-export function computeSiteDrift(
-  configSites: ConfigSite[],
-  dbSites: DbSite[],
-): DriftReport {
+export function computeSiteDrift(configSites: ConfigSite[], dbSites: DbSite[]): DriftReport {
   const dbById = new Map(dbSites.map((s) => [s.id, s]));
   const configById = new Map(configSites.map((s) => [s.id, s]));
 
@@ -88,9 +85,7 @@ export function computeSiteDrift(
 
 export function hasBlockingDrift(report: DriftReport, strict = false): boolean {
   const hard =
-    report.missingInDb.length +
-    report.missingInConfig.length +
-    report.domainMismatch.length;
+    report.missingInDb.length + report.missingInConfig.length + report.domainMismatch.length;
   return hard + (strict ? report.activeMismatch.length : 0) > 0;
 }
 
@@ -115,9 +110,7 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data, error } = await sb
-    .from("sites")
-    .select("id, domain, is_active");
+  const { data, error } = await sb.from("sites").select("id, domain, is_active");
 
   if (error) {
     fail(`Failed to read sites table: ${error.message}`);
@@ -130,9 +123,7 @@ async function main() {
   const report = computeSiteDrift(configSites, dbSites);
 
   const hardDrift =
-    report.missingInDb.length +
-    report.missingInConfig.length +
-    report.domainMismatch.length;
+    report.missingInDb.length + report.missingInConfig.length + report.domainMismatch.length;
   const softDrift = report.activeMismatch.length;
   const totalDrift = hardDrift + (strict ? softDrift : 0);
 
@@ -159,14 +150,17 @@ async function main() {
 
   const line = (label: string, rows: unknown[]) => {
     const color = rows.length === 0 ? 32 : 31; // green / red
-    console.log(`\u001b[${color}m  ${rows.length === 0 ? "✓" : "✗"} ${label}: ${rows.length}\u001b[0m`);
+    console.log(
+      `\u001b[${color}m  ${rows.length === 0 ? "✓" : "✗"} ${label}: ${rows.length}\u001b[0m`,
+    );
   };
 
   line("In config but missing from DB", report.missingInDb);
   for (const r of report.missingInDb) console.log(`      - ${r.id} (${r.domain})`);
 
   line("In DB but missing from config", report.missingInConfig);
-  for (const r of report.missingInConfig) console.log(`      - ${r.id} (${r.domain ?? "no domain"})`);
+  for (const r of report.missingInConfig)
+    console.log(`      - ${r.id} (${r.domain ?? "no domain"})`);
 
   line("Domain mismatch (config vs DB)", report.domainMismatch);
   for (const r of report.domainMismatch)
@@ -190,8 +184,7 @@ async function main() {
 
 // Only auto-run when invoked directly (not when imported by tests).
 const invokedDirectly =
-  typeof process.argv[1] === "string" &&
-  /check-site-config-drift\.(ts|js)$/.test(process.argv[1]);
+  typeof process.argv[1] === "string" && /check-site-config-drift\.(ts|js)$/.test(process.argv[1]);
 
 if (invokedDirectly) {
   main().catch((err) => {
