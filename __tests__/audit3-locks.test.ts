@@ -195,7 +195,13 @@ describe("Audit-3 regression locks", () => {
       // all sites + global/auth events (site_id = NULL), hence the cross-tenant
       // .unsafeNoSiteFilter() opt-out. Reached only from super_admin/auth-gated
       // handlers; entry + rationale added to lib/security/service-role-allowlist.ts.
-      expect(count).toBeLessThanOrEqual(39);
+      // Bumped 39 -> 40: lib/dal/permissions.ts now imports getPrivilegedSupabaseClient
+      // because hasPermission() must read admin_users, user_site_roles, roles and
+      // permissions/role_permissions, all of which are service_role-only tables.
+      // The tenant client returned zero rows for these lookups, causing every
+      // /api/admin/* mutation behind withAuthz() to return 503. Rationale added to
+      // lib/security/service-role-allowlist.ts.
+      expect(count).toBeLessThanOrEqual(40);
     });
   });
 

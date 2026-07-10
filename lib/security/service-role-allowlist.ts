@@ -100,6 +100,15 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // path, which also passes the privileged client explicitly via lib/auth.ts).
   "lib/dal/admin-users.ts",
 
+  // AUTHZ-FIX: hasPermission() reads admin_users, user_site_roles, roles and
+  // permissions/role_permissions to decide feature-level access. These tables are
+  // service_role-only (migrations 00002 / 00033 / 00036 / 00040), so the tenant client
+  // returns zero rows and all /api/admin/* routes behind withAuthz() return 503.
+  // The privileged client is reached only through requireAdmin() / requireAdminSession()
+  // gated paths, and every site-scoped call retains an explicit .eq('site_id', ...) /
+  // .unsafeNoSiteFilter() guard.
+  "lib/dal/permissions.ts",
+
   // price_alerts has a service_role-only RLS policy by schema design
   // (migrations 00046/00055/00078; the public anon-insert path was removed
   // in 00034). No authenticated/anon policy exists, so a tenant-scoped client

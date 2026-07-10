@@ -49,7 +49,7 @@ export async function getStripeClient(secretKey: string): Promise<Stripe> {
     // A65-F2: Pin Stripe API version to prevent unexpected breaking changes
     // when Stripe updates the account's default version. Test webhook
     // compatibility before bumping this value.
-    apiVersion: "2026-05-27.dahlia",
+    apiVersion: "2026-06-24.dahlia",
     appInfo: { name: "affilite-mix" },
     httpClient: Ctor.createFetchHttpClient(),
   });
