@@ -59,7 +59,7 @@ export async function RevenuePerSiteCard({ sevenDaysAgo }: RevenuePerSiteCardPro
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No sites configured yet.</p>
+          <p className="text-sm text-muted-foreground">No revenue data in the last 7 days.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {rows.map((r) => {
