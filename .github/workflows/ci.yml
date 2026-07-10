@@ -597,7 +597,17 @@ jobs:
           #   membership id — a cancelled sub in any site is an entitlement
           #   leak, so it must consider every tenant. +2 calls.
           #   (4) +1 = the audited doc-reference comment in the same file.
-          BASELINE=93
+          # then 93 -> 95 (PR #979 / authz 503 fix): +2 audited opt-outs,
+          # both gated by requireAdmin() / requireAdminSession() and annotated
+          # with a `// SAFE:` comment at the call site:
+          #   (1) lib/authz.ts authorizeResource() — resolves a resource's real
+          #   site_id before enforcing the expected-site check; the privileged-client
+          #   query has no site_id to scope by until after the lookup.
+          #   (2) lib/dal/permissions.ts getRolePermissionCheck() — joins the
+          #   global `permissions` and `role_permissions` RBAC tables (no site_id
+          #   column) to decide feature-level access. The DAL already uses the
+          #   privileged client for these service_role-only tables.
+          BASELINE=95
           COUNT=$(grep -rn --include='*.ts' --include='*.tsx' 'unsafeNoSiteFilter' lib/ app/ 2>/dev/null | grep -v node_modules | grep -v __tests__ | wc -l | tr -d ' ')
           if [ "$COUNT" -gt "$BASELINE" ]; then
             echo "::error::unsafeNoSiteFilter() call-site count grew from $BASELINE to $COUNT. Each new call must be justified with an audit-ticket comment."

@@ -106,7 +106,7 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // returns zero rows and all /api/admin/* routes behind withAuthz() return 503.
   // The privileged client is reached only through requireAdmin() / requireAdminSession()
   // gated paths, and every site-scoped call retains an explicit .eq('site_id', ...) /
-  // .unsafeNoSiteFilter() guard.
+  // tenant opt-out guard.
   "lib/dal/permissions.ts",
 
   // price_alerts has a service_role-only RLS policy by schema design

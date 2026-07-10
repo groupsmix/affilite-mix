@@ -23,8 +23,8 @@ import { authzPrimaryRead } from "@/lib/read-after-write";
 // only to service_role. The tenant-scoped client minted by getTenantClient()
 // therefore returns zero rows for these queries, causing hasPermission() to
 // throw and every /api/admin/* route to return 503. Use the privileged client
-// for authz reads, with the existing site_id filters / unsafeNoSiteFilter()
-// opt-outs as the in-code tenant guard.
+// for authz reads, with the existing site_id filters and tenant opt-outs as
+// the in-code guard.
 // nosemgrep: service-role-import
 import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
@@ -235,7 +235,7 @@ async function getRolePermissionCheck(
   const { data, error } = await sb
     .from("permissions")
     .select("id, role_permissions!inner(role_id)")
-    // SAFE: permissions and role_permissions are global RBAC tables with no site_id; the privileged client requires the explicit .unsafeNoSiteFilter() opt-out.
+    // SAFE: permissions and role_permissions are global RBAC tables with no site_id; the privileged client requires the explicit tenant opt-out.
     .unsafeNoSiteFilter()
     .eq("feature", feature)
     .eq("action", action)
