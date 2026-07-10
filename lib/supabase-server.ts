@@ -11,6 +11,7 @@ import { getSiteRowBySlugWithClient } from "@/lib/dal/sites";
 import { timingSafeEqual } from "@/lib/internal-hmac";
 import { authzPrimaryRead } from "@/lib/read-after-write";
 import { getCircuitBreaker, CircuitOpenError } from "@/lib/ai/circuit-breaker";
+import { allSiteTags } from "@/lib/cache-tags";
 // F-1: signSiteIdFallback moved to lib/site-id-signer.ts (Edge-safe leaf)
 // to avoid pulling bcryptjs + jose/deflate into the middleware bundle.
 // Callers should import directly from @/lib/site-id-signer.
@@ -206,7 +207,14 @@ export async function getTenantClient(): Promise<SupabaseClient<Database>> {
     }
   }
 
-  return withNoopSiteFilterOptOut(await getAuthenticatedClient(siteId, userId, "authenticated"));
+  return withNoopSiteFilterOptOut(
+    await getAuthenticatedClient(
+      siteId,
+      userId,
+      "authenticated",
+      siteId ? allSiteTags(siteId) : [],
+    ),
+  );
 }
 
 /**
@@ -350,6 +358,7 @@ async function getAuthenticatedClient(
   siteId?: string | null,
   userId?: string | null,
   role = "authenticated",
+  cacheTags: string[] = [],
 ): Promise<SupabaseClient<Database>> {
   const url = getSupabaseUrl();
   const anonKey = requireEnvInProduction("NEXT_PUBLIC_SUPABASE_ANON_KEY");
@@ -374,9 +383,18 @@ async function getAuthenticatedClient(
         Authorization: `Bearer ${token}`,
       },
       fetch: async (input, init) => {
+        const nextOptions = (init as FetchWithTimeoutOptions | undefined)?.next;
         return fetchWithTimeout(input as string, {
           ...init,
           timeoutMs: 12000,
+          ...(cacheTags.length > 0
+            ? {
+                next: {
+                  revalidate: nextOptions?.revalidate ?? 60,
+                  tags: Array.from(new Set([...cacheTags, ...(nextOptions?.tags ?? [])])),
+                },
+              }
+            : {}),
         });
       },
     },
