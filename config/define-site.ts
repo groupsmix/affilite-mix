@@ -25,7 +25,14 @@ const FONT_PRESETS: Record<FontPreset, { heading: string; body: string }> = {
 /*  Homepage presets                                                    */
 /* ------------------------------------------------------------------ */
 
-type HomepagePreset = "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
+type HomepagePreset =
+  | "standard"
+  | "cinematic"
+  | "minimal"
+  | "editorial"
+  | "top10"
+  | "compare"
+  | "showcase";
 type ProductCardStylePreset = "standard" | "compact" | "detailed";
 
 /* ------------------------------------------------------------------ */

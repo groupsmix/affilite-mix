@@ -357,3 +357,48 @@ h6 {
 :focus:not(:focus-visible) {
   outline: none;
 }
+
+/* ─── Showcase homepage template (homepage_template = 'showcase') ──── *
+ * Scoped animations and serif utility for the immersive storefront
+ * homepage ported from the WristNerd design. All class names are
+ * prefixed `showcase-` so they cannot collide with existing utilities. */
+.showcase-serif {
+  font-family: var(--font-serif-landing, Georgia, "Times New Roman", serif);
+}
+
+.showcase-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.showcase-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes showcase-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.showcase-animate-marquee {
+  animation: showcase-marquee 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .showcase-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .showcase-animate-marquee {
+    animation: none;
+  }
+}
