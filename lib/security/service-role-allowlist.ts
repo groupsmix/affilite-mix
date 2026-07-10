@@ -91,6 +91,18 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // getAdminSession() — see lib/dal/site-resolver.ts for the full rationale.
   "lib/dal/site-resolver.ts",
 
+  // Admin cross-site site registry reads. listAdminSites in lib/dal/sites.ts and
+  // the Niche Health / Estimated Revenue DALs in lib/dal/niche-health.ts and
+  // lib/dal/revenue-per-site.ts query the global `sites` table and aggregate
+  // per-site clicks/content across tenants. The authenticated role has no SELECT
+  // policy on `sites`, and per-site tables (affiliate_clicks, products, content)
+  // are RLS-scoped to the active site, so the tenant client returned zero rows
+  // and the dashboard cards were blank. These DALs are reached only from the
+  // super_admin-gated dashboard (page.tsx renders them only when isSuperAdmin).
+  "lib/dal/sites.ts",
+  "lib/dal/niche-health.ts",
+  "lib/dal/revenue-per-site.ts",
+
   // Admin user reads/writes (Settings + Users tabs and /api/admin/users) target
   // the global `admin_users` table, whose RLS grants access to service_role only
   // (migrations 00002 / 00040 "admin_users_service_all"). The tenant client
@@ -99,6 +111,15 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // requireAdmin()-gated callers (and the rate-limited, signature-checked login
   // path, which also passes the privileged client explicitly via lib/auth.ts).
   "lib/dal/admin-users.ts",
+
+  // AUTHZ-FIX: hasPermission() reads admin_users, user_site_roles, roles and
+  // permissions/role_permissions to decide feature-level access. These tables are
+  // service_role-only (migrations 00002 / 00033 / 00036 / 00040), so the tenant client
+  // returns zero rows and all /api/admin/* routes behind withAuthz() return 503.
+  // The privileged client is reached only through requireAdmin() / requireAdminSession()
+  // gated paths, and every site-scoped call retains an explicit .eq('site_id', ...) /
+  // tenant opt-out guard.
+  "lib/dal/permissions.ts",
 
   // price_alerts has a service_role-only RLS policy by schema design
   // (migrations 00046/00055/00078; the public anon-insert path was removed

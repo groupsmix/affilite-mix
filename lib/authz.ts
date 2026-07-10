@@ -306,6 +306,10 @@ export async function authorizeResource(
       const sb = getPrivilegedSupabaseClient();
       const result = await untypedFrom(sb, table)
         .select("site_id")
+        // SAFE: resource ownership is resolved here; site_id is checked
+        // against the expected site below. The table is accessed with the
+        // privileged client which enforces an explicit site-filter opt-out.
+        .unsafeNoSiteFilter()
         .eq("id", opts.resourceId)
         .abortSignal(signal)
         .maybeSingle();

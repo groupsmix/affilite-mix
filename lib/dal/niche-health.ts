@@ -1,6 +1,12 @@
 import { defaultDalClientGetter, type DalClientGetter } from "./dal-client";
 import { MAX_LIMIT } from "./pagination-guard";
 import { logger } from "@/lib/logger";
+// The RPC aggregates global/cross-tenant data (products, content, clicks,
+// newsletter subscribers) across every active site. RLS policies on the
+// underlying tables only permit the current active site, so a tenant-scoped
+// client returns zero or partial data; the privileged client is required.
+// nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 export interface NicheHealthRow {
   site_id: string;
@@ -17,10 +23,13 @@ export interface NicheHealthRow {
  * Replaces the N+1 pattern of querying each table per site individually.
  * Results are capped at MAX_LIMIT to prevent unbounded result sets.
  */
+const defaultNicheHealthClientGetter: DalClientGetter = () =>
+  getPrivilegedSupabaseClient("niche-health");
+
 export async function getNicheHealthStats(
   sevenDaysAgo: string,
   fourteenDaysAgo: string,
-  getClient: DalClientGetter = defaultDalClientGetter,
+  getClient: DalClientGetter = defaultNicheHealthClientGetter,
 ): Promise<NicheHealthRow[]> {
   const sb = await getClient();
 
@@ -29,6 +38,8 @@ export async function getNicheHealthStats(
       p_seven_days_ago: sevenDaysAgo,
       p_fourteen_days_ago: fourteenDaysAgo,
     })
+    // SAFE: cross-tenant aggregate RPC has no p_site_id; the privileged client is used for this admin-only query.
+    .unsafeNoSiteFilter()
     .limit(MAX_LIMIT);
 
   if (error) {

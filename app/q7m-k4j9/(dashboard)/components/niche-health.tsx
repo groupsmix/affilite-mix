@@ -1,4 +1,4 @@
-import { listSites } from "@/lib/dal/sites";
+import { listAdminSites } from "@/lib/dal/sites";
 import { getNicheHealthStats } from "@/lib/dal/niche-health";
 import { logger } from "@/lib/logger";
 import Link from "next/link";
@@ -26,8 +26,8 @@ export async function NicheHealthPanel() {
   // degrades to an empty panel instead of crashing past CardErrorBoundary
   // (which does not catch Server Component errors during initial SSR).
   const [sites, stats] = await Promise.all([
-    listSites().catch((error: unknown) => {
-      logger.warn("[niche-health] listSites unavailable", {
+    listAdminSites().catch((error: unknown) => {
+      logger.warn("[niche-health] listAdminSites unavailable", {
         error: error instanceof Error ? error.message : String(error),
       });
       return [];
