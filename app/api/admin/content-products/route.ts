@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { contentTag } from "@/lib/cache-tags";
 import { setLinkedProducts } from "@/lib/dal/content-products";
 import { validateSetLinkedProducts } from "@/lib/validation";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -37,7 +38,7 @@ export const PUT = withAuthz(
       await setLinkedProducts(parsed.data.content_id, siteId, parsed.data.links, () =>
         getTenantClientForSite(siteId, session.userId),
       );
-      void revalidateTag(`content:${siteId}`);
+      void revalidateTag(contentTag(siteId));
       void recordAuditEvent({
         site_id: siteId,
         actor: session.email ?? session.userId ?? "admin",
