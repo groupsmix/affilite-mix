@@ -11,21 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { getClickCount } from "@/lib/dal/affiliate-clicks";
-import { countContent } from "@/lib/dal/content";
-import { countProducts } from "@/lib/dal/products";
-import { listSites } from "@/lib/dal/sites";
-
-interface NicheStats {
-  siteId: string;
-  name: string;
-  slug: string;
-  clicks7d: number;
-  clicksToday: number;
-  totalProducts: number;
-  totalContent: number;
-  isActive: boolean;
-}
+import { getMultiNicheOverview, type NicheStats } from "@/lib/dal/analytics-dashboard";
 
 function StatusBadge({ isActive }: { isActive: boolean }) {
   return (
@@ -43,15 +29,13 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
 }
 
 export async function MultiNicheOverview() {
-  // listSites() and the per-site DB calls (getClickCount, countProducts,
-  // countContent) throw on DB errors. This is a Server Component rendered
-  // inside the analytics page — an unhandled throw propagates past the
-  // client-only CardErrorBoundary and crashes the entire page with
-  // "An error occurred in the Server Components render". Same bug class as
-  // NicheHealthPanel / RevenuePerSiteCard (fixed in PR #961).
-  const sites = await listSites().catch(() => []);
+  // Cross-site overview: listSites() + per-site DB calls with the tenant
+  // client can only see the active site, so the page was blank. The DAL
+  // helper routes the whole rollup through the privileged client and degrades
+  // per-site failures to zeros so the page never crashes.
+  const nicheStats: NicheStats[] = await getMultiNicheOverview();
 
-  if (sites.length === 0) {
+  if (nicheStats.length === 0) {
     return (
       <section className="space-y-4">
         <Card>
@@ -66,41 +50,13 @@ export async function MultiNicheOverview() {
     );
   }
 
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-  const nicheStats: NicheStats[] = await Promise.all(
-    sites.map(async (site) => {
-      // Per-site calls can fail individually without taking down the whole
-      // table. Degrade to zeros for the failing site.
-      const [clicksToday, clicks7d, totalProducts, totalContent] = await Promise.all([
-        getClickCount(site.id, todayStart).catch(() => 0),
-        getClickCount(site.id, sevenDaysAgo).catch(() => 0),
-        countProducts({ siteId: site.id }).catch(() => 0),
-        countContent({ siteId: site.id }).catch(() => 0),
-      ]);
-
-      return {
-        siteId: site.id,
-        name: site.name,
-        slug: site.slug,
-        clicks7d,
-        clicksToday,
-        totalProducts,
-        totalContent,
-        isActive: site.is_active,
-      };
-    }),
-  );
-
   const totalClicksToday = nicheStats.reduce((sum, s) => sum + s.clicksToday, 0);
   const totalClicks7d = nicheStats.reduce((sum, s) => sum + s.clicks7d, 0);
   const totalProducts = nicheStats.reduce((sum, s) => sum + s.totalProducts, 0);
   const totalContent = nicheStats.reduce((sum, s) => sum + s.totalContent, 0);
 
-  // Sort by 7d clicks descending
-  const sorted = [...nicheStats].sort((a, b) => b.clicks7d - a.clicks7d);
+  // Already sorted by 7d clicks descending from the DAL
+  const sorted = nicheStats;
 
   return (
     <section className="mb-8" data-slot="multi-niche-overview">
@@ -112,11 +68,11 @@ export async function MultiNicheOverview() {
           <CardHeader className="px-5 [&>div]:!gap-0">
             <CardDescription>Total Sites</CardDescription>
             <CardTitle className="text-3xl font-bold tracking-tight tabular-nums">
-              {sites.length}
+              {nicheStats.length}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 text-xs text-muted-foreground">
-            {sites.filter((s) => s.is_active).length} active
+            {nicheStats.filter((s) => s.isActive).length} active
           </CardContent>
         </Card>
         <Card className="gap-1 py-5">

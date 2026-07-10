@@ -1,0 +1,21 @@
+initialize:
+  - uses: github.com/actions/setup-node@v4
+    with:
+      node-version: "22.22.2"
+
+maintenance: |
+  npm install
+
+knowledge:
+  - name: lint
+    contents: |
+      npm run lint
+  - name: test
+    contents: |
+      npm run test
+  - name: typecheck
+    contents: |
+      npm run typecheck:all
+  - name: build
+    contents: |
+      npm run build

@@ -103,6 +103,12 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   "lib/dal/niche-health.ts",
   "lib/dal/revenue-per-site.ts",
 
+  // B-F3: Multi-Niche Overview page aggregates per-site clicks, products and
+  // content across every tenant. The tenant client is restricted to the active
+  // site, so the rollup was blank. The helper is only reached from the
+  // super_admin-gated analytics page.
+  "lib/dal/analytics-dashboard.ts",
+
   // Admin user reads/writes (Settings + Users tabs and /api/admin/users) target
   // the global `admin_users` table, whose RLS grants access to service_role only
   // (migrations 00002 / 00040 "admin_users_service_all"). The tenant client
@@ -169,11 +175,12 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // before a site is set as active).
   "app/api/admin/sites/stats/route.ts",
 
-  // B-F2: Performance-by-domain rollup iterates every site in the registry
-  // via listSites() + getClickCount(). The default RLS tenant client only
-  // sees the active site, so all other tenants returned 0 clicks/$0. The
-  // route is super_admin-gated (requireSuperAdmin) and is inherently a
-  // cross-tenant aggregation — privileged client is required by design.
+  // B-F2: Performance-by-domain and multi-niche rollups iterate every site in
+  // the registry via listSites() / listAdminSites() + getClickCount() / countProducts
+  // / countContent(). The default RLS tenant client only sees the active site,
+  // so all other tenants returned 0 clicks/$0 and 0 products/content. The routes
+  // are super_admin-gated and are inherently cross-tenant aggregations —
+  // privileged client is required by design.
   "app/api/admin/analytics/domains/route.ts",
 
   // Health liveness probe uses service-role for the DB connectivity check.

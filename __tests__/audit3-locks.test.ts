@@ -208,7 +208,7 @@ describe("Audit-3 regression locks", () => {
       // authenticated role has no SELECT policy on `sites`, so tenant-scoped calls
       // returned zero rows and the cards were blank. Reached only from the
       // super_admin-gated dashboard.
-      expect(count).toBeLessThanOrEqual(43);
+      expect(count).toBeLessThanOrEqual(44);
     });
   });
 
