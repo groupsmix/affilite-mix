@@ -269,6 +269,13 @@
     // canonical multi-tenant origin (phase-3 audit F3-001).
     "APP_URL": "https://wristnerd.xyz",
     "ADMIN_SESSION_STRICT": "true",
+    // Deep-audit B3: fail CLOSED on KV outage for admin-token revocation
+    // checks. Without this individual flag the tri-state default is
+    // checked-but-fail-open, so a leaked admin token would be replayable
+    // during a KV outage. Accepts a small lockout-DoS risk (bounded by KV
+    // recovery time). Break-glass: set to "false" ONLY per
+    // docs/runbooks/kv-outage.md — startup alerting fires if it is.
+    "ADMIN_SESSION_TOKEN_REVOCATION_STRICT": "true",
     "INTERNAL_HMAC_MIGRATION_MODE": "strict",
   },
   // Workers observability (logs, errors, metrics in CF dashboard)
@@ -336,6 +343,9 @@
         "NODE_ENV": "production",
         "APP_URL": "https://staging.wristnerd.xyz",
         "ADMIN_SESSION_STRICT": "true",
+        // Deep-audit B3: match production so staging exercises the same
+        // fail-closed revocation path (see production vars for rationale).
+        "ADMIN_SESSION_TOKEN_REVOCATION_STRICT": "true",
         "INTERNAL_HMAC_MIGRATION_MODE": "strict",
         // Staging-specific environment variables
         "NEXT_PUBLIC_SUPABASE_URL": "${STAGING_SUPABASE_URL}",
