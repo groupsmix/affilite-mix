@@ -49,6 +49,20 @@ export default function AdminLoginPage() {
   // attaches __reactFiber$ to DOM nodes).
   useEffect(() => {
     document.body.setAttribute("data-e2e-hydrated", "1");
+
+    // A2: explain a binding/network-triggered logout instead of showing a
+    // bare login form. token-refresh.tsx appends ?reason=network_change when
+    // a mid-session refresh is rejected (commonly a mobile/CGNAT IP change).
+    try {
+      const reason = new URLSearchParams(window.location.search).get("reason");
+      if (reason === "network_change") {
+        setWarning(
+          "Your session ended after a network change (for example switching Wi-Fi or mobile networks). Please sign in again.",
+        );
+      }
+    } catch {
+      // URLSearchParams unavailable — nothing to surface.
+    }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
