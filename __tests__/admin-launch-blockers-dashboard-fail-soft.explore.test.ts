@@ -77,18 +77,26 @@ const RPC_FAILURE_STATES: PgError[] = [
  */
 function erroringDalClientGetter(error: PgError) {
   return async () => ({
-    rpc: (_fn: string, _args: unknown) => ({
-      limit: async (_n: number) => ({ data: null, error }),
-    }),
+    rpc: (_fn: string, _args: unknown) => {
+      const rpcResult = {
+        unsafeNoSiteFilter: () => rpcResult,
+        limit: async (_n: number) => ({ data: null, error }),
+      };
+      return rpcResult;
+    },
   });
 }
 
 /** A healthy client (control) — used to confirm the success path is preserved. */
 function healthyDalClientGetter(rows: NicheHealthRow[]) {
   return async () => ({
-    rpc: (_fn: string, _args: unknown) => ({
-      limit: async (_n: number) => ({ data: rows, error: null }),
-    }),
+    rpc: (_fn: string, _args: unknown) => {
+      const rpcResult = {
+        unsafeNoSiteFilter: () => rpcResult,
+        limit: async (_n: number) => ({ data: rows, error: null }),
+      };
+      return rpcResult;
+    },
   });
 }
 

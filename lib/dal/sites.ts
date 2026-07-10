@@ -1,6 +1,13 @@
 // DESIGN: No site_id filtering — this module manages the `sites` table itself (global scope).
 import { unstable_cache } from "next/cache";
 import { getTenantClient, getAnonClient } from "@/lib/supabase-server";
+// listAdminSites reads the global `sites` registry for cross-site admin cards
+// (Niche Health, Estimated Revenue). The `authenticated` role has no SELECT
+// policy on `sites` (only `anon` and `service_role`), so tenant-scoped calls
+// return zero rows. The privileged client is used with the existing .eq('site_id')
+// or opt-out guards in listSites.
+// nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 import { shouldSkipDbCall } from "@/lib/db-available";
 import type { SiteRow } from "@/types/database";
 import type { Database, Json } from "@/types/supabase";
@@ -56,6 +63,24 @@ export const listSites = unstable_cache(
   // namespaces so a zero-row tenant-client result can never poison the
   // privileged admin result.
   ["all-sites-privileged"],
+  { revalidate: 10, tags: ["sites"] },
+);
+
+/**
+ * List all sites using the privileged (service-role) client.
+ *
+ * Used by super-admin dashboard cards that need the full site registry (Niche
+ * Health, Estimated Revenue). The default tenant-scoped client cannot read
+ * `sites` because `sites` has no authenticated SELECT policy, so this helper
+ * routes through the privileged client. The result is cached separately from
+ * `listSites()` to avoid cache-poisoning by a tenant-scoped call.
+ */
+export const listAdminSites = unstable_cache(
+  async (): Promise<SiteRow[]> => {
+    if (shouldSkipDbCall()) return [];
+    return listSites(() => getPrivilegedSupabaseClient("list-admin-sites"));
+  },
+  ["admin-sites"],
   { revalidate: 10, tags: ["sites"] },
 );
 

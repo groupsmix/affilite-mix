@@ -91,6 +91,18 @@ export const SERVICE_ROLE_IMPORT_ALLOWLIST = [
   // getAdminSession() — see lib/dal/site-resolver.ts for the full rationale.
   "lib/dal/site-resolver.ts",
 
+  // Admin cross-site site registry reads. listAdminSites in lib/dal/sites.ts and
+  // the Niche Health / Estimated Revenue DALs in lib/dal/niche-health.ts and
+  // lib/dal/revenue-per-site.ts query the global `sites` table and aggregate
+  // per-site clicks/content across tenants. The authenticated role has no SELECT
+  // policy on `sites`, and per-site tables (affiliate_clicks, products, content)
+  // are RLS-scoped to the active site, so the tenant client returned zero rows
+  // and the dashboard cards were blank. These DALs are reached only from the
+  // super_admin-gated dashboard (page.tsx renders them only when isSuperAdmin).
+  "lib/dal/sites.ts",
+  "lib/dal/niche-health.ts",
+  "lib/dal/revenue-per-site.ts",
+
   // Admin user reads/writes (Settings + Users tabs and /api/admin/users) target
   // the global `admin_users` table, whose RLS grants access to service_role only
   // (migrations 00002 / 00040 "admin_users_service_all"). The tenant client

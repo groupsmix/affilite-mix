@@ -2,7 +2,13 @@
 import { unstable_cache } from "next/cache";
 
 import { getClickCount } from "@/lib/dal/affiliate-clicks";
-import { listSites } from "@/lib/dal/sites";
+import { listAdminSites } from "@/lib/dal/sites";
+// Per-site revenue is a cross-tenant aggregate: the tenant-scoped client only
+// sees the active site, so all other tenants report 0 clicks/$0. The card is
+// only rendered for super_admin, and every row is scoped by the explicit
+// .eq('site_id', siteId) inside getClickCount.
+// nosemgrep: service-role-import
+import { getPrivilegedSupabaseClient } from "@/lib/server-only/service-role"; // nosemgrep: service-role-import
 
 /**
  * Per-site click + estimated-revenue aggregate used by the super-admin
@@ -54,11 +60,13 @@ export async function getRevenuePerSite(sinceIso: string): Promise<SiteRevenueRo
 
 const cachedRevenueQuery = unstable_cache(
   async (sinceIso: string): Promise<SiteRevenueRow[]> => {
-    const sites = await listSites();
+    const sites = await listAdminSites();
 
     const rows = await Promise.all(
       sites.map(async (site) => {
-        const clicks = await getClickCount(site.id, sinceIso);
+        const clicks = await getClickCount(site.id, sinceIso, undefined, () =>
+          getPrivilegedSupabaseClient("revenue-per-site"),
+        );
         const ratePerClick = Number(site.est_revenue_per_click ?? 0);
         return {
           siteId: site.id,
