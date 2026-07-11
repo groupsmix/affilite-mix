@@ -11,7 +11,11 @@ import dynamic from "next/dynamic";
  * lesson as the compare homepage's static-import comment).
  */
 const WatchScrollExperience = dynamic(
-  () => import("./watch-scroll-experience").then((m) => m.WatchScrollExperience),
+  () =>
+    import(
+      /* webpackChunkName: "showcase-hero" */
+      "./watch-scroll-experience"
+    ).then((m) => m.WatchScrollExperience),
   {
     ssr: false,
     loading: () => <div className="h-[300vh] bg-background" aria-hidden="true" />,
