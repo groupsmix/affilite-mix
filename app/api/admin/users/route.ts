@@ -15,6 +15,8 @@ import { parseJsonBody } from "@/lib/api-error";
 import { requireStepUpAuth } from "@/lib/step-up-auth";
 import { isUsableUuid } from "@/lib/security/uuid";
 
+const VALID_ADMIN_ROLES = ["admin", "super_admin"] as const;
+
 /** GET /api/admin/users — list all admin users (super_admin only) */
 export async function GET() {
   const { error, session } = await requireAdmin();
@@ -80,9 +82,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const validRoles = ["admin", "super_admin"] as const;
-  const userRole = validRoles.includes(role as (typeof validRoles)[number])
-    ? (role as (typeof validRoles)[number])
+  const userRole = VALID_ADMIN_ROLES.includes(role as (typeof VALID_ADMIN_ROLES)[number])
+    ? (role as (typeof VALID_ADMIN_ROLES)[number])
     : "admin";
 
   try {
@@ -140,6 +141,13 @@ export async function PATCH(request: NextRequest) {
 
   if (!isUsableUuid(id)) {
     return NextResponse.json({ error: "Invalid id format" }, { status: 400 });
+  }
+
+  if (
+    role !== undefined &&
+    !VALID_ADMIN_ROLES.includes(role as (typeof VALID_ADMIN_ROLES)[number])
+  ) {
+    return NextResponse.json({ error: "role must be one of: admin, super_admin" }, { status: 400 });
   }
 
   // Prevent demoting or deactivating the last active super_admin.
