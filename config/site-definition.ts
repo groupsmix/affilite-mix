@@ -92,7 +92,14 @@ export interface SiteDefinition {
   };
 
   /** Homepage template preset. Defaults to "standard". */
-  homepageTemplate?: "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
+  homepageTemplate?:
+    | "standard"
+    | "cinematic"
+    | "minimal"
+    | "editorial"
+    | "top10"
+    | "compare"
+    | "showcase";
 
   /**
    * Chrome variant — controls the header and footer design for this site.

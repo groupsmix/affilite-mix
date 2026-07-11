@@ -14,7 +14,7 @@ export const watchToolsSite = defineSite({
   // gold is retained as accentLight for decorative/large-text contexts only.
   colors: { primary: "#1B2A4A", accent: "#8B6914", accentText: "#6B4F0F", accentLight: "#C9A96E" },
   fonts: "classic",
-  homepage: "cinematic",
+  homepage: "showcase",
 
   productLabel: "Watch",
   productLabelPlural: "Watches",
