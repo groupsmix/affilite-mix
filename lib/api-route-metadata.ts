@@ -167,6 +167,26 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
   },
   {
     ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/api-tokens",
+    methods: ["GET", "POST"],
+    requestSchema: "AdminApiTokenInput",
+    responseSchema: "AdminApiToken | AdminApiToken[]",
+    sensitiveFields: ["token"],
+    notes: "Creating API tokens is super_admin-only. The raw token is returned once on creation.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
+    auth: "super_admin",
+    path: "/api/admin/api-tokens/[id]",
+    methods: ["DELETE"],
+    requestSchema: null,
+    responseSchema: "{ ok: true }",
+    sensitiveFields: [],
+    notes: "Revoking an API token is super_admin-only.",
+  },
+  {
+    ...ADMIN_DEFAULTS,
     path: "/api/admin/categories",
     methods: ["GET", "POST", "PATCH", "DELETE"],
     requestSchema: "CategoryInput",
@@ -573,6 +593,20 @@ export const API_ROUTE_METADATA: ReadonlyArray<RouteMetadata> = [
     requestSchema: "{ token: string; newPassword: string }",
     responseSchema: "Ok",
     sensitiveFields: ["token", "newPassword"],
+  },
+  {
+    path: "/api/auth/token-login",
+    methods: ["POST"],
+    auth: "token",
+    adminRequired: false,
+    scope: "global",
+    rateLimit: true,
+    csrf: false,
+    requestSchema: "{ token: string }",
+    responseSchema: "{ ok: true } + httpOnly session cookie",
+    sensitiveFields: ["token"],
+    notes:
+      "Exchanges a pre-generated API token for an admin session. CSRF-exempt because the token is the auth factor.",
   },
 
   // --- Community routes -----------------------------------------------------

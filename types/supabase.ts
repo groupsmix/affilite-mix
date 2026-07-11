@@ -162,6 +162,60 @@ export type Database = {
           },
         ];
       };
+      admin_api_tokens: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          expires_at: string;
+          id: string;
+          is_active: boolean;
+          last_used_at: string | null;
+          name: string;
+          site_id: string | null;
+          token_hash: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          expires_at: string;
+          id?: string;
+          is_active?: boolean;
+          last_used_at?: string | null;
+          name: string;
+          site_id?: string | null;
+          token_hash: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          expires_at?: string;
+          id?: string;
+          is_active?: boolean;
+          last_used_at?: string | null;
+          name?: string;
+          site_id?: string | null;
+          token_hash?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_api_tokens_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "admin_users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "admin_api_tokens_site_id_fkey";
+            columns: ["site_id"];
+            isOneToOne: false;
+            referencedRelation: "sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       admin_site_memberships: {
         Row: {
           admin_user_id: string;
