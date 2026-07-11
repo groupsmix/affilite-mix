@@ -20,17 +20,7 @@ import Link from "next/link";
 // static import keeps the client bundle identical while painting the page at
 // its final height.
 import { CompareHomepage } from "./components/homepage-compare";
-
-// The showcase template is a 100 % client-side 3D experience. Lazy-loading it
-// keeps the three.js/gsap bundle out of the initial page JS for every other
-// homepage template, while the 300vh placeholder guards CLS while the chunk
-// and the WebGL canvas mount.
-const ShowcaseHomepage = dynamic(
-  () => import("./components/homepage-showcase").then((m) => m.ShowcaseHomepage),
-  {
-    loading: () => <div className="h-[300vh] bg-background" aria-hidden="true" />,
-  },
-);
+import { ShowcaseHomepage } from "./components/homepage-showcase";
 
 /**
  * PROD-INCIDENT-2026-06-11 follow-up: surface failures in the homepage's
@@ -151,13 +141,7 @@ export default async function HomePage() {
   }
 
   if (template === "showcase") {
-    return (
-      <>
-        <JsonLd data={organizationJsonLd(site)} />
-        <JsonLd data={webSiteJsonLd(site)} />
-        <ShowcaseHomepage {...homepageProps} />
-      </>
-    );
+    return <ShowcaseHomepage {...homepageProps} />;
   }
 
   const locale = site.language === "ar" ? "ar-SA" : "en-US";
