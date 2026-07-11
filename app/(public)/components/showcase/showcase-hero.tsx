@@ -1,26 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
-
-/**
- * Client wrapper for the three.js scroll hero. `ssr: false` keeps the
- * WebGL canvas (three + gsap, all client-only) out of the server render
- * and out of the initial bundle — the chunk only loads in the browser.
- * The 300vh placeholder reserves the hero's full scroll height so the
- * sections below don't shift when the chunk resolves (CLS guard, same
- * lesson as the compare homepage's static-import comment).
- */
-const WatchScrollExperience = dynamic(
-  () =>
-    import(
-      /* webpackChunkName: "showcase-hero" */
-      "./watch-scroll-experience"
-    ).then((m) => m.WatchScrollExperience),
-  {
-    ssr: false,
-    loading: () => <div className="h-[300vh] bg-background" aria-hidden="true" />,
-  },
-);
+import { useEffect, useState } from "react";
+import { WatchScrollExperience } from "./watch-scroll-experience";
 
 interface ShowcaseHeroProps {
   siteName: string;
@@ -28,5 +9,15 @@ interface ShowcaseHeroProps {
 }
 
 export function ShowcaseHero({ siteName, productLabelPlural }: ShowcaseHeroProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="h-[300vh] bg-background" aria-hidden="true" />;
+  }
+
   return <WatchScrollExperience siteName={siteName} productLabelPlural={productLabelPlural} />;
 }
