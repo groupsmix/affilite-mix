@@ -37,7 +37,14 @@ interface SiteFormData {
   language: string;
   direction: "ltr" | "rtl";
   monetization_type: "affiliate" | "ads" | "both";
-  homepage_template: "standard" | "cinematic" | "minimal" | "editorial" | "top10" | "compare";
+  homepage_template:
+    | "standard"
+    | "cinematic"
+    | "minimal"
+    | "editorial"
+    | "top10"
+    | "compare"
+    | "showcase";
   product_card_style: "standard" | "compact" | "detailed";
   meta_title: string;
   meta_description: string;
@@ -91,6 +98,11 @@ const HOMEPAGE_TEMPLATES = [
     value: "compare",
     label: "Compare",
     description: "Side-by-side product comparison layout for comparison sites",
+  },
+  {
+    value: "showcase",
+    label: "Showcase",
+    description: "Immersive 3D product hero with scroll-driven animation",
   },
 ] as const;
 

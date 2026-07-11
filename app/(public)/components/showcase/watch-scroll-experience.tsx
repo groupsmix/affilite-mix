@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Environment } from "@react-three/drei";
 import type { Group } from "three";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -100,10 +99,11 @@ export function WatchScrollExperience({
       <div className="pointer-events-none sticky top-0 z-0 h-screen w-full">
         <Canvas camera={{ position: [0, 0, 6.5], fov: 42 }} gl={{ antialias: true }}>
           <color attach="background" args={["#0a0a0c"]} />
-          <ambientLight intensity={0.55} />
-          <directionalLight position={[4, 6, 5]} intensity={1.6} />
-          <directionalLight position={[-5, -2, -4]} intensity={0.5} color="#c9a227" />
-          <Environment preset="studio" environmentIntensity={0.35} />
+          <ambientLight intensity={0.65} />
+          <hemisphereLight args={["#d4af37", "#1a1a1e", 0.55]} />
+          <directionalLight position={[4, 6, 5]} intensity={1.4} />
+          <directionalLight position={[-5, -2, -4]} intensity={0.4} color="#c9a227" />
+          <pointLight position={[0, 0, 8]} intensity={0.8} />
           <ScrollRig />
         </Canvas>
       </div>

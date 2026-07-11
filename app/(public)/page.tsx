@@ -20,6 +20,7 @@ import Link from "next/link";
 // static import keeps the client bundle identical while painting the page at
 // its final height.
 import { CompareHomepage } from "./components/homepage-compare";
+import { ShowcaseHomepage } from "./components/homepage-showcase";
 
 /**
  * PROD-INCIDENT-2026-06-11 follow-up: surface failures in the homepage's
@@ -52,9 +53,6 @@ const EditorialHomepage = dynamic(() =>
 );
 const Top10Homepage = dynamic(() =>
   import("./components/homepage-top10").then((m) => m.Top10Homepage),
-);
-const ShowcaseHomepage = dynamic(() =>
-  import("./components/homepage-showcase").then((m) => m.ShowcaseHomepage),
 );
 
 export async function generateMetadata(): Promise<Metadata> {
