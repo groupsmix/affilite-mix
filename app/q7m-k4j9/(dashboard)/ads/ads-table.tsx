@@ -9,6 +9,9 @@ import {
   MoreHorizontalIcon,
   type LucideIcon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -17,16 +20,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { fetchWithCsrf } from "@/lib/fetch-csrf";
 import { cn } from "@/lib/utils";
-import type { AdPlacementType, AdProvider } from "@/types/database";
+import type { AdPlacementRow, AdPlacementType, AdProvider } from "@/types/database";
+
+import { NewAdPlacementDialog } from "./new-ad-placement-dialog";
 
 /**
- * Row shape passed from the server page into the client table. Mirrors the
- * DAL's `AdPlacementRow` plus the two derived columns the server computes
- * from `getAdImpressionStats` + the relocated CPM map: `impressions_30d`,
+ * Row shape passed from the server page into the client table. Extends the
+ * DAL's `AdPlacementRow` and adds the derived columns the server computes from
+ * `getAdImpressionStats` + the relocated CPM map: `impressions_30d`,
  * `est_revenue_30d`, `cpm`, and `cpm_is_override`.
  *
  * Note: Task 14b's brief referenced a schema with `slot` and `placement_key`
@@ -35,18 +43,12 @@ import type { AdPlacementType, AdProvider } from "@/types/database";
  * column labels ("Slot" / "Key") so the UI matches the task description
  * without adding a new migration.
  */
-export interface AdsTableRow {
-  id: string;
-  name: string;
-  placement_type: AdPlacementType;
-  provider: AdProvider;
-  is_active: boolean;
+export interface AdsTableRow extends AdPlacementRow {
   impressions_30d: number;
   est_revenue_30d: number;
   cpm: number;
   /** True when `config.est_cpm` overrides the provider default. */
   cpm_is_override: boolean;
-  created_at: string;
 }
 
 export const ADS_TABLE_PAGE_SIZE = 50;
@@ -155,24 +157,43 @@ function StatusCell({ isActive }: { isActive: boolean }) {
   );
 }
 
-/**
- * Placeholder dropdown trigger — real row actions (edit, (de)activate,
- * duplicate, delete) land in Task 14c. Rendered as a disabled-looking
- * trigger with no menu items so the column width matches the post-14c
- * layout.
- */
-function RowActionsPlaceholder() {
+function AdRowActions({ ad }: { ad: AdsTableRow }) {
+  const router = useRouter();
+  const [editOpen, setEditOpen] = useState(false);
+
+  async function handleDelete() {
+    if (!confirm("Delete this ad placement?")) return;
+    const res = await fetchWithCsrf(`/api/admin/ads/${ad.id}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("Ad placement deleted");
+      router.refresh();
+    } else {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      toast.error(data.error ?? "Failed to delete ad placement");
+    }
+  }
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <div className="px-2 py-1.5 text-xs text-muted-foreground">No actions yet</div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="size-8 p-0" aria-label="Row actions">
+            <MoreHorizontalIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setEditOpen(true)}>Edit</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => void handleDelete()}
+            className="text-destructive focus:text-destructive"
+          >
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <NewAdPlacementDialog ad={ad} open={editOpen} onOpenChange={setEditOpen} />
+    </>
   );
 }
 
@@ -235,7 +256,7 @@ const adsTableColumns: ColumnDef<AdsTableRow>[] = [
   {
     id: "actions",
     header: () => <span className="sr-only">Actions</span>,
-    cell: () => <RowActionsPlaceholder />,
+    cell: ({ row }) => <AdRowActions ad={row.original} />,
     enableSorting: false,
     enableHiding: false,
   },
