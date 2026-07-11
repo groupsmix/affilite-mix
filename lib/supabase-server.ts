@@ -384,6 +384,18 @@ async function getAuthenticatedClient(
       },
       fetch: async (input, init) => {
         const nextOptions = (init as FetchWithTimeoutOptions | undefined)?.next;
+        // Admin requests (minted with a user sub) must never be served from a
+        // stale fetch cache; the dashboard shows empty tables after writes
+        // otherwise. Public/anonymous requests can still use the ISR-friendly
+        // revalidate tags.
+        const isAdmin = typeof userId === "string" && userId.length > 0;
+        if (isAdmin) {
+          return fetchWithTimeout(input as string, {
+            ...init,
+            timeoutMs: 12000,
+            cache: "no-store",
+          });
+        }
         return fetchWithTimeout(input as string, {
           ...init,
           timeoutMs: 12000,
