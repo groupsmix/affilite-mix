@@ -1,6 +1,7 @@
+"use client";
+
 import type { SiteDefinition } from "@/config/site-definition";
 import type { ContentRow, ProductRow, CategoryRow } from "@/types/database";
-import { JsonLd, organizationJsonLd, webSiteJsonLd } from "./json-ld";
 import { ShowcaseHero } from "./showcase/showcase-hero";
 import { Marquee } from "./showcase/showcase-ui";
 import { CollectionGrid } from "./showcase/collection-grid";
@@ -44,9 +45,6 @@ export function ShowcaseHomepage({
 
   return (
     <div className="dark showcase-root bg-background text-foreground">
-      <JsonLd data={organizationJsonLd(site)} />
-      <JsonLd data={webSiteJsonLd(site)} />
-
       <main className="flex min-h-screen flex-col">
         <ShowcaseHero siteName={site.name} productLabelPlural={site.productLabelPlural} />
         <Marquee items={marqueeItems} />
